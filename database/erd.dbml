@@ -1,0 +1,263 @@
+Project TraderHub {
+  database_type: "PostgreSQL"
+  Note: "Supabase/Postgres schema aligned to API_DATA_MODEL.md"
+}
+
+Table profiles {
+  id uuid [pk]
+  handle citext [not null, unique]
+  bio text
+  avatar_url text
+  experience_level text
+  trading_style text
+  public_journals boolean [not null, default: false]
+  subscription_tier text [not null, default: 'free']
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table subscriptions {
+  user_id uuid [pk]
+  tier text [not null, default: 'free']
+  status text [not null, default: 'active']
+  revenuecat_id text [unique]
+  billing_cycle text
+  renewed_at timestamptz
+  expires_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table device_tokens {
+  id uuid [pk]
+  user_id uuid [not null]
+  token text [not null]
+  platform text [not null]
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table strategies {
+  id uuid [pk]
+  user_id uuid [not null]
+  title text [not null]
+  content jsonb [not null]
+  category text
+  is_favorite boolean [default: false]
+  visibility text [default: 'private']
+  ai_summary text
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table strategy_versions {
+  id uuid [pk]
+  strategy_id uuid [not null]
+  content jsonb [not null]
+  version_number int [not null]
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table journal_entries {
+  id uuid [pk]
+  user_id uuid [not null]
+  ticker text
+  content text [not null]
+  entry_price numeric
+  exit_price numeric
+  stop_loss numeric
+  target numeric
+  size numeric
+  side text
+  pnl numeric
+  screenshots text[]
+  psychology text
+  mistakes_made text
+  lessons_learned text
+  strategy_id uuid
+  outcome text
+  outcome_source text [default: 'auto']
+  tags text[]
+  is_public boolean [default: false]
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table journal_entry_links {
+  id uuid [pk]
+  source_entry_id uuid [not null]
+  target_entry_id uuid [not null]
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table watchlists {
+  id uuid [pk]
+  user_id uuid [not null]
+  name text [not null]
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table watchlist_items {
+  id uuid [pk]
+  watchlist_id uuid [not null]
+  ticker text [not null]
+  notes text
+  category text
+  price_alert_threshold numeric
+  price_alert_direction text
+  alert_armed boolean [default: true]
+  alert_last_triggered_at timestamptz
+  is_favorite boolean [default: false]
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table posts {
+  id uuid [pk]
+  user_id uuid [not null]
+  content text [not null]
+  image_url text
+  ticker text
+  content_type text [default: 'market_discussion']
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table saved_posts {
+  user_id uuid [not null]
+  post_id uuid [not null]
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    (user_id, post_id) [pk]
+  }
+}
+
+Table comments {
+  id uuid [pk]
+  post_id uuid [not null]
+  user_id uuid [not null]
+  content text [not null]
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table follows {
+  follower_id uuid [not null]
+  followee_id uuid [not null]
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    (follower_id, followee_id) [pk]
+  }
+}
+
+Table likes {
+  user_id uuid [not null]
+  post_id uuid [not null]
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    (user_id, post_id) [pk]
+  }
+}
+
+Table ai_insights {
+  id uuid [pk]
+  ticker text [not null]
+  summary text [not null]
+  indicators jsonb
+  generated_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table ai_insight_requests {
+  id uuid [pk]
+  user_id uuid [not null]
+  kind text [default: 'ai_insight']
+  ticker text
+  requested_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table blocks {
+  blocker_id uuid [not null]
+  blocked_id uuid [not null]
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    (blocker_id, blocked_id) [pk]
+  }
+}
+
+Table conversations {
+  id uuid [pk]
+  user_a_id uuid [not null]
+  user_b_id uuid [not null]
+  last_message_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table messages {
+  id uuid [pk]
+  conversation_id uuid [not null]
+  sender_id uuid [not null]
+  content text [not null]
+  read_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table notifications {
+  id uuid [pk]
+  user_id uuid [not null]
+  category text [not null]
+  title text [not null]
+  body text
+  deep_link text
+  read_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table revenuecat_webhook_events {
+  event_id text [pk]
+  event_type text [not null]
+  processed_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Ref: subscriptions.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: device_tokens.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: strategies.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: strategy_versions.strategy_id > strategies.id [delete: cascade, update: cascade]
+Ref: journal_entries.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: journal_entries.strategy_id > strategies.id [delete: cascade, update: cascade]
+Ref: journal_entry_links.source_entry_id > journal_entries.id [delete: cascade, update: cascade]
+Ref: journal_entry_links.target_entry_id > journal_entries.id [delete: cascade, update: cascade]
+Ref: watchlists.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: watchlist_items.watchlist_id > watchlists.id [delete: cascade, update: cascade]
+Ref: posts.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: saved_posts.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: saved_posts.post_id > posts.id [delete: cascade, update: cascade]
+Ref: comments.post_id > posts.id [delete: cascade, update: cascade]
+Ref: comments.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: follows.follower_id > profiles.id [delete: cascade, update: cascade]
+Ref: follows.followee_id > profiles.id [delete: cascade, update: cascade]
+Ref: likes.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: likes.post_id > posts.id [delete: cascade, update: cascade]
+Ref: ai_insight_requests.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: blocks.blocker_id > profiles.id [delete: cascade, update: cascade]
+Ref: blocks.blocked_id > profiles.id [delete: cascade, update: cascade]
+Ref: conversations.user_a_id > profiles.id [delete: cascade, update: cascade]
+Ref: conversations.user_b_id > profiles.id [delete: cascade, update: cascade]
+Ref: messages.conversation_id > conversations.id [delete: cascade, update: cascade]
+Ref: messages.sender_id > profiles.id [delete: cascade, update: cascade]
+Ref: notifications.user_id > profiles.id [delete: cascade, update: cascade]
