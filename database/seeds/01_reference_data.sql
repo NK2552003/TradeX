@@ -1,0 +1,3 @@
+-- Reference seed intentionally minimal.
+-- Billing state is source-of-truth from RevenueCat webhook events.
+-- Add local fixtures in 02_demo_data.sql with real auth.users UUID values.
