@@ -14,8 +14,14 @@ class AsyncViewExampleView extends StatelessWidget {
         children: <Widget>[
           Text('UiAsyncView - Async State Loader', style: context.uiText.heading),
           SizedBox(height: context.sp(theme.spacing.md)),
-          UiAsyncView(
-            builder: (ctx) => const Text('Content loaded successfully!'),
+          UiAsyncViewStateCard(
+            title: 'Market Depth & Orderbook',
+            subtitle: 'Unified controller for loading, error, empty, and data states',
+            contentBuilder: (ctx) => const UiCard(
+              title: 'Live Orderbook Data Loaded',
+              subtitle: 'Depth: 250 levels • Refresh rate: 100ms',
+              child: Text('Market data stream is active.'),
+            ),
           ),
         ],
       ),

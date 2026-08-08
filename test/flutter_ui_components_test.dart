@@ -214,5 +214,122 @@ void main() {
 
       expect(find.byType(UiSkeleton), findsOneWidget);
     });
+
+    testWidgets('UiAreaChart renders area chart with gradient and dots', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        buildTestable(
+          const UiAreaChart(
+            height: 150,
+            data: [
+              UiChartPoint(label: 'Jan', values: [100, 150]),
+              UiChartPoint(label: 'Feb', values: [120, 180]),
+            ],
+            series: [
+              UiChartSeries(name: 'Portfolio', color: Colors.blue),
+              UiChartSeries(name: 'Index', color: Colors.green),
+            ],
+            showDots: true,
+            lineGlow: true,
+          ),
+        ),
+      );
+
+      expect(find.byType(UiAreaChart), findsOneWidget);
+    });
+
+    testWidgets('UiAreaChartCard renders title, metric value, controls and timeframe selectors', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        buildTestable(
+          UiAreaChartCard(
+            title: 'Equity Performance',
+            metricValue: r'$100,000',
+            metricChange: '+10%',
+            data: const [
+              UiChartPoint(label: 'Day 1', values: [100]),
+              UiChartPoint(label: 'Day 2', values: [110]),
+            ],
+            series: const [
+              UiChartSeries(name: 'Equity', color: Colors.blue),
+            ],
+          ),
+        ),
+      );
+
+      expect(find.text('Equity Performance'), findsOneWidget);
+      expect(find.text(r'$100,000'), findsOneWidget);
+      expect(find.text('+10%'), findsOneWidget);
+      expect(find.byType(UiAreaChartCard), findsOneWidget);
+    });
+
+    testWidgets('UiAsyncView renders loading, error, empty and content states', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        buildTestable(
+          UiAsyncView(
+            loading: true,
+            loadingMessage: 'Loading quotes...',
+            builder: (ctx) => const Text('Data Ready'),
+          ),
+        ),
+      );
+      expect(find.text('Loading quotes...'), findsOneWidget);
+
+      await tester.pumpWidget(
+        buildTestable(
+          UiAsyncView(
+            error: 'Failed to connect',
+            errorTitle: 'Connection Error',
+            builder: (ctx) => const Text('Data Ready'),
+          ),
+        ),
+      );
+      expect(find.text('Connection Error'), findsOneWidget);
+      expect(find.text('Failed to connect'), findsOneWidget);
+
+      await tester.pumpWidget(
+        buildTestable(
+          UiAsyncView(
+            isEmpty: true,
+            emptyTitle: 'No items',
+            builder: (ctx) => const Text('Data Ready'),
+          ),
+        ),
+      );
+      expect(find.text('No items'), findsOneWidget);
+
+      await tester.pumpWidget(
+        buildTestable(
+          UiAsyncView(
+            builder: (ctx) => const Text('Data Ready'),
+          ),
+        ),
+      );
+      expect(find.text('Data Ready'), findsOneWidget);
+    });
+
+    testWidgets('UiAsyncViewStateCard renders title and allows state toggling', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        buildTestable(
+          UiAsyncViewStateCard(
+            title: 'Async Test Controller',
+            contentBuilder: (ctx) => const Text('Order Content'),
+          ),
+        ),
+      );
+
+      expect(find.text('Async Test Controller'), findsOneWidget);
+      expect(find.text('Order Content'), findsOneWidget);
+
+      await tester.tap(find.text('Loading'));
+      await tester.pump();
+      expect(find.text('Fetching live market orderbook & quotes...'), findsOneWidget);
+
+      await tester.tap(find.text('Error'));
+      await tester.pump();
+      expect(find.text('Failed to fetch live quotes'), findsOneWidget);
+
+      await tester.tap(find.text('Empty'));
+      await tester.pump();
+      expect(find.text('No active orders'), findsOneWidget);
+    });
   });
 }

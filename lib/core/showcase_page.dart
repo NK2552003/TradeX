@@ -290,12 +290,67 @@ class _NumberedComponentShowcasePageState
           ],
         );
       case 2: // UiAreaChart
-        return const SizedBox(
-          height: 100,
-          child: UiSparkChart(values: <double>[10, 20, 15, 30], height: 100),
+        return UiAreaChart(
+          height: 140,
+          data: const <UiChartPoint>[
+            UiChartPoint(label: '09:00', values: <double>[10500]),
+            UiChartPoint(label: '11:00', values: <double>[12800]),
+            UiChartPoint(label: '13:00', values: <double>[11400]),
+            UiChartPoint(label: '15:00', values: <double>[14200]),
+            UiChartPoint(label: '17:00', values: <double>[15900]),
+          ],
+          series: const <UiChartSeries>[
+            UiChartSeries(name: 'Equity Curve', color: Color(0xFF6366F1)),
+          ],
+          showLegend: false,
+          showGrid: true,
+          showDots: true,
+          lineGlow: true,
         );
       case 3: // UiAsyncView
-        return UiAsyncView(builder: (ctx) => const Text('Async Data Ready'));
+        return UiAsyncViewStateCard(
+          title: 'Async State Controller',
+          subtitle: 'Manages Loading, Error, Empty, and Content states',
+          contentBuilder: (ctx) {
+            final theme = ctx.ui;
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colors.surfaceMuted,
+                borderRadius: ctx.radius(theme.radii.md),
+                border: Border.all(
+                  color: theme.colors.border,
+                  width: theme.borders.hairline,
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  const UiAvatar(name: 'NVDA Stock', size: UiSize.sm),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          'NVIDIA Corp (NVDA)',
+                          style: ctx.uiText.heading.copyWith(fontSize: 14),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Filled Order • Buy 50 Shares @ \$128.50',
+                          style: ctx.uiText.caption.copyWith(
+                            color: theme.colors.foregroundMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const UiBadge(label: 'Executed', intent: UiIntent.bullish),
+                ],
+              ),
+            );
+          },
+        );
       case 4: // UiAvatar
         return const UiAvatar(name: 'Nitish Kumar', size: UiSize.md);
       case 5: // UiAvatarGroup
