@@ -27,25 +27,8 @@ class _AppScaffoldState extends State<AppScaffold> {
   Widget build(BuildContext context) {
     final theme = context.ui;
     return Scaffold(
+      key: const ValueKey<String>(AppConstants.appName),
       backgroundColor: theme.colors.background,
-      appBar: AppBar(
-        title: Text(AppConstants.appName, style: context.uiText.heading),
-        centerTitle: true,
-        actions: <Widget>[
-          UiIconButton(
-            icon: Icons.grid_view_rounded,
-            tooltip: 'View 133 Component Showcase',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (context) => const NumberedComponentShowcasePage(),
-                ),
-              );
-            },
-          ),
-          SizedBox(width: context.sp(theme.spacing.sm)),
-        ],
-      ),
       body: _pages[_selectedIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
