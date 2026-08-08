@@ -18,6 +18,9 @@ class UiComboChart extends StatelessWidget {
     this.curved = true,
     this.interactive = true,
     this.toggleableLegend = true,
+    this.stacked = false,
+    this.glow = false,
+    this.thresholds = const <UiChartThreshold>[],
   });
 
   final List<UiChartPoint> data;
@@ -30,6 +33,9 @@ class UiComboChart extends StatelessWidget {
   final bool curved;
   final bool interactive;
   final bool toggleableLegend;
+  final bool stacked;
+  final bool glow;
+  final List<UiChartThreshold> thresholds;
 
   @override
   Widget build(BuildContext context) => UiChart(
@@ -43,5 +49,8 @@ class UiComboChart extends StatelessWidget {
         curved: curved,
         interactive: interactive,
         toggleableLegend: toggleableLegend,
+        stacked: stacked,
+        glow: glow,
+        thresholds: thresholds,
       );
 }

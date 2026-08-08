@@ -61,7 +61,7 @@ class _UiLightboxState extends State<UiLightbox> {
                   child: Image.network(
                     widget.imageUrls[i],
                     fit: BoxFit.contain,
-                    errorBuilder: (BuildContext ctx, Object err, StackTrace? st) => Icon(
+                    errorBuilder: (_, _, _) => Icon(
                       Icons.broken_image_outlined,
                       size: ctx.sz(theme.sizes.iconLg * 2),
                       color: theme.colors.foregroundSubtle,
@@ -153,8 +153,8 @@ class _UiLightboxState extends State<UiLightbox> {
   }
 }
 
-/// Helper to present [UiLightbox] as a fullscreen modal route.
-void showUiLightbox(
+/// Opens [UiLightbox] as a dismissible full-screen route.
+Future<void> showUiLightbox(
   BuildContext context, {
   required List<String> imageUrls,
   int initialIndex = 0,
@@ -166,14 +166,14 @@ void showUiLightbox(
       PageRouteBuilder<void>(
         opaque: false,
         barrierColor: Colors.transparent,
-        pageBuilder: (BuildContext ctx, Animation<double> a1, Animation<double> a2) => UiLightbox(
+        pageBuilder: (_, _, _) => UiLightbox(
           imageUrls: imageUrls,
           initialIndex: initialIndex,
           caption: caption,
           onDownload: onDownload,
           onShare: onShare,
         ),
-        transitionsBuilder: (BuildContext ctx, Animation<double> a, Animation<double> secAnim, Widget child) =>
+        transitionsBuilder: (_, Animation<double> a, _, Widget child) =>
             FadeTransition(opacity: a, child: child),
       ),
     );

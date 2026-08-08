@@ -12,11 +12,15 @@ class AppStatCard extends StatelessWidget {
     required this.stat,
     this.onTap,
     this.dense = false,
+    this.selected = false,
   });
 
   final AppStat stat;
   final VoidCallback? onTap;
   final bool dense;
+
+  /// Highlights the tile as the active/selected KPI.
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +34,7 @@ class AppStatCard extends StatelessWidget {
     return AppHoverLift(
       child: UiCard(
         onTap: onTap,
+        selected: selected,
         padding: dense ? EdgeInsets.all(context.sp(theme.spacing.md)) : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,7 +348,9 @@ class AppStreakCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
     return UiCard(
+      padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
       title: title,
       trailing: currentStreak == null
           ? null

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'ui_chart_base.dart';
+import 'ui_common.dart';
 
 /// Sparkline: no axes, no grid, no legend, compact height. Used inline in
 /// tables, cards and list rows.
@@ -13,6 +14,7 @@ class UiSparkChart extends StatelessWidget {
     this.curved = true,
     this.filled = false,
     this.labels,
+    this.valueFormatter,
   });
 
   /// Raw series values; labels are optional because a spark has no axis.
@@ -22,6 +24,7 @@ class UiSparkChart extends StatelessWidget {
   final bool curved;
   final bool filled;
   final List<String>? labels;
+  final UiValueFormatter? valueFormatter;
 
   @override
   Widget build(BuildContext context) => UiChart.spark(
@@ -40,6 +43,7 @@ class UiSparkChart extends StatelessWidget {
           ),
         ],
         height: height,
+        valueFormatter: valueFormatter,
         curved: curved,
       );
 }

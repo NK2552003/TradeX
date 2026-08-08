@@ -13,6 +13,8 @@ class AppStrategyCard extends StatelessWidget {
     this.onTap,
     this.onFavorite,
     this.dense = false,
+    this.selected = false,
+    this.loading = false,
   });
 
   final AppStrategy strategy;
@@ -20,12 +22,20 @@ class AppStrategyCard extends StatelessWidget {
   final VoidCallback? onFavorite;
   final bool dense;
 
+  /// Highlights the card as the active/selected strategy.
+  final bool selected;
+
+  /// Renders the built-in [UiCard] skeleton instead of the summary body.
+  final bool loading;
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     return AppHoverLift(
       child: UiCard(
         onTap: onTap,
+        selected: selected,
+        loading: loading,
         title: strategy.name,
         subtitle: strategy.category,
         trailing: UiIconButton(

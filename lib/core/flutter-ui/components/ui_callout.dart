@@ -22,20 +22,7 @@ class UiCallout extends StatelessWidget {
   final VoidCallback? onClose;
   final Widget? action;
 
-  IconData get _defaultIcon {
-    switch (intent) {
-      case UiIntent.bullish:
-        return Icons.check_circle_outline;
-      case UiIntent.bearish:
-        return Icons.error_outline;
-      case UiIntent.warning:
-        return Icons.warning_amber_outlined;
-      case UiIntent.info:
-      case UiIntent.primary:
-      case UiIntent.neutral:
-        return Icons.info_outline;
-    }
-  }
+  IconData get _defaultIcon => intent.icon;
 
   @override
   Widget build(BuildContext context) {

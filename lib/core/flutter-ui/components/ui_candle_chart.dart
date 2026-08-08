@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/ui_theme.dart';
 import '../theme/ui_tokens.dart';
@@ -544,8 +544,10 @@ class _UiCandlePainter extends CustomPainter {
       case UiIntent.primary:
         return colors.primary;
       case UiIntent.bullish:
+      case UiIntent.success:
         return colors.bullish;
       case UiIntent.bearish:
+      case UiIntent.danger:
         return colors.bearish;
       case UiIntent.warning:
         return colors.warning;

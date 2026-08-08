@@ -241,14 +241,10 @@ class AppBacktestResultBlock extends StatelessWidget {
               _metric(context, 'Win rate',
                   AppTokens.percent(result.winRate * 100)),
               _metric(context, 'Trades', '${result.trades}'),
+              _metric(context, 'Profit factor',
+                  result.profitFactor?.toStringAsFixed(2) ?? 'N/A'),
               _metric(context, 'Max DD',
-                  AppTokens.percent(result.maxDrawdown * 100),
-                  color: theme.colors.destructive),
-              if (result.profitFactor != null)
-                _metric(context, 'Profit factor',
-                    result.profitFactor!.toStringAsFixed(2)),
-              if (result.sharpe != null)
-                _metric(context, 'Sharpe', result.sharpe!.toStringAsFixed(2)),
+                  AppTokens.percent(result.maxDrawdown * 100)),
             ],
           ),
           SizedBox(height: context.sp(theme.spacing.lg)),

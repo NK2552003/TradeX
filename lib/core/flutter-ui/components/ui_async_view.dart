@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
 import 'ui_button.dart';
-import 'ui_card.dart';
 import 'ui_common.dart';
 import 'ui_empty_state.dart';
-import 'ui_toggle_group.dart';
 
 /// One switch for the four states every data-backed screen has:
 /// loading -> error -> empty -> content.
@@ -17,76 +15,51 @@ class UiAsyncView extends StatelessWidget {
     super.key,
     required this.builder,
     this.loading = false,
+    this.loadingMessage,
     this.error,
     this.isEmpty = false,
     this.onRetry,
     this.loadingBuilder,
-    this.loadingMessage,
     this.emptyTitle = 'Nothing here yet',
     this.emptyMessage,
     this.emptyIcon = Icons.inbox_outlined,
     this.emptyAction,
     this.errorTitle = 'Something went wrong',
-    this.animateStateTransitions = true,
   });
 
   final WidgetBuilder builder;
   final bool loading;
+  final String? loadingMessage;
   final String? error;
   final bool isEmpty;
   final VoidCallback? onRetry;
   final WidgetBuilder? loadingBuilder;
-  final String? loadingMessage;
   final String emptyTitle;
   final String? emptyMessage;
   final IconData emptyIcon;
   final Widget? emptyAction;
   final String errorTitle;
-  final bool animateStateTransitions;
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.ui;
-
-    Widget child;
-    Key key;
-
     if (loading) {
-      key = const ValueKey<String>('async_state_loading');
-      child = loadingBuilder?.call(context) ??
+      return loadingBuilder?.call(context) ??
           Padding(
-            padding: EdgeInsets.symmetric(
-              vertical: context.sp(theme.spacing.xl),
-              horizontal: context.sp(theme.spacing.lg),
-            ),
+            padding: EdgeInsets.all(context.sp(context.uiSpace.xl)),
             child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  SizedBox(
-                    width: context.sz(28),
-                    height: context.sz(28),
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: theme.colors.primary,
-                    ),
-                  ),
-                  if (loadingMessage != null) ...<Widget>[
-                    SizedBox(height: context.sp(theme.spacing.md)),
-                    Text(
-                      loadingMessage!,
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
-                      ),
-                    ),
-                  ],
-                ],
+              child: SizedBox(
+                width: context.sz(24),
+                height: context.sz(24),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: context.uiColors.primary,
+                ),
               ),
             ),
           );
-    } else if (error != null) {
-      key = ValueKey<String>('async_state_error_$error');
-      child = UiEmptyState(
+    }
+    if (error != null) {
+      return UiEmptyState(
         title: errorTitle,
         message: error,
         icon: Icons.error_outline,
@@ -100,143 +73,130 @@ class UiAsyncView extends StatelessWidget {
                 onPressed: onRetry,
               ),
       );
-    } else if (isEmpty) {
-      key = const ValueKey<String>('async_state_empty');
-      child = UiEmptyState(
+    }
+    if (isEmpty) {
+      return UiEmptyState(
         title: emptyTitle,
         message: emptyMessage,
         icon: emptyIcon,
         action: emptyAction,
       );
-    } else {
-      key = const ValueKey<String>('async_state_content');
-      child = builder(context);
     }
-
-    if (!animateStateTransitions) return child;
-
-    return AnimatedSwitcher(
-      duration: theme.motion.fast,
-      switchInCurve: theme.motion.curve,
-      switchOutCurve: theme.motion.curve,
-      child: KeyedSubtree(
-        key: key,
-        child: child,
-      ),
-    );
+    return builder(context);
   }
 }
 
-/// Interactive Card wrapper for testing and demonstrating UiAsyncView states
-/// (Data Ready, Loading, Error, Empty).
+/// A self-contained demo/utility card that exposes the four async states of
+/// [UiAsyncView] behind a segmented switcher. Useful in showcases, empty
+/// dashboards and any screen that wants users to preview a data state.
 class UiAsyncViewStateCard extends StatefulWidget {
   const UiAsyncViewStateCard({
     super.key,
-    required this.title,
-    this.subtitle,
     required this.contentBuilder,
-    this.initialState = 'ready',
-    this.onStateChanged,
+    this.title,
+    this.subtitle,
+    this.initialStatus = UiStatus.ready,
+    this.errorMessage = 'The request timed out. Check your connection.',
+    this.emptyTitle = 'Nothing here yet',
+    this.emptyMessage = 'Data will appear once it is available.',
+    this.onRetry,
+    this.showSwitcher = true,
+    this.onStatusChanged,
   });
 
-  final String title;
-  final String? subtitle;
   final WidgetBuilder contentBuilder;
-  final String initialState; // 'ready', 'loading', 'error', 'empty'
-  final ValueChanged<String>? onStateChanged;
+  final String? title;
+  final String? subtitle;
+  final UiStatus initialStatus;
+  final String errorMessage;
+  final String emptyTitle;
+  final String emptyMessage;
+  final VoidCallback? onRetry;
+  final bool showSwitcher;
+  final ValueChanged<UiStatus>? onStatusChanged;
 
   @override
   State<UiAsyncViewStateCard> createState() => _UiAsyncViewStateCardState();
 }
 
 class _UiAsyncViewStateCardState extends State<UiAsyncViewStateCard> {
-  late String _state;
-  bool _isSimulating = false;
+  late UiStatus _status = widget.initialStatus;
 
-  @override
-  void initState() {
-    super.initState();
-    _state = widget.initialState;
-  }
+  static const List<UiStatus> _states = <UiStatus>[
+    UiStatus.ready,
+    UiStatus.loading,
+    UiStatus.empty,
+    UiStatus.error,
+  ];
 
-  void _setState(String s) {
-    setState(() => _state = s);
-    widget.onStateChanged?.call(s);
-  }
-
-  void _simulateAsyncFetch() async {
-    if (_isSimulating) return;
-    setState(() {
-      _isSimulating = true;
-      _state = 'loading';
-    });
-    await Future<void>.delayed(const Duration(seconds: 2));
-    if (mounted) {
-      setState(() {
-        _isSimulating = false;
-        _state = 'ready';
-      });
+  String _label(UiStatus s) {
+    switch (s) {
+      case UiStatus.ready:
+        return 'Content';
+      case UiStatus.loading:
+        return 'Loading';
+      case UiStatus.empty:
+        return 'Empty';
+      case UiStatus.error:
+        return 'Error';
+      case UiStatus.idle:
+        return 'Idle';
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-
-    return UiCard(
-      title: widget.title,
-      subtitle: widget.subtitle,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: context.sp(theme.spacing.sm),
-            runSpacing: context.sp(theme.spacing.sm),
-            children: <Widget>[
-              UiToggleGroup<String>(
-                value: _state,
-                options: const <UiToggleOption<String>>[
-                  UiToggleOption<String>(value: 'ready', label: 'Data Ready'),
-                  UiToggleOption<String>(value: 'loading', label: 'Loading'),
-                  UiToggleOption<String>(value: 'error', label: 'Error'),
-                  UiToggleOption<String>(value: 'empty', label: 'Empty'),
-                ],
-                onChanged: _setState,
-              ),
-              UiButton(
-                label: _isSimulating ? 'Fetching...' : 'Simulate Load',
-                variant: UiVariant.ghost,
-                size: UiSize.sm,
-                leadingIcon: Icons.bolt,
-                onPressed: _isSimulating ? null : _simulateAsyncFetch,
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (widget.title != null)
+          Text(
+            widget.title!,
+            style: context.uiText.subheading
+                .copyWith(color: theme.colors.foreground),
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          UiAsyncView(
-            loading: _state == 'loading',
-            loadingMessage: 'Fetching live market orderbook & quotes...',
-            error: _state == 'error'
-                ? 'Network Connection Timeout (504 Gateway Error)'
-                : null,
-            errorTitle: 'Failed to fetch live quotes',
-            onRetry: () => _setState('ready'),
-            isEmpty: _state == 'empty',
-            emptyTitle: 'No active orders',
-            emptyMessage: 'Place a buy or sell trade to populate your order history.',
-            emptyIcon: Icons.receipt_long_outlined,
-            emptyAction: UiButton(
-              label: 'Place Order',
-              leadingIcon: Icons.add,
-              expandOnMobile: false,
-              onPressed: () => _setState('ready'),
-            ),
-            builder: widget.contentBuilder,
+        if (widget.subtitle != null) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.xxs)),
+          Text(
+            widget.subtitle!,
+            style: context.uiText.caption
+                .copyWith(color: theme.colors.foregroundMuted),
           ),
         ],
-      ),
+        if (widget.showSwitcher) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Wrap(
+            spacing: context.sp(theme.spacing.xs),
+            children: <Widget>[
+              for (final UiStatus s in _states)
+                UiButton(
+                  label: _label(s),
+                  size: UiSize.xs,
+                  variant:
+                      _status == s ? UiVariant.soft : UiVariant.outline,
+                  intent: _status == s ? UiIntent.primary : UiIntent.neutral,
+                  expandOnMobile: false,
+                  onPressed: () {
+                    setState(() => _status = s);
+                    widget.onStatusChanged?.call(s);
+                  },
+                ),
+            ],
+          ),
+        ],
+        SizedBox(height: context.sp(theme.spacing.md)),
+        UiAsyncView(
+          loading: _status == UiStatus.loading,
+          isEmpty: _status == UiStatus.empty,
+          error: _status == UiStatus.error ? widget.errorMessage : null,
+          emptyTitle: widget.emptyTitle,
+          emptyMessage: widget.emptyMessage,
+          onRetry: widget.onRetry ??
+              () => setState(() => _status = UiStatus.ready),
+          builder: widget.contentBuilder,
+        ),
+      ],
     );
   }
 }

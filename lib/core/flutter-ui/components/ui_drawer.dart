@@ -31,7 +31,7 @@ class UiDrawer extends StatelessWidget {
       barrierLabel: title,
       barrierColor: theme.colors.overlay,
       transitionDuration: theme.motion.normal,
-      pageBuilder: (BuildContext ctx, Animation<double> a1, Animation<double> a2) => Align(
+      pageBuilder: (BuildContext ctx, _, _) => Align(
         alignment: mobile
             ? Alignment.bottomCenter
             : (fromRight ? Alignment.centerRight : Alignment.centerLeft),
@@ -46,7 +46,7 @@ class UiDrawer extends StatelessWidget {
           ),
         ),
       ),
-      transitionBuilder: (BuildContext ctx, Animation<double> anim, Animation<double> secAnim,
+      transitionBuilder: (BuildContext ctx, Animation<double> anim, _,
               Widget child) =>
           SlideTransition(
         position: Tween<Offset>(

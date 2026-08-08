@@ -152,6 +152,8 @@ class AppAiAnalysisCard extends StatelessWidget {
     this.onAsk,
     this.onDismiss,
     this.onTickerTap,
+    this.loading = false,
+    this.error,
   });
 
   final AppAiInsight insight;
@@ -160,6 +162,12 @@ class AppAiAnalysisCard extends StatelessWidget {
   final VoidCallback? onDismiss;
   final ValueChanged<String>? onTickerTap;
 
+  /// Renders the built-in [UiCard] skeleton instead of the analysis body.
+  final bool loading;
+
+  /// When set, shows an inline error callout instead of the analysis body.
+  final String? error;
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
@@ -167,6 +175,7 @@ class AppAiAnalysisCard extends StatelessWidget {
     return UiCard(
       accentColor: theme.colors.primary,
       title: insight.title,
+      loading: loading,
       subtitle: insight.createdAt == null
           ? 'AI analysis'
           : 'AI analysis · ${AppTokens.relativeTime(insight.createdAt!)}',
@@ -186,72 +195,79 @@ class AppAiAnalysisCard extends StatelessWidget {
               leadingIcon: Icons.chat_bubble_outline,
               onPressed: onAsk,
             ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(insight.body, style: context.uiText.body),
-          if (observations.isNotEmpty) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
-            for (final String o in observations)
-              Padding(
-                padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Icon(
-                      Icons.auto_awesome,
-                      size: context.sz(theme.sizes.iconSm),
-                      color: theme.colors.primary,
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.sm)),
-                    Expanded(child: Text(o, style: context.uiText.body)),
-                  ],
-                ),
-              ),
-          ],
-          if (insight.sentimentScore != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
-            Row(
+      child: error != null
+          ? UiCallout(
+              title: 'Analysis failed',
+              message: error,
+              intent: UiIntent.bearish,
+              icon: Icons.error_outline,
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                UiBadge(
-                  label: AppTokens.sentimentLabel(insight.sentimentScore!),
-                  filled: true,
-                  intent: insight.sentimentScore! > 0
-                      ? UiIntent.bullish
-                      : (insight.sentimentScore! < 0
-                          ? UiIntent.bearish
-                          : UiIntent.neutral),
-                ),
-                if (insight.tickers.isNotEmpty) ...<Widget>[
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  for (final String t in insight.tickers)
+                Text(insight.body, style: context.uiText.body),
+                if (observations.isNotEmpty) ...<Widget>[
+                  SizedBox(height: context.sp(theme.spacing.md)),
+                  for (final String o in observations)
                     Padding(
-                      padding:
-                          EdgeInsets.only(right: context.sp(theme.spacing.xs)),
-                      child: UiBadge(
-                        label: '\$$t',
-                        intent: UiIntent.primary,
-                        onTap:
-                            onTickerTap == null ? null : () => onTickerTap!(t),
+                      padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Icon(
+                            Icons.auto_awesome,
+                            size: context.sz(theme.sizes.iconSm),
+                            color: theme.colors.primary,
+                          ),
+                          SizedBox(width: context.sp(theme.spacing.sm)),
+                          Expanded(child: Text(o, style: context.uiText.body)),
+                        ],
                       ),
                     ),
                 ],
+                if (insight.sentimentScore != null) ...<Widget>[
+                  SizedBox(height: context.sp(theme.spacing.md)),
+                  Row(
+                    children: <Widget>[
+                      UiBadge(
+                        label: AppTokens.sentimentLabel(insight.sentimentScore!),
+                        filled: true,
+                        intent: insight.sentimentScore! > 0
+                            ? UiIntent.bullish
+                            : (insight.sentimentScore! < 0
+                                ? UiIntent.bearish
+                                : UiIntent.neutral),
+                      ),
+                      if (insight.tickers.isNotEmpty) ...<Widget>[
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        for (final String t in insight.tickers)
+                          Padding(
+                            padding:
+                                EdgeInsets.only(right: context.sp(theme.spacing.xs)),
+                            child: UiBadge(
+                              label: '\$$t',
+                              intent: UiIntent.primary,
+                              onTap:
+                                  onTickerTap == null ? null : () => onTickerTap!(t),
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+                ],
+                if (confidence != null) ...<Widget>[
+                  SizedBox(height: context.sp(theme.spacing.md)),
+                  UiProgressBar(
+                    value: confidence,
+                    label: 'Confidence',
+                    intent: confidence >= 0.66
+                        ? UiIntent.bullish
+                        : (confidence >= 0.33 ? UiIntent.warning : UiIntent.bearish),
+                    valueFormatter: (num v) => AppTokens.percent(v * 100),
+                  ),
+                ],
               ],
             ),
-          ],
-          if (confidence != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
-            UiProgressBar(
-              value: confidence,
-              label: 'Confidence',
-              intent: confidence >= 0.66
-                  ? UiIntent.bullish
-                  : (confidence >= 0.33 ? UiIntent.warning : UiIntent.bearish),
-              valueFormatter: (num v) => AppTokens.percent(v * 100),
-            ),
-          ],
-        ],
-      ),
     );
   }
 }

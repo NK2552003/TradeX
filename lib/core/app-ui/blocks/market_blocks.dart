@@ -255,8 +255,8 @@ class AppSentimentBlock extends StatelessWidget {
 }
 
 /// AI insights rail / list.
-class AppAiInsightsBlock extends StatelessWidget {
-  const AppAiInsightsBlock({
+class AppMarketAiInsightsBlock extends StatelessWidget {
+  const AppMarketAiInsightsBlock({
     super.key,
     required this.insights,
     this.title = 'AI insights',

@@ -233,9 +233,7 @@ class AppStrategyGraphBlock extends StatelessWidget {
           UiGraphCanvas(
             height: height,
             selectedId: selectedId,
-            onSelect: onSelect == null
-                ? null
-                : (UiGraphNode? node) => onSelect!(node?.id),
+            onSelect: onSelect == null ? null : (UiGraphNode? node) => onSelect!(node?.id),
             nodes: <UiGraphNode>[
               for (final AppGraphNode n in nodes)
                 UiGraphNode(

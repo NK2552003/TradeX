@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../flutter-ui/theme/ui_theme.dart';
+import '../../flutter-ui/flutter_ui.dart';
 
 /// Shared motion helpers. Every duration/curve resolves from `theme.motion`
 /// so motion stays consistent with the design system.

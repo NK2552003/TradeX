@@ -60,7 +60,7 @@ class UiPopover extends StatelessWidget {
           );
         }
       },
-      builder: (BuildContext ctx, UiInteractiveState st) => trigger,
+      builder: (_, _) => trigger,
     );
   }
 }

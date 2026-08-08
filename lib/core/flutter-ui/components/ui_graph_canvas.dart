@@ -243,8 +243,10 @@ class _UiGraphPainter extends CustomPainter {
       case UiIntent.primary:
         return colors.primary;
       case UiIntent.bullish:
+      case UiIntent.success:
         return colors.bullish;
       case UiIntent.bearish:
+      case UiIntent.danger:
         return colors.bearish;
       case UiIntent.warning:
         return colors.warning;

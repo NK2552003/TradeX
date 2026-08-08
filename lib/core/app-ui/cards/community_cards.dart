@@ -17,6 +17,7 @@ class AppPostCard extends StatelessWidget {
     this.onShare,
     this.onAuthorTap,
     this.onTickerTap,
+    this.loading = false,
   });
 
   final AppPost post;
@@ -28,11 +29,15 @@ class AppPostCard extends StatelessWidget {
   final VoidCallback? onAuthorTap;
   final ValueChanged<String>? onTickerTap;
 
+  /// Renders the built-in [UiCard] skeleton instead of the post body.
+  final bool loading;
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     return UiCard(
       onTap: onTap,
+      loading: loading,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -213,6 +218,8 @@ class AppTraderCard extends StatelessWidget {
     this.onFollow,
     this.onTap,
     this.onMessage,
+    this.selected = false,
+    this.loading = false,
   });
 
   final AppTrader trader;
@@ -220,12 +227,20 @@ class AppTraderCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onMessage;
 
+  /// Highlights the card as the active/selected trader.
+  final bool selected;
+
+  /// Renders the built-in [UiCard] skeleton instead of the profile body.
+  final bool loading;
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     return AppHoverLift(
       child: UiCard(
         onTap: onTap,
+        selected: selected,
+        loading: loading,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[

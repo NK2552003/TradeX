@@ -22,27 +22,42 @@ class UiChartSeries {
     this.color,
     this.type = UiChartSeriesType.line,
     this.axis = UiChartAxis.left,
-    this.gradientColors,
+    this.lineGlow = false,
     this.fillOpacity,
-    this.strokeWidth,
-    this.showDots,
-    this.lineGlow,
+    this.gradientColors,
+    this.showDots = false,
   });
 
   final String name;
   final Color? color;
   final UiChartSeriesType type;
   final UiChartAxis axis;
-  final List<Color>? gradientColors;
+  final bool lineGlow;
   final double? fillOpacity;
-  final double? strokeWidth;
-  final bool? showDots;
-  final bool? lineGlow;
+  final List<Color>? gradientColors;
+  final bool showDots;
 }
 
 enum UiChartSeriesType { line, area, bar }
 
 enum UiChartAxis { left, right }
+
+/// Horizontal reference line drawn over a chart plot (target, average, alert
+/// level). Generic counterpart of `UiPriceLine` for non-price charts.
+@immutable
+class UiChartThreshold {
+  const UiChartThreshold({
+    required this.value,
+    required this.label,
+    this.color,
+    this.dashed = true,
+  });
+
+  final double value;
+  final String label;
+  final Color? color;
+  final bool dashed;
+}
 
 /// Unified chart widget: Line, Area, Bar, Combo and Spark are all
 /// configurations of this one component (no duplicated painting code).
@@ -63,10 +78,9 @@ class UiChart extends StatefulWidget {
     this.minimal = false,
     this.interactive = true,
     this.toggleableLegend = true,
-    this.fillOpacity = 0.35,
-    this.showDots = false,
-    this.lineGlow = false,
-    this.baseline,
+    this.stacked = false,
+    this.glow = false,
+    this.thresholds = const <UiChartThreshold>[],
   });
 
   /// Sparkline preset: no axes, no grid, no legend, short height.
@@ -83,10 +97,9 @@ class UiChart extends StatefulWidget {
         minimal = true,
         interactive = false,
         toggleableLegend = false,
-        fillOpacity = 0.25,
-        showDots = false,
-        lineGlow = false,
-        baseline = null;
+        stacked = false,
+        glow = false,
+        thresholds = const <UiChartThreshold>[];
 
   final List<UiChartPoint> data;
   final List<UiChartSeries> series;
@@ -104,17 +117,14 @@ class UiChart extends StatefulWidget {
   /// Tap a legend entry to hide/show that series.
   final bool toggleableLegend;
 
-  /// Default area fill gradient opacity (0.0 to 1.0).
-  final double fillOpacity;
+  /// Stack bar/area series cumulatively instead of overlaying them.
+  final bool stacked;
 
-  /// Display marker dots on data points.
-  final bool showDots;
+  /// Soft blurred halo drawn beneath line/area strokes.
+  final bool glow;
 
-  /// Ambient glow around the series line stroke.
-  final bool lineGlow;
-
-  /// Reference baseline Y value for area charts.
-  final double? baseline;
+  /// Horizontal reference lines (targets, averages, alert levels).
+  final List<UiChartThreshold> thresholds;
 
   @override
   State<UiChart> createState() => _UiChartState();
@@ -259,13 +269,13 @@ class _UiChartState extends State<UiChart> {
                       ctx.uiRes.pick<int>(mobile: 4, tablet: 6, desktop: 8),
                   padding: pad,
                   strokeWidth: ctx.sz(2),
-                  fillOpacity: widget.fillOpacity,
-                  showDots: widget.showDots,
-                  lineGlow: widget.lineGlow,
-                  baseline: widget.baseline,
                   activeIndex: widget.interactive ? _active : null,
                   crosshairColor: theme.colors.borderStrong,
                   surfaceColor: theme.colors.surface,
+                  stacked: widget.stacked,
+                  glow: widget.glow,
+                  thresholds: widget.thresholds,
+                  thresholdColor: theme.colors.warning,
                 ),
               );
 
@@ -403,14 +413,14 @@ class _ChartPainter extends CustomPainter {
     required this.maxXLabels,
     required this.padding,
     required this.strokeWidth,
-    this.fillOpacity = 0.35,
-    this.showDots = false,
-    this.lineGlow = false,
-    this.baseline,
     this.seriesIndices,
     this.activeIndex,
     this.crosshairColor,
     this.surfaceColor,
+    this.stacked = false,
+    this.glow = false,
+    this.thresholds = const <UiChartThreshold>[],
+    this.thresholdColor,
   });
 
   final List<UiChartPoint> data;
@@ -430,13 +440,13 @@ class _ChartPainter extends CustomPainter {
   final int maxXLabels;
   final EdgeInsets padding;
   final double strokeWidth;
-  final double fillOpacity;
-  final bool showDots;
-  final bool lineGlow;
-  final double? baseline;
   final int? activeIndex;
   final Color? crosshairColor;
   final Color? surfaceColor;
+  final bool stacked;
+  final bool glow;
+  final List<UiChartThreshold> thresholds;
+  final Color? thresholdColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -460,10 +470,6 @@ class _ChartPainter extends CustomPainter {
       minY -= 1;
       maxY += 1;
     }
-    if (baseline != null) {
-      minY = math.min(minY, baseline!);
-      maxY = math.max(maxY, baseline!);
-    }
     // Include zero baseline for bar series.
     if (series.any((UiChartSeries s) => s.type == UiChartSeriesType.bar)) {
       minY = math.min(minY, 0);
@@ -471,7 +477,7 @@ class _ChartPainter extends CustomPainter {
 
     double yOf(double v) =>
         plot.bottom - (v - minY) / (maxY - minY) * plot.height;
-    double xOf(int i) => data.length <= 1
+    double xOf(int i) => data.length == 1
         ? plot.center.dx
         : plot.left + i / (data.length - 1) * plot.width;
 
@@ -511,48 +517,91 @@ class _ChartPainter extends CustomPainter {
     ];
     if (barIdx.isNotEmpty) {
       final double slot = plot.width / data.length;
-      final double barW = slot * 0.6 / barIdx.length;
-      for (int b = 0; b < barIdx.length; b++) {
-        final Paint paint = Paint()..color = colors[barIdx[b]];
+      if (stacked && barIdx.length > 1) {
+        final double barW = slot * 0.6;
         for (int i = 0; i < data.length; i++) {
-          final double v = _value(i, barIdx[b]);
+          double posCum = 0;
+          double negCum = 0;
           final double cx = plot.left + slot * (i + 0.5);
-          final double left =
-              cx - (barIdx.length * barW) / 2 + b * barW;
-          final Rect bar = Rect.fromLTRB(
-            left,
-            math.min(yOf(v), yOf(0)),
-            left + barW * 0.9,
-            math.max(yOf(v), yOf(0)),
-          );
-          canvas.drawRRect(
-            RRect.fromRectAndCorners(
-              bar,
-              topLeft: Radius.circular(strokeWidth),
-              topRight: Radius.circular(strokeWidth),
-            ),
-            paint,
-          );
+          for (int b = 0; b < barIdx.length; b++) {
+            final double v = _value(i, barIdx[b]);
+            final double base = v >= 0 ? posCum : negCum;
+            final double top = base + v;
+            if (v >= 0) {
+              posCum = top;
+            } else {
+              negCum = top;
+            }
+            final Rect bar = Rect.fromLTRB(
+              cx - barW / 2,
+              yOf(math.max(base, top)),
+              cx + barW / 2,
+              yOf(math.min(base, top)),
+            );
+            canvas.drawRect(bar, Paint()..color = colors[barIdx[b]]);
+          }
+        }
+      } else {
+        final double barW = slot * 0.6 / barIdx.length;
+        for (int b = 0; b < barIdx.length; b++) {
+          final Paint paint = Paint()..color = colors[barIdx[b]];
+          for (int i = 0; i < data.length; i++) {
+            final double v = _value(i, barIdx[b]);
+            final double cx = plot.left + slot * (i + 0.5);
+            final double left = cx - (barIdx.length * barW) / 2 + b * barW;
+            final Rect bar = Rect.fromLTRB(
+              left,
+              math.min(yOf(v), yOf(0)),
+              left + barW * 0.9,
+              math.max(yOf(v), yOf(0)),
+            );
+            canvas.drawRRect(
+              RRect.fromRectAndCorners(
+                bar,
+                topLeft: Radius.circular(strokeWidth),
+                topRight: Radius.circular(strokeWidth),
+              ),
+              paint,
+            );
+          }
         }
       }
     }
 
-    final double firstX = data.isEmpty ? plot.left : xOf(0);
-    final double lastX = data.isEmpty ? plot.right : xOf(data.length - 1);
-    final double baselineY = baseline != null
-        ? yOf(baseline!).clamp(plot.top, plot.bottom)
-        : plot.bottom;
+    // Reference threshold lines (targets, averages, alerts).
+    for (final UiChartThreshold t in thresholds) {
+      final double ty = yOf(t.value);
+      final Color tint = t.color ?? thresholdColor ?? gridColor;
+      final Paint tp = Paint()
+        ..color = tint
+        ..strokeWidth = 1.2;
+      if (t.dashed) {
+        const double dash = 5;
+        for (double x = plot.left; x < plot.right; x += dash * 2) {
+          canvas.drawLine(
+              Offset(x, ty), Offset(math.min(x + dash, plot.right), ty), tp);
+        }
+      } else {
+        canvas.drawLine(Offset(plot.left, ty), Offset(plot.right, ty), tp);
+      }
+      _text(canvas, t.label, Offset(plot.right - 60, ty - 14), 60,
+          TextAlign.right);
+    }
 
+    final List<double> areaBase = List<double>.filled(data.length, 0);
     for (int s = 0; s < series.length; s++) {
       if (series[s].type == UiChartSeriesType.bar) continue;
+      final bool isArea = series[s].type == UiChartSeriesType.area;
+      final bool doStack = stacked && isArea;
+      double topOf(int i) => doStack ? areaBase[i] + _value(i, s) : _value(i, s);
+
       final Path path = Path();
       for (int i = 0; i < data.length; i++) {
-        final Offset p = Offset(xOf(i), yOf(_value(i, s)));
+        final Offset p = Offset(xOf(i), yOf(topOf(i)));
         if (i == 0) {
           path.moveTo(p.dx, p.dy);
         } else if (curved) {
-          final Offset prev =
-              Offset(xOf(i - 1), yOf(_value(i - 1, s)));
+          final Offset prev = Offset(xOf(i - 1), yOf(topOf(i - 1)));
           final double midX = (prev.dx + p.dx) / 2;
           path.cubicTo(midX, prev.dy, midX, p.dy, p.dx, p.dy);
         } else {
@@ -560,41 +609,48 @@ class _ChartPainter extends CustomPainter {
         }
       }
 
-      if (series[s].type == UiChartSeriesType.area) {
-        final Path fill = Path.from(path)
-          ..lineTo(lastX, baselineY)
-          ..lineTo(firstX, baselineY)
-          ..close();
-
-        final double opacity = series[s].fillOpacity ?? fillOpacity;
-        final List<Color> gradientCols = series[s].gradientColors ??
-            <Color>[
-              colors[s].withValues(alpha: opacity),
-              colors[s].withValues(alpha: 0.0),
-            ];
-
+      if (isArea) {
+        final Path fill = Path();
+        if (doStack) {
+          for (int i = 0; i < data.length; i++) {
+            final Offset o = Offset(xOf(i), yOf(topOf(i)));
+            i == 0 ? fill.moveTo(o.dx, o.dy) : fill.lineTo(o.dx, o.dy);
+          }
+          for (int i = data.length - 1; i >= 0; i--) {
+            final Offset o = Offset(xOf(i), yOf(areaBase[i]));
+            fill.lineTo(o.dx, o.dy);
+          }
+          fill.close();
+        } else {
+          fill.addPath(path, Offset.zero);
+          fill.lineTo(plot.right, plot.bottom);
+          fill.lineTo(plot.left, plot.bottom);
+          fill.close();
+        }
         canvas.drawPath(
           fill,
           Paint()
             ..shader = LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: gradientCols,
+              colors: <Color>[
+                colors[s].withValues(alpha: 0.30),
+                colors[s].withValues(alpha: 0.02),
+              ],
             ).createShader(plot),
         );
       }
 
-      final bool drawGlow = series[s].lineGlow ?? lineGlow;
-      final double curStrokeWidth = series[s].strokeWidth ?? strokeWidth;
-
-      if (drawGlow) {
+      if (glow) {
         canvas.drawPath(
           path,
           Paint()
-            ..color = colors[s].withValues(alpha: 0.35)
+            ..color = colors[s].withValues(alpha: 0.55)
             ..style = PaintingStyle.stroke
-            ..strokeWidth = curStrokeWidth * 2.2
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+            ..strokeWidth = strokeWidth * 3
+            ..strokeJoin = StrokeJoin.round
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, strokeWidth * 1.6),
         );
       }
 
@@ -603,25 +659,14 @@ class _ChartPainter extends CustomPainter {
         Paint()
           ..color = colors[s]
           ..style = PaintingStyle.stroke
-          ..strokeWidth = curStrokeWidth
+          ..strokeWidth = strokeWidth
           ..strokeJoin = StrokeJoin.round
           ..strokeCap = StrokeCap.round,
       );
 
-      final bool drawDots = series[s].showDots ?? showDots;
-      if (drawDots) {
+      if (doStack) {
         for (int i = 0; i < data.length; i++) {
-          final Offset pointPos = Offset(xOf(i), yOf(_value(i, s)));
-          canvas.drawCircle(
-            pointPos,
-            curStrokeWidth * 1.8,
-            Paint()..color = surfaceColor ?? Colors.black,
-          );
-          canvas.drawCircle(
-            pointPos,
-            curStrokeWidth * 1.0,
-            Paint()..color = colors[s],
-          );
+          areaBase[i] += _value(i, s);
         }
       }
     }

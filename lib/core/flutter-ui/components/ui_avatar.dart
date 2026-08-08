@@ -22,17 +22,7 @@ class UiAvatar extends StatelessWidget {
   final bool verified;
   final VoidCallback? onTap;
 
-  double _dim(BuildContext context) {
-    final s = context.uiSizes;
-    switch (size) {
-      case UiSize.sm:
-        return context.sz(s.avatarSm);
-      case UiSize.md:
-        return context.sz(s.avatarMd);
-      case UiSize.lg:
-        return context.sz(s.avatarLg);
-    }
-  }
+  double _dim(BuildContext context) => size.avatar(context);
 
   String get _initials {
     final List<String> parts =
@@ -107,10 +97,7 @@ class UiAvatar extends StatelessWidget {
     }
 
     if (onTap == null) return avatar;
-    return UiInteractive(
-      onTap: onTap,
-      builder: (BuildContext ctx, UiInteractiveState st) => avatar,
-    );
+    return UiInteractive(onTap: onTap, builder: (_, _) => avatar);
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
 import 'ui_common.dart';
+import 'ui_input.dart';
 
 /// Dropdown select. Uses a bottom sheet on phones and an anchored menu on
 /// larger screens — one API, responsive presentation.
@@ -9,13 +10,22 @@ class UiSelect<T> extends StatelessWidget {
   const UiSelect({
     super.key,
     required this.options,
-    required this.value,
+    this.value,
     this.onChanged,
     this.hintText = 'Select',
     this.label,
+    this.helperText,
+    this.errorText,
     this.size = UiSize.md,
+    this.density = UiDensity.comfortable,
+    this.variant = UiInputVariant.outline,
     this.enabled = true,
     this.error = false,
+    this.loading = false,
+    this.multiple = false,
+    this.values,
+    this.maxVisibleChips,
+    this.onValuesChanged,
     this.leadingIcon,
     this.searchable = false,
   });
@@ -25,9 +35,18 @@ class UiSelect<T> extends StatelessWidget {
   final ValueChanged<T>? onChanged;
   final String hintText;
   final String? label;
+  final String? helperText;
+  final String? errorText;
   final UiSize size;
+  final UiDensity density;
+  final UiInputVariant variant;
   final bool enabled;
   final bool error;
+  final bool loading;
+  final bool multiple;
+  final List<T>? values;
+  final int? maxVisibleChips;
+  final ValueChanged<List<T>>? onValuesChanged;
   final IconData? leadingIcon;
   final bool searchable;
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
+import 'ui_checkbox.dart';
 import 'ui_common.dart';
+import 'ui_skeleton.dart';
 
 class UiTableColumn<T> {
   const UiTableColumn({
@@ -48,6 +50,16 @@ class UiTable<T> extends StatefulWidget {
     this.sortColumn,
     this.sortAscending,
     this.footer,
+    this.loading = false,
+    this.errorText,
+    this.selectable = false,
+    this.selectedRows,
+    this.onSelectionChanged,
+    this.expandableWhen,
+    this.expandedBuilder,
+    this.stickyHeader = false,
+    this.maxBodyHeight,
+    this.density = UiDensity.comfortable,
   });
 
   final List<UiTableColumn<T>> columns;
@@ -69,6 +81,29 @@ class UiTable<T> extends StatefulWidget {
   /// Optional footer row (totals, summaries).
   final Widget? footer;
 
+  /// Shows skeleton rows instead of data while a fetch is in flight.
+  final bool loading;
+
+  /// When set, replaces the table body with an error message.
+  final String? errorText;
+
+  /// Renders a leading checkbox column and enables multi-row selection.
+  final bool selectable;
+  final Set<T>? selectedRows;
+  final ValueChanged<Set<T>>? onSelectionChanged;
+
+  /// Renders a leading disclosure chevron; rows for which this returns true
+  /// can be expanded to reveal [expandedBuilder] content beneath them.
+  final bool Function(T row)? expandableWhen;
+  final Widget Function(BuildContext context, T row)? expandedBuilder;
+
+  /// Keeps the header visible while the body scrolls within [maxBodyHeight].
+  final bool stickyHeader;
+  final double? maxBodyHeight;
+
+  /// Row padding density.
+  final UiDensity density;
+
   @override
   State<UiTable<T>> createState() => _UiTableState<T>();
 }
@@ -77,6 +112,9 @@ class _UiTableState<T> extends State<UiTable<T>> {
   int? _sortCol;
   bool _asc = true;
   int _page = 0;
+  final Set<T> _expanded = <T>{};
+
+  Set<T> get _selected => widget.selectedRows ?? const <Never>{};
 
   bool get _controlled => widget.sortColumn != null;
   int? get _activeSortCol => _controlled ? widget.sortColumn : _sortCol;
@@ -141,6 +179,40 @@ class _UiTableState<T> extends State<UiTable<T>> {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
+    final double densityPad = widget.density.factor;
+    if (widget.errorText != null) {
+      return Padding(
+        padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(Icons.error_outline,
+                  color: theme.colors.bearish, size: context.sz(theme.sizes.iconLg)),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+              Text(
+                widget.errorText!,
+                style: context.uiText.body
+                    .copyWith(color: theme.colors.foregroundMuted),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (widget.loading) {
+      return Column(
+        children: <Widget>[
+          for (int i = 0; i < (widget.pageSize ?? 5).clamp(3, 8); i++)
+            Padding(
+              padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+              child: UiSkeleton(
+                  width: double.infinity,
+                  height: theme.sizes.controlHeightMd),
+            ),
+        ],
+      );
+    }
     if (widget.rows.isEmpty) {
       return Padding(
         padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
@@ -210,6 +282,136 @@ class _UiTableState<T> extends State<UiTable<T>> {
 
     final List<UiTableColumn<T>> cols = _visible(context);
 
+    final Widget headerRow = Container(
+      color: theme.colors.surfaceMuted,
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(theme.spacing.lg),
+        vertical: context.sp(theme.spacing.md),
+      ),
+      child: Row(
+        children: <Widget>[
+          if (widget.selectable)
+            SizedBox(
+              width: context.sz(theme.sizes.controlHeightXs),
+              child: UiCheckbox(
+                value: visibleRows.isNotEmpty &&
+                    visibleRows.every(_selected.contains),
+                onChanged: (bool v) => widget.onSelectionChanged
+                    ?.call(v ? <T>{..._selected, ...visibleRows} : <T>{}),
+              ),
+            ),
+          if (widget.expandableWhen != null)
+            SizedBox(width: context.sz(theme.sizes.controlHeightXs)),
+          for (final UiTableColumn<T> col in cols)
+            _cellWrap(col, _headerCell(context, col)),
+        ],
+      ),
+    );
+
+    final List<Widget> bodyRows = <Widget>[
+      for (int i = 0; i < visibleRows.length; i++)
+        Column(
+          children: <Widget>[
+            UiInteractive(
+              enabled: widget.onRowTap != null,
+              onTap: widget.onRowTap == null
+                  ? null
+                  : () => widget.onRowTap!(visibleRows[i]),
+              builder: (BuildContext ctx, UiInteractiveState s) => Container(
+                decoration: BoxDecoration(
+                  color: s.hovered
+                      ? theme.colors.surfaceHover
+                      : theme.colors.surface,
+                  border: Border(
+                    top: BorderSide(
+                      color: theme.colors.border,
+                      width: theme.borders.hairline,
+                    ),
+                  ),
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: ctx.sp(theme.spacing.lg),
+                  vertical: ctx.sp(theme.spacing.md) * densityPad,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    if (widget.selectable)
+                      SizedBox(
+                        width: ctx.sz(theme.sizes.controlHeightXs),
+                        child: UiCheckbox(
+                          value: _selected.contains(visibleRows[i]),
+                          onChanged: (bool v) {
+                            final Set<T> next = <T>{..._selected};
+                            v
+                                ? next.add(visibleRows[i])
+                                : next.remove(visibleRows[i]);
+                            widget.onSelectionChanged?.call(next);
+                          },
+                        ),
+                      ),
+                    if (widget.expandableWhen != null)
+                      SizedBox(
+                        width: ctx.sz(theme.sizes.controlHeightXs),
+                        child: widget.expandableWhen!(visibleRows[i])
+                            ? UiInteractive(
+                                onTap: () => setState(() =>
+                                    _expanded.contains(visibleRows[i])
+                                        ? _expanded
+                                            .remove(visibleRows[i])
+                                        : _expanded
+                                            .add(visibleRows[i])),
+                                builder: (BuildContext c, _) => Icon(
+                                  _expanded.contains(visibleRows[i])
+                                      ? Icons.expand_more
+                                      : Icons.chevron_right,
+                                  size: c.sz(theme.sizes.iconSm),
+                                  color: theme.colors.foregroundMuted,
+                                ),
+                              )
+                            : null,
+                      ),
+                    for (final UiTableColumn<T> col in cols)
+                      _cellWrap(
+                        col,
+                        Align(
+                          alignment: col.numeric
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: col.cell(ctx, visibleRows[i]),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            if (widget.expandableWhen != null &&
+                widget.expandedBuilder != null &&
+                widget.expandableWhen!(visibleRows[i]) &&
+                _expanded.contains(visibleRows[i]))
+              Container(
+                width: double.infinity,
+                color: theme.colors.surfaceMuted,
+                padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+                child: widget.expandedBuilder!(context, visibleRows[i]),
+              ),
+          ],
+        ),
+    ];
+
+    Widget bodyContent = Column(children: bodyRows);
+    // When a max body height is supplied (or a sticky header is requested),
+    // the header row above stays put while only the row list scrolls.
+    if (widget.maxBodyHeight != null) {
+      bodyContent = ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: context.sp(widget.maxBodyHeight!)),
+        child: SingleChildScrollView(child: bodyContent),
+      );
+    } else if (widget.stickyHeader) {
+      // No explicit height: still isolate the header from the body scroll
+      // region so it never scrolls with the rows below it.
+      bodyContent = SingleChildScrollView(child: bodyContent);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -224,57 +426,8 @@ class _UiTableState<T> extends State<UiTable<T>> {
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: <Widget>[
-              Container(
-                color: theme.colors.surfaceMuted,
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.lg),
-                  vertical: context.sp(theme.spacing.md),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    for (final UiTableColumn<T> col in cols)
-                      _cellWrap(col, _headerCell(context, col)),
-                  ],
-                ),
-              ),
-              for (int i = 0; i < visibleRows.length; i++)
-                UiInteractive(
-                  enabled: widget.onRowTap != null,
-                  onTap: widget.onRowTap == null
-                      ? null
-                      : () => widget.onRowTap!(visibleRows[i]),
-                  builder: (BuildContext ctx, UiInteractiveState s) => Container(
-                    decoration: BoxDecoration(
-                      color: s.hovered
-                          ? theme.colors.surfaceHover
-                          : theme.colors.surface,
-                      border: Border(
-                        top: BorderSide(
-                          color: theme.colors.border,
-                          width: theme.borders.hairline,
-                        ),
-                      ),
-                    ),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: ctx.sp(theme.spacing.lg),
-                      vertical: ctx.sp(theme.spacing.md),
-                    ),
-                    child: Row(
-                      children: <Widget>[
-                        for (final UiTableColumn<T> col in cols)
-                          _cellWrap(
-                            col,
-                            Align(
-                              alignment: col.numeric
-                                  ? Alignment.centerRight
-                                  : Alignment.centerLeft,
-                              child: col.cell(ctx, visibleRows[i]),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
+              headerRow,
+              bodyContent,
               if (widget.footer != null)
                 Container(
                   width: double.infinity,

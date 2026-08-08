@@ -409,15 +409,21 @@ class UiMotion {
 @immutable
 class UiSizes {
   const UiSizes({
+    this.controlHeightXs = 22,
     this.controlHeightSm = 28,
     this.controlHeightMd = 36,
     this.controlHeightLg = 44,
+    this.controlHeightXl = 54,
+    this.iconXs = 12,
     this.iconSm = 14,
     this.iconMd = 16,
     this.iconLg = 20,
+    this.iconXl = 24,
+    this.avatarXs = 18,
     this.avatarSm = 24,
     this.avatarMd = 32,
     this.avatarLg = 48,
+    this.avatarXl = 72,
     this.checkbox = 16,
     this.radio = 16,
     this.switchWidth = 36,
@@ -430,15 +436,21 @@ class UiSizes {
   });
 
 
+  final double controlHeightXs;
   final double controlHeightSm;
   final double controlHeightMd;
   final double controlHeightLg;
+  final double controlHeightXl;
+  final double iconXs;
   final double iconSm;
   final double iconMd;
   final double iconLg;
+  final double iconXl;
+  final double avatarXs;
   final double avatarSm;
   final double avatarMd;
   final double avatarLg;
+  final double avatarXl;
   final double checkbox;
   final double radio;
   final double switchWidth;

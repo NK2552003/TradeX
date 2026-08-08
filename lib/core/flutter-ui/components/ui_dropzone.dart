@@ -115,7 +115,7 @@ class UiDropzone extends StatelessWidget {
                         width: context.sz(88),
                         height: context.sz(64),
                         fit: BoxFit.cover,
-                        errorBuilder: (BuildContext ctx, Object err, StackTrace? stack) => Container(
+                        errorBuilder: (_, _, _) => Container(
                           width: context.sz(88),
                           height: context.sz(64),
                           color: theme.colors.surfaceMuted,

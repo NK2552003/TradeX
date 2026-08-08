@@ -25,7 +25,7 @@ export 'cards/ai_cards.dart';
 // Blocks
 export 'blocks/dashboard_blocks.dart';
 export 'blocks/journal_blocks.dart';
-export 'blocks/market_blocks.dart' hide AppAiInsightsBlock;
+export 'blocks/market_blocks.dart';
 export 'blocks/community_blocks.dart';
 export 'blocks/account_blocks.dart';
 export 'blocks/ai_blocks.dart';

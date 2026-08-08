@@ -13,12 +13,20 @@ class AppTickerCard extends StatelessWidget {
     this.onTap,
     this.onFavorite,
     this.dense = false,
+    this.selected = false,
+    this.loading = false,
   });
 
   final AppTicker ticker;
   final VoidCallback? onTap;
   final VoidCallback? onFavorite;
   final bool dense;
+
+  /// Highlights the card as the active/selected watchlist row.
+  final bool selected;
+
+  /// Renders the built-in [UiCard] skeleton instead of the price/spark body.
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +35,8 @@ class AppTickerCard extends StatelessWidget {
     return AppHoverLift(
       child: UiCard(
         onTap: onTap,
+        selected: selected,
+        loading: loading,
         padding: dense ? EdgeInsets.all(context.sp(theme.spacing.md)) : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/config/app_constants.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/showcase_page.dart';
+import 'package:tradex/core/showcase/numbered_component_showcase_page.dart';
 import 'package:tradex/features/journal/presentation/pages/journal_page.dart';
 import 'package:tradex/features/portfolio/presentation/pages/portfolio_page.dart';
 import 'package:tradex/features/watchlists/presentation/pages/watchlists_page.dart';

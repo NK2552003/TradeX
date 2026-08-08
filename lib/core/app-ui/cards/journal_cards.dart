@@ -15,12 +15,16 @@ class AppTradeCard extends StatelessWidget {
     this.onTap,
     this.dense = false,
     this.trailing,
+    this.selected = false,
   });
 
   final AppTrade trade;
   final VoidCallback? onTap;
   final bool dense;
   final Widget? trailing;
+
+  /// Highlights the card as the active/selected trade.
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +34,7 @@ class AppTradeCard extends StatelessWidget {
     return AppHoverLift(
       child: UiCard(
         onTap: onTap,
+        selected: selected,
         accentColor: plColor,
         padding: dense
             ? EdgeInsets.all(context.sp(theme.spacing.md))
@@ -335,11 +340,15 @@ class AppChecklistCard extends StatelessWidget {
     required this.title,
     required this.items,
     this.onToggle,
+    this.loading = false,
   });
 
   final String title;
   final List<AppChecklistItem> items;
   final ValueChanged<AppChecklistItem>? onToggle;
+
+  /// Renders the built-in [UiCard] skeleton instead of the checklist body.
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -347,6 +356,7 @@ class AppChecklistCard extends StatelessWidget {
     final int done = items.where((AppChecklistItem i) => i.done).length;
     return UiCard(
       title: title,
+      loading: loading,
       trailing: UiBadge(
         label: '$done/${items.length}',
         intent: done == items.length ? UiIntent.bullish : UiIntent.neutral,

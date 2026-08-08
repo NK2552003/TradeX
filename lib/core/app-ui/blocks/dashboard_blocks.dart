@@ -268,7 +268,7 @@ class AppMoversRailBlock extends StatelessWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: tickers.length,
-            separatorBuilder: (BuildContext ctx, int index) =>
+            separatorBuilder: (_, _) =>
                 SizedBox(width: context.sp(theme.spacing.md)),
             itemBuilder: (BuildContext _, int i) => AppMoverCard(
               ticker: tickers[i],

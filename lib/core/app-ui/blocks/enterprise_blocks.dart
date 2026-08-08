@@ -66,7 +66,7 @@ class AppTeamMembersBlock extends StatelessWidget {
             UiTableColumn<AppTeamMember>(
               header: 'Member',
               flex: 2,
-              cell: (BuildContext context, AppTeamMember m) => Row(
+              cell: (BuildContext c, AppTeamMember m) => Row(
                 children: <Widget>[
                   UiAvatar(imageUrl: m.avatarUrl, name: m.name, size: UiSize.sm),
                   SizedBox(width: ctx.sp(theme.spacing.sm)),
@@ -91,7 +91,7 @@ class AppTeamMembersBlock extends StatelessWidget {
             ),
             UiTableColumn<AppTeamMember>(
               header: 'Role',
-              cell: (BuildContext context, AppTeamMember m) => UiBadge(
+              cell: (BuildContext c, AppTeamMember m) => UiBadge(
                 label: appTeamRoleLabel(m.role),
                 intent: appTeamRoleIntent(m.role),
                 onTap:
@@ -101,7 +101,7 @@ class AppTeamMembersBlock extends StatelessWidget {
             UiTableColumn<AppTeamMember>(
               header: 'Status',
               hideBelow: UiTableVisibility.tabletUp,
-              cell: (BuildContext context, AppTeamMember m) => UiBadge(
+              cell: (BuildContext c, AppTeamMember m) => UiBadge(
                 label: switch (m.status) {
                   AppMemberStatus.active => 'Active',
                   AppMemberStatus.invited => 'Invited',
@@ -117,7 +117,7 @@ class AppTeamMembersBlock extends StatelessWidget {
             UiTableColumn<AppTeamMember>(
               header: 'Last active',
               hideBelow: UiTableVisibility.desktopUp,
-              cell: (BuildContext context, AppTeamMember m) => Text(
+              cell: (BuildContext c, AppTeamMember m) => Text(
                 m.lastActiveAt == null
                     ? '—'
                     : AppTokens.relativeTime(m.lastActiveAt!),
@@ -128,7 +128,7 @@ class AppTeamMembersBlock extends StatelessWidget {
             UiTableColumn<AppTeamMember>(
               header: '',
               width: ctx.sz(48),
-              cell: (BuildContext context, AppTeamMember m) => UiIconButton(
+              cell: (BuildContext c, AppTeamMember m) => UiIconButton(
                 icon: Icons.person_remove_outlined,
                 size: UiSize.sm,
                 tooltip: 'Remove',
@@ -317,10 +317,10 @@ class AppUsageBlock extends StatelessWidget {
       footer: onUpgrade == null
           ? null
           : UiButton(
-              label: 'Upgrade Limits',
+              label: 'Upgrade plan',
               variant: UiVariant.outline,
+              leadingIcon: Icons.upgrade,
               onPressed: onUpgrade,
-              expand: true,
             ),
       child: Column(
         children: <Widget>[
