@@ -59,7 +59,7 @@ class AppTradeCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (trailing != null) trailing!,
+                ?trailing,
               ],
             ),
             SizedBox(height: context.sp(theme.spacing.sm)),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 import 'ui_common.dart';
 
 /// Segmented toggle group (e.g. Buy / Sell, 1D / 1W / 1M).

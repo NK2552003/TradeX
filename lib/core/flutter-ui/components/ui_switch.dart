@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 import 'ui_common.dart';
 
 /// On/off switch with optional label + description.
@@ -70,30 +70,34 @@ class UiSwitch extends StatelessWidget {
     );
 
     if (label == null) return track;
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                label!,
-                style: context.uiText.body.copyWith(
-                  color: enabled ? c.foreground : c.disabledForeground,
-                ),
-              ),
-              if (description != null)
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: enabled && onChanged != null ? () => onChanged!(!value) : null,
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
                 Text(
-                  description!,
-                  style: context.uiText.caption
-                      .copyWith(color: c.foregroundMuted),
+                  label!,
+                  style: context.uiText.body.copyWith(
+                    color: enabled ? c.foreground : c.disabledForeground,
+                  ),
                 ),
-            ],
+                if (description != null)
+                  Text(
+                    description!,
+                    style: context.uiText.caption
+                        .copyWith(color: c.foregroundMuted),
+                  ),
+              ],
+            ),
           ),
-        ),
-        SizedBox(width: context.sp(theme.spacing.md)),
-        track,
-      ],
+          SizedBox(width: context.sp(theme.spacing.md)),
+          track,
+        ],
+      ),
     );
   }
 }

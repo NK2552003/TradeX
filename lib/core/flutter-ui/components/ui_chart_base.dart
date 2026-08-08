@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 import 'ui_common.dart';
 
 /// A generic chart data point. Charts take data only — never styling.

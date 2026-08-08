@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 
 /// Shimmer-free skeleton placeholder for loading states.
 class UiSkeleton extends StatefulWidget {

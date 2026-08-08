@@ -343,7 +343,6 @@ class AppStreakCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
     return UiCard(
       title: title,
       trailing: currentStreak == null

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 import 'ui_calendar.dart';
 import 'ui_common.dart';
 import 'ui_date_picker.dart';

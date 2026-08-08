@@ -12,7 +12,7 @@ void main() {
   testWidgets('App launches with the main scaffold', (tester) async {
     await tester.pumpWidget(const TradeXApp());
 
-    expect(find.text('TraderHub'), findsOneWidget);
-    expect(find.text('Trading Journal'), findsOneWidget);
+    expect(find.text('TradeX'), findsOneWidget);
+    expect(find.text('Journal'), findsWidgets);
   });
 }

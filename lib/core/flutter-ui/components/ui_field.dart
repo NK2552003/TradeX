@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 import 'ui_label.dart';
 
 /// Wraps any input with label / helper / error, so all form rows align.

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 import 'ui_common.dart';
 
 /// Radio group (vertical on mobile, optional horizontal row on larger screens).

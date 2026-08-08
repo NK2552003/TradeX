@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 
 /// Empty state block used by feeds, watchlists and search results.
 class UiEmptyState extends StatelessWidget {

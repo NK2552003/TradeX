@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'ui_chart_base.dart';
-import 'ui_common.dart';
 
 /// Sparkline: no axes, no grid, no legend, compact height. Used inline in
 /// tables, cards and list rows.

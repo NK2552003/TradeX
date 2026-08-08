@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 import 'ui_common.dart';
 
 class UiDonutSlice {
@@ -60,7 +60,7 @@ class UiDonutChart extends StatelessWidget {
               gap: 0.02,
             ),
           ),
-          if (center != null) center!,
+          ?center,
         ],
       ),
     );

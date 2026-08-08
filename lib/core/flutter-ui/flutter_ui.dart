@@ -5,9 +5,9 @@
 library;
 
 // Theme
-export 'themes/ui_responsive.dart';
-export 'themes/ui_theme.dart';
-export 'themes/ui_tokens.dart';
+export 'theme/ui_responsive.dart';
+export 'theme/ui_theme.dart';
+export 'theme/ui_tokens.dart';
 
 // Foundations
 export 'components/ui_common.dart';
@@ -77,3 +77,25 @@ export 'components/ui_bar_chart.dart';
 export 'components/ui_combo_chart.dart';
 export 'components/ui_spark_chart.dart';
 export 'components/ui_donut_chart.dart';
+export 'components/ui_candle_chart.dart';
+export 'components/ui_graph_canvas.dart';
+
+// Layout primitives (desktop panes)
+export 'components/ui_split_pane.dart';
+export 'components/ui_breadcrumbs.dart';
+export 'components/ui_pagination.dart';
+export 'components/ui_stepper.dart';
+export 'components/ui_timeline.dart';
+export 'components/ui_marquee.dart';
+
+// State & async
+export 'components/ui_async_view.dart';
+
+// Rich inputs & media
+export 'components/ui_search_field.dart';
+export 'components/ui_tag_input.dart';
+export 'components/ui_password_field.dart';
+export 'components/ui_dropzone.dart';
+export 'components/ui_lightbox.dart';
+export 'components/ui_editor_toolbar.dart';
+export 'components/ui_typing_indicator.dart';

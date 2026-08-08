@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 import 'ui_common.dart';
 import 'ui_dialog.dart';
 
@@ -60,7 +60,7 @@ class UiPopover extends StatelessWidget {
           );
         }
       },
-      builder: (_, __) => trigger,
+      builder: (BuildContext ctx, UiInteractiveState st) => trigger,
     );
   }
 }

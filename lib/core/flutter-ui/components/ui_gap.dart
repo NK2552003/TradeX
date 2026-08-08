@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 
 /// Vertical/horizontal spacer driven by the spacing scale.
 class UiGap extends StatelessWidget {

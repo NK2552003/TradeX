@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 
 /// Form label with optional required marker and helper/error text.
 class UiLabel extends StatelessWidget {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 import 'ui_icon_button.dart';
 
 /// Side drawer (filters, account panel). Full-height sheet on phones.
@@ -31,7 +31,7 @@ class UiDrawer extends StatelessWidget {
       barrierLabel: title,
       barrierColor: theme.colors.overlay,
       transitionDuration: theme.motion.normal,
-      pageBuilder: (BuildContext ctx, _, __) => Align(
+      pageBuilder: (BuildContext ctx, Animation<double> a1, Animation<double> a2) => Align(
         alignment: mobile
             ? Alignment.bottomCenter
             : (fromRight ? Alignment.centerRight : Alignment.centerLeft),
@@ -46,7 +46,7 @@ class UiDrawer extends StatelessWidget {
           ),
         ),
       ),
-      transitionBuilder: (BuildContext ctx, Animation<double> anim, __,
+      transitionBuilder: (BuildContext ctx, Animation<double> anim, Animation<double> secAnim,
               Widget child) =>
           SlideTransition(
         position: Tween<Offset>(

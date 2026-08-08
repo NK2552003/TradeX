@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 
 /// Page scaffold: max content width, responsive padding, optional sticky header.
 class UiPage extends StatelessWidget {

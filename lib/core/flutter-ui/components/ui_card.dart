@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 import 'ui_common.dart';
 
 /// Surface container used for every panel in the app (feed post, watchlist,
@@ -65,7 +65,7 @@ class UiCard extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             if (accentColor != null)
               Container(width: ctx.sz(3), color: accentColor),

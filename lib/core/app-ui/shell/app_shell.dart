@@ -423,7 +423,7 @@ class AppTopBar extends StatelessWidget {
         bottom: false,
         child: Row(
           children: <Widget>[
-            if (leading != null) leading!,
+            ?leading,
             if (showLogo) const AppWordmark(fontSize: 20),
             if (title != null)
               Padding(

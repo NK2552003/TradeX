@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 
 /// Horizontal / vertical separator, optionally with centered content.
 class UiDivider extends StatelessWidget {

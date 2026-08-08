@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 import 'ui_common.dart';
 
 /// Avatar with initials fallback, presence dot and stacked group variant.
@@ -107,7 +107,10 @@ class UiAvatar extends StatelessWidget {
     }
 
     if (onTap == null) return avatar;
-    return UiInteractive(onTap: onTap, builder: (_, __) => avatar);
+    return UiInteractive(
+      onTap: onTap,
+      builder: (BuildContext ctx, UiInteractiveState st) => avatar,
+    );
   }
 }
 

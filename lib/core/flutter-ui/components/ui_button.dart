@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 import 'ui_common.dart';
 
 /// Fully themed, responsive button. No colors/sizes hardcoded.
@@ -37,7 +37,6 @@ class UiButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    final c = theme.colors;
     final BorderRadius radius = context.radius(theme.radii.lg);
     final bool fullWidth = expand || (expandOnMobile && context.uiRes.isMobile);
 

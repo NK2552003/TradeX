@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../themes/ui_theme.dart';
+import '../theme/ui_theme.dart';
 import 'ui_common.dart';
 
 /// Status / tag chip. Also covers price-change deltas used in market lists.
@@ -75,6 +75,9 @@ class UiBadge extends StatelessWidget {
     );
 
     if (onTap == null) return chip;
-    return UiInteractive(onTap: onTap, builder: (_, __) => chip);
+    return UiInteractive(
+      onTap: onTap,
+      builder: (BuildContext ctx, UiInteractiveState st) => chip,
+    );
   }
 }
