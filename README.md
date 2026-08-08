@@ -31,5 +31,6 @@ This folder contains a more complete Flutter starter structure for the TraderHub
 
 ```bash
 cd ~/TradeX
+pub get
 flutter run
 ```
