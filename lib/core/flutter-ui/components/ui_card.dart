@@ -378,61 +378,111 @@ class _UiCardHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        if (leading != null) ...<Widget>[
-          leading!,
-          SizedBox(width: context.sp(theme.spacing.md)),
-        ],
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              if (titleWidget != null)
-                titleWidget!
-              else if (title != null)
-                Text(
-                  title!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.uiText.heading
-                      .copyWith(color: theme.colors.foreground),
-                ),
-              if (subtitle != null) ...<Widget>[
-                SizedBox(height: context.sp(theme.spacing.xxs)),
-                Text(
-                  subtitle!,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.uiText.caption
-                      .copyWith(color: theme.colors.foregroundMuted),
-                ),
-              ],
-            ],
-          ),
-        ),
-        if (trailing != null) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.sm)),
-          trailing!,
-        ],
-        if (collapsible) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          UiInteractive(
-            onTap: onToggle,
-            semanticLabel: expanded ? 'Collapse' : 'Expand',
-            builder: (_, _) => AnimatedRotation(
-              turns: expanded ? 0.5 : 0,
-              duration: theme.motion.fast,
-              child: Icon(
-                Icons.expand_more,
-                size: context.sz(theme.sizes.iconMd),
-                color: theme.colors.foregroundMuted,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool isNarrow = constraints.maxWidth < 340 || context.uiRes.isMobile;
+        final Widget titleColumn = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (titleWidget != null)
+              titleWidget!
+            else if (title != null)
+              Text(
+                title!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: context.uiText.heading
+                    .copyWith(color: theme.colors.foreground),
               ),
-            ),
-          ),
-        ],
-      ],
+            if (subtitle != null) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.xxs)),
+              Text(
+                subtitle!,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: context.uiText.caption
+                    .copyWith(color: theme.colors.foregroundMuted),
+              ),
+            ],
+          ],
+        );
+
+        if (isNarrow && trailing != null) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  if (leading != null) ...<Widget>[
+                    leading!,
+                    SizedBox(width: context.sp(theme.spacing.md)),
+                  ],
+                  Expanded(child: titleColumn),
+                  if (collapsible) ...<Widget>[
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    UiInteractive(
+                      onTap: onToggle,
+                      semanticLabel: expanded ? 'Collapse' : 'Expand',
+                      builder: (_, _) => AnimatedRotation(
+                        turns: expanded ? 0.5 : 0,
+                        duration: theme.motion.fast,
+                        child: Icon(
+                          Icons.expand_more,
+                          size: context.sz(theme.sizes.iconMd),
+                          color: theme.colors.foregroundMuted,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: trailing!,
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (leading != null) ...<Widget>[
+              leading!,
+              SizedBox(width: context.sp(theme.spacing.md)),
+            ],
+            Expanded(child: titleColumn),
+            if (trailing != null) ...<Widget>[
+              SizedBox(width: context.sp(theme.spacing.sm)),
+              Flexible(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: trailing!,
+                ),
+              ),
+            ],
+            if (collapsible) ...<Widget>[
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              UiInteractive(
+                onTap: onToggle,
+                semanticLabel: expanded ? 'Collapse' : 'Expand',
+                builder: (_, _) => AnimatedRotation(
+                  turns: expanded ? 0.5 : 0,
+                  duration: theme.motion.fast,
+                  child: Icon(
+                    Icons.expand_more,
+                    size: context.sz(theme.sizes.iconMd),
+                    color: theme.colors.foregroundMuted,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }

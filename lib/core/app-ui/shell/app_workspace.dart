@@ -67,7 +67,11 @@ class AppWorkspacePane extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         header(listTitle, listActions),
-        Expanded(child: list),
+        Expanded(
+          child: SingleChildScrollView(
+            child: list,
+          ),
+        ),
       ],
     );
 
@@ -92,7 +96,11 @@ class AppWorkspacePane extends StatelessWidget {
                       )
                     : null,
               ),
-              Expanded(child: detail),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: detail,
+                ),
+              ),
             ],
           )
         : UiPanePlaceholder(

@@ -84,6 +84,8 @@ class _AppLogoPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final double w = size.width;
     final double h = size.height;
+    if (w <= 0 || h <= 0) return;
+
     final double stroke = math.max(1.4, w * 0.09);
 
     // Three candlesticks of increasing height.
@@ -110,17 +112,20 @@ class _AppLogoPainter extends CustomPainter {
       ..moveTo(w * 0.10, h * 0.66)
       ..cubicTo(w * 0.36, h * 0.62, w * 0.52, h * 0.42, w * 0.92, h * 0.12);
 
-    final ui.PathMetric metric = arc.computeMetrics().first;
-    final Path drawn = metric.extractPath(0, metric.length * progress);
+    final List<ui.PathMetric> metricsList = arc.computeMetrics().toList();
+    if (metricsList.isNotEmpty) {
+      final ui.PathMetric metric = metricsList.first;
+      final Path drawn = metric.extractPath(0, metric.length * progress);
 
-    canvas.drawPath(
-      drawn,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeWidth = stroke * 0.85
-        ..color = accent,
-    );
+      canvas.drawPath(
+        drawn,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = stroke * 0.85
+          ..color = accent,
+      );
+    }
 
     // Arrow head at the arc tip.
     if (progress > 0.85) {

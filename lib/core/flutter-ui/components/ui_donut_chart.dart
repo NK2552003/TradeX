@@ -78,20 +78,24 @@ class UiDonutChart extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Container(
-                  width: context.sz(10),
-                  height: context.sz(10),
+                  width: context.sz(8),
+                  height: context.sz(8),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: colors[i],
                   ),
                 ),
-                SizedBox(width: context.sp(theme.spacing.sm)),
-                Text(
-                  slices[i].label,
-                  style: context.uiText.caption
-                      .copyWith(color: theme.colors.foregroundMuted),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                Flexible(
+                  child: Text(
+                    slices[i].label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.caption
+                        .copyWith(color: theme.colors.foregroundMuted),
+                  ),
                 ),
-                SizedBox(width: context.sp(theme.spacing.sm)),
+                SizedBox(width: context.sp(theme.spacing.xs)),
                 Text(
                   total == 0
                       ? '0%'
@@ -105,22 +109,29 @@ class UiDonutChart extends StatelessWidget {
       ],
     );
 
-    if (context.uiRes.isMobile) {
-      return Column(
-        children: <Widget>[
-          donut,
-          SizedBox(height: context.sp(theme.spacing.lg)),
-          legend,
-        ],
-      );
-    }
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        donut,
-        SizedBox(width: context.sp(theme.spacing.xl)),
-        Flexible(child: legend),
-      ],
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool isCompact =
+            constraints.maxWidth < 360 || context.uiRes.isMobile;
+        if (isCompact) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              donut,
+              SizedBox(height: context.sp(theme.spacing.md)),
+              legend,
+            ],
+          );
+        }
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            donut,
+            SizedBox(width: context.sp(theme.spacing.md)),
+            Flexible(child: legend),
+          ],
+        );
+      },
     );
   }
 }

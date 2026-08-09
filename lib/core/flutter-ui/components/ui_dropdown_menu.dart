@@ -81,9 +81,9 @@ class UiDropdownMenu extends StatefulWidget {
     required this.child,
     this.width,
     this.alignRight = false,
-    this.offset = 6,
-    this.size = UiSize.md,
-    this.density = UiDensity.comfortable,
+    this.offset = 4,
+    this.size = UiSize.sm,
+    this.density = UiDensity.compact,
     this.enabled = true,
     this.header,
     this.footer,
@@ -138,8 +138,8 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
     }
     final RenderBox? box =
         _triggerKey.currentContext?.findRenderObject() as RenderBox?;
-    final double triggerWidth = box?.size.width ?? 220;
-    final double width = widget.width ?? (triggerWidth < 220 ? 220 : triggerWidth);
+    final double triggerWidth = box?.size.width ?? 160;
+    final double width = widget.width ?? (triggerWidth < 150 ? 150 : triggerWidth);
 
     _entry = OverlayEntry(
       builder: (BuildContext ctx) => Stack(
@@ -237,7 +237,7 @@ class _MenuSurface extends StatelessWidget {
         width: width,
         decoration: BoxDecoration(
           color: c.surface,
-          borderRadius: context.radius(theme.radii.lg),
+          borderRadius: context.radius(theme.radii.md),
           border:
               Border.all(color: c.border, width: theme.borders.hairline),
           boxShadow: theme.shadows.lg,
@@ -249,7 +249,7 @@ class _MenuSurface extends StatelessWidget {
           children: <Widget>[
             if (header != null) ...<Widget>[
               Padding(
-                padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+                padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
                 child: header!,
               ),
               Container(height: theme.borders.hairline, color: c.border),
@@ -260,7 +260,7 @@ class _MenuSurface extends StatelessWidget {
                     BoxConstraints(maxHeight: context.sz(maxHeight)),
                 child: SingleChildScrollView(
                   padding:
-                      EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+                      EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xxs)),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -272,7 +272,7 @@ class _MenuSurface extends StatelessWidget {
             if (footer != null) ...<Widget>[
               Container(height: theme.borders.hairline, color: c.border),
               Padding(
-                padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+                padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
                 child: footer!,
               ),
             ],
@@ -289,7 +289,7 @@ class _MenuSurface extends StatelessWidget {
     for (final UiMenuItem item in list) {
       if (item.isDivider) {
         out.add(Padding(
-          padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+          padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xxs)),
           child: Container(height: theme.borders.hairline, color: c.border),
         ));
         continue;
@@ -297,14 +297,14 @@ class _MenuSurface extends StatelessWidget {
       if (item.isSection) {
         out.add(Padding(
           padding: EdgeInsets.fromLTRB(
-            context.sp(theme.spacing.md),
             context.sp(theme.spacing.sm),
-            context.sp(theme.spacing.md),
+            context.sp(theme.spacing.xs),
+            context.sp(theme.spacing.sm),
             context.sp(theme.spacing.xxs),
           ),
           child: Text(
             item.label.toUpperCase(),
-            style: context.uiText.caption.copyWith(color: c.foregroundSubtle),
+            style: context.uiText.caption.copyWith(color: c.foregroundSubtle, fontSize: 10),
           ),
         ));
         continue;
@@ -354,11 +354,11 @@ class _MenuRow extends StatelessWidget {
       builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
         duration: theme.motion.fast,
         padding: EdgeInsets.only(
-          left: ctx.sp(theme.spacing.md) +
-              depth * ctx.sp(theme.spacing.lg),
-          right: ctx.sp(theme.spacing.md),
-          top: ctx.sp(theme.spacing.sm) * density.factor,
-          bottom: ctx.sp(theme.spacing.sm) * density.factor,
+          left: ctx.sp(theme.spacing.sm) +
+              depth * ctx.sp(theme.spacing.md),
+          right: ctx.sp(theme.spacing.sm),
+          top: ctx.sp(theme.spacing.xs) * density.factor,
+          bottom: ctx.sp(theme.spacing.xs) * density.factor,
         ),
         color: !enabled
             ? const Color(0x00000000)
@@ -372,12 +372,12 @@ class _MenuRow extends StatelessWidget {
             if (item.icon != null) ...<Widget>[
               Icon(
                 item.icon,
-                size: size.icon(ctx),
+                size: size == UiSize.xs ? ctx.sz(14) : size.icon(ctx),
                 color: enabled
                     ? (item.intent == null ? c.foregroundMuted : accent)
                     : c.disabledForeground,
               ),
-              SizedBox(width: ctx.sp(theme.spacing.sm)),
+              SizedBox(width: ctx.sp(theme.spacing.xs)),
             ],
             Expanded(
               child: Column(
@@ -387,6 +387,7 @@ class _MenuRow extends StatelessWidget {
                     item.label,
                     overflow: TextOverflow.ellipsis,
                     style: size.textStyle(ctx).copyWith(
+                          fontSize: size == UiSize.sm ? 13.0 : (size == UiSize.xs ? 11.5 : null),
                           color: enabled ? accent : c.disabledForeground,
                           fontWeight:
                               item.selected ? FontWeight.w600 : FontWeight.w500,
@@ -396,30 +397,30 @@ class _MenuRow extends StatelessWidget {
                     Text(
                       item.description!,
                       style: ctx.uiText.caption
-                          .copyWith(color: c.foregroundSubtle),
+                          .copyWith(color: c.foregroundSubtle, fontSize: 11.0),
                     ),
                 ],
               ),
             ),
             if (item.shortcut != null) ...<Widget>[
-              SizedBox(width: ctx.sp(theme.spacing.sm)),
+              SizedBox(width: ctx.sp(theme.spacing.xs)),
               Text(
                 item.shortcut!,
-                style: ctx.uiText.caption.copyWith(color: c.foregroundSubtle),
+                style: ctx.uiText.caption.copyWith(color: c.foregroundSubtle, fontSize: 11.0),
               ),
             ],
             if (item.selected) ...<Widget>[
-              SizedBox(width: ctx.sp(theme.spacing.xs)),
+              SizedBox(width: ctx.sp(theme.spacing.xxs)),
               Icon(
                 Icons.check,
-                size: ctx.sz(theme.sizes.iconSm),
+                size: ctx.sz(12),
                 color: item.intent?.color(ctx) ?? c.primary,
               ),
             ] else if (item.trailingIcon != null) ...<Widget>[
-              SizedBox(width: ctx.sp(theme.spacing.xs)),
+              SizedBox(width: ctx.sp(theme.spacing.xxs)),
               Icon(
                 item.trailingIcon,
-                size: ctx.sz(theme.sizes.iconSm),
+                size: ctx.sz(12),
                 color: c.foregroundSubtle,
               ),
             ],

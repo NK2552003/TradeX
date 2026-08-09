@@ -72,21 +72,26 @@ class AppStatCard extends StatelessWidget {
                   ),
                 ),
                 if (stat.delta != null)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Icon(
-                        AppTokens.plIcon(stat.delta!),
-                        size: context.sz(theme.sizes.iconSm),
-                        color: deltaColor,
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.xxs)),
-                      Text(
-                        AppTokens.signedPercent(stat.delta!, decimals: 1),
-                        style: context.uiText.caption
-                            .copyWith(color: deltaColor),
-                      ),
-                    ],
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          AppTokens.plIcon(stat.delta!),
+                          size: context.sz(theme.sizes.iconSm),
+                          color: deltaColor,
+                        ),
+                        SizedBox(width: context.sp(theme.spacing.xxs)),
+                        Flexible(
+                          child: Text(
+                            AppTokens.signedPercent(stat.delta!, decimals: 1),
+                            overflow: TextOverflow.ellipsis,
+                            style: context.uiText.caption
+                                .copyWith(color: deltaColor),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
               ],
             ),

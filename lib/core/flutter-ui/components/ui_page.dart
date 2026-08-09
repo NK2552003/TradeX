@@ -24,12 +24,12 @@ class UiPage extends StatelessWidget {
     final EdgeInsets pad = EdgeInsets.symmetric(
       horizontal: context.sp(
         r.pick<double>(
-          mobile: theme.spacing.lg,
-          tablet: theme.spacing.xl,
-          desktop: theme.spacing.xxl,
+          mobile: theme.spacing.sm,
+          tablet: theme.spacing.md,
+          desktop: theme.spacing.lg,
         ),
       ),
-      vertical: context.sp(theme.spacing.lg),
+      vertical: context.sp(theme.spacing.sm),
     );
 
     Widget body = ConstrainedBox(
@@ -80,7 +80,7 @@ class UiHeader extends StatelessWidget {
       children: <Widget>[
         if (leading != null) ...<Widget>[
           leading!,
-          SizedBox(width: context.sp(theme.spacing.md)),
+          SizedBox(width: context.sp(theme.spacing.sm)),
         ],
         Expanded(
           child: Column(
@@ -90,26 +90,31 @@ class UiHeader extends StatelessWidget {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: (context.uiRes.isMobile
-                        ? context.uiText.title
-                        : context.uiText.display)
-                    .copyWith(color: theme.colors.foreground),
+                style: context.uiText.subheading.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: theme.colors.foreground,
+                ),
               ),
-              if (subtitle != null)
+              if (subtitle != null) ...<Widget>[
+                SizedBox(height: context.sp(theme.spacing.xxs)),
                 Text(
                   subtitle!,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: context.uiText.body
-                      .copyWith(color: theme.colors.foregroundMuted),
+                  style: context.uiText.caption.copyWith(
+                    fontSize: 11,
+                    color: theme.colors.foregroundMuted,
+                  ),
                 ),
+              ],
             ],
           ),
         ),
         if (actions.isNotEmpty) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.md)),
+          SizedBox(width: context.sp(theme.spacing.sm)),
           Wrap(
-            spacing: context.sp(theme.spacing.sm),
+            spacing: context.sp(theme.spacing.xs),
             children: actions,
           ),
         ],

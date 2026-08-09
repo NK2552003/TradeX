@@ -18,11 +18,15 @@ class AppStatGridBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const UiCardGrid(
-        childAspectRatio: 1.9,
+      return UiCardGrid(
+        childAspectRatio: context.uiRes.pick<double>(
+          mobile: 1.5,
+          tablet: 1.35,
+          desktop: 1.35,
+        ),
         desktopColumns: 4,
         largeColumns: 4,
-        children: <Widget>[
+        children: const <Widget>[
           AppStatCardSkeleton(),
           AppStatCardSkeleton(),
           AppStatCardSkeleton(),
@@ -32,9 +36,9 @@ class AppStatGridBlock extends StatelessWidget {
     }
     return UiCardGrid(
       childAspectRatio: context.uiRes.pick<double>(
-        mobile: 2.4,
-        tablet: 2.0,
-        desktop: 1.9,
+        mobile: 1.5,
+        tablet: 1.35,
+        desktop: 1.35,
       ),
       desktopColumns: 4,
       largeColumns: 4,

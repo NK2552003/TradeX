@@ -30,7 +30,7 @@ class UiNavShell extends StatelessWidget {
       return Row(
         children: <Widget>[
           Container(
-            width: context.sz(context.uiRes.isDesktop ? 220 : 80),
+            width: context.sz(context.uiRes.isDesktop ? 190 : 60),
             decoration: BoxDecoration(
               color: theme.colors.surface,
               border: Border(

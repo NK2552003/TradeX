@@ -422,6 +422,23 @@ class AppAchievement {
 }
 
 @immutable
+class AppNavActionItem {
+  const AppNavActionItem({
+    required this.id,
+    required this.label,
+    required this.icon,
+    this.onPressed,
+    this.destructive = false,
+  });
+
+  final String id;
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final bool destructive;
+}
+
+@immutable
 class AppNavItem {
   const AppNavItem({
     required this.id,
@@ -430,6 +447,9 @@ class AppNavItem {
     this.selectedIcon,
     this.badgeCount,
     this.tierLocked = false,
+    this.subItems,
+    this.actionItems,
+    this.url,
   });
 
   final String id;
@@ -438,6 +458,9 @@ class AppNavItem {
   final IconData? selectedIcon;
   final int? badgeCount;
   final bool tierLocked;
+  final List<AppNavItem>? subItems;
+  final List<AppNavActionItem>? actionItems;
+  final String? url;
 }
 
 @immutable

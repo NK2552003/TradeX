@@ -47,13 +47,27 @@ class UiAsyncView extends StatelessWidget {
           Padding(
             padding: EdgeInsets.all(context.sp(context.uiSpace.xl)),
             child: Center(
-              child: SizedBox(
-                width: context.sz(24),
-                height: context.sz(24),
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: context.uiColors.primary,
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  SizedBox(
+                    width: context.sz(24),
+                    height: context.sz(24),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: context.uiColors.primary,
+                    ),
+                  ),
+                  if (loadingMessage != null) ...<Widget>[
+                    SizedBox(height: context.sp(context.uiSpace.md)),
+                    Text(
+                      loadingMessage!,
+                      style: context.uiText.caption.copyWith(
+                        color: context.uiColors.foregroundMuted,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           );
@@ -96,8 +110,9 @@ class UiAsyncViewStateCard extends StatefulWidget {
     this.title,
     this.subtitle,
     this.initialStatus = UiStatus.ready,
-    this.errorMessage = 'The request timed out. Check your connection.',
-    this.emptyTitle = 'Nothing here yet',
+    this.loadingMessage = 'Fetching live market orderbook & quotes...',
+    this.errorMessage = 'Failed to fetch live quotes',
+    this.emptyTitle = 'No active orders',
     this.emptyMessage = 'Data will appear once it is available.',
     this.onRetry,
     this.showSwitcher = true,
@@ -108,6 +123,7 @@ class UiAsyncViewStateCard extends StatefulWidget {
   final String? title;
   final String? subtitle;
   final UiStatus initialStatus;
+  final String loadingMessage;
   final String errorMessage;
   final String emptyTitle;
   final String emptyMessage;
@@ -188,6 +204,7 @@ class _UiAsyncViewStateCardState extends State<UiAsyncViewStateCard> {
         SizedBox(height: context.sp(theme.spacing.md)),
         UiAsyncView(
           loading: _status == UiStatus.loading,
+          loadingMessage: widget.loadingMessage,
           isEmpty: _status == UiStatus.empty,
           error: _status == UiStatus.error ? widget.errorMessage : null,
           emptyTitle: widget.emptyTitle,

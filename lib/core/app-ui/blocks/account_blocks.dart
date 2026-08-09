@@ -108,11 +108,10 @@ class AppProfileHeaderBlock extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.md)),
           Row(
             children: <Widget>[
-              _stat(context, uiCompactNumber(trader.followers), 'Followers'),
-              _stat(context, uiCompactNumber(trader.following), 'Following'),
+              Flexible(child: _stat(context, uiCompactNumber(trader.followers), 'Followers')),
+              Flexible(child: _stat(context, uiCompactNumber(trader.following), 'Following')),
               if (trader.winRate != null)
-                _stat(context, '${trader.winRate!.toStringAsFixed(0)}%',
-                    'Win rate'),
+                Flexible(child: _stat(context, '${trader.winRate!.toStringAsFixed(0)}%', 'Win rate')),
             ],
           ),
           if (context.uiRes.isMobile) ...<Widget>[

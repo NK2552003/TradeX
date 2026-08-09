@@ -24,25 +24,36 @@ class UiCardGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    final int cols = context.uiRes.columns(
-      mobile: mobileColumns,
-      tablet: tabletColumns,
-      desktop: desktopColumns,
-      large: largeColumns,
-    );
-    final double gap = context.sp(theme.spacing.lg);
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
-      itemCount: children.length,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: cols,
-        mainAxisSpacing: gap,
-        crossAxisSpacing: gap,
-        childAspectRatio: childAspectRatio,
-      ),
-      itemBuilder: (BuildContext _, int i) => children[i],
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        int cols;
+        if (constraints.maxWidth < 280) {
+          cols = 1;
+        } else if (constraints.maxWidth < 560) {
+          cols = 2;
+        } else {
+          cols = context.uiRes.columns(
+            mobile: mobileColumns,
+            tablet: tabletColumns,
+            desktop: desktopColumns,
+            large: largeColumns,
+          );
+        }
+        final double gap = context.sp(theme.spacing.lg);
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          itemCount: children.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: cols,
+            mainAxisSpacing: gap,
+            crossAxisSpacing: gap,
+            childAspectRatio: childAspectRatio,
+          ),
+          itemBuilder: (BuildContext _, int i) => children[i],
+        );
+      },
     );
   }
 }

@@ -270,7 +270,16 @@ Widget _dense(BuildContext context, Widget child) {
   );
 }
 
-Widget _mobile360(Widget child) => SizedBox(width: 360, child: child);
+Widget _mobile360(Widget child) => SizedBox(
+      width: 360,
+      child: MediaQuery(
+        data: const MediaQueryData(
+          size: Size(360, 640),
+          devicePixelRatio: 1.0,
+        ),
+        child: child,
+      ),
+    );
 
 // ---------------------------------------------------------------------------
 // Dashboard
@@ -1681,8 +1690,8 @@ class _ShellGallery extends StatelessWidget {
               width: 220,
               child: AppNavTile(
                 item: _navSections.first.items.first,
-                selected: true,
-                onTap: () {},
+                selectedId: 'dashboard',
+                onSelect: (_) {},
               ),
             ),
           ),

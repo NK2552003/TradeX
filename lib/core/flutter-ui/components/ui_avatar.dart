@@ -47,11 +47,12 @@ class UiAvatar extends StatelessWidget {
           color: theme.colors.border,
           width: theme.borders.hairline,
         ),
-        image: imageUrl == null
+        image: (imageUrl == null || imageUrl!.isEmpty)
             ? null
             : DecorationImage(
                 image: NetworkImage(imageUrl!),
                 fit: BoxFit.cover,
+                onError: (Object error, StackTrace? stackTrace) {},
               ),
       ),
       alignment: Alignment.center,

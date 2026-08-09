@@ -50,7 +50,12 @@ class ShowcaseSectionSpec {
 /// Strictly renders only the single active selected category to eliminate
 /// site lag and maintain high rendering performance.
 class NumberedComponentShowcasePage extends StatefulWidget {
-  const NumberedComponentShowcasePage({super.key});
+  const NumberedComponentShowcasePage({
+    super.key,
+    this.selectedId = 'showcase',
+  });
+
+  final String selectedId;
 
   @override
   State<NumberedComponentShowcasePage> createState() =>
@@ -61,8 +66,40 @@ class _NumberedComponentShowcasePageState
     extends State<NumberedComponentShowcasePage> {
   UiShowcaseConfig _config = const UiShowcaseConfig();
   String _query = '';
-  ShowcaseCategory _activeCategory = ShowcaseCategory.foundation;
+  late ShowcaseCategory _activeCategory = _resolveCategory(widget.selectedId);
   final ScrollController _scroll = ScrollController();
+
+  @override
+  void didUpdateWidget(NumberedComponentShowcasePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedId != oldWidget.selectedId) {
+      setState(() {
+        _activeCategory = _resolveCategory(widget.selectedId);
+      });
+    }
+  }
+
+  ShowcaseCategory _resolveCategory(String id) {
+    switch (id) {
+      case 'showcase_inputs':
+        return ShowcaseCategory.inputs;
+      case 'showcase_selection':
+        return ShowcaseCategory.selection;
+      case 'showcase_charts':
+        return ShowcaseCategory.charts;
+      case 'showcase_layout':
+        return ShowcaseCategory.layout;
+      case 'showcase_overlays':
+        return ShowcaseCategory.overlays;
+      case 'showcase_cards':
+        return ShowcaseCategory.cards;
+      case 'showcase_blocks':
+        return ShowcaseCategory.blocks;
+      case 'showcase_foundation':
+      default:
+        return ShowcaseCategory.foundation;
+    }
+  }
 
   static const List<ShowcaseSectionSpec> _specs = <ShowcaseSectionSpec>[
     ShowcaseSectionSpec(
@@ -201,7 +238,6 @@ class _NumberedComponentShowcasePageState
 
   Widget _body(BuildContext context) {
     final theme = context.ui;
-    final bool isMobile = context.uiRes.isMobile;
     final double gap = context.sp(theme.spacing.lg);
     final ranges = categoryRanges;
 
@@ -229,16 +265,60 @@ class _NumberedComponentShowcasePageState
       children: <Widget>[
         _Header(total: totalEntries),
         SizedBox(height: gap),
+        Row(
+          children: <Widget>[
+            UiDropdownMenu(
+              actions: <UiMenuItem>[
+                for (final cat in ShowcaseCategory.values)
+                  UiMenuItem(
+                    label:
+                        '${cat.label} (#${ranges[cat]?.start}–${ranges[cat]?.end})',
+                    icon: cat.icon,
+                    selected: _activeCategory == cat && _query.isEmpty,
+                    onTap: () => _selectCategory(cat),
+                  ),
+              ],
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.sm),
+                  vertical: context.sp(theme.spacing.xs),
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colors.surface,
+                  borderRadius: context.radius(theme.radii.md),
+                  border: Border.all(
+                    color: theme.colors.border,
+                    width: theme.borders.hairline,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      _activeCategory.icon,
+                      size: context.sz(14),
+                      color: theme.colors.primary,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Text(
+                      'Category: ${_activeCategory.label} (#${ranges[_activeCategory]?.start}–${ranges[_activeCategory]?.end})',
+                      style: context.uiText.bodyStrong.copyWith(fontSize: 11.5),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Icon(
+                      Icons.unfold_more_rounded,
+                      size: context.sz(14),
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: context.sp(theme.spacing.sm)),
         const UiShowcaseControlBar(),
         SizedBox(height: gap),
-        if (isMobile) ...<Widget>[
-          _MobileCategorySelector(
-            active: _activeCategory,
-            ranges: ranges,
-            onSelect: _selectCategory,
-          ),
-          SizedBox(height: gap),
-        ],
         UiInput.search(
           hintText: 'Search by component number, category or description…',
           value: _query,
@@ -251,7 +331,7 @@ class _NumberedComponentShowcasePageState
             icon: Icons.search_off,
             title: 'No matching components found',
             message:
-                'Try another search term or select a category from the sidebar.',
+                'Try another search term or select a category from the dropdown menu above.',
           )
         else
           ...sections,
@@ -262,230 +342,17 @@ class _NumberedComponentShowcasePageState
     return Scaffold(
       backgroundColor: theme.colors.background,
       body: SafeArea(
-        child: isMobile
-            ? SingleChildScrollView(
-                controller: _scroll,
-                padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-                child: mainContent,
-              )
-            : Row(
-                children: <Widget>[
-                  SizedBox(
-                    width: context.sz(280),
-                    child: _Sidebar(
-                      active: _activeCategory,
-                      query: _query,
-                      ranges: ranges,
-                      onSelect: _selectCategory,
-                    ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: _scroll,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: context.sp(theme.spacing.xl),
-                        vertical: context.sp(theme.spacing.lg),
-                      ),
-                      child: mainContent,
-                    ),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
-class _Sidebar extends StatelessWidget {
-  const _Sidebar({
-    required this.active,
-    required this.query,
-    required this.ranges,
-    required this.onSelect,
-  });
-
-  final ShowcaseCategory active;
-  final String query;
-  final Map<ShowcaseCategory, ({int start, int end})> ranges;
-  final ValueChanged<ShowcaseCategory> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.ui;
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colors.surface,
-        border: Border(
-          right: BorderSide(
-            color: theme.colors.border,
-            width: theme.borders.hairline,
-          ),
-        ),
-      ),
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Padding(
-            padding: EdgeInsets.symmetric(
-              vertical: context.sp(theme.spacing.sm),
-              horizontal: context.sp(theme.spacing.xs),
-            ),
-            child: Row(
-              children: <Widget>[
-                const AppLogoMark(size: 28),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Text(
-                  'TraderHub UI',
-                  style: context.uiText.heading.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          Text(
-            'CATEGORIES',
-            style: context.uiText.caption.copyWith(
-              color: theme.colors.foregroundSubtle,
-              letterSpacing: 1.2,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Expanded(
-            child: ListView(
-              children: <Widget>[
-                for (final cat in ShowcaseCategory.values) ...<Widget>[
-                  _SidebarTile(
-                    title: cat.label,
-                    icon: cat.icon,
-                    badgeLabel:
-                        '#${ranges[cat]?.start}–${ranges[cat]?.end}',
-                    selected: active == cat && query.isEmpty,
-                    onTap: () => onSelect(cat),
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.xxs)),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SidebarTile extends StatelessWidget {
-  const _SidebarTile({
-    required this.title,
-    required this.icon,
-    required this.badgeLabel,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String title;
-  final IconData icon;
-  final String badgeLabel;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.ui;
-    return UiInteractive(
-      onTap: onTap,
-      builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
-        duration: theme.motion.fast,
-        padding: EdgeInsets.symmetric(
-          horizontal: ctx.sp(theme.spacing.sm),
-          vertical: ctx.sp(theme.spacing.xs),
-        ),
-        decoration: BoxDecoration(
-          color: selected
-              ? theme.colors.primary.withValues(alpha: 0.12)
-              : (s.hovered ? theme.colors.surfaceMuted : Colors.transparent),
-          borderRadius: ctx.radius(theme.radii.md),
-          border: Border.all(
-            color: selected
-                ? theme.colors.primary.withValues(alpha: 0.4)
-                : Colors.transparent,
-            width: theme.borders.hairline,
-          ),
-        ),
-        child: Row(
-          children: <Widget>[
-            Icon(
-              icon,
-              size: ctx.sz(18),
-              color: selected
-                  ? theme.colors.primary
-                  : (s.hovered
-                      ? theme.colors.foreground
-                      : theme.colors.foregroundMuted),
-            ),
-            SizedBox(width: ctx.sp(theme.spacing.xs)),
-            Expanded(
-              child: Text(
-                title,
-                style: ctx.uiText.body.copyWith(
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                  color: selected
-                      ? theme.colors.primary
-                      : theme.colors.foreground,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            UiBadge(
-              label: badgeLabel,
-              size: UiSize.xs,
-              intent: selected ? UiIntent.primary : UiIntent.neutral,
-              variant: selected ? UiBadgeVariant.solid : UiBadgeVariant.outline,
-            ),
-          ],
+        child: SingleChildScrollView(
+          controller: _scroll,
+          padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+          child: mainContent,
         ),
       ),
     );
   }
 }
 
-class _MobileCategorySelector extends StatelessWidget {
-  const _MobileCategorySelector({
-    required this.active,
-    required this.ranges,
-    required this.onSelect,
-  });
 
-  final ShowcaseCategory active;
-  final Map<ShowcaseCategory, ({int start, int end})> ranges;
-  final ValueChanged<ShowcaseCategory> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.ui;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: <Widget>[
-          for (final cat in ShowcaseCategory.values) ...<Widget>[
-            UiBadge(
-              label: '${cat.label} (#${ranges[cat]?.start}–${ranges[cat]?.end})',
-              icon: cat.icon,
-              intent: active == cat ? UiIntent.primary : UiIntent.neutral,
-              variant: active == cat ? UiBadgeVariant.solid : UiBadgeVariant.outline,
-              onTap: () => onSelect(cat),
-            ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-          ],
-        ],
-      ),
-    );
-  }
-}
 
 class _Header extends StatelessWidget {
   const _Header({required this.total});
@@ -508,6 +375,7 @@ class _Header extends StatelessWidget {
               label: '$total entries',
               intent: UiIntent.primary,
               variant: UiBadgeVariant.soft,
+              size: UiSize.xs,
             ),
             const UiBadge(
               label: 'single category active',
@@ -516,17 +384,23 @@ class _Header extends StatelessWidget {
             ),
           ],
         ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
-        Text(
-          'TraderHub UI Kit — Component Showcase',
-          style: context.uiText.display.copyWith(color: theme.colors.foreground),
-        ),
         SizedBox(height: context.sp(theme.spacing.xs)),
         Text(
-          'Select a category from the sidebar to view its full state matrix. '
-          'Only the active category is rendered at a time for optimal site performance.',
-          style:
-              context.uiText.body.copyWith(color: theme.colors.foregroundMuted),
+          'TraderHub UI Kit — Component Showcase',
+          style: context.uiText.subheading.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colors.foreground,
+            fontSize: 14,
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.xxs)),
+        Text(
+          'Select a category from the dropdown menu to filter component state matrix. '
+          'Only the active category is rendered at a time for optimal performance.',
+          style: context.uiText.caption.copyWith(
+            color: theme.colors.foregroundMuted,
+            fontSize: 11,
+          ),
         ),
       ],
     );

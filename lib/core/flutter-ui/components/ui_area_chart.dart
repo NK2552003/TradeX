@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/ui_theme.dart';
+import 'ui_badge.dart';
 import 'ui_card.dart';
 import 'ui_chart_base.dart';
 import 'ui_common.dart';
@@ -128,26 +130,64 @@ class UiAreaChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.ui;
+    final Widget chart = UiAreaChart(
+      data: data,
+      series: series,
+      height: height,
+      showGrid: showGrid,
+      showAxisLabels: showAxisLabels,
+      showLegend: showLegend,
+      valueFormatter: valueFormatter,
+      curved: curved,
+      interactive: interactive,
+      toggleableLegend: toggleableLegend,
+      stacked: stacked,
+      glow: glow,
+      fillOpacity: fillOpacity,
+      gradientColors: gradientColors,
+      showDots: showDots,
+      thresholds: thresholds,
+    );
+
+    if (metricValue == null && metricChange == null) {
+      return UiCard(
+        title: title,
+        subtitle: subtitle,
+        child: chart,
+      );
+    }
+
     return UiCard(
       title: title,
       subtitle: subtitle,
-      child: UiAreaChart(
-        data: data,
-        series: series,
-        height: height,
-        showGrid: showGrid,
-        showAxisLabels: showAxisLabels,
-        showLegend: showLegend,
-        valueFormatter: valueFormatter,
-        curved: curved,
-        interactive: interactive,
-        toggleableLegend: toggleableLegend,
-        stacked: stacked,
-        glow: glow,
-        fillOpacity: fillOpacity,
-        gradientColors: gradientColors,
-        showDots: showDots,
-        thresholds: thresholds,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: <Widget>[
+              if (metricValue != null)
+                Flexible(
+                  child: Text(
+                    metricValue!,
+                    style: context.uiText.heading,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              if (metricChange != null) ...<Widget>[
+                SizedBox(width: context.sp(theme.spacing.sm)),
+                UiBadge(
+                  label: metricChange!,
+                  intent: isBullish == false ? UiIntent.danger : UiIntent.success,
+                ),
+              ],
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.md)),
+          chart,
+        ],
       ),
     );
   }
