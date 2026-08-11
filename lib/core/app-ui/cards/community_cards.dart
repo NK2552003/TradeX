@@ -71,6 +71,57 @@ class AppPostCard extends StatelessWidget {
               ),
             ),
           ],
+          for (final AppPostAttachment attachment in post.attachments) ...<Widget>[
+            if (attachment is AppPostImageAttachment) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.md)),
+              ClipRRect(
+                borderRadius: context.radius(theme.radii.lg),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Image.network(attachment.url, fit: BoxFit.cover),
+                ),
+              ),
+            ] else if (attachment is AppPostChartAttachment) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.md)),
+              UiCard(
+                padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+                child: UiCandleChart(
+                  candles: (attachment.candles as List<dynamic>).cast<UiCandle>(),
+                  height: 140,
+                  showVolume: false,
+                  showGrid: false,
+                  interactive: false,
+                ),
+              ),
+            ] else if (attachment is AppPostStrategyAttachment) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.md)),
+              UiCard(
+                variant: UiCardVariant.surface,
+                onTap: onTap,
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.md),
+                  vertical: context.sp(theme.spacing.xs),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Icon(Icons.auto_graph_rounded, color: theme.colors.primary, size: context.sz(theme.sizes.iconMd)),
+                    SizedBox(width: context.sp(theme.spacing.sm)),
+                    Expanded(
+                      child: Text(
+                        attachment.name,
+                        style: context.uiText.bodyStrong,
+                      ),
+                    ),
+                    if (attachment.locked) ...[
+                      Icon(Icons.lock_outline_rounded, color: theme.colors.warning, size: context.sz(theme.sizes.iconSm)),
+                      SizedBox(width: context.sp(theme.spacing.sm)),
+                    ],
+                    Icon(Icons.chevron_right_rounded, color: theme.colors.borderStrong, size: context.sz(theme.sizes.iconSm)),
+                  ],
+                ),
+              ),
+            ],
+          ],
           SizedBox(height: context.sp(theme.spacing.md)),
           UiDivider(),
           SizedBox(height: context.sp(theme.spacing.xs)),
