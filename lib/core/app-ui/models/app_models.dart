@@ -229,6 +229,7 @@ class AppPost {
     this.type,
     this.tickers = const <String>[],
     this.imageUrl,
+    this.attachments = const <AppPostAttachment>[],
     this.likes = 0,
     this.comments = 0,
     this.liked = false,
@@ -242,12 +243,32 @@ class AppPost {
   final String? type;
   final List<String> tickers;
   final String? imageUrl;
+  final List<AppPostAttachment> attachments;
   final int likes;
   final int comments;
   final bool liked;
   final bool saved;
 }
 
+abstract class AppPostAttachment {
+  const AppPostAttachment();
+}
+
+class AppPostImageAttachment extends AppPostAttachment {
+  const AppPostImageAttachment(this.url);
+  final String url;
+}
+
+class AppPostChartAttachment extends AppPostAttachment {
+  const AppPostChartAttachment(this.candles);
+  final dynamic candles; // Expects List<UiCandle> from flutter-ui
+}
+
+class AppPostStrategyAttachment extends AppPostAttachment {
+  const AppPostStrategyAttachment(this.name, {this.locked = false});
+  final String name;
+  final bool locked;
+}
 @immutable
 class AppComment {
   const AppComment({

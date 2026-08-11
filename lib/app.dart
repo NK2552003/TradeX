@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/config/app_constants.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/core/widgets/app_scaffold.dart';
+import 'package:tradex/features/auth/auth.dart';
 
 class TradeXApp extends StatefulWidget {
   const TradeXApp({super.key});
@@ -24,7 +24,7 @@ class _TradeXAppState extends State<TradeXApp> {
         theme: UiTheme.light().toThemeData(),
         darkTheme: UiTheme.dark().toThemeData(),
         themeMode: _isDark ? ThemeMode.dark : ThemeMode.light,
-        home: const AppScaffold(),
+        home: const AuthWrapper(),
       ),
     );
   }

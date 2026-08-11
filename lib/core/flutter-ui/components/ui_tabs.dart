@@ -117,7 +117,7 @@ class _UiTabsState extends State<UiTabs> {
         child: Row(children: tabs),
       );
     } else {
-      row = Row(children: tabs);
+      row = Row(mainAxisSize: MainAxisSize.min, children: tabs);
     }
 
     final double gap = context.sp(theme.spacing.xs);
@@ -278,15 +278,16 @@ class _UiTab extends StatelessWidget {
             children: <Widget>[
               if (item.icon != null) ...<Widget>[
                 Icon(item.icon, size: size.icon(ctx), color: fg),
-                SizedBox(width: ctx.sp(theme.spacing.xs)),
+                if (item.label.isNotEmpty) SizedBox(width: ctx.sp(theme.spacing.xs)),
               ],
-              Text(
-                item.label,
-                style: size.textStyle(ctx).copyWith(
-                      color: fg,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    ),
-              ),
+              if (item.label.isNotEmpty)
+                Text(
+                  item.label,
+                  style: size.textStyle(ctx).copyWith(
+                        color: fg,
+                        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                      ),
+                ),
               if (item.count != null) ...<Widget>[
                 SizedBox(width: ctx.sp(theme.spacing.xs)),
                 Container(

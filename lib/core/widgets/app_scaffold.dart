@@ -2,12 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
 import 'package:tradex/core/showcase/numbered_component_showcase_page.dart';
+import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/journal/presentation/pages/journal_page.dart';
 import 'package:tradex/features/portfolio/presentation/pages/portfolio_page.dart';
 import 'package:tradex/features/watchlists/presentation/pages/watchlists_page.dart';
 
 class AppScaffold extends StatefulWidget {
-  const AppScaffold({super.key});
+  const AppScaffold({
+    super.key,
+    this.userRole = UserRole.customer,
+    this.userEmail = 'nitish@tradex.ai',
+    this.onLogout,
+    this.onRoleChanged,
+    this.onReturnToAuth,
+  });
+
+  final UserRole userRole;
+  final String userEmail;
+  final VoidCallback? onLogout;
+  final ValueChanged<UserRole>? onRoleChanged;
+  final VoidCallback? onReturnToAuth;
 
   @override
   State<AppScaffold> createState() => _AppScaffoldState();
@@ -122,13 +136,11 @@ class _AppScaffoldState extends State<AppScaffold> {
           id: 'org_team',
           label: 'Team & Risk',
           icon: Icons.corporate_fare_outlined,
-          tierLocked: true,
         ),
         AppNavItem(
           id: 'org_audit',
           label: 'Audit & Compliance',
           icon: Icons.shield_outlined,
-          tierLocked: true,
         ),
       ],
     ),
@@ -170,21 +182,177 @@ class _AppScaffoldState extends State<AppScaffold> {
     }
   }
 
+  void _showRoleSwitcherDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => UiDialog(
+        title: 'Switch User Role',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: UserRole.values.map((role) {
+            final isSelected = widget.userRole == role;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: UiInteractive(
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  widget.onRoleChanged?.call(role);
+                  UiToast.show(
+                    context,
+                    title: 'Role Switch',
+                    message: 'Switched role to ${role.label}',
+                    intent: UiIntent.info,
+                  );
+                },
+                builder: (context, state) => Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? context.ui.colors.primary.withValues(alpha: 0.12)
+                        : (state.hovered
+                            ? context.ui.colors.surfaceHover
+                            : Colors.transparent),
+                    borderRadius: context.radius(context.ui.radii.md),
+                    border: Border.all(
+                      color: isSelected
+                          ? context.ui.colors.primary
+                          : context.ui.colors.border,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(role.icon, color: context.ui.colors.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              role.label,
+                              style: context.uiText.bodyStrong,
+                            ),
+                            Text(
+                              role.subtitle,
+                              style: context.uiText.caption.copyWith(
+                                color: context.ui.colors.foregroundMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      UiBadge(
+                        label: role.shortTitle,
+                        intent: role.badgeIntent,
+                        size: UiSize.xs,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        actions: [
+          UiButton(
+            label: 'Close',
+            variant: UiVariant.outline,
+            intent: UiIntent.neutral,
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AppShell(
-      key: const ValueKey<String>(AppConstants.appName),
-      sections: _navSections,
-      selectedId: _selectedId,
-      onSelect: (id) => setState(() => _selectedId = id),
-      trader: const AppTrader(
-        id: 'u1',
-        handle: 'nitish@tradex.ai',
-        displayName: 'Nitish Kumar',
-        tier: AppTier.premium,
-      ),
-      unreadNotifications: 4,
-      child: _buildActivePage(),
+    final theme = context.ui;
+    final colors = theme.colors;
+
+    return Column(
+      children: [
+        // Role Notification Top Banner for Affiliate / Admin roles
+        if (widget.userRole != UserRole.customer)
+          Container(
+            color: widget.userRole == UserRole.userAdmin
+                ? colors.bearish.withValues(alpha: 0.15)
+                : colors.warning.withValues(alpha: 0.15),
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.md),
+              vertical: context.sp(theme.spacing.xxs),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  widget.userRole.icon,
+                  size: context.sz(14),
+                  color: widget.userRole == UserRole.userAdmin
+                      ? colors.bearish
+                      : colors.warning,
+                ),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                Expanded(
+                  child: Text(
+                    'Active Session: ${widget.userRole.label} Mode (${widget.userRole.subtitle})',
+                    style: context.uiText.caption.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ),
+                UiButton(
+                  label: 'Switch Role',
+                  variant: UiVariant.ghost,
+                  intent: UiIntent.primary,
+                  size: UiSize.xs,
+                  onPressed: _showRoleSwitcherDialog,
+                ),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                UiButton(
+                  label: 'Logout',
+                  variant: UiVariant.soft,
+                  intent: UiIntent.danger,
+                  size: UiSize.xs,
+                  onPressed: widget.onLogout,
+                ),
+              ],
+            ),
+          ),
+
+        // Main App Shell
+        Expanded(
+          child: AppShell(
+            key: ValueKey<String>('${AppConstants.appName}_${widget.userRole.id}'),
+            sections: _navSections,
+            selectedId: _selectedId,
+            onSelect: (id) => setState(() => _selectedId = id),
+            trader: AppTrader(
+              id: 'u1',
+              handle: widget.userEmail,
+              displayName: 'Nitish Kumar (${widget.userRole.shortTitle})',
+              tier: widget.userRole == UserRole.userAdmin
+                  ? AppTier.enterprise
+                  : (widget.userRole == UserRole.affiliate
+                      ? AppTier.premium
+                      : AppTier.free),
+            ),
+            unreadNotifications: 4,
+            primaryAction: widget.onReturnToAuth != null
+                ? UiButton(
+                    label: 'Auth Demo Flow',
+                    leadingIcon: Icons.lock_reset_rounded,
+                    variant: UiVariant.soft,
+                    intent: UiIntent.primary,
+                    size: UiSize.sm,
+                    onPressed: widget.onReturnToAuth,
+                  )
+                : null,
+            child: _buildActivePage(),
+          ),
+        ),
+      ],
     );
   }
 }
