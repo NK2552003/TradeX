@@ -4,9 +4,9 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 /// Soft, code-drawn gradient backdrop shared by every auth screen.
 ///
 /// No image or SVG assets — two blurred radial "aurora" blooms sit behind
-/// a faint grid, tinted from the live theme so it always matches dark/light
-/// mode and the app's primary/bullish accent colors.
-class AuthBackground extends StatelessWidget {
+/// a faint, gently pulsating grid, tinted from the live theme so it always
+/// matches dark/light mode and the app's primary/bullish accent colors.
+class AuthBackground extends StatefulWidget {
   const AuthBackground({
     super.key,
     required this.child,
@@ -15,6 +15,29 @@ class AuthBackground extends StatelessWidget {
 
   final Widget child;
   final bool showGrid;
+
+  @override
+  State<AuthBackground> createState() => _AuthBackgroundState();
+}
+
+class _AuthBackgroundState extends State<AuthBackground>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3200),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,17 +68,28 @@ class AuthBackground extends StatelessWidget {
               color: colors.bullish.withValues(alpha: 0.10),
             ),
           ),
-          if (showGrid)
+          if (widget.showGrid)
             Positioned.fill(
               child: IgnorePointer(
-                child: CustomPaint(
-                  painter: _DotGridPainter(
-                    color: colors.foregroundSubtle.withValues(alpha: 0.05),
-                  ),
+                child: AnimatedBuilder(
+                  animation: _pulseController,
+                  builder: (context, _) {
+                    // Ease in/out rather than a linear pulse.
+                    final t = Curves.easeInOut.transform(
+                      _pulseController.value,
+                    );
+                    return CustomPaint(
+                      size: Size.infinite,
+                      painter: _DotGridPainter(
+                        color: colors.foregroundSubtle,
+                        pulse: t,
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
-          child,
+          widget.child,
         ],
       ),
     );
@@ -86,24 +120,33 @@ class _Bloom extends StatelessWidget {
 }
 
 class _DotGridPainter extends CustomPainter {
-  const _DotGridPainter({required this.color});
+  const _DotGridPainter({required this.color, required this.pulse});
 
   final Color color;
 
+  /// 0..1 animation progress, already eased.
+  final double pulse;
+
   static const double _gap = 28;
-  static const double _dotRadius = 1.0;
+  static const double _minRadius = 0.6;
+  static const double _maxRadius = 1.6;
+  static const double _minAlpha = 0.03;
+  static const double _maxAlpha = 0.08;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
+    final alpha = _minAlpha + (_maxAlpha - _minAlpha) * pulse;
+    final radius = _minRadius + (_maxRadius - _minRadius) * pulse;
+    final paint = Paint()..color = color.withValues(alpha: alpha);
+
     for (double y = 0; y < size.height; y += _gap) {
       for (double x = 0; x < size.width; x += _gap) {
-        canvas.drawCircle(Offset(x, y), _dotRadius, paint);
+        canvas.drawCircle(Offset(x, y), radius, paint);
       }
     }
   }
 
   @override
   bool shouldRepaint(covariant _DotGridPainter oldDelegate) =>
-      oldDelegate.color != color;
+      oldDelegate.color != color || oldDelegate.pulse != pulse;
 }

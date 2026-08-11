@@ -22,23 +22,76 @@ class RoleSelectorTab extends StatelessWidget {
     final roles = UserRole.values;
     final int selectedIndex = roles.indexOf(selectedRole);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        UiTabs(
-          items: roles.map((r) => UiTabItem(label: '', icon: r.icon)).toList(),
-          selectedIndex: selectedIndex >= 0 ? selectedIndex : 0,
-          variant: UiTabsVariant.segmented,
-          size: UiSize.sm,
-          density: UiDensity.compact,
-          stretch: false,
-          onChanged: (idx) {
-            if (idx >= 0 && idx < roles.length) {
-              onRoleChanged(roles[idx]);
-            }
-          },
-        ),
-      ],
+    final uiTabs = UiTabs(
+      items: roles.map((r) => UiTabItem(label: '', icon: r.icon)).toList(),
+      selectedIndex: selectedIndex >= 0 ? selectedIndex : 0,
+      variant: UiTabsVariant.segmented,
+      size: UiSize.sm,
+      density: UiDensity.compact,
+      stretch: false,
+      onChanged: (idx) {
+        if (idx >= 0 && idx < roles.length) {
+          onRoleChanged(roles[idx]);
+        }
+      },
+    );
+
+    return IntrinsicWidth(
+      child: Stack(
+        children: [
+          // Background layer: Bulletin (painted first)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Invisible spacer to push the bulletin down
+              Opacity(opacity: 0.0, child: uiTabs),
+              Transform.translate(
+                offset: const Offset(0, -10),
+                child: Container(
+                  alignment: Alignment.center,
+                  padding: EdgeInsets.only(
+                    top: context.sp(theme.spacing.xxs) + 10,
+                    bottom: context.sp(theme.spacing.xxs),
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceMuted,
+                    borderRadius: BorderRadius.vertical(
+                      bottom: context.radius(theme.radii.md).bottomLeft,
+                    ),
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: theme.motion.fast,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, -0.5),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Text(
+                      selectedRole.shortTitle,
+                      key: ValueKey(selectedRole.id),
+                      style: context.uiText.caption.copyWith(
+                        color: colors.foregroundMuted,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // Foreground layer: UiTabs (painted on top, hides the top border of the bulletin)
+          uiTabs,
+        ],
+      ),
     );
   }
 }

@@ -14,7 +14,7 @@ enum UserRole {
   affiliate(
     id: 'affiliate',
     label: 'Affiliate',
-    shortTitle: 'Partner',
+    shortTitle: 'Affiliate',
     subtitle: 'Referral tracking, payouts & partner portal',
     icon: Icons.handshake_outlined,
     badgeIntent: UiIntent.warning,

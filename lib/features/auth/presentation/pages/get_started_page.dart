@@ -1,7 +1,5 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/widgets/auth_background.dart';
 import 'package:tradex/core/showcase/numbered_component_showcase_page.dart';
@@ -206,18 +204,15 @@ class _GetStartedPageState extends State<GetStartedPage> {
     if (responsive.isMobile) {
       return Scaffold(
         backgroundColor: colors.background,
-        body: AuthBackground(
-          child: SafeArea(
+        body: SafeArea(
             child: _buildMobileView(context, theme, colors, responsive),
           ),
-        ),
       );
     }
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: AuthBackground(
-        child: SafeArea(
+      body: SafeArea(
           child: Column(
             children: [
               _buildTopNav(context, theme, colors, responsive),
@@ -278,7 +273,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              colors.background.withOpacity(0.0),
+                              colors.background.withValues(alpha: 0.0),
                               colors.background,
                             ],
                           ),
@@ -291,7 +286,6 @@ class _GetStartedPageState extends State<GetStartedPage> {
             ),
           ],
         ),
-      ),
       ),
     );
   }

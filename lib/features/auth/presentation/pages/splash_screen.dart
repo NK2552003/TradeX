@@ -72,9 +72,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: AuthBackground(
-        showGrid: false,
-        child: GestureDetector(
+      body: GestureDetector(
           onTap: widget.onFinish,
           behavior: HitTestBehavior.opaque,
           child: Center(
@@ -132,7 +130,6 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
         ),
-      ),
     );
   }
 }

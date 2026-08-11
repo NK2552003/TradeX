@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/widgets/auth_background.dart';
 import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
 import 'package:tradex/features/auth/widgets/role_selector_tab.dart';
-import 'package:tradex/features/auth/widgets/social_auth_buttons.dart';
 
 /// Responsive Signup Page — split card on desktop, single column on mobile.
 class SignupPage extends StatefulWidget {
@@ -110,21 +108,25 @@ class _SignupPageState extends State<SignupPage> {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: AuthBackground(
-        child: SafeArea(
-          child: Center(
-            child: ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-              child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: context.sp(theme.spacing.md),
-                vertical: context.sp(theme.spacing.xl),
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxWidth),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+      body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                child: SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.sp(theme.spacing.md),
+                          vertical: context.sp(theme.spacing.xl),
+                        ),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: maxWidth),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
                     // Main Card Container with split grid layout
                     UiCard(
                       variant: UiCardVariant.surface,
@@ -341,8 +343,13 @@ class _SignupPageState extends State<SignupPage> {
                                     SizedBox(height: context.sp(theme.spacing.md)),
 
                                     // Social Authentication Buttons Grid
-                                    const SocialAuthButtons(
-                                      actionLabelPrefix: 'Sign up with',
+                                    UiButton(
+                                      label: 'Sign up with Google',
+                                      variant: UiVariant.outline,
+                                      intent: UiIntent.neutral,
+                                      size: UiSize.lg,
+                                      leading: const Icon(Icons.g_mobiledata, size: 24),
+                                      onPressed: () => _showSocialToast('Google'),
                                     ),
                                     SizedBox(height: context.sp(theme.spacing.lg)),
 
@@ -380,7 +387,7 @@ class _SignupPageState extends State<SignupPage> {
                             if (showSidePanel)
                               Expanded(
                                 child: SizedBox(
-                                  height: 520, // Provide tight height for IntrinsicHeight
+                                  height: 640, // Provide tight height for IntrinsicHeight
                                   child: Container(
                                     decoration: BoxDecoration(
                                     border: Border(
@@ -447,13 +454,25 @@ class _SignupPageState extends State<SignupPage> {
                       ),
                     ),
                   ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            ),
+              );
+            },
           ),
         ),
-      ),
+    );
+  }
+
+  void _showSocialToast(String provider) {
+    UiToast.show(
+      context,
+      title: '$provider Authentication',
+      message: 'Sign up with $provider initiated',
+      intent: UiIntent.primary,
     );
   }
 

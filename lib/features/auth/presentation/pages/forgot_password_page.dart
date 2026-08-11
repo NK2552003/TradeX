@@ -146,8 +146,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: AuthBackground(
-        child: SafeArea(
+      body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(
@@ -465,7 +464,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             ),
           ),
         ),
-      ),
     );
   }
 }
