@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/auth/widgets/auth_background.dart';
 
 /// Forgot Password & Security Code Verification multi-step page.
 ///

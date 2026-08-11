@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/auth/widgets/auth_background.dart';
 import 'package:tradex/core/showcase/numbered_component_showcase_page.dart';
 import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
 
