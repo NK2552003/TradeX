@@ -44,47 +44,6 @@ final AppPost _mockPost = AppPost(
   liked: true,
 );
 
-final AppTrade _aaplTrade = AppTrade(
-  id: 't_aapl',
-  ticker: 'AAPL',
-  side: AppSide.long,
-  entry: 220.10,
-  exit: 227.40,
-  size: 100.00,
-  pnl: 730.00,
-  pnlPercent: 3.30,
-  rMultiple: 2.10,
-  openedAt: DateTime.now().subtract(const Duration(days: 1)),
-  tags: const ['Opening range breakout', 'breakout', 'tech'],
-);
-
-final AppTrade _tslaTrade = AppTrade(
-  id: 't_tsla',
-  ticker: 'TSLA',
-  side: AppSide.short,
-  entry: 182.50,
-  exit: 189.20,
-  size: 40.00,
-  pnl: -268.00,
-  pnlPercent: -3.60,
-  rMultiple: -0.90,
-  openedAt: DateTime.now().subtract(const Duration(days: 1)),
-  tags: const ['Fade the gap', 'gap', 'ev'],
-);
-
-final AppTrade _msftTrade = AppTrade(
-  id: 't_msft',
-  ticker: 'MSFT',
-  side: AppSide.long,
-  entry: 411.20,
-  exit: 413.20,
-  size: 60.00,
-  pnl: 96.00,
-  pnlPercent: 0.40,
-  openedAt: DateTime.now().subtract(const Duration(days: 1)),
-  tags: const ['Trend continuation', 'trend'],
-);
-
 final AppStrategy _mockStrategy = AppStrategy(
   id: 's1',
   name: 'ORB Breakout',

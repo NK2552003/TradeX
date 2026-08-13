@@ -11,11 +11,13 @@ class SignupPage extends StatefulWidget {
     this.initialRole = UserRole.customer,
     required this.onSignupSuccess,
     required this.onNavigateToLogin,
+    required this.onNavigateBack,
   });
 
   final UserRole initialRole;
   final void Function(UserRole role, String email) onSignupSuccess;
   final void Function(UserRole role) onNavigateToLogin;
+  final VoidCallback onNavigateBack;
 
   @override
   State<SignupPage> createState() => _SignupPageState();
@@ -146,7 +148,7 @@ class _SignupPageState extends State<SignupPage> {
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // Header with Logo and Role Selector
+                                    // Header with Back Button, Logo and Role Selector
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -154,6 +156,13 @@ class _SignupPageState extends State<SignupPage> {
                                         Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
+                                            UiIconButton(
+                                              icon: Icons.arrow_back_rounded,
+                                              tooltip: 'Back',
+                                              size: UiSize.sm,
+                                              onPressed: widget.onNavigateBack,
+                                            ),
+                                            SizedBox(width: context.sp(theme.spacing.xs)),
                                             const AppLogoMark(size: 20),
                                             SizedBox(width: context.sp(theme.spacing.xs)),
                                             Text(
@@ -248,8 +257,6 @@ class _SignupPageState extends State<SignupPage> {
                                               required: true,
                                               child: UiPasswordField(
                                                 controller: _passwordController,
-                                                onChanged: (v) =>
-                                                    _passwordController.text = v,
                                               ),
                                             ),
                                           ),
@@ -260,8 +267,6 @@ class _SignupPageState extends State<SignupPage> {
                                               required: true,
                                               child: UiPasswordField(
                                                 controller: _confirmPasswordController,
-                                                onChanged: (v) =>
-                                                    _confirmPasswordController.text = v,
                                               ),
                                             ),
                                           ),
@@ -273,8 +278,6 @@ class _SignupPageState extends State<SignupPage> {
                                         required: true,
                                         child: UiPasswordField(
                                           controller: _passwordController,
-                                          onChanged: (v) =>
-                                              _passwordController.text = v,
                                         ),
                                       ),
                                       SizedBox(height: context.sp(theme.spacing.md)),
@@ -283,8 +286,6 @@ class _SignupPageState extends State<SignupPage> {
                                         required: true,
                                         child: UiPasswordField(
                                           controller: _confirmPasswordController,
-                                          onChanged: (v) =>
-                                              _confirmPasswordController.text = v,
                                         ),
                                       ),
                                     ],
