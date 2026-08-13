@@ -372,7 +372,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 required: true,
                                 child: UiPasswordField(
                                   controller: _newPasswordController,
-                                  onChanged: (v) => _newPasswordController.text = v,
                                 ),
                               ),
                               SizedBox(height: context.sp(theme.spacing.md)),
@@ -381,7 +380,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 required: true,
                                 child: UiPasswordField(
                                   controller: _confirmPasswordController,
-                                  onChanged: (v) => _confirmPasswordController.text = v,
                                 ),
                               ),
                               SizedBox(height: context.sp(theme.spacing.lg)),

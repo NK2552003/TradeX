@@ -102,6 +102,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
               onNavigateToForgotPassword: () {
                 _navigateToStage(AuthStage.forgotPassword);
               },
+              onNavigateBack: () => _navigateToStage(AuthStage.onboarding),
             );
 
           case AuthStage.signup:
@@ -114,6 +115,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
               onNavigateToLogin: (role) {
                 _navigateToStage(AuthStage.login, role: role);
               },
+              onNavigateBack: () => _navigateToStage(AuthStage.onboarding),
             );
 
           case AuthStage.forgotPassword:

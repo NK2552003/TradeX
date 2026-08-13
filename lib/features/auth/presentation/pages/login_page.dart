@@ -12,12 +12,14 @@ class LoginPage extends StatefulWidget {
     required this.onLoginSuccess,
     required this.onNavigateToSignup,
     required this.onNavigateToForgotPassword,
+    required this.onNavigateBack,
   });
 
   final UserRole initialRole;
   final void Function(UserRole role, String email) onLoginSuccess;
   final void Function(UserRole role) onNavigateToSignup;
   final VoidCallback onNavigateToForgotPassword;
+  final VoidCallback onNavigateBack;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -135,7 +137,7 @@ class _LoginPageState extends State<LoginPage> {
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // Header with Logo and Role Selector
+                                    // Header with Back Button, Logo and Role Selector
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -143,6 +145,13 @@ class _LoginPageState extends State<LoginPage> {
                                         Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
+                                            UiIconButton(
+                                              icon: Icons.arrow_back_rounded,
+                                              tooltip: 'Back',
+                                              size: UiSize.sm,
+                                              onPressed: widget.onNavigateBack,
+                                            ),
+                                            SizedBox(width: context.sp(theme.spacing.xs)),
                                             const AppLogoMark(size: 20),
                                             SizedBox(width: context.sp(theme.spacing.xs)),
                                             Text(
@@ -227,7 +236,6 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                       child: UiPasswordField(
                                         controller: _passwordController,
-                                        onChanged: (v) => _passwordController.text = v,
                                       ),
                                     ),
                                     SizedBox(height: context.sp(theme.spacing.md)),
