@@ -6,6 +6,10 @@ enum AuthStage {
   onboarding,
   login,
   signup,
+
+  /// OTP verification shown right after signup, before the account is
+  /// considered active. See `OtpVerificationPage`.
+  signupVerification,
   forgotPassword,
   authenticated,
 }

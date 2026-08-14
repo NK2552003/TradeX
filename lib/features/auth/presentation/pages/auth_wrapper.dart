@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
 import 'package:tradex/features/auth/models/auth_state.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/auth/models/otp_purpose.dart';
 import 'package:tradex/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:tradex/features/auth/presentation/pages/get_started_page.dart';
 import 'package:tradex/features/auth/presentation/pages/login_page.dart';
+import 'package:tradex/features/auth/presentation/pages/otp_verification_page.dart';
 import 'package:tradex/features/auth/presentation/pages/signup_page.dart';
 import 'package:tradex/features/auth/presentation/pages/splash_screen.dart';
 
@@ -109,13 +111,29 @@ class _AuthWrapperState extends State<AuthWrapper> {
             return SignupPage(
               initialRole: _sessionState.role,
               onSignupSuccess: (role, email) {
-                _navigateToStage(AuthStage.authenticated,
+                // Account is created but not yet verified — route through
+                // the OTP screen before granting access.
+                _navigateToStage(AuthStage.signupVerification,
                     role: role, email: email);
               },
               onNavigateToLogin: (role) {
                 _navigateToStage(AuthStage.login, role: role);
               },
               onNavigateBack: () => _navigateToStage(AuthStage.onboarding),
+            );
+
+          case AuthStage.signupVerification:
+            return OtpVerificationPage(
+              identifier: _sessionState.email,
+              purpose: OtpPurpose.signupVerification,
+              onVerified: (token) {
+                // TODO(backend): persist/exchange `token` if the API issues
+                // a session token here instead of a separate login step.
+                _navigateToStage(AuthStage.authenticated,
+                    role: _sessionState.role, email: _sessionState.email);
+              },
+              onBack: () =>
+                  _navigateToStage(AuthStage.signup, role: _sessionState.role),
             );
 
           case AuthStage.forgotPassword:

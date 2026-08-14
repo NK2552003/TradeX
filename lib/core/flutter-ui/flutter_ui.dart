@@ -37,6 +37,7 @@ export 'components/ui_dropdown_menu.dart';
 
 // Inputs
 export 'components/ui_input.dart';
+export 'components/ui_otp_field.dart';
 export 'components/ui_textarea.dart';
 export 'components/ui_select.dart';
 export 'components/ui_select_native.dart';

@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/auth/data/repositories/auth_otp_repository.dart';
+import 'package:tradex/features/auth/models/otp_purpose.dart';
+import 'package:tradex/features/auth/widgets/auth_step_icon.dart';
 
 /// Forgot Password & Security Code Verification multi-step page.
 ///
@@ -23,9 +26,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   int _currentStep = 0; // 0: Email Input, 1: OTP Entry, 2: New Password, 3: Success
   final TextEditingController _emailController =
       TextEditingController(text: 'nitish@tradex.ai');
-  final TextEditingController _otpController = TextEditingController();
+  final UiOtpFieldController _otpController = UiOtpFieldController();
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+
+  /// Single seam for the OTP send/verify/resend network calls — swap for a
+  /// real implementation, see the contract documented on [AuthOtpRepository].
+  final AuthOtpRepository _otpRepository = AuthOtpRepositoryImpl();
+
+  /// Continuation token returned by [AuthOtpRepository.verifyOtp] once the
+  /// code is confirmed. TODO(backend): send this along with the new
+  /// password on the "confirm reset" request so the server can prove the
+  /// OTP step actually happened for this session.
+  String? _resetToken;
 
   bool _isLoading = false;
   String? _errorText;
@@ -69,7 +82,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _errorText = null;
     });
 
-    await Future.delayed(const Duration(milliseconds: 700));
+    await _otpRepository.sendOtp(
+      identifier: email,
+      purpose: OtpPurpose.passwordReset,
+    );
 
     if (!mounted) return;
 
@@ -78,6 +94,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _currentStep = 1;
     });
 
+    _otpController.clear();
     _startResendTimer();
     UiToast.show(
       context,
@@ -87,10 +104,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  void _handleVerifyOtp() async {
-    final code = _otpController.text.trim();
-    if (code.length < 4) {
-      setState(() => _errorText = 'Please enter valid 6-digit code');
+  void _handleVerifyOtp([String? autoSubmittedCode]) async {
+    final code = autoSubmittedCode ?? _otpController.value;
+    if (code.length < 6) {
+      setState(() => _errorText = 'Please enter the full 6-digit code');
       return;
     }
 
@@ -99,14 +116,24 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _errorText = null;
     });
 
-    await Future.delayed(const Duration(milliseconds: 600));
+    final OtpVerifyResult result = await _otpRepository.verifyOtp(
+      identifier: _emailController.text.trim(),
+      purpose: OtpPurpose.passwordReset,
+      code: code,
+    );
 
     if (!mounted) return;
 
-    setState(() {
-      _isLoading = false;
-      _currentStep = 2;
-    });
+    setState(() => _isLoading = false);
+
+    if (!result.success) {
+      setState(() => _errorText = result.errorMessage ?? 'Invalid or expired code.');
+      _otpController.clear();
+      return;
+    }
+
+    _resetToken = result.token;
+    setState(() => _currentStep = 2);
   }
 
   void _handleResetPassword() async {
@@ -127,6 +154,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _errorText = null;
     });
 
+    // TODO(backend): POST the new password together with `_resetToken`
+    // (the value returned by AuthOtpRepository.verifyOtp) to your
+    // "confirm password reset" endpoint, e.g.
+    //   POST /auth/password/reset { resetToken: _resetToken, newPassword: pwd }
+    // Reject the request server-side if the token is missing, expired, or
+    // was already consumed.
     await Future.delayed(const Duration(milliseconds: 800));
 
     if (!mounted) return;
@@ -222,7 +255,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                             // Step 0: Email Input Form
                             if (_currentStep == 0) ...[
-                              _StepIcon(
+                              const AuthStepIcon(
                                 icon: Icons.lock_reset_rounded,
                                 intent: UiIntent.primary,
                               ),
@@ -270,7 +303,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                             // Step 1: Verification OTP Entry
                             if (_currentStep == 1) ...[
-                              _StepIcon(
+                              const AuthStepIcon(
                                 icon: Icons.mark_email_read_outlined,
                                 intent: UiIntent.info,
                               ),
@@ -294,19 +327,24 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 ),
                               ),
                               SizedBox(height: context.sp(theme.spacing.lg)),
-                              UiField(
-                                label: 'Verification Code',
-                                required: true,
-                                child: UiInput(
-                                  value: _otpController.text,
-                                  hintText: '849204',
-                                  keyboardType: TextInputType.number,
-                                  onChanged: (v) => _otpController.text = v,
+                              Center(
+                                child: UiOtpField(
+                                  controller: _otpController,
+                                  length: 6,
+                                  autofocus: true,
+                                  enabled: !_isLoading,
+                                  error: _errorText != null,
+                                  onChanged: (_) {
+                                    if (_errorText != null) {
+                                      setState(() => _errorText = null);
+                                    }
+                                  },
+                                  onCompleted: (code) => _handleVerifyOtp(code),
                                 ),
                               ),
                               SizedBox(height: context.sp(theme.spacing.md)),
                               Wrap(
-                                alignment: WrapAlignment.spaceBetween,
+                                alignment: WrapAlignment.center,
                                 runSpacing: context.sp(theme.spacing.xs),
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
@@ -318,7 +356,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                       color: colors.foregroundSubtle,
                                     ),
                                   ),
-                                  if (_timerSeconds == 0)
+                                  if (_timerSeconds == 0) ...[
+                                    SizedBox(width: context.sp(theme.spacing.xs)),
                                     GestureDetector(
                                       onTap: _handleSendResetLink,
                                       child: Text(
@@ -329,6 +368,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                         ),
                                       ),
                                     ),
+                                  ],
                                 ],
                               ),
                               SizedBox(height: context.sp(theme.spacing.lg)),
@@ -337,13 +377,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 variant: UiVariant.primary,
                                 intent: UiIntent.primary,
                                 size: UiSize.lg,
-                                onPressed: _isLoading ? null : _handleVerifyOtp,
+                                onPressed: _isLoading ? null : () => _handleVerifyOtp(),
                               ),
                             ],
 
                             // Step 2: New Password Input
                             if (_currentStep == 2) ...[
-                              _StepIcon(
+                              const AuthStepIcon(
                                 icon: Icons.password_rounded,
                                 intent: UiIntent.warning,
                               ),
@@ -396,7 +436,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                             // Step 3: Success Confirmation State
                             if (_currentStep == 3) ...[
-                              _StepIcon(
+                              const AuthStepIcon(
                                 icon: Icons.check_rounded,
                                 intent: UiIntent.bullish,
                                 large: true,
@@ -461,46 +501,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             ),
           ),
         ),
-    );
-  }
-}
-
-/// Small circular icon lockup used at the top of each step's card.
-class _StepIcon extends StatelessWidget {
-  const _StepIcon({
-    required this.icon,
-    required this.intent,
-    this.large = false,
-  });
-
-  final IconData icon;
-  final UiIntent intent;
-  final bool large;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.ui;
-    final colors = theme.colors;
-    final Color tint = switch (intent) {
-      UiIntent.bullish => colors.bullish,
-      UiIntent.warning => colors.warning,
-      UiIntent.info => colors.info,
-      UiIntent.danger => colors.destructive,
-      _ => colors.primary,
-    };
-    final double dim = context.sz(large ? 56 : 44);
-
-    return Center(
-      child: Container(
-        width: dim,
-        height: dim,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: tint.withValues(alpha: 0.12),
-          border: Border.all(color: tint.withValues(alpha: 0.24)),
-        ),
-        child: Icon(icon, color: tint, size: context.sz(large ? 26 : 20)),
-      ),
     );
   }
 }

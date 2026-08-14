@@ -49,6 +49,7 @@ flutter-ui/
 | Drawer | `UiDrawerPanel` (`showUiDrawer`) | `ui_drawer.dart` |
 | DropdownMenu | `UiDropdownMenu` | `ui_dropdown_menu.dart` |
 | Input | `UiInput` | `ui_input.dart` |
+| OTP / PinInput | `UiOtpField` | `ui_otp_field.dart` |
 | Label | `UiLabel` | `ui_label.dart` |
 | LineChart | `UiLineChart` | `ui_line_chart.dart` |
 | Popover | `UiPopover` | `ui_popover.dart` |
