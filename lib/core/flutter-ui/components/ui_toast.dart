@@ -20,18 +20,30 @@ class UiToast extends StatelessWidget {
     String? actionLabel,
     VoidCallback? onAction,
     Duration duration = const Duration(seconds: 4),
-  }) =>
-      UiToastScope.of(context).show(
-        UiToastData(
-          title: title,
-          message: message,
-          intent: intent,
-          icon: icon,
-          actionLabel: actionLabel,
-          onAction: onAction,
-          duration: duration,
-        ),
-      );
+  }) {
+    final scope = UiToastScope.maybeOf(context);
+    final toastData = UiToastData(
+      title: title,
+      message: message,
+      intent: intent,
+      icon: icon,
+      actionLabel: actionLabel,
+      onAction: onAction,
+      duration: duration,
+    );
+    if (scope != null) {
+      scope.show(toastData);
+    } else {
+      try {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$title${message != null ? ': $message' : ''}'),
+            duration: duration,
+          ),
+        );
+      } catch (_) {}
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -2,10 +2,16 @@ library;
 
 export 'models/auth_user_role.dart';
 export 'models/auth_state.dart';
+export 'models/user_profile_model.dart';
+export 'models/affiliate_profile_model.dart';
+export 'data/repositories/auth_repository.dart';
+export 'data/services/auth_backend_service.dart';
+export 'data/services/supabase_auth_backend_service.dart';
 export 'models/otp_purpose.dart';
 export 'data/repositories/auth_otp_repository.dart';
 export 'widgets/auth_window_graphics.dart';
 export 'widgets/role_selector_tab.dart';
+export 'presentation/widgets/supabase_config_modal.dart';
 export 'widgets/auth_step_icon.dart';
 export 'presentation/pages/splash_screen.dart';
 export 'presentation/pages/get_started_page.dart';

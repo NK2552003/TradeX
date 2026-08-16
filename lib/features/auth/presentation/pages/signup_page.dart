@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
+import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
 import 'package:tradex/features/auth/widgets/role_selector_tab.dart';
@@ -9,12 +11,14 @@ class SignupPage extends StatefulWidget {
   const SignupPage({
     super.key,
     this.initialRole = UserRole.customer,
+    this.authRepository,
     required this.onSignupSuccess,
     required this.onNavigateToLogin,
     required this.onNavigateBack,
   });
 
   final UserRole initialRole;
+  final AuthRepository? authRepository;
   final void Function(UserRole role, String email) onSignupSuccess;
   final void Function(UserRole role) onNavigateToLogin;
   final VoidCallback onNavigateBack;
@@ -25,6 +29,7 @@ class SignupPage extends StatefulWidget {
 
 class _SignupPageState extends State<SignupPage> {
   late UserRole _selectedRole;
+  late final AuthRepository _repository;
   final TextEditingController _handlerIdController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -39,6 +44,7 @@ class _SignupPageState extends State<SignupPage> {
   void initState() {
     super.initState();
     _selectedRole = widget.initialRole;
+    _repository = widget.authRepository ?? AuthBackendService.instance;
   }
 
   @override
@@ -75,22 +81,38 @@ class _SignupPageState extends State<SignupPage> {
       return;
     }
 
+    if (_selectedRole == UserRole.userAdmin && _adminKeyController.text.trim().isEmpty) {
+      setState(() => _errorText = 'Master Admin Authorization Key is required for User Admin registration.');
+      return;
+    }
+
     setState(() {
       _errorText = null;
       _isLoading = true;
     });
 
-    // Simulate network registration request
-    await Future.delayed(const Duration(milliseconds: 900));
+    final result = await _repository.signUp(
+      role: _selectedRole,
+      handle: handlerId,
+      email: email,
+      password: password,
+      referralCode: _selectedRole == UserRole.affiliate ? _referralCodeController.text.trim() : null,
+      adminKey: _selectedRole == UserRole.userAdmin ? _adminKeyController.text.trim() : null,
+    );
 
     if (!mounted) return;
 
     setState(() => _isLoading = false);
 
+    if (!result.isSuccess) {
+      setState(() => _errorText = result.message);
+      return;
+    }
+
     UiToast.show(
       context,
       title: 'Registration Successful',
-      message: 'Account created successfully as ${_selectedRole.label}!',
+      message: result.message,
       intent: UiIntent.success,
     );
 
