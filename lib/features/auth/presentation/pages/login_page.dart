@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
+import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
 import 'package:tradex/features/auth/widgets/role_selector_tab.dart';
@@ -9,6 +11,7 @@ class LoginPage extends StatefulWidget {
   const LoginPage({
     super.key,
     this.initialRole = UserRole.customer,
+    this.authRepository,
     required this.onLoginSuccess,
     required this.onNavigateToSignup,
     required this.onNavigateToForgotPassword,
@@ -16,6 +19,7 @@ class LoginPage extends StatefulWidget {
   });
 
   final UserRole initialRole;
+  final AuthRepository? authRepository;
   final void Function(UserRole role, String email) onLoginSuccess;
   final void Function(UserRole role) onNavigateToSignup;
   final VoidCallback onNavigateToForgotPassword;
@@ -27,6 +31,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   late UserRole _selectedRole;
+  late final AuthRepository _repository;
   final TextEditingController _emailController =
       TextEditingController(text: '');
   final TextEditingController _passwordController =
@@ -41,6 +46,7 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     _selectedRole = widget.initialRole;
+    _repository = widget.authRepository ?? AuthBackendService.instance;
   }
 
   @override
@@ -64,26 +70,40 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
+    if (_selectedRole == UserRole.userAdmin && _adminKeyController.text.trim().isEmpty) {
+      setState(() => _errorText = 'Admin Security Clearance Key is required for User Admin sign in.');
+      return;
+    }
+
     setState(() {
       _errorText = null;
       _isLoading = true;
     });
 
-    // Simulate network authentication request
-    await Future.delayed(const Duration(milliseconds: 800));
+    final result = await _repository.signIn(
+      role: _selectedRole,
+      emailOrHandle: email,
+      password: password,
+      adminKey: _selectedRole == UserRole.userAdmin ? _adminKeyController.text.trim() : null,
+    );
 
     if (!mounted) return;
 
     setState(() => _isLoading = false);
 
+    if (!result.isSuccess) {
+      setState(() => _errorText = result.message);
+      return;
+    }
+
     UiToast.show(
       context,
       title: 'Login Successful',
-      message: 'Logged in successfully as ${_selectedRole.label}',
+      message: result.message,
       intent: UiIntent.success,
     );
 
-    widget.onLoginSuccess(_selectedRole, email);
+    widget.onLoginSuccess(_selectedRole, result.profile?.email ?? email);
   }
 
   @override

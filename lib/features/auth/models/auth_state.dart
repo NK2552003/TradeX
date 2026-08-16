@@ -1,4 +1,6 @@
+import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/auth/models/user_profile_model.dart';
 
 /// Navigation stages in the auth lifecycle.
 enum AuthStage {
@@ -22,6 +24,8 @@ class AuthSessionState {
     this.email = '',
     this.displayName = 'Nitish Kumar',
     this.hasCompletedOnboarding = false,
+    this.profile,
+    this.affiliateProfile,
   });
 
   final AuthStage stage;
@@ -29,6 +33,8 @@ class AuthSessionState {
   final String email;
   final String displayName;
   final bool hasCompletedOnboarding;
+  final UserProfileModel? profile;
+  final AffiliateProfileModel? affiliateProfile;
 
   AuthSessionState copyWith({
     AuthStage? stage,
@@ -36,6 +42,8 @@ class AuthSessionState {
     String? email,
     String? displayName,
     bool? hasCompletedOnboarding,
+    UserProfileModel? profile,
+    AffiliateProfileModel? affiliateProfile,
   }) {
     return AuthSessionState(
       stage: stage ?? this.stage,
@@ -44,6 +52,9 @@ class AuthSessionState {
       displayName: displayName ?? this.displayName,
       hasCompletedOnboarding:
           hasCompletedOnboarding ?? this.hasCompletedOnboarding,
+      profile: profile ?? this.profile,
+      affiliateProfile: affiliateProfile ?? this.affiliateProfile,
     );
   }
 }
+

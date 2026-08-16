@@ -24,6 +24,9 @@ class _TradeXAppState extends State<TradeXApp> {
         theme: UiTheme.light().toThemeData(),
         darkTheme: UiTheme.dark().toThemeData(),
         themeMode: _isDark ? ThemeMode.dark : ThemeMode.light,
+        builder: (context, child) => UiToastScope(
+          child: child ?? const SizedBox.shrink(),
+        ),
         home: const AuthWrapper(),
       ),
     );

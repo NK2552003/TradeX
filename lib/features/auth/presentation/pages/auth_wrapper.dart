@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
+import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/features/auth/models/auth_state.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/otp_purpose.dart';
@@ -16,9 +18,11 @@ class AuthWrapper extends StatefulWidget {
   const AuthWrapper({
     super.key,
     this.initialStage = AuthStage.splash,
+    this.authRepository,
   });
 
   final AuthStage initialStage;
+  final AuthRepository? authRepository;
 
   @override
   State<AuthWrapper> createState() => _AuthWrapperState();
@@ -26,10 +30,12 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   late AuthSessionState _sessionState;
+  late final AuthRepository _authRepository;
 
   @override
   void initState() {
     super.initState();
+    _authRepository = widget.authRepository ?? SupabaseAuthBackendService.instance;
     _sessionState = AuthSessionState(
       stage: widget.initialStage,
       role: UserRole.customer,
@@ -37,16 +43,20 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   void _navigateToStage(AuthStage stage, {UserRole? role, String? email}) {
+    final activeService = SupabaseAuthBackendService.instance;
     setState(() {
       _sessionState = _sessionState.copyWith(
         stage: stage,
         role: role ?? _sessionState.role,
         email: email ?? _sessionState.email,
+        profile: activeService.currentUserProfile,
+        affiliateProfile: activeService.currentAffiliateProfile,
       );
     });
   }
 
-  void _handleLogout() {
+  void _handleLogout() async {
+    await _authRepository.signOut();
     setState(() {
       _sessionState = _sessionState.copyWith(
         stage: AuthStage.login,
@@ -65,11 +75,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   Widget build(BuildContext context) {
     if (_sessionState.stage == AuthStage.authenticated) {
+      final activeProfile = _sessionState.profile ?? SupabaseAuthBackendService.instance.currentUserProfile;
       return AppScaffold(
         userRole: _sessionState.role,
-        userEmail: _sessionState.email.isNotEmpty
-            ? _sessionState.email
-            : 'nitish@tradex.ai',
+        userEmail: activeProfile?.email ??
+            (_sessionState.email.isNotEmpty ? _sessionState.email : 'nitish@tradex.ai'),
         onLogout: _handleLogout,
         onRoleChanged: _handleSwitchRole,
         onReturnToAuth: () => _navigateToStage(AuthStage.login),
@@ -94,6 +104,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           case AuthStage.login:
             return LoginPage(
               initialRole: _sessionState.role,
+              authRepository: _authRepository,
               onLoginSuccess: (role, email) {
                 _navigateToStage(AuthStage.authenticated,
                     role: role, email: email);
@@ -110,6 +121,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           case AuthStage.signup:
             return SignupPage(
               initialRole: _sessionState.role,
+              authRepository: _authRepository,
               onSignupSuccess: (role, email) {
                 // Account is created but not yet verified — route through
                 // the OTP screen before granting access.
@@ -138,6 +150,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
           case AuthStage.forgotPassword:
             return ForgotPasswordPage(
+              authRepository: _authRepository,
               onBackToLogin: () => _navigateToStage(AuthStage.login),
             );
 
@@ -148,3 +161,4 @@ class _AuthWrapperState extends State<AuthWrapper> {
     );
   }
 }
+

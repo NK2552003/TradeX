@@ -3,8 +3,15 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
 import 'package:tradex/core/showcase/numbered_component_showcase_page.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/community/presentation/pages/community_page.dart';
+import 'package:tradex/features/enterprise/presentation/pages/enterprise_page.dart';
+import 'package:tradex/features/insights/presentation/pages/insights_page.dart';
 import 'package:tradex/features/journal/presentation/pages/journal_page.dart';
+import 'package:tradex/features/messages/presentation/pages/messages_page.dart';
+import 'package:tradex/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:tradex/features/portfolio/presentation/pages/portfolio_page.dart';
+import 'package:tradex/features/strategies/presentation/pages/strategies_page.dart';
+import 'package:tradex/features/subscriptions/presentation/pages/subscriptions_page.dart';
 import 'package:tradex/features/watchlists/presentation/pages/watchlists_page.dart';
 
 class AppScaffold extends StatefulWidget {
@@ -153,6 +160,27 @@ class _AppScaffoldState extends State<AppScaffold> {
         return const WatchlistsPage();
       case 'portfolio':
         return const PortfolioPage();
+      case 'strategies':
+      case 'strategies_list':
+      case 'strategies_analyzer':
+      case 'strategies_graph':
+        return const StrategiesPage();
+      case 'ai_assistant':
+      case 'ai_digest':
+      case 'ai_review':
+        return const InsightsPage();
+      case 'community':
+        return const CommunityPage();
+      case 'messages':
+        return const MessagesPage();
+      case 'org_team':
+      case 'org_audit':
+        return const EnterprisePage();
+      case 'subscriptions':
+      case 'billing':
+        return const SubscriptionsPage();
+      case 'notifications':
+        return const NotificationsPage();
       case 'showcase':
       case 'showcase_foundation':
       case 'showcase_inputs':
@@ -166,17 +194,6 @@ class _AppScaffoldState extends State<AppScaffold> {
       case 'journal':
       case 'journal_overview':
       case 'journal_analytics':
-      case 'strategies':
-      case 'strategies_list':
-      case 'strategies_analyzer':
-      case 'strategies_graph':
-      case 'ai_assistant':
-      case 'ai_digest':
-      case 'ai_review':
-      case 'community':
-      case 'messages':
-      case 'org_team':
-      case 'org_audit':
       default:
         return const JournalPage();
     }

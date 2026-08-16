@@ -1,6 +1,9 @@
 BEGIN;
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE affiliate_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE affiliate_referrals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE affiliate_payouts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE device_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE strategies ENABLE ROW LEVEL SECURITY;
@@ -22,13 +25,42 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE revenuecat_webhook_events ENABLE ROW LEVEL SECURITY;
 
+-- Helper function to check if current user is user_admin
+CREATE OR REPLACE FUNCTION is_user_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid() AND role = 'user_admin'
+  );
+$$;
+
 -- profiles
 DROP POLICY IF EXISTS profiles_public_read ON profiles;
 CREATE POLICY profiles_public_read ON profiles FOR SELECT USING (true);
 DROP POLICY IF EXISTS profiles_owner_update ON profiles;
-CREATE POLICY profiles_owner_update ON profiles FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+CREATE POLICY profiles_owner_update ON profiles FOR UPDATE USING (auth.uid() = id OR is_user_admin()) WITH CHECK (auth.uid() = id OR is_user_admin());
 DROP POLICY IF EXISTS profiles_owner_insert ON profiles;
-CREATE POLICY profiles_owner_insert ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY profiles_owner_insert ON profiles FOR INSERT WITH CHECK (auth.uid() = id OR is_user_admin());
+
+-- affiliate_profiles
+DROP POLICY IF EXISTS affiliate_profiles_own_read ON affiliate_profiles;
+CREATE POLICY affiliate_profiles_own_read ON affiliate_profiles FOR SELECT USING (auth.uid() = id OR is_user_admin());
+DROP POLICY IF EXISTS affiliate_profiles_own_update ON affiliate_profiles;
+CREATE POLICY affiliate_profiles_own_update ON affiliate_profiles FOR UPDATE USING (auth.uid() = id OR is_user_admin()) WITH CHECK (auth.uid() = id OR is_user_admin());
+
+-- affiliate_referrals
+DROP POLICY IF EXISTS affiliate_referrals_own_read ON affiliate_referrals;
+CREATE POLICY affiliate_referrals_own_read ON affiliate_referrals FOR SELECT USING (auth.uid() = affiliate_id OR auth.uid() = referred_user_id OR is_user_admin());
+
+-- affiliate_payouts
+DROP POLICY IF EXISTS affiliate_payouts_own_read ON affiliate_payouts;
+CREATE POLICY affiliate_payouts_own_read ON affiliate_payouts FOR SELECT USING (auth.uid() = affiliate_id OR is_user_admin());
+DROP POLICY IF EXISTS affiliate_payouts_admin_all ON affiliate_payouts;
+CREATE POLICY affiliate_payouts_admin_all ON affiliate_payouts FOR ALL USING (is_user_admin()) WITH CHECK (is_user_admin());
 
 -- subscriptions
 DROP POLICY IF EXISTS subscriptions_own_read ON subscriptions;

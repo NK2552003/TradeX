@@ -13,9 +13,12 @@ class UiToastScope extends StatefulWidget {
   @override
   State<UiToastScope> createState() => UiToastScopeState();
 
+  static UiToastScopeState? maybeOf(BuildContext context) {
+    return context.findAncestorStateOfType<UiToastScopeState>();
+  }
+
   static UiToastScopeState of(BuildContext context) {
-    final UiToastScopeState? state =
-        context.findAncestorStateOfType<UiToastScopeState>();
+    final UiToastScopeState? state = maybeOf(context);
     assert(state != null, 'Wrap your app with UiToastScope');
     return state!;
   }
