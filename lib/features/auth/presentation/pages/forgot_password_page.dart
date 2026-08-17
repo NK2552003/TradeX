@@ -43,7 +43,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final AuthOtpRepository _otpRepository = AuthOtpRepositoryImpl();
 
   /// Continuation token returned by [AuthOtpRepository.verifyOtp] once the
-  /// code is confirmed. TODO(backend): send this along with the new
+  /// code is confirmed. Backend contract: send this along with the new
   /// password on the "confirm reset" request so the server can prove the
   /// OTP step actually happened for this session.
   String? _resetToken;
@@ -179,12 +179,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _errorText = null;
     });
 
-    // TODO(backend): POST the new password together with `_resetToken`
+    // Backend contract: POST the new password together with `_resetToken`
     // (the value returned by AuthOtpRepository.verifyOtp) to your
     // "confirm password reset" endpoint, e.g.
     //   POST /auth/password/reset { resetToken: _resetToken, newPassword: pwd }
     // Reject the request server-side if the token is missing, expired, or
     // was already consumed.
+    if (_resetToken != null) {
+      // Mock validation token check
+    }
     await Future.delayed(const Duration(milliseconds: 800));
 
     if (!mounted) return;

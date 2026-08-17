@@ -83,21 +83,21 @@ final AppTrade msftTrade = AppTrade(
 
 final AppNewsItem mockNews = AppNewsItem(
   id: 'n1',
-  headline: 'Federal Reserve holds interest rates steady, signals potential cuts later this year.',
-  source: 'Bloomberg',
+  headline: 'RBI Monetary Policy Committee maintains repo rate at 6.50%, highlighting resilient domestic GDP growth.',
+  source: 'Economic Times',
   publishedAt: DateTime.now().subtract(const Duration(minutes: 45)),
   sentimentScore: 0.65,
-  tickers: const ['SPY', 'QQQ'],
-  summary: 'In a widely expected move, the central bank maintained its benchmark rate at 5.25%-5.50%.',
+  tickers: const ['NIFTY50', 'BANKNIFTY'],
+  summary: 'In its bi-monthly policy meeting, the Reserve Bank of India maintained liquidity stance while projecting 7.2% annual economic growth.',
 );
 
 final AppAiInsight mockInsight = AppAiInsight(
   id: 'ai1',
   title: 'Pattern Detected: Bull Flag',
-  body: 'NVDA is forming a tight bull flag on the 1H chart with decreasing volume. Watch for a breakout above \$120 with high volume confirmation.',
+  body: 'RELIANCE is forming a tight bull flag on the 1H chart with decreasing volume. Watch for a breakout above ₹2,950 with high volume confirmation.',
   confidence: 0.88,
   sentimentScore: 0.8,
-  tickers: const ['NVDA'],
+  tickers: const ['RELIANCE'],
   createdAt: DateTime.now().subtract(const Duration(minutes: 15)),
 );
 

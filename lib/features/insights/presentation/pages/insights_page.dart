@@ -84,7 +84,7 @@ class _InsightsPageState extends State<InsightsPage> {
               children: [
                 UiInput(
                   value: _promptController.text,
-                  hintText: 'e.g. Analyze \$AAPL risk-to-reward ratio for long entry at \$224...',
+                  hintText: 'e.g. Analyze RELIANCE risk-to-reward ratio for long entry at ₹2,950...',
                   leadingIcon: Icons.auto_awesome,
                   onChanged: (v) => _promptController.text = v,
                 ),

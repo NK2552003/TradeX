@@ -123,6 +123,29 @@ class UiTheme extends ThemeExtension<UiTheme> {
         bodySmall: typography.caption.copyWith(color: colors.foregroundMuted),
       ),
 
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) {
+          if (states.contains(WidgetState.dragged)) {
+            return colors.foregroundMuted.withValues(alpha: 0.85);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return colors.foregroundMuted.withValues(alpha: 0.65);
+          }
+          return colors.border.withValues(alpha: 0.65);
+        }),
+        trackColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
+        trackBorderColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
+        thickness: WidgetStateProperty.resolveWith<double>((Set<WidgetState> states) {
+          if (states.contains(WidgetState.hovered) || states.contains(WidgetState.dragged)) {
+            return 6.0;
+          }
+          return 4.0;
+        }),
+        radius: const Radius.circular(8.0),
+        crossAxisMargin: 2.0,
+        mainAxisMargin: 2.0,
+        interactive: true,
+      ),
       extensions: <ThemeExtension<dynamic>>[this],
     );
   }

@@ -1,18 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
-import 'package:tradex/core/showcase/numbered_component_showcase_page.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/presentation/pages/community_page.dart';
-import 'package:tradex/features/enterprise/presentation/pages/enterprise_page.dart';
-import 'package:tradex/features/insights/presentation/pages/insights_page.dart';
-import 'package:tradex/features/journal/presentation/pages/journal_page.dart';
-import 'package:tradex/features/messages/presentation/pages/messages_page.dart';
-import 'package:tradex/features/notifications/presentation/pages/notifications_page.dart';
-import 'package:tradex/features/portfolio/presentation/pages/portfolio_page.dart';
-import 'package:tradex/features/strategies/presentation/pages/strategies_page.dart';
-import 'package:tradex/features/subscriptions/presentation/pages/subscriptions_page.dart';
-import 'package:tradex/features/watchlists/presentation/pages/watchlists_page.dart';
+import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
 
 class AppScaffold extends StatefulWidget {
   const AppScaffold({
@@ -35,168 +25,371 @@ class AppScaffold extends StatefulWidget {
 }
 
 class _AppScaffoldState extends State<AppScaffold> {
-  String _selectedId = 'journal';
+  String _selectedId = 'overview';
 
-  static const List<AppNavSection> _navSections = <AppNavSection>[
-    AppNavSection(
-      title: 'Trading Platform',
-      items: <AppNavItem>[
-        AppNavItem(
-          id: 'journal',
-          label: 'Trade Journal',
-          icon: Icons.receipt_long_outlined,
-          selectedIcon: Icons.receipt_long,
-          subItems: <AppNavItem>[
-            AppNavItem(id: 'journal_overview', label: 'Overview', icon: Icons.grid_view_outlined),
-            AppNavItem(id: 'journal_analytics', label: 'Analytics', icon: Icons.analytics_outlined),
-          ],
-        ),
-        AppNavItem(
-          id: 'watchlists',
-          label: 'Watchlists',
-          icon: Icons.visibility_outlined,
-          selectedIcon: Icons.visibility,
-        ),
-        AppNavItem(
-          id: 'portfolio',
-          label: 'Portfolio Dashboard',
-          icon: Icons.pie_chart_outline,
-          selectedIcon: Icons.pie_chart,
-        ),
-        AppNavItem(
-          id: 'scanner',
-          label: 'Market Scanner',
-          icon: Icons.candlestick_chart_outlined,
-          selectedIcon: Icons.candlestick_chart,
-        ),
-      ],
-    ),
-    AppNavSection(
-      title: 'Strategies & AI',
-      items: <AppNavItem>[
-        AppNavItem(
-          id: 'strategies',
-          label: 'Strategy Playbooks',
-          icon: Icons.auto_stories_outlined,
-          selectedIcon: Icons.auto_stories,
-          subItems: <AppNavItem>[
-            AppNavItem(id: 'strategies_list', label: 'Playbook List', icon: Icons.format_list_bulleted_outlined),
-            AppNavItem(id: 'strategies_analyzer', label: 'Strategy Analyzer', icon: Icons.insights_outlined),
-            AppNavItem(id: 'strategies_graph', label: 'Graph View', icon: Icons.hub_outlined),
-          ],
-        ),
-        AppNavItem(
-          id: 'ai_assistant',
-          label: 'AI Trading Assistant',
-          icon: Icons.auto_awesome_outlined,
-          selectedIcon: Icons.auto_awesome,
-          subItems: <AppNavItem>[
-            AppNavItem(id: 'ai_digest', label: 'Daily Digest', icon: Icons.article_outlined),
-            AppNavItem(id: 'ai_review', label: 'Performance Review', icon: Icons.rate_review_outlined),
-          ],
-        ),
-      ],
-    ),
-    AppNavSection(
-      title: 'Community & Messages',
-      items: <AppNavItem>[
-        AppNavItem(
-          id: 'community',
-          label: 'Community Feed',
-          icon: Icons.forum_outlined,
-          selectedIcon: Icons.forum,
-        ),
-        AppNavItem(
-          id: 'messages',
-          label: 'Direct Messages',
-          icon: Icons.mark_chat_read_outlined,
-          selectedIcon: Icons.mark_chat_read,
-          badgeCount: 2,
-        ),
-      ],
-    ),
-    AppNavSection(
-      title: 'System & Showcase',
-      items: <AppNavItem>[
-        AppNavItem(
-          id: 'showcase',
-          label: 'UI Showcase (133)',
-          icon: Icons.grid_view_rounded,
-          selectedIcon: Icons.grid_view_rounded,
-          subItems: <AppNavItem>[
-            AppNavItem(id: 'showcase_foundation', label: 'Foundation Actions', icon: Icons.widgets_outlined),
-            AppNavItem(id: 'showcase_inputs', label: 'Form Inputs', icon: Icons.input_outlined),
-            AppNavItem(id: 'showcase_selection', label: 'Selection & Nav', icon: Icons.check_box_outlined),
-            AppNavItem(id: 'showcase_charts', label: 'Charts & Data', icon: Icons.bar_chart_outlined),
-            AppNavItem(id: 'showcase_layout', label: 'Layout Primitives', icon: Icons.dashboard_customize_outlined),
-            AppNavItem(id: 'showcase_overlays', label: 'Overlays & Feedback', icon: Icons.layers_outlined),
-            AppNavItem(id: 'showcase_cards', label: 'Domain Cards', icon: Icons.subtitles_outlined),
-            AppNavItem(id: 'showcase_blocks', label: 'Screen Blocks', icon: Icons.view_quilt_outlined),
-          ],
-        ),
-      ],
-    ),
-    AppNavSection(
-      title: 'Enterprise & Admin',
-      items: <AppNavItem>[
-        AppNavItem(
-          id: 'org_team',
-          label: 'Team & Risk',
-          icon: Icons.corporate_fare_outlined,
-        ),
-        AppNavItem(
-          id: 'org_audit',
-          label: 'Audit & Compliance',
-          icon: Icons.shield_outlined,
-        ),
-      ],
-    ),
-  ];
+  @override
+  void didUpdateWidget(AppScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userRole != widget.userRole) {
+      _selectedId = 'overview';
+    }
+  }
+
+  List<AppNavSection> _getNavSections(UserRole role) {
+    switch (role) {
+      case UserRole.customer:
+        return const <AppNavSection>[
+          AppNavSection(
+            title: 'Trading & Workspace',
+            items: <AppNavItem>[
+              AppNavItem(
+                id: 'overview',
+                label: 'Dashboard',
+                icon: Icons.dashboard_outlined,
+                selectedIcon: Icons.dashboard,
+              ),
+              AppNavItem(
+                id: 'journal',
+                label: 'Trade Journal',
+                icon: Icons.receipt_long_outlined,
+                selectedIcon: Icons.receipt_long,
+              ),
+              AppNavItem(
+                id: 'watchlists',
+                label: 'Watchlists & Scanner',
+                icon: Icons.visibility_outlined,
+                selectedIcon: Icons.visibility,
+              ),
+              AppNavItem(
+                id: 'portfolio',
+                label: 'Portfolio',
+                icon: Icons.pie_chart_outline,
+                selectedIcon: Icons.pie_chart,
+              ),
+              AppNavItem(
+                id: 'community',
+                label: 'Community',
+                icon: Icons.forum_outlined,
+                selectedIcon: Icons.forum_rounded,
+              ),
+              AppNavItem(
+                id: 'ai_copilot',
+                label: 'AI Assistant',
+                icon: Icons.auto_awesome_outlined,
+                selectedIcon: Icons.auto_awesome_rounded,
+              ),
+            ],
+          ),
+          AppNavSection(
+            title: 'Preferences & Account',
+            items: <AppNavItem>[
+              AppNavItem(
+                id: 'settings',
+                label: 'Settings & Profile',
+                icon: Icons.settings_outlined,
+                selectedIcon: Icons.settings,
+                subItems: <AppNavItem>[
+                  AppNavItem(
+                    id: 'settings_profile',
+                    label: 'Profile',
+                    icon: Icons.person_outline_rounded,
+                  ),
+                  AppNavItem(
+                    id: 'settings_security',
+                    label: 'Email & Security',
+                    icon: Icons.lock_outline_rounded,
+                  ),
+                  AppNavItem(
+                    id: 'settings_trading',
+                    label: 'Trading Rules',
+                    icon: Icons.candlestick_chart_outlined,
+                  ),
+                  AppNavItem(
+                    id: 'settings_billing',
+                    label: 'Subscription & Billing',
+                    icon: Icons.credit_card_outlined,
+                  ),
+                  AppNavItem(
+                    id: 'settings_notifications',
+                    label: 'Notifications',
+                    icon: Icons.notifications_none_rounded,
+                  ),
+                  AppNavItem(
+                    id: 'settings_privacy',
+                    label: 'Privacy & Data',
+                    icon: Icons.security_rounded,
+                  ),
+                  AppNavItem(
+                    id: 'settings_appearance',
+                    label: 'Appearance',
+                    icon: Icons.palette_outlined,
+                  ),
+                  AppNavItem(
+                    id: 'settings_help',
+                    label: 'Help & Support',
+                    icon: Icons.help_outline_rounded,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ];
+
+      case UserRole.affiliate:
+        return const <AppNavSection>[
+          AppNavSection(
+            title: 'Partner Portal',
+            items: <AppNavItem>[
+              AppNavItem(
+                id: 'overview',
+                label: 'Partner Hub',
+                icon: Icons.dashboard_outlined,
+                selectedIcon: Icons.dashboard,
+              ),
+              AppNavItem(
+                id: 'referrals',
+                label: 'Referrals & Clicks',
+                icon: Icons.trending_up_rounded,
+                selectedIcon: Icons.trending_up,
+              ),
+              AppNavItem(
+                id: 'marketing',
+                label: 'Media Kit & Creatives',
+                icon: Icons.campaign_outlined,
+                selectedIcon: Icons.campaign,
+              ),
+              AppNavItem(
+                id: 'payouts',
+                label: 'Payout History',
+                icon: Icons.account_balance_wallet_outlined,
+                selectedIcon: Icons.account_balance_wallet,
+              ),
+              AppNavItem(
+                id: 'community',
+                label: 'Community',
+                icon: Icons.forum_outlined,
+                selectedIcon: Icons.forum_rounded,
+              ),
+              AppNavItem(
+                id: 'ai_copilot',
+                label: 'AI Assistant',
+                icon: Icons.auto_awesome_outlined,
+                selectedIcon: Icons.auto_awesome_rounded,
+              ),
+            ],
+          ),
+          AppNavSection(
+            title: 'Preferences & Account',
+            items: <AppNavItem>[
+              AppNavItem(
+                id: 'settings',
+                label: 'Partner Settings',
+                icon: Icons.settings_outlined,
+                selectedIcon: Icons.settings,
+                subItems: <AppNavItem>[
+                  AppNavItem(
+                    id: 'settings_profile',
+                    label: 'Partner Profile',
+                    icon: Icons.person_outline_rounded,
+                  ),
+                  AppNavItem(
+                    id: 'settings_affiliate',
+                    label: 'Affiliate & Payouts',
+                    icon: Icons.handshake_outlined,
+                  ),
+                  AppNavItem(
+                    id: 'settings_security',
+                    label: 'Email & Security',
+                    icon: Icons.lock_outline_rounded,
+                  ),
+                  AppNavItem(
+                    id: 'settings_notifications',
+                    label: 'Referral Alerts',
+                    icon: Icons.notifications_none_rounded,
+                  ),
+                  AppNavItem(
+                    id: 'settings_privacy',
+                    label: 'Privacy & Data',
+                    icon: Icons.security_rounded,
+                  ),
+                  AppNavItem(
+                    id: 'settings_appearance',
+                    label: 'Appearance',
+                    icon: Icons.palette_outlined,
+                  ),
+                  AppNavItem(
+                    id: 'settings_help',
+                    label: 'Partner Help & FAQ',
+                    icon: Icons.help_outline_rounded,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ];
+
+      case UserRole.userAdmin:
+        return const <AppNavSection>[
+          AppNavSection(
+            title: 'Institutional Desk',
+            items: <AppNavItem>[
+              AppNavItem(
+                id: 'overview',
+                label: 'Desk Console',
+                icon: Icons.corporate_fare_outlined,
+                selectedIcon: Icons.corporate_fare,
+              ),
+              AppNavItem(
+                id: 'org_team',
+                label: 'Traders & Seats',
+                icon: Icons.groups_outlined,
+                selectedIcon: Icons.groups,
+              ),
+              AppNavItem(
+                id: 'org_risk',
+                label: 'Risk Limits & Compliance',
+                icon: Icons.shield_outlined,
+                selectedIcon: Icons.shield,
+              ),
+              AppNavItem(
+                id: 'org_audit',
+                label: 'Execution Audit Log',
+                icon: Icons.history_edu_outlined,
+                selectedIcon: Icons.history_edu,
+              ),
+              AppNavItem(
+                id: 'community',
+                label: 'Community',
+                icon: Icons.forum_outlined,
+                selectedIcon: Icons.forum_rounded,
+              ),
+              AppNavItem(
+                id: 'ai_copilot',
+                label: 'AI Assistant',
+                icon: Icons.auto_awesome_outlined,
+                selectedIcon: Icons.auto_awesome_rounded,
+              ),
+            ],
+          ),
+          AppNavSection(
+            title: 'Preferences & Account',
+            items: <AppNavItem>[
+              AppNavItem(
+                id: 'settings',
+                label: 'Desk Settings',
+                icon: Icons.admin_panel_settings_outlined,
+                selectedIcon: Icons.admin_panel_settings,
+                subItems: <AppNavItem>[
+                  AppNavItem(
+                    id: 'settings_profile',
+                    label: 'Admin Profile',
+                    icon: Icons.person_outline_rounded,
+                  ),
+                  AppNavItem(
+                    id: 'settings_organization',
+                    label: 'Desk & Team',
+                    icon: Icons.corporate_fare_rounded,
+                  ),
+                  AppNavItem(
+                    id: 'settings_desk_risk',
+                    label: 'Risk & Compliance',
+                    icon: Icons.shield_outlined,
+                  ),
+                  AppNavItem(
+                    id: 'settings_security',
+                    label: 'Admin Security & Auth',
+                    icon: Icons.lock_outline_rounded,
+                  ),
+                  AppNavItem(
+                    id: 'settings_notifications',
+                    label: 'Desk Alerts & Audit',
+                    icon: Icons.notifications_none_rounded,
+                  ),
+                  AppNavItem(
+                    id: 'settings_privacy',
+                    label: 'Privacy & Audit Export',
+                    icon: Icons.security_rounded,
+                  ),
+                  AppNavItem(
+                    id: 'settings_appearance',
+                    label: 'Appearance',
+                    icon: Icons.palette_outlined,
+                  ),
+                  AppNavItem(
+                    id: 'settings_help',
+                    label: 'Institutional Support',
+                    icon: Icons.help_outline_rounded,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ];
+    }
+  }
+
+  String _getTitleForTab(String id) {
+    switch (id) {
+      case 'overview':
+        return switch (widget.userRole) {
+          UserRole.customer => 'Dashboard',
+          UserRole.affiliate => 'Partner Hub',
+          UserRole.userAdmin => 'Desk Console',
+        };
+      case 'journal':
+        return 'Trade Journal';
+      case 'watchlists':
+        return 'Watchlists & Scanner';
+      case 'portfolio':
+        return 'Portfolio';
+      case 'community':
+        return 'Community';
+      case 'ai_copilot':
+      case 'insights':
+        return 'AI Assistant';
+      case 'referrals':
+        return 'Referrals & Clicks';
+      case 'marketing':
+        return 'Media Kit & Creatives';
+      case 'payouts':
+        return 'Payout History';
+      case 'org_team':
+        return 'Traders & Seats';
+      case 'org_risk':
+        return 'Risk Limits & Compliance';
+      case 'org_audit':
+        return 'Execution Audit Log';
+      default:
+        return id.toUpperCase();
+    }
+  }
 
   Widget _buildActivePage() {
-    switch (_selectedId) {
-      case 'watchlists':
-      case 'scanner':
-        return const WatchlistsPage();
-      case 'portfolio':
-        return const PortfolioPage();
-      case 'strategies':
-      case 'strategies_list':
-      case 'strategies_analyzer':
-      case 'strategies_graph':
-        return const StrategiesPage();
-      case 'ai_assistant':
-      case 'ai_digest':
-      case 'ai_review':
-        return const InsightsPage();
-      case 'community':
-        return const CommunityPage();
-      case 'messages':
-        return const MessagesPage();
-      case 'org_team':
-      case 'org_audit':
-        return const EnterprisePage();
-      case 'subscriptions':
-      case 'billing':
-        return const SubscriptionsPage();
-      case 'notifications':
-        return const NotificationsPage();
-      case 'showcase':
-      case 'showcase_foundation':
-      case 'showcase_inputs':
-      case 'showcase_selection':
-      case 'showcase_charts':
-      case 'showcase_layout':
-      case 'showcase_overlays':
-      case 'showcase_cards':
-      case 'showcase_blocks':
-        return NumberedComponentShowcasePage(selectedId: _selectedId);
-      case 'journal':
-      case 'journal_overview':
-      case 'journal_analytics':
-      default:
-        return const JournalPage();
+    if (_selectedId.startsWith('settings')) {
+      final sectionId = _selectedId == 'settings'
+          ? 'profile'
+          : _selectedId.replaceFirst('settings_', '');
+
+      return SettingsRootPage(
+        key: ValueKey<String>('settings_${widget.userRole.id}_$sectionId'),
+        userRole: widget.userRole,
+        initialSectionId: sectionId,
+        onLogout: widget.onLogout,
+      );
     }
+
+    // Keep all non-settings pages empty (for all users) - only clean text
+    final title = _getTitleForTab(_selectedId);
+    return Center(
+      child: Text(
+        title,
+        style: context.uiText.heading.copyWith(
+          color: context.ui.colors.foregroundMuted,
+          fontWeight: FontWeight.w600,
+          fontSize: 22.0,
+        ),
+      ),
+    );
   }
 
   void _showRoleSwitcherDialog() {
@@ -218,7 +411,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                   UiToast.show(
                     context,
                     title: 'Role Switch',
-                    message: 'Switched role to ${role.label}',
+                    message: 'Switched session to ${role.label} mode.',
                     intent: UiIntent.info,
                   );
                 },
@@ -286,41 +479,84 @@ class _AppScaffoldState extends State<AppScaffold> {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final colors = theme.colors;
+    final navSections = _getNavSections(widget.userRole);
 
     return Column(
       children: [
-        // Role Notification Top Banner for Affiliate / Admin roles
+        // Redesigned Static Session Header Bar (for Admin / Partner mode)
         if (widget.userRole != UserRole.customer)
           Container(
-            color: widget.userRole == UserRole.userAdmin
-                ? colors.bearish.withValues(alpha: 0.15)
-                : colors.warning.withValues(alpha: 0.15),
+            height: context.sz(36),
             padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.md),
-              vertical: context.sp(theme.spacing.xxs),
+              horizontal: context.sp(theme.spacing.sm),
+            ),
+            decoration: BoxDecoration(
+              color: widget.userRole == UserRole.userAdmin
+                  ? colors.bearish.withValues(alpha: 0.08)
+                  : colors.warning.withValues(alpha: 0.08),
+              border: Border(
+                bottom: BorderSide(
+                  color: widget.userRole == UserRole.userAdmin
+                      ? colors.bearish.withValues(alpha: 0.22)
+                      : colors.warning.withValues(alpha: 0.22),
+                  width: theme.borders.hairline,
+                ),
+              ),
             ),
             child: Row(
               children: [
-                Icon(
-                  widget.userRole.icon,
-                  size: context.sz(14),
-                  color: widget.userRole == UserRole.userAdmin
-                      ? colors.bearish
-                      : colors.warning,
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(theme.spacing.xs),
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (widget.userRole == UserRole.userAdmin
+                            ? colors.bearish
+                            : colors.warning)
+                        .withValues(alpha: 0.16),
+                    borderRadius: context.radius(theme.radii.sm),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        widget.userRole.icon,
+                        size: context.sz(12),
+                        color: widget.userRole == UserRole.userAdmin
+                            ? colors.bearish
+                            : colors.warning,
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.xxs)),
+                      Text(
+                        widget.userRole.label.toUpperCase(),
+                        style: context.uiText.caption.copyWith(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: widget.userRole == UserRole.userAdmin
+                              ? colors.bearish
+                              : colors.warning,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 SizedBox(width: context.sp(theme.spacing.xs)),
                 Expanded(
                   child: Text(
-                    'Active Session: ${widget.userRole.label} Mode (${widget.userRole.subtitle})',
+                    widget.userRole.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: context.uiText.caption.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: colors.foreground,
+                      fontWeight: FontWeight.w500,
+                      color: colors.foregroundMuted,
                       fontSize: 11.5,
                     ),
                   ),
                 ),
                 UiButton(
                   label: 'Switch Role',
+                  leadingIcon: Icons.swap_horiz_rounded,
                   variant: UiVariant.ghost,
                   intent: UiIntent.primary,
                   size: UiSize.xs,
@@ -329,6 +565,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                 SizedBox(width: context.sp(theme.spacing.xs)),
                 UiButton(
                   label: 'Logout',
+                  leadingIcon: Icons.logout_rounded,
                   variant: UiVariant.soft,
                   intent: UiIntent.danger,
                   size: UiSize.xs,
@@ -338,34 +575,33 @@ class _AppScaffoldState extends State<AppScaffold> {
             ),
           ),
 
-        // Main App Shell
+        // Main App Shell with Role-Specific Dock & Sidebar
         Expanded(
           child: AppShell(
             key: ValueKey<String>('${AppConstants.appName}_${widget.userRole.id}'),
-            sections: _navSections,
+            sections: navSections,
             selectedId: _selectedId,
             onSelect: (id) => setState(() => _selectedId = id),
+            onSettings: () => setState(() => _selectedId = 'settings_profile'),
             trader: AppTrader(
               id: 'u1',
               handle: widget.userEmail,
               displayName: 'Nitish Kumar (${widget.userRole.shortTitle})',
-              tier: widget.userRole == UserRole.userAdmin
-                  ? AppTier.enterprise
-                  : (widget.userRole == UserRole.affiliate
-                      ? AppTier.premium
-                      : AppTier.free),
+              tier: widget.userRole == UserRole.customer
+                  ? AppTier.premium
+                  : AppTier.free,
             ),
+            workspaceName: switch (widget.userRole) {
+              UserRole.customer => 'TradeX Pro Terminal',
+              UserRole.affiliate => 'Affiliate Partner Hub',
+              UserRole.userAdmin => 'Institutional Desk',
+            },
+            tierLabel: switch (widget.userRole) {
+              UserRole.customer => 'Active Trader',
+              UserRole.affiliate => 'Affiliate Partner',
+              UserRole.userAdmin => 'Desk Administrator',
+            },
             unreadNotifications: 4,
-            primaryAction: widget.onReturnToAuth != null
-                ? UiButton(
-                    label: 'Auth Demo Flow',
-                    leadingIcon: Icons.lock_reset_rounded,
-                    variant: UiVariant.soft,
-                    intent: UiIntent.primary,
-                    size: UiSize.sm,
-                    onPressed: widget.onReturnToAuth,
-                  )
-                : null,
             child: _buildActivePage(),
           ),
         ),

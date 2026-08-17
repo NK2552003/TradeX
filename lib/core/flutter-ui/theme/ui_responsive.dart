@@ -134,16 +134,17 @@ class UiResponsive {
     UiBreakpoints breakpoints = const UiBreakpoints(),
     UiScaleConfig scaleConfig = const UiScaleConfig(),
   }) {
-    final MediaQueryData mq = MediaQuery.of(context);
-    final double width = mq.size.width;
+    final MediaQueryData? mq = MediaQuery.maybeOf(context);
+    final double width = mq?.size.width ?? 1280.0;
+    final double height = mq?.size.height ?? 800.0;
     final UiDeviceType type = breakpoints.typeForWidth(width);
-    final double raw = mq.textScaler.scale(1);
+    final double raw = mq != null ? mq.textScaler.scale(1) : 1.0;
     return UiResponsive(
       width: width,
-      height: mq.size.height,
+      height: height,
       deviceType: type,
       scale: scaleConfig.forType(type),
-      orientation: mq.orientation,
+      orientation: mq?.orientation ?? (width >= height ? Orientation.landscape : Orientation.portrait),
       textScaleFactor:
           raw.clamp(scaleConfig.minTextScale, scaleConfig.maxTextScale),
     );

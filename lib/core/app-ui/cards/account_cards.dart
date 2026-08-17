@@ -308,7 +308,12 @@ class AppSettingCard extends StatelessWidget {
             ),
           ),
           SizedBox(width: context.sp(theme.spacing.md)),
-          control,
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: context.sz(260),
+            ),
+            child: control,
+          ),
         ],
       ),
     );

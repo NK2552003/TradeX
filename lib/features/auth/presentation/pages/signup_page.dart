@@ -325,7 +325,7 @@ class _SignupPageState extends State<SignupPage> {
                                     if (_selectedRole == UserRole.affiliate) ...[
                                       UiField(
                                         label: 'Partner Referral Code (Optional)',
-                                        helper: 'Earn instant \$50 affiliate bonus credit',
+                                        helper: 'Earn instant ₹500 affiliate bonus credit',
                                         child: UiInput(
                                           value: _referralCodeController.text,
                                           hintText: 'REF-TRADEX-2026',

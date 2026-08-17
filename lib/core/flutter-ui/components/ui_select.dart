@@ -28,6 +28,9 @@ class UiSelect<T> extends StatelessWidget {
     this.onValuesChanged,
     this.leadingIcon,
     this.searchable = false,
+    this.width,
+    this.minWidth,
+    this.maxWidth,
   });
 
   final List<UiOption<T>> options;
@@ -49,6 +52,9 @@ class UiSelect<T> extends StatelessWidget {
   final ValueChanged<List<T>>? onValuesChanged;
   final IconData? leadingIcon;
   final bool searchable;
+  final double? width;
+  final double? minWidth;
+  final double? maxWidth;
 
   UiOption<T>? get _selected {
     for (final UiOption<T> o in options) {
@@ -156,6 +162,13 @@ class UiSelect<T> extends StatelessWidget {
       builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
         duration: theme.motion.fast,
         height: size.height(ctx),
+        width: width,
+        constraints: width != null
+            ? null
+            : BoxConstraints(
+                minWidth: minWidth ?? ctx.sz(120),
+                maxWidth: maxWidth ?? double.infinity,
+              ),
         padding: EdgeInsets.symmetric(horizontal: ctx.sp(theme.spacing.md)),
         decoration: BoxDecoration(
           color: enabled ? c.surface : c.disabledBackground,

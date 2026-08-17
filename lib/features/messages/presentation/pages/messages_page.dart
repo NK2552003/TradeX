@@ -25,7 +25,7 @@ class _MessagesPageState extends State<MessagesPage> {
       {
         'name': 'Ava Chen',
         'handle': '@quantqueen',
-        'lastMessage': 'Loved your ORB strategy writeup! Are you taking \$AAPL tomorrow?',
+        'lastMessage': 'Loved your ORB strategy writeup! Are you taking RELIANCE tomorrow?',
         'time': '10:42 AM',
         'unread': true,
       },
@@ -158,7 +158,7 @@ class _MessagesPageState extends State<MessagesPage> {
                                     borderRadius: context.radius(theme.radii.md),
                                   ),
                                   child: Text(
-                                    'Loved your ORB strategy writeup! Are you taking \$AAPL tomorrow?',
+                                    'Loved your ORB strategy writeup! Are you taking RELIANCE tomorrow?',
                                     style: context.uiText.body,
                                   ),
                                 ),

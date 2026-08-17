@@ -94,7 +94,7 @@ class _JournalPageState extends State<JournalPage> {
               const Expanded(
                 child: UiMetricCard(
                   label: 'Net PnL',
-                  value: '\$558.00',
+                  value: '₹5,580.00',
                   delta: 558,
                 ),
               ),

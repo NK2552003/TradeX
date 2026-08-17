@@ -58,7 +58,7 @@ class EnterprisePage extends StatelessWidget {
               const Expanded(
                 child: UiMetricCard(
                   label: 'Max Daily Loss Limit',
-                  value: '\$15,000.00',
+                  value: '₹15,00,000.00',
                   delta: 0,
                 ),
               ),

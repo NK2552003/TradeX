@@ -130,18 +130,18 @@ class AppTokens {
 
   // -------------------------------------------------------------- Formatting
 
-  static String money(num value, {String symbol = '\$', int decimals = 2}) {
+  static String money(num value, {String symbol = '₹', int decimals = 2}) {
     final String sign = value < 0 ? '-' : '';
     return '$sign$symbol${value.abs().toStringAsFixed(decimals)}';
   }
 
   static String signedMoney(num value,
-      {String symbol = '\$', int decimals = 2}) {
+      {String symbol = '₹', int decimals = 2}) {
     final String sign = value > 0 ? '+' : (value < 0 ? '-' : '');
     return '$sign$symbol${value.abs().toStringAsFixed(decimals)}';
   }
 
-  static String compactMoney(num value, {String symbol = '\$'}) =>
+  static String compactMoney(num value, {String symbol = '₹'}) =>
       '${value < 0 ? '-' : ''}$symbol${uiCompactNumber(value.abs())}';
 
   static String percent(num value, {int decimals = 1}) =>

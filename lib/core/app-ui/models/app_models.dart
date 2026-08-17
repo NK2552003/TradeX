@@ -113,7 +113,7 @@ class AppTicker {
     this.note,
     this.category,
     this.isFavorite = false,
-    this.currencySymbol = '\$',
+    this.currencySymbol = '₹',
   });
 
   final String symbol;

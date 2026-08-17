@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quiet_dock/quiet_dock.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
 import '../brand/app_logo.dart';
@@ -22,9 +23,12 @@ class AppShell extends StatefulWidget {
     this.tier = AppTier.free,
     this.onSearch,
     this.onNotifications,
+    this.onSettings,
     this.unreadNotifications = 0,
     this.primaryAction,
     this.mobileItemCount = 5,
+    this.workspaceName,
+    this.tierLabel,
   });
 
   final List<AppNavSection> sections;
@@ -35,9 +39,12 @@ class AppShell extends StatefulWidget {
   final AppTier tier;
   final VoidCallback? onSearch;
   final VoidCallback? onNotifications;
+  final VoidCallback? onSettings;
   final int unreadNotifications;
   final Widget? primaryAction;
   final int mobileItemCount;
+  final String? workspaceName;
+  final String? tierLabel;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -81,6 +88,7 @@ class _AppShellState extends State<AppShell> {
             tier: widget.tier,
             onSearch: widget.onSearch,
             onNotifications: widget.onNotifications,
+            onSettings: widget.onSettings,
             unread: widget.unreadNotifications,
             showLogo: r.isMobile,
             selectedId: widget.selectedId,
@@ -88,8 +96,10 @@ class _AppShellState extends State<AppShell> {
             leading: r.isMobile
                 ? null
                 : UiIconButton(
-                    icon: _collapsed ? Icons.menu_open_rounded : Icons.menu_rounded,
-                    size: UiSize.xs,
+                    icon: _collapsed
+                        ? Icons.menu_open_rounded
+                        : Icons.menu_rounded,
+                    size: UiSize.sm,
                     tooltip: 'Toggle sidebar',
                     onPressed: () => setState(() => _collapsed = !_collapsed),
                   ),
@@ -122,6 +132,8 @@ class _AppShellState extends State<AppShell> {
             onSelect: widget.onSelect,
             collapsed: _collapsed || r.isTablet,
             trader: widget.trader,
+            workspaceName: widget.workspaceName,
+            tierLabel: widget.tierLabel,
             footer: widget.primaryAction,
           ),
           Expanded(child: body),
@@ -147,92 +159,65 @@ class AppWorkspaceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final Widget trigger = UiInteractive(
-      builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
-        duration: theme.motion.fast,
-        padding: EdgeInsets.symmetric(
-          horizontal: collapsed ? ctx.sp(theme.spacing.xxs) : ctx.sp(theme.spacing.sm),
-          vertical: ctx.sp(theme.spacing.xs),
-        ),
-        decoration: collapsed
-            ? null
-            : BoxDecoration(
-                color: s.hovered
-                    ? theme.colors.surfaceHover
-                    : theme.colors.surface.withValues(alpha: 0.5),
-                borderRadius: ctx.radius(theme.radii.lg),
-                border: Border.all(
-                  color: theme.colors.border.withValues(alpha: 0.5),
-                  width: theme.borders.hairline,
-                ),
+    final Widget tile = Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: collapsed ? context.sp(theme.spacing.xxs) : context.sp(theme.spacing.sm),
+        vertical: context.sp(theme.spacing.xs + 1),
+      ),
+      decoration: collapsed
+          ? null
+          : BoxDecoration(
+              color: theme.colors.surface.withValues(alpha: 0.6),
+              borderRadius: context.radius(theme.radii.lg),
+              border: Border.all(
+                color: theme.colors.border.withValues(alpha: 0.6),
+                width: theme.borders.hairline,
               ),
-        child: Row(
-          mainAxisAlignment:
-              collapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
-          children: <Widget>[
-            AppLogoMark(
-              size: ctx.sz(20),
-              rounded: false,
             ),
-            if (!collapsed) ...<Widget>[
-              SizedBox(width: ctx.sp(theme.spacing.sm)),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(
-                      workspaceName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: ctx.uiText.bodyStrong.copyWith(fontSize: 13.0),
+      child: Row(
+        mainAxisAlignment:
+            collapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+        children: <Widget>[
+          AppLogoMark(
+            size: context.sz(20),
+            rounded: false,
+          ),
+          if (!collapsed) ...<Widget>[
+            SizedBox(width: context.sp(theme.spacing.sm)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    workspaceName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.bodyStrong.copyWith(
+                      fontSize: 13.0,
+                      fontWeight: FontWeight.w600,
                     ),
-                    Text(
-                      tierLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: ctx.uiText.caption.copyWith(
-                        color: theme.colors.foregroundSubtle,
-                        fontSize: 11.0,
-                      ),
+                  ),
+                  Text(
+                    tierLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundSubtle,
+                      fontSize: 11.0,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Icon(
-                Icons.unfold_more_rounded,
-                size: ctx.sz(14),
-                color: theme.colors.foregroundMuted,
-              ),
-            ],
+            ),
           ],
-        ),
+        ],
       ),
     );
 
-    final Widget menu = UiDropdownMenu(
-      actions: <UiMenuItem>[
-        UiMenuItem(
-          label: '$workspaceName ($tierLabel)',
-          icon: Icons.business_outlined,
-          selected: true,
-        ),
-        const UiMenuItem(
-          label: 'Acme Labs (Pro)',
-          icon: Icons.science_outlined,
-        ),
-        const UiMenuItem.divider(),
-        const UiMenuItem(
-          label: 'Create Workspace',
-          icon: Icons.add_circle_outline,
-        ),
-      ],
-      child: trigger,
-    );
-
     return collapsed
-        ? UiTooltip(message: '$workspaceName ($tierLabel)', child: menu)
-        : menu;
+        ? UiTooltip(message: '$workspaceName ($tierLabel)', child: tile)
+        : tile;
   }
 }
 
@@ -245,6 +230,8 @@ class AppSidebar extends StatelessWidget {
     required this.onSelect,
     this.collapsed = false,
     this.trader,
+    this.workspaceName,
+    this.tierLabel,
     this.footer,
     this.onUserLogout,
     this.onUserUpgrade,
@@ -255,6 +242,8 @@ class AppSidebar extends StatelessWidget {
   final ValueChanged<String> onSelect;
   final bool collapsed;
   final AppTrader? trader;
+  final String? workspaceName;
+  final String? tierLabel;
   final Widget? footer;
   final VoidCallback? onUserLogout;
   final VoidCallback? onUserUpgrade;
@@ -265,12 +254,12 @@ class AppSidebar extends StatelessWidget {
     return AnimatedContainer(
       duration: theme.motion.normal,
       curve: theme.motion.curve,
-      width: context.sz(collapsed ? 52 : 200),
+      width: context.sz(collapsed ? 56 : 236),
       decoration: BoxDecoration(
         color: theme.colors.background,
       ),
       padding: EdgeInsets.symmetric(
-        horizontal: context.sp(collapsed ? theme.spacing.xxs : theme.spacing.xs),
+        horizontal: context.sp(collapsed ? theme.spacing.xxs : theme.spacing.xs + 1),
         vertical: context.sp(theme.spacing.xs),
       ),
       child: SafeArea(
@@ -278,7 +267,19 @@ class AppSidebar extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            AppWorkspaceTile(collapsed: collapsed),
+            AppWorkspaceTile(
+              collapsed: collapsed,
+              workspaceName: workspaceName ??
+                  (trader?.tier == AppTier.enterprise
+                      ? 'Institutional Desk'
+                      : (trader?.tier == AppTier.premium
+                          ? 'TradeX Pro Terminal'
+                          : 'TradeX Desk')),
+              tierLabel: tierLabel ??
+                  (trader?.tier == AppTier.enterprise
+                      ? 'Enterprise Admin'
+                      : (trader?.tier == AppTier.premium ? 'Active Trader' : 'Standard')),
+            ),
             SizedBox(height: context.sp(theme.spacing.xs)),
             Expanded(
               child: SingleChildScrollView(
@@ -295,7 +296,7 @@ class AppSidebar extends StatelessWidget {
                         Padding(
                           padding: EdgeInsets.fromLTRB(
                             context.sp(theme.spacing.sm),
-                            context.sp(theme.spacing.sm),
+                            context.sp(theme.spacing.md),
                             context.sp(theme.spacing.sm),
                             context.sp(theme.spacing.xxs),
                           ),
@@ -303,8 +304,8 @@ class AppSidebar extends StatelessWidget {
                             s.title!.toUpperCase(),
                             style: context.uiText.caption.copyWith(
                               color: theme.colors.foregroundSubtle,
-                              letterSpacing: 0.6,
-                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.8,
+                              fontWeight: FontWeight.w700,
                               fontSize: 11.0,
                             ),
                           ),
@@ -516,6 +517,14 @@ class _AppNavTileState extends State<AppNavTile> {
   }
 
   @override
+  void didUpdateWidget(AppNavTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_isSelected && widget.item.subItems != null && !_expanded) {
+      _expanded = true;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final bool hasSubItems =
@@ -534,42 +543,49 @@ class _AppNavTileState extends State<AppNavTile> {
         duration: theme.motion.fast,
         margin: EdgeInsets.only(bottom: ctx.sp(theme.spacing.xxs)),
         padding: EdgeInsets.symmetric(
-          horizontal: widget.collapsed ? ctx.sp(theme.spacing.xxs) : ctx.sp(theme.spacing.sm),
-          vertical: ctx.sp(theme.spacing.xs),
+          horizontal: widget.collapsed ? ctx.sp(theme.spacing.xs) : ctx.sp(theme.spacing.sm),
+          vertical: ctx.sp(theme.spacing.xs + 0.5),
         ),
         decoration: BoxDecoration(
           color: _isSelected
-              ? theme.colors.primary.withValues(alpha: 0.14)
+              ? theme.colors.primary.withValues(alpha: 0.12)
               : (s.hovered ? theme.colors.surfaceHover : Colors.transparent),
           borderRadius: ctx.radius(theme.radii.md),
+          border: _isSelected
+              ? Border.all(
+                  color: theme.colors.primary.withValues(alpha: 0.25),
+                  width: theme.borders.hairline,
+                )
+              : null,
         ),
         child: Row(
           mainAxisAlignment: widget.collapsed
               ? MainAxisAlignment.center
               : MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
             Icon(
               _isSelected
                   ? (widget.item.selectedIcon ?? widget.item.icon)
                   : widget.item.icon,
-              size: ctx.sz(16),
+              size: ctx.sz(17),
               color: _isSelected
                   ? theme.colors.primary
                   : theme.colors.foregroundMuted,
             ),
             if (!widget.collapsed) ...<Widget>[
-              SizedBox(width: ctx.sp(theme.spacing.sm)),
+              SizedBox(width: ctx.sp(theme.spacing.sm + 1)),
               Expanded(
                 child: Text(
                   widget.item.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: ctx.uiText.body.copyWith(
-                    fontSize: 12,
+                    fontSize: 13.0,
                     color: _isSelected
                         ? theme.colors.foreground
                         : theme.colors.foregroundMuted,
-                    fontWeight: _isSelected ? FontWeight.w600 : null,
+                    fontWeight: _isSelected ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
               ),
@@ -669,8 +685,8 @@ class _AppNavTileState extends State<AppNavTile> {
                                   bottom: ctx.sp(theme.spacing.xxs),
                                 ),
                                 padding: EdgeInsets.symmetric(
-                                  horizontal: ctx.sp(theme.spacing.xs),
-                                  vertical: ctx.sp(theme.spacing.xxs),
+                                  horizontal: ctx.sp(theme.spacing.sm),
+                                  vertical: ctx.sp(theme.spacing.xs),
                                 ),
                                 decoration: BoxDecoration(
                                   color: subSelected
@@ -678,19 +694,25 @@ class _AppNavTileState extends State<AppNavTile> {
                                       : (s.hovered
                                           ? theme.colors.surfaceHover
                                           : Colors.transparent),
-                                  borderRadius: ctx.radius(theme.radii.sm),
+                                  borderRadius: ctx.radius(theme.radii.md),
+                                  border: subSelected
+                                      ? Border.all(
+                                          color: theme.colors.primary.withValues(alpha: 0.25),
+                                          width: theme.borders.hairline,
+                                        )
+                                      : null,
                                 ),
                                 child: Text(
                                   sub.label,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: ctx.uiText.caption.copyWith(
-                                    fontSize: 11,
+                                  style: ctx.uiText.body.copyWith(
+                                    fontSize: 13.0,
                                     color: subSelected
                                         ? theme.colors.foreground
                                         : theme.colors.foregroundMuted,
                                     fontWeight:
-                                        subSelected ? FontWeight.w600 : null,
+                                        subSelected ? FontWeight.w600 : FontWeight.w500,
                                   ),
                                 ),
                               );
@@ -708,7 +730,7 @@ class _AppNavTileState extends State<AppNavTile> {
   }
 }
 
-/// Mobile bottom dock.
+/// Mobile quiet floating bottom dock powered by `quiet_dock`.
 class AppBottomDock extends StatelessWidget {
   const AppBottomDock({
     super.key,
@@ -724,84 +746,34 @@ class AppBottomDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colors.surface,
-        border: Border(
-          top: BorderSide(
-            color: theme.colors.border,
-            width: theme.borders.hairline,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: <Widget>[
-            for (final AppNavItem i in items)
-              Expanded(
-                child: UiInteractive(
-                  onTap: () => onSelect(i.id),
-                  builder: (BuildContext ctx, UiInteractiveState s) => Padding(
-                    padding: EdgeInsets.symmetric(
-                      vertical: ctx.sp(theme.spacing.sm),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: <Widget>[
-                            Icon(
-                              i.id == selectedId
-                                  ? (i.selectedIcon ?? i.icon)
-                                  : i.icon,
-                              size: ctx.sz(theme.sizes.iconMd),
-                              color: i.id == selectedId
-                                  ? theme.colors.primary
-                                  : theme.colors.foregroundMuted,
-                            ),
-                            if ((i.badgeCount ?? 0) > 0)
-                              Positioned(
-                                right: -6,
-                                top: -4,
-                                child: Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: ctx.sp(theme.spacing.xs),
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: theme.colors.primary,
-                                    borderRadius:
-                                        BorderRadius.circular(theme.radii.pill),
-                                  ),
-                                  child: Text(
-                                    '${i.badgeCount}',
-                                    style: ctx.uiText.caption.copyWith(
-                                      color: theme.colors.onPrimary,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        SizedBox(height: ctx.sp(theme.spacing.xxs)),
-                        Text(
-                          i.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: ctx.uiText.caption.copyWith(
-                            color: i.id == selectedId
-                                ? theme.colors.primary
-                                : theme.colors.foregroundMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
+    final int selectedIndex = items.indexWhere((i) => i.id == selectedId);
+
+    return QuietDock(
+      destinations: items
+          .map(
+            (i) => QuietDockDestination(
+              icon: i.icon,
+              selectedIcon: i.selectedIcon,
+              label: i.label,
+              tooltip: i.label,
+            ),
+          )
+          .toList(),
+      selectedIndex: selectedIndex >= 0 ? selectedIndex : 0,
+      onDestinationSelected: (index) {
+        if (index >= 0 && index < items.length) {
+          onSelect(items[index].id);
+        }
+      },
+      theme: QuietDockTheme(
+        background: theme.colors.surface.withValues(alpha: 0.92),
+        selectedColor: theme.colors.primary,
+        unselectedColor: theme.colors.foregroundMuted,
+        indicatorColor: theme.colors.primary.withValues(alpha: 0.14),
+        indicatorBorderColor: theme.colors.primary.withValues(alpha: 0.35),
+        borderColor: theme.colors.border,
+        showLabels: true,
+        height: 60,
       ),
     );
   }
@@ -815,6 +787,7 @@ class AppTopBar extends StatelessWidget {
     this.tier = AppTier.free,
     this.onSearch,
     this.onNotifications,
+    this.onSettings,
     this.unread = 0,
     this.leading,
     this.showLogo = false,
@@ -827,6 +800,7 @@ class AppTopBar extends StatelessWidget {
   final AppTier tier;
   final VoidCallback? onSearch;
   final VoidCallback? onNotifications;
+  final VoidCallback? onSettings;
   final int unread;
   final Widget? leading;
   final bool showLogo;
@@ -837,15 +811,16 @@ class AppTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    final bool isMobile = context.uiRes.isMobile;
 
-    String sectionTitle = 'Build Your Application';
-    String pageTitle = 'Data Fetching';
+    String sectionTitle = 'Terminal';
+    String pageTitle = 'Dashboard';
 
     if (sections != null && selectedId != null) {
       for (final s in sections!) {
         for (final item in s.items) {
           if (item.id == selectedId) {
-            sectionTitle = s.title ?? 'Platform';
+            sectionTitle = s.title ?? 'Terminal';
             pageTitle = item.label;
           } else if (item.subItems != null) {
             for (final sub in item.subItems!) {
@@ -871,9 +846,9 @@ class AppTopBar extends StatelessWidget {
             : const SizedBox.shrink());
 
     return Container(
+      height: context.sz(isMobile ? 54 : 52),
       padding: EdgeInsets.symmetric(
-        horizontal: context.sp(theme.spacing.sm),
-        vertical: context.sp(theme.spacing.xs),
+        horizontal: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
       ),
       decoration: BoxDecoration(
         color: theme.colors.surface,
@@ -887,58 +862,190 @@ class AppTopBar extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
+            // Left: Hamburger toggle + divider + breadcrumbs
             ?leading,
             if (leading != null) ...<Widget>[
               SizedBox(width: context.sp(theme.spacing.xs)),
               Container(
                 width: 1,
-                height: 14,
-                color: theme.colors.border,
+                height: context.sz(16),
+                color: theme.colors.border.withValues(alpha: 0.6),
+              ),
+              SizedBox(width: context.sp(theme.spacing.sm)),
+            ],
+            if (showLogo) ...<Widget>[
+              const AppWordmark(fontSize: 16),
+              SizedBox(width: context.sp(theme.spacing.sm)),
+            ],
+            Flexible(child: breadcrumbWidget),
+
+            const Spacer(),
+
+            // Center-Right: Search Command Pill (Desktop)
+            if (!isMobile) ...<Widget>[
+              UiInteractive(
+                onTap: onSearch,
+                builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
+                  duration: theme.motion.fast,
+                  width: ctx.sz(250),
+                  height: ctx.sz(32),
+                  padding: EdgeInsets.symmetric(horizontal: ctx.sp(theme.spacing.sm)),
+                  decoration: BoxDecoration(
+                    color: s.hovered
+                        ? theme.colors.surfaceHover
+                        : theme.colors.background.withValues(alpha: 0.7),
+                    borderRadius: ctx.radius(theme.radii.md),
+                    border: Border.all(
+                      color: s.hovered ? theme.colors.borderStrong : theme.colors.border,
+                      width: theme.borders.hairline,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.search_rounded,
+                        size: ctx.sz(15),
+                        color: theme.colors.foregroundSubtle,
+                      ),
+                      SizedBox(width: ctx.sp(theme.spacing.xs)),
+                      Expanded(
+                        child: Text(
+                          'Search symbols, orders...',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: ctx.uiText.caption.copyWith(
+                            color: theme.colors.foregroundSubtle,
+                            fontSize: 12.0,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: theme.colors.surface,
+                          borderRadius: ctx.radius(theme.radii.sm),
+                          border: Border.all(
+                            color: theme.colors.border,
+                            width: theme.borders.hairline,
+                          ),
+                        ),
+                        child: Text(
+                          '⌘K',
+                          style: ctx.uiText.caption.copyWith(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colors.foregroundMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.sm)),
+
+              // Market Live Status Pill
+              Container(
+                height: context.sz(28),
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.sm),
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colors.bullish.withValues(alpha: 0.08),
+                  borderRadius: context.radius(theme.radii.pill),
+                  border: Border.all(
+                    color: theme.colors.bullish.withValues(alpha: 0.3),
+                    width: theme.borders.hairline,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6.5,
+                      height: 6.5,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: theme.colors.bullish,
+                      ),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Text(
+                      'NSE/BSE LIVE',
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.bullish,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11.0,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.sm)),
+
+              // Vertical subtle separator
+              Container(
+                width: 1,
+                height: context.sz(18),
+                color: theme.colors.border.withValues(alpha: 0.6),
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
             ],
-            if (showLogo) const AppWordmark(fontSize: 16),
-            breadcrumbWidget,
-            const Spacer(),
-            UiIconButton(
-              icon: Icons.search,
-              size: UiSize.xs,
-              tooltip: 'Search',
-              onPressed: onSearch,
-            ),
+
+            // Search Icon on Mobile
+            if (isMobile)
+              UiIconButton(
+                icon: Icons.search_rounded,
+                size: UiSize.sm,
+                tooltip: 'Search',
+                onPressed: onSearch,
+              ),
+
+            // Notifications Icon with perfectly positioned badge
             Stack(
               clipBehavior: Clip.none,
               children: <Widget>[
                 UiIconButton(
-                  icon: Icons.notifications_none_outlined,
-                  size: UiSize.xs,
+                  icon: Icons.notifications_none_rounded,
+                  size: UiSize.sm,
                   tooltip: 'Notifications',
                   onPressed: onNotifications,
                 ),
                 if (unread > 0)
                   Positioned(
-                    right: 2,
-                    top: 2,
+                    right: 6,
+                    top: 6,
                     child: Container(
-                      width: context.sz(6),
-                      height: context.sz(6),
+                      width: context.sz(7),
+                      height: context.sz(7),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: theme.colors.bearish,
+                        border: Border.all(
+                          color: theme.colors.surface,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),
               ],
             ),
+            SizedBox(width: context.sp(theme.spacing.xxs)),
+
+            // Settings Icon
             UiIconButton(
               icon: Icons.settings_outlined,
-              size: UiSize.xs,
+              size: UiSize.sm,
               tooltip: 'Settings',
-              onPressed: () {},
+              onPressed: onSettings,
             ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-            if (!context.uiRes.isMobile && tier != AppTier.free) ...<Widget>[
+
+            // Tier Badge (Desktop)
+            if (!isMobile && tier != AppTier.free) ...<Widget>[
+              SizedBox(width: context.sp(theme.spacing.xs)),
               UiBadge(
                 label: AppTokens.tierLabel(tier),
                 intent: AppTokens.tierIntent(tier),

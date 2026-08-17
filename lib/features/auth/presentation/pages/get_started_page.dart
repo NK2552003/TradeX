@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/core/showcase/numbered_component_showcase_page.dart';
 import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
 
 final AppTrader _mockTrader = AppTrader(
@@ -332,29 +331,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
             ],
           ),
           Row(
-            children: [
-              if (responsive.isMobile)
-                UiIconButton(
-                  icon: Icons.style_outlined,
-                  onPressed: () {
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const NumberedComponentShowcasePage(),
-                    ));
-                  },
-                )
-              else ...[
-                UiButton(
-                  label: 'Components Showcase',
-                  variant: UiVariant.ghost,
-                  intent: UiIntent.primary,
-                  size: UiSize.sm,
-                  leadingIcon: Icons.style_outlined,
-                  onPressed: () {
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const NumberedComponentShowcasePage(),
-                    ));
-                  },
-                ),
+            children: [    
                 SizedBox(width: context.sp(theme.spacing.md)),
                 Text(
                   'Already have an account?',
@@ -362,7 +339,6 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     color: colors.foregroundMuted,
                   ),
                 ),
-              ],
               SizedBox(width: context.sp(theme.spacing.md)),
               UiButton(
                 label: 'Sign In',

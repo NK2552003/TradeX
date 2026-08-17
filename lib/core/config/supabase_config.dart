@@ -21,32 +21,40 @@ class SupabaseConfig {
         !supabaseAnonKey.contains('placeholder');
   }
 
-  /// Initialize Supabase Flutter SDK
+  /// Initialize Supabase Flutter SDK safely
   static Future<void> initialize({String? customUrl, String? customKey}) async {
-    if (customUrl != null && customUrl.isNotEmpty) {
-      supabaseUrl = customUrl;
-    }
-    if (customKey != null && customKey.isNotEmpty) {
-      supabaseAnonKey = customKey;
-    }
-
-    if (supabaseUrl.contains('placeholder.supabase.co') || supabaseAnonKey.contains('placeholder')) {
-      debugPrint('[SupabaseConfig] Supabase running in local mock mode (URL/Key unconfigured).');
-      _isInitialized = false;
-      return;
-    }
-
     try {
+      if (customUrl != null && customUrl.isNotEmpty) {
+        supabaseUrl = customUrl;
+      } else {
+        supabaseUrl = EnvConfig.supabaseUrl;
+      }
+
+      if (customKey != null && customKey.isNotEmpty) {
+        supabaseAnonKey = customKey;
+      } else {
+        supabaseAnonKey = EnvConfig.supabaseAnonKey;
+      }
+
+      if (supabaseUrl.isEmpty ||
+          supabaseAnonKey.isEmpty ||
+          supabaseUrl.contains('placeholder.supabase.co') ||
+          supabaseAnonKey.contains('placeholder')) {
+        debugPrint('[SupabaseConfig] Supabase running in local mock mode (URL/Key unconfigured or placeholder).');
+        _isInitialized = false;
+        return;
+      }
+
       await Supabase.initialize(
         url: supabaseUrl,
         publishableKey: supabaseAnonKey,
         debug: kDebugMode,
       );
       _isInitialized = true;
-      debugPrint('[SupabaseConfig] Supabase SDK successfully initialized.');
-    } catch (e) {
+      debugPrint('[SupabaseConfig] Supabase SDK successfully initialized for $supabaseUrl.');
+    } catch (e, stack) {
       _isInitialized = false;
-      debugPrint('[SupabaseConfig] Failed to initialize Supabase SDK: $e');
+      debugPrint('[SupabaseConfig] Failed to initialize Supabase SDK: $e\n$stack');
     }
   }
 

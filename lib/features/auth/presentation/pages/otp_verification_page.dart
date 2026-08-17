@@ -6,9 +6,8 @@ import 'package:tradex/features/auth/models/otp_purpose.dart';
 import 'package:tradex/features/auth/widgets/auth_step_icon.dart';
 
 /// Standalone OTP / verification-code screen shared by every auth flow that
-/// needs a one-time code confirmed before continuing — used today for
-/// signup e-mail verification, and reusable as-is for a future login 2FA
-/// step (see [OtpPurpose]).
+/// needs a one-time code confirmed before continuing — used for
+/// signup e-mail verification and password resets (see [OtpPurpose]).
 ///
 /// Deliberately mirrors [ForgotPasswordPage]'s single-column, no-marketing
 /// -panel layout: this is a security-sensitive step, so the only job of the

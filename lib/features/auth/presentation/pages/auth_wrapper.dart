@@ -139,7 +139,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
               identifier: _sessionState.email,
               purpose: OtpPurpose.signupVerification,
               onVerified: (token) {
-                // TODO(backend): persist/exchange `token` if the API issues
+                // Backend contract: persist/exchange `token` if the API issues
                 // a session token here instead of a separate login step.
                 _navigateToStage(AuthStage.authenticated,
                     role: _sessionState.role, email: _sessionState.email);

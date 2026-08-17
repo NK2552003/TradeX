@@ -195,7 +195,10 @@ class UiButton extends StatelessWidget {
                     : (st.elevated ? theme.shadows.sm : null)),
           ),
           foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
-          child: _content(ctx, st, compactLabel, fullWidth),
+          child: ClipRRect(
+            borderRadius: radius,
+            child: _content(ctx, st, compactLabel, fullWidth),
+          ),
         );
       },
     );
@@ -265,49 +268,57 @@ class UiButton extends StatelessWidget {
             Text(
               label.isEmpty ? '' : label.substring(0, 1).toUpperCase(),
               style: text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
       );
     }
 
-    return Row(
-      mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        if (lead != null) ...<Widget>[lead, SizedBox(width: gap)],
-        Flexible(
-          child: Text(
-            loading ? (loadingLabel ?? label) : label,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: text,
-          ),
-        ),
-        if (badgeCount != null) ...<Widget>[
-          SizedBox(width: gap),
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: ctx.sp(theme.spacing.xs),
-              vertical: ctx.sp(theme.spacing.none),
-            ),
-            decoration: BoxDecoration(
-              color: st.foreground.withValues(alpha: 0.16),
-              borderRadius: ctx.radius(theme.radii.pill),
-            ),
-            child: Text(
-              '$badgeCount',
-              style: ctx.uiText.caption.copyWith(
-                color: st.foreground,
-                fontWeight: FontWeight.w600,
+    final Widget labelWidget = Text(
+      loading ? (loadingLabel ?? label) : label,
+      overflow: TextOverflow.ellipsis,
+      maxLines: 1,
+      textAlign: TextAlign.center,
+      style: text,
+    );
+
+    return ClipRect(
+      child: Row(
+        mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          if (lead != null) ...<Widget>[lead, SizedBox(width: gap)],
+          if (fullWidth)
+            Flexible(fit: FlexFit.tight, child: labelWidget)
+          else
+            Flexible(fit: FlexFit.loose, child: labelWidget),
+          if (badgeCount != null) ...<Widget>[
+            SizedBox(width: gap),
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: ctx.sp(theme.spacing.xs),
+                vertical: ctx.sp(theme.spacing.none),
+              ),
+              decoration: BoxDecoration(
+                color: st.foreground.withValues(alpha: 0.16),
+                borderRadius: ctx.radius(theme.radii.pill),
+              ),
+              child: Text(
+                '$badgeCount',
+                style: ctx.uiText.caption.copyWith(
+                  color: st.foreground,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
+          ],
+          if (trailing != null) ...<Widget>[SizedBox(width: gap), trailing!],
+          if (trailingIcon != null) ...<Widget>[
+            SizedBox(width: gap),
+            Icon(trailingIcon, size: size.icon(ctx), color: st.foreground),
+          ],
         ],
-        if (trailing != null) ...<Widget>[SizedBox(width: gap), trailing!],
-        if (trailingIcon != null) ...<Widget>[
-          SizedBox(width: gap),
-          Icon(trailingIcon, size: size.icon(ctx), color: st.foreground),
-        ],
-      ],
+      ),
     );
   }
 

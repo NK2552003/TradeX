@@ -76,7 +76,7 @@ class _AuthWindowGraphicsState extends State<AuthWindowGraphics> {
       name: 'Bitcoin',
       price: 94210.0,
       changePercent: 3.2,
-      currencySymbol: '\$',
+      currencySymbol: '₹',
       spark: [40, 42, 41, 45, 48, 46, 50, 54],
     ),
   ];
@@ -87,7 +87,7 @@ class _AuthWindowGraphicsState extends State<AuthWindowGraphics> {
     delta: 8.4,
     icon: Icons.trending_up_rounded,
     spark: const [4, 6, 5, 8, 10, 9, 12, 14],
-    formatter: (v) => '\$${v.toStringAsFixed(0)}',
+    formatter: (v) => '₹${v.toStringAsFixed(0)}',
   );
 
   static const AppStat _statWinRate = AppStat(

@@ -51,7 +51,7 @@ class PortfolioPage extends StatelessWidget {
               const Expanded(
                 child: UiMetricCard(
                   label: 'Net Worth',
-                  value: '\$124,500.00',
+                  value: '₹12,45,000.00',
                   delta: 14250,
                 ),
               ),
@@ -79,7 +79,7 @@ class PortfolioPage extends StatelessWidget {
           UiAreaChartCard(
             title: 'Equity Growth Curve',
             subtitle: 'Net portfolio account equity over time',
-            metricValue: '\$124,500.00',
+            metricValue: '₹12,45,000.00',
             metricChange: '+12.4%',
             isBullish: true,
             data: const [

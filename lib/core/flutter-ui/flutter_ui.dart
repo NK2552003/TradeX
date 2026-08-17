@@ -27,6 +27,7 @@ export 'components/ui_tab_navigation.dart';
 export 'components/ui_accordion.dart';
 export 'components/ui_empty_state.dart';
 export 'components/ui_skeleton.dart';
+export 'components/ui_scrollbar.dart';
 
 // Actions
 export 'components/ui_button.dart';

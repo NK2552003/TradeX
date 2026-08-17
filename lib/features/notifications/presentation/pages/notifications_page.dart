@@ -10,8 +10,8 @@ class NotificationsPage extends StatelessWidget {
 
     final notifications = [
       {
-        'title': 'Price Alert Triggered: \$NVDA',
-        'body': '\$NVDA crossed above your threshold of \$120.00 (+4.2% today).',
+        'title': 'Price Alert Triggered: RELIANCE',
+        'body': 'RELIANCE crossed above your threshold of ₹2,950.00 (+2.8% today).',
         'category': 'Market Alert',
         'time': '12m ago',
         'intent': UiIntent.bullish,
@@ -32,7 +32,7 @@ class NotificationsPage extends StatelessWidget {
       },
       {
         'title': 'Affiliate Bonus Credit Awarded',
-        'body': 'You earned \$50.00 affiliate bonus credit for user signup via REF-TRADEX-2026.',
+        'body': 'You earned ₹500.00 affiliate bonus credit for user signup via REF-TRADEX-2026.',
         'category': 'Affiliate',
         'time': '1d ago',
         'intent': UiIntent.warning,
