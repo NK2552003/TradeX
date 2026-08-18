@@ -89,7 +89,8 @@ class _UiTabsState extends State<UiTabs> {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final c = theme.colors;
-    final bool scroll = widget.scrollable || context.uiRes.isMobile;
+    final bool scroll =
+        widget.scrollable || (context.uiRes.isMobile && !widget.stretch);
 
     final List<Widget> tabs = <Widget>[
       for (int i = 0; i < widget.items.length; i++)
@@ -163,10 +164,9 @@ class _UiTabsState extends State<UiTabs> {
       );
     }
 
-    final UiTabItem? active =
-        _current >= 0 && _current < widget.items.length
-            ? widget.items[_current]
-            : null;
+    final UiTabItem? active = _current >= 0 && _current < widget.items.length
+        ? widget.items[_current]
+        : null;
 
     if (!widget.showPanel || active?.content == null) return bar;
 
@@ -257,8 +257,7 @@ class _UiTab extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius:
-                variant == UiTabsVariant.underline ? null : radius,
+            borderRadius: variant == UiTabsVariant.underline ? null : radius,
             border: variant == UiTabsVariant.underline
                 ? Border(
                     bottom: BorderSide(
@@ -278,15 +277,24 @@ class _UiTab extends StatelessWidget {
             children: <Widget>[
               if (item.icon != null) ...<Widget>[
                 Icon(item.icon, size: size.icon(ctx), color: fg),
-                if (item.label.isNotEmpty) SizedBox(width: ctx.sp(theme.spacing.xs)),
+                if (item.label.isNotEmpty)
+                  SizedBox(width: ctx.sp(theme.spacing.xs)),
               ],
               if (item.label.isNotEmpty)
-                Text(
-                  item.label,
-                  style: size.textStyle(ctx).copyWith(
-                        color: fg,
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      ),
+                Flexible(
+                  child: Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: size
+                        .textStyle(ctx)
+                        .copyWith(
+                          color: fg,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                        ),
+                  ),
                 ),
               if (item.count != null) ...<Widget>[
                 SizedBox(width: ctx.sp(theme.spacing.xs)),

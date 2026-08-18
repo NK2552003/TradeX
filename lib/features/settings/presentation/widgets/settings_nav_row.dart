@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 
 /// Reusable interactive drill-in navigation row for settings lists.
 class SettingsNavRow extends StatelessWidget {
@@ -59,16 +61,22 @@ class SettingsNavRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
+                Wrap(
+                  spacing: context.sp(theme.spacing.xs),
+                  runSpacing: context.sp(theme.spacing.xxs),
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: context.uiText.bodyStrong.copyWith(
-                        color: isDestructive ? colors.bearish : colors.foreground,
+                        color: isDestructive
+                            ? colors.bearish
+                            : colors.foreground,
                       ),
                     ),
                     if (badgeLabel != null) ...[
-                      SizedBox(width: context.sp(theme.spacing.xs)),
                       UiBadge(
                         label: badgeLabel!,
                         intent: badgeIntent,

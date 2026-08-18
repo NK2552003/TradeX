@@ -52,8 +52,9 @@ class AppPlanCard extends StatelessWidget {
                 SizedBox(width: context.sp(theme.spacing.xxs)),
                 Text(
                   plan.period,
-                  style: context.uiText.caption
-                      .copyWith(color: theme.colors.foregroundMuted),
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
                 ),
               ],
             ),
@@ -61,8 +62,9 @@ class AppPlanCard extends StatelessWidget {
               SizedBox(height: context.sp(theme.spacing.xs)),
               Text(
                 plan.description!,
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
               ),
             ],
             SizedBox(height: context.sp(theme.spacing.lg)),
@@ -84,7 +86,9 @@ class AppPlanCard extends StatelessWidget {
               ),
             SizedBox(height: context.sp(theme.spacing.md)),
             UiButton(
-              label: plan.current ? 'Your plan' : 'Choose ${AppTokens.tierLabel(plan.tier)}',
+              label: plan.current
+                  ? 'Your plan'
+                  : 'Choose ${AppTokens.tierLabel(plan.tier)}',
               expand: true,
               variant: plan.highlighted ? UiVariant.primary : UiVariant.outline,
               onPressed: plan.current ? null : onSelect,
@@ -128,9 +132,11 @@ class AppUsageCard extends StatelessWidget {
           Row(
             children: <Widget>[
               if (icon != null) ...<Widget>[
-                Icon(icon,
-                    size: context.sz(theme.sizes.iconSm),
-                    color: theme.colors.foregroundMuted),
+                Icon(
+                  icon,
+                  size: context.sz(theme.sizes.iconSm),
+                  color: theme.colors.foregroundMuted,
+                ),
                 SizedBox(width: context.sp(theme.spacing.xs)),
               ],
               Expanded(child: Text(label, style: context.uiText.bodyStrong)),
@@ -181,8 +187,11 @@ class AppTierGateCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(Icons.lock_outline,
-                  color: tint, size: context.sz(theme.sizes.iconMd)),
+              Icon(
+                Icons.lock_outline,
+                color: tint,
+                size: context.sz(theme.sizes.iconMd),
+              ),
               SizedBox(width: context.sp(theme.spacing.sm)),
               Expanded(child: Text(title, style: context.uiText.subheading)),
               UiBadge(
@@ -196,8 +205,9 @@ class AppTierGateCard extends StatelessWidget {
             SizedBox(height: context.sp(theme.spacing.sm)),
             Text(
               message!,
-              style: context.uiText.body
-                  .copyWith(color: theme.colors.foregroundMuted),
+              style: context.uiText.body.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             ),
           ],
           SizedBox(height: context.sp(theme.spacing.lg)),
@@ -219,8 +229,9 @@ class AppAchievementCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final bool on = achievement.unlocked;
-    final Color tint =
-        on ? theme.colors.warning : theme.colors.foregroundSubtle;
+    final Color tint = on
+        ? theme.colors.warning
+        : theme.colors.foregroundSubtle;
     return UiCard(
       onTap: onTap,
       padding: EdgeInsets.all(context.sp(theme.spacing.md)),
@@ -233,8 +244,11 @@ class AppAchievementCard extends StatelessWidget {
               color: tint.withValues(alpha: on ? 0.16 : 0.08),
               borderRadius: context.radius(theme.radii.md),
             ),
-            child: Icon(achievement.icon,
-                color: tint, size: context.sz(theme.sizes.iconMd)),
+            child: Icon(
+              achievement.icon,
+              color: tint,
+              size: context.sz(theme.sizes.iconMd),
+            ),
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
           Text(
@@ -248,8 +262,9 @@ class AppAchievementCard extends StatelessWidget {
               achievement.description!,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: context.uiText.caption
-                  .copyWith(color: theme.colors.foregroundMuted),
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             ),
           if (!on && achievement.progress != null) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.sm)),
@@ -283,39 +298,64 @@ class AppSettingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    return UiCard(
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-      child: Row(
-        children: <Widget>[
-          if (icon != null) ...<Widget>[
-            Icon(icon,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool stack = constraints.maxWidth < context.sz(520);
+        final Widget copy = Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (icon != null) ...<Widget>[
+              Icon(
+                icon,
                 size: context.sz(theme.sizes.iconSm),
-                color: theme.colors.foregroundMuted),
-            SizedBox(width: context.sp(theme.spacing.md)),
+                color: theme.colors.foregroundMuted,
+              ),
+              SizedBox(width: context.sp(theme.spacing.md)),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(title, style: context.uiText.bodyStrong),
+                  if (description != null) ...<Widget>[
+                    SizedBox(height: context.sp(theme.spacing.xxs)),
+                    Text(
+                      description!,
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.foregroundMuted,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(title, style: context.uiText.bodyStrong),
-                if (description != null)
-                  Text(
-                    description!,
-                    style: context.uiText.caption
-                        .copyWith(color: theme.colors.foregroundMuted),
-                  ),
-              ],
-            ),
-          ),
-          SizedBox(width: context.sp(theme.spacing.md)),
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: context.sz(260),
-            ),
-            child: control,
-          ),
-        ],
-      ),
+        );
+
+        return UiCard(
+          radius: theme.radii.lg,
+          padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+          child: stack
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    copy,
+                    SizedBox(height: context.sp(theme.spacing.md)),
+                    control,
+                  ],
+                )
+              : Row(
+                  children: <Widget>[
+                    Expanded(child: copy),
+                    SizedBox(width: context.sp(theme.spacing.md)),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: context.sz(280)),
+                      child: control,
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 }

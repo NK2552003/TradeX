@@ -13,22 +13,25 @@ void main() {
       authService = SupabaseAuthBackendService.instance;
     });
 
-    test('1. Supabase unconfigured fallback mode handles Customer registration', () async {
-      expect(SupabaseConfig.isConfigured, isFalse);
+    test(
+      '1. Supabase unconfigured fallback mode handles Customer registration',
+      () async {
+        expect(SupabaseConfig.isConfigured, isFalse);
 
-      final result = await authService.signUp(
-        role: UserRole.customer,
-        handle: 'supatrader',
-        email: 'supatrader@tradex.ai',
-        password: 'Password123!',
-      );
+        final result = await authService.signUp(
+          role: UserRole.customer,
+          handle: 'supatrader',
+          email: 'supatrader@tradex.ai',
+          password: 'Password123!',
+        );
 
-      expect(result.isSuccess, isTrue);
-      expect(result.profile, isNotNull);
-      expect(result.profile!.email, equals('supatrader@tradex.ai'));
-      expect(result.profile!.role, equals(UserRole.customer));
-      expect(result.profile!.referralCode, startsWith('REF-TRADEX-'));
-    });
+        expect(result.isSuccess, isTrue);
+        expect(result.profile, isNotNull);
+        expect(result.profile!.email, equals('supatrader@tradex.ai'));
+        expect(result.profile!.role, equals(UserRole.customer));
+        expect(result.profile!.referralCode, startsWith('REF-TRADEX-'));
+      },
+    );
 
     test('2. Dual Sign-In via Handle or Email with fallback', () async {
       final loginByHandle = await authService.signIn(
@@ -48,7 +51,7 @@ void main() {
       expect(loginByEmail.profile!.email, equals('supatrader@tradex.ai'));
     });
 
-    test('3. User Admin registration requires Master Admin Key', () async {
+    test('3. User Admin public registration is always disabled', () async {
       final failedResult = await authService.signUp(
         role: UserRole.userAdmin,
         handle: 'admin_test',
@@ -56,7 +59,7 @@ void main() {
         password: 'Password123!',
       );
       expect(failedResult.isSuccess, isFalse);
-      expect(failedResult.message, contains('Master Admin Key is required'));
+      expect(failedResult.message, contains('provisioned privately'));
 
       final validResult = await authService.signUp(
         role: UserRole.userAdmin,
@@ -65,8 +68,8 @@ void main() {
         password: 'Password123!',
         adminKey: 'LIC-ADMIN-2026-KEY',
       );
-      expect(validResult.isSuccess, isTrue);
-      expect(validResult.profile!.role, equals(UserRole.userAdmin));
+      expect(validResult.isSuccess, isFalse);
+      expect(validResult.errorCode, equals('admin_signup_disabled'));
     });
   });
 }

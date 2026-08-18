@@ -7,10 +7,7 @@ import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.d
 import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 class OrganizationSettingsPage extends StatefulWidget {
-  const OrganizationSettingsPage({
-    super.key,
-    this.repository,
-  });
+  const OrganizationSettingsPage({super.key, this.repository});
 
   final OrganizationSettingsRepository? repository;
 
@@ -21,7 +18,9 @@ class OrganizationSettingsPage extends StatefulWidget {
 
 class _OrganizationSettingsPageState extends State<OrganizationSettingsPage> {
   late final OrganizationSettingsRepository _repo;
-  OrgBranding _branding = const OrgBranding(displayName: 'TradeX Institutional Alpha');
+  OrgBranding _branding = const OrgBranding(
+    displayName: 'TradeX Institutional Alpha',
+  );
   bool _loading = true;
   bool _saving = false;
   late TextEditingController _nameController;
@@ -91,6 +90,7 @@ class _OrganizationSettingsPageState extends State<OrganizationSettingsPage> {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final colors = theme.colors;
+    final isMobile = context.uiRes.isMobile;
 
     if (_loading) {
       return Padding(
@@ -114,124 +114,140 @@ class _OrganizationSettingsPageState extends State<OrganizationSettingsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-          // Enterprise Badge Header
-          UiCard(
-            accentColor: colors.primary,
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-                  decoration: BoxDecoration(
-                    color: colors.primary.withValues(alpha: 0.12),
-                    borderRadius: context.radius(theme.radii.md),
-                  ),
-                  child: Icon(Icons.corporate_fare_rounded, color: colors.primary, size: context.sz(28)),
-                ),
-                SizedBox(width: context.sp(theme.spacing.md)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+              // Enterprise Badge Header
+              UiCard(
+                accentColor: colors.primary,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.12),
+                        borderRadius: context.radius(theme.radii.md),
+                      ),
+                      child: Icon(
+                        Icons.corporate_fare_rounded,
+                        color: colors.primary,
+                        size: context.sz(28),
+                      ),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.md)),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_branding.displayName, style: context.uiText.heading),
-                          SizedBox(width: context.sp(theme.spacing.xs)),
-                          const UiBadge(
-                            label: 'ENTERPRISE DESK',
-                            intent: UiIntent.primary,
-                            size: UiSize.xs,
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: context.sp(theme.spacing.xs),
+                            runSpacing: context.sp(theme.spacing.xxs),
+                            children: [
+                              Text(
+                                _branding.displayName,
+                                style: context.uiText.heading,
+                              ),
+                              const UiBadge(
+                                label: 'ENTERPRISE DESK',
+                                intent: UiIntent.primary,
+                                size: UiSize.xs,
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'Active Institutional Tier · 3 of 10 Trader Seats Used',
+                            style: context.uiText.caption.copyWith(
+                              color: colors.foregroundMuted,
+                            ),
                           ),
                         ],
                       ),
-                      Text(
-                        'Active Institutional Tier · 3 of 10 Trader Seats Used',
-                        style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-
-          // Team & Roles Navigation Row
-          AppSettingsSectionBlock(
-            title: 'Team Directory & Access Control',
-            description: 'Manage institutional trader accounts, role privileges, and invite colleagues.',
-            children: [
-              SettingsNavRow(
-                title: 'Team & Roles',
-                subtitle: '3 Active Members (1 Owner, 1 Admin, 1 Trader)',
-                icon: Icons.group_outlined,
-                badgeLabel: '3 Seats',
-                onTap: () {
-                  showSettingsSideSheet(
-                    context,
-                    title: 'Team Directory & Roles',
-                    subtitle: 'Manage trader seats, role privileges and invites',
-                    child: TeamRolesPage(repository: _repo),
-                  );
-                },
-              ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-
-          // Branding Customization
-          AppSettingsSectionBlock(
-            title: 'Organization Identity & White-labeling',
-            description: 'Customize firm branding across shared playbooks and client exports.',
-            children: [
-              UiCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    UiField(
-                      label: 'Organization Display Name',
-                      child: UiInput(
-                        value: _nameController.text,
-                        hintText: 'e.g. Apex Alpha Capital',
-                        onChanged: (v) => _nameController.text = v,
-                      ),
-                    ),
-                    SizedBox(height: context.sp(theme.spacing.md)),
-                    UiField(
-                      label: 'Desk Logo',
-                      helper: 'Upload high-resolution transparent SVG or PNG logo.',
-                      child: UiDropzone(
-                        message: 'Drag & drop firm logo or click to upload',
-                        onPick: () {
-                          UiToast.show(
-                            context,
-                            title: 'Logo Uploaded',
-                            message: 'New organization logo uploaded.',
-                            intent: UiIntent.success,
-                          );
-                        },
-                      ),
-                    ),
-                    SizedBox(height: context.sp(theme.spacing.lg)),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        UiButton(
-                          label: 'Save Branding',
-                          intent: UiIntent.primary,
-                          loading: _saving,
-                          onPressed: _saveBranding,
-                        ),
-                      ],
                     ),
                   ],
                 ),
               ),
+              SizedBox(height: context.sp(theme.spacing.lg)),
+
+              // Team & Roles Navigation Row
+              AppSettingsSectionBlock(
+                title: 'Team Directory & Access Control',
+                description:
+                    'Manage institutional trader accounts, role privileges, and invite colleagues.',
+                children: [
+                  SettingsNavRow(
+                    title: 'Team & Roles',
+                    subtitle: '3 Active Members (1 Owner, 1 Admin, 1 Trader)',
+                    icon: Icons.group_outlined,
+                    badgeLabel: '3 Seats',
+                    onTap: () {
+                      showSettingsSideSheet(
+                        context,
+                        title: 'Team Directory & Roles',
+                        subtitle:
+                            'Manage trader seats, role privileges and invites',
+                        child: TeamRolesPage(repository: _repo),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              SizedBox(height: context.sp(theme.spacing.lg)),
+
+              // Branding Customization
+              AppSettingsSectionBlock(
+                title: 'Organization Identity & White-labeling',
+                description:
+                    'Customize firm branding across shared playbooks and client exports.',
+                children: [
+                  UiCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        UiField(
+                          label: 'Organization Display Name',
+                          child: UiInput(
+                            value: _nameController.text,
+                            hintText: 'e.g. Apex Alpha Capital',
+                            onChanged: (v) => _nameController.text = v,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.md)),
+                        UiField(
+                          label: 'Desk Logo',
+                          helper:
+                              'Upload high-resolution transparent SVG or PNG logo.',
+                          child: UiDropzone(
+                            message: 'Drag & drop firm logo or click to upload',
+                            onPick: () {
+                              UiToast.show(
+                                context,
+                                title: 'Logo Uploaded',
+                                message: 'New organization logo uploaded.',
+                                intent: UiIntent.success,
+                              );
+                            },
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.lg)),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: SizedBox(
+                            width: isMobile ? double.infinity : null,
+                            child: UiButton(
+                              label: 'Save Branding',
+                              intent: UiIntent.primary,
+                              loading: _saving,
+                              onPressed: _saveBranding,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 }

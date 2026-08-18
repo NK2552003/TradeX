@@ -4,10 +4,7 @@ import 'package:tradex/features/settings/data/repositories/trading_prefs_reposit
 import 'package:tradex/features/settings/models/trading_prefs_model.dart';
 
 class TradingPreferencesPage extends StatefulWidget {
-  const TradingPreferencesPage({
-    super.key,
-    this.repository,
-  });
+  const TradingPreferencesPage({super.key, this.repository});
 
   final TradingPrefsRepository? repository;
 
@@ -58,7 +55,8 @@ class _TradingPreferencesPageState extends State<TradingPreferencesPage> {
         UiToast.show(
           context,
           title: 'Preferences Saved',
-          message: 'Your trading defaults and checklist items have been synced.',
+          message:
+              'Your trading defaults and checklist items have been synced.',
           intent: UiIntent.success,
         );
       }
@@ -135,6 +133,7 @@ class _TradingPreferencesPageState extends State<TradingPreferencesPage> {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final colors = theme.colors;
+    final isMobile = context.uiRes.isMobile;
 
     if (_loading) {
       return Padding(
@@ -158,252 +157,323 @@ class _TradingPreferencesPageState extends State<TradingPreferencesPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-          // Personal Trader Discipline Scope Banner
-          UiCallout(
-            title: 'Personal Trader Risk & Discipline Parameters',
-            message:
-                'Settings configured here apply directly to your personal execution ticket, auto-fill risk calculators, and journal validation.',
-            intent: UiIntent.primary,
-          ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-
-          // Risk Defaults
-          AppSettingsSectionBlock(
-            title: 'Default Risk Management Parameters',
-            description: 'Calculators and order tickets will pre-populate these risk limits.',
-            children: [
-              UiCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Max Account Risk per Trade', style: context.uiText.bodyStrong),
-                        UiBadge(
-                          label: '${_prefs.defaultPositionSizePercent.toStringAsFixed(1)}% of Capital',
-                          intent: UiIntent.primary,
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: context.sp(theme.spacing.sm)),
-                    UiSlider(
-                      value: _prefs.defaultPositionSizePercent,
-                      min: 0.5,
-                      max: 10.0,
-                      onChanged: (val) {
-                        setState(() {
-                          _prefs = _prefs.copyWith(defaultPositionSizePercent: val);
-                        });
-                      },
-                    ),
-                    SizedBox(height: context.sp(theme.spacing.md)),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Target R-Multiple (Risk-to-Reward)', style: context.uiText.bodyStrong),
-                        UiBadge(
-                          label: '${_prefs.defaultRMultipleTarget.toStringAsFixed(1)}R Target',
-                          intent: UiIntent.bullish,
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: context.sp(theme.spacing.sm)),
-                    UiSlider(
-                      value: _prefs.defaultRMultipleTarget,
-                      min: 1.0,
-                      max: 6.0,
-                      onChanged: (val) {
-                        setState(() {
-                          _prefs = _prefs.copyWith(defaultRMultipleTarget: val);
-                        });
-                      },
-                    ),
-                  ],
-                ),
+              // Personal Trader Discipline Scope Banner
+              UiCallout(
+                title: 'Personal Trader Risk & Discipline Parameters',
+                message:
+                    'Settings configured here apply directly to your personal execution ticket, auto-fill risk calculators, and journal validation.',
+                intent: UiIntent.primary,
               ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
+              SizedBox(height: context.sp(theme.spacing.lg)),
 
-          // Pre-Trade Checklist Editor
-          AppSettingsSectionBlock(
-            title: 'Pre-Trade Execution Checklist Rules',
-            description: 'Gates enforced before submitting live orders or logging journal setups.',
-            children: [
-              UiCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Risk Defaults
+              AppSettingsSectionBlock(
+                title: 'Default Risk Management Parameters',
+                description:
+                    'Calculators and order tickets will pre-populate these risk limits.',
+                children: [
+                  UiCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${_checklist.length} Active Checklist Rules', style: context.uiText.bodyStrong),
-                        UiButton(
-                          label: 'Add Rule',
-                          leadingIcon: Icons.add_rounded,
-                          size: UiSize.xs,
-                          variant: UiVariant.outline,
-                          onPressed: _showAddChecklistItemDialog,
+                        _ResponsivePreferenceHeading(
+                          label: 'Max Account Risk per Trade',
+                          badge: UiBadge(
+                            label:
+                                '${_prefs.defaultPositionSizePercent.toStringAsFixed(1)}% of Capital',
+                            intent: UiIntent.primary,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        UiSlider(
+                          value: _prefs.defaultPositionSizePercent,
+                          min: 0.5,
+                          max: 10.0,
+                          onChanged: (val) {
+                            setState(() {
+                              _prefs = _prefs.copyWith(
+                                defaultPositionSizePercent: val,
+                              );
+                            });
+                          },
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.md)),
+                        _ResponsivePreferenceHeading(
+                          label: 'Target R-Multiple (Risk-to-Reward)',
+                          badge: UiBadge(
+                            label:
+                                '${_prefs.defaultRMultipleTarget.toStringAsFixed(1)}R Target',
+                            intent: UiIntent.bullish,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        UiSlider(
+                          value: _prefs.defaultRMultipleTarget,
+                          min: 1.0,
+                          max: 6.0,
+                          onChanged: (val) {
+                            setState(() {
+                              _prefs = _prefs.copyWith(
+                                defaultRMultipleTarget: val,
+                              );
+                            });
+                          },
                         ),
                       ],
                     ),
-                    SizedBox(height: context.sp(theme.spacing.md)),
-                    if (_checklist.isEmpty)
-                      const UiEmptyState(
-                        icon: Icons.checklist_rtl_rounded,
-                        title: 'No checklist rules defined',
-                        message: 'Add checklist rules to build disciplined execution habits.',
-                      )
-                    else
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _checklist.length,
-                        separatorBuilder: (context, index) => SizedBox(height: context.sp(theme.spacing.xs)),
-                        itemBuilder: (context, index) {
-                          final item = _checklist[index];
-                          return Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: context.sp(theme.spacing.sm),
-                              vertical: context.sp(theme.spacing.xs),
+                  ),
+                ],
+              ),
+              SizedBox(height: context.sp(theme.spacing.lg)),
+
+              // Pre-Trade Checklist Editor
+              AppSettingsSectionBlock(
+                title: 'Pre-Trade Execution Checklist Rules',
+                description:
+                    'Gates enforced before submitting live orders or logging journal setups.',
+                children: [
+                  UiCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: context.sp(theme.spacing.sm),
+                          runSpacing: context.sp(theme.spacing.sm),
+                          children: [
+                            Text(
+                              '${_checklist.length} Active Checklist Rules',
+                              style: context.uiText.bodyStrong,
                             ),
-                            decoration: BoxDecoration(
-                              color: colors.surfaceHover,
-                              borderRadius: context.radius(theme.radii.sm),
-                              border: Border.all(color: colors.border),
+                            UiButton(
+                              label: 'Add Rule',
+                              leadingIcon: Icons.add_rounded,
+                              size: UiSize.xs,
+                              variant: UiVariant.outline,
+                              onPressed: _showAddChecklistItemDialog,
                             ),
-                            child: Row(
-                              children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
+                          ],
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.md)),
+                        if (_checklist.isEmpty)
+                          const UiEmptyState(
+                            icon: Icons.checklist_rtl_rounded,
+                            title: 'No checklist rules defined',
+                            message:
+                                'Add checklist rules to build disciplined execution habits.',
+                          )
+                        else
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _checklist.length,
+                            separatorBuilder: (context, index) =>
+                                SizedBox(height: context.sp(theme.spacing.xs)),
+                            itemBuilder: (context, index) {
+                              final item = _checklist[index];
+                              return Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: context.sp(theme.spacing.sm),
+                                  vertical: context.sp(theme.spacing.xs),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colors.surfaceHover,
+                                  borderRadius: context.radius(theme.radii.sm),
+                                  border: Border.all(color: colors.border),
+                                ),
+                                child: Row(
                                   children: [
-                                    UiIconButton(
-                                      icon: Icons.arrow_upward_rounded,
-                                      size: UiSize.xs,
-                                      variant: UiVariant.ghost,
-                                      tooltip: 'Move up',
-                                      onPressed: index > 0
-                                          ? () {
-                                              setState(() {
-                                                final temp = _checklist[index - 1];
-                                                _checklist[index - 1] = _checklist[index];
-                                                _checklist[index] = temp;
-                                              });
-                                            }
-                                          : null,
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        UiIconButton(
+                                          icon: Icons.arrow_upward_rounded,
+                                          size: UiSize.xs,
+                                          variant: UiVariant.ghost,
+                                          tooltip: 'Move up',
+                                          onPressed: index > 0
+                                              ? () {
+                                                  setState(() {
+                                                    final temp =
+                                                        _checklist[index - 1];
+                                                    _checklist[index - 1] =
+                                                        _checklist[index];
+                                                    _checklist[index] = temp;
+                                                  });
+                                                }
+                                              : null,
+                                        ),
+                                        UiIconButton(
+                                          icon: Icons.arrow_downward_rounded,
+                                          size: UiSize.xs,
+                                          variant: UiVariant.ghost,
+                                          tooltip: 'Move down',
+                                          onPressed:
+                                              index < _checklist.length - 1
+                                              ? () {
+                                                  setState(() {
+                                                    final temp =
+                                                        _checklist[index + 1];
+                                                    _checklist[index + 1] =
+                                                        _checklist[index];
+                                                    _checklist[index] = temp;
+                                                  });
+                                                }
+                                              : null,
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(
+                                      width: context.sp(theme.spacing.sm),
+                                    ),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item.label,
+                                            style: context.uiText.bodyStrong,
+                                          ),
+                                          if (item.description != null)
+                                            Text(
+                                              item.description!,
+                                              style: context.uiText.caption
+                                                  .copyWith(
+                                                    color:
+                                                        colors.foregroundMuted,
+                                                  ),
+                                            ),
+                                        ],
+                                      ),
                                     ),
                                     UiIconButton(
-                                      icon: Icons.arrow_downward_rounded,
+                                      icon: Icons.delete_outline_rounded,
                                       size: UiSize.xs,
-                                      variant: UiVariant.ghost,
-                                      tooltip: 'Move down',
-                                      onPressed: index < _checklist.length - 1
-                                          ? () {
-                                              setState(() {
-                                                final temp = _checklist[index + 1];
-                                                _checklist[index + 1] = _checklist[index];
-                                                _checklist[index] = temp;
-                                              });
-                                            }
-                                          : null,
+                                      variant: UiVariant.destructive,
+                                      tooltip: 'Delete rule',
+                                      onPressed: () async {
+                                        final updated = await _repo
+                                            .deleteChecklistItem(item.id);
+                                        if (mounted) {
+                                          setState(() => _checklist = updated);
+                                        }
+                                      },
                                     ),
                                   ],
                                 ),
-                                SizedBox(width: context.sp(theme.spacing.sm)),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(item.label, style: context.uiText.bodyStrong),
-                                      if (item.description != null)
-                                        Text(
-                                          item.description!,
-                                          style: context.uiText.caption.copyWith(
-                                            color: colors.foregroundMuted,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                UiIconButton(
-                                  icon: Icons.delete_outline_rounded,
-                                  size: UiSize.xs,
-                                  variant: UiVariant.destructive,
-                                  tooltip: 'Delete rule',
-                                  onPressed: () async {
-                                    final updated = await _repo.deleteChecklistItem(item.id);
-                                    if (mounted) setState(() => _checklist = updated);
-                                  },
-                                ),
-                              ],
-                            ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: context.sp(theme.spacing.lg)),
+
+              // Watchlist Defaults
+              AppSettingsSectionBlock(
+                title: 'Watchlist & Scanner Defaults',
+                description:
+                    'Default symbols loaded on cold startup and real-time refresh rate.',
+                children: [
+                  UiField(
+                    label: 'Default Watchlist Tickers',
+                    helper: 'Cashtag symbols to track on the market scanner.',
+                    child: UiTagInput(
+                      tags: _prefs.defaultWatchlistSymbols,
+                      onChanged: (tags) {
+                        setState(() {
+                          _prefs = _prefs.copyWith(
+                            defaultWatchlistSymbols: tags,
                           );
-                        },
-                      ),
-                  ],
-                ),
+                        });
+                      },
+                    ),
+                  ),
+                  SizedBox(height: context.sp(theme.spacing.sm)),
+                  AppSettingCard(
+                    title: 'Data Polling Refresh Interval',
+                    description:
+                        'How frequently background quotes and order book depths reload.',
+                    icon: Icons.sync_rounded,
+                    control: UiSelect<int>(
+                      width: 160,
+                      value: _prefs.watchlistRefreshIntervalSeconds,
+                      options: _refreshIntervals
+                          .map(
+                            (sec) => UiOption<int>(
+                              label: '$sec seconds',
+                              value: sec,
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) {
+                        setState(() {
+                          _prefs = _prefs.copyWith(
+                            watchlistRefreshIntervalSeconds: val,
+                          );
+                        });
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
+              SizedBox(height: context.sp(theme.spacing.xl)),
 
-          // Watchlist Defaults
-          AppSettingsSectionBlock(
-            title: 'Watchlist & Scanner Defaults',
-            description: 'Default symbols loaded on cold startup and real-time refresh rate.',
-            children: [
-              UiField(
-                label: 'Default Watchlist Tickers',
-                helper: 'Cashtag symbols to track on the market scanner.',
-                child: UiTagInput(
-                  tags: _prefs.defaultWatchlistSymbols,
-                  onChanged: (tags) {
-                    setState(() {
-                      _prefs = _prefs.copyWith(defaultWatchlistSymbols: tags);
-                    });
-                  },
-                ),
-              ),
-              SizedBox(height: context.sp(theme.spacing.sm)),
-              AppSettingCard(
-                title: 'Data Polling Refresh Interval',
-                description: 'How frequently background quotes and order book depths reload.',
-                icon: Icons.sync_rounded,
-                control: UiSelect<int>(
-                  width: 160,
-                  value: _prefs.watchlistRefreshIntervalSeconds,
-                  options: _refreshIntervals
-                      .map((sec) => UiOption<int>(label: '$sec seconds', value: sec))
-                      .toList(),
-                  onChanged: (val) {
-                    setState(() {
-                      _prefs = _prefs.copyWith(watchlistRefreshIntervalSeconds: val);
-                    });
-                  },
+              // Save button
+              Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  width: isMobile ? double.infinity : null,
+                  child: UiButton(
+                    label: 'Save Trading Preferences',
+                    intent: UiIntent.primary,
+                    variant: UiVariant.primary,
+                    loading: _saving,
+                    onPressed: _savePrefs,
+                  ),
                 ),
               ),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.xl)),
-
-          // Save button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              UiButton(
-                label: 'Save Trading Preferences',
-                intent: UiIntent.primary,
-                variant: UiVariant.primary,
-                loading: _saving,
-                onPressed: _savePrefs,
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
-    ),
-  ),
-);
+    );
+  }
+}
+
+class _ResponsivePreferenceHeading extends StatelessWidget {
+  const _ResponsivePreferenceHeading({
+    required this.label,
+    required this.badge,
+  });
+
+  final String label;
+  final Widget badge;
+
+  @override
+  Widget build(BuildContext context) {
+    final spacing = context.sp(context.ui.spacing.sm);
+    if (context.uiRes.isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: context.uiText.bodyStrong),
+          SizedBox(height: spacing),
+          badge,
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(child: Text(label, style: context.uiText.bodyStrong)),
+        SizedBox(width: spacing),
+        badge,
+      ],
+    );
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
 import 'package:tradex/features/settings/models/privacy_settings_model.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/blocked_users_page.dart';
@@ -7,10 +9,7 @@ import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.d
 import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 class PrivacySettingsPage extends StatefulWidget {
-  const PrivacySettingsPage({
-    super.key,
-    this.repository,
-  });
+  const PrivacySettingsPage({super.key, this.repository});
 
   final PrivacyRepository? repository;
 
@@ -126,15 +125,16 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
     }
 
     if (_exportRequest!.isProcessing) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
+      return Wrap(
+        spacing: context.sp(context.ui.spacing.xs),
+        runSpacing: context.sp(context.ui.spacing.xs),
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           const UiBadge(
             label: 'Processing Archive...',
             intent: UiIntent.warning,
             size: UiSize.xs,
           ),
-          SizedBox(width: context.sp(context.ui.spacing.xs)),
           UiButton(
             label: 'Check Status',
             variant: UiVariant.ghost,
@@ -146,15 +146,16 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
     }
 
     if (_exportRequest!.isReady) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
+      return Wrap(
+        spacing: context.sp(context.ui.spacing.xs),
+        runSpacing: context.sp(context.ui.spacing.xs),
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           const UiBadge(
             label: 'Ready (ZIP)',
             intent: UiIntent.bullish,
             size: UiSize.xs,
           ),
-          SizedBox(width: context.sp(context.ui.spacing.xs)),
           UiButton(
             label: 'Download ZIP',
             leadingIcon: Icons.download_rounded,
@@ -208,74 +209,80 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-          // Visibility Section
-          AppSettingsSectionBlock(
-            title: 'Journal & Profile Visibility',
-            description: 'Control who can discover and view your trades, strategies, and performance numbers.',
-            children: [
-              AppSettingCard(
-                title: 'Make New Journals Public by Default',
-                description: 'When enabled, newly created trade logs will be shared to the community feed.',
-                icon: Icons.public_rounded,
-                control: UiSwitch(
-                  value: _settings.publicJournals,
-                  onChanged: _togglePublicJournals,
-                ),
+              // Visibility Section
+              AppSettingsSectionBlock(
+                title: 'Journal & Profile Visibility',
+                description:
+                    'Control who can discover and view your trades, strategies, and performance numbers.',
+                children: [
+                  AppSettingCard(
+                    title: 'Make New Journals Public by Default',
+                    description:
+                        'When enabled, newly created trade logs will be shared to the community feed.',
+                    icon: Icons.public_rounded,
+                    control: UiSwitch(
+                      value: _settings.publicJournals,
+                      onChanged: _togglePublicJournals,
+                    ),
+                  ),
+                  AppSettingCard(
+                    title: 'Share P&L and Win Rate on Public Profile',
+                    description:
+                        'Display your overall verified Sharpe ratio, win rate, and profit factor to other users.',
+                    icon: Icons.query_stats_rounded,
+                    control: UiSwitch(
+                      value: _settings.publicStatsEnabled,
+                      onChanged: _togglePublicStats,
+                    ),
+                  ),
+                ],
               ),
-              AppSettingCard(
-                title: 'Share P&L and Win Rate on Public Profile',
-                description: 'Display your overall verified Sharpe ratio, win rate, and profit factor to other users.',
-                icon: Icons.query_stats_rounded,
-                control: UiSwitch(
-                  value: _settings.publicStatsEnabled,
-                  onChanged: _togglePublicStats,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
+              SizedBox(height: context.sp(theme.spacing.lg)),
 
-          // User Moderation Section
-          AppSettingsSectionBlock(
-            title: 'User Moderation & Blocking',
-            description: 'Manage traders you have blocked from messaging you or seeing your activity.',
-            children: [
-              SettingsNavRow(
-                title: 'Blocked Users',
-                subtitle: 'Review and unblock accounts you have previously restricted',
-                icon: Icons.block_rounded,
-                onTap: () {
-                  showSettingsSideSheet(
-                    context,
+              // User Moderation Section
+              AppSettingsSectionBlock(
+                title: 'User Moderation & Blocking',
+                description:
+                    'Manage traders you have blocked from messaging you or seeing your activity.',
+                children: [
+                  SettingsNavRow(
                     title: 'Blocked Users',
-                    subtitle: 'Review restricted and muted trader profiles',
-                    child: BlockedUsersPage(repository: _repo),
-                  );
-                },
+                    subtitle:
+                        'Review and unblock accounts you have previously restricted',
+                    icon: Icons.block_rounded,
+                    onTap: () {
+                      showSettingsSideSheet(
+                        context,
+                        title: 'Blocked Users',
+                        subtitle: 'Review restricted and muted trader profiles',
+                        child: BlockedUsersPage(repository: _repo),
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
+              SizedBox(height: context.sp(theme.spacing.lg)),
 
-          // Data Export Section
-          AppSettingsSectionBlock(
-            title: 'Data Privacy & GDPR Export',
-            description: 'Request a complete, machine-readable JSON/CSV archive of all your trades, strategies, and notes.',
-            children: [
-              AppSettingCard(
-                title: 'Download Account Data Archive',
-                description: _exportRequest?.isReady == true
-                    ? 'Archive generated and ready for secure download. Valid for 7 days.'
-                    : 'Generates a ZIP containing journal CSVs, playbook JSONs, and backtest logs.',
-                icon: Icons.cloud_download_outlined,
-                control: _buildDataExportControl(),
+              // Data Export Section
+              AppSettingsSectionBlock(
+                title: 'Data Privacy & GDPR Export',
+                description:
+                    'Request a complete, machine-readable JSON/CSV archive of all your trades, strategies, and notes.',
+                children: [
+                  AppSettingCard(
+                    title: 'Download Account Data Archive',
+                    description: _exportRequest?.isReady == true
+                        ? 'Archive generated and ready for secure download. Valid for 7 days.'
+                        : 'Generates a ZIP containing journal CSVs, playbook JSONs, and backtest logs.',
+                    icon: Icons.cloud_download_outlined,
+                    control: _buildDataExportControl(),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 }

@@ -13,8 +13,19 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   String _chartStyle = 'Candlestick';
   String _colorScheme = 'Standard (Green/Red)';
 
-  final List<String> _rangeOptions = const <String>['1D', '1W', '1M', '1Y', 'ALL'];
-  final List<String> _chartStyles = const <String>['Candlestick', 'Line', 'Area', 'Bars'];
+  final List<String> _rangeOptions = const <String>[
+    '1D',
+    '1W',
+    '1M',
+    '1Y',
+    'ALL',
+  ];
+  final List<String> _chartStyles = const <String>[
+    'Candlestick',
+    'Line',
+    'Area',
+    'Bars',
+  ];
   final List<String> _colorSchemes = const <String>[
     'Standard (Green/Red)',
     'Colorblind-Safe (Blue/Orange)',
@@ -41,25 +52,41 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               // Theme Section
               AppSettingsSectionBlock(
                 title: 'Interface Theme',
-                description: 'Choose your visual preference or sync with system OS appearance.',
+                description:
+                    'Choose your visual preference or sync with system OS appearance.',
                 children: [
                   AppSettingCard(
                     title: 'Color Theme Mode',
-                    description: 'Switches between sleek dark terminal mode and crisp daytime light mode.',
+                    description:
+                        'Switches between sleek dark terminal mode and crisp daytime light mode.',
                     icon: Icons.palette_outlined,
                     control: UiToggleGroup<ThemeMode>(
+                      expand: true,
                       value: currentThemeMode,
                       options: const <UiToggleOption<ThemeMode>>[
-                        UiToggleOption(label: 'Dark', value: ThemeMode.dark, icon: Icons.dark_mode_outlined),
-                        UiToggleOption(label: 'Light', value: ThemeMode.light, icon: Icons.light_mode_outlined),
-                        UiToggleOption(label: 'System', value: ThemeMode.system, icon: Icons.settings_brightness_outlined),
+                        UiToggleOption(
+                          label: 'Dark',
+                          value: ThemeMode.dark,
+                          icon: Icons.dark_mode_outlined,
+                        ),
+                        UiToggleOption(
+                          label: 'Light',
+                          value: ThemeMode.light,
+                          icon: Icons.light_mode_outlined,
+                        ),
+                        UiToggleOption(
+                          label: 'System',
+                          value: ThemeMode.system,
+                          icon: Icons.settings_brightness_outlined,
+                        ),
                       ],
                       onChanged: (mode) {
                         themeController.setMode(mode);
                         UiToast.show(
                           context,
                           title: 'Theme Changed',
-                          message: 'Switched to ${mode.name.toUpperCase()} theme mode.',
+                          message:
+                              'Switched to ${mode.name.toUpperCase()} theme mode.',
                           intent: UiIntent.info,
                         );
                       },
@@ -67,12 +94,16 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   ),
                   AppSettingCard(
                     title: 'Layout & Spacing Density',
-                    description: 'Adjust information density across tables, cards, and execution panels.',
+                    description:
+                        'Adjust information density across tables, cards, and execution panels.',
                     icon: Icons.density_medium_rounded,
                     control: UiToggleGroup<String>(
+                      expand: true,
                       value: currentDensity,
                       options: _densities
-                          .map((d) => UiToggleOption<String>(label: d, value: d))
+                          .map(
+                            (d) => UiToggleOption<String>(label: d, value: d),
+                          )
                           .toList(),
                       onChanged: (val) {
                         themeController.setDensity(val);
@@ -89,61 +120,68 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               ),
               SizedBox(height: context.sp(theme.spacing.lg)),
 
-          // Financial Chart Defaults
-          AppSettingsSectionBlock(
-            title: 'Default Financial Chart Settings',
-            description: 'Set default configurations applied whenever you open technical analysis workspaces.',
-            children: [
-              AppSettingCard(
-                title: 'Default Timeframe Range',
-                description: 'Initial chart range when opening new symbol tickets.',
-                icon: Icons.timeline_rounded,
-                control: UiToggleGroup<String>(
-                  value: _selectedRange,
-                  options: _rangeOptions
-                      .map((r) => UiToggleOption<String>(label: r, value: r))
-                      .toList(),
-                  onChanged: (val) {
-                    setState(() => _selectedRange = val);
-                  },
-                ),
-              ),
-              AppSettingCard(
-                title: 'Primary Chart Type',
-                description: 'Default rendering style for price action bars.',
-                icon: Icons.candlestick_chart_outlined,
-                control: UiSelect<String>(
-                  width: 180,
-                  value: _chartStyle,
-                  options: _chartStyles
-                      .map((s) => UiOption<String>(label: s, value: s))
-                      .toList(),
-                  onChanged: (val) {
-                    setState(() => _chartStyle = val);
-                  },
-                ),
-              ),
-              AppSettingCard(
-                title: 'Bullish / Bearish Color Convention',
-                description: 'Ensure price signals match your regional or accessibility requirements.',
-                icon: Icons.invert_colors_rounded,
-                control: UiSelect<String>(
-                  width: 180,
-                  value: _colorScheme,
-                  options: _colorSchemes
-                      .map((c) => UiOption<String>(label: c, value: c))
-                      .toList(),
-                  onChanged: (val) {
-                    setState(() => _colorScheme = val);
-                  },
-                ),
+              // Financial Chart Defaults
+              AppSettingsSectionBlock(
+                title: 'Default Financial Chart Settings',
+                description:
+                    'Set default configurations applied whenever you open technical analysis workspaces.',
+                children: [
+                  AppSettingCard(
+                    title: 'Default Timeframe Range',
+                    description:
+                        'Initial chart range when opening new symbol tickets.',
+                    icon: Icons.timeline_rounded,
+                    control: UiToggleGroup<String>(
+                      expand: true,
+                      value: _selectedRange,
+                      options: _rangeOptions
+                          .map(
+                            (r) => UiToggleOption<String>(label: r, value: r),
+                          )
+                          .toList(),
+                      onChanged: (val) {
+                        setState(() => _selectedRange = val);
+                      },
+                    ),
+                  ),
+                  AppSettingCard(
+                    title: 'Primary Chart Type',
+                    description:
+                        'Default rendering style for price action bars.',
+                    icon: Icons.candlestick_chart_outlined,
+                    control: UiSelect<String>(
+                      width: 180,
+                      value: _chartStyle,
+                      options: _chartStyles
+                          .map((s) => UiOption<String>(label: s, value: s))
+                          .toList(),
+                      onChanged: (val) {
+                        setState(() => _chartStyle = val);
+                      },
+                    ),
+                  ),
+                  AppSettingCard(
+                    title: 'Bullish / Bearish Color Convention',
+                    description:
+                        'Ensure price signals match your regional or accessibility requirements.',
+                    icon: Icons.invert_colors_rounded,
+                    control: UiSelect<String>(
+                      width: 180,
+                      value: _colorScheme,
+                      options: _colorSchemes
+                          .map((c) => UiOption<String>(label: c, value: c))
+                          .toList(),
+                      onChanged: (val) {
+                        setState(() => _colorScheme = val);
+                      },
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 }

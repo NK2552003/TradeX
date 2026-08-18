@@ -12,6 +12,7 @@ enum AuthStage {
   /// OTP verification shown right after signup, before the account is
   /// considered active. See `OtpVerificationPage`.
   signupVerification,
+  affiliateApplication,
   forgotPassword,
   authenticated,
 }
@@ -57,4 +58,3 @@ class AuthSessionState {
     );
   }
 }
-

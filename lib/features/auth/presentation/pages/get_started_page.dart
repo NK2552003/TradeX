@@ -31,7 +31,8 @@ final List<UiCandle> _mockCandles = List.generate(24, (i) {
 final AppPost _mockPost = AppPost(
   id: 'p1',
   author: _mockTrader,
-  body: 'Rotated out of TSLA into AAPL today. Structure is incredibly clean on the 4H.',
+  body:
+      'Rotated out of TSLA into AAPL today. Structure is incredibly clean on the 4H.',
   createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
   tickers: const <String>['AAPL', 'TSLA'],
   attachments: [
@@ -73,18 +74,21 @@ final AppStrategy _mockStrategy2 = AppStrategy(
 
 final AppNewsItem _mockNews = AppNewsItem(
   id: 'n1',
-  headline: 'Federal Reserve holds interest rates steady, signals potential cuts later this year.',
+  headline:
+      'Federal Reserve holds interest rates steady, signals potential cuts later this year.',
   source: 'Bloomberg',
   publishedAt: DateTime.now().subtract(const Duration(minutes: 45)),
   sentimentScore: 0.65,
   tickers: const ['SPY', 'QQQ'],
-  summary: 'In a widely expected move, the central bank maintained its benchmark rate at 5.25%-5.50%.',
+  summary:
+      'In a widely expected move, the central bank maintained its benchmark rate at 5.25%-5.50%.',
 );
 
 final AppAiInsight _mockInsight = AppAiInsight(
   id: 'ai1',
   title: 'Pattern Detected: Bull Flag',
-  body: 'NVDA is forming a tight bull flag on the 1H chart with decreasing volume. Watch for a breakout above \$120 with high volume confirmation.',
+  body:
+      'NVDA is forming a tight bull flag on the 1H chart with decreasing volume. Watch for a breakout above \$120 with high volume confirmation.',
   confidence: 0.88,
   sentimentScore: 0.8,
   tickers: const ['NVDA'],
@@ -111,22 +115,26 @@ class _GetStartedPageState extends State<GetStartedPage> {
   static const List<Map<String, String>> _features = [
     {
       'title': 'Institutional Community',
-      'desc': 'Join a curated social feed where verified traders share high-signal ideas. Follow leading strategies, engage in direct messaging, and climb the leaderboard.',
+      'desc':
+          'Join a curated social feed where verified traders share high-signal ideas. Follow leading strategies, engage in direct messaging, and climb the leaderboard.',
       'icon': 'forum',
     },
     {
       'title': 'Quantitative Journaling',
-      'desc': 'Move beyond simple notes. Track precise execution data, visualize your equity curve, and utilize smart auto-fill that automatically pulls screenshot charts.',
+      'desc':
+          'Move beyond simple notes. Track precise execution data, visualize your equity curve, and utilize smart auto-fill that automatically pulls screenshot charts.',
       'icon': 'book',
     },
     {
       'title': 'Live Market News',
-      'desc': 'Stay ahead of the curve with real-time news alerts. Get instant notifications on macroeconomic events, earnings reports, and breaking sector updates.',
+      'desc':
+          'Stay ahead of the curve with real-time news alerts. Get instant notifications on macroeconomic events, earnings reports, and breaking sector updates.',
       'icon': 'donut',
     },
     {
       'title': 'AI Trading Assistant',
-      'desc': 'Leverage cutting-edge LLMs to analyze your market setups in real-time. Upload charts, instantly receive risk/reward insights, and decode complex market structure.',
+      'desc':
+          'Leverage cutting-edge LLMs to analyze your market setups in real-time. Upload charts, instantly receive risk/reward insights, and decode complex market structure.',
       'icon': 'memory',
     },
   ];
@@ -162,17 +170,17 @@ class _GetStartedPageState extends State<GetStartedPage> {
       return Scaffold(
         backgroundColor: colors.background,
         body: SafeArea(
-            child: _buildMobileView(context, theme, colors, responsive),
-          ),
+          child: _buildMobileView(context, theme, colors, responsive),
+        ),
       );
     }
 
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
-          child: Column(
-            children: [
-              _buildTopNav(context, theme, colors, responsive),
+        child: Column(
+          children: [
+            _buildTopNav(context, theme, colors, responsive),
             Expanded(
               child: Stack(
                 children: [
@@ -190,33 +198,53 @@ class _GetStartedPageState extends State<GetStartedPage> {
                       ),
                       child: Center(
                         child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: context.sz(1400)),
+                          constraints: BoxConstraints(
+                            maxWidth: context.sz(1400),
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               _buildHero(context, theme, colors, responsive),
-                              SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
-                              
+                              SizedBox(
+                                height: context.sp(theme.spacing.xxxl) * 2,
+                              ),
+
                               // Real App Components Showcase Grid
-                              _buildShowcaseGrid(context, theme, colors, responsive),
-                              
-                              SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
-                              
+                              _buildShowcaseGrid(
+                                context,
+                                theme,
+                                colors,
+                                responsive,
+                              ),
+
+                              SizedBox(
+                                height: context.sp(theme.spacing.xxxl) * 2,
+                              ),
+
                               // Feature Cards below showcase
-                              _buildFeaturesGrid(context, theme, colors, responsive),
-                              
-                              SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
+                              _buildFeaturesGrid(
+                                context,
+                                theme,
+                                colors,
+                                responsive,
+                              ),
+
+                              SizedBox(
+                                height: context.sp(theme.spacing.xxxl) * 2,
+                              ),
                               // Footer
                               _buildFooter(context, theme, colors),
-                              
-                              SizedBox(height: context.sp(theme.spacing.xxxl) * 2), // extra bottom padding for the fade
+
+                              SizedBox(
+                                height: context.sp(theme.spacing.xxxl) * 2,
+                              ), // extra bottom padding for the fade
                             ],
                           ),
                         ),
                       ),
                     ),
                   ),
-                  
+
                   // Bottom Faded Dark Overlay
                   Positioned(
                     bottom: 0,
@@ -247,7 +275,12 @@ class _GetStartedPageState extends State<GetStartedPage> {
     );
   }
 
-  Widget _buildMobileView(BuildContext context, UiTheme theme, UiColors colors, UiResponsive responsive) {
+  Widget _buildMobileView(
+    BuildContext context,
+    UiTheme theme,
+    UiColors colors,
+    UiResponsive responsive,
+  ) {
     return Column(
       children: [
         // Top section
@@ -270,12 +303,10 @@ class _GetStartedPageState extends State<GetStartedPage> {
             ],
           ),
         ),
-        
+
         // Carousel
-        const Expanded(
-          child: AuthCarouselPanel(),
-        ),
-        
+        const Expanded(child: AuthCarouselPanel()),
+
         // Bottom Action buttons
         Padding(
           padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
@@ -310,7 +341,12 @@ class _GetStartedPageState extends State<GetStartedPage> {
     );
   }
 
-  Widget _buildTopNav(BuildContext context, UiTheme theme, UiColors colors, UiResponsive responsive) {
+  Widget _buildTopNav(
+    BuildContext context,
+    UiTheme theme,
+    UiColors colors,
+    UiResponsive responsive,
+  ) {
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: context.sp(theme.spacing.xl),
@@ -331,14 +367,14 @@ class _GetStartedPageState extends State<GetStartedPage> {
             ],
           ),
           Row(
-            children: [    
-                SizedBox(width: context.sp(theme.spacing.md)),
-                Text(
-                  'Already have an account?',
-                  style: context.uiText.body.copyWith(
-                    color: colors.foregroundMuted,
-                  ),
+            children: [
+              SizedBox(width: context.sp(theme.spacing.md)),
+              Text(
+                'Already have an account?',
+                style: context.uiText.body.copyWith(
+                  color: colors.foregroundMuted,
                 ),
+              ),
               SizedBox(width: context.sp(theme.spacing.md)),
               UiButton(
                 label: 'Sign In',
@@ -348,13 +384,18 @@ class _GetStartedPageState extends State<GetStartedPage> {
                 onPressed: widget.onSignIn,
               ),
             ],
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildHero(BuildContext context, UiTheme theme, UiColors colors, UiResponsive responsive) {
+  Widget _buildHero(
+    BuildContext context,
+    UiTheme theme,
+    UiColors colors,
+    UiResponsive responsive,
+  ) {
     return Column(
       children: [
         Container(
@@ -372,10 +413,16 @@ class _GetStartedPageState extends State<GetStartedPage> {
             children: [
               Text(
                 'TradeX Intelligence v1.0',
-                style: context.uiText.caption.copyWith(fontWeight: FontWeight.w500),
+                style: context.uiText.caption.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
-              Icon(Icons.arrow_forward_rounded, size: 12, color: colors.foreground),
+              Icon(
+                Icons.arrow_forward_rounded,
+                size: 12,
+                color: colors.foreground,
+              ),
             ],
           ),
         ),
@@ -424,18 +471,24 @@ class _GetStartedPageState extends State<GetStartedPage> {
               leadingIcon: Icons.explore_outlined,
             ),
           ],
-        )
+        ),
       ],
     );
   }
 
-  Widget _buildShowcaseGrid(BuildContext context, UiTheme theme, UiColors colors, UiResponsive responsive) {
+  Widget _buildShowcaseGrid(
+    BuildContext context,
+    UiTheme theme,
+    UiColors colors,
+    UiResponsive responsive,
+  ) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double spacing = context.sp(theme.spacing.lg);
         final int cols = responsive.isMobile ? 1 : 3;
-        final double colWidth = (constraints.maxWidth - (spacing * (cols - 1))) / cols;
-        
+        final double colWidth =
+            (constraints.maxWidth - (spacing * (cols - 1))) / cols;
+
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,
@@ -447,12 +500,10 @@ class _GetStartedPageState extends State<GetStartedPage> {
               width: colWidth,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [
-                  AppPostCard(post: _mockPost),
-                ],
+                children: [AppPostCard(post: _mockPost)],
               ),
             ),
-            
+
             // Column 2
             SizedBox(
               width: colWidth,
@@ -463,10 +514,18 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   UiToggleGroup<String>(
                     expand: true,
                     options: const [
-                      UiToggleOption<String>(label: '1D', value: '1d', icon: Icons.today),
+                      UiToggleOption<String>(
+                        label: '1D',
+                        value: '1d',
+                        icon: Icons.today,
+                      ),
                       UiToggleOption<String>(label: '1W', value: '1w'),
                       UiToggleOption<String>(label: '1M', value: '1m'),
-                      UiToggleOption<String>(label: '1Y', value: '1y', badge: 'new'),
+                      UiToggleOption<String>(
+                        label: '1Y',
+                        value: '1y',
+                        badge: 'new',
+                      ),
                     ],
                     value: '1m',
                     variant: UiToggleGroupVariant.segmented,
@@ -479,7 +538,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                 ],
               ),
             ),
-            
+
             // Column 3
             SizedBox(
               width: colWidth,
@@ -498,23 +557,33 @@ class _GetStartedPageState extends State<GetStartedPage> {
     );
   }
 
-
-  Widget _buildFeaturesGrid(BuildContext context, UiTheme theme, UiColors colors, UiResponsive responsive) {
+  Widget _buildFeaturesGrid(
+    BuildContext context,
+    UiTheme theme,
+    UiColors colors,
+    UiResponsive responsive,
+  ) {
     return Column(
       children: [
         Center(
           child: Text(
             'Core Features',
-            style: context.uiText.display.copyWith(fontSize: 32, fontWeight: FontWeight.w600),
+            style: context.uiText.display.copyWith(
+              fontSize: 32,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         SizedBox(height: context.sp(theme.spacing.xl)),
         LayoutBuilder(
           builder: (context, constraints) {
             final double spacing = context.sp(theme.spacing.lg);
-            final int cols = responsive.isMobile ? 1 : (responsive.isDesktop ? 4 : 2);
-            final double colWidth = (constraints.maxWidth - (spacing * (cols - 1))) / cols;
-            
+            final int cols = responsive.isMobile
+                ? 1
+                : (responsive.isDesktop ? 4 : 2);
+            final double colWidth =
+                (constraints.maxWidth - (spacing * (cols - 1))) / cols;
+
             return Wrap(
               spacing: spacing,
               runSpacing: spacing,
@@ -590,7 +659,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                 SizedBox(width: context.sp(theme.spacing.sm)),
                 Text(
                   'TradeX © ${DateTime.now().year}',
-                  style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
+                  style: context.uiText.caption.copyWith(
+                    color: colors.foregroundMuted,
+                  ),
                 ),
               ],
             ),
@@ -598,24 +669,38 @@ class _GetStartedPageState extends State<GetStartedPage> {
               children: [
                 TextButton(
                   onPressed: () {},
-                  child: Text('Privacy Policy', style: context.uiText.caption.copyWith(color: colors.foregroundMuted)),
+                  child: Text(
+                    'Privacy Policy',
+                    style: context.uiText.caption.copyWith(
+                      color: colors.foregroundMuted,
+                    ),
+                  ),
                 ),
                 SizedBox(width: context.sp(theme.spacing.md)),
                 TextButton(
                   onPressed: () {},
-                  child: Text('Terms of Service', style: context.uiText.caption.copyWith(color: colors.foregroundMuted)),
+                  child: Text(
+                    'Terms of Service',
+                    style: context.uiText.caption.copyWith(
+                      color: colors.foregroundMuted,
+                    ),
+                  ),
                 ),
                 SizedBox(width: context.sp(theme.spacing.md)),
                 TextButton(
                   onPressed: () {},
-                  child: Text('System Status', style: context.uiText.caption.copyWith(color: colors.foregroundMuted)),
+                  child: Text(
+                    'System Status',
+                    style: context.uiText.caption.copyWith(
+                      color: colors.foregroundMuted,
+                    ),
+                  ),
                 ),
               ],
-            )
+            ),
           ],
         ),
       ],
     );
   }
 }
-

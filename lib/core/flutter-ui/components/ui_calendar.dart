@@ -34,7 +34,6 @@ class UiCalendar extends StatefulWidget {
   /// Falls back to a stacked layout on phones.
   final int monthCount;
 
-
   @override
   State<UiCalendar> createState() => _UiCalendarState();
 }
@@ -48,11 +47,27 @@ class _UiCalendarState extends State<UiCalendar> {
   DateTime? _rangeEnd;
 
   static const List<String> _weekdays = <String>[
-    'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su',
+    'Mo',
+    'Tu',
+    'We',
+    'Th',
+    'Fr',
+    'Sa',
+    'Su',
   ];
   static const List<String> _months = <String>[
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
 
   @override
@@ -66,8 +81,12 @@ class _UiCalendarState extends State<UiCalendar> {
       a.year == b.year && a.month == b.month && a.day == b.day;
 
   bool _disabled(DateTime day) {
-    if (widget.firstDate != null && day.isBefore(widget.firstDate!)) return true;
-    if (widget.lastDate != null && day.isAfter(widget.lastDate!)) return true;
+    if (widget.firstDate != null && day.isBefore(widget.firstDate!)) {
+      return true;
+    }
+    if (widget.lastDate != null && day.isAfter(widget.lastDate!)) {
+      return true;
+    }
     return false;
   }
 
@@ -109,17 +128,17 @@ class _UiCalendarState extends State<UiCalendar> {
     ];
 
     Widget titled(DateTime m) => Column(
-          children: <Widget>[
-            if (count > 1) ...<Widget>[
-              Text(
-                _label(m),
-                style: context.uiText.label.copyWith(color: c.foreground),
-              ),
-              SizedBox(height: context.sp(theme.spacing.xs)),
-            ],
-            _monthBody(context, m),
-          ],
-        );
+      children: <Widget>[
+        if (count > 1) ...<Widget>[
+          Text(
+            _label(m),
+            style: context.uiText.label.copyWith(color: c.foreground),
+          ),
+          SizedBox(height: context.sp(theme.spacing.xs)),
+        ],
+        _monthBody(context, m),
+      ],
+    );
 
     return Container(
       padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
@@ -133,8 +152,17 @@ class _UiCalendarState extends State<UiCalendar> {
           Row(
             children: <Widget>[
               UiIconButton(
+                icon: Icons.keyboard_double_arrow_left,
+                size: UiSize.sm,
+                tooltip: 'Previous year',
+                onPressed: () => setState(
+                  () => _month = DateTime(_month.year - 1, _month.month),
+                ),
+              ),
+              UiIconButton(
                 icon: Icons.chevron_left,
                 size: UiSize.sm,
+                tooltip: 'Previous month',
                 onPressed: () => setState(
                   () => _month = DateTime(_month.year, _month.month - 1),
                 ),
@@ -145,14 +173,25 @@ class _UiCalendarState extends State<UiCalendar> {
                       ? '${_label(months.first)} – ${_label(months.last)}'
                       : _label(months.first),
                   textAlign: TextAlign.center,
-                  style: context.uiText.bodyStrong.copyWith(color: c.foreground),
+                  style: context.uiText.bodyStrong.copyWith(
+                    color: c.foreground,
+                  ),
                 ),
               ),
               UiIconButton(
                 icon: Icons.chevron_right,
                 size: UiSize.sm,
+                tooltip: 'Next month',
                 onPressed: () => setState(
                   () => _month = DateTime(_month.year, _month.month + 1),
+                ),
+              ),
+              UiIconButton(
+                icon: Icons.keyboard_double_arrow_right,
+                size: UiSize.sm,
+                tooltip: 'Next year',
+                onPressed: () => setState(
+                  () => _month = DateTime(_month.year + 1, _month.month),
                 ),
               ),
             ],
@@ -194,93 +233,96 @@ class _UiCalendarState extends State<UiCalendar> {
                 child: Text(
                   d,
                   textAlign: TextAlign.center,
-                  style: context.uiText.caption
-                      .copyWith(color: c.foregroundSubtle),
+                  style: context.uiText.caption.copyWith(
+                    color: c.foregroundSubtle,
+                  ),
                 ),
               ),
           ],
         ),
         SizedBox(height: context.sp(theme.spacing.xs)),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              childAspectRatio: 1,
-            ),
-            itemCount: leading + daysInMonth,
-            itemBuilder: (BuildContext ctx, int index) {
-              if (index < leading) return const SizedBox.shrink();
-              final DateTime day = DateTime(
-                month.year,
-                month.month,
-                index - leading + 1,
-              );
-              final bool isSelected = widget.rangeMode
-                  ? (_rangeStart != null && _sameDay(day, _rangeStart!)) ||
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+            childAspectRatio: 1,
+          ),
+          itemCount: leading + daysInMonth,
+          itemBuilder: (BuildContext ctx, int index) {
+            if (index < leading) return const SizedBox.shrink();
+            final DateTime day = DateTime(
+              month.year,
+              month.month,
+              index - leading + 1,
+            );
+            final bool isSelected = widget.rangeMode
+                ? (_rangeStart != null && _sameDay(day, _rangeStart!)) ||
                       (_rangeEnd != null && _sameDay(day, _rangeEnd!))
-                  : widget.selected != null && _sameDay(day, widget.selected!);
-              final bool inRange = widget.rangeMode &&
-                  _rangeStart != null &&
-                  _rangeEnd != null &&
-                  day.isAfter(_rangeStart!) &&
-                  day.isBefore(_rangeEnd!);
-              final bool isToday = _sameDay(day, DateTime.now());
-              final bool marked = widget.markedDates
-                  .any((DateTime d) => _sameDay(d, day));
-              final bool off = _disabled(day);
+                : widget.selected != null && _sameDay(day, widget.selected!);
+            final bool inRange =
+                widget.rangeMode &&
+                _rangeStart != null &&
+                _rangeEnd != null &&
+                day.isAfter(_rangeStart!) &&
+                day.isBefore(_rangeEnd!);
+            final bool isToday = _sameDay(day, DateTime.now());
+            final bool marked = widget.markedDates.any(
+              (DateTime d) => _sameDay(d, day),
+            );
+            final bool off = _disabled(day);
 
-              return UiInteractive(
-                enabled: !off,
-                onTap: () => _tap(day),
-                builder: (BuildContext c2, UiInteractiveState s) =>
-                    AnimatedContainer(
-                  duration: theme.motion.fast,
-                  margin: EdgeInsets.all(c2.sz(2)),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? c.primary
-                        : inRange
-                            ? c.primary.withValues(alpha: 0.12)
-                            : (s.hovered ? c.surfaceHover : Colors.transparent),
-                    borderRadius: c2.radius(theme.radii.md),
-                    border: isToday && !isSelected
-                        ? Border.all(
-                            color: c.borderStrong,
-                            width: theme.borders.hairline,
-                          )
-                        : null,
-                  ),
-                  alignment: Alignment.center,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      Text(
-                        '${day.day}',
-                        style: c2.uiText.label.copyWith(
-                          color: off
-                              ? c.disabledForeground
-                              : isSelected
-                                  ? c.onPrimary
-                                  : c.foreground,
-                        ),
-                      ),
-                      if (marked)
-                        Container(
-                          margin: EdgeInsets.only(top: c2.sz(2)),
-                          width: c2.sz(4),
-                          height: c2.sz(4),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isSelected ? c.onPrimary : c.primary,
+            return UiInteractive(
+              enabled: !off,
+              onTap: () => _tap(day),
+              builder: (BuildContext c2, UiInteractiveState s) =>
+                  AnimatedContainer(
+                    duration: theme.motion.fast,
+                    margin: EdgeInsets.all(c2.sz(2)),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? c.primary
+                          : inRange
+                          ? c.primary.withValues(alpha: 0.12)
+                          : (s.hovered ? c.surfaceHover : Colors.transparent),
+                      borderRadius: c2.radius(theme.radii.md),
+                      border: isToday && !isSelected
+                          ? Border.all(
+                              color: c.borderStrong,
+                              width: theme.borders.hairline,
+                            )
+                          : null,
+                    ),
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        Text(
+                          '${day.day}',
+                          style: c2.uiText.label.copyWith(
+                            color: off
+                                ? c.disabledForeground
+                                : isSelected
+                                ? c.onPrimary
+                                : c.foreground,
                           ),
                         ),
-                    ],
+                        if (marked)
+                          Container(
+                            margin: EdgeInsets.only(top: c2.sz(2)),
+                            width: c2.sz(4),
+                            height: c2.sz(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isSelected ? c.onPrimary : c.primary,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+            );
+          },
         ),
       ],
     );

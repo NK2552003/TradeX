@@ -24,11 +24,15 @@ class AppShell extends StatefulWidget {
     this.onSearch,
     this.onNotifications,
     this.onSettings,
+    this.onAi,
     this.unreadNotifications = 0,
     this.primaryAction,
-    this.mobileItemCount = 5,
+    this.mobilePrimaryItems,
+    this.mobileMoreItems = const <AppNavItem>[],
+    this.userMenuItems = const <AppNavItem>[],
     this.workspaceName,
     this.tierLabel,
+    this.onLogout,
   });
 
   final List<AppNavSection> sections;
@@ -40,11 +44,15 @@ class AppShell extends StatefulWidget {
   final VoidCallback? onSearch;
   final VoidCallback? onNotifications;
   final VoidCallback? onSettings;
+  final VoidCallback? onAi;
   final int unreadNotifications;
   final Widget? primaryAction;
-  final int mobileItemCount;
+  final List<AppNavItem>? mobilePrimaryItems;
+  final List<AppNavItem> mobileMoreItems;
+  final List<AppNavItem> userMenuItems;
   final String? workspaceName;
   final String? tierLabel;
+  final VoidCallback? onLogout;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -52,21 +60,43 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   bool _collapsed = false;
+  bool _navigationForward = true;
 
   List<AppNavItem> get _flatItems =>
       widget.sections.expand((AppNavSection s) => s.items).toList();
+
+  void _toggleDesktopSidebar() {
+    setState(() => _collapsed = !_collapsed);
+  }
+
+  @override
+  void didUpdateWidget(covariant AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedId != widget.selectedId) {
+      final List<AppNavItem> items =
+          widget.mobilePrimaryItems ?? _flatItems.take(4).toList();
+      final int previous = items.indexWhere(
+        (AppNavItem item) => item.id == oldWidget.selectedId,
+      );
+      final int next = items.indexWhere(
+        (AppNavItem item) => item.id == widget.selectedId,
+      );
+      _navigationForward = previous < 0 || next < 0 || next >= previous;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final UiResponsive r = context.uiRes;
 
-    final Widget body = Container(
+    final Widget contentSurface = Container(
+      key: const ValueKey<String>('app-content-surface'),
       margin: r.isMobile
           ? EdgeInsets.zero
           : EdgeInsets.fromLTRB(
               0,
-              context.sp(theme.spacing.xs + 3),
+              0,
               context.sp(theme.spacing.xs + 3),
               context.sp(theme.spacing.xs + 3),
             ),
@@ -81,62 +111,173 @@ class _AppShellState extends State<AppShell> {
               ),
             ),
       clipBehavior: r.isMobile ? Clip.none : Clip.antiAlias,
-      child: Column(
-        children: <Widget>[
-          AppTopBar(
-            trader: widget.trader,
-            tier: widget.tier,
-            onSearch: widget.onSearch,
-            onNotifications: widget.onNotifications,
-            onSettings: widget.onSettings,
-            unread: widget.unreadNotifications,
-            showLogo: r.isMobile,
-            selectedId: widget.selectedId,
-            sections: widget.sections,
-            leading: r.isMobile
-                ? null
-                : UiIconButton(
-                    icon: _collapsed
-                        ? Icons.menu_open_rounded
-                        : Icons.menu_rounded,
-                    size: UiSize.sm,
-                    tooltip: 'Toggle sidebar',
-                    onPressed: () => setState(() => _collapsed = !_collapsed),
-                  ),
-          ),
-          Expanded(child: widget.child),
-        ],
+      child: AnimatedSwitcher(
+        duration: theme.motion.normal,
+        switchInCurve: theme.motion.curve,
+        switchOutCurve: theme.motion.curve,
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          final Animation<Offset> position = Tween<Offset>(
+            begin: Offset(_navigationForward ? 0.08 : -0.08, 0),
+            end: Offset.zero,
+          ).animate(animation);
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: position, child: child),
+          );
+        },
+        child: KeyedSubtree(
+          key: ValueKey<String>('page_${widget.selectedId}'),
+          child: widget.child,
+        ),
       ),
     );
 
+    final Widget topBar = AppTopBar(
+      trader: widget.trader,
+      tier: widget.tier,
+      onSearch: widget.onSearch,
+      onNotifications: widget.onNotifications,
+      onSettings: widget.onSettings,
+      onAi: widget.onAi,
+      unread: widget.unreadNotifications,
+      showLogo: r.isMobile,
+      selectedId: widget.selectedId,
+      sections: widget.sections,
+      leading: r.isMobile
+          ? null
+          : UiIconButton(
+              icon: _collapsed ? Icons.menu_open_rounded : Icons.menu_rounded,
+              size: UiSize.sm,
+              tooltip: 'Toggle sidebar',
+              onPressed: _toggleDesktopSidebar,
+            ),
+    );
+
+    final Widget workspace = Column(
+      children: <Widget>[
+        topBar,
+        Expanded(child: contentSurface),
+      ],
+    );
+
     if (r.isMobile) {
-      return Scaffold(
+      final List<AppNavItem> destinations =
+          (widget.mobilePrimaryItems ?? _flatItems.take(4).toList())
+              .take(4)
+              .toList();
+      int selectedIndex = destinations.indexWhere(
+        (AppNavItem item) => item.id == widget.selectedId,
+      );
+      if (selectedIndex < 0 && widget.selectedId.startsWith('settings')) {
+        selectedIndex = destinations.indexWhere(
+          (AppNavItem item) => item.id == 'settings',
+        );
+      }
+      final int initialIndex = selectedIndex < 0 ? 0 : selectedIndex;
+      final bool moreRouteSelected = widget.mobileMoreItems.any(
+        (AppNavItem item) =>
+            item.id == widget.selectedId ||
+            (item.id == 'settings' && widget.selectedId == 'settings'),
+      );
+      final Widget dockScaffold = QuietDockScaffold(
+        destinations: destinations
+            .map(
+              (AppNavItem item) => QuietDockDestination(
+                icon: item.icon,
+                selectedIcon: item.selectedIcon ?? item.icon,
+                label: item.label,
+                tooltip: item.label,
+              ),
+            )
+            .toList(),
+        initialIndex: initialIndex,
+        onDestinationSelected: (int index) {
+          if (index >= 0 && index < destinations.length) {
+            widget.onSelect(destinations[index].id);
+          }
+        },
+        centerAction: QuietDockCenterAction(
+          semanticLabel: 'More tools',
+          icon: Icons.grid_view_rounded,
+          columns: 3,
+          items: widget.mobileMoreItems
+              .map(
+                (AppNavItem item) => QuickGridItem(
+                  icon: item.icon,
+                  label: item.label,
+                  onTap: () => widget.onSelect(item.id),
+                ),
+              )
+              .toList(),
+        ),
+        centerActionActive: moreRouteSelected,
+        swipeEnabled: true,
+        lazy: true,
+        keepAlive: false,
+        useRail: false,
         backgroundColor: theme.colors.background,
-        body: body,
-        floatingActionButton: widget.primaryAction,
-        bottomNavigationBar: AppBottomDock(
-          items: _flatItems.take(widget.mobileItemCount).toList(),
-          selectedId: widget.selectedId,
-          onSelect: widget.onSelect,
+        pageBuilder: (BuildContext context, int index) => workspace,
+        theme: QuietDockTheme(
+          background: theme.colors.surface.withValues(alpha: 0.9),
+          borderColor: theme.colors.border,
+          selectedColor: theme.colors.primary,
+          unselectedColor: theme.colors.foregroundMuted,
+          indicatorColor: theme.colors.primary.withValues(alpha: 0.12),
+          indicatorBorderColor: theme.colors.primary.withValues(alpha: 0.3),
+          shadowColor: Colors.black.withValues(alpha: 0.24),
+          showLabels: false,
         ),
       );
+      return dockScaffold;
     }
+
+    final Widget expandedSidebar = AppSidebar(
+      sections: widget.sections,
+      selectedId: widget.selectedId,
+      onSelect: widget.onSelect,
+      collapsed: false,
+      trader: widget.trader,
+      workspaceName: widget.workspaceName,
+      tierLabel: widget.tierLabel,
+      footer: widget.primaryAction,
+      onNavigate: widget.onSelect,
+      onUserLogout: widget.onLogout,
+      userMenuItems: widget.userMenuItems,
+    );
+
+    final Widget adaptiveSidebar = r.isTablet
+        ? AppSidebar(
+            sections: widget.sections,
+            selectedId: widget.selectedId,
+            onSelect: widget.onSelect,
+            collapsed: true,
+            trader: widget.trader,
+            workspaceName: widget.workspaceName,
+            tierLabel: widget.tierLabel,
+            onNavigate: widget.onSelect,
+            onUserLogout: widget.onLogout,
+            userMenuItems: widget.userMenuItems,
+          )
+        : ClipRect(
+            child: AnimatedContainer(
+              duration: theme.motion.normal,
+              curve: theme.motion.curve,
+              width: _collapsed ? 0 : context.sz(244),
+              child: OverflowBox(
+                alignment: Alignment.centerLeft,
+                minWidth: context.sz(244),
+                maxWidth: context.sz(244),
+                child: expandedSidebar,
+              ),
+            ),
+          );
 
     return Scaffold(
       backgroundColor: theme.colors.background,
       body: Row(
         children: <Widget>[
-          AppSidebar(
-            sections: widget.sections,
-            selectedId: widget.selectedId,
-            onSelect: widget.onSelect,
-            collapsed: _collapsed || r.isTablet,
-            trader: widget.trader,
-            workspaceName: widget.workspaceName,
-            tierLabel: widget.tierLabel,
-            footer: widget.primaryAction,
-          ),
-          Expanded(child: body),
+          adaptiveSidebar,
+          Expanded(child: workspace),
         ],
       ),
     );
@@ -161,7 +302,9 @@ class AppWorkspaceTile extends StatelessWidget {
     final UiTheme theme = context.ui;
     final Widget tile = Container(
       padding: EdgeInsets.symmetric(
-        horizontal: collapsed ? context.sp(theme.spacing.xxs) : context.sp(theme.spacing.sm),
+        horizontal: collapsed
+            ? context.sp(theme.spacing.xxs)
+            : context.sp(theme.spacing.sm),
         vertical: context.sp(theme.spacing.xs + 1),
       ),
       decoration: collapsed
@@ -175,13 +318,11 @@ class AppWorkspaceTile extends StatelessWidget {
               ),
             ),
       child: Row(
-        mainAxisAlignment:
-            collapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+        mainAxisAlignment: collapsed
+            ? MainAxisAlignment.center
+            : MainAxisAlignment.start,
         children: <Widget>[
-          AppLogoMark(
-            size: context.sz(20),
-            rounded: false,
-          ),
+          AppLogoMark(size: context.sz(20), rounded: false),
           if (!collapsed) ...<Widget>[
             SizedBox(width: context.sp(theme.spacing.sm)),
             Expanded(
@@ -235,6 +376,8 @@ class AppSidebar extends StatelessWidget {
     this.footer,
     this.onUserLogout,
     this.onUserUpgrade,
+    this.onNavigate,
+    this.userMenuItems = const <AppNavItem>[],
   });
 
   final List<AppNavSection> sections;
@@ -247,19 +390,22 @@ class AppSidebar extends StatelessWidget {
   final Widget? footer;
   final VoidCallback? onUserLogout;
   final VoidCallback? onUserUpgrade;
+  final ValueChanged<String>? onNavigate;
+  final List<AppNavItem> userMenuItems;
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    final double collapsedWidth = context.uiRes.isTablet ? 76 : 64;
     return AnimatedContainer(
       duration: theme.motion.normal,
       curve: theme.motion.curve,
-      width: context.sz(collapsed ? 56 : 236),
-      decoration: BoxDecoration(
-        color: theme.colors.background,
-      ),
+      width: context.sz(collapsed ? collapsedWidth : 244),
+      decoration: BoxDecoration(color: theme.colors.background),
       padding: EdgeInsets.symmetric(
-        horizontal: context.sp(collapsed ? theme.spacing.xxs : theme.spacing.xs + 1),
+        horizontal: context.sp(
+          collapsed ? theme.spacing.xxs : theme.spacing.xs + 1,
+        ),
         vertical: context.sp(theme.spacing.xs),
       ),
       child: SafeArea(
@@ -269,16 +415,20 @@ class AppSidebar extends StatelessWidget {
           children: <Widget>[
             AppWorkspaceTile(
               collapsed: collapsed,
-              workspaceName: workspaceName ??
+              workspaceName:
+                  workspaceName ??
                   (trader?.tier == AppTier.enterprise
                       ? 'Institutional Desk'
                       : (trader?.tier == AppTier.premium
-                          ? 'TradeX Pro Terminal'
-                          : 'TradeX Desk')),
-              tierLabel: tierLabel ??
+                            ? 'TradeX Pro Terminal'
+                            : 'TradeX Desk')),
+              tierLabel:
+                  tierLabel ??
                   (trader?.tier == AppTier.enterprise
                       ? 'Enterprise Admin'
-                      : (trader?.tier == AppTier.premium ? 'Active Trader' : 'Standard')),
+                      : (trader?.tier == AppTier.premium
+                            ? 'Active Trader'
+                            : 'Standard')),
             ),
             SizedBox(height: context.sp(theme.spacing.xs)),
             Expanded(
@@ -318,7 +468,9 @@ class AppSidebar extends StatelessWidget {
                           onSelect: onSelect,
                         ),
                       SizedBox(
-                        height: context.sp(collapsed ? theme.spacing.sm : theme.spacing.xs),
+                        height: context.sp(
+                          collapsed ? theme.spacing.sm : theme.spacing.xs,
+                        ),
                       ),
                     ],
                   ],
@@ -335,7 +487,8 @@ class AppSidebar extends StatelessWidget {
               ),
             SizedBox(height: context.sp(theme.spacing.xs)),
             AppNavUserTile(
-              trader: trader ??
+              trader:
+                  trader ??
                   const AppTrader(
                     id: 'u1',
                     handle: 'nitish@tradex.ai',
@@ -345,6 +498,8 @@ class AppSidebar extends StatelessWidget {
               collapsed: collapsed,
               onLogout: onUserLogout,
               onUpgrade: onUserUpgrade,
+              onNavigate: onNavigate,
+              menuItems: userMenuItems,
             ),
           ],
         ),
@@ -361,12 +516,16 @@ class AppNavUserTile extends StatelessWidget {
     required this.collapsed,
     this.onLogout,
     this.onUpgrade,
+    this.onNavigate,
+    this.menuItems = const <AppNavItem>[],
   });
 
   final AppTrader trader;
   final bool collapsed;
   final VoidCallback? onLogout;
   final VoidCallback? onUpgrade;
+  final ValueChanged<String>? onNavigate;
+  final List<AppNavItem> menuItems;
 
   @override
   Widget build(BuildContext context) {
@@ -380,7 +539,9 @@ class AppNavUserTile extends StatelessWidget {
       builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
         duration: theme.motion.fast,
         padding: EdgeInsets.symmetric(
-          horizontal: collapsed ? ctx.sp(theme.spacing.xxs) : ctx.sp(theme.spacing.sm),
+          horizontal: collapsed
+              ? ctx.sp(theme.spacing.xxs)
+              : ctx.sp(theme.spacing.sm),
           vertical: ctx.sp(theme.spacing.xs),
         ),
         decoration: collapsed
@@ -396,14 +557,11 @@ class AppNavUserTile extends StatelessWidget {
                 ),
               ),
         child: Row(
-          mainAxisAlignment:
-              collapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+          mainAxisAlignment: collapsed
+              ? MainAxisAlignment.center
+              : MainAxisAlignment.start,
           children: <Widget>[
-            UiAvatar(
-              imageUrl: trader.avatarUrl,
-              name: name,
-              size: UiSize.md,
-            ),
+            UiAvatar(imageUrl: trader.avatarUrl, name: name, size: UiSize.md),
             if (!collapsed) ...<Widget>[
               SizedBox(width: ctx.sp(theme.spacing.sm)),
               Expanded(
@@ -442,26 +600,19 @@ class AppNavUserTile extends StatelessWidget {
 
     final Widget menu = UiDropdownMenu(
       actions: <UiMenuItem>[
-        UiMenuItem(
-          label: 'Upgrade to Pro',
-          icon: Icons.auto_awesome,
-          intent: UiIntent.primary,
-          onTap: onUpgrade,
-        ),
-        UiMenuItem(
-          label: 'Account',
-          icon: Icons.verified_user_outlined,
-          onTap: () {},
-        ),
-        UiMenuItem(
-          label: 'Billing',
-          icon: Icons.credit_card_outlined,
-          onTap: () {},
-        ),
-        UiMenuItem(
-          label: 'Notifications',
-          icon: Icons.notifications_none_rounded,
-          onTap: () {},
+        if (onUpgrade != null)
+          UiMenuItem(
+            label: 'Upgrade to Pro',
+            icon: Icons.auto_awesome,
+            intent: UiIntent.primary,
+            onTap: onUpgrade,
+          ),
+        ...menuItems.map(
+          (AppNavItem item) => UiMenuItem(
+            label: item.label,
+            icon: item.icon,
+            onTap: () => onNavigate?.call(item.id),
+          ),
         ),
         UiMenuItem(
           label: 'Log out',
@@ -473,12 +624,7 @@ class AppNavUserTile extends StatelessWidget {
       child: trigger,
     );
 
-    return collapsed
-        ? UiTooltip(
-            message: '$name ($email)',
-            child: menu,
-          )
-        : menu;
+    return collapsed ? UiTooltip(message: '$name ($email)', child: menu) : menu;
   }
 }
 
@@ -506,7 +652,8 @@ class _AppNavTileState extends State<AppNavTile> {
 
   bool get _isSelected =>
       widget.item.id == widget.selectedId ||
-      (widget.item.subItems?.any((sub) => sub.id == widget.selectedId) ?? false);
+      (widget.item.subItems?.any((sub) => sub.id == widget.selectedId) ??
+          false);
 
   @override
   void initState() {
@@ -519,7 +666,14 @@ class _AppNavTileState extends State<AppNavTile> {
   @override
   void didUpdateWidget(AppNavTile oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_isSelected && widget.item.subItems != null && !_expanded) {
+    final bool selectedSubItem =
+        widget.item.subItems?.any(
+          (AppNavItem item) => item.id == widget.selectedId,
+        ) ??
+        false;
+    if (oldWidget.selectedId != widget.selectedId &&
+        selectedSubItem &&
+        !_expanded) {
       _expanded = true;
     }
   }
@@ -543,7 +697,9 @@ class _AppNavTileState extends State<AppNavTile> {
         duration: theme.motion.fast,
         margin: EdgeInsets.only(bottom: ctx.sp(theme.spacing.xxs)),
         padding: EdgeInsets.symmetric(
-          horizontal: widget.collapsed ? ctx.sp(theme.spacing.xs) : ctx.sp(theme.spacing.sm),
+          horizontal: widget.collapsed
+              ? ctx.sp(theme.spacing.xs)
+              : ctx.sp(theme.spacing.sm),
           vertical: ctx.sp(theme.spacing.xs + 0.5),
         ),
         decoration: BoxDecoration(
@@ -678,7 +834,8 @@ class _AppNavTileState extends State<AppNavTile> {
                           UiInteractive(
                             onTap: () => widget.onSelect(sub.id),
                             builder: (BuildContext ctx, UiInteractiveState s) {
-                              final bool subSelected = sub.id == widget.selectedId;
+                              final bool subSelected =
+                                  sub.id == widget.selectedId;
                               return AnimatedContainer(
                                 duration: theme.motion.fast,
                                 margin: EdgeInsets.only(
@@ -690,14 +847,17 @@ class _AppNavTileState extends State<AppNavTile> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: subSelected
-                                      ? theme.colors.primary.withValues(alpha: 0.12)
+                                      ? theme.colors.primary.withValues(
+                                          alpha: 0.12,
+                                        )
                                       : (s.hovered
-                                          ? theme.colors.surfaceHover
-                                          : Colors.transparent),
+                                            ? theme.colors.surfaceHover
+                                            : Colors.transparent),
                                   borderRadius: ctx.radius(theme.radii.md),
                                   border: subSelected
                                       ? Border.all(
-                                          color: theme.colors.primary.withValues(alpha: 0.25),
+                                          color: theme.colors.primary
+                                              .withValues(alpha: 0.25),
                                           width: theme.borders.hairline,
                                         )
                                       : null,
@@ -711,8 +871,9 @@ class _AppNavTileState extends State<AppNavTile> {
                                     color: subSelected
                                         ? theme.colors.foreground
                                         : theme.colors.foregroundMuted,
-                                    fontWeight:
-                                        subSelected ? FontWeight.w600 : FontWeight.w500,
+                                    fontWeight: subSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
                                   ),
                                 ),
                               );
@@ -730,55 +891,6 @@ class _AppNavTileState extends State<AppNavTile> {
   }
 }
 
-/// Mobile quiet floating bottom dock powered by `quiet_dock`.
-class AppBottomDock extends StatelessWidget {
-  const AppBottomDock({
-    super.key,
-    required this.items,
-    required this.selectedId,
-    required this.onSelect,
-  });
-
-  final List<AppNavItem> items;
-  final String selectedId;
-  final ValueChanged<String> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
-    final int selectedIndex = items.indexWhere((i) => i.id == selectedId);
-
-    return QuietDock(
-      destinations: items
-          .map(
-            (i) => QuietDockDestination(
-              icon: i.icon,
-              selectedIcon: i.selectedIcon,
-              label: i.label,
-              tooltip: i.label,
-            ),
-          )
-          .toList(),
-      selectedIndex: selectedIndex >= 0 ? selectedIndex : 0,
-      onDestinationSelected: (index) {
-        if (index >= 0 && index < items.length) {
-          onSelect(items[index].id);
-        }
-      },
-      theme: QuietDockTheme(
-        background: theme.colors.surface.withValues(alpha: 0.92),
-        selectedColor: theme.colors.primary,
-        unselectedColor: theme.colors.foregroundMuted,
-        indicatorColor: theme.colors.primary.withValues(alpha: 0.14),
-        indicatorBorderColor: theme.colors.primary.withValues(alpha: 0.35),
-        borderColor: theme.colors.border,
-        showLabels: true,
-        height: 60,
-      ),
-    );
-  }
-}
-
 /// Top app bar: search, notifications, avatar and tier chip.
 class AppTopBar extends StatelessWidget {
   const AppTopBar({
@@ -788,6 +900,7 @@ class AppTopBar extends StatelessWidget {
     this.onSearch,
     this.onNotifications,
     this.onSettings,
+    this.onAi,
     this.unread = 0,
     this.leading,
     this.showLogo = false,
@@ -801,6 +914,7 @@ class AppTopBar extends StatelessWidget {
   final VoidCallback? onSearch;
   final VoidCallback? onNotifications;
   final VoidCallback? onSettings;
+  final VoidCallback? onAi;
   final int unread;
   final Widget? leading;
   final bool showLogo;
@@ -812,6 +926,10 @@ class AppTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final bool isMobile = context.uiRes.isMobile;
+    final bool isCompactHeader =
+        isMobile ||
+        context.uiRes.isTablet ||
+        context.uiRes.width < context.sz(1180);
 
     String sectionTitle = 'Terminal';
     String pageTitle = 'Dashboard';
@@ -835,225 +953,273 @@ class AppTopBar extends StatelessWidget {
     }
 
     final Widget breadcrumbWidget = (sections != null && selectedId != null)
-        ? UiBreadcrumbs(
-            crumbs: <UiCrumb>[
-              UiCrumb(label: sectionTitle),
-              UiCrumb(label: pageTitle),
-            ],
-          )
+        ? (isMobile
+              ? Text(
+                  pageTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.label,
+                )
+              : UiBreadcrumbs(
+                  crumbs: <UiCrumb>[
+                    UiCrumb(label: sectionTitle),
+                    UiCrumb(label: pageTitle),
+                  ],
+                ))
         : (title != null
-            ? Text(title!, style: context.uiText.subheading)
-            : const SizedBox.shrink());
+              ? Text(title!, style: context.uiText.subheading)
+              : const SizedBox.shrink());
 
-    return Container(
-      height: context.sz(isMobile ? 54 : 52),
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-      ),
-      decoration: BoxDecoration(
-        color: theme.colors.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.colors.border,
-            width: theme.borders.hairline,
-          ),
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          isMobile ? context.sp(theme.spacing.sm) : 0,
+          context.sp(isMobile ? theme.spacing.sm : theme.spacing.xs),
+          isMobile
+              ? context.sp(theme.spacing.sm)
+              : context.sp(theme.spacing.xs + 3),
+          context.sp(theme.spacing.xs),
         ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            // Left: Hamburger toggle + divider + breadcrumbs
-            ?leading,
-            if (leading != null) ...<Widget>[
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              Container(
-                width: 1,
-                height: context.sz(16),
-                color: theme.colors.border.withValues(alpha: 0.6),
-              ),
-              SizedBox(width: context.sp(theme.spacing.sm)),
-            ],
-            if (showLogo) ...<Widget>[
-              const AppWordmark(fontSize: 16),
-              SizedBox(width: context.sp(theme.spacing.sm)),
-            ],
-            Flexible(child: breadcrumbWidget),
-
-            const Spacer(),
-
-            // Center-Right: Search Command Pill (Desktop)
-            if (!isMobile) ...<Widget>[
-              UiInteractive(
-                onTap: onSearch,
-                builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
-                  duration: theme.motion.fast,
-                  width: ctx.sz(250),
-                  height: ctx.sz(32),
-                  padding: EdgeInsets.symmetric(horizontal: ctx.sp(theme.spacing.sm)),
-                  decoration: BoxDecoration(
-                    color: s.hovered
-                        ? theme.colors.surfaceHover
-                        : theme.colors.background.withValues(alpha: 0.7),
-                    borderRadius: ctx.radius(theme.radii.md),
-                    border: Border.all(
-                      color: s.hovered ? theme.colors.borderStrong : theme.colors.border,
-                      width: theme.borders.hairline,
+        child: Container(
+          key: const ValueKey<String>('app-header-surface'),
+          height: context.sz(isMobile ? 56 : 50),
+          padding: isMobile
+              ? EdgeInsets.all(context.sp(theme.spacing.sm))
+              : EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.md)),
+          decoration: BoxDecoration(
+            color: theme.colors.surface.withValues(alpha: 0.94),
+            borderRadius: context.radius(theme.radii.xl),
+            border: Border.all(
+              color: theme.colors.border,
+              width: theme.borders.hairline,
+            ),
+            boxShadow: theme.shadows.sm,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              // Left: Hamburger toggle + divider + breadcrumbs
+              ?leading,
+              if (leading != null) ...<Widget>[
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                Container(
+                  width: 1,
+                  height: context.sz(16),
+                  color: theme.colors.border.withValues(alpha: 0.6),
+                ),
+                SizedBox(width: context.sp(theme.spacing.sm)),
+              ],
+              if (showLogo) ...<Widget>[
+                const AppLogo(size: 16, markRounded: false),
+                SizedBox(width: context.sp(theme.spacing.sm)),
+              ],
+              Expanded(
+                child: ClipRect(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: AnimatedSwitcher(
+                      duration: theme.motion.fast,
+                      switchInCurve: theme.motion.curve,
+                      switchOutCurve: theme.motion.curve,
+                      child: KeyedSubtree(
+                        key: ValueKey<String>(selectedId ?? pageTitle),
+                        child: isMobile
+                            ? const SizedBox.shrink()
+                            : breadcrumbWidget,
+                      ),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.search_rounded,
-                        size: ctx.sz(15),
-                        color: theme.colors.foregroundSubtle,
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.md)),
+              SizedBox(
+                width: context.sz(isCompactHeader ? 116 : 560),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    // Center-Right: Search Command Pill (Desktop)
+                    if (!isCompactHeader) ...<Widget>[
+                      UiInteractive(
+                        onTap: onSearch,
+                        builder: (BuildContext ctx, UiInteractiveState s) =>
+                            AnimatedContainer(
+                              duration: theme.motion.fast,
+                              width: ctx.sz(250),
+                              height: ctx.sz(32),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: ctx.sp(theme.spacing.sm),
+                              ),
+                              decoration: BoxDecoration(
+                                color: s.hovered
+                                    ? theme.colors.surfaceHover
+                                    : theme.colors.background.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                borderRadius: ctx.radius(theme.radii.md),
+                                border: Border.all(
+                                  color: s.hovered
+                                      ? theme.colors.borderStrong
+                                      : theme.colors.border,
+                                  width: theme.borders.hairline,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.search_rounded,
+                                    size: ctx.sz(15),
+                                    color: theme.colors.foregroundSubtle,
+                                  ),
+                                  SizedBox(width: ctx.sp(theme.spacing.xs)),
+                                  Expanded(
+                                    child: Text(
+                                      'Search symbols, orders...',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: ctx.uiText.caption.copyWith(
+                                        color: theme.colors.foregroundSubtle,
+                                        fontSize: 12.0,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5.0,
+                                      vertical: 1.5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: theme.colors.surface,
+                                      borderRadius: ctx.radius(theme.radii.sm),
+                                      border: Border.all(
+                                        color: theme.colors.border,
+                                        width: theme.borders.hairline,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '⌘K',
+                                      style: ctx.uiText.caption.copyWith(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: theme.colors.foregroundMuted,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                       ),
-                      SizedBox(width: ctx.sp(theme.spacing.xs)),
-                      Expanded(
-                        child: Text(
-                          'Search symbols, orders...',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: ctx.uiText.caption.copyWith(
-                            color: theme.colors.foregroundSubtle,
-                            fontSize: 12.0,
-                          ),
-                        ),
-                      ),
+                      SizedBox(width: context.sp(theme.spacing.sm)),
+
+                      // Market Live Status Pill
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 1.5),
+                        height: context.sz(28),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.sp(theme.spacing.sm),
+                        ),
                         decoration: BoxDecoration(
-                          color: theme.colors.surface,
-                          borderRadius: ctx.radius(theme.radii.sm),
+                          color: theme.colors.bullish.withValues(alpha: 0.08),
+                          borderRadius: context.radius(theme.radii.pill),
                           border: Border.all(
-                            color: theme.colors.border,
+                            color: theme.colors.bullish.withValues(alpha: 0.3),
                             width: theme.borders.hairline,
                           ),
                         ),
-                        child: Text(
-                          '⌘K',
-                          style: ctx.uiText.caption.copyWith(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: theme.colors.foregroundMuted,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6.5,
+                              height: 6.5,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: theme.colors.bullish,
+                              ),
+                            ),
+                            SizedBox(width: context.sp(theme.spacing.xs)),
+                            Text(
+                              'NSE/BSE LIVE',
+                              style: context.uiText.caption.copyWith(
+                                color: theme.colors.bullish,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11.0,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              SizedBox(width: context.sp(theme.spacing.sm)),
+                      SizedBox(width: context.sp(theme.spacing.sm)),
 
-              // Market Live Status Pill
-              Container(
-                height: context.sz(28),
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.sm),
-                ),
-                decoration: BoxDecoration(
-                  color: theme.colors.bullish.withValues(alpha: 0.08),
-                  borderRadius: context.radius(theme.radii.pill),
-                  border: Border.all(
-                    color: theme.colors.bullish.withValues(alpha: 0.3),
-                    width: theme.borders.hairline,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6.5,
-                      height: 6.5,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: theme.colors.bullish,
+                      // Vertical subtle separator
+                      Container(
+                        width: 1,
+                        height: context.sz(18),
+                        color: theme.colors.border.withValues(alpha: 0.6),
                       ),
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    Text(
-                      'NSE/BSE LIVE',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.bullish,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11.0,
-                        letterSpacing: 0.3,
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                    ],
+
+                    // Search Icon on Mobile
+                    if (isCompactHeader)
+                      UiIconButton(
+                        icon: Icons.search_rounded,
+                        size: UiSize.sm,
+                        tooltip: 'Search',
+                        onPressed: onSearch,
                       ),
+
+                    // Notifications Icon with perfectly positioned badge
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: <Widget>[
+                        UiIconButton(
+                          icon: Icons.notifications_none_rounded,
+                          size: UiSize.sm,
+                          tooltip: 'Notifications',
+                          onPressed: onNotifications,
+                        ),
+                        if (unread > 0)
+                          Positioned(
+                            right: 6,
+                            top: 6,
+                            child: Container(
+                              width: context.sz(7),
+                              height: context.sz(7),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: theme.colors.bearish,
+                                border: Border.all(
+                                  color: theme.colors.surface,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
+                    SizedBox(width: context.sp(theme.spacing.xxs)),
+
+                    if (isMobile)
+                      UiIconButton(
+                        icon: Icons.auto_awesome_rounded,
+                        size: UiSize.sm,
+                        tooltip: 'AI Assistant',
+                        onPressed: onAi,
+                      )
+                    else
+                      UiIconButton(
+                        icon: Icons.settings_outlined,
+                        size: UiSize.sm,
+                        tooltip: 'Settings',
+                        onPressed: onSettings,
+                      ),
                   ],
                 ),
               ),
-              SizedBox(width: context.sp(theme.spacing.sm)),
-
-              // Vertical subtle separator
-              Container(
-                width: 1,
-                height: context.sz(18),
-                color: theme.colors.border.withValues(alpha: 0.6),
-              ),
-              SizedBox(width: context.sp(theme.spacing.xs)),
             ],
-
-            // Search Icon on Mobile
-            if (isMobile)
-              UiIconButton(
-                icon: Icons.search_rounded,
-                size: UiSize.sm,
-                tooltip: 'Search',
-                onPressed: onSearch,
-              ),
-
-            // Notifications Icon with perfectly positioned badge
-            Stack(
-              clipBehavior: Clip.none,
-              children: <Widget>[
-                UiIconButton(
-                  icon: Icons.notifications_none_rounded,
-                  size: UiSize.sm,
-                  tooltip: 'Notifications',
-                  onPressed: onNotifications,
-                ),
-                if (unread > 0)
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      width: context.sz(7),
-                      height: context.sz(7),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: theme.colors.bearish,
-                        border: Border.all(
-                          color: theme.colors.surface,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            SizedBox(width: context.sp(theme.spacing.xxs)),
-
-            // Settings Icon
-            UiIconButton(
-              icon: Icons.settings_outlined,
-              size: UiSize.sm,
-              tooltip: 'Settings',
-              onPressed: onSettings,
-            ),
-
-            // Tier Badge (Desktop)
-            if (!isMobile && tier != AppTier.free) ...<Widget>[
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              UiBadge(
-                label: AppTokens.tierLabel(tier),
-                intent: AppTokens.tierIntent(tier),
-                icon: AppTokens.tierIcon(tier),
-                size: UiSize.xs,
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -1081,9 +1247,11 @@ class AppCommandPalette extends StatelessWidget {
     final List<AppCommandItem> filtered = query.isEmpty
         ? items
         : items
-            .where((AppCommandItem i) =>
-                i.label.toLowerCase().contains(query.toLowerCase()))
-            .toList();
+              .where(
+                (AppCommandItem i) =>
+                    i.label.toLowerCase().contains(query.toLowerCase()),
+              )
+              .toList();
 
     return AppFadeIn(
       child: ConstrainedBox(
@@ -1113,36 +1281,40 @@ class AppCommandPalette extends StatelessWidget {
                       onTap: () => onSelect?.call(filtered[i]),
                       builder: (BuildContext ctx, UiInteractiveState s) =>
                           Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: ctx.sp(theme.spacing.md),
-                          vertical: ctx.sp(theme.spacing.sm),
-                        ),
-                        decoration: BoxDecoration(
-                          color: s.hovered
-                              ? theme.colors.surfaceHover
-                              : Colors.transparent,
-                          borderRadius: ctx.radius(theme.radii.md),
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            Icon(filtered[i].icon,
-                                size: ctx.sz(theme.sizes.iconSm),
-                                color: theme.colors.foregroundMuted),
-                            SizedBox(width: ctx.sp(theme.spacing.md)),
-                            Expanded(
-                              child: Text(filtered[i].label,
-                                  style: ctx.uiText.body),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: ctx.sp(theme.spacing.md),
+                              vertical: ctx.sp(theme.spacing.sm),
                             ),
-                            if (filtered[i].hint != null)
-                              Text(
-                                filtered[i].hint!,
-                                style: ctx.uiText.caption.copyWith(
-                                  color: theme.colors.foregroundSubtle,
+                            decoration: BoxDecoration(
+                              color: s.hovered
+                                  ? theme.colors.surfaceHover
+                                  : Colors.transparent,
+                              borderRadius: ctx.radius(theme.radii.md),
+                            ),
+                            child: Row(
+                              children: <Widget>[
+                                Icon(
+                                  filtered[i].icon,
+                                  size: ctx.sz(theme.sizes.iconSm),
+                                  color: theme.colors.foregroundMuted,
                                 ),
-                              ),
-                          ],
-                        ),
-                      ),
+                                SizedBox(width: ctx.sp(theme.spacing.md)),
+                                Expanded(
+                                  child: Text(
+                                    filtered[i].label,
+                                    style: ctx.uiText.body,
+                                  ),
+                                ),
+                                if (filtered[i].hint != null)
+                                  Text(
+                                    filtered[i].hint!,
+                                    style: ctx.uiText.caption.copyWith(
+                                      color: theme.colors.foregroundSubtle,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
                     ),
                   ),
                 ),
@@ -1173,8 +1345,8 @@ class AppPageBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => UiPage(
-        scrollable: scrollable,
-        header: UiHeader(title: title, subtitle: subtitle, actions: actions),
-        child: child,
-      );
+    scrollable: scrollable,
+    header: UiHeader(title: title, subtitle: subtitle, actions: actions),
+    child: child,
+  );
 }

@@ -9,7 +9,8 @@ import 'package:tradex/features/auth/models/user_profile_model.dart';
 
 class SupabaseAuthBackendService implements AuthRepository {
   SupabaseAuthBackendService._internal();
-  static final SupabaseAuthBackendService instance = SupabaseAuthBackendService._internal();
+  static final SupabaseAuthBackendService instance =
+      SupabaseAuthBackendService._internal();
   factory SupabaseAuthBackendService() => instance;
 
   UserProfileModel? _currentUserProfile;
@@ -19,7 +20,8 @@ class SupabaseAuthBackendService implements AuthRepository {
       _currentUserProfile ?? AuthBackendService.instance.currentUserProfile;
 
   AffiliateProfileModel? get currentAffiliateProfile =>
-      _currentAffiliateProfile ?? AuthBackendService.instance.currentAffiliateProfile;
+      _currentAffiliateProfile ??
+      AuthBackendService.instance.currentAffiliateProfile;
 
   @override
   Future<AuthResult> signUp({
@@ -31,35 +33,40 @@ class SupabaseAuthBackendService implements AuthRepository {
     String? adminKey,
   }) async {
     // 1. Sanitize & Normalize Inputs
-    final cleanHandle = handle.trim().startsWith('@') ? handle.trim() : '@${handle.trim()}';
+    final cleanHandle = handle.trim().startsWith('@')
+        ? handle.trim()
+        : '@${handle.trim()}';
     final cleanEmail = email.trim().toLowerCase();
     final rawHandle = cleanHandle.replaceAll('@', '').toLowerCase();
 
     // 2. Input Validation Rules
     if (rawHandle.isEmpty || rawHandle.length < 3) {
-      return AuthResult.failure('Handler ID must be at least 3 characters long.');
+      return AuthResult.failure(
+        'Handler ID must be at least 3 characters long.',
+      );
     }
-    if (cleanEmail.isEmpty || !cleanEmail.contains('@') || !cleanEmail.contains('.')) {
+    if (cleanEmail.isEmpty ||
+        !cleanEmail.contains('@') ||
+        !cleanEmail.contains('.')) {
       return AuthResult.failure('Please enter a valid email address.');
     }
     if (password.length < 8) {
       return AuthResult.failure('Password must be at least 8 characters long.');
     }
 
-    // 3. Role Validation
+    // Admin identities are provisioned privately and can only sign in.
     if (role == UserRole.userAdmin) {
-      final key = adminKey?.trim() ?? '';
-      if (key.isEmpty) {
-        return AuthResult.failure('Master Admin Key is required for User Admin registration.');
-      }
-      if (!key.toUpperCase().startsWith('LIC-ADMIN') && !key.toUpperCase().startsWith('ADM-')) {
-        return AuthResult.failure('Invalid Master Admin Authorization Key format. Use LIC-ADMIN-XXXX.');
-      }
+      return AuthResult.failure(
+        'Administrator accounts are provisioned privately. Use Admin sign in.',
+        errorCode: 'admin_signup_disabled',
+      );
     }
 
     // 4. Delegate to local mock service if Supabase is unconfigured
     if (!SupabaseConfig.isConfigured) {
-      debugPrint('[SupabaseAuthBackendService] Supabase unconfigured. Using local AuthBackendService.');
+      debugPrint(
+        '[SupabaseAuthBackendService] Supabase unconfigured. Using local AuthBackendService.',
+      );
       return AuthBackendService.instance.signUp(
         role: role,
         handle: cleanHandle,
@@ -79,7 +86,10 @@ class SupabaseAuthBackendService implements AuthRepository {
         password: password,
         data: {
           'handle': cleanHandle,
-          'role': role.name,
+          'role': role == UserRole.affiliate
+              ? UserRole.customer.name
+              : role.name,
+          'affiliate_application_requested': role == UserRole.affiliate,
           'display_name': cleanHandle.replaceAll('@', ''),
           'admin_key': role == UserRole.userAdmin ? adminKey?.trim() : null,
           'referred_by_code': referralCode?.trim(),
@@ -88,7 +98,9 @@ class SupabaseAuthBackendService implements AuthRepository {
 
       final user = authResponse.user;
       if (user == null) {
-        return AuthResult.failure('Registration failed. Please check network connection and try again.');
+        return AuthResult.failure(
+          'Registration failed. Please check network connection and try again.',
+        );
       }
 
       // 6. Fetch automatically populated user profile from 'profiles' table
@@ -107,7 +119,7 @@ class SupabaseAuthBackendService implements AuthRepository {
           handle: cleanHandle,
           email: cleanEmail,
           displayName: cleanHandle.replaceAll('@', ''),
-          role: role,
+          role: role == UserRole.affiliate ? UserRole.customer : role,
           status: ProfileStatus.active,
           adminKey: adminKey?.trim(),
           referralCode: 'REF-TRADEX-${user.id.substring(0, 4).toUpperCase()}',
@@ -123,46 +135,22 @@ class SupabaseAuthBackendService implements AuthRepository {
 
       _currentUserProfile = userProfile;
 
-      // 7. Fetch affiliate profile if applicable
-      if (role == UserRole.affiliate) {
-        final affData = await client
-            .from('affiliate_profiles')
-            .select()
-            .eq('id', user.id)
-            .maybeSingle();
-
-        if (affData != null) {
-          _currentAffiliateProfile = AffiliateProfileModel.fromJson(affData);
-        } else {
-          _currentAffiliateProfile = AffiliateProfileModel(
-            id: user.id,
-            affiliateCode: userProfile.referralCode ?? 'REF-TRADEX-2026',
-            tier: 'standard',
-            commissionRate: 0.15,
-            totalReferrals: 0,
-            unpaidBalance: 0.0,
-            totalEarnings: 0.0,
-            payoutMethod: 'crypto',
-            status: 'active',
-            createdAt: DateTime.now(),
-          );
-          try {
-            await client.from('affiliate_profiles').upsert(_currentAffiliateProfile!.toJson());
-          } catch (e) {
-            debugPrint('[SupabaseAuthBackendService] Affiliate profile upsert error: $e');
-          }
-        }
-      }
+      // Affiliate profile/commission records are created by the admin approval
+      // endpoint, never by the public signup path.
 
       return AuthResult.success(
         profile: userProfile,
         affiliateProfile: _currentAffiliateProfile,
-        message: 'Successfully registered account with Supabase authentication!',
+        message: role == UserRole.affiliate
+            ? 'Trader account created. Complete the affiliate application for review.'
+            : 'Successfully registered account with Supabase authentication!',
       );
     } on AuthException catch (e) {
       return AuthResult.failure(e.message);
     } catch (e) {
-      debugPrint('[SupabaseAuthBackendService] SignUp Exception: $e. Falling back to local store.');
+      debugPrint(
+        '[SupabaseAuthBackendService] SignUp Exception: $e. Falling back to local store.',
+      );
       return AuthBackendService.instance.signUp(
         role: role,
         handle: cleanHandle,
@@ -184,7 +172,9 @@ class SupabaseAuthBackendService implements AuthRepository {
     final cleanInput = emailOrHandle.trim();
 
     if (cleanInput.isEmpty) {
-      return AuthResult.failure('Please enter your email address or Handler ID (@handle).');
+      return AuthResult.failure(
+        'Please enter your email address or Handler ID (@handle).',
+      );
     }
     if (password.isEmpty) {
       return AuthResult.failure('Please enter your password.');
@@ -193,13 +183,17 @@ class SupabaseAuthBackendService implements AuthRepository {
     if (role == UserRole.userAdmin) {
       final key = adminKey?.trim() ?? '';
       if (key.isEmpty) {
-        return AuthResult.failure('Master Admin Key is required for User Admin authorization.');
+        return AuthResult.failure(
+          'Master Admin Key is required for User Admin authorization.',
+        );
       }
     }
 
     // Delegate to local mock service if Supabase is unconfigured
     if (!SupabaseConfig.isConfigured) {
-      debugPrint('[SupabaseAuthBackendService] Supabase unconfigured. Using local AuthBackendService.');
+      debugPrint(
+        '[SupabaseAuthBackendService] Supabase unconfigured. Using local AuthBackendService.',
+      );
       return AuthBackendService.instance.signIn(
         role: role,
         emailOrHandle: cleanInput,
@@ -215,7 +209,9 @@ class SupabaseAuthBackendService implements AuthRepository {
 
       // 1. Resolve email by handle if input starts with @ or is not an email
       if (cleanInput.startsWith('@') || !cleanInput.contains('@')) {
-        final formattedHandle = cleanInput.startsWith('@') ? cleanInput : '@$cleanInput';
+        final formattedHandle = cleanInput.startsWith('@')
+            ? cleanInput
+            : '@$cleanInput';
         final profileRes = await client
             .from('profiles')
             .select('email')
@@ -223,7 +219,9 @@ class SupabaseAuthBackendService implements AuthRepository {
             .maybeSingle();
 
         if (profileRes == null || profileRes['email'] == null) {
-          return AuthResult.failure('No account found with Handler ID $formattedHandle.');
+          return AuthResult.failure(
+            'No account found with Handler ID $formattedHandle.',
+          );
         }
         targetEmail = profileRes['email'] as String;
       }
@@ -236,7 +234,9 @@ class SupabaseAuthBackendService implements AuthRepository {
 
       final user = authResponse.user;
       if (user == null) {
-        return AuthResult.failure('Authentication failed. Please verify credentials.');
+        return AuthResult.failure(
+          'Authentication failed. Please verify credentials.',
+        );
       }
 
       // 3. Fetch User Profile from Postgres
@@ -254,7 +254,8 @@ class SupabaseAuthBackendService implements AuthRepository {
           id: user.id,
           handle: (user.userMetadata?['handle'] as String?) ?? '@trader',
           email: targetEmail,
-          displayName: (user.userMetadata?['display_name'] as String?) ?? 'Trader',
+          displayName:
+              (user.userMetadata?['display_name'] as String?) ?? 'Trader',
           role: role,
           status: ProfileStatus.active,
           createdAt: DateTime.now(),
@@ -262,19 +263,45 @@ class SupabaseAuthBackendService implements AuthRepository {
         try {
           await client.from('profiles').upsert(userProfile.toJson());
         } catch (e) {
-          debugPrint('[SupabaseAuthBackendService] SignIn profile upsert error: $e');
+          debugPrint(
+            '[SupabaseAuthBackendService] SignIn profile upsert error: $e',
+          );
         }
       }
 
       // 4. Validate Admin Role Requirement
-      if (role == UserRole.userAdmin && userProfile.role != UserRole.userAdmin) {
-        return AuthResult.failure('Access Denied: Account lacks User Admin security clearance.');
+      if (role == UserRole.userAdmin &&
+          userProfile.role != UserRole.userAdmin) {
+        return AuthResult.failure(
+          'Access Denied: Account lacks User Admin security clearance.',
+        );
+      }
+
+      if (role == UserRole.affiliate) {
+        final application = await client
+            .from('affiliate_applications')
+            .select('status')
+            .eq('user_id', user.id)
+            .maybeSingle();
+        final String status = application?['status'] as String? ?? '';
+        final bool approved =
+            userProfile.role == UserRole.affiliate ||
+            status == 'approved' ||
+            status == 'active';
+        if (!approved) {
+          return AuthResult.failure(
+            status == 'pending' || status == 'pending_review'
+                ? 'Your affiliate application is still awaiting administrator approval.'
+                : 'Affiliate access requires an approved application. Sign in as Customer to apply.',
+            errorCode: 'affiliate_not_approved',
+          );
+        }
       }
 
       _currentUserProfile = userProfile;
 
       // 5. Fetch Affiliate Profile if role is affiliate
-      if (userProfile.role == UserRole.affiliate) {
+      if (role == UserRole.affiliate) {
         final affData = await client
             .from('affiliate_profiles')
             .select()
@@ -294,7 +321,9 @@ class SupabaseAuthBackendService implements AuthRepository {
     } on AuthException catch (e) {
       return AuthResult.failure(e.message);
     } catch (e) {
-      debugPrint('[SupabaseAuthBackendService] SignIn Exception: $e. Falling back to local store.');
+      debugPrint(
+        '[SupabaseAuthBackendService] SignIn Exception: $e. Falling back to local store.',
+      );
       return AuthBackendService.instance.signIn(
         role: role,
         emailOrHandle: cleanInput,
@@ -318,7 +347,8 @@ class SupabaseAuthBackendService implements AuthRepository {
     try {
       await SupabaseConfig.client!.auth.resetPasswordForEmail(cleanEmail);
       return AuthResult.success(
-        profile: _currentUserProfile ??
+        profile:
+            _currentUserProfile ??
             UserProfileModel(
               id: 'temp',
               handle: '@trader',
@@ -328,7 +358,8 @@ class SupabaseAuthBackendService implements AuthRepository {
               status: ProfileStatus.active,
               createdAt: DateTime.now(),
             ),
-        message: 'Password reset link has been dispatched via Supabase to $cleanEmail.',
+        message:
+            'Password reset link has been dispatched via Supabase to $cleanEmail.',
       );
     } catch (e) {
       return AuthResult.failure('Password reset error: $e');

@@ -158,7 +158,9 @@ class _AuthWindowGraphicsState extends State<AuthWindowGraphics> {
     final theme = context.ui;
     final colors = theme.colors;
     final bool isMobile = context.uiRes.isMobile;
-    final double pad = context.sp(widget.compact ? theme.spacing.md : theme.spacing.lg);
+    final double pad = context.sp(
+      widget.compact ? theme.spacing.md : theme.spacing.lg,
+    );
 
     final List<UiChartSeries> areaSeries = <UiChartSeries>[
       UiChartSeries(name: 'Equity', color: colors.primary),
@@ -305,9 +307,12 @@ class _MarketsScene extends StatelessWidget {
           glow: true,
         ),
         SizedBox(height: gap),
-        Text('Watchlist', style: context.uiText.label.copyWith(
-          color: context.ui.colors.foregroundSubtle,
-        )),
+        Text(
+          'Watchlist',
+          style: context.uiText.label.copyWith(
+            color: context.ui.colors.foregroundSubtle,
+          ),
+        ),
         SizedBox(height: gap * 0.5),
         for (final t in tickers) ...[
           AppTickerCard(ticker: t, dense: true),

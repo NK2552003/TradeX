@@ -83,21 +83,21 @@ class UiButton extends StatelessWidget {
     String? tooltip,
     UiButtonStyle? style,
   }) : this(
-          key: key,
-          label: label,
-          onPressed: onPressed,
-          variant: variant,
-          size: size,
-          intent: intent,
-          leadingIcon: icon,
-          loading: loading,
-          selected: selected,
-          rounded: rounded,
-          iconOnly: true,
-          expandOnMobile: false,
-          tooltip: tooltip ?? label,
-          style: style,
-        );
+         key: key,
+         label: label,
+         onPressed: onPressed,
+         variant: variant,
+         size: size,
+         intent: intent,
+         leadingIcon: icon,
+         loading: loading,
+         selected: selected,
+         rounded: rounded,
+         iconOnly: true,
+         expandOnMobile: false,
+         tooltip: tooltip ?? label,
+         style: style,
+       );
 
   final String label;
   final VoidCallback? onPressed;
@@ -152,8 +152,8 @@ class UiButton extends StatelessWidget {
     final BorderRadius radius = context.radius(
       style?.radius ?? (rounded ? theme.radii.pill : size.radius(context)),
     );
-    final bool fullWidth = !compactLabel &&
-        (expand || (expandOnMobile && context.uiRes.isMobile));
+    final bool fullWidth =
+        !compactLabel && (expand || (expandOnMobile && context.uiRes.isMobile));
 
     Widget core = UiInteractive(
       enabled: _enabled,
@@ -189,7 +189,8 @@ class UiButton extends StatelessWidget {
                         ? theme.borders.thick
                         : theme.borders.hairline,
                   ),
-            boxShadow: style?.shadow ??
+            boxShadow:
+                style?.shadow ??
                 (st.elevated && (s.hovered || selected)
                     ? theme.shadows.md
                     : (st.elevated ? theme.shadows.sm : null)),
@@ -206,7 +207,9 @@ class UiButton extends StatelessWidget {
     if (splitAction != null && !compactLabel) {
       core = _wrapSplit(context, core, radius);
     }
-    if (fullWidth) core = SizedBox(width: double.infinity, child: core);
+    if (fullWidth) {
+      core = SizedBox(width: double.infinity, child: core);
+    }
     if (tooltip != null) core = Tooltip(message: tooltip!, child: core);
     return core;
   }
@@ -256,7 +259,8 @@ class UiButton extends StatelessWidget {
           )
         : null;
 
-    final Widget? lead = spinner ??
+    final Widget? lead =
+        spinner ??
         leading ??
         (leadingIcon == null
             ? null
@@ -264,7 +268,8 @@ class UiButton extends StatelessWidget {
 
     if (compactLabel) {
       return Center(
-        child: lead ??
+        child:
+            lead ??
             Text(
               label.isEmpty ? '' : label.substring(0, 1).toUpperCase(),
               style: text,
@@ -284,14 +289,11 @@ class UiButton extends StatelessWidget {
 
     return ClipRect(
       child: Row(
-        mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
           if (lead != null) ...<Widget>[lead, SizedBox(width: gap)],
-          if (fullWidth)
-            Flexible(fit: FlexFit.tight, child: labelWidget)
-          else
-            Flexible(fit: FlexFit.loose, child: labelWidget),
+          Flexible(fit: FlexFit.loose, child: labelWidget),
           if (badgeCount != null) ...<Widget>[
             SizedBox(width: gap),
             Container(
@@ -337,7 +339,8 @@ class UiButton extends StatelessWidget {
     }
 
     if (!s.enabled) {
-      final bool transparent = variant == UiVariant.ghost ||
+      final bool transparent =
+          variant == UiVariant.ghost ||
           variant == UiVariant.link ||
           variant == UiVariant.outline;
       return _ButtonStyle(
@@ -357,7 +360,10 @@ class UiButton extends StatelessWidget {
         );
       case UiVariant.secondary:
         return _ButtonStyle(
-          background: hoverMix(on ? c.surfaceHover : c.secondary, c.surfaceHover),
+          background: hoverMix(
+            on ? c.surfaceHover : c.secondary,
+            c.surfaceHover,
+          ),
           foreground: c.onSecondary,
           borderColor: c.border,
           elevated: elevate ?? false,
@@ -371,7 +377,9 @@ class UiButton extends StatelessWidget {
         return _ButtonStyle(
           background: s.active || on ? c.surfaceHover : Colors.transparent,
           foreground: intent == null ? c.foreground : tint,
-          borderColor: intent == null ? c.borderStrong : tint.withValues(alpha: 0.5),
+          borderColor: intent == null
+              ? c.borderStrong
+              : tint.withValues(alpha: 0.5),
         );
       case UiVariant.soft:
         return _ButtonStyle(
@@ -386,8 +394,10 @@ class UiButton extends StatelessWidget {
         );
       case UiVariant.destructive:
         return _ButtonStyle(
-          background:
-              hoverMix(c.destructive, c.destructive.withValues(alpha: 0.85)),
+          background: hoverMix(
+            c.destructive,
+            c.destructive.withValues(alpha: 0.85),
+          ),
           foreground: c.onDestructive,
           elevated: elevate ?? true,
         );

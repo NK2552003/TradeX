@@ -24,7 +24,15 @@ class SubscriptionSummary {
   final Map<String, dynamic> usage;
 
   String get planName => AppTokens.tierLabel(tier);
-  double get amount => billingCycle == 'annual' ? 24990.0 : 2499.0;
+  double get amount {
+    final double monthly = switch (tier) {
+      AppTier.free => 0,
+      AppTier.premium => 2499,
+      AppTier.enterprise => 7999,
+    };
+    return billingCycle == 'annual' ? monthly * 10 : monthly;
+  }
+
   DateTime get currentPeriodEnd => expiresAt;
   int get tradesLoggedThisMonth => (usage['journal_trades_used'] as int?) ?? 38;
   int get maxTradesPerMonth => (usage['journal_trades_limit'] as int?) ?? 100;
@@ -32,19 +40,23 @@ class SubscriptionSummary {
   int get maxAiTokens => (usage['ai_queries_limit'] as int?) ?? 500;
 
   factory SubscriptionSummary.mockPremium() {
+    return SubscriptionSummary.mockForTier(AppTier.premium);
+  }
+
+  factory SubscriptionSummary.mockForTier(AppTier tier) {
     return SubscriptionSummary(
-      tier: AppTier.premium,
+      tier: tier,
       status: 'active',
       billingCycle: 'monthly',
       renewedAt: DateTime.now().subtract(const Duration(days: 12)),
       expiresAt: DateTime.now().add(const Duration(days: 18)),
-      usage: const <String, dynamic>{
+      usage: <String, dynamic>{
         'ai_queries_used': 142,
-        'ai_queries_limit': 500,
+        'ai_queries_limit': tier == AppTier.free ? 25 : 500,
         'journal_trades_used': 38,
         'journal_trades_limit': 100,
         'watchlists_used': 7,
-        'watchlists_limit': 20,
+        'watchlists_limit': tier == AppTier.free ? 3 : 20,
       },
     );
   }

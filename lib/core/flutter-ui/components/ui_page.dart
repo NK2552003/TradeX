@@ -48,7 +48,10 @@ class UiPage extends StatelessWidget {
       ),
     );
 
-    body = Padding(padding: pad, child: Center(child: body));
+    body = Padding(
+      padding: pad,
+      child: Center(child: body),
+    );
     return ColoredBox(
       color: theme.colors.background,
       child: SafeArea(
@@ -76,7 +79,8 @@ class UiHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    return Row(
+    final Widget identity = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         if (leading != null) ...<Widget>[
           leading!,
@@ -111,14 +115,36 @@ class UiHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (actions.isNotEmpty) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.sm)),
-          Wrap(
-            spacing: context.sp(theme.spacing.xs),
-            children: actions,
-          ),
-        ],
       ],
+    );
+
+    if (actions.isEmpty) return identity;
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final Widget actionRow = Wrap(
+          spacing: context.sp(theme.spacing.xs),
+          runSpacing: context.sp(theme.spacing.xs),
+          alignment: WrapAlignment.end,
+          children: actions,
+        );
+        if (constraints.maxWidth < context.sz(520)) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              identity,
+              SizedBox(height: context.sp(theme.spacing.md)),
+              actionRow,
+            ],
+          );
+        }
+        return Row(
+          children: <Widget>[
+            Expanded(child: identity),
+            SizedBox(width: context.sp(theme.spacing.md)),
+            Flexible(child: actionRow),
+          ],
+        );
+      },
     );
   }
 }

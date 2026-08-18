@@ -1,11 +1,7 @@
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 
 /// Account status state.
-enum ProfileStatus {
-  active,
-  suspended,
-  pendingApproval,
-}
+enum ProfileStatus { active, suspended, pendingApproval }
 
 /// Data model representing a user profile in TraderHub TradeX platform.
 class UserProfileModel {
@@ -64,8 +60,12 @@ class UserProfileModel {
       tradingStyle: json['trading_style'] as String?,
       publicJournals: json['public_journals'] as bool? ?? false,
       subscriptionTier: json['subscription_tier'] as String? ?? 'free',
-      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'] as String) : null,
-      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'] as String) : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.tryParse(json['updated_at'] as String)
+          : null,
     );
   }
 

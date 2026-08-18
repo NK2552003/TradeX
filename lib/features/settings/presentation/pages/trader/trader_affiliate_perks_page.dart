@@ -4,10 +4,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 
 /// Page shown to active traders highlighting the benefits of the Affiliate Partner Program.
 class TraderAffiliatePerksPage extends StatefulWidget {
-  const TraderAffiliatePerksPage({
-    super.key,
-    this.onUpgradeToAffiliate,
-  });
+  const TraderAffiliatePerksPage({super.key, this.onUpgradeToAffiliate});
 
   final VoidCallback? onUpgradeToAffiliate;
 
@@ -64,7 +61,9 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                           Row(
                             children: [
                               Container(
-                                padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+                                padding: EdgeInsets.all(
+                                  context.sp(theme.spacing.sm),
+                                ),
                                 decoration: BoxDecoration(
                                   color: colors.warning.withValues(alpha: 0.15),
                                   borderRadius: context.radius(theme.radii.md),
@@ -237,7 +236,9 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                   ];
 
                   if (constraints.maxWidth >= 650) {
-                    final itemW = (constraints.maxWidth - context.sp(theme.spacing.md)) / 2;
+                    final itemW =
+                        (constraints.maxWidth - context.sp(theme.spacing.md)) /
+                        2;
                     return Wrap(
                       spacing: context.sp(theme.spacing.md),
                       runSpacing: context.sp(theme.spacing.md),
@@ -249,7 +250,8 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                     return Column(
                       children: [
                         for (int i = 0; i < cards.length; i++) ...[
-                          if (i > 0) SizedBox(height: context.sp(theme.spacing.md)),
+                          if (i > 0)
+                            SizedBox(height: context.sp(theme.spacing.md)),
                           cards[i],
                         ],
                       ],
@@ -275,7 +277,8 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                             style: context.uiText.bodyStrong,
                           ),
                           UiBadge(
-                            label: '${_referredTraders.toInt()} Referred Traders',
+                            label:
+                                '${_referredTraders.toInt()} Referred Traders',
                             intent: UiIntent.primary,
                           ),
                         ],
@@ -289,7 +292,8 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                         max: 200,
                         divisions: 199,
                         label: '${_referredTraders.toInt()} Traders',
-                        onChanged: (val) => setState(() => _referredTraders = val),
+                        onChanged: (val) =>
+                            setState(() => _referredTraders = val),
                       ),
 
                       SizedBox(height: context.sp(theme.spacing.lg)),
@@ -299,7 +303,9 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                         children: [
                           Expanded(
                             child: Container(
-                              padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+                              padding: EdgeInsets.all(
+                                context.sp(theme.spacing.md),
+                              ),
                               decoration: BoxDecoration(
                                 color: colors.surfaceHover,
                                 borderRadius: context.radius(theme.radii.md),
@@ -314,7 +320,9 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                                       color: colors.foregroundMuted,
                                     ),
                                   ),
-                                  SizedBox(height: context.sp(theme.spacing.xxs)),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxs),
+                                  ),
                                   Text(
                                     '₹${_monthlyEarnings.toStringAsFixed(0)} / mo',
                                     style: context.uiText.heading.copyWith(
@@ -330,7 +338,9 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                           SizedBox(width: context.sp(theme.spacing.md)),
                           Expanded(
                             child: Container(
-                              padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+                              padding: EdgeInsets.all(
+                                context.sp(theme.spacing.md),
+                              ),
                               decoration: BoxDecoration(
                                 color: colors.surfaceHover,
                                 borderRadius: context.radius(theme.radii.md),
@@ -345,7 +355,9 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                                       color: colors.foregroundMuted,
                                     ),
                                   ),
-                                  SizedBox(height: context.sp(theme.spacing.xxs)),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxs),
+                                  ),
                                   Text(
                                     '₹${_annualEarnings.toStringAsFixed(0)} / yr',
                                     style: context.uiText.heading.copyWith(
@@ -370,12 +382,12 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
               // Action Callout Banner
               UiCallout(
                 intent: UiIntent.warning,
-                title: 'Ready to monetize your trading community?',
+                title: 'Ready to apply for the TradeX Partner Program?',
                 message:
-                    'You can switch your session directly to Affiliate Partner mode to view full click funnels, referral analytics, and media kits.',
+                    'Complete the four-step identity, audience, payout, and review application. Your trader account stays active while an administrator reviews it.',
                 action: UiButton(
-                  label: 'Switch to Partner Mode',
-                  leadingIcon: Icons.open_in_new_rounded,
+                  label: 'Start Application',
+                  leadingIcon: Icons.assignment_outlined,
                   variant: UiVariant.primary,
                   intent: UiIntent.warning,
                   size: UiSize.sm,
@@ -385,9 +397,10 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                     } else {
                       UiToast.show(
                         context,
-                        title: 'Affiliate Program Active',
-                        message: 'Your referral code NITISH_ALPHA is active and tracking.',
-                        intent: UiIntent.success,
+                        title: 'Application required',
+                        message:
+                            'Affiliate tools unlock only after administrator approval.',
+                        intent: UiIntent.warning,
                       );
                     }
                   },

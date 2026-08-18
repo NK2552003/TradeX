@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
+// Required unified primitive import for application layouts.
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/navigation/role_navigation_config.dart';
+import 'package:tradex/features/affiliate_program/affiliate_program.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
 
@@ -12,6 +17,10 @@ class AppScaffold extends StatefulWidget {
     this.onLogout,
     this.onRoleChanged,
     this.onReturnToAuth,
+    this.showDevelopmentRoleSwitcher = false,
+    this.subscriptionTier = AppTier.free,
+    this.userId = 'usr_demo_active',
+    this.userDisplayName = 'Nitish Kumar',
   });
 
   final UserRole userRole;
@@ -19,6 +28,10 @@ class AppScaffold extends StatefulWidget {
   final VoidCallback? onLogout;
   final ValueChanged<UserRole>? onRoleChanged;
   final VoidCallback? onReturnToAuth;
+  final bool showDevelopmentRoleSwitcher;
+  final AppTier subscriptionTier;
+  final String userId;
+  final String userDisplayName;
 
   @override
   State<AppScaffold> createState() => _AppScaffoldState();
@@ -26,16 +39,39 @@ class AppScaffold extends StatefulWidget {
 
 class _AppScaffoldState extends State<AppScaffold> {
   String _selectedId = 'overview';
+  late AppTier _activeTier;
+  bool _showAffiliateApplication = false;
+  AffiliateApplicationStatus? _affiliateApplicationStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeTier = widget.subscriptionTier;
+    _loadAffiliateApplicationStatus();
+  }
 
   @override
   void didUpdateWidget(AppScaffold oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.userRole != widget.userRole) {
       _selectedId = 'overview';
+      _loadAffiliateApplicationStatus();
+    }
+    if (oldWidget.subscriptionTier != widget.subscriptionTier) {
+      _activeTier = widget.subscriptionTier;
     }
   }
 
-  List<AppNavSection> _getNavSections(UserRole role) {
+  Future<void> _loadAffiliateApplicationStatus() async {
+    final AffiliateApplicationModel? application =
+        await AffiliateApplicationRepositoryImpl.instance.getForUser(
+          widget.userId,
+        );
+    if (!mounted) return;
+    setState(() => _affiliateApplicationStatus = application?.status);
+  }
+
+  List<AppNavSection> getNavSections(UserRole role) {
     switch (role) {
       case UserRole.customer:
         return const <AppNavSection>[
@@ -56,7 +92,7 @@ class _AppScaffoldState extends State<AppScaffold> {
               ),
               AppNavItem(
                 id: 'watchlists',
-                label: 'Watchlists & Scanner',
+                label: 'Watchlist',
                 icon: Icons.visibility_outlined,
                 selectedIcon: Icons.visibility,
               ),
@@ -338,12 +374,18 @@ class _AppScaffoldState extends State<AppScaffold> {
         };
       case 'journal':
         return 'Trade Journal';
+      case 'strategies':
+        return 'Strategy Notes';
       case 'watchlists':
-        return 'Watchlists & Scanner';
+        return 'Watchlist';
       case 'portfolio':
         return 'Portfolio';
       case 'community':
         return 'Community';
+      case 'messages':
+        return 'Messages';
+      case 'notifications':
+        return 'Notifications';
       case 'ai_copilot':
       case 'insights':
         return 'AI Assistant';
@@ -359,12 +401,38 @@ class _AppScaffoldState extends State<AppScaffold> {
         return 'Risk Limits & Compliance';
       case 'org_audit':
         return 'Execution Audit Log';
+      case 'org_analytics':
+        return 'Organization Analytics';
+      case 'affiliate_reviews':
+        return 'Affiliate Applications';
       default:
         return id.toUpperCase();
     }
   }
 
   Widget _buildActivePage() {
+    if (_showAffiliateApplication) {
+      return AffiliateApplicationPage(
+        userId: widget.userId,
+        email: widget.userEmail,
+        displayName: widget.userDisplayName,
+        isExistingCustomer: true,
+        onSubmitted: (AffiliateApplicationModel application) => setState(() {
+          _affiliateApplicationStatus = application.status;
+        }),
+        onCancel: () => setState(() => _showAffiliateApplication = false),
+        onDone: () => setState(() {
+          _showAffiliateApplication = false;
+          _selectedId = 'settings_profile';
+        }),
+      );
+    }
+
+    if (widget.userRole == UserRole.userAdmin &&
+        _selectedId == 'affiliate_reviews') {
+      return const AffiliateApprovalsPage();
+    }
+
     if (_selectedId.startsWith('settings')) {
       final sectionId = _selectedId == 'settings'
           ? 'profile'
@@ -374,7 +442,14 @@ class _AppScaffoldState extends State<AppScaffold> {
         key: ValueKey<String>('settings_${widget.userRole.id}_$sectionId'),
         userRole: widget.userRole,
         initialSectionId: sectionId,
+        showNavigationPane: context.uiRes.isMobile && _selectedId == 'settings',
         onLogout: widget.onLogout,
+        subscriptionTier: _activeTier,
+        onSubscriptionTierChanged: (AppTier tier) {
+          setState(() => _activeTier = tier);
+        },
+        onApplyForAffiliate: () =>
+            setState(() => _showAffiliateApplication = true),
       );
     }
 
@@ -388,6 +463,93 @@ class _AppScaffoldState extends State<AppScaffold> {
           fontWeight: FontWeight.w600,
           fontSize: 22.0,
         ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopPreviewControls() {
+    final bool isAffiliate = widget.userRole == UserRole.affiliate;
+    final bool isPending =
+        _affiliateApplicationStatus == AffiliateApplicationStatus.pending;
+    final bool isApproved =
+        _affiliateApplicationStatus == AffiliateApplicationStatus.approved;
+    return UiCard(
+      padding: EdgeInsets.all(context.sp(context.ui.spacing.xs)),
+      variant: UiCardVariant.outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            'DESIGN PREVIEW',
+            style: context.uiText.caption.copyWith(
+              color: context.ui.colors.foregroundSubtle,
+              fontSize: 9,
+              letterSpacing: 0.8,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: context.sp(context.ui.spacing.xxs)),
+          if (widget.userRole != UserRole.userAdmin)
+            UiButton(
+              label: isAffiliate
+                  ? 'Switch to Trader'
+                  : isPending
+                  ? 'Review in progress'
+                  : isApproved
+                  ? 'Switch to Affiliate'
+                  : 'Apply for Affiliate',
+              leadingIcon: isPending
+                  ? Icons.hourglass_top_rounded
+                  : isAffiliate
+                  ? Icons.candlestick_chart_rounded
+                  : Icons.handshake_outlined,
+              variant: isAffiliate || isApproved
+                  ? UiVariant.soft
+                  : UiVariant.outline,
+              intent: UiIntent.warning,
+              size: UiSize.xs,
+              onPressed: isPending
+                  ? null
+                  : () {
+                      if (isAffiliate) {
+                        widget.onRoleChanged?.call(UserRole.customer);
+                      } else if (isApproved) {
+                        widget.onRoleChanged?.call(UserRole.affiliate);
+                      } else {
+                        setState(() => _showAffiliateApplication = true);
+                      }
+                    },
+            ),
+          if (widget.userRole != UserRole.userAdmin)
+            SizedBox(height: context.sp(context.ui.spacing.xxs)),
+          if (!isAffiliate) ...<Widget>[
+            UiButton(
+              label: 'Preview Affiliate',
+              leadingIcon: Icons.visibility_outlined,
+              variant: UiVariant.outline,
+              intent: UiIntent.warning,
+              size: UiSize.xs,
+              onPressed: () => widget.onRoleChanged?.call(UserRole.affiliate),
+            ),
+            SizedBox(height: context.sp(context.ui.spacing.xxs)),
+          ],
+          UiButton(
+            label: widget.userRole == UserRole.userAdmin
+                ? 'Exit Admin'
+                : 'Admin',
+            leadingIcon: Icons.admin_panel_settings_outlined,
+            variant: widget.userRole == UserRole.userAdmin
+                ? UiVariant.soft
+                : UiVariant.outline,
+            intent: UiIntent.danger,
+            size: UiSize.xs,
+            onPressed: () => widget.onRoleChanged?.call(
+              widget.userRole == UserRole.userAdmin
+                  ? UserRole.customer
+                  : UserRole.userAdmin,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -421,8 +583,8 @@ class _AppScaffoldState extends State<AppScaffold> {
                     color: isSelected
                         ? context.ui.colors.primary.withValues(alpha: 0.12)
                         : (state.hovered
-                            ? context.ui.colors.surfaceHover
-                            : Colors.transparent),
+                              ? context.ui.colors.surfaceHover
+                              : Colors.transparent),
                     borderRadius: context.radius(context.ui.radii.md),
                     border: Border.all(
                       color: isSelected
@@ -438,10 +600,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              role.label,
-                              style: context.uiText.bodyStrong,
-                            ),
+                            Text(role.label, style: context.uiText.bodyStrong),
                             Text(
                               role.subtitle,
                               style: context.uiText.caption.copyWith(
@@ -479,12 +638,15 @@ class _AppScaffoldState extends State<AppScaffold> {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final colors = theme.colors;
-    final navSections = _getNavSections(widget.userRole);
+    final RoleNavigationConfig navigation = RoleNavigationConfig.forRole(
+      widget.userRole,
+    );
+    final navSections = navigation.sections;
 
     return Column(
       children: [
         // Redesigned Static Session Header Bar (for Admin / Partner mode)
-        if (widget.userRole != UserRole.customer)
+        if (widget.showDevelopmentRoleSwitcher)
           Container(
             height: context.sz(36),
             padding: EdgeInsets.symmetric(
@@ -511,10 +673,11 @@ class _AppScaffoldState extends State<AppScaffold> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: (widget.userRole == UserRole.userAdmin
-                            ? colors.bearish
-                            : colors.warning)
-                        .withValues(alpha: 0.16),
+                    color:
+                        (widget.userRole == UserRole.userAdmin
+                                ? colors.bearish
+                                : colors.warning)
+                            .withValues(alpha: 0.16),
                     borderRadius: context.radius(theme.radii.sm),
                   ),
                   child: Row(
@@ -578,30 +741,49 @@ class _AppScaffoldState extends State<AppScaffold> {
         // Main App Shell with Role-Specific Dock & Sidebar
         Expanded(
           child: AppShell(
-            key: ValueKey<String>('${AppConstants.appName}_${widget.userRole.id}'),
+            key: ValueKey<String>(
+              '${AppConstants.appName}_${widget.userRole.id}',
+            ),
             sections: navSections,
+            mobilePrimaryItems: navigation.mobilePrimaryItems,
+            mobileMoreItems: navigation.mobileMoreItems,
+            userMenuItems: navigation.userMenuItems,
             selectedId: _selectedId,
-            onSelect: (id) => setState(() => _selectedId = id),
+            onSelect: (id) {
+              if (navigation.allows(id)) {
+                setState(() => _selectedId = id);
+              }
+            },
             onSettings: () => setState(() => _selectedId = 'settings_profile'),
+            onAi: () => setState(() => _selectedId = 'ai_copilot'),
+            onNotifications: () =>
+                setState(() => _selectedId = 'notifications'),
+            onLogout: widget.onLogout,
             trader: AppTrader(
               id: 'u1',
               handle: widget.userEmail,
               displayName: 'Nitish Kumar (${widget.userRole.shortTitle})',
-              tier: widget.userRole == UserRole.customer
-                  ? AppTier.premium
-                  : AppTier.free,
+              tier: _activeTier,
             ),
-            workspaceName: switch (widget.userRole) {
-              UserRole.customer => 'TradeX Pro Terminal',
-              UserRole.affiliate => 'Affiliate Partner Hub',
-              UserRole.userAdmin => 'Institutional Desk',
-            },
-            tierLabel: switch (widget.userRole) {
-              UserRole.customer => 'Active Trader',
-              UserRole.affiliate => 'Affiliate Partner',
-              UserRole.userAdmin => 'Desk Administrator',
-            },
+            tier: _activeTier,
+            workspaceName: widget.userRole == UserRole.customer
+                ? switch (_activeTier) {
+                    AppTier.free => 'TradeX Basic',
+                    AppTier.premium => 'TradeX Pro',
+                    AppTier.enterprise => 'TradeX Enterprise',
+                  }
+                : navigation.workspaceName,
+            tierLabel: widget.userRole == UserRole.customer
+                ? switch (_activeTier) {
+                    AppTier.free => 'Basic Plan',
+                    AppTier.premium => 'Pro Plan',
+                    AppTier.enterprise => 'Enterprise Plan',
+                  }
+                : navigation.workspaceLabel,
             unreadNotifications: 4,
+            primaryAction: widget.onRoleChanged == null
+                ? null
+                : _buildDesktopPreviewControls(),
             child: _buildActivePage(),
           ),
         ),

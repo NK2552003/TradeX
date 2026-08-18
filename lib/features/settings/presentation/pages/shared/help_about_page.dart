@@ -64,17 +64,26 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
                           color: colors.primary.withValues(alpha: 0.16),
                           borderRadius: ctx.radius(theme.radii.md),
                         ),
-                        child: Icon(Icons.rocket_launch_rounded, color: colors.primary, size: ctx.sz(20)),
+                        child: Icon(
+                          Icons.rocket_launch_rounded,
+                          color: colors.primary,
+                          size: ctx.sz(20),
+                        ),
                       ),
                       SizedBox(width: ctx.sp(theme.spacing.sm)),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: ctx.sp(theme.spacing.xs),
+                              runSpacing: ctx.sp(theme.spacing.xxs),
                               children: [
-                                Text('v1.0.0 (Production GA)', style: ctx.uiText.bodyStrong),
-                                SizedBox(width: ctx.sp(theme.spacing.xs)),
+                                Text(
+                                  'v1.0.0 (Production GA)',
+                                  style: ctx.uiText.bodyStrong,
+                                ),
                                 const UiBadge(
                                   label: 'Latest',
                                   intent: UiIntent.success,
@@ -84,7 +93,9 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
                             ),
                             Text(
                               'Released August 2026 • Full Production Terminal',
-                              style: ctx.uiText.caption.copyWith(color: colors.foregroundMuted),
+                              style: ctx.uiText.caption.copyWith(
+                                color: colors.foregroundMuted,
+                              ),
                             ),
                           ],
                         ),
@@ -100,7 +111,8 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
                   icon: Icons.auto_awesome_rounded,
                   iconColor: colors.primary,
                   title: 'Next-Gen Trading & Settings Engine',
-                  description: 'Granular multi-role workspaces, desktop command palette, and reactive theme & layout density control.',
+                  description:
+                      'Granular multi-role workspaces, desktop command palette, and reactive theme & layout density control.',
                 ),
                 SizedBox(height: ctx.sp(theme.spacing.xs)),
                 _buildChangelogItem(
@@ -108,7 +120,8 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
                   icon: Icons.candlestick_chart_rounded,
                   iconColor: colors.bullish,
                   title: 'Real-Time Market Depth & Live Scanners',
-                  description: 'Sub-millisecond order book streaming with automated playbook pattern recognition.',
+                  description:
+                      'Sub-millisecond order book streaming with automated playbook pattern recognition.',
                 ),
                 SizedBox(height: ctx.sp(theme.spacing.xs)),
                 _buildChangelogItem(
@@ -116,7 +129,8 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
                   icon: Icons.shield_outlined,
                   iconColor: colors.warning,
                   title: 'Institutional Risk & Audit Ledger',
-                  description: 'Real-time hard stop gates, multi-seat trader permissions, and GDPR data export.',
+                  description:
+                      'Real-time hard stop gates, multi-seat trader permissions, and GDPR data export.',
                 ),
                 SizedBox(height: ctx.sp(theme.spacing.md)),
 
@@ -129,12 +143,18 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.history_rounded, size: ctx.sz(16), color: colors.foregroundMuted),
+                      Icon(
+                        Icons.history_rounded,
+                        size: ctx.sz(16),
+                        color: colors.foregroundMuted,
+                      ),
                       SizedBox(width: ctx.sp(theme.spacing.xs)),
                       Expanded(
                         child: Text(
                           'v0.9.4 Beta: Pre-trade checklists, journal calendar heatmaps & execution logs.',
-                          style: ctx.uiText.caption.copyWith(color: colors.foregroundMuted),
+                          style: ctx.uiText.caption.copyWith(
+                            color: colors.foregroundMuted,
+                          ),
                         ),
                       ),
                     ],
@@ -184,11 +204,17 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: ctx.uiText.bodyStrong.copyWith(fontSize: 13.0)),
+                Text(
+                  title,
+                  style: ctx.uiText.bodyStrong.copyWith(fontSize: 13.0),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   description,
-                  style: ctx.uiText.caption.copyWith(color: colors.foregroundMuted, height: 1.35),
+                  style: ctx.uiText.caption.copyWith(
+                    color: colors.foregroundMuted,
+                    height: 1.35,
+                  ),
                 ),
               ],
             ),
@@ -275,6 +301,7 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final colors = theme.colors;
+    final isMobile = context.uiRes.isMobile;
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
@@ -285,140 +312,160 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-          // Contact Support Form
-          AppSettingsSectionBlock(
-            title: 'Contact Support & Desk Assistance',
-            description: 'Have a question or encountering an issue? Send a direct message to our support team.',
-            children: [
-              UiCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    UiField(
-                      label: 'Inquiry Category',
-                      child: UiSelect<String>(
-                        value: _category,
-                        options: _categories
-                            .map((c) => UiOption<String>(label: c, value: c))
-                            .toList(),
-                        onChanged: (v) {
-                          setState(() => _category = v);
-                        },
-                      ),
-                    ),
-                    SizedBox(height: context.sp(theme.spacing.sm)),
-                    UiField(
-                      label: 'Subject',
-                      child: UiInput(
-                        value: _subjectController.text,
-                        hintText: 'Brief summary of your question...',
-                        onChanged: (v) => _subjectController.text = v,
-                      ),
-                    ),
-                    SizedBox(height: context.sp(theme.spacing.sm)),
-                    UiField(
-                      label: 'Message',
-                      child: UiTextarea(
-                        value: _msgController.text,
-                        hintText: 'Detailed description of the issue or feature inquiry...',
-                        rows: 4,
-                        onChanged: (v) => _msgController.text = v,
-                      ),
-                    ),
-                    SizedBox(height: context.sp(theme.spacing.md)),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+              // Contact Support Form
+              AppSettingsSectionBlock(
+                title: 'Contact Support & Desk Assistance',
+                description:
+                    'Have a question or encountering an issue? Send a direct message to our support team.',
+                children: [
+                  UiCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        UiButton(
-                          label: 'Send Support Ticket',
-                          intent: UiIntent.primary,
-                          loading: _sending,
-                          onPressed: _submitSupport,
+                        UiField(
+                          label: 'Inquiry Category',
+                          child: UiSelect<String>(
+                            value: _category,
+                            options: _categories
+                                .map(
+                                  (c) => UiOption<String>(label: c, value: c),
+                                )
+                                .toList(),
+                            onChanged: (v) {
+                              setState(() => _category = v);
+                            },
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        UiField(
+                          label: 'Subject',
+                          child: UiInput(
+                            value: _subjectController.text,
+                            hintText: 'Brief summary of your question...',
+                            onChanged: (v) => _subjectController.text = v,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        UiField(
+                          label: 'Message',
+                          child: UiTextarea(
+                            value: _msgController.text,
+                            hintText:
+                                'Detailed description of the issue or feature inquiry...',
+                            rows: 4,
+                            onChanged: (v) => _msgController.text = v,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.md)),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: SizedBox(
+                            width: isMobile ? double.infinity : null,
+                            child: UiButton(
+                              label: 'Send Support Ticket',
+                              intent: UiIntent.primary,
+                              loading: _sending,
+                              onPressed: _submitSupport,
+                            ),
+                          ),
                         ),
                       ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: context.sp(theme.spacing.lg)),
+
+              // Product Info & Links
+              AppSettingsSectionBlock(
+                title: 'Product Information & Legal',
+                children: [
+                  AppSettingCard(
+                    title: 'Release Notes & Changelog',
+                    description:
+                        'See latest product features, market feed upgrades, and bug fixes.',
+                    icon: Icons.history_edu_rounded,
+                    control: UiButton(
+                      label: 'View What\'s New',
+                      variant: UiVariant.outline,
+                      size: UiSize.sm,
+                      onPressed: _showChangelogDialog,
+                    ),
+                  ),
+                  AppSettingCard(
+                    title: 'Terms of Service',
+                    description:
+                        'Review TradeX trading agreement and platform terms.',
+                    icon: Icons.gavel_rounded,
+                    control: UiButton(
+                      label: 'Read Terms',
+                      variant: UiVariant.ghost,
+                      size: UiSize.sm,
+                      onPressed: () => _showLegalDialog(
+                        'Terms of Service',
+                        'TradeX is a financial analytics, journaling, and market simulation platform. All charts and signals are for educational and analysis purposes only and do not constitute registered investment advice.',
+                      ),
+                    ),
+                  ),
+                  AppSettingCard(
+                    title: 'Privacy Policy',
+                    description:
+                        'Learn how TradeX encrypts and secures your financial trade logs.',
+                    icon: Icons.privacy_tip_outlined,
+                    control: UiButton(
+                      label: 'Read Policy',
+                      variant: UiVariant.ghost,
+                      size: UiSize.sm,
+                      onPressed: () => _showLegalDialog(
+                        'Privacy Policy',
+                        'We never sell your trading data or order flow. All journal entries and API credentials are encrypted with AES-256 and stored in compliant tier-IV data centers.',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: context.sp(theme.spacing.lg)),
+
+              // Version & Environment Info Card
+              UiCard(
+                padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: context.sz(20),
+                      color: colors.foregroundMuted,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.md)),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            AppConstants.appName,
+                            style: context.uiText.bodyStrong,
+                          ),
+                          Text(
+                            'Version 1.0.0 (Build 2026.08.1) · Production',
+                            style: context.uiText.caption.copyWith(
+                              color: colors.foregroundMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const UiBadge(
+                      label: 'STABLE',
+                      intent: UiIntent.bullish,
+                      size: UiSize.xs,
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-
-          // Product Info & Links
-          AppSettingsSectionBlock(
-            title: 'Product Information & Legal',
-            children: [
-              AppSettingCard(
-                title: 'Release Notes & Changelog',
-                description: 'See latest product features, market feed upgrades, and bug fixes.',
-                icon: Icons.history_edu_rounded,
-                control: UiButton(
-                  label: 'View What\'s New',
-                  variant: UiVariant.outline,
-                  size: UiSize.sm,
-                  onPressed: _showChangelogDialog,
-                ),
-              ),
-              AppSettingCard(
-                title: 'Terms of Service',
-                description: 'Review TradeX trading agreement and platform terms.',
-                icon: Icons.gavel_rounded,
-                control: UiButton(
-                  label: 'Read Terms',
-                  variant: UiVariant.ghost,
-                  size: UiSize.sm,
-                  onPressed: () => _showLegalDialog(
-                    'Terms of Service',
-                    'TradeX is a financial analytics, journaling, and market simulation platform. All charts and signals are for educational and analysis purposes only and do not constitute registered investment advice.',
-                  ),
-                ),
-              ),
-              AppSettingCard(
-                title: 'Privacy Policy',
-                description: 'Learn how TradeX encrypts and secures your financial trade logs.',
-                icon: Icons.privacy_tip_outlined,
-                control: UiButton(
-                  label: 'Read Policy',
-                  variant: UiVariant.ghost,
-                  size: UiSize.sm,
-                  onPressed: () => _showLegalDialog(
-                    'Privacy Policy',
-                    'We never sell your trading data or order flow. All journal entries and API credentials are encrypted with AES-256 and stored in compliant tier-IV data centers.',
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-
-          // Version & Environment Info Card
-          UiCard(
-            padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline_rounded, size: context.sz(20), color: colors.foregroundMuted),
-                SizedBox(width: context.sp(theme.spacing.md)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(AppConstants.appName, style: context.uiText.bodyStrong),
-                      Text('Version 1.0.0 (Build 2026.08.1) · Production', style: context.uiText.caption.copyWith(color: colors.foregroundMuted)),
-                    ],
-                  ),
-                ),
-                const UiBadge(
-                  label: 'STABLE',
-                  intent: UiIntent.bullish,
-                  size: UiSize.xs,
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 }

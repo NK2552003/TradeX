@@ -3,12 +3,10 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/settings/data/repositories/billing_settings_repository.dart';
 
 class ChangePlanPage extends StatefulWidget {
-  const ChangePlanPage({
-    super.key,
-    this.repository,
-  });
+  const ChangePlanPage({super.key, this.repository, this.onPlanChanged});
 
   final BillingSettingsRepository? repository;
+  final ValueChanged<AppTier>? onPlanChanged;
 
   @override
   State<ChangePlanPage> createState() => _ChangePlanPageState();
@@ -64,19 +62,36 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(AppTokens.tierLabel(plan.tier), style: context.uiText.bodyStrong),
-                        Text('Billed $_billingCycle', style: context.uiText.caption.copyWith(color: context.ui.colors.foregroundMuted)),
+                        Text(
+                          AppTokens.tierLabel(plan.tier),
+                          style: context.uiText.bodyStrong,
+                        ),
+                        Text(
+                          'Billed $_billingCycle',
+                          style: context.uiText.caption.copyWith(
+                            color: context.ui.colors.foregroundMuted,
+                          ),
+                        ),
                       ],
                     ),
                     Text(
-                      _billingCycle == 'annual' ? '₹1,999/mo (₹23,988/yr)' : '${plan.priceLabel}/mo',
-                      style: context.uiText.heading.copyWith(color: context.ui.colors.primary),
+                      _billingCycle == 'annual'
+                          ? '₹1,999/mo (₹23,988/yr)'
+                          : '${plan.priceLabel}/mo',
+                      style: context.uiText.heading.copyWith(
+                        color: context.ui.colors.primary,
+                      ),
                     ),
                   ],
                 ),
               ),
               SizedBox(height: context.sp(context.ui.spacing.md)),
-              Text('Payment Details (Stripe / RevenueCat Secure)', style: context.uiText.caption.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                'Payment Details (Stripe / RevenueCat Secure)',
+                style: context.uiText.caption.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               SizedBox(height: context.sp(context.ui.spacing.xs)),
               UiField(
                 label: 'Card Number',
@@ -114,7 +129,8 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
               SizedBox(height: context.sp(context.ui.spacing.md)),
               UiCallout(
                 title: 'Instant Activation',
-                message: 'Your features will be unlocked immediately upon confirmation. Cancel anytime.',
+                message:
+                    'Your features will be unlocked immediately upon confirmation. Cancel anytime.',
                 intent: UiIntent.info,
               ),
             ],
@@ -137,10 +153,12 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                     Navigator.of(ctx).pop();
                   }
                   if (mounted) {
+                    widget.onPlanChanged?.call(plan.tier);
                     UiToast.show(
                       context,
                       title: 'Upgrade Successful!',
-                      message: 'Welcome to TradeX ${AppTokens.tierLabel(plan.tier)}.',
+                      message:
+                          'Welcome to TradeX ${AppTokens.tierLabel(plan.tier)}.',
                       intent: UiIntent.success,
                     );
                     Navigator.of(context).pop();
@@ -151,7 +169,8 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                     UiToast.show(
                       context,
                       title: 'Payment Failed',
-                      message: 'Could not process card payment. Please try another card.',
+                      message:
+                          'Could not process card payment. Please try another card.',
                       intent: UiIntent.danger,
                     );
                   }

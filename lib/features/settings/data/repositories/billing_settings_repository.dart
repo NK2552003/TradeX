@@ -13,7 +13,10 @@ abstract class BillingSettingsRepository {
 }
 
 class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
-  SubscriptionSummary _subscription = SubscriptionSummary.mockPremium();
+  BillingSettingsRepositoryImpl({AppTier initialTier = AppTier.premium})
+    : _subscription = SubscriptionSummary.mockForTier(initialTier);
+
+  SubscriptionSummary _subscription;
 
   final PaymentMethodSummary _paymentMethod = const PaymentMethodSummary(
     brand: 'Visa',
@@ -79,11 +82,12 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
   @override
   Future<List<AppPlan>> getAvailablePlans() async {
     await Future<void>.delayed(const Duration(milliseconds: 250));
-    return const <AppPlan>[
+    return <AppPlan>[
       AppPlan(
         tier: AppTier.free,
         priceLabel: '₹0',
         period: '/mo',
+        current: _subscription.tier == AppTier.free,
         description: 'Core journal logging and basic charts for individuals.',
         features: <String>[
           'Up to 100 journal entries',
@@ -97,8 +101,9 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
         priceLabel: '₹2,499',
         period: '/mo',
         highlighted: true,
-        current: true,
-        description: 'Advanced analytics, AI signal assistant, and unlimited journaling.',
+        current: _subscription.tier == AppTier.premium,
+        description:
+            'Advanced analytics, AI signal assistant, and unlimited journaling.',
         features: <String>[
           'Unlimited journal entries',
           'AI Trading Assistant & Nifty/BankNifty pattern detection',
@@ -112,7 +117,9 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
         tier: AppTier.enterprise,
         priceLabel: '₹7,999',
         period: '/mo',
-        description: 'Dedicated team collaboration, custom compliance, and priority execution.',
+        current: _subscription.tier == AppTier.enterprise,
+        description:
+            'Dedicated team collaboration, custom compliance, and priority execution.',
         features: <String>[
           'Everything in Pro',
           'Multi-seat desk workspace',
@@ -125,8 +132,25 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
   }
 
   @override
-  Future<CheckoutSession> startCheckout(String tierId, String billingCycle) async {
+  Future<CheckoutSession> startCheckout(
+    String tierId,
+    String billingCycle,
+  ) async {
     await Future<void>.delayed(const Duration(milliseconds: 600));
+    final AppTier tier = AppTier.values.firstWhere(
+      (AppTier value) => value.name == tierId,
+      orElse: () => _subscription.tier,
+    );
+    _subscription = SubscriptionSummary(
+      tier: tier,
+      status: 'active',
+      billingCycle: billingCycle,
+      renewedAt: DateTime.now(),
+      expiresAt: DateTime.now().add(
+        Duration(days: billingCycle == 'annual' ? 365 : 30),
+      ),
+      usage: _subscription.usage,
+    );
     return const CheckoutSession(
       checkoutUrl: 'https://checkout.stripe.com/c/pay/mock_session',
       clientSecret: 'pi_mock_secret_123456789',
@@ -142,9 +166,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
   @override
   Future<CheckoutSession> startPaymentMethodUpdate() async {
     await Future<void>.delayed(const Duration(milliseconds: 400));
-    return const CheckoutSession(
-      clientSecret: 'seti_mock_secret_987654321',
-    );
+    return const CheckoutSession(clientSecret: 'seti_mock_secret_987654321');
   }
 
   @override

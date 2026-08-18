@@ -2,11 +2,7 @@ import 'package:tradex/features/auth/models/otp_purpose.dart';
 
 /// Result of an OTP verify attempt.
 class OtpVerifyResult {
-  const OtpVerifyResult({
-    required this.success,
-    this.errorMessage,
-    this.token,
-  });
+  const OtpVerifyResult({required this.success, this.errorMessage, this.token});
 
   final bool success;
 

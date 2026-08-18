@@ -88,7 +88,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   Future<void> _handleVerify([String? autoSubmittedCode]) async {
     final String code = autoSubmittedCode ?? _codeController.value;
     if (code.length < widget.codeLength) {
-      setState(() => _errorText = 'Enter the full ${widget.codeLength}-digit code');
+      setState(
+        () => _errorText = 'Enter the full ${widget.codeLength}-digit code',
+      );
       return;
     }
 
@@ -107,7 +109,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     setState(() => _isVerifying = false);
 
     if (!result.success) {
-      setState(() => _errorText = result.errorMessage ?? 'Invalid or expired code.');
+      setState(
+        () => _errorText = result.errorMessage ?? 'Invalid or expired code.',
+      );
       _codeController.clear();
       return;
     }
@@ -119,7 +123,10 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     if (_timerSeconds > 0 || _isResending) return;
 
     setState(() => _isResending = true);
-    await _repository.resendOtp(identifier: widget.identifier, purpose: widget.purpose);
+    await _repository.resendOtp(
+      identifier: widget.identifier,
+      purpose: widget.purpose,
+    );
     if (!mounted) return;
 
     setState(() {
@@ -189,9 +196,13 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                   UiCard(
                     variant: UiCardVariant.surface,
                     child: Padding(
-                      padding: EdgeInsets.all(context.sp(
-                        context.uiRes.isMobile ? theme.spacing.lg : theme.spacing.xl,
-                      )),
+                      padding: EdgeInsets.all(
+                        context.sp(
+                          context.uiRes.isMobile
+                              ? theme.spacing.lg
+                              : theme.spacing.xl,
+                        ),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         mainAxisSize: MainAxisSize.min,
@@ -278,11 +289,15 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                           SizedBox(height: context.sp(theme.spacing.lg)),
 
                           UiButton(
-                            label: _isVerifying ? 'Verifying…' : 'Verify & Continue',
+                            label: _isVerifying
+                                ? 'Verifying…'
+                                : 'Verify & Continue',
                             variant: UiVariant.primary,
                             intent: UiIntent.primary,
                             size: UiSize.lg,
-                            onPressed: _isVerifying ? null : () => _handleVerify(),
+                            onPressed: _isVerifying
+                                ? null
+                                : () => _handleVerify(),
                           ),
                         ],
                       ),

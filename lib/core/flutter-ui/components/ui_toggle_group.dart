@@ -123,6 +123,9 @@ class UiToggleGroup<T> extends StatelessWidget {
     final c = theme.colors;
     final BorderRadius radius = context.radius(size.radius(context));
     final bool vertical = orientation == UiOrientation.vertical;
+    final bool effectiveExpand =
+        expand ||
+        (context.uiRes.isMobile && variant != UiToggleGroupVariant.pill);
 
     final List<Widget> items = <Widget>[
       for (int i = 0; i < options.length; i++)
@@ -136,7 +139,10 @@ class UiToggleGroup<T> extends StatelessWidget {
           iconOnly: iconOnly,
           first: i == 0,
           last: i == options.length - 1,
-          onTap: enabled && options[i].enabled && (onChanged != null || onValuesChanged != null)
+          onTap:
+              enabled &&
+                  options[i].enabled &&
+                  (onChanged != null || onValuesChanged != null)
               ? () => _tap(options[i])
               : null,
         ),
@@ -149,10 +155,10 @@ class UiToggleGroup<T> extends StatelessWidget {
             children: items,
           )
         : Row(
-            mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+            mainAxisSize: effectiveExpand ? MainAxisSize.max : MainAxisSize.min,
             children: <Widget>[
               for (final Widget item in items)
-                expand ? Expanded(child: item) : item,
+                effectiveExpand ? Expanded(child: item) : item,
             ],
           );
 
@@ -223,7 +229,7 @@ class UiToggleGroup<T> extends StatelessWidget {
     );
 
     if (!vertical &&
-        !expand &&
+        !effectiveExpand &&
         scrollableOnMobile &&
         variant != UiToggleGroupVariant.pill &&
         context.uiRes.isMobile) {
@@ -293,33 +299,40 @@ class _UiToggleButton<T> extends StatelessWidget {
         curve: theme.motion.curve,
         constraints: BoxConstraints(minHeight: size.height(ctx) - ctx.sz(4)),
         padding: EdgeInsets.symmetric(
-          horizontal: ctx.sp(iconOnly ? theme.spacing.sm : theme.spacing.md) * f,
+          horizontal:
+              ctx.sp(iconOnly ? theme.spacing.sm : theme.spacing.md) * f,
           vertical: ctx.sp(theme.spacing.xs) * f,
         ),
-        alignment: Alignment.center,
+        // Pill groups live inside a Wrap and must hug their label. Supplying
+        // alignment makes AnimatedContainer expand to the full available row,
+        // which turns every chip into an oversized stacked bar.
+        alignment: variant == UiToggleGroupVariant.pill
+            ? null
+            : Alignment.center,
         decoration: BoxDecoration(
           color: !enabled
               ? const Color(0x00000000)
               : selected
-                  ? activeBg
-                  : (s.hovered ? c.surfaceHover : const Color(0x00000000)),
-          borderRadius:
-              variant == UiToggleGroupVariant.underline ? null : radius,
+              ? activeBg
+              : (s.hovered ? c.surfaceHover : const Color(0x00000000)),
+          borderRadius: variant == UiToggleGroupVariant.underline
+              ? null
+              : radius,
           border: variant == UiToggleGroupVariant.pill
               ? Border.all(
                   color: selected ? activeBg : c.border,
                   width: theme.borders.hairline,
                 )
               : variant == UiToggleGroupVariant.underline
-                  ? Border(
-                      bottom: BorderSide(
-                        color: selected
-                            ? (tint?.color(context) ?? c.primary)
-                            : const Color(0x00000000),
-                        width: theme.borders.focus,
-                      ),
-                    )
-                  : null,
+              ? Border(
+                  bottom: BorderSide(
+                    color: selected
+                        ? (tint?.color(context) ?? c.primary)
+                        : const Color(0x00000000),
+                    width: theme.borders.focus,
+                  ),
+                )
+              : null,
           boxShadow: selected && variant == UiToggleGroupVariant.segmented
               ? theme.shadows.sm
               : null,
@@ -335,29 +348,37 @@ class _UiToggleButton<T> extends StatelessWidget {
                 color: !enabled
                     ? c.disabledForeground
                     : selected
-                        ? activeFg
-                        : c.foregroundMuted,
+                    ? activeFg
+                    : c.foregroundMuted,
               ),
               if (!iconOnly) SizedBox(width: ctx.sp(theme.spacing.xs)),
             ],
             if (!iconOnly)
-              Text(
-                option.label,
-                overflow: TextOverflow.ellipsis,
-                style: size.textStyle(ctx).copyWith(
-                      color: !enabled
-                          ? c.disabledForeground
-                          : selected
-                              ? activeFg
-                              : c.foregroundMuted,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    ),
+              Flexible(
+                child: Text(
+                  option.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: size
+                      .textStyle(ctx)
+                      .copyWith(
+                        color: !enabled
+                            ? c.disabledForeground
+                            : selected
+                            ? activeFg
+                            : c.foregroundMuted,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
+                ),
               ),
             if (option.badge != null && !iconOnly) ...<Widget>[
               SizedBox(width: ctx.sp(theme.spacing.xs)),
               Container(
-                padding:
-                    EdgeInsets.symmetric(horizontal: ctx.sp(theme.spacing.xs)),
+                padding: EdgeInsets.symmetric(
+                  horizontal: ctx.sp(theme.spacing.xs),
+                ),
                 decoration: BoxDecoration(
                   color: selected
                       ? activeFg.withValues(alpha: 0.16)
