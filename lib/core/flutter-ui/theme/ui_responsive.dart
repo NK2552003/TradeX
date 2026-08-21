@@ -121,13 +121,17 @@ class UiResponsive {
   }
 
   /// Responsive grid column count helper used by grids/lists.
-  int columns({int mobile = 1, int tablet = 2, int desktop = 3, int large = 4}) =>
-      pick(
-        mobile: mobile,
-        tablet: tablet,
-        desktop: desktop,
-        largeDesktop: large,
-      );
+  int columns({
+    int mobile = 1,
+    int tablet = 2,
+    int desktop = 3,
+    int large = 4,
+  }) => pick(
+    mobile: mobile,
+    tablet: tablet,
+    desktop: desktop,
+    largeDesktop: large,
+  );
 
   static UiResponsive of(
     BuildContext context, {
@@ -144,27 +148,28 @@ class UiResponsive {
       height: height,
       deviceType: type,
       scale: scaleConfig.forType(type),
-      orientation: mq?.orientation ?? (width >= height ? Orientation.landscape : Orientation.portrait),
-      textScaleFactor:
-          raw.clamp(scaleConfig.minTextScale, scaleConfig.maxTextScale),
+      orientation:
+          mq?.orientation ??
+          (width >= height ? Orientation.landscape : Orientation.portrait),
+      textScaleFactor: raw.clamp(
+        scaleConfig.minTextScale,
+        scaleConfig.maxTextScale,
+      ),
     );
   }
 }
 
 /// Renders a different subtree per device class without duplicating logic.
 class UiResponsiveBuilder extends StatelessWidget {
-  const UiResponsiveBuilder({
-    super.key,
-    required this.builder,
-  });
+  const UiResponsiveBuilder({super.key, required this.builder});
 
   final Widget Function(BuildContext context, UiResponsive r) builder;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (BuildContext ctx, BoxConstraints _) =>
-            builder(ctx, UiResponsive.of(ctx)),
-      );
+    builder: (BuildContext ctx, BoxConstraints _) =>
+        builder(ctx, UiResponsive.of(ctx)),
+  );
 }
 
 /// Responsive layout switch.
@@ -184,11 +189,11 @@ class UiResponsiveLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => UiResponsiveBuilder(
-        builder: (BuildContext ctx, UiResponsive r) => r.pick<WidgetBuilder>(
-          mobile: mobile,
-          tablet: tablet,
-          desktop: desktop,
-          largeDesktop: largeDesktop,
-        )(ctx),
-      );
+    builder: (BuildContext ctx, UiResponsive r) => r.pick<WidgetBuilder>(
+      mobile: mobile,
+      tablet: tablet,
+      desktop: desktop,
+      largeDesktop: largeDesktop,
+    )(ctx),
+  );
 }

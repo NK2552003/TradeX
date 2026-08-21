@@ -17,40 +17,35 @@ class UiDateRangePreset {
 
   /// Default preset row used when none is supplied.
   static List<UiDateRangePreset> defaults() => <UiDateRangePreset>[
-        UiDateRangePreset(
-          label: 'Today',
-          resolve: (DateTime n) =>
-              DateTimeRange(start: _day(n), end: _day(n)),
-        ),
-        UiDateRangePreset(
-          label: 'Last 7 days',
-          resolve: (DateTime n) => DateTimeRange(
-            start: _day(n).subtract(const Duration(days: 6)),
-            end: _day(n),
-          ),
-        ),
-        UiDateRangePreset(
-          label: 'Last 30 days',
-          resolve: (DateTime n) => DateTimeRange(
-            start: _day(n).subtract(const Duration(days: 29)),
-            end: _day(n),
-          ),
-        ),
-        UiDateRangePreset(
-          label: 'This month',
-          resolve: (DateTime n) => DateTimeRange(
-            start: DateTime(n.year, n.month),
-            end: _day(n),
-          ),
-        ),
-        UiDateRangePreset(
-          label: 'This year',
-          resolve: (DateTime n) => DateTimeRange(
-            start: DateTime(n.year),
-            end: _day(n),
-          ),
-        ),
-      ];
+    UiDateRangePreset(
+      label: 'Today',
+      resolve: (DateTime n) => DateTimeRange(start: _day(n), end: _day(n)),
+    ),
+    UiDateRangePreset(
+      label: 'Last 7 days',
+      resolve: (DateTime n) => DateTimeRange(
+        start: _day(n).subtract(const Duration(days: 6)),
+        end: _day(n),
+      ),
+    ),
+    UiDateRangePreset(
+      label: 'Last 30 days',
+      resolve: (DateTime n) => DateTimeRange(
+        start: _day(n).subtract(const Duration(days: 29)),
+        end: _day(n),
+      ),
+    ),
+    UiDateRangePreset(
+      label: 'This month',
+      resolve: (DateTime n) =>
+          DateTimeRange(start: DateTime(n.year, n.month), end: _day(n)),
+    ),
+    UiDateRangePreset(
+      label: 'This year',
+      resolve: (DateTime n) =>
+          DateTimeRange(start: DateTime(n.year), end: _day(n)),
+    ),
+  ];
 }
 
 /// Date range picker: a field that opens presets plus a range calendar.
@@ -113,29 +108,29 @@ class UiDateRangePicker extends StatelessWidget {
                               onChanged?.call(p.resolve(DateTime.now()));
                               Navigator.of(ctx).pop();
                             },
-                            builder:
-                                (BuildContext c2, UiInteractiveState s) =>
-                                    Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: c2.sp(theme.spacing.md),
-                                vertical: c2.sp(theme.spacing.xs),
-                              ),
-                              decoration: BoxDecoration(
-                                color: s.hovered
-                                    ? theme.colors.surfaceHover
-                                    : theme.colors.surfaceMuted,
-                                borderRadius: c2.radius(theme.radii.pill),
-                                border: Border.all(
-                                  color: theme.colors.border,
-                                  width: theme.borders.hairline,
+                            builder: (BuildContext c2, UiInteractiveState s) =>
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: c2.sp(theme.spacing.md),
+                                    vertical: c2.sp(theme.spacing.xs),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: s.hovered
+                                        ? theme.colors.surfaceHover
+                                        : theme.colors.surfaceMuted,
+                                    borderRadius: c2.radius(theme.radii.pill),
+                                    border: Border.all(
+                                      color: theme.colors.border,
+                                      width: theme.borders.hairline,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    p.label,
+                                    style: c2.uiText.caption.copyWith(
+                                      color: theme.colors.foreground,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              child: Text(
-                                p.label,
-                                style: c2.uiText.caption
-                                    .copyWith(color: theme.colors.foreground),
-                              ),
-                            ),
                           ),
                       ],
                     ),

@@ -169,15 +169,17 @@ class _UiAsyncViewStateCardState extends State<UiAsyncViewStateCard> {
         if (widget.title != null)
           Text(
             widget.title!,
-            style: context.uiText.subheading
-                .copyWith(color: theme.colors.foreground),
+            style: context.uiText.subheading.copyWith(
+              color: theme.colors.foreground,
+            ),
           ),
         if (widget.subtitle != null) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.xxs)),
           Text(
             widget.subtitle!,
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
         ],
         if (widget.showSwitcher) ...<Widget>[
@@ -189,8 +191,7 @@ class _UiAsyncViewStateCardState extends State<UiAsyncViewStateCard> {
                 UiButton(
                   label: _label(s),
                   size: UiSize.xs,
-                  variant:
-                      _status == s ? UiVariant.soft : UiVariant.outline,
+                  variant: _status == s ? UiVariant.soft : UiVariant.outline,
                   intent: _status == s ? UiIntent.primary : UiIntent.neutral,
                   expandOnMobile: false,
                   onPressed: () {
@@ -209,8 +210,8 @@ class _UiAsyncViewStateCardState extends State<UiAsyncViewStateCard> {
           error: _status == UiStatus.error ? widget.errorMessage : null,
           emptyTitle: widget.emptyTitle,
           emptyMessage: widget.emptyMessage,
-          onRetry: widget.onRetry ??
-              () => setState(() => _status = UiStatus.ready),
+          onRetry:
+              widget.onRetry ?? () => setState(() => _status = UiStatus.ready),
           builder: widget.contentBuilder,
         ),
       ],

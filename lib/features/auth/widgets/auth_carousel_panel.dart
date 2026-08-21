@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-
-import 'package:tradex/core/config/mock_data.dart';
+import 'package:tradex/core/data/demo_data_source.dart';
 
 class AuthCarouselPanel extends StatefulWidget {
   const AuthCarouselPanel({super.key});
@@ -16,6 +15,18 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
   int _currentFeatureIndex = 0;
   bool _carouselForward = true;
   Timer? _carouselTimer;
+
+  /// The sign-in preview renders the same records the signed-in app renders, so
+  /// the shop window cannot advertise a post, strategy or headline that does not
+  /// exist once the reader is inside.
+  final DemoDataSource _demo = DemoDataSource.instance;
+  late final AppPost _post = _demo.posts(limit: 1).first;
+  late final List<AppStrategy> _strategies = _demo
+      .strategies()
+      .take(2)
+      .toList();
+  late final List<AppNewsItem> _news = _demo.news(limit: 2);
+  late final AppAiInsight _insight = _demo.insights(limit: 1).first;
 
   static const List<Map<String, String>> _features = [
     {
@@ -99,36 +110,26 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
     final colors = theme.colors;
 
     final List<Widget> carouselCards = [
-      AppPostCard(post: mockPost),
+      AppPostCard(post: _post),
       Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AppStrategyPerformanceCard(strategy: mockStrategy),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-          AppStrategyPerformanceCard(strategy: mockStrategy2),
+          for (int i = 0; i < _strategies.length; i++) ...[
+            if (i > 0) SizedBox(height: context.sp(theme.spacing.lg)),
+            AppStrategyPerformanceCard(strategy: _strategies[i]),
+          ],
         ],
       ),
       Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AppNewsCard(item: mockNews),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-          AppNewsCard(
-            item: AppNewsItem(
-              id: 'n2',
-              headline:
-                  'Tech sector sees massive inflows as AI rally continues.',
-              source: 'Reuters',
-              publishedAt: DateTime.now().subtract(const Duration(minutes: 90)),
-              sentimentScore: 0.85,
-              tickers: const ['NVDA', 'MSFT'],
-              summary:
-                  'Institutional investors are piling into semiconductors and cloud infrastructure...',
-            ),
-          ),
+          for (int i = 0; i < _news.length; i++) ...[
+            if (i > 0) SizedBox(height: context.sp(theme.spacing.lg)),
+            AppNewsCard(item: _news[i]),
+          ],
         ],
       ),
-      AppAiInsightCard(insight: mockInsight),
+      AppAiInsightCard(insight: _insight),
     ];
 
     return Column(

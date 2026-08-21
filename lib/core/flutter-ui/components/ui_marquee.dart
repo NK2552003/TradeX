@@ -41,8 +41,7 @@ class _UiMarqueeState extends State<UiMarquee>
   void _tick() {
     if (widget.paused || !_scroll.hasClients) return;
     final Duration now = _controller.lastElapsedDuration ?? Duration.zero;
-    final double dt =
-        ((now - _last).inMicroseconds / 1e6).clamp(0.0, 0.05);
+    final double dt = ((now - _last).inMicroseconds / 1e6).clamp(0.0, 0.05);
     _last = now;
     final double max = _scroll.position.maxScrollExtent;
     if (max <= 0) return;

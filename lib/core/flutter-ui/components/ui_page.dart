@@ -15,6 +15,7 @@ class UiPage extends StatelessWidget {
   final Widget child;
   final Widget? header;
   final bool scrollable;
+  /// Content column cap in logical points (scaled internally).
   final double? maxWidth;
 
   @override
@@ -34,7 +35,7 @@ class UiPage extends StatelessWidget {
 
     Widget body = ConstrainedBox(
       constraints: BoxConstraints(
-        maxWidth: maxWidth ?? context.sz(theme.sizes.maxContentWidth),
+        maxWidth: context.sz(maxWidth ?? theme.sizes.maxContentWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -102,7 +103,7 @@ class UiHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: context.uiText.subheading.copyWith(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: context.fs(14),
                   color: theme.colors.foreground,
                 ),
               ),
@@ -113,7 +114,7 @@ class UiHeader extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: context.uiText.caption.copyWith(
-                    fontSize: 11,
+                    fontSize: context.fs(11),
                     color: theme.colors.foregroundMuted,
                   ),
                 ),

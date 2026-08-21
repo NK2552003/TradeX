@@ -31,6 +31,8 @@ class CommunityPage extends StatefulWidget {
     this.profileRepository,
     this.strategyRepository,
     this.watchlistRepository,
+    this.initialPostId,
+    this.initialTraderId,
     this.onOpenSymbol,
     this.onMessageTrader,
   });
@@ -39,6 +41,14 @@ class CommunityPage extends StatefulWidget {
   final ProfileSettingsRepository? profileRepository;
   final StrategyRepository? strategyRepository;
   final WatchlistRepository? watchlistRepository;
+
+  /// Opens this post's detail on arrival, for a hand-off from search or a
+  /// notification.
+  final String? initialPostId;
+
+  /// Opens this person's profile on arrival. Accepts an id or a `@handle`, since
+  /// a mention only ever carries the handle.
+  final String? initialTraderId;
 
   /// Opens the market view for a tapped `$TICKER`.
   final ValueChanged<String>? onOpenSymbol;
@@ -120,6 +130,28 @@ class _CommunityPageState extends State<CommunityPage> {
     await _loadFeed();
     if (!mounted) return;
     setState(() => _loading = false);
+    await _openRequestedDeepLink();
+  }
+
+  /// Honours [CommunityPage.initialPostId] / [CommunityPage.initialTraderId].
+  /// A post wins when both are set: it is the more specific destination, and it
+  /// already names its author.
+  Future<void> _openRequestedDeepLink() async {
+    final String? postId = widget.initialPostId?.trim();
+    if (postId != null && postId.isNotEmpty) {
+      final AppPost? post = await _repo.getPost(postId);
+      if (!mounted) return;
+      if (post != null) {
+        setState(() => _view = _CommunityView.feed);
+        await _openDetail(post);
+        return;
+      }
+    }
+    final String? traderId = widget.initialTraderId?.trim();
+    if (traderId == null || traderId.isEmpty) return;
+    final AppTrader? trader = await _repo.getTrader(traderId);
+    if (!mounted || trader == null) return;
+    await _openTrader(trader);
   }
 
   Future<void> _loadFeed() async {
@@ -434,10 +466,7 @@ class _CommunityPageState extends State<CommunityPage> {
       list: _feedList(),
       detail: open == null
           ? const SizedBox.shrink()
-          : AppFadeIn(
-              key: ValueKey<String>(open.id),
-              child: _postDetail(open),
-            ),
+          : AppFadeIn(key: ValueKey<String>(open.id), child: _postDetail(open)),
     );
   }
 
@@ -447,60 +476,60 @@ class _CommunityPageState extends State<CommunityPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-          UiToggleGroup<CommunityFeedScope>(
-            options: <UiToggleOption<CommunityFeedScope>>[
-              for (final CommunityFeedScope scope in CommunityFeedScope.values)
-                UiToggleOption<CommunityFeedScope>(
-                  value: scope,
-                  label: communityFeedScopeLabel(scope),
-                ),
-            ],
-            value: _scope,
-            variant: UiToggleGroupVariant.underline,
-            expand: context.uiRes.isMobile,
-            onChanged: _setScope,
-          ),
-          UiGap.v(context.ui.spacing.md),
-          UiSearchField(
-            value: _search,
-            hintText: 'Search posts, handles or tickers',
-            loading: _loadingFeed,
-            onChanged: _setSearch,
-          ),
-          UiGap.v(context.ui.spacing.md),
-          if (me != null) ...<Widget>[
-            AppComposerBlock(
-              me: me,
-              submitting: _posting,
-              onAttach: _compose,
-              onSubmit: _compose,
-              onChanged: (String _) {},
-            ),
-            UiGap.v(context.ui.spacing.md),
-          ],
-          if (!context.uiRes.isDesktop && _trending.isNotEmpty) ...<Widget>[
-            _trendingCard(),
-            UiGap.v(context.ui.spacing.md),
-          ],
-          AppFeedBlock(
-            posts: _posts,
-            loading: _loading || _loadingFeed,
-            onOpen: _openDetail,
-            onLike: _toggleLike,
-            onSave: _toggleSave,
-            onComment: _openDetail,
-            onAuthorTap: _openTrader,
-          ),
-          if (!_loading && !_loadingFeed && _posts.isEmpty && _search.isNotEmpty)
-            Padding(
-              padding: EdgeInsets.only(top: context.sp(context.ui.spacing.md)),
-              child: UiButton(
-                label: 'Clear search',
-                variant: UiVariant.ghost,
-                expand: true,
-                onPressed: () => _setSearch(''),
+        UiToggleGroup<CommunityFeedScope>(
+          options: <UiToggleOption<CommunityFeedScope>>[
+            for (final CommunityFeedScope scope in CommunityFeedScope.values)
+              UiToggleOption<CommunityFeedScope>(
+                value: scope,
+                label: communityFeedScopeLabel(scope),
               ),
+          ],
+          value: _scope,
+          variant: UiToggleGroupVariant.underline,
+          expand: context.uiRes.isMobile,
+          onChanged: _setScope,
+        ),
+        UiGap.v(context.ui.spacing.md),
+        UiSearchField(
+          value: _search,
+          hintText: 'Search posts, handles or tickers',
+          loading: _loadingFeed,
+          onChanged: _setSearch,
+        ),
+        UiGap.v(context.ui.spacing.md),
+        if (me != null) ...<Widget>[
+          AppComposerBlock(
+            me: me,
+            submitting: _posting,
+            onAttach: _compose,
+            onSubmit: _compose,
+            onChanged: (String _) {},
+          ),
+          UiGap.v(context.ui.spacing.md),
+        ],
+        if (!context.uiRes.isDesktop && _trending.isNotEmpty) ...<Widget>[
+          _trendingCard(),
+          UiGap.v(context.ui.spacing.md),
+        ],
+        AppFeedBlock(
+          posts: _posts,
+          loading: _loading || _loadingFeed,
+          onOpen: _openDetail,
+          onLike: _toggleLike,
+          onSave: _toggleSave,
+          onComment: _openDetail,
+          onAuthorTap: _openTrader,
+        ),
+        if (!_loading && !_loadingFeed && _posts.isEmpty && _search.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(top: context.sp(context.ui.spacing.md)),
+            child: UiButton(
+              label: 'Clear search',
+              variant: UiVariant.ghost,
+              expand: true,
+              onPressed: () => _setSearch(''),
             ),
+          ),
       ],
     );
   }
@@ -591,8 +620,10 @@ class _CommunityPageState extends State<CommunityPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text('\$${topic.label}',
-                            style: context.uiText.bodyStrong),
+                        Text(
+                          '\$${topic.label}',
+                          style: context.uiText.bodyStrong,
+                        ),
                         Text(
                           '${topic.posts} posts',
                           style: context.uiText.caption.copyWith(

@@ -25,11 +25,7 @@ class AppMotion {
     if (!enabled) return children;
     return List<Widget>.generate(
       children.length,
-      (int i) => AppFadeIn(
-        delay: step * i,
-        offset: offset,
-        child: children[i],
-      ),
+      (int i) => AppFadeIn(delay: step * i, offset: offset, child: children[i]),
     );
   }
 }
@@ -81,8 +77,10 @@ class _AppFadeInState extends State<AppFadeIn>
   @override
   Widget build(BuildContext context) {
     final Curve curve = context.uiMotion.curve;
-    final Animation<double> t =
-        CurvedAnimation(parent: _controller, curve: curve);
+    final Animation<double> t = CurvedAnimation(
+      parent: _controller,
+      curve: curve,
+    );
     return AnimatedBuilder(
       animation: t,
       builder: (BuildContext context, Widget? child) {
@@ -189,12 +187,11 @@ class AppReveal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
-        tween: Tween<double>(begin: 0, end: 1),
-        duration: duration,
-        curve: context.uiMotion.curve,
-        builder: (BuildContext context, double t, Widget? _) =>
-            builder(context, t),
-      );
+    tween: Tween<double>(begin: 0, end: 1),
+    duration: duration,
+    curve: context.uiMotion.curve,
+    builder: (BuildContext context, double t, Widget? _) => builder(context, t),
+  );
 }
 
 /// Expand/collapse with a fade, used by sidebar labels and detail rows.
@@ -212,15 +209,15 @@ class AppCollapse extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AnimatedSize(
-        duration: context.uiMotion.normal,
-        curve: context.uiMotion.curve,
-        alignment: axis == Axis.vertical
-            ? Alignment.topCenter
-            : Alignment.centerLeft,
-        child: AnimatedOpacity(
-          duration: context.uiMotion.normal,
-          opacity: expanded ? 1 : 0,
-          child: expanded ? child : const SizedBox.shrink(),
-        ),
-      );
+    duration: context.uiMotion.normal,
+    curve: context.uiMotion.curve,
+    alignment: axis == Axis.vertical
+        ? Alignment.topCenter
+        : Alignment.centerLeft,
+    child: AnimatedOpacity(
+      duration: context.uiMotion.normal,
+      opacity: expanded ? 1 : 0,
+      child: expanded ? child : const SizedBox.shrink(),
+    ),
+  );
 }

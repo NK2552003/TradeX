@@ -5,6 +5,11 @@ import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/settings/models/connected_account_model.dart';
 
 abstract class ProfileSettingsRepository {
+  /// The profile as last known, without waiting on the wire. Chrome that has to
+  /// paint on the first frame — the top-bar avatar, the sidebar footer — reads
+  /// this so it never shows a blank identity while [getProfile] is in flight.
+  UserProfileModel get cachedProfile;
+
   Future<UserProfileModel> getProfile();
   Future<UserProfileModel> updateProfile({
     String? displayName,
@@ -35,7 +40,8 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     email: 'nitish@tradex.ai',
     displayName: 'Nitish Kumar',
     role: UserRole.customer,
-    bio: 'Quantitative momentum trader focused on US Equities and Crypto breakouts.',
+    bio:
+        'Quantitative momentum trader focused on US Equities and Crypto breakouts.',
     avatarUrl: null,
     experienceLevel: 'Advanced (3-5 years)',
     tradingStyle: 'Swing Trading',
@@ -55,6 +61,10 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       email: 'nitish@privaterelay.appleid.com',
     ),
   ];
+
+  @override
+  UserProfileModel get cachedProfile =>
+      _profile.copyWith(subscriptionTier: AppSession.instance.tier.value.name);
 
   @override
   Future<UserProfileModel> getProfile() async {
@@ -88,7 +98,8 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
   @override
   Future<String> uploadAvatar(Uint8List imageBytes, String contentType) async {
     await Future<void>.delayed(const Duration(milliseconds: 600));
-    final mockUrl = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+    final mockUrl =
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
     _profile = _profile.copyWith(avatarUrl: mockUrl);
     return mockUrl;
   }
@@ -137,11 +148,13 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
   @override
   Future<void> linkConnectedAccount(String provider) async {
     await Future<void>.delayed(const Duration(milliseconds: 400));
-    _connectedAccounts.add(ConnectedAccount(
-      provider: provider,
-      linkedAt: DateTime.now(),
-      email: 'nitish@${provider == 'apple' ? 'icloud.com' : 'gmail.com'}',
-    ));
+    _connectedAccounts.add(
+      ConnectedAccount(
+        provider: provider,
+        linkedAt: DateTime.now(),
+        email: 'nitish@${provider == 'apple' ? 'icloud.com' : 'gmail.com'}',
+      ),
+    );
   }
 
   @override

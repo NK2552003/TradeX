@@ -41,6 +41,7 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
     super.initState();
     _bootstrap();
   }
+
   Future<void> _bootstrap() async {
     final List<Object?> results = await Future.wait<Object?>(<Future<Object?>>[
       _repo.getRiskLimits(),
@@ -89,6 +90,7 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
     next[index] = updated;
     _limits = next;
   }
+
   Future<void> _save(RiskLimit limit) async {
     final double? staged = _drafts[limit.id];
     if (staged == null) return;
@@ -138,6 +140,7 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
       intent: UiIntent.success,
     );
   }
+
   Future<void> _toggle(RiskLimit limit, bool enabled) async {
     if (!enabled) {
       final bool confirmed = await UiDialog.confirm(
@@ -187,6 +190,7 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
     ];
     return parts.join(' · ');
   }
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
@@ -255,6 +259,7 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
       ),
     );
   }
+
   /// Spells out exactly which numbers are about to move, so "save" is never a
   /// blind action.
   Widget _dirtyCallout() {
@@ -514,9 +519,10 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
           for (final AppAuditEntry entry in _history.take(6))
             UiTimelineEntry(
               title: entry.action,
-              subtitle: <String?>[entry.target, entry.actor]
-                  .whereType<String>()
-                  .join(' · '),
+              subtitle: <String?>[
+                entry.target,
+                entry.actor,
+              ].whereType<String>().join(' · '),
               timestamp: AppTokens.relativeTime(entry.at),
               icon: Icons.shield_outlined,
               intent: UiIntent.info,

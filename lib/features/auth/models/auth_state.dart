@@ -23,7 +23,8 @@ class AuthSessionState {
     required this.stage,
     this.role = UserRole.customer,
     this.email = '',
-    this.displayName = 'Nitish Kumar',
+    this.userId = '',
+    this.displayName = '',
     this.hasCompletedOnboarding = false,
     this.profile,
     this.affiliateProfile,
@@ -32,6 +33,11 @@ class AuthSessionState {
   final AuthStage stage;
   final UserRole role;
   final String email;
+
+  /// Account id issued by the backend. Empty until sign-in resolves, which is
+  /// the shell's cue to fall back to the profile repository rather than render a
+  /// stand-in identity.
+  final String userId;
   final String displayName;
   final bool hasCompletedOnboarding;
   final UserProfileModel? profile;
@@ -41,6 +47,7 @@ class AuthSessionState {
     AuthStage? stage,
     UserRole? role,
     String? email,
+    String? userId,
     String? displayName,
     bool? hasCompletedOnboarding,
     UserProfileModel? profile,
@@ -50,6 +57,7 @@ class AuthSessionState {
       stage: stage ?? this.stage,
       role: role ?? this.role,
       email: email ?? this.email,
+      userId: userId ?? this.userId,
       displayName: displayName ?? this.displayName,
       hasCompletedOnboarding:
           hasCompletedOnboarding ?? this.hasCompletedOnboarding,

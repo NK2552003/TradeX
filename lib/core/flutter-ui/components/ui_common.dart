@@ -42,17 +42,16 @@ class UiOption<T> {
     String? badge,
     String? group,
     bool? enabled,
-  }) =>
-      UiOption<T>(
-        value: value ?? this.value,
-        label: label ?? this.label,
-        description: description ?? this.description,
-        icon: icon ?? this.icon,
-        trailingLabel: trailingLabel ?? this.trailingLabel,
-        badge: badge ?? this.badge,
-        group: group ?? this.group,
-        enabled: enabled ?? this.enabled,
-      );
+  }) => UiOption<T>(
+    value: value ?? this.value,
+    label: label ?? this.label,
+    description: description ?? this.description,
+    icon: icon ?? this.icon,
+    trailingLabel: trailingLabel ?? this.trailingLabel,
+    badge: badge ?? this.badge,
+    group: group ?? this.group,
+    enabled: enabled ?? this.enabled,
+  );
 }
 
 /// Shared enums + helpers used across components. Nothing visual is hardcoded;
@@ -198,7 +197,10 @@ extension UiSizeX on UiSize {
   }
 
   /// Inner gap between icon and label.
-  double gap(BuildContext context, {UiDensity density = UiDensity.comfortable}) {
+  double gap(
+    BuildContext context, {
+    UiDensity density = UiDensity.comfortable,
+  }) {
     final sp = context.uiSpace;
     final double f = density.factor;
     switch (this) {
@@ -364,14 +366,13 @@ class UiInteractiveState {
     bool? focused,
     bool? enabled,
     bool? selected,
-  }) =>
-      UiInteractiveState(
-        hovered: hovered ?? this.hovered,
-        pressed: pressed ?? this.pressed,
-        focused: focused ?? this.focused,
-        enabled: enabled ?? this.enabled,
-        selected: selected ?? this.selected,
-      );
+  }) => UiInteractiveState(
+    hovered: hovered ?? this.hovered,
+    pressed: pressed ?? this.pressed,
+    focused: focused ?? this.focused,
+    enabled: enabled ?? this.enabled,
+    selected: selected ?? this.selected,
+  );
 }
 
 /// Wraps a child with hover / press / focus state without any styling opinion.
@@ -439,7 +440,8 @@ class _UiInteractiveState extends State<UiInteractive> {
   Widget build(BuildContext context) {
     final bool tappable =
         widget.enabled && (widget.onTap != null || widget.onLongPress != null);
-    final UiInteractiveState state = widget.forceState ??
+    final UiInteractiveState state =
+        widget.forceState ??
         UiInteractiveState(
           hovered: _hovered,
           pressed: _pressed,
@@ -457,8 +459,9 @@ class _UiInteractiveState extends State<UiInteractive> {
         enabled: widget.enabled,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
-        mouseCursor:
-            widget.enabled ? widget.cursor : SystemMouseCursors.forbidden,
+        mouseCursor: widget.enabled
+            ? widget.cursor
+            : SystemMouseCursors.forbidden,
         onShowHoverHighlight: _setHover,
         onShowFocusHighlight: _setFocus,
         shortcuts: const <ShortcutActivator, Intent>{
@@ -498,24 +501,26 @@ BoxDecoration uiFocusRing(
   BuildContext context,
   BorderRadius radius, {
   Color? color,
-}) =>
-    BoxDecoration(
-      borderRadius: radius,
-      border: Border.all(
-        color: color ?? context.uiColors.focusRing,
-        width: context.ui.borders.focus,
-      ),
-    );
+}) => BoxDecoration(
+  borderRadius: radius,
+  border: Border.all(
+    color: color ?? context.uiColors.focusRing,
+    width: context.ui.borders.focus,
+  ),
+);
 
 /// Soft outer glow used for emphasis surfaces (primary buttons, active cards).
-List<BoxShadow> uiGlow(BuildContext context, Color color, {double alpha = 0.28}) =>
-    <BoxShadow>[
-      BoxShadow(
-        color: color.withValues(alpha: alpha),
-        blurRadius: context.sz(18),
-        offset: Offset(0, context.sz(6)),
-      ),
-    ];
+List<BoxShadow> uiGlow(
+  BuildContext context,
+  Color color, {
+  double alpha = 0.28,
+}) => <BoxShadow>[
+  BoxShadow(
+    color: color.withValues(alpha: alpha),
+    blurRadius: context.sz(18),
+    offset: Offset(0, context.sz(6)),
+  ),
+];
 
 /// Subtle top-lit gradient applied to elevated surfaces.
 LinearGradient uiSurfaceGradient(Color base, {double lift = 0.05}) =>
@@ -566,8 +571,7 @@ String uiGrouped(
     if (i > 0 && (whole.length - i) % 3 == 0) out.write(groupSeparator);
     out.write(whole[i]);
   }
-  final String body =
-      parts.length > 1 ? '$out.${parts[1]}' : out.toString();
+  final String body = parts.length > 1 ? '$out.${parts[1]}' : out.toString();
   final String sign = negative ? '-' : (signed ? '+' : '');
   return '$sign$prefix$body$suffix';
 }

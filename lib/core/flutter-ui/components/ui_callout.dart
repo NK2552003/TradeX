@@ -59,8 +59,9 @@ class UiCallout extends StatelessWidget {
                   SizedBox(height: context.sp(theme.spacing.xs)),
                   Text(
                     message!,
-                    style: context.uiText.body
-                        .copyWith(color: theme.colors.foregroundMuted),
+                    style: context.uiText.body.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
                   ),
                 ],
                 if (action != null) ...<Widget>[

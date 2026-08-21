@@ -44,31 +44,28 @@ class UiDatePicker extends StatelessWidget {
 
   Future<void> _open(BuildContext context) async {
     final theme = context.ui;
-    await showModalBottomSheet<void>(
+    await showDialog<void>(
       context: context,
-      backgroundColor: Colors.transparent,
       barrierColor: theme.colors.overlay,
-      isScrollControlled: true,
-      builder: (BuildContext ctx) => SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(ctx.sp(theme.spacing.lg)),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: ctx.sz(420)),
-            child: UiCalendar(
-              selected: value,
-              range: range,
-              rangeMode: rangeMode,
-              firstDate: firstDate,
-              lastDate: lastDate,
-              onDateSelected: (DateTime d) {
-                onChanged?.call(d);
-                Navigator.of(ctx).pop();
-              },
-              onRangeSelected: (DateTimeRange r) {
-                onRangeChanged?.call(r);
-                Navigator.of(ctx).pop();
-              },
-            ),
+      builder: (BuildContext ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.all(ctx.sp(theme.spacing.md)),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: ctx.sz(380)),
+          child: UiCalendar(
+            selected: value,
+            range: range,
+            rangeMode: rangeMode,
+            firstDate: firstDate,
+            lastDate: lastDate,
+            onDateSelected: (DateTime d) {
+              onChanged?.call(d);
+              Navigator.of(ctx).pop();
+            },
+            onRangeSelected: (DateTimeRange r) {
+              onRangeChanged?.call(r);
+              Navigator.of(ctx).pop();
+            },
           ),
         ),
       ),

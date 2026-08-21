@@ -40,7 +40,9 @@ class SupabaseConfig {
           supabaseAnonKey.isEmpty ||
           supabaseUrl.contains('placeholder.supabase.co') ||
           supabaseAnonKey.contains('placeholder')) {
-        debugPrint('[SupabaseConfig] Supabase running in local mock mode (URL/Key unconfigured or placeholder).');
+        debugPrint(
+          '[SupabaseConfig] Supabase running in local mock mode (URL/Key unconfigured or placeholder).',
+        );
         _isInitialized = false;
         return;
       }
@@ -51,10 +53,14 @@ class SupabaseConfig {
         debug: kDebugMode,
       );
       _isInitialized = true;
-      debugPrint('[SupabaseConfig] Supabase SDK successfully initialized for $supabaseUrl.');
+      debugPrint(
+        '[SupabaseConfig] Supabase SDK successfully initialized for $supabaseUrl.',
+      );
     } catch (e, stack) {
       _isInitialized = false;
-      debugPrint('[SupabaseConfig] Failed to initialize Supabase SDK: $e\n$stack');
+      debugPrint(
+        '[SupabaseConfig] Failed to initialize Supabase SDK: $e\n$stack',
+      );
     }
   }
 

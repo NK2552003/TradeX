@@ -1,99 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
 
-final AppTrader _mockTrader = AppTrader(
-  id: 'u1',
-  handle: 'quantqueen',
-  displayName: 'Ava Chen',
-  avatarUrl: 'https://i.pravatar.cc/150?img=32',
-  tier: AppTier.premium,
-  verified: true,
-  bio: 'Swing trading tech and semis.',
-);
-
-final List<UiCandle> _mockCandles = List.generate(24, (i) {
-  final double open = 220.0 + (i % 5) * 2 - (i % 3) * 1.5;
-  final double close = open + (i % 2 == 0 ? 3.5 : -2.5);
-  final double high = (open > close ? open : close) + 2.0;
-  final double low = (open < close ? open : close) - 1.5;
-  return UiCandle(
-    time: DateTime.now().subtract(Duration(days: 24 - i)),
-    open: open,
-    high: high,
-    low: low,
-    close: close,
-    volume: 1000.0 + (i * 200),
-  );
-});
-
-final AppPost _mockPost = AppPost(
-  id: 'p1',
-  author: _mockTrader,
-  body:
-      'Rotated out of TSLA into AAPL today. Structure is incredibly clean on the 4H.',
-  createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
-  tickers: const <String>['AAPL', 'TSLA'],
-  attachments: [
-    AppPostChartAttachment(_mockCandles),
-    const AppPostStrategyAttachment('ORB Breakout Masterclass', locked: true),
-  ],
-  likes: 214,
-  comments: 18,
-  liked: true,
-);
-
-final AppStrategy _mockStrategy = AppStrategy(
-  id: 's1',
-  name: 'ORB Breakout',
-  category: 'bullish',
-  summary: '',
-  isPublic: true,
-  trades: 128,
-  winRate: 61,
-  avgR: 2.1,
-  netPnl: 8420,
-  updatedAt: DateTime.now(),
-  equityCurve: const [2, 3, 4, 3, 5, 6, 8, 7, 9, 12, 11, 15],
-);
-
-final AppStrategy _mockStrategy2 = AppStrategy(
-  id: 's2',
-  name: 'Gap Fade',
-  category: 'bearish',
-  summary: '',
-  isPublic: true,
-  trades: 40,
-  winRate: 35,
-  avgR: -0.4,
-  netPnl: -1120,
-  updatedAt: DateTime.now(),
-  equityCurve: const [15, 14, 14.5, 13, 11, 10, 11, 9, 8, 7, 6, 4],
-);
-
-final AppNewsItem _mockNews = AppNewsItem(
-  id: 'n1',
-  headline:
-      'Federal Reserve holds interest rates steady, signals potential cuts later this year.',
-  source: 'Bloomberg',
-  publishedAt: DateTime.now().subtract(const Duration(minutes: 45)),
-  sentimentScore: 0.65,
-  tickers: const ['SPY', 'QQQ'],
-  summary:
-      'In a widely expected move, the central bank maintained its benchmark rate at 5.25%-5.50%.',
-);
-
-final AppAiInsight _mockInsight = AppAiInsight(
-  id: 'ai1',
-  title: 'Pattern Detected: Bull Flag',
-  body:
-      'NVDA is forming a tight bull flag on the 1H chart with decreasing volume. Watch for a breakout above \$120 with high volume confirmation.',
-  confidence: 0.88,
-  sentimentScore: 0.8,
-  tickers: const ['NVDA'],
-  createdAt: DateTime.now().subtract(const Duration(minutes: 15)),
-);
+/// Records for the marketing preview. They come from the same source the
+/// signed-in app reads, so the landing page cannot show a US ticker or a strategy
+/// that does not exist once the reader is inside an Indian-market workspace.
+final DemoDataSource _demo = DemoDataSource.instance;
+final AppPost _previewPost = _demo.posts(limit: 1).first;
+final List<AppStrategy> _previewStrategies = _demo
+    .strategies()
+    .take(2)
+    .toList();
+final AppNewsItem _previewNews = _demo.news(limit: 1).first;
+final AppAiInsight _previewInsight = _demo.insights(limit: 1).first;
 
 class GetStartedPage extends StatefulWidget {
   const GetStartedPage({
@@ -500,7 +421,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
               width: colWidth,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [AppPostCard(post: _mockPost)],
+                children: [AppPostCard(post: _previewPost)],
               ),
             ),
 
@@ -532,9 +453,10 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     onChanged: (v) {},
                   ),
                   SizedBox(height: spacing),
-                  AppStrategyPerformanceCard(strategy: _mockStrategy),
-                  SizedBox(height: spacing),
-                  AppStrategyPerformanceCard(strategy: _mockStrategy2),
+                  for (int i = 0; i < _previewStrategies.length; i++) ...[
+                    if (i > 0) SizedBox(height: spacing),
+                    AppStrategyPerformanceCard(strategy: _previewStrategies[i]),
+                  ],
                 ],
               ),
             ),
@@ -545,9 +467,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  AppNewsCard(item: _mockNews),
+                  AppNewsCard(item: _previewNews),
                   SizedBox(height: spacing),
-                  AppAiInsightCard(insight: _mockInsight),
+                  AppAiInsightCard(insight: _previewInsight),
                 ],
               ),
             ),

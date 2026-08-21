@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/data/session_trader.dart';
 // ignore: unused_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
@@ -56,11 +56,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
       'application' => UserRole.affiliate,
       _ => UserRole.customer,
     };
+    // Identity is empty until the backend resolves a profile. The only literals
+    // here belong to the debug `?preview=` deep link, which has no account to
+    // read from and must still key an affiliate application consistently.
     _sessionState = AuthSessionState(
       stage: initialStage,
       role: initialRole,
       email: preview == null ? '' : 'design.preview@tradex.local',
-      displayName: preview == null ? 'Nitish Kumar' : 'Design Preview',
+      userId: preview == null ? '' : 'usr_design_preview',
+      displayName: preview == null ? '' : 'Design Preview',
     );
   }
 
@@ -90,31 +94,22 @@ class _AuthWrapperState extends State<AuthWrapper> {
     });
   }
 
-  AppTier _resolveSubscriptionTier(String? value) => switch (value) {
-    'premium' || 'pro' => AppTier.premium,
-    'enterprise' => AppTier.enterprise,
-    _ => AppTier.free,
-  };
-
   @override
   Widget build(BuildContext context) {
     if (_sessionState.stage == AuthStage.authenticated) {
       final activeProfile =
           _sessionState.profile ??
           SupabaseAuthBackendService.instance.currentUserProfile;
+      // The profile the backend returned is the only source for identity and
+      // entitlement; the session state is the fallback while it is still in
+      // flight, and neither is allowed a hardcoded stand-in.
       return AppScaffold(
         userRole: _sessionState.role,
-        userId: activeProfile?.id ?? 'usr_demo_active',
+        userId: activeProfile?.id ?? _sessionState.userId,
         userDisplayName:
             activeProfile?.displayName ?? _sessionState.displayName,
-        subscriptionTier: _resolveSubscriptionTier(
-          activeProfile?.subscriptionTier,
-        ),
-        userEmail:
-            activeProfile?.email ??
-            (_sessionState.email.isNotEmpty
-                ? _sessionState.email
-                : 'nitish@tradex.ai'),
+        subscriptionTier: appTierFromId(activeProfile?.subscriptionTier ?? ''),
+        userEmail: activeProfile?.email ?? _sessionState.email,
         onLogout: _handleLogout,
         onRoleChanged: _handleSwitchRole,
         onReturnToAuth: () => _navigateToStage(AuthStage.login),
@@ -199,7 +194,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 _sessionState.profile ??
                 SupabaseAuthBackendService.instance.currentUserProfile;
             return AffiliateApplicationPage(
-              userId: activeProfile?.id ?? 'usr_affiliate_applicant',
+              userId: activeProfile?.id ?? _sessionState.userId,
               email: activeProfile?.email ?? _sessionState.email,
               displayName:
                   activeProfile?.displayName ?? _sessionState.displayName,

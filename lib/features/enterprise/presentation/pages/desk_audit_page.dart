@@ -44,6 +44,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
     super.initState();
     _bootstrap();
   }
+
   Future<void> _bootstrap() async {
     final List<Object?> results = await Future.wait<Object?>(<Future<Object?>>[
       _repo.getAuditLog(from: _from),
@@ -96,6 +97,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
       _filtering = false;
     });
   }
+
   Future<void> _export() async {
     setState(() => _exporting = true);
     final String file = await _repo.exportAuditLog(
@@ -106,7 +108,10 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
     if (!mounted) return;
     setState(() => _exporting = false);
     // The export itself is an audited action, so the trail is re-read.
-    await Future.wait<void>(<Future<void>>[_reload(silent: true), _refreshActors()]);
+    await Future.wait<void>(<Future<void>>[
+      _reload(silent: true),
+      _refreshActors(),
+    ]);
     if (!mounted) return;
     UiToast.show(
       context,
@@ -153,6 +158,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
     ];
     return parts.join(' · ');
   }
+
   /// Toggles an actor filter. Tapping the actor already applied clears it, so
   /// the table can be narrowed and widened from the rows themselves.
   void _filterActor(String actor) {
@@ -195,11 +201,10 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
       final String bucket = key(entry);
       counts[bucket] = (counts[bucket] ?? 0) + 1;
     }
-    return counts.entries.toList()
-      ..sort(
-        (MapEntry<String, int> a, MapEntry<String, int> b) =>
-            b.value.compareTo(a.value),
-      );
+    return counts.entries.toList()..sort(
+      (MapEntry<String, int> a, MapEntry<String, int> b) =>
+          b.value.compareTo(a.value),
+    );
   }
 
   DateTime? get _latestAt => _rows.isEmpty
@@ -267,6 +272,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
       ),
     );
   }
+
   /// Headline numbers for the current filter set, plus the mix of action kinds
   /// so an admin can see at a glance what the desk has been doing.
   Widget _pulseCard() {
@@ -311,6 +317,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
       ),
     );
   }
+
   /// Two columns on a phone, four from tablet up, so the figures never wrap
   /// into an unreadable single file.
   Widget _figures(List<({String label, String value})> figures) {
@@ -355,6 +362,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
       },
     );
   }
+
   /// Mix of action kinds in the current window. Anything past the top five is
   /// folded into one segment so the bar stays legible on a phone.
   Widget _actionMix() {
@@ -384,6 +392,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
       ],
     );
   }
+
   Widget _trailCard() {
     final UiTheme theme = context.ui;
     return UiCard(
@@ -425,6 +434,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
       ),
     );
   }
+
   Widget _filters() {
     final UiTheme theme = context.ui;
     final Widget search = UiInput.search(
@@ -508,6 +518,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
       ],
     );
   }
+
   List<UiTableColumn<AppAuditEntry>> _columns() {
     final UiTheme theme = context.ui;
     return <UiTableColumn<AppAuditEntry>>[
@@ -603,6 +614,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
       ),
     ];
   }
+
   /// Icon chosen from what the action mentions, so an action the backend adds
   /// later still renders sensibly instead of showing nothing.
   static IconData _actionIcon(String action) {
@@ -632,6 +644,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
     }
     return Icons.bolt_outlined;
   }
+
   /// Row-level shortcuts. Everything here is read-only — an audit trail is
   /// never editable from the console.
   Widget _rowMenu(AppAuditEntry entry) => UiDropdownMenu(
@@ -681,6 +694,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
       ),
     ),
   );
+
   /// Who is generating the privileged actions. Tapping a bar filters the table
   /// to that actor, which is the question this card usually raises.
   Widget _actorCard() {
@@ -726,6 +740,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
       ),
     );
   }
+
   /// Retention is a plan property, so the console states it plainly and shows
   /// how much of the window the entries in view actually cover.
   Widget _retentionCard() {
@@ -773,6 +788,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
       ),
     );
   }
+
   Widget _policyAccordion() => UiAccordion(
     items: <UiAccordionItem>[
       UiAccordionItem(
@@ -843,6 +859,7 @@ class _DeskAuditPageState extends State<DeskAuditPage> {
     );
   }
 }
+
 /// What the detail sheet asks the page to do once it closes, so navigation and
 /// clipboard work stay in the page instead of inside the dialog.
 enum _EntryAction { copy, filterActor, openTeam, openRisk }
@@ -863,7 +880,8 @@ class _EntrySheet extends StatelessWidget {
     final UiTheme theme = context.ui;
     return UiDialog(
       title: entry.action,
-      description: '${AppTokens.stamp(entry.at)} · ${AppTokens.relativeTime(entry.at)}',
+      description:
+          '${AppTokens.stamp(entry.at)} · ${AppTokens.relativeTime(entry.at)}',
       icon: Icons.receipt_long_outlined,
       intent: UiIntent.info,
       content: Flexible(
@@ -916,6 +934,7 @@ class _EntrySheet extends StatelessWidget {
       ),
     );
   }
+
   Widget _detail(BuildContext context, String label, String value) {
     final UiTheme theme = context.ui;
     return Padding(
@@ -933,13 +952,12 @@ class _EntrySheet extends StatelessWidget {
             ),
           ),
           SizedBox(width: context.sp(theme.spacing.sm)),
-          Expanded(
-            child: SelectableText(value, style: context.uiText.body),
-          ),
+          Expanded(child: SelectableText(value, style: context.uiText.body)),
         ],
       ),
     );
   }
+
   Widget _action(
     BuildContext context, {
     required IconData icon,

@@ -50,11 +50,13 @@ class NotificationPrefsModel {
 
   factory NotificationPrefsModel.fromJson(Map<String, dynamic> json) {
     return NotificationPrefsModel(
-      pushByCategory: (json['push_by_category'] as Map<String, dynamic>?)?.map(
+      pushByCategory:
+          (json['push_by_category'] as Map<String, dynamic>?)?.map(
             (k, v) => MapEntry(k, v as bool? ?? false),
           ) ??
           NotificationPrefsModel.defaultPrefs().pushByCategory,
-      emailByCategory: (json['email_by_category'] as Map<String, dynamic>?)?.map(
+      emailByCategory:
+          (json['email_by_category'] as Map<String, dynamic>?)?.map(
             (k, v) => MapEntry(k, v as bool? ?? false),
           ) ??
           NotificationPrefsModel.defaultPrefs().emailByCategory,

@@ -77,23 +77,23 @@ class UiInput extends StatefulWidget {
     this.intent,
     this.semanticLabel,
     this.expand = true,
-  })  : leadingIcon = null,
-        trailingIcon = null,
-        onTrailingTap = null,
-        onSubmitted = null,
-        onClear = null,
-        leading = null,
-        trailing = null,
-        obscure = false,
-        keyboardType = TextInputType.multiline,
-        inputFormatters = null,
-        textInputAction = TextInputAction.newline,
-        textAlign = TextAlign.start,
-        clearable = false,
-        loading = false,
-        prefixText = null,
-        suffixText = null,
-        suffix = null;
+  }) : leadingIcon = null,
+       trailingIcon = null,
+       onTrailingTap = null,
+       onSubmitted = null,
+       onClear = null,
+       leading = null,
+       trailing = null,
+       obscure = false,
+       keyboardType = TextInputType.multiline,
+       inputFormatters = null,
+       textInputAction = TextInputAction.newline,
+       textAlign = TextAlign.start,
+       clearable = false,
+       loading = false,
+       prefixText = null,
+       suffixText = null,
+       suffix = null;
 
   /// Search variant used on discovery / symbol lookup screens.
   const UiInput.search({
@@ -114,27 +114,27 @@ class UiInput extends StatefulWidget {
     this.focusNode,
     this.semanticLabel,
     this.expand = true,
-  })  : leadingIcon = Icons.search,
-        trailingIcon = null,
-        onTrailingTap = null,
-        leading = null,
-        trailing = null,
-        obscure = false,
-        readOnly = false,
-        error = false,
-        validation = UiValidationState.none,
-        maxLines = 1,
-        minLines = null,
-        keyboardType = TextInputType.text,
-        inputFormatters = null,
-        textInputAction = TextInputAction.search,
-        textAlign = TextAlign.start,
-        maxLength = null,
-        showCounter = false,
-        prefixText = null,
-        suffixText = null,
-        suffix = null,
-        intent = null;
+  }) : leadingIcon = Icons.search,
+       trailingIcon = null,
+       onTrailingTap = null,
+       leading = null,
+       trailing = null,
+       obscure = false,
+       readOnly = false,
+       error = false,
+       validation = UiValidationState.none,
+       maxLines = 1,
+       minLines = null,
+       keyboardType = TextInputType.text,
+       inputFormatters = null,
+       textInputAction = TextInputAction.search,
+       textAlign = TextAlign.start,
+       maxLength = null,
+       showCounter = false,
+       prefixText = null,
+       suffixText = null,
+       suffix = null,
+       intent = null;
 
   /// Numeric order-entry variant (quantity, price, leverage).
   UiInput.number({
@@ -154,29 +154,31 @@ class UiInput extends StatefulWidget {
     Widget? trailing,
     bool decimals = true,
   }) : this(
-          key: key,
-          controller: controller,
-          hintText: hintText,
-          value: value,
-          onChanged: onChanged,
-          enabled: enabled,
-          readOnly: readOnly,
-          validation: validation,
-          variant: variant,
-          size: size,
-          density: density,
-          prefixText: prefixText,
-          suffixText: suffixText,
-          trailing: trailing,
-          textAlign: TextAlign.end,
-          keyboardType:
-              TextInputType.numberWithOptions(decimal: decimals, signed: true),
-          inputFormatters: <TextInputFormatter>[
-            FilteringTextInputFormatter.allow(
-              decimals ? RegExp(r'[0-9.\-]') : RegExp(r'[0-9\-]'),
-            ),
-          ],
-        );
+         key: key,
+         controller: controller,
+         hintText: hintText,
+         value: value,
+         onChanged: onChanged,
+         enabled: enabled,
+         readOnly: readOnly,
+         validation: validation,
+         variant: variant,
+         size: size,
+         density: density,
+         prefixText: prefixText,
+         suffixText: suffixText,
+         trailing: trailing,
+         textAlign: TextAlign.end,
+         keyboardType: TextInputType.numberWithOptions(
+           decimal: decimals,
+           signed: true,
+         ),
+         inputFormatters: <TextInputFormatter>[
+           FilteringTextInputFormatter.allow(
+             decimals ? RegExp(r'[0-9.\-]') : RegExp(r'[0-9\-]'),
+           ),
+         ],
+       );
 
   final TextEditingController? controller;
   final String? hintText;
@@ -240,9 +242,8 @@ class _UiInputState extends State<UiInput> {
   bool _hovered = false;
   bool _obscured = true;
 
-  UiValidationState get _validation => widget.error
-      ? UiValidationState.invalid
-      : widget.validation;
+  UiValidationState get _validation =>
+      widget.error ? UiValidationState.invalid : widget.validation;
 
   @override
   void initState() {
@@ -348,9 +349,7 @@ class _UiInputState extends State<UiInput> {
         minHeight: multiline ? 0 : widget.size.height(context) * f,
       ),
       padding: EdgeInsets.symmetric(
-        horizontal: underline
-            ? 0
-            : context.sp(theme.spacing.md) * f,
+        horizontal: underline ? 0 : context.sp(theme.spacing.md) * f,
         vertical: multiline ? context.sp(theme.spacing.md) * f : 0,
       ),
       decoration: BoxDecoration(
@@ -362,7 +361,9 @@ class _UiInputState extends State<UiInput> {
                   color: borderColor == Colors.transparent
                       ? c.border
                       : borderColor,
-                  width: _focused ? theme.borders.thick : theme.borders.hairline,
+                  width: _focused
+                      ? theme.borders.thick
+                      : theme.borders.hairline,
                 ),
               )
             : Border.all(
@@ -375,8 +376,9 @@ class _UiInputState extends State<UiInput> {
       ),
       child: Row(
         mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,
-        crossAxisAlignment:
-            multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        crossAxisAlignment: multiline
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: <Widget>[
           if (widget.leading != null) ...<Widget>[
             widget.leading!,
@@ -474,7 +476,11 @@ class _UiInputState extends State<UiInput> {
             )
           else if (_validationIcon != null) ...<Widget>[
             SizedBox(width: context.sp(theme.spacing.xs)),
-            Icon(_validationIcon, size: widget.size.icon(context), color: accent),
+            Icon(
+              _validationIcon,
+              size: widget.size.icon(context),
+              color: accent,
+            ),
           ],
           if (widget.trailing != null) ...<Widget>[
             SizedBox(width: context.sp(theme.spacing.sm)),
@@ -487,7 +493,9 @@ class _UiInputState extends State<UiInput> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      cursor: widget.enabled ? SystemMouseCursors.text : SystemMouseCursors.basic,
+      cursor: widget.enabled
+          ? SystemMouseCursors.text
+          : SystemMouseCursors.basic,
       child: Semantics(
         textField: true,
         label: widget.semanticLabel ?? widget.hintText,
@@ -497,36 +505,35 @@ class _UiInputState extends State<UiInput> {
   }
 
   Widget _textField(BuildContext context, UiColors c) => TextField(
-        controller: _controller,
-        focusNode: _focus,
-        enabled: widget.enabled,
-        readOnly: widget.readOnly,
-        autofocus: widget.autofocus,
-        obscureText: widget.obscure && _obscured,
-        maxLines: widget.maxLines,
-        minLines: widget.minLines,
-        maxLength: widget.maxLength,
-        keyboardType: widget.keyboardType,
-        inputFormatters: widget.inputFormatters,
-        textInputAction: widget.textInputAction,
-        textAlign: widget.textAlign,
-        onChanged: widget.onChanged,
-        onSubmitted: widget.onSubmitted,
-        cursorColor: _accent(context),
-        style: context.uiText.body.copyWith(
-          color: widget.enabled ? c.foreground : c.disabledForeground,
-        ),
-        decoration: InputDecoration(
-          isDense: true,
-          counterText: '',
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-          hintText: widget.hintText,
-          hintStyle:
-              context.uiText.body.copyWith(color: c.foregroundSubtle),
-        ),
-      );
+    controller: _controller,
+    focusNode: _focus,
+    enabled: widget.enabled,
+    readOnly: widget.readOnly,
+    autofocus: widget.autofocus,
+    obscureText: widget.obscure && _obscured,
+    maxLines: widget.maxLines,
+    minLines: widget.minLines,
+    maxLength: widget.maxLength,
+    keyboardType: widget.keyboardType,
+    inputFormatters: widget.inputFormatters,
+    textInputAction: widget.textInputAction,
+    textAlign: widget.textAlign,
+    onChanged: widget.onChanged,
+    onSubmitted: widget.onSubmitted,
+    cursorColor: _accent(context),
+    style: context.uiText.body.copyWith(
+      color: widget.enabled ? c.foreground : c.disabledForeground,
+    ),
+    decoration: InputDecoration(
+      isDense: true,
+      counterText: '',
+      border: InputBorder.none,
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+      disabledBorder: InputBorder.none,
+      contentPadding: EdgeInsets.zero,
+      hintText: widget.hintText,
+      hintStyle: context.uiText.body.copyWith(color: c.foregroundSubtle),
+    ),
+  );
 }

@@ -6,8 +6,8 @@ class AppThemeController extends ChangeNotifier {
   AppThemeController([
     ThemeMode initialMode = ThemeMode.dark,
     String initialDensity = 'Comfortable',
-  ])  : _mode = initialMode,
-        _density = initialDensity;
+  ]) : _mode = initialMode,
+       _density = initialDensity;
 
   ThemeMode _mode;
   String _density;
@@ -17,10 +17,12 @@ class AppThemeController extends ChangeNotifier {
   String get density => _density;
 
   static AppThemeController of(BuildContext context) {
-    final AppThemeScope? scope =
-        context.dependOnInheritedWidgetOfExactType<AppThemeScope>();
+    final AppThemeScope? scope = context
+        .dependOnInheritedWidgetOfExactType<AppThemeScope>();
     if (scope == null) {
-      throw FlutterError('AppThemeController.of() called with a context that does not contain an AppThemeScope.');
+      throw FlutterError(
+        'AppThemeController.of() called with a context that does not contain an AppThemeScope.',
+      );
     }
     return scope.controller;
   }
@@ -57,4 +59,3 @@ class AppThemeScope extends InheritedNotifier<AppThemeController> {
 
   AppThemeController get controller => notifier!;
 }
-

@@ -187,13 +187,17 @@ class _UiTableState<T> extends State<UiTable<T>> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(Icons.error_outline,
-                  color: theme.colors.bearish, size: context.sz(theme.sizes.iconLg)),
+              Icon(
+                Icons.error_outline,
+                color: theme.colors.bearish,
+                size: context.sz(theme.sizes.iconLg),
+              ),
               SizedBox(height: context.sp(theme.spacing.sm)),
               Text(
                 widget.errorText!,
-                style: context.uiText.body
-                    .copyWith(color: theme.colors.foregroundMuted),
+                style: context.uiText.body.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
               ),
             ],
           ),
@@ -207,8 +211,9 @@ class _UiTableState<T> extends State<UiTable<T>> {
             Padding(
               padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
               child: UiSkeleton(
-                  width: double.infinity,
-                  height: theme.sizes.controlHeightMd),
+                width: double.infinity,
+                height: theme.sizes.controlHeightMd,
+              ),
             ),
         ],
       );
@@ -219,8 +224,9 @@ class _UiTableState<T> extends State<UiTable<T>> {
         child: Center(
           child: Text(
             widget.emptyLabel,
-            style: context.uiText.body
-                .copyWith(color: theme.colors.foregroundSubtle),
+            style: context.uiText.body.copyWith(
+              color: theme.colors.foregroundSubtle,
+            ),
           ),
         ),
       );
@@ -234,8 +240,9 @@ class _UiTableState<T> extends State<UiTable<T>> {
           for (final T row in visibleRows)
             UiInteractive(
               enabled: widget.onRowTap != null,
-              onTap:
-                  widget.onRowTap == null ? null : () => widget.onRowTap!(row),
+              onTap: widget.onRowTap == null
+                  ? null
+                  : () => widget.onRowTap!(row),
               builder: (BuildContext ctx, UiInteractiveState s) => Container(
                 margin: EdgeInsets.only(bottom: ctx.sp(theme.spacing.sm)),
                 padding: EdgeInsets.all(ctx.sp(theme.spacing.lg)),
@@ -253,8 +260,9 @@ class _UiTableState<T> extends State<UiTable<T>> {
                   children: <Widget>[
                     for (final UiTableColumn<T> col in widget.columns)
                       Padding(
-                        padding:
-                            EdgeInsets.only(bottom: ctx.sp(theme.spacing.xs)),
+                        padding: EdgeInsets.only(
+                          bottom: ctx.sp(theme.spacing.xs),
+                        ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
@@ -294,10 +302,12 @@ class _UiTableState<T> extends State<UiTable<T>> {
             SizedBox(
               width: context.sz(theme.sizes.controlHeightXs),
               child: UiCheckbox(
-                value: visibleRows.isNotEmpty &&
+                value:
+                    visibleRows.isNotEmpty &&
                     visibleRows.every(_selected.contains),
-                onChanged: (bool v) => widget.onSelectionChanged
-                    ?.call(v ? <T>{..._selected, ...visibleRows} : <T>{}),
+                onChanged: (bool v) => widget.onSelectionChanged?.call(
+                  v ? <T>{..._selected, ...visibleRows} : <T>{},
+                ),
               ),
             ),
           if (widget.expandableWhen != null)
@@ -354,12 +364,11 @@ class _UiTableState<T> extends State<UiTable<T>> {
                         width: ctx.sz(theme.sizes.controlHeightXs),
                         child: widget.expandableWhen!(visibleRows[i])
                             ? UiInteractive(
-                                onTap: () => setState(() =>
-                                    _expanded.contains(visibleRows[i])
-                                        ? _expanded
-                                            .remove(visibleRows[i])
-                                        : _expanded
-                                            .add(visibleRows[i])),
+                                onTap: () => setState(
+                                  () => _expanded.contains(visibleRows[i])
+                                      ? _expanded.remove(visibleRows[i])
+                                      : _expanded.add(visibleRows[i]),
+                                ),
                                 builder: (BuildContext c, _) => Icon(
                                   _expanded.contains(visibleRows[i])
                                       ? Icons.expand_more
@@ -403,7 +412,9 @@ class _UiTableState<T> extends State<UiTable<T>> {
     // the header row above stays put while only the row list scrolls.
     if (widget.maxBodyHeight != null) {
       bodyContent = ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: context.sp(widget.maxBodyHeight!)),
+        constraints: BoxConstraints(
+          maxHeight: context.sp(widget.maxBodyHeight!),
+        ),
         child: SingleChildScrollView(child: bodyContent),
       );
     } else if (widget.stickyHeader) {
@@ -501,12 +512,19 @@ class _UiTableState<T> extends State<UiTable<T>> {
       padding: EdgeInsets.only(top: context.sp(theme.spacing.md)),
       child: Row(
         children: <Widget>[
-          Text(
-            'Page ${_page + 1} of $total',
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundMuted),
+          // Expanded rather than Text + Spacer: at a high page count on a narrow
+          // phone, "Page 12 of 340" plus both buttons is wider than the row.
+          Expanded(
+            child: Text(
+              'Page ${_page + 1} of $total',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
+            ),
           ),
-          const Spacer(),
+          SizedBox(width: context.sp(theme.spacing.xs)),
           _pageButton(
             context,
             Icons.chevron_left,
@@ -523,18 +541,20 @@ class _UiTableState<T> extends State<UiTable<T>> {
     );
   }
 
-  Widget _pageButton(
-    BuildContext context,
-    IconData icon,
-    VoidCallback? onTap,
-  ) {
+  Widget _pageButton(BuildContext context, IconData icon, VoidCallback? onTap) {
     final theme = context.ui;
+    // A finger needs the full 44pt target; a mouse pointer does not, so the
+    // desktop build stays compact. Shrinking this on touch made the pager buttons
+    // 35pt — under the minimum, and the commonest miss-tap on the table.
+    final double side = context.uiRes.isMobile
+        ? theme.sizes.minTapTarget
+        : theme.sizes.minTapTarget * 0.8;
     return UiInteractive(
       enabled: onTap != null,
       onTap: onTap,
       builder: (BuildContext ctx, UiInteractiveState s) => Container(
-        width: ctx.sz(theme.sizes.minTapTarget * 0.8),
-        height: ctx.sz(theme.sizes.minTapTarget * 0.8),
+        width: ctx.sz(side),
+        height: ctx.sz(side),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: s.hovered ? theme.colors.surfaceHover : theme.colors.surface,

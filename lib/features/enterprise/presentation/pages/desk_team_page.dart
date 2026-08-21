@@ -55,6 +55,7 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
       _loading = false;
     });
   }
+
   /// Re-queries the roster. The response is dropped when the filters moved on
   /// while the request was in flight.
   Future<void> _reload({bool silent = false}) async {
@@ -98,37 +99,43 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
     final List<String> parts = <String>[
       '${_rows.length} member${_rows.length == 1 ? '' : 's'}',
       '${_countWhere((AppTeamMember m) => m.status == AppMemberStatus.active)} active',
-      if (_countWhere((AppTeamMember m) => m.status == AppMemberStatus.invited) >
+      if (_countWhere(
+            (AppTeamMember m) => m.status == AppMemberStatus.invited,
+          ) >
           0)
         '${_countWhere((AppTeamMember m) => m.status == AppMemberStatus.invited)} invited',
       '$_seatsLeft seat${_seatsLeft == 1 ? '' : 's'} left',
     ];
     return parts.join(' · ');
   }
+
   Future<void> _invite() async {
-    final ({String email, AppTeamRole role})? request = await UiDialog.show<
-      ({String email, AppTeamRole role})
-    >(
-      context,
-      child: _InviteSheet(
-        seatsLeft: _seatsLeft,
-        takenEmails: _rows
-            .map((AppTeamMember m) => m.email.toLowerCase())
-            .toSet(),
-      ),
-    );
+    final ({String email, AppTeamRole role})? request =
+        await UiDialog.show<({String email, AppTeamRole role})>(
+          context,
+          child: _InviteSheet(
+            seatsLeft: _seatsLeft,
+            takenEmails: _rows
+                .map((AppTeamMember m) => m.email.toLowerCase())
+                .toSet(),
+          ),
+        );
     if (request == null || !mounted) return;
     final AppTeamMember member = await _repo.inviteMember(
       request.email,
       request.role,
     );
     if (!mounted) return;
-    await Future.wait<void>(<Future<void>>[_reload(silent: true), _refreshSnapshot()]);
+    await Future.wait<void>(<Future<void>>[
+      _reload(silent: true),
+      _refreshSnapshot(),
+    ]);
     if (!mounted) return;
     UiToast.show(
       context,
       title: 'Invite sent',
-      message: '${member.email} was invited as ${appTeamRoleLabel(member.role)}.',
+      message:
+          '${member.email} was invited as ${appTeamRoleLabel(member.role)}.',
       intent: UiIntent.success,
     );
   }
@@ -143,7 +150,10 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
     final AppTeamMember updated = await _repo.changeRole(member.id, role);
     if (!mounted) return;
     setState(() => _busyId = null);
-    await Future.wait<void>(<Future<void>>[_reload(silent: true), _refreshSnapshot()]);
+    await Future.wait<void>(<Future<void>>[
+      _reload(silent: true),
+      _refreshSnapshot(),
+    ]);
     if (!mounted) return;
     UiToast.show(
       context,
@@ -152,6 +162,7 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
       intent: UiIntent.success,
     );
   }
+
   Future<void> _setStatus(AppTeamMember member, AppMemberStatus status) async {
     if (status == AppMemberStatus.suspended) {
       final bool confirmed = await UiDialog.confirm(
@@ -169,14 +180,18 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
     final AppTeamMember updated = await _repo.setStatus(member.id, status);
     if (!mounted) return;
     setState(() => _busyId = null);
-    await Future.wait<void>(<Future<void>>[_reload(silent: true), _refreshSnapshot()]);
+    await Future.wait<void>(<Future<void>>[
+      _reload(silent: true),
+      _refreshSnapshot(),
+    ]);
     if (!mounted) return;
     UiToast.show(
       context,
       title: '${updated.name} is ${_statusLabel(updated.status).toLowerCase()}',
       message: switch (updated.status) {
         AppMemberStatus.active => 'Access restored and a seat is in use again.',
-        AppMemberStatus.invited => 'The invite was re-sent to ${updated.email}.',
+        AppMemberStatus.invited =>
+          'The invite was re-sent to ${updated.email}.',
         AppMemberStatus.suspended => 'A seat was released back to the plan.',
       },
       intent: updated.status == AppMemberStatus.suspended
@@ -200,7 +215,10 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
     await _repo.removeMember(member.id);
     if (!mounted) return;
     setState(() => _busyId = null);
-    await Future.wait<void>(<Future<void>>[_reload(silent: true), _refreshSnapshot()]);
+    await Future.wait<void>(<Future<void>>[
+      _reload(silent: true),
+      _refreshSnapshot(),
+    ]);
     if (!mounted) return;
     UiToast.show(
       context,
@@ -209,6 +227,7 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
       intent: UiIntent.neutral,
     );
   }
+
   Future<void> _copyEmail(AppTeamMember member) async {
     await Clipboard.setData(ClipboardData(text: member.email));
     if (!mounted) return;
@@ -263,7 +282,8 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
       'Everything except billing — manages seats, risk and audit exports.',
     AppTeamRole.analyst =>
       'Reads every seat\'s trades and publishes desk-wide strategies.',
-    AppTeamRole.member => 'Trades their own book and shares journals with the desk.',
+    AppTeamRole.member =>
+      'Trades their own book and shares journals with the desk.',
     AppTeamRole.viewer => 'Read-only access to dashboards and reports.',
   };
   @override
@@ -323,6 +343,7 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
       ),
     );
   }
+
   Widget _seatMeter() {
     final UiTheme theme = context.ui;
     final int used = _snapshot?.seatsUsed ?? 0;
@@ -368,6 +389,7 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
       ),
     );
   }
+
   /// Role mix across the roster. Built from the rows the repository returned so
   /// it always agrees with the table underneath it.
   Widget _roleSplit() {
@@ -392,6 +414,7 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
       ],
     );
   }
+
   Widget _rosterCard() {
     final UiTheme theme = context.ui;
     return UiCard(
@@ -423,6 +446,7 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
       ),
     );
   }
+
   Widget _filters() {
     final UiTheme theme = context.ui;
     final Widget search = UiInput.search(
@@ -519,6 +543,7 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
       ],
     );
   }
+
   List<UiTableColumn<AppTeamMember>> _columns() {
     final UiTheme theme = context.ui;
     return <UiTableColumn<AppTeamMember>>[
@@ -687,6 +712,7 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
       ],
     ),
   );
+
   /// Seats worth acting on: invites nobody accepted, and seats idle past the
   /// desk's own policy window.
   Widget _inviteHygieneCard() {
@@ -702,7 +728,8 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
               .where(
                 (AppTeamMember m) =>
                     m.status == AppMemberStatus.active &&
-                    (m.lastActiveAt == null || m.lastActiveAt!.isBefore(cutoff)),
+                    (m.lastActiveAt == null ||
+                        m.lastActiveAt!.isBefore(cutoff)),
               )
               .toList(growable: false);
 
@@ -743,6 +770,7 @@ class _DeskTeamPageState extends State<DeskTeamPage> {
       ),
     );
   }
+
   Widget _hygieneGroup({
     required String label,
     required List<AppTeamMember> members,
@@ -921,6 +949,7 @@ class _MemberSheet extends StatelessWidget {
       ),
     );
   }
+
   Widget _action(
     BuildContext context, {
     required IconData icon,
@@ -1072,6 +1101,7 @@ class _InviteSheetState extends State<_InviteSheet> {
     }
     return null;
   }
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;

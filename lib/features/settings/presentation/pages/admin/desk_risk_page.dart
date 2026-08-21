@@ -18,6 +18,12 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
   bool _loading = true;
   bool _saving = false;
 
+  /// The threshold held on to while the approval gate is switched off. Without it
+  /// the figure would be lost the moment the switch went off, and turning it back
+  /// on would silently pick a number the desk never chose.
+  double _lastApprovalThreshold =
+      DeskRiskModel.defaultConfig().requireManagerApprovalAboveAmount;
+
   @override
   void initState() {
     super.initState();
@@ -32,6 +38,9 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
       if (mounted) {
         setState(() {
           _config = c;
+          if (c.requiresManagerApproval) {
+            _lastApprovalThreshold = c.requireManagerApprovalAboveAmount;
+          }
           _loading = false;
         });
       }
@@ -116,7 +125,7 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
                           label: 'Firm-Wide Max Daily Drawdown',
                           badge: UiBadge(
                             label:
-                                '${c.maxFirmDrawdownPercent.toStringAsFixed(1)}% Max Daily Loss',
+                                '${AppTokens.percent(c.maxFirmDrawdownPercent)} Max Daily Loss',
                             intent: UiIntent.danger,
                           ),
                         ),
@@ -130,8 +139,9 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
                         SizedBox(height: context.sp(theme.spacing.sm)),
                         UiSlider(
                           value: c.maxFirmDrawdownPercent,
-                          min: 1.0,
-                          max: 15.0,
+                          min: DeskRiskModel.firmDrawdownMinPercent,
+                          max: DeskRiskModel.firmDrawdownMaxPercent,
+                          valueFormatter: AppTokens.percent,
                           onChanged: (val) {
                             setState(() {
                               _config = c.copyWith(maxFirmDrawdownPercent: val);
@@ -142,17 +152,17 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
                         _RiskLimitHeading(
                           label: 'Max Capital Allocation per Individual Trader',
                           badge: UiBadge(
-                            label: c.maxPositionPerTrader >= 10000000
-                                ? '₹${(c.maxPositionPerTrader / 10000000).toStringAsFixed(1)} Cr Limit'
-                                : '₹${(c.maxPositionPerTrader / 100000).toInt()} Lakh Limit',
+                            label:
+                                '${AppTokens.lakhCrore(c.maxPositionPerTrader)} Limit',
                             intent: UiIntent.primary,
                           ),
                         ),
                         SizedBox(height: context.sp(theme.spacing.sm)),
                         UiSlider(
                           value: c.maxPositionPerTrader,
-                          min: 1000000.0,
-                          max: 50000000.0,
+                          min: DeskRiskModel.positionPerTraderMin,
+                          max: DeskRiskModel.positionPerTraderMax,
+                          valueFormatter: AppTokens.lakhCrore,
                           onChanged: (val) {
                             setState(() {
                               _config = c.copyWith(maxPositionPerTrader: val);
@@ -189,23 +199,74 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
                     ),
                   ),
                   AppSettingCard(
-                    title: 'Require Risk Manager Approval Above ₹10 Lakh',
-                    description:
-                        'Orders larger than ₹10,00,000 notional require one-click approval from desk admin.',
+                    title: c.requiresManagerApproval
+                        ? 'Require Risk Manager Approval Above '
+                              '${AppTokens.lakhCrore(c.requireManagerApprovalAboveAmount)}'
+                        : 'Require Risk Manager Approval On Large Orders',
+                    description: c.requiresManagerApproval
+                        ? 'Orders above '
+                              '${AppTokens.price(c.requireManagerApprovalAboveAmount)} '
+                              'notional need one-click approval from a desk admin '
+                              'before they reach the broker.'
+                        : 'Traders can route any order size to the broker without '
+                              'a desk admin reviewing it first.',
                     icon: Icons.verified_user_outlined,
                     control: UiSwitch(
-                      value: c.requireManagerApprovalAboveAmount > 0,
+                      value: c.requiresManagerApproval,
                       onChanged: (val) {
                         setState(() {
                           _config = c.copyWith(
                             requireManagerApprovalAboveAmount: val
-                                ? 1000000.0
-                                : 0.0,
+                                ? _lastApprovalThreshold
+                                : 0,
                           );
                         });
                       },
                     ),
                   ),
+                  if (c.requiresManagerApproval)
+                    UiCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _RiskLimitHeading(
+                            label: 'Approval Threshold',
+                            badge: UiBadge(
+                              label:
+                                  'Above ${AppTokens.lakhCrore(c.requireManagerApprovalAboveAmount)}',
+                              intent: UiIntent.warning,
+                            ),
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.xs)),
+                          Text(
+                            'Anything at or below this notional executes straight '
+                            'away. Raise it to keep the desk moving, lower it to '
+                            'review more of the flow.',
+                            style: context.uiText.caption.copyWith(
+                              color: colors.foregroundMuted,
+                            ),
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.sm)),
+                          UiSlider(
+                            value: c.requireManagerApprovalAboveAmount.clamp(
+                              DeskRiskModel.approvalThresholdMin,
+                              DeskRiskModel.approvalThresholdMax,
+                            ),
+                            min: DeskRiskModel.approvalThresholdMin,
+                            max: DeskRiskModel.approvalThresholdMax,
+                            valueFormatter: AppTokens.lakhCrore,
+                            onChanged: (val) {
+                              setState(() {
+                                _lastApprovalThreshold = val;
+                                _config = c.copyWith(
+                                  requireManagerApprovalAboveAmount: val,
+                                );
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                   AppSettingCard(
                     title: 'Immutable Compliance & Audit Logging',
                     description:

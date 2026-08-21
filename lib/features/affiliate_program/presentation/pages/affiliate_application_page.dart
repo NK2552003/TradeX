@@ -8,6 +8,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/affiliate_program/data/affiliate_application_repository.dart';
 import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
+import 'package:tradex/features/auth/widgets/auth_step_icon.dart';
 
 /// Shared affiliate application used after affiliate signup and when an
 /// existing trader chooses to add the affiliate capability.
@@ -296,596 +297,722 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
-    if (_loadingExistingApplication) {
-      return Material(
-        color: theme.colors.background,
-        child: const UiPage(maxWidth: 920, child: _ApplicationPageSkeleton()),
-      );
-    }
-    if (_submitted != null) return _buildPending(context, _submitted!);
-    return Material(
-      color: theme.colors.background,
-      child: UiPage(
-        maxWidth: 920,
-        header: UiHeader(
-          title: widget.isExistingCustomer
-              ? 'Add Affiliate Access'
-              : 'Complete Affiliate Application',
-          subtitle:
-              'Your trading account remains active while the TradeX team reviews this application.',
-          leading: const AppLogoMark(size: 24, rounded: false),
-          actions: widget.onCancel == null
-              ? const <Widget>[]
-              : <Widget>[
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: UiButton(
-                      label: 'Close',
-                      leadingIcon: Icons.close_rounded,
-                      variant: UiVariant.outline,
-                      intent: UiIntent.neutral,
-                      size: UiSize.sm,
-                      onPressed: widget.onCancel,
-                    ),
-                  ),
-                ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            UiCard(
-              variant: UiCardVariant.outlined,
-              padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          'Affiliate application',
-                          style: context.uiText.bodyStrong,
-                        ),
-                      ),
-                      UiBadge(
-                        label: 'STEP ${_step + 1} OF 4',
-                        intent: UiIntent.primary,
-                        size: UiSize.xs,
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.sm)),
-                  UiProgressBar(
-                    value: (_step + 1) / 4,
-                    showValue: false,
-                    thickness: 4,
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.sm)),
-                  UiToggleGroup<int>(
-                    value: _step,
-                    expand: true,
-                    size: UiSize.sm,
-                    variant: UiToggleGroupVariant.joined,
-                    options: <UiToggleOption<int>>[
-                      UiToggleOption<int>(
-                        value: 0,
-                        label: 'Personal',
-                        icon: Icons.person_outline_rounded,
-                      ),
-                      UiToggleOption<int>(
-                        value: 1,
-                        label: 'Presence',
-                        icon: Icons.campaign_outlined,
-                        enabled: _furthestStep >= 1,
-                      ),
-                      UiToggleOption<int>(
-                        value: 2,
-                        label: 'Payout',
-                        icon: Icons.account_balance_outlined,
-                        enabled: _furthestStep >= 2,
-                      ),
-                      UiToggleOption<int>(
-                        value: 3,
-                        label: 'Review',
-                        icon: Icons.fact_check_outlined,
-                        enabled: _furthestStep >= 3,
-                      ),
-                    ],
-                    onChanged: (int index) => setState(() {
-                      _error = null;
-                      _step = index;
-                    }),
-                  ),
-                ],
+  Widget _buildLoading(BuildContext context) {
+    final theme = context.ui;
+    final colors = theme.colors;
+    final responsive = context.uiRes;
+    return Scaffold(
+      backgroundColor: colors.background,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints viewportConstraints) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(
+                  responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
+                ),
+                vertical: context.sp(theme.spacing.xl),
               ),
-            ),
-            SizedBox(height: context.sp(theme.spacing.md)),
-            AnimatedSwitcher(
-              duration: theme.motion.normal,
-              child: KeyedSubtree(
-                key: ValueKey<int>(_step),
-                child: switch (_step) {
-                  0 => _buildPersonal(context),
-                  1 => _buildPresence(context),
-                  2 => _buildPayout(context),
-                  _ => _buildReview(context),
-                },
-              ),
-            ),
-            if (_error != null) ...<Widget>[
-              SizedBox(height: context.sp(theme.spacing.md)),
-              UiCallout(
-                title: 'Check this step',
-                message: _error!,
-                intent: UiIntent.danger,
-              ),
-            ],
-            SizedBox(height: context.sp(theme.spacing.lg)),
-            Row(
-              children: <Widget>[
-                if (_step > 0)
-                  Expanded(
-                    child: UiButton(
-                      label: 'Back',
-                      leadingIcon: Icons.arrow_back_rounded,
-                      variant: UiVariant.outline,
-                      intent: UiIntent.neutral,
-                      size: UiSize.lg,
-                      onPressed: () => setState(() {
-                        _error = null;
-                        _step--;
-                      }),
-                    ),
-                  ),
-                if (_step > 0) SizedBox(width: context.sp(theme.spacing.sm)),
-                Expanded(
-                  child: UiButton(
-                    label: _step == 3
-                        ? (_submitting ? 'Submitting…' : 'Submit for Review')
-                        : 'Continue',
-                    trailingIcon: _step == 3
-                        ? null
-                        : Icons.arrow_forward_rounded,
-                    variant: UiVariant.primary,
-                    intent: UiIntent.primary,
-                    size: UiSize.lg,
-                    onPressed: _submitting
-                        ? null
-                        : (_step == 3 ? _submit : _next),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: viewportConstraints.maxHeight -
+                      context.sp(theme.spacing.xl) * 2,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: context.sz(680)),
+                    child: const _ApplicationPageSkeleton(),
                   ),
                 ),
-              ],
-            ),
-            SizedBox(height: context.sp(theme.spacing.md)),
-            Text(
-              'Approval adds affiliate tools to your existing account. Your trading workspace and customer access remain unchanged.',
-              textAlign: TextAlign.center,
-              style: context.uiText.caption.copyWith(
-                color: theme.colors.foregroundSubtle,
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildPersonal(BuildContext context) {
-    final UiTheme theme = context.ui;
-    return UiCard(
-      title: 'Personal information',
-      subtitle: 'Confirm the identity and contact details used for review.',
-      padding: EdgeInsets.all(
-        context.sp(
-          context.uiRes.isMobile ? theme.spacing.md : theme.spacing.lg,
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    final colors = theme.colors;
+    final responsive = context.uiRes;
+
+    if (_loadingExistingApplication) {
+      return _buildLoading(context);
+    }
+    if (_submitted != null) return _buildPending(context, _submitted!);
+
+    final (IconData stepIcon, UiIntent stepIntent) = switch (_step) {
+      0 => (Icons.person_outline_rounded, UiIntent.primary),
+      1 => (Icons.campaign_outlined, UiIntent.info),
+      2 => (Icons.account_balance_outlined, UiIntent.warning),
+      _ => (Icons.fact_check_outlined, UiIntent.primary),
+    };
+
+    return Scaffold(
+      backgroundColor: colors.background,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints viewportConstraints) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(
+                  responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
+                ),
+                vertical: context.sp(theme.spacing.xl),
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: (viewportConstraints.maxHeight -
+                          context.sp(theme.spacing.xl) * 2)
+                      .clamp(0.0, double.infinity),
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: context.sz(680)),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        UiCard(
+                          variant: UiCardVariant.surface,
+                          child: Padding(
+                            padding: EdgeInsets.all(
+                              context.sp(
+                                responsive.isMobile
+                                    ? theme.spacing.lg
+                                    : theme.spacing.xl,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Unified Header inside Card: Back Button, Logo, TradeX & Step Badge
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Flexible(
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (widget.onCancel != null)
+                                            UiIconButton(
+                                              icon: Icons.arrow_back_rounded,
+                                              size: UiSize.sm,
+                                              tooltip: widget.isExistingCustomer
+                                                  ? 'Back to Workspace'
+                                                  : 'Back to Sign in',
+                                              onPressed: widget.onCancel,
+                                            ),
+                                          if (widget.onCancel != null)
+                                            SizedBox(
+                                              width: context.sp(theme.spacing.xs),
+                                            ),
+                                          const AppLogoMark(size: 20),
+                                          if (!responsive.isMobile) ...[
+                                            SizedBox(
+                                              width: context.sp(theme.spacing.xs),
+                                            ),
+                                            Text(
+                                              'TradeX',
+                                              style: context.uiText.bodyStrong
+                                                  .copyWith(
+                                                fontSize: 16,
+                                                letterSpacing: -0.2,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    UiBadge(
+                                      label: 'STEP ${_step + 1} OF 4',
+                                      intent: UiIntent.primary,
+                                      variant: UiBadgeVariant.soft,
+                                      size: UiSize.sm,
+                                    ),
+                                  ],
+                                ),
+                                if (!responsive.isMobile) ...[
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.lg),
+                                  ),
+                                  UiStepper(
+                                    steps: const [
+                                      UiStepperStep(
+                                        title: 'Personal',
+                                        subtitle: 'Basic info',
+                                      ),
+                                      UiStepperStep(
+                                        title: 'Presence',
+                                        subtitle: 'Channels',
+                                      ),
+                                      UiStepperStep(
+                                        title: 'Payout',
+                                        subtitle: 'Bank details',
+                                      ),
+                                      UiStepperStep(
+                                        title: 'Review',
+                                        subtitle: 'Confirm',
+                                      ),
+                                    ],
+                                    currentIndex: _step.clamp(0, 3),
+                                  ),
+                                ] else ...[
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.lg),
+                                  ),
+                                  // Minimal Modern Segmented Step Indicator inside card on mobile
+                                  Row(
+                                    children: [
+                                      for (int i = 0; i < 4; i++)
+                                        Expanded(
+                                          child: Container(
+                                            height: 3.5,
+                                            margin: EdgeInsets.only(
+                                              right: i < 3 ? 6.0 : 0.0,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(2),
+                                              color: i <= _step
+                                                  ? colors.primary
+                                                  : colors.borderStrong
+                                                      .withValues(
+                                                          alpha: 0.5),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                                SizedBox(height: context.sp(theme.spacing.xl)),
+                                AuthStepIcon(
+                                  icon: stepIcon,
+                                  intent: stepIntent,
+                                ),
+                                SizedBox(height: context.sp(theme.spacing.md)),
+                                Text(
+                                  widget.isExistingCustomer
+                                      ? 'Add Affiliate Access'
+                                      : 'Complete Affiliate Application',
+                                  textAlign: TextAlign.center,
+                                  style: context.uiText.display.copyWith(
+                                    fontSize: 28.0,
+                                    fontWeight: FontWeight.w400,
+                                    letterSpacing: -0.5,
+                                  ),
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxs)),
+                          Text(
+                            'Your trading account remains active while the TradeX team reviews this application.',
+                            textAlign: TextAlign.center,
+                            style: context.uiText.body.copyWith(
+                              color: colors.foregroundMuted,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.lg)),
+                          if (_error != null) ...[
+                            UiCallout(
+                              title: 'Check this step',
+                              message: _error!,
+                              intent: UiIntent.danger,
+                            ),
+                            SizedBox(height: context.sp(theme.spacing.md)),
+                          ],
+                          AnimatedSwitcher(
+                            duration: theme.motion.normal,
+                            child: KeyedSubtree(
+                              key: ValueKey<int>(_step),
+                              child: switch (_step) {
+                                0 => _buildPersonal(context),
+                                1 => _buildPresence(context),
+                                2 => _buildPayout(context),
+                                _ => _buildReview(context),
+                              },
+                            ),
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.lg)),
+                          Row(
+                            children: <Widget>[
+                              if (_step > 0)
+                                Expanded(
+                                  child: UiButton(
+                                    label: 'Back',
+                                    leadingIcon: Icons.arrow_back_rounded,
+                                    variant: UiVariant.outline,
+                                    intent: UiIntent.neutral,
+                                    size: UiSize.lg,
+                                    onPressed: () => setState(() {
+                                      _error = null;
+                                      _step--;
+                                    }),
+                                  ),
+                                ),
+                              if (_step > 0)
+                                SizedBox(width: context.sp(theme.spacing.sm)),
+                              Expanded(
+                                child: UiButton(
+                                  label: _step == 3
+                                      ? (_submitting
+                                          ? 'Submitting…'
+                                          : 'Submit for Review')
+                                      : 'Continue',
+                                  trailingIcon: _step == 3
+                                      ? null
+                                      : Icons.arrow_forward_rounded,
+                                  variant: UiVariant.primary,
+                                  intent: UiIntent.primary,
+                                  size: UiSize.lg,
+                                  onPressed: _submitting
+                                      ? null
+                                      : (_step == 3 ? _submit : _next),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.md)),
+                          Text(
+                            'Approval adds affiliate tools to your existing account. Your trading workspace and customer access remain unchanged.',
+                            textAlign: TextAlign.center,
+                            style: context.uiText.caption.copyWith(
+                              color: theme.colors.foregroundSubtle,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: context.sp(theme.spacing.lg)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.verified_user_outlined,
+                        size: context.sz(14),
+                        color: colors.foregroundSubtle,
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      Flexible(
+                        child: Text(
+                          'Your data is encrypted end-to-end',
+                          overflow: TextOverflow.ellipsis,
+                          style: context.uiText.caption.copyWith(
+                            color: colors.foregroundSubtle,
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          _responsivePair(
-            context,
-            UiField(
-              label: 'Full name',
-              required: true,
-              child: UiInput(
-                controller: _name,
-                hintText: 'Name on government ID',
-              ),
-            ),
-            UiField(
-              label: 'Email address',
-              required: true,
-              success: _emailVerified ? 'Verified during account setup' : null,
-              child: UiInput(
-                controller: _email,
-                readOnly: true,
-                validation: UiValidationState.valid,
-                trailingIcon: Icons.verified_rounded,
-                keyboardType: TextInputType.emailAddress,
-              ),
-            ),
+    );
+  },
+),
+),
+);
+  }
+
+  Widget _buildPersonal(BuildContext context) {
+    final UiTheme theme = context.ui;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Personal information',
+          style: context.uiText.bodyStrong.copyWith(fontSize: 16),
+        ),
+        SizedBox(height: context.sp(theme.spacing.xxs)),
+        Text(
+          'Confirm the identity and contact details used for review.',
+          style: context.uiText.caption.copyWith(
+            color: theme.colors.foregroundMuted,
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          _responsivePair(
-            context,
-            UiField(
-              label: 'Phone number',
-              required: true,
-              success: _phoneVerified ? 'Phone verified' : null,
-              child: UiInput(
-                controller: _phone,
-                prefixText: '+91 ',
-                keyboardType: TextInputType.phone,
-                maxLength: 10,
-                onChanged: (_) => setState(() {
-                  if (_phoneVerified) _phoneVerified = false;
-                }),
-                trailing: UiIconButton(
-                  icon: _phoneVerified
-                      ? Icons.verified_rounded
-                      : Icons.sms_outlined,
-                  size: UiSize.xs,
-                  variant: _phoneVerified
-                      ? UiVariant.success
-                      : UiVariant.outline,
-                  tooltip: _phoneVerified
-                      ? 'Phone verified'
-                      : 'Send verification code',
-                  onPressed: _phone.text.trim().length == 10
-                      ? () => setState(() => _phoneVerified = true)
-                      : null,
-                ),
-              ),
-            ),
-            UiField(
-              label: 'Date of birth',
-              required: true,
-              helper: 'Applicants must be at least 18 years old.',
-              child: UiDatePicker(
-                value: _dateOfBirth,
-                firstDate: DateTime(1940),
-                lastDate: DateTime.now(),
-                onChanged: (DateTime date) =>
-                    setState(() => _dateOfBirth = date),
-              ),
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          _responsivePair(
-            context,
-            UiField(
-              label: 'City',
-              required: true,
-              child: UiInput(controller: _city, hintText: 'Mumbai'),
-            ),
-            UiField(
-              label: 'State / region',
-              required: true,
-              child: UiInput(controller: _state, hintText: 'Maharashtra'),
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        _responsivePair(
+          context,
           UiField(
-            label: 'Gender',
+            label: 'Full name',
             required: true,
-            child: UiSelect<String>(
-              value: _gender,
-              hintText: 'Select an option',
-              options: const <UiOption<String>>[
-                UiOption<String>(value: 'Woman', label: 'Woman'),
-                UiOption<String>(value: 'Man', label: 'Man'),
-                UiOption<String>(value: 'Non-binary', label: 'Non-binary'),
-                UiOption<String>(
-                  value: 'Prefer not to say',
-                  label: 'Prefer not to say',
-                ),
-              ],
-              onChanged: (String value) => setState(() => _gender = value),
+            child: UiInput(
+              controller: _name,
+              hintText: 'Name on government ID',
             ),
           ),
-        ],
-      ),
+          UiField(
+            label: 'Email address',
+            required: true,
+            success: _emailVerified ? 'Verified during account setup' : null,
+            child: UiInput(
+              controller: _email,
+              readOnly: true,
+              validation: UiValidationState.valid,
+              trailingIcon: Icons.verified_rounded,
+              keyboardType: TextInputType.emailAddress,
+            ),
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        _responsivePair(
+          context,
+          UiField(
+            label: 'Phone number',
+            required: true,
+            success: _phoneVerified ? 'Phone verified' : null,
+            child: UiInput(
+              controller: _phone,
+              prefixText: '+91 ',
+              keyboardType: TextInputType.phone,
+              maxLength: 10,
+              onChanged: (_) => setState(() {
+                if (_phoneVerified) _phoneVerified = false;
+              }),
+              trailing: UiIconButton(
+                icon: _phoneVerified
+                    ? Icons.verified_rounded
+                    : Icons.sms_outlined,
+                size: UiSize.xs,
+                variant: _phoneVerified
+                    ? UiVariant.success
+                    : UiVariant.outline,
+                tooltip: _phoneVerified
+                    ? 'Phone verified'
+                    : 'Send verification code',
+                onPressed: _phone.text.trim().length == 10
+                    ? () => setState(() => _phoneVerified = true)
+                    : null,
+              ),
+            ),
+          ),
+          UiField(
+            label: 'Date of birth',
+            required: true,
+            helper: 'Applicants must be at least 18 years old.',
+            child: UiDatePicker(
+              value: _dateOfBirth,
+              firstDate: DateTime(1940),
+              lastDate: DateTime.now(),
+              onChanged: (DateTime date) =>
+                  setState(() => _dateOfBirth = date),
+            ),
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        _responsivePair(
+          context,
+          UiField(
+            label: 'City',
+            required: true,
+            child: UiInput(controller: _city, hintText: 'Mumbai'),
+          ),
+          UiField(
+            label: 'State / region',
+            required: true,
+            child: UiInput(controller: _state, hintText: 'Maharashtra'),
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        UiField(
+          label: 'Gender',
+          required: true,
+          child: UiSelect<String>(
+            value: _gender,
+            hintText: 'Select an option',
+            options: const <UiOption<String>>[
+              UiOption<String>(value: 'Woman', label: 'Woman'),
+              UiOption<String>(value: 'Man', label: 'Man'),
+              UiOption<String>(value: 'Non-binary', label: 'Non-binary'),
+              UiOption<String>(
+                value: 'Prefer not to say',
+                label: 'Prefer not to say',
+              ),
+            ],
+            onChanged: (String value) => setState(() => _gender = value),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildPresence(BuildContext context) {
     final UiTheme theme = context.ui;
-    return UiCard(
-      title: 'Audience and content presence',
-      subtitle: 'Tell reviewers where and how you plan to introduce TradeX.',
-      padding: EdgeInsets.all(
-        context.sp(
-          context.uiRes.isMobile ? theme.spacing.md : theme.spacing.lg,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Audience and content presence',
+          style: context.uiText.bodyStrong.copyWith(fontSize: 16),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
+        SizedBox(height: context.sp(theme.spacing.xxs)),
+        Text(
+          'Tell reviewers where and how you plan to introduce TradeX.',
+          style: context.uiText.caption.copyWith(
+            color: theme.colors.foregroundMuted,
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        UiField(
+          label: 'Promotion channels',
+          required: true,
+          helper: 'Select all that apply.',
+          child: UiToggleGroup<String>(
+            options: _platformOptions
+                .map(
+                  (String item) =>
+                      UiToggleOption<String>(value: item, label: item),
+                )
+                .toList(),
+            multiple: true,
+            values: _platforms,
+            intent: UiIntent.primary,
+            variant: UiToggleGroupVariant.pill,
+            onValuesChanged: (List<String> values) => setState(() {
+              _platforms = values;
+              if (!_platforms.contains(_primaryPlatform)) {
+                _primaryPlatform = values.isEmpty ? null : values.first;
+              }
+            }),
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        UiField(
+          label: 'Primary platform',
+          required: true,
+          child: UiSelect<String>(
+            value: _primaryPlatform,
+            hintText: _platforms.isEmpty
+                ? 'Select promotion channels first'
+                : 'Select primary channel',
+            enabled: _platforms.isNotEmpty,
+            options: _platforms
+                .map(
+                  (String item) => UiOption<String>(value: item, label: item),
+                )
+                .toList(),
+            onChanged: (String value) =>
+                setState(() => _primaryPlatform = value),
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        _responsivePair(
+          context,
           UiField(
-            label: 'Promotion channels',
+            label: 'Handle or channel URL',
             required: true,
-            helper: 'Select all that apply.',
-            child: UiToggleGroup<String>(
-              options: _platformOptions
-                  .map(
-                    (String item) =>
-                        UiToggleOption<String>(value: item, label: item),
-                  )
-                  .toList(),
-              multiple: true,
-              values: _platforms,
-              intent: UiIntent.primary,
-              variant: UiToggleGroupVariant.pill,
-              onValuesChanged: (List<String> values) => setState(() {
-                _platforms = values;
-                if (!_platforms.contains(_primaryPlatform)) {
-                  _primaryPlatform = values.isEmpty ? null : values.first;
-                }
-              }),
+            child: UiInput(
+              controller: _channel,
+              hintText: '@handle or https://channel.example',
             ),
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
           UiField(
-            label: 'Primary platform',
+            label: 'Audience size / reach',
             required: true,
             child: UiSelect<String>(
-              value: _primaryPlatform,
-              hintText: _platforms.isEmpty
-                  ? 'Select promotion channels first'
-                  : 'Select primary channel',
-              enabled: _platforms.isNotEmpty,
-              options: _platforms
-                  .map(
-                    (String item) => UiOption<String>(value: item, label: item),
-                  )
-                  .toList(),
+              value: _audienceReach,
+              options: const <UiOption<String>>[
+                UiOption<String>(value: 'Under 1,000', label: 'Under 1,000'),
+                UiOption<String>(
+                  value: '1,000 – 10,000',
+                  label: '1,000 – 10,000',
+                ),
+                UiOption<String>(
+                  value: '10,000 – 100,000',
+                  label: '10,000 – 100,000',
+                ),
+                UiOption<String>(
+                  value: 'More than 100,000',
+                  label: 'More than 100,000',
+                ),
+              ],
               onChanged: (String value) =>
-                  setState(() => _primaryPlatform = value),
+                  setState(() => _audienceReach = value),
             ),
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          _responsivePair(
-            context,
-            UiField(
-              label: 'Handle or channel URL',
-              required: true,
-              child: UiInput(
-                controller: _channel,
-                hintText: '@handle or https://channel.example',
-              ),
-            ),
-            UiField(
-              label: 'Audience size / reach',
-              required: true,
-              child: UiSelect<String>(
-                value: _audienceReach,
-                options: const <UiOption<String>>[
-                  UiOption<String>(value: 'Under 1,000', label: 'Under 1,000'),
-                  UiOption<String>(
-                    value: '1,000 – 10,000',
-                    label: '1,000 – 10,000',
-                  ),
-                  UiOption<String>(
-                    value: '10,000 – 100,000',
-                    label: '10,000 – 100,000',
-                  ),
-                  UiOption<String>(
-                    value: 'More than 100,000',
-                    label: 'More than 100,000',
-                  ),
-                ],
-                onChanged: (String value) =>
-                    setState(() => _audienceReach = value),
-              ),
-            ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        UiField(
+          label: 'Content niches',
+          required: true,
+          child: UiToggleGroup<String>(
+            options: _nicheOptions
+                .map(
+                  (String item) =>
+                      UiToggleOption<String>(value: item, label: item),
+                )
+                .toList(),
+            multiple: true,
+            values: _niches,
+            intent: UiIntent.primary,
+            variant: UiToggleGroupVariant.pill,
+            onValuesChanged: (List<String> values) =>
+                setState(() => _niches = values),
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          UiField(
-            label: 'Content niches',
-            required: true,
-            child: UiToggleGroup<String>(
-              options: _nicheOptions
-                  .map(
-                    (String item) =>
-                        UiToggleOption<String>(value: item, label: item),
-                  )
-                  .toList(),
-              multiple: true,
-              values: _niches,
-              intent: UiIntent.primary,
-              variant: UiToggleGroupVariant.pill,
-              onValuesChanged: (List<String> values) =>
-                  setState(() => _niches = values),
-            ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        UiField(
+          label: 'Sample content link',
+          optionalLabel: 'Optional',
+          helper: 'A representative post, video, article, or community link.',
+          child: UiInput(
+            controller: _sampleLink,
+            hintText: 'https://',
+            keyboardType: TextInputType.url,
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          UiField(
-            label: 'Sample content link',
-            optionalLabel: 'Optional',
-            helper: 'A representative post, video, article, or community link.',
-            child: UiInput(
-              controller: _sampleLink,
-              hintText: 'https://',
-              keyboardType: TextInputType.url,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildPayout(BuildContext context) {
     final UiTheme theme = context.ui;
-    return UiCard(
-      title: 'Payout and tax details',
-      subtitle: 'Used only after approval and encrypted by the backend.',
-      padding: EdgeInsets.all(
-        context.sp(
-          context.uiRes.isMobile ? theme.spacing.md : theme.spacing.lg,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Payout and tax details',
+          style: context.uiText.bodyStrong.copyWith(fontSize: 16),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          const UiCallout(
-            title: 'Secure payout verification',
-            message:
-                'Bank and PAN details are collected for commission settlement and tax compliance. They are never shown on your public profile.',
-            intent: UiIntent.info,
+        SizedBox(height: context.sp(theme.spacing.xxs)),
+        Text(
+          'Used only after approval and encrypted by the backend.',
+          style: context.uiText.caption.copyWith(
+            color: theme.colors.foregroundMuted,
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          _responsivePair(
-            context,
-            UiField(
-              label: 'Account holder name',
-              required: true,
-              child: UiInput(
-                controller: _accountHolder,
-                hintText: 'Name on bank account',
-              ),
-            ),
-            UiField(
-              label: 'Bank',
-              required: true,
-              child: UiSelect<String>(
-                value: _bankName,
-                searchable: true,
-                options: const <UiOption<String>>[
-                  UiOption<String>(
-                    value: 'State Bank of India',
-                    label: 'State Bank of India',
-                  ),
-                  UiOption<String>(value: 'HDFC Bank', label: 'HDFC Bank'),
-                  UiOption<String>(value: 'ICICI Bank', label: 'ICICI Bank'),
-                  UiOption<String>(value: 'Axis Bank', label: 'Axis Bank'),
-                  UiOption<String>(
-                    value: 'Kotak Mahindra',
-                    label: 'Kotak Mahindra',
-                  ),
-                  UiOption<String>(value: 'Other bank', label: 'Other bank'),
-                ],
-                onChanged: (String value) => setState(() => _bankName = value),
-              ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        const UiCallout(
+          title: 'Secure payout verification',
+          message:
+              'Bank and PAN details are collected for commission settlement and tax compliance. They are never shown on your public profile.',
+          intent: UiIntent.info,
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        _responsivePair(
+          context,
+          UiField(
+            label: 'Account holder name',
+            required: true,
+            child: UiInput(
+              controller: _accountHolder,
+              hintText: 'Name on bank account',
             ),
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          _responsivePair(
-            context,
-            UiField(
-              label: 'Account number',
-              required: true,
-              child: UiInput(
-                controller: _accountNumber,
-                obscure: true,
-                keyboardType: TextInputType.number,
-              ),
-            ),
-            UiField(
-              label: 'Confirm account number',
-              required: true,
-              error:
-                  _confirmAccountNumber.text.isNotEmpty &&
-                      _confirmAccountNumber.text != _accountNumber.text
-                  ? 'Account numbers do not match.'
-                  : null,
-              child: UiInput(
-                controller: _confirmAccountNumber,
-                keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() {}),
-              ),
+          UiField(
+            label: 'Bank',
+            required: true,
+            child: UiSelect<String>(
+              value: _bankName,
+              searchable: true,
+              options: const <UiOption<String>>[
+                UiOption<String>(
+                  value: 'State Bank of India',
+                  label: 'State Bank of India',
+                ),
+                UiOption<String>(value: 'HDFC Bank', label: 'HDFC Bank'),
+                UiOption<String>(value: 'ICICI Bank', label: 'ICICI Bank'),
+                UiOption<String>(value: 'Axis Bank', label: 'Axis Bank'),
+                UiOption<String>(
+                  value: 'Kotak Mahindra',
+                  label: 'Kotak Mahindra',
+                ),
+                UiOption<String>(value: 'Other bank', label: 'Other bank'),
+              ],
+              onChanged: (String value) => setState(() => _bankName = value),
             ),
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          _responsivePair(
-            context,
-            UiField(
-              label: 'IFSC code',
-              required: true,
-              helper: 'Example: HDFC0001234',
-              child: UiInput(controller: _ifsc, maxLength: 11),
-            ),
-            UiField(
-              label: 'Account type',
-              required: true,
-              child: UiSelect<String>(
-                value: _accountType,
-                options: const <UiOption<String>>[
-                  UiOption<String>(value: 'Savings', label: 'Savings'),
-                  UiOption<String>(value: 'Current', label: 'Current'),
-                ],
-                onChanged: (String value) =>
-                    setState(() => _accountType = value),
-              ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        _responsivePair(
+          context,
+          UiField(
+            label: 'Account number',
+            required: true,
+            child: UiInput(
+              controller: _accountNumber,
+              obscure: true,
+              keyboardType: TextInputType.number,
             ),
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          _responsivePair(
-            context,
-            UiField(
-              label: 'PAN number',
-              required: true,
-              helper: 'Example: ABCDE1234F',
-              child: UiInput(controller: _pan, maxLength: 10),
-            ),
-            UiField(
-              label: 'UPI ID',
-              optionalLabel: 'Optional',
-              child: UiInput(controller: _upi, hintText: 'name@upi'),
+          UiField(
+            label: 'Confirm account number',
+            required: true,
+            error:
+                _confirmAccountNumber.text.isNotEmpty &&
+                    _confirmAccountNumber.text != _accountNumber.text
+                ? 'Account numbers do not match.'
+                : null,
+            child: UiInput(
+              controller: _confirmAccountNumber,
+              keyboardType: TextInputType.number,
+              onChanged: (_) => setState(() {}),
             ),
           ),
-        ],
-      ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        _responsivePair(
+          context,
+          UiField(
+            label: 'IFSC code',
+            required: true,
+            helper: 'Example: HDFC0001234',
+            child: UiInput(controller: _ifsc, maxLength: 11),
+          ),
+          UiField(
+            label: 'Account type',
+            required: true,
+            child: UiSelect<String>(
+              value: _accountType,
+              options: const <UiOption<String>>[
+                UiOption<String>(value: 'Savings', label: 'Savings'),
+                UiOption<String>(value: 'Current', label: 'Current'),
+              ],
+              onChanged: (String value) =>
+                  setState(() => _accountType = value),
+            ),
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        _responsivePair(
+          context,
+          UiField(
+            label: 'PAN number',
+            required: true,
+            helper: 'Example: ABCDE1234F',
+            child: UiInput(controller: _pan, maxLength: 10),
+          ),
+          UiField(
+            label: 'UPI ID',
+            optionalLabel: 'Optional',
+            child: UiInput(controller: _upi, hintText: 'name@upi'),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildReview(BuildContext context) {
     final UiTheme theme = context.ui;
+    final responsive = context.uiRes;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        UiCardGrid(
-          mobileColumns: 1,
-          tabletColumns: 2,
-          desktopColumns: 3,
-          largeColumns: 3,
-          childAspectRatio: 1.18,
-          children: <Widget>[
-            _reviewCard(context, 'Personal', Icons.badge_outlined, <String>[
-              _name.text,
-              _email.text,
-              '+91 ${_phone.text}',
-              '${_city.text}, ${_state.text}',
-            ], () => setState(() => _step = 0)),
-            _reviewCard(
-              context,
-              'Presence',
-              Icons.campaign_outlined,
-              <String>[
-                _primaryPlatform ?? '',
-                _channel.text,
-                _audienceReach ?? '',
-                _niches.join(', '),
-              ],
-              () => setState(() => _step = 1),
-            ),
-            _reviewCard(
-              context,
-              'Payout',
-              Icons.account_balance_outlined,
-              <String>[
-                _accountHolder.text,
-                _bankName ?? '',
-                '•••• ${_accountNumber.text.length >= 4 ? _accountNumber.text.substring(_accountNumber.text.length - 4) : _accountNumber.text}',
-                '${_ifsc.text.toUpperCase()} · ${_accountType ?? ''}',
-              ],
-              () => setState(() => _step = 2),
-            ),
-          ],
-        ),
+        if (responsive.isMobile)
+          _buildMobileReviewTiles(context)
+        else
+          _buildDesktopReviewCards(context),
         SizedBox(height: context.sp(theme.spacing.md)),
         const UiCallout(
           title: 'Review and access policy',
@@ -907,6 +1034,185 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
     );
   }
 
+  Widget _buildMobileReviewTiles(BuildContext context) {
+    final theme = context.ui;
+    final colors = theme.colors;
+
+    final sections = [
+      (
+        title: 'Personal',
+        icon: Icons.badge_outlined,
+        values: <String>[
+          _name.text,
+          _email.text,
+          if (_phone.text.isNotEmpty) '+91 ${_phone.text}',
+          if (_city.text.isNotEmpty || _state.text.isNotEmpty)
+            '${_city.text}, ${_state.text}',
+        ],
+        onEdit: () => setState(() => _step = 0),
+      ),
+      (
+        title: 'Presence',
+        icon: Icons.campaign_outlined,
+        values: <String>[
+          _primaryPlatform ?? '',
+          _channel.text,
+          _audienceReach ?? '',
+          if (_niches.isNotEmpty) _niches.join(', '),
+        ],
+        onEdit: () => setState(() => _step = 1),
+      ),
+      (
+        title: 'Payout',
+        icon: Icons.account_balance_outlined,
+        values: <String>[
+          _accountHolder.text,
+          _bankName ?? '',
+          if (_accountNumber.text.isNotEmpty)
+            '•••• ${_accountNumber.text.length >= 4 ? _accountNumber.text.substring(_accountNumber.text.length - 4) : _accountNumber.text}',
+          if (_ifsc.text.isNotEmpty)
+            '${_ifsc.text.toUpperCase()} · ${_accountType ?? ''}',
+        ],
+        onEdit: () => setState(() => _step = 2),
+      ),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surfaceMuted.withValues(alpha: 0.35),
+        borderRadius: context.radius(theme.radii.lg),
+        border: Border.all(color: colors.border, width: theme.borders.hairline),
+      ),
+      child: Column(
+        children: [
+          for (int i = 0; i < sections.length; i++) ...[
+            if (i > 0)
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: colors.border,
+              ),
+            Padding(
+              padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding:
+                                EdgeInsets.all(context.sp(theme.spacing.xxs)),
+                            decoration: BoxDecoration(
+                              color: colors.primary.withValues(alpha: 0.12),
+                              borderRadius: context.radius(theme.radii.sm),
+                            ),
+                            child: Icon(
+                              sections[i].icon,
+                              size: context.sz(16),
+                              color: colors.primary,
+                            ),
+                          ),
+                          SizedBox(width: context.sp(theme.spacing.xs)),
+                          Text(
+                            sections[i].title,
+                            style: context.uiText.bodyStrong.copyWith(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      UiButton(
+                        label: 'Edit',
+                        leadingIcon: Icons.edit_outlined,
+                        variant: UiVariant.ghost,
+                        size: UiSize.xs,
+                        expandOnMobile: false,
+                        onPressed: sections[i].onEdit,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: context.sp(theme.spacing.xs)),
+                  Text(
+                    sections[i]
+                        .values
+                        .where((v) => v.trim().isNotEmpty)
+                        .join(' · '),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.caption.copyWith(
+                      color: colors.foregroundMuted,
+                      fontSize: 13,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopReviewCards(BuildContext context) {
+    final UiTheme theme = context.ui;
+
+    final Widget personalCard = _reviewCard(
+      context,
+      'Personal',
+      Icons.badge_outlined,
+      <String>[
+        _name.text,
+        _email.text,
+        '+91 ${_phone.text}',
+        '${_city.text}, ${_state.text}',
+      ],
+      () => setState(() => _step = 0),
+    );
+
+    final Widget presenceCard = _reviewCard(
+      context,
+      'Presence',
+      Icons.campaign_outlined,
+      <String>[
+        _primaryPlatform ?? '',
+        _channel.text,
+        _audienceReach ?? '',
+        _niches.join(', '),
+      ],
+      () => setState(() => _step = 1),
+    );
+
+    final Widget payoutCard = _reviewCard(
+      context,
+      'Payout',
+      Icons.account_balance_outlined,
+      <String>[
+        _accountHolder.text,
+        _bankName ?? '',
+        '•••• ${_accountNumber.text.length >= 4 ? _accountNumber.text.substring(_accountNumber.text.length - 4) : _accountNumber.text}',
+        '${_ifsc.text.toUpperCase()} · ${_accountType ?? ''}',
+      ],
+      () => setState(() => _step = 2),
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Expanded(child: personalCard),
+        SizedBox(width: context.sp(theme.spacing.sm)),
+        Expanded(child: presenceCard),
+        SizedBox(width: context.sp(theme.spacing.sm)),
+        Expanded(child: payoutCard),
+      ],
+    );
+  }
+
   Widget _reviewCard(
     BuildContext context,
     String title,
@@ -914,34 +1220,55 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
     List<String> values,
     VoidCallback onEdit,
   ) {
+    final theme = context.ui;
+    final colors = theme.colors;
     return UiCard(
-      title: title,
-      leading: Icon(icon, color: context.ui.colors.primary),
-      trailing: UiButton(
-        label: 'Edit',
-        leadingIcon: Icons.edit_outlined,
-        variant: UiVariant.ghost,
-        size: UiSize.xs,
-        onPressed: onEdit,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: values
-            .where((String value) => value.trim().isNotEmpty)
-            .map(
-              (String value) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+      variant: UiCardVariant.surface,
+      child: Padding(
+        padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: context.sz(17), color: colors.primary),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: context.uiText.bodyStrong.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                UiIconButton(
+                  icon: Icons.edit_outlined,
+                  size: UiSize.xs,
+                  tooltip: 'Edit $title',
+                  onPressed: onEdit,
+                ),
+              ],
+            ),
+            SizedBox(height: context.sp(theme.spacing.xs)),
+            for (final String value
+                in values.where((String v) => v.trim().isNotEmpty))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
                 child: Text(
                   value,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: context.uiText.caption.copyWith(
-                    color: context.ui.colors.foregroundMuted,
+                    color: colors.foregroundMuted,
+                    fontSize: 12.5,
                   ),
                 ),
               ),
-            )
-            .toList(),
+          ],
+        ),
       ),
     );
   }
@@ -950,66 +1277,144 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
     BuildContext context,
     AffiliateApplicationModel application,
   ) {
-    final UiTheme theme = context.ui;
-    return Material(
-      color: theme.colors.background,
-      child: UiPage(
-        maxWidth: 720,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            vertical: context.sp(theme.spacing.xxl),
-          ),
-          child: UiCard(
-            intent: UiIntent.warning,
-            child: Column(
-              children: <Widget>[
-                Icon(
-                  Icons.hourglass_top_rounded,
-                  size: context.sz(52),
-                  color: theme.colors.warning,
+    final theme = context.ui;
+    final colors = theme.colors;
+    final responsive = context.uiRes;
+    return Scaffold(
+      backgroundColor: colors.background,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints viewportConstraints) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(
+                  responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
                 ),
-                SizedBox(height: context.sp(theme.spacing.md)),
-                Text(
-                  'Application submitted',
-                  textAlign: TextAlign.center,
-                  style: context.uiText.display.copyWith(fontSize: 28),
+                vertical: context.sp(theme.spacing.xl),
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: viewportConstraints.maxHeight -
+                      context.sp(theme.spacing.xl) * 2,
                 ),
-                SizedBox(height: context.sp(theme.spacing.xs)),
-                Text(
-                  'Reference ${application.id}',
-                  textAlign: TextAlign.center,
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundMuted,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: context.sz(680)),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const AppLogoMark(size: 20),
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      Text(
+                        'TradeX',
+                        style: context.uiText.bodyStrong.copyWith(
+                          fontSize: 16,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                SizedBox(height: context.sp(theme.spacing.lg)),
-                const UiCallout(
-                  title: 'Awaiting administrator review',
-                  message:
-                      'Most applications are reviewed within 48 hours. Partner links, payouts, and referral analytics remain locked until approval.',
-                  intent: UiIntent.warning,
-                ),
-                SizedBox(height: context.sp(theme.spacing.md)),
-                Text(
-                  'Your journal, portfolio, subscription, community profile, and all customer/trader tools remain available.',
-                  textAlign: TextAlign.center,
-                  style: context.uiText.body.copyWith(
-                    color: theme.colors.foregroundMuted,
+                  SizedBox(height: context.sp(theme.spacing.xl)),
+                  UiCard(
+                    variant: UiCardVariant.surface,
+                    child: Padding(
+                      padding: EdgeInsets.all(
+                        context.sp(
+                          responsive.isMobile
+                              ? theme.spacing.lg
+                              : theme.spacing.xl,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const AuthStepIcon(
+                            icon: Icons.hourglass_top_rounded,
+                            intent: UiIntent.warning,
+                            large: true,
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.md)),
+                          Text(
+                            'Application Submitted!',
+                            textAlign: TextAlign.center,
+                            style: context.uiText.display.copyWith(
+                              fontSize: 28.0,
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxs)),
+                          Text(
+                            'Reference ${application.id}',
+                            textAlign: TextAlign.center,
+                            style: context.uiText.body.copyWith(
+                              color: colors.foregroundMuted,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.lg)),
+                          const UiCallout(
+                            title: 'Awaiting administrator review',
+                            message:
+                                'Most applications are reviewed within 48 hours. Partner links, payouts, and referral analytics remain locked until approval.',
+                            intent: UiIntent.warning,
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.md)),
+                          Text(
+                            'Your journal, portfolio, subscription, community profile, and all customer/trader tools remain available.',
+                            textAlign: TextAlign.center,
+                            style: context.uiText.body.copyWith(
+                              color: theme.colors.foregroundMuted,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.xl)),
+                          UiButton(
+                            label: 'Continue to TradeX',
+                            trailingIcon: Icons.arrow_forward_rounded,
+                            variant: UiVariant.primary,
+                            intent: UiIntent.primary,
+                            size: UiSize.lg,
+                            onPressed: widget.onDone ?? widget.onCancel,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                SizedBox(height: context.sp(theme.spacing.lg)),
-                UiButton(
-                  label: 'Continue to TradeX',
-                  trailingIcon: Icons.arrow_forward_rounded,
-                  size: UiSize.lg,
-                  onPressed: widget.onDone,
-                ),
-              ],
+                  SizedBox(height: context.sp(theme.spacing.lg)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.verified_user_outlined,
+                        size: context.sz(14),
+                        color: colors.foregroundSubtle,
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      Text(
+                        'Your data is encrypted end-to-end',
+                        style: context.uiText.caption.copyWith(
+                          color: colors.foregroundSubtle,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    },
+  ),
+),
+);
   }
 
   Widget _responsivePair(BuildContext context, Widget first, Widget second) {
@@ -1040,24 +1445,23 @@ class _ApplicationPageSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.lg)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              const UiSkeleton(width: 28, height: 28),
-              SizedBox(width: context.sp(theme.spacing.sm)),
-              const Expanded(child: UiSkeleton(height: 24)),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-          const UiSkeleton(width: double.infinity, height: 96),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          const UiSkeleton(width: double.infinity, height: 420),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            const UiSkeleton(width: 28, height: 28),
+            SizedBox(width: context.sp(theme.spacing.sm)),
+            const UiSkeleton(width: 80, height: 24),
+          ],
+        ),
+        SizedBox(height: context.sp(theme.spacing.xl)),
+        const UiSkeleton(width: double.infinity, height: 60),
+        SizedBox(height: context.sp(theme.spacing.lg)),
+        const UiSkeleton(width: double.infinity, height: 420),
+      ],
     );
   }
 }

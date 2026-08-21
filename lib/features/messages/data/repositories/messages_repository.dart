@@ -23,8 +23,8 @@ class MessagesRepositoryImpl implements MessagesRepository {
   final Map<String, List<AppChatMessage>> _threads =
       <String, List<AppChatMessage>>{};
 
-  List<AppChatMessage> _threadFor(String conversationId) => _threads
-      .putIfAbsent(
+  List<AppChatMessage> _threadFor(String conversationId) =>
+      _threads.putIfAbsent(
         conversationId,
         () => List<AppChatMessage>.from(_source.chatMessages(conversationId)),
       );
@@ -78,10 +78,7 @@ class MessagesRepositoryImpl implements MessagesRepository {
   }
 
   @override
-  Future<AppChatMessage> sendMessage(
-    String conversationId,
-    String body,
-  ) async {
+  Future<AppChatMessage> sendMessage(String conversationId, String body) async {
     await Future<void>.delayed(const Duration(milliseconds: 320));
     final AppChatMessage message = AppChatMessage(
       id: 'msg_${DateTime.now().microsecondsSinceEpoch}',

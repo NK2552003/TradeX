@@ -38,6 +38,11 @@ abstract class CommunityRepository {
   Future<List<AppTrader>> getSuggestedTraders();
   Future<List<AppTrader>> getFollowers();
   Future<List<AppTrader>> getFollowing();
+
+  /// One person by id or `@handle`, for a deep link that only carries the
+  /// identity a search row or a mention was able to name.
+  Future<AppTrader?> getTrader(String idOrHandle);
+
   Future<AppTrader> toggleFollow(String traderId);
   Future<List<MapEntry<AppTrader, double>>> getLeaderboard(String period);
   Future<List<TrendingTopic>> getTrending();
@@ -116,9 +121,8 @@ class CommunityRepositoryImpl implements CommunityRepository {
   @override
   Future<List<AppComment>> getComments(String postId) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
-    return List<AppComment>.from(
-      _extraComments[postId] ?? const <AppComment>[],
-    )..addAll(_source.comments(postId));
+    return List<AppComment>.from(_extraComments[postId] ?? const <AppComment>[])
+      ..addAll(_source.comments(postId));
   }
 
   final Map<String, List<AppComment>> _extraComments =
@@ -163,12 +167,13 @@ class CommunityRepositoryImpl implements CommunityRepository {
   @override
   Future<AppComment> addComment(String postId, AppComment comment) async {
     await Future<void>.delayed(const Duration(milliseconds: 380));
-    _extraComments
-        .putIfAbsent(postId, () => <AppComment>[])
-        .insert(0, comment);
+    _extraComments.putIfAbsent(postId, () => <AppComment>[]).insert(0, comment);
     final int index = _posts.indexWhere((AppPost p) => p.id == postId);
     if (index >= 0) {
-      _posts[index] = _copy(_posts[index], comments: _posts[index].comments + 1);
+      _posts[index] = _copy(
+        _posts[index],
+        comments: _posts[index].comments + 1,
+      );
     }
     return comment;
   }
@@ -193,6 +198,20 @@ class CommunityRepositoryImpl implements CommunityRepository {
     return _traders
         .where((AppTrader t) => t.isFollowing)
         .toList(growable: false);
+  }
+
+  @override
+  Future<AppTrader?> getTrader(String idOrHandle) async {
+    await Future<void>.delayed(const Duration(milliseconds: 140));
+    final String needle = idOrHandle.trim().replaceFirst('@', '').toLowerCase();
+    if (needle.isEmpty) return null;
+    for (final AppTrader trader in _traders) {
+      if (trader.id.toLowerCase() == needle ||
+          trader.handle.toLowerCase() == needle) {
+        return trader;
+      }
+    }
+    return null;
   }
 
   @override

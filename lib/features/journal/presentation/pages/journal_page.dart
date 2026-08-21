@@ -17,11 +17,23 @@ class JournalPage extends StatefulWidget {
   const JournalPage({
     super.key,
     this.repository,
+    this.composeSymbol,
+    this.focusTradeId,
     this.onOpenAi,
     this.onOpenTicker,
   });
 
   final JournalRepository? repository;
+
+  /// Opens the composer on this instrument as soon as the page has loaded, for
+  /// a "log a trade" hand-off from a chart, an alert or a notification.
+  final String? composeSymbol;
+
+  /// Selects this trade on arrival, for a hand-off from search, a notification
+  /// or a portfolio row. Filters are cleared first so the trade cannot land
+  /// outside the list the reader is looking at.
+  final String? focusTradeId;
+
   final VoidCallback? onOpenAi;
   final ValueChanged<String>? onOpenTicker;
 
@@ -68,6 +80,35 @@ class _JournalPageState extends State<JournalPage> {
       _checklist = checklist;
     });
     await _reload();
+    if (!mounted) return;
+    await _focusRequestedTrade();
+    if (!mounted) return;
+    final String? compose = widget.composeSymbol?.trim();
+    if (compose != null && compose.isNotEmpty) {
+      await _openForm(symbol: compose);
+    }
+  }
+
+  /// Honours [JournalPage.focusTradeId]. The trade is fetched by id rather than
+  /// looked up in `_trades`, so a deep link still works when the active filters
+  /// would have hidden it — and the view switches to the log so the selection
+  /// is somewhere the reader can see it.
+  Future<void> _focusRequestedTrade() async {
+    final String? id = widget.focusTradeId?.trim();
+    if (id == null || id.isEmpty) return;
+    final AppTrade? trade = await _repo.getTrade(id);
+    if (!mounted || trade == null) return;
+    setState(() {
+      _selected = trade;
+      _view = _JournalView.trades;
+    });
+    if (_trades.any((AppTrade t) => t.id == trade.id)) return;
+    // The link points outside the current filters; widening beats showing a
+    // detail pane for a row that is not in the list beside it.
+    setState(() => _query = const JournalQuery());
+    await _reload();
+    if (!mounted) return;
+    setState(() => _selected = trade);
   }
 
   Future<void> _reload() async {
@@ -80,17 +121,17 @@ class _JournalPageState extends State<JournalPage> {
       _summary = summary;
       _loading = false;
       final AppTrade? current = _selected;
-      if (current != null &&
-          !trades.any((AppTrade t) => t.id == current.id)) {
+      if (current != null && !trades.any((AppTrade t) => t.id == current.id)) {
         _selected = null;
       }
     });
   }
 
-  Future<void> _openForm({AppTrade? initial}) async {
+  Future<void> _openForm({AppTrade? initial, String? symbol}) async {
     final AppTrade? trade = await showTradeFormSheet(
       context,
       initial: initial,
+      initialSymbol: symbol,
       symbols: _symbols,
       strategies: _strategies,
       tags: _tags,
@@ -225,7 +266,7 @@ class _JournalPageState extends State<JournalPage> {
             t.openedAt.day == day.day,
       )
       .toList(growable: false);
-// JOURNAL_ACTIONS_3
+  // JOURNAL_ACTIONS_3
 
   @override
   Widget build(BuildContext context) {

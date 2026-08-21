@@ -96,13 +96,16 @@ class UiToastScopeState extends State<UiToastScope> {
                   decoration: TextDecoration.none,
                 ),
                 child: Column(
-                  crossAxisAlignment:
-                      mobile ? CrossAxisAlignment.center : CrossAxisAlignment.end,
+                  crossAxisAlignment: mobile
+                      ? CrossAxisAlignment.center
+                      : CrossAxisAlignment.end,
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     for (int i = 0; i < _queue.length; i++)
                       Padding(
-                        padding: EdgeInsets.only(top: context.sp(theme.spacing.xs)),
+                        padding: EdgeInsets.only(
+                          top: context.sp(theme.spacing.xs),
+                        ),
                         child: AnimatedSlide(
                           offset: Offset.zero,
                           duration: theme.motion.fast,

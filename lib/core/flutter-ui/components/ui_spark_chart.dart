@@ -28,22 +28,22 @@ class UiSparkChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => UiChart.spark(
-        data: <UiChartPoint>[
-          for (int i = 0; i < values.length; i++)
-            UiChartPoint(
-              label: labels != null && i < labels!.length ? labels![i] : '',
-              values: <double>[values[i]],
-            ),
-        ],
-        series: <UiChartSeries>[
-          UiChartSeries(
-            name: '',
-            color: color,
-            type: filled ? UiChartSeriesType.area : UiChartSeriesType.line,
-          ),
-        ],
-        height: height,
-        valueFormatter: valueFormatter,
-        curved: curved,
-      );
+    data: <UiChartPoint>[
+      for (int i = 0; i < values.length; i++)
+        UiChartPoint(
+          label: labels != null && i < labels!.length ? labels![i] : '',
+          values: <double>[values[i]],
+        ),
+    ],
+    series: <UiChartSeries>[
+      UiChartSeries(
+        name: '',
+        color: color,
+        type: filled ? UiChartSeriesType.area : UiChartSeriesType.line,
+      ),
+    ],
+    height: height,
+    valueFormatter: valueFormatter,
+    curved: curved,
+  );
 }

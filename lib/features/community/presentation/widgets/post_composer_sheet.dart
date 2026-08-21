@@ -138,13 +138,9 @@ class _PostComposerState extends State<_PostComposer> {
       children: <Widget>[
         Row(
           children: <Widget>[
-            Expanded(
-              child: Text('Compose', style: context.uiText.heading),
-            ),
+            Expanded(child: Text('Compose', style: context.uiText.heading)),
             UiIconButton(
-              icon: _preview
-                  ? Icons.edit_outlined
-                  : Icons.visibility_outlined,
+              icon: _preview ? Icons.edit_outlined : Icons.visibility_outlined,
               tooltip: _preview ? 'Back to editing' : 'Preview',
               onPressed: () => setState(() => _preview = !_preview),
             ),

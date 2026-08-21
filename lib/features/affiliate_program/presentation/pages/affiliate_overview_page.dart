@@ -274,7 +274,7 @@ class _AffiliateOverviewPageState extends State<AffiliateOverviewPage> {
       title: 'Link clicks',
       subtitle: '${total.toStringAsFixed(0)} clicks over $_range',
       loading: _loading,
-      loadingHeight: context.sz(220),
+      loadingHeight: 220,
       child: UiChart(
         height: context.uiRes.pick<double>(
           mobile: 180,
@@ -307,7 +307,7 @@ class _AffiliateOverviewPageState extends State<AffiliateOverviewPage> {
       title: 'Channel performance',
       subtitle: 'Clicks, signups and revenue by source',
       loading: _loading,
-      loadingHeight: context.sz(220),
+      loadingHeight: 220,
       child: UiTable<ChannelPerformance>(
         rows: rows,
         stackOnMobile: true,
@@ -378,7 +378,7 @@ class _AffiliateOverviewPageState extends State<AffiliateOverviewPage> {
           ? 'Nobody has joined through your link yet'
           : 'The ${rows.length} most recent accounts attributed to you',
       loading: _loading,
-      loadingHeight: context.sz(200),
+      loadingHeight: 200,
       actions: <Widget>[
         UiButton(
           label: 'All referrals',
@@ -505,7 +505,8 @@ class _AffiliateOverviewPageState extends State<AffiliateOverviewPage> {
     }
     return UiCard(
       title: 'Next payout',
-      subtitle: '${next.method} · requested ${AppTokens.relativeTime(next.requestedAt)}',
+      subtitle:
+          '${next.method} · requested ${AppTokens.relativeTime(next.requestedAt)}',
       trailing: UiBadge(
         label: payoutStatusLabel(next.status),
         intent: payoutStatusIntent(next.status),
@@ -614,7 +615,11 @@ class ReferralRow extends StatelessWidget {
 
 /// Small label/value pair used inside the earnings card.
 class _Figure extends StatelessWidget {
-  const _Figure({required this.label, required this.value, required this.intent});
+  const _Figure({
+    required this.label,
+    required this.value,
+    required this.intent,
+  });
 
   final String label;
   final String value;

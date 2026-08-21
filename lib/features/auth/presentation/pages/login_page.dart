@@ -313,19 +313,24 @@ class _LoginPageState extends State<LoginPage> {
                                             UiField(
                                               label: 'Password',
                                               required: true,
-                                              headerAction: GestureDetector(
-                                                onTap: widget
-                                                    .onNavigateToForgotPassword,
-                                                child: Text(
-                                                  responsive.isMobile
-                                                      ? 'Forgot?'
-                                                      : 'Forgot your password?',
-                                                  style: context.uiText.caption
-                                                      .copyWith(
-                                                        color: colors.primary,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
+                                              headerAction: MouseRegion(
+                                                cursor: SystemMouseCursors.click,
+                                                child: GestureDetector(
+                                                  behavior:
+                                                      HitTestBehavior.opaque,
+                                                  onTap: widget
+                                                      .onNavigateToForgotPassword,
+                                                  child: Text(
+                                                    responsive.isMobile
+                                                        ? 'Forgot?'
+                                                        : 'Forgot your password?',
+                                                    style: context.uiText.caption
+                                                        .copyWith(
+                                                          color: colors.primary,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                  ),
                                                 ),
                                               ),
                                               child: UiPasswordField(

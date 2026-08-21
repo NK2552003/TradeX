@@ -56,8 +56,9 @@ class AppTickerCard extends StatelessWidget {
                         ticker.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: context.uiText.caption
-                            .copyWith(color: theme.colors.foregroundMuted),
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -96,8 +97,9 @@ class AppTickerCard extends StatelessWidget {
                 ticker.note!,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
               ),
             ],
           ],
@@ -137,7 +139,9 @@ class AppPriceAlertCard extends StatelessWidget {
               Icon(
                 alert.above ? Icons.north : Icons.south,
                 size: context.sz(theme.sizes.iconSm),
-                color: alert.above ? theme.colors.bullish : theme.colors.bearish,
+                color: alert.above
+                    ? theme.colors.bullish
+                    : theme.colors.bearish,
               ),
               SizedBox(width: context.sp(theme.spacing.sm)),
               Expanded(
@@ -168,8 +172,9 @@ class AppPriceAlertCard extends StatelessWidget {
             alert.triggeredAt != null
                 ? 'Triggered ${AppTokens.relativeTime(alert.triggeredAt!)}'
                 : 'Now ${AppTokens.money(current)}',
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
         ],
       ),
@@ -232,8 +237,9 @@ class AppHeatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final Color base = AppTokens.pl(context, changePercent);
-    final double intensity =
-        (changePercent.abs() / 5).clamp(0.10, 0.85).toDouble();
+    final double intensity = (changePercent.abs() / 5)
+        .clamp(0.10, 0.85)
+        .toDouble();
     return UiInteractive(
       enabled: onTap != null,
       onTap: onTap,
@@ -242,7 +248,9 @@ class AppHeatTile extends StatelessWidget {
         curve: theme.motion.curve,
         padding: EdgeInsets.all(ctx.sp(theme.spacing.md)),
         decoration: BoxDecoration(
-          color: base.withValues(alpha: s.hovered ? intensity + 0.1 : intensity),
+          color: base.withValues(
+            alpha: s.hovered ? intensity + 0.1 : intensity,
+          ),
           borderRadius: ctx.radius(theme.radii.lg),
           border: Border.all(
             color: base.withValues(alpha: 0.4),

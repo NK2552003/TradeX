@@ -4,21 +4,22 @@ import 'package:tradex/core/data/session_trader.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/community/data/repositories/community_repository.dart';
 import 'package:tradex/features/messages/data/repositories/messages_repository.dart';
+import 'package:tradex/features/settings/data/repositories/billing_settings_repository.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/subscriptions/data/repositories/subscription_repository.dart';
+import 'package:tradex/features/settings/models/billing_models.dart';
 
 /// Direct messages: inbox on the left, thread on the right, split from tablet
 /// up and drill-in on phones.
 ///
-/// DMs are a paid capability, so the page reads the live [Subscription] and
-/// renders an [AppTierGateCard] instead of the inbox on the free plan — the
+/// DMs are a paid capability, so the page reads the live [SubscriptionSummary]
+/// and renders an [AppTierGateCard] instead of the inbox on the free plan — the
 /// gate is data-driven, never a compile-time flag.
 class MessagesPage extends StatefulWidget {
   const MessagesPage({
     super.key,
     this.repository,
     this.profileRepository,
-    this.subscriptionRepository,
+    this.billingRepository,
     this.communityRepository,
     this.initialPeer,
     this.onUpgrade,
@@ -27,7 +28,7 @@ class MessagesPage extends StatefulWidget {
 
   final MessagesRepository? repository;
   final ProfileSettingsRepository? profileRepository;
-  final SubscriptionRepository? subscriptionRepository;
+  final BillingSettingsRepository? billingRepository;
   final CommunityRepository? communityRepository;
 
   /// When the shell hands off from a profile ("Message @handle"), the thread
@@ -46,8 +47,8 @@ class _MessagesPageState extends State<MessagesPage> {
       widget.repository ?? MessagesRepositoryImpl();
   late final ProfileSettingsRepository _profiles =
       widget.profileRepository ?? ProfileSettingsRepositoryImpl();
-  late final SubscriptionRepository _billing =
-      widget.subscriptionRepository ?? SubscriptionRepositoryImpl();
+  late final BillingSettingsRepository _billing =
+      widget.billingRepository ?? BillingSettingsRepositoryImpl();
   late final CommunityRepository _community =
       widget.communityRepository ?? CommunityRepositoryImpl();
 
@@ -82,7 +83,7 @@ class _MessagesPageState extends State<MessagesPage> {
     if (!mounted) return;
     setState(() {
       _me = appTraderFromProfile(results[0]! as UserProfileModel);
-      _tier = (results[1]! as Subscription).tier;
+      _tier = (results[1]! as SubscriptionSummary).tier;
       _conversations = results[2]! as List<AppConversation>;
       _contacts = results[3]! as List<AppTrader>;
       _loading = false;
@@ -177,9 +178,8 @@ class _MessagesPageState extends State<MessagesPage> {
   Future<void> _newMessage() async {
     final List<AppTrader> available = _contacts
         .where(
-          (AppTrader t) => !_conversations.any(
-            (AppConversation c) => c.peer.id == t.id,
-          ),
+          (AppTrader t) =>
+              !_conversations.any((AppConversation c) => c.peer.id == t.id),
         )
         .toList(growable: false);
     if (available.isEmpty) {
@@ -199,8 +199,10 @@ class _MessagesPageState extends State<MessagesPage> {
     await _startWith(peer);
   }
 
-  int get _unread =>
-      _conversations.fold<int>(0, (int sum, AppConversation c) => sum + c.unread);
+  int get _unread => _conversations.fold<int>(
+    0,
+    (int sum, AppConversation c) => sum + c.unread,
+  );
 
   String get _subtitle {
     if (_loading) return 'Opening your inbox…';
@@ -457,9 +459,7 @@ class _PeerPickerState extends State<_PeerPicker> {
       children: <Widget>[
         Row(
           children: <Widget>[
-            Expanded(
-              child: Text('New message', style: context.uiText.heading),
-            ),
+            Expanded(child: Text('New message', style: context.uiText.heading)),
             UiIconButton(
               icon: Icons.close_rounded,
               tooltip: 'Close',

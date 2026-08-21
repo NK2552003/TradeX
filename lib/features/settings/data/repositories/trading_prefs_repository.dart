@@ -7,7 +7,10 @@ abstract class TradingPrefsRepository {
   Future<TradingPrefsModel> updatePreferences(TradingPrefsModel prefs);
   Future<List<AppChecklistItem>> getChecklist();
   Future<List<AppChecklistItem>> updateChecklist(List<AppChecklistItem> items);
-  Future<List<AppChecklistItem>> addChecklistItem(String label, {String? description});
+  Future<List<AppChecklistItem>> addChecklistItem(
+    String label, {
+    String? description,
+  });
   Future<List<AppChecklistItem>> deleteChecklistItem(String id);
 }
 
@@ -39,7 +42,8 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
     const AppChecklistItem(
       id: 'chk_4',
       label: 'High-impact economic news checked (FOMC, CPI, NFP)',
-      description: 'Avoid entering positions within 30 min of red-folder events',
+      description:
+          'Avoid entering positions within 30 min of red-folder events',
       done: false,
       icon: Icons.event_note_outlined,
     ),
@@ -65,14 +69,19 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
   }
 
   @override
-  Future<List<AppChecklistItem>> updateChecklist(List<AppChecklistItem> items) async {
+  Future<List<AppChecklistItem>> updateChecklist(
+    List<AppChecklistItem> items,
+  ) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     _checklist = List<AppChecklistItem>.from(items);
     return _checklist;
   }
 
   @override
-  Future<List<AppChecklistItem>> addChecklistItem(String label, {String? description}) async {
+  Future<List<AppChecklistItem>> addChecklistItem(
+    String label, {
+    String? description,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     final newItem = AppChecklistItem(
       id: 'chk_${DateTime.now().millisecondsSinceEpoch}',

@@ -52,8 +52,9 @@ class AppStrategyCard extends StatelessWidget {
                 strategy.summary!,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: context.uiText.body
-                    .copyWith(color: theme.colors.foregroundMuted),
+                style: context.uiText.body.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
               ),
             SizedBox(height: context.sp(theme.spacing.md)),
             Wrap(
@@ -62,9 +63,7 @@ class AppStrategyCard extends StatelessWidget {
               children: <Widget>[
                 UiBadge(
                   label: strategy.isPublic ? 'Public' : 'Private',
-                  icon: strategy.isPublic
-                      ? Icons.public
-                      : Icons.lock_outline,
+                  icon: strategy.isPublic ? Icons.public : Icons.lock_outline,
                 ),
                 UiBadge(
                   label: 'v${strategy.versionCount}',
@@ -129,8 +128,9 @@ class AppStrategyPerformanceCard extends StatelessWidget {
                 SizedBox(height: context.sp(theme.spacing.xs)),
                 Text(
                   'Avg ${AppTokens.rr(strategy.avgR)} per trade',
-                  style: context.uiText.caption
-                      .copyWith(color: theme.colors.foregroundMuted),
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
                 ),
                 if (strategy.equityCurve.isNotEmpty) ...<Widget>[
                   SizedBox(height: context.sp(theme.spacing.sm)),
@@ -178,8 +178,7 @@ class AppVersionCard extends StatelessWidget {
               color: theme.colors.surfaceMuted,
               borderRadius: context.radius(theme.radii.md),
             ),
-            child: Text('v${version.version}',
-                style: context.uiText.caption),
+            child: Text('v${version.version}', style: context.uiText.caption),
           ),
           SizedBox(width: context.sp(theme.spacing.md)),
           Expanded(
@@ -194,8 +193,9 @@ class AppVersionCard extends StatelessWidget {
                 Text(
                   '${AppTokens.relativeTime(version.savedAt)}'
                   '${version.author == null ? '' : ' · ${version.author}'}',
-                  style: context.uiText.caption
-                      .copyWith(color: theme.colors.foregroundMuted),
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
                 ),
               ],
             ),
@@ -231,27 +231,29 @@ class AppStrategyComparisonCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     Widget column(AppStrategy s, CrossAxisAlignment align) => Column(
-          crossAxisAlignment: align,
-          children: <Widget>[
-            Text(
-              s.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.uiText.bodyStrong,
-            ),
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            Text(
-              AppTokens.signedMoney(s.netPnl),
-              style: context.uiText.heading
-                  .copyWith(color: AppTokens.pl(context, s.netPnl)),
-            ),
-            Text(
-              '${s.winRate.toStringAsFixed(0)}% win · ${AppTokens.rr(s.avgR)}',
-              style: context.uiText.caption
-                  .copyWith(color: theme.colors.foregroundMuted),
-            ),
-          ],
-        );
+      crossAxisAlignment: align,
+      children: <Widget>[
+        Text(
+          s.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.uiText.bodyStrong,
+        ),
+        SizedBox(height: context.sp(theme.spacing.xs)),
+        Text(
+          AppTokens.signedMoney(s.netPnl),
+          style: context.uiText.heading.copyWith(
+            color: AppTokens.pl(context, s.netPnl),
+          ),
+        ),
+        Text(
+          '${s.winRate.toStringAsFixed(0)}% win · ${AppTokens.rr(s.avgR)}',
+          style: context.uiText.caption.copyWith(
+            color: theme.colors.foregroundMuted,
+          ),
+        ),
+      ],
+    );
 
     return UiCard(
       title: 'Head to head',
@@ -261,11 +263,15 @@ class AppStrategyComparisonCard extends StatelessWidget {
             children: <Widget>[
               Expanded(child: column(a, CrossAxisAlignment.start)),
               Padding(
-                padding:
-                    EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.sm)),
-                child: Text('vs',
-                    style: context.uiText.caption
-                        .copyWith(color: theme.colors.foregroundSubtle)),
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.sm),
+                ),
+                child: Text(
+                  'vs',
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundSubtle,
+                  ),
+                ),
               ),
               Expanded(child: column(b, CrossAxisAlignment.end)),
             ],
@@ -330,8 +336,9 @@ class AppStrategySummaryCard extends StatelessWidget {
             )
           : Text(
               summary,
-              style: context.uiText.body
-                  .copyWith(color: theme.colors.foregroundMuted),
+              style: context.uiText.body.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             ),
     );
   }

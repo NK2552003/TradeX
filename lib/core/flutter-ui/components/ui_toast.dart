@@ -6,11 +6,7 @@ import 'ui_toaster.dart';
 /// Sonner-inspired modern toast component with clean typography, elevation,
 /// zero underlines, semantic intent badges, and action support.
 class UiToast extends StatelessWidget {
-  const UiToast({
-    super.key,
-    required this.data,
-    this.onDismiss,
-  });
+  const UiToast({super.key, required this.data, this.onDismiss});
 
   final UiToastData data;
   final VoidCallback? onDismiss;
@@ -167,7 +163,8 @@ class UiToast extends StatelessWidget {
           child: Container(
             padding: EdgeInsets.symmetric(
               horizontal: context.sp(theme.spacing.md),
-              vertical: context.sp(theme.spacing.sm) + context.sp(theme.spacing.xxs),
+              vertical:
+                  context.sp(theme.spacing.sm) + context.sp(theme.spacing.xxs),
             ),
             decoration: BoxDecoration(
               color: colors.surface,
@@ -191,14 +188,14 @@ class UiToast extends StatelessWidget {
                       color: accent.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      icon,
-                      color: accent,
-                      size: context.sz(16),
-                    ),
+                    child: Icon(icon, color: accent, size: context.sz(16)),
                   ),
                 ),
-                SizedBox(width: context.sp(theme.spacing.sm) + context.sp(theme.spacing.xxs)),
+                SizedBox(
+                  width:
+                      context.sp(theme.spacing.sm) +
+                      context.sp(theme.spacing.xxs),
+                ),
 
                 // Title and Description Content
                 Expanded(
@@ -210,18 +207,19 @@ class UiToast extends StatelessWidget {
                         data.title,
                         style: context.uiText.bodyStrong.copyWith(
                           color: colors.foreground,
-                          fontSize: 13.5,
+                          fontSize: context.fs(13.5),
                           fontWeight: FontWeight.w600,
                           decoration: TextDecoration.none,
                         ),
                       ),
-                      if (data.message != null && data.message!.isNotEmpty) ...<Widget>[
+                      if (data.message != null &&
+                          data.message!.isNotEmpty) ...<Widget>[
                         SizedBox(height: context.sp(theme.spacing.xxs)),
                         Text(
                           data.message!,
                           style: context.uiText.caption.copyWith(
                             color: colors.foregroundMuted,
-                            fontSize: 12.5,
+                            fontSize: context.fs(12.5),
                             height: 1.4,
                             decoration: TextDecoration.none,
                           ),
@@ -232,7 +230,8 @@ class UiToast extends StatelessWidget {
                 ),
 
                 // Optional Sonner Action Button
-                if (data.actionLabel != null && data.onAction != null) ...<Widget>[
+                if (data.actionLabel != null &&
+                    data.onAction != null) ...<Widget>[
                   SizedBox(width: context.sp(theme.spacing.sm)),
                   GestureDetector(
                     onTap: () {
@@ -257,7 +256,7 @@ class UiToast extends StatelessWidget {
                         style: context.uiText.caption.copyWith(
                           fontWeight: FontWeight.w600,
                           color: colors.foreground,
-                          fontSize: 11.5,
+                          fontSize: context.fs(11.5),
                           decoration: TextDecoration.none,
                         ),
                       ),
@@ -271,7 +270,9 @@ class UiToast extends StatelessWidget {
                   onTap: onDismiss,
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
-                    padding: EdgeInsets.only(top: context.sp(theme.spacing.xxs)),
+                    padding: EdgeInsets.only(
+                      top: context.sp(theme.spacing.xxs),
+                    ),
                     child: Icon(
                       Icons.close_rounded,
                       size: context.sz(14),

@@ -348,9 +348,7 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
               ? UiSkeleton(height: context.sz(16))
               : SelectableText(
                   _trackedLink,
-                  style: context.uiText.body.copyWith(
-                    fontFamily: 'monospace',
-                  ),
+                  style: context.uiText.body.copyWith(fontFamily: 'monospace'),
                 ),
         ),
       ],
@@ -442,8 +440,7 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
         variant: UiVariant.ghost,
         size: UiSize.sm,
         expandOnMobile: false,
-        onPressed: () =>
-            _copy('${creative.title} embed', _embedFor(creative)),
+        onPressed: () => _copy('${creative.title} embed', _embedFor(creative)),
       ),
     ],
     child: _creativePreview(creative),
@@ -706,7 +703,9 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Padding(
-                padding: EdgeInsets.only(top: context.sp(context.ui.spacing.xs)),
+                padding: EdgeInsets.only(
+                  top: context.sp(context.ui.spacing.xs),
+                ),
                 child: Icon(
                   Icons.circle,
                   size: context.sz(6),

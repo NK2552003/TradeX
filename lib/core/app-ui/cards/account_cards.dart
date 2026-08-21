@@ -48,12 +48,26 @@ class AppPlanCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: <Widget>[
-                Text(plan.priceLabel, style: context.uiText.display),
+                // Display type at a large accessibility text scale is wide enough
+                // to run a four-figure price off a narrow card, so the price gives
+                // way before the billing period it belongs to.
+                Flexible(
+                  child: Text(
+                    plan.priceLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.display,
+                  ),
+                ),
                 SizedBox(width: context.sp(theme.spacing.xxs)),
-                Text(
-                  plan.period,
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundMuted,
+                Flexible(
+                  child: Text(
+                    plan.period,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
                   ),
                 ),
               ],
@@ -139,8 +153,26 @@ class AppUsageCard extends StatelessWidget {
                 ),
                 SizedBox(width: context.sp(theme.spacing.xs)),
               ],
-              Expanded(child: Text(label, style: context.uiText.bodyStrong)),
-              Text('$used / $limit', style: context.uiText.numeric),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.bodyStrong,
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.sm)),
+              // Quotas run to five and six figures, so the tally is abbreviated
+              // and bounded rather than printed raw beside the label.
+              Flexible(
+                child: Text(
+                  '${AppTokens.count(used)} / ${AppTokens.count(limit)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: context.uiText.numeric,
+                ),
+              ),
             ],
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
@@ -355,7 +387,7 @@ class AppSettingCard extends StatelessWidget {
                       overflow: mobile ? TextOverflow.ellipsis : null,
                       style: context.uiText.caption.copyWith(
                         color: theme.colors.foregroundMuted,
-                        fontSize: mobile ? 11.5 : null,
+                        fontSize: mobile ? context.fs(11.5) : null,
                         height: mobile ? 1.35 : null,
                       ),
                     ),

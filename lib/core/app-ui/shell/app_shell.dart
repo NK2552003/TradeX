@@ -33,6 +33,8 @@ class AppShell extends StatefulWidget {
     this.workspaceName,
     this.tierLabel,
     this.onLogout,
+    this.pageTitle,
+    this.pageSectionTitle,
   });
 
   final List<AppNavSection> sections;
@@ -53,6 +55,15 @@ class AppShell extends StatefulWidget {
   final String? workspaceName;
   final String? tierLabel;
   final VoidCallback? onLogout;
+
+  /// Breadcrumb leaf for a [selectedId] that no [sections] entry declares. The
+  /// shell owns a few surfaces the sidebar never lists — search and the inbox
+  /// live behind the top bar — and without this the crumb would keep naming the
+  /// dashboard while a different page is on screen.
+  final String? pageTitle;
+
+  /// Breadcrumb root that goes with [pageTitle].
+  final String? pageSectionTitle;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -143,6 +154,8 @@ class _AppShellState extends State<AppShell> {
       onAi: widget.onAi,
       unread: widget.unreadNotifications,
       showLogo: r.isMobile,
+      title: widget.pageTitle,
+      sectionTitle: widget.pageSectionTitle,
       selectedId: widget.selectedId,
       sections: widget.sections,
       leading: r.isMobile
@@ -443,7 +456,7 @@ class AppWorkspaceTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.uiText.bodyStrong.copyWith(
-                      fontSize: 13.0,
+                      fontSize: context.fs(13.0),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -453,7 +466,7 @@ class AppWorkspaceTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: context.uiText.caption.copyWith(
                       color: theme.colors.foregroundSubtle,
-                      fontSize: 11.0,
+                      fontSize: context.fs(11.0),
                     ),
                   ),
                 ],
@@ -564,7 +577,7 @@ class AppSidebar extends StatelessWidget {
                               color: theme.colors.foregroundSubtle,
                               letterSpacing: 0.8,
                               fontWeight: FontWeight.w700,
-                              fontSize: 11.0,
+                              fontSize: context.fs(11.0),
                             ),
                           ),
                         ),
@@ -594,21 +607,17 @@ class AppSidebar extends StatelessWidget {
                 child: footer!,
               ),
             SizedBox(height: context.sp(theme.spacing.xs)),
-            AppNavUserTile(
-              trader:
-                  trader ??
-                  const AppTrader(
-                    id: 'u1',
-                    handle: 'nitish@tradex.ai',
-                    displayName: 'Nitish Kumar',
-                    tier: AppTier.premium,
-                  ),
-              collapsed: collapsed,
-              onLogout: onUserLogout,
-              onUpgrade: onUserUpgrade,
-              onNavigate: onNavigate,
-              menuItems: userMenuItems,
-            ),
+            // No stand-in identity: a sidebar rendered before anyone is signed in
+            // shows no user tile rather than a fictional account.
+            if (trader case final AppTrader person)
+              AppNavUserTile(
+                trader: person,
+                collapsed: collapsed,
+                onLogout: onUserLogout,
+                onUpgrade: onUserUpgrade,
+                onNavigate: onNavigate,
+                menuItems: userMenuItems,
+              ),
           ],
         ),
       ),
@@ -638,10 +647,23 @@ class AppNavUserTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final String name = trader.displayName ?? 'Nitish Kumar';
-    final String email = trader.handle.contains('@')
-        ? trader.handle
-        : '${trader.handle}@tradex.ai';
+    // Nothing is invented here. A profile that has not filled in a display name
+    // is shown by the local part of its handle, and an account whose handle is
+    // not an address simply has no secondary line.
+    final String handle = trader.handle.trim();
+    final String displayName = trader.displayName?.trim() ?? '';
+    final String name = displayName.isNotEmpty
+        ? displayName
+        : (handle.contains('@') ? handle.split('@').first : handle);
+    final String email = handle.contains('@') ? handle : '';
+
+    /// The plan directly above the current one, or null on the top plan — which
+    /// is how the upgrade entry knows both its label and whether to exist.
+    final AppTier? nextTier = switch (trader.tier) {
+      AppTier.free => AppTier.premium,
+      AppTier.premium => AppTier.enterprise,
+      AppTier.enterprise => null,
+    };
 
     final Widget trigger = UiInteractive(
       builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
@@ -681,17 +703,20 @@ class AppNavUserTile extends StatelessWidget {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: ctx.uiText.bodyStrong.copyWith(fontSize: 13.0),
-                    ),
-                    Text(
-                      email,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: ctx.uiText.caption.copyWith(
-                        color: theme.colors.foregroundSubtle,
-                        fontSize: 11.0,
+                      style: ctx.uiText.bodyStrong.copyWith(
+                        fontSize: ctx.fs(13.0),
                       ),
                     ),
+                    if (email.isNotEmpty)
+                      Text(
+                        email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: ctx.uiText.caption.copyWith(
+                          color: theme.colors.foregroundSubtle,
+                          fontSize: ctx.fs(11.0),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -708,9 +733,9 @@ class AppNavUserTile extends StatelessWidget {
 
     final Widget menu = UiDropdownMenu(
       actions: <UiMenuItem>[
-        if (onUpgrade != null)
+        if (onUpgrade != null && nextTier != null)
           UiMenuItem(
-            label: 'Upgrade to Pro',
+            label: 'Upgrade to ${AppTokens.tierLabel(nextTier)}',
             icon: Icons.auto_awesome,
             intent: UiIntent.primary,
             onTap: onUpgrade,
@@ -732,7 +757,12 @@ class AppNavUserTile extends StatelessWidget {
       child: trigger,
     );
 
-    return collapsed ? UiTooltip(message: '$name ($email)', child: menu) : menu;
+    return collapsed
+        ? UiTooltip(
+            message: email.isEmpty ? name : '$name ($email)',
+            child: menu,
+          )
+        : menu;
   }
 }
 
@@ -845,7 +875,7 @@ class _AppNavTileState extends State<AppNavTile> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: ctx.uiText.body.copyWith(
-                    fontSize: 13.0,
+                    fontSize: ctx.fs(13.0),
                     color: _isSelected
                         ? theme.colors.foreground
                         : theme.colors.foregroundMuted,
@@ -929,7 +959,7 @@ class _AppNavTileState extends State<AppNavTile> {
               child: Row(
                 children: <Widget>[
                   Container(
-                    width: 1.2,
+                    width: theme.borders.thick,
                     margin: EdgeInsets.only(left: context.sp(theme.spacing.xs)),
                     color: theme.colors.border.withValues(alpha: 0.5),
                   ),
@@ -975,7 +1005,7 @@ class _AppNavTileState extends State<AppNavTile> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: ctx.uiText.body.copyWith(
-                                    fontSize: 13.0,
+                                    fontSize: ctx.fs(13.0),
                                     color: subSelected
                                         ? theme.colors.foreground
                                         : theme.colors.foregroundMuted,
@@ -1013,6 +1043,7 @@ class AppTopBar extends StatelessWidget {
     this.leading,
     this.showLogo = false,
     this.title,
+    this.sectionTitle,
     this.selectedId,
     this.sections,
   });
@@ -1026,7 +1057,16 @@ class AppTopBar extends StatelessWidget {
   final int unread;
   final Widget? leading;
   final bool showLogo;
+
+  /// Breadcrumb leaf for a destination that has no nav item — the shell's own
+  /// surfaces (search, the inbox) are reached from this bar rather than the
+  /// sidebar, so there is no [sections] entry to read a label from. Set it and
+  /// the lookup is skipped entirely.
   final String? title;
+
+  /// Breadcrumb root that goes with [title].
+  final String? sectionTitle;
+
   final String? selectedId;
   final List<AppNavSection>? sections;
 
@@ -1039,10 +1079,10 @@ class AppTopBar extends StatelessWidget {
         context.uiRes.isTablet ||
         context.uiRes.width < context.sz(1180);
 
-    String sectionTitle = 'Terminal';
-    String pageTitle = 'Dashboard';
+    String sectionTitle = this.sectionTitle ?? 'Terminal';
+    String pageTitle = title ?? 'Dashboard';
 
-    if (sections != null && selectedId != null) {
+    if (title == null && sections != null && selectedId != null) {
       for (final s in sections!) {
         for (final item in s.items) {
           if (item.id == selectedId) {
@@ -1116,14 +1156,14 @@ class AppTopBar extends StatelessWidget {
               if (leading != null) ...<Widget>[
                 SizedBox(width: context.sp(theme.spacing.xs)),
                 Container(
-                  width: 1,
+                  width: theme.borders.hairline,
                   height: context.sz(16),
                   color: theme.colors.border.withValues(alpha: 0.6),
                 ),
                 SizedBox(width: context.sp(theme.spacing.sm)),
               ],
               if (showLogo) ...<Widget>[
-                const AppLogoMark(size: 16, rounded: false),
+                AppLogoMark(size: context.sz(16), rounded: false),
                 SizedBox(width: context.sp(theme.spacing.sm)),
               ],
               Expanded(
@@ -1190,7 +1230,7 @@ class AppTopBar extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                       style: ctx.uiText.caption.copyWith(
                                         color: theme.colors.foregroundSubtle,
-                                        fontSize: 12.0,
+                                        fontSize: ctx.fs(12.0),
                                       ),
                                     ),
                                   ),
@@ -1210,7 +1250,7 @@ class AppTopBar extends StatelessWidget {
                                     child: Text(
                                       '⌘K',
                                       style: ctx.uiText.caption.copyWith(
-                                        fontSize: 10,
+                                        fontSize: ctx.fs(10),
                                         fontWeight: FontWeight.w600,
                                         color: theme.colors.foregroundMuted,
                                       ),
@@ -1240,8 +1280,8 @@ class AppTopBar extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
-                              width: 6.5,
-                              height: 6.5,
+                              width: context.sz(6.5),
+                              height: context.sz(6.5),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: theme.colors.bullish,
@@ -1253,7 +1293,7 @@ class AppTopBar extends StatelessWidget {
                               style: context.uiText.caption.copyWith(
                                 color: theme.colors.bullish,
                                 fontWeight: FontWeight.w600,
-                                fontSize: 11.0,
+                                fontSize: context.fs(11.0),
                                 letterSpacing: 0.3,
                               ),
                             ),
@@ -1264,7 +1304,7 @@ class AppTopBar extends StatelessWidget {
 
                       // Vertical subtle separator
                       Container(
-                        width: 1,
+                        width: theme.borders.hairline,
                         height: context.sz(18),
                         color: theme.colors.border.withValues(alpha: 0.6),
                       ),
@@ -1302,7 +1342,7 @@ class AppTopBar extends StatelessWidget {
                                 color: theme.colors.bearish,
                                 border: Border.all(
                                   color: theme.colors.surface,
-                                  width: 1.5,
+                                  width: theme.borders.thick,
                                 ),
                               ),
                             ),

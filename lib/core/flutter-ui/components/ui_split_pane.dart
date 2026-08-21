@@ -75,9 +75,9 @@ class _UiSplitPaneState extends State<UiSplitPane> {
                     behavior: HitTestBehavior.opaque,
                     onHorizontalDragUpdate: widget.resizable
                         ? (DragUpdateDetails d) => setState(() {
-                              _ratio = ((primaryWidth + d.delta.dx) / width)
-                                  .clamp(widget.minRatio, widget.maxRatio);
-                            })
+                            _ratio = ((primaryWidth + d.delta.dx) / width)
+                                .clamp(widget.minRatio, widget.maxRatio);
+                          })
                         : null,
                     child: Container(
                       width: ctx.sz(theme.spacing.sm),
@@ -183,8 +183,9 @@ class UiPanePlaceholder extends StatelessWidget {
             Text(
               message!,
               textAlign: TextAlign.center,
-              style: context.uiText.caption
-                  .copyWith(color: theme.colors.foregroundMuted),
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             ),
           ],
         ],
@@ -233,20 +234,20 @@ class UiMasterDetail<T> extends StatelessWidget {
                       onTap: onClearSelection,
                       builder: (BuildContext ctx, UiInteractiveState _) =>
                           Padding(
-                        padding: EdgeInsets.all(ctx.sp(ctx.uiSpace.md)),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Icon(
-                              Icons.arrow_back,
-                              size: ctx.sz(ctx.uiSizes.iconMd),
-                              color: ctx.uiColors.foregroundMuted,
+                            padding: EdgeInsets.all(ctx.sp(ctx.uiSpace.md)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Icon(
+                                  Icons.arrow_back,
+                                  size: ctx.sz(ctx.uiSizes.iconMd),
+                                  color: ctx.uiColors.foregroundMuted,
+                                ),
+                                SizedBox(width: ctx.sp(ctx.uiSpace.xs)),
+                                Text('Back', style: ctx.uiText.label),
+                              ],
                             ),
-                            SizedBox(width: ctx.sp(ctx.uiSpace.xs)),
-                            Text('Back', style: ctx.uiText.label),
-                          ],
-                        ),
-                      ),
+                          ),
                     ),
                   ),
                 Expanded(child: detailBuilder(context, value)),

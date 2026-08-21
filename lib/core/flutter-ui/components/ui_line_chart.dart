@@ -41,27 +41,27 @@ class UiLineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => UiChart(
-        data: data,
-        series: series
-            .map(
-              (UiChartSeries s) => UiChartSeries(
-                name: s.name,
-                color: s.color,
-                type: UiChartSeriesType.line,
-                axis: s.axis,
-              ),
-            )
-            .toList(),
-        height: height,
-        showGrid: showGrid,
-        showAxisLabels: showAxisLabels,
-        showLegend: showLegend,
-        valueFormatter: valueFormatter,
-        curved: curved,
-        interactive: interactive,
-        toggleableLegend: toggleableLegend,
-        stacked: stacked,
-        glow: glow,
-        thresholds: thresholds,
-      );
+    data: data,
+    series: series
+        .map(
+          (UiChartSeries s) => UiChartSeries(
+            name: s.name,
+            color: s.color,
+            type: UiChartSeriesType.line,
+            axis: s.axis,
+          ),
+        )
+        .toList(),
+    height: height,
+    showGrid: showGrid,
+    showAxisLabels: showAxisLabels,
+    showLegend: showLegend,
+    valueFormatter: valueFormatter,
+    curved: curved,
+    interactive: interactive,
+    toggleableLegend: toggleableLegend,
+    stacked: stacked,
+    glow: glow,
+    thresholds: thresholds,
+  );
 }

@@ -48,29 +48,29 @@ class UiAreaChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => UiChart(
-        data: data,
-        series: series
-            .map(
-              (UiChartSeries s) => UiChartSeries(
-                name: s.name,
-                color: s.color,
-                type: UiChartSeriesType.area,
-                axis: s.axis,
-              ),
-            )
-            .toList(),
-        height: height,
-        showGrid: showGrid,
-        showAxisLabels: showAxisLabels,
-        showLegend: showLegend,
-        valueFormatter: valueFormatter,
-        curved: curved,
-        interactive: interactive,
-        toggleableLegend: toggleableLegend,
-        stacked: stacked,
-        glow: glow,
-        thresholds: thresholds,
-      );
+    data: data,
+    series: series
+        .map(
+          (UiChartSeries s) => UiChartSeries(
+            name: s.name,
+            color: s.color,
+            type: UiChartSeriesType.area,
+            axis: s.axis,
+          ),
+        )
+        .toList(),
+    height: height,
+    showGrid: showGrid,
+    showAxisLabels: showAxisLabels,
+    showLegend: showLegend,
+    valueFormatter: valueFormatter,
+    curved: curved,
+    interactive: interactive,
+    toggleableLegend: toggleableLegend,
+    stacked: stacked,
+    glow: glow,
+    thresholds: thresholds,
+  );
 }
 
 class UiAreaChartCard extends StatelessWidget {
@@ -151,11 +151,7 @@ class UiAreaChartCard extends StatelessWidget {
     );
 
     if (metricValue == null && metricChange == null) {
-      return UiCard(
-        title: title,
-        subtitle: subtitle,
-        child: chart,
-      );
+      return UiCard(title: title, subtitle: subtitle, child: chart);
     }
 
     return UiCard(
@@ -180,7 +176,9 @@ class UiAreaChartCard extends StatelessWidget {
                 SizedBox(width: context.sp(theme.spacing.sm)),
                 UiBadge(
                   label: metricChange!,
-                  intent: isBullish == false ? UiIntent.danger : UiIntent.success,
+                  intent: isBullish == false
+                      ? UiIntent.danger
+                      : UiIntent.success,
                 ),
               ],
             ],

@@ -269,6 +269,7 @@ class AppPostStrategyAttachment extends AppPostAttachment {
   final String name;
   final bool locked;
 }
+
 @immutable
 class AppComment {
   const AppComment({
@@ -389,6 +390,7 @@ class AppNotification {
 class AppPlan {
   const AppPlan({
     required this.tier,
+    required this.amount,
     required this.priceLabel,
     required this.features,
     this.period = '/mo',
@@ -398,6 +400,14 @@ class AppPlan {
   });
 
   final AppTier tier;
+
+  /// What this plan charges per [period], as a number. Carried alongside
+  /// [priceLabel] so a checkout sheet can apply a coupon or total up a cycle
+  /// without parsing the rendered label back into arithmetic.
+  final double amount;
+
+  /// [amount] as the plan cards render it, currency symbol and grouping
+  /// included. The catalogue formats it once so no surface invents its own.
   final String priceLabel;
   final List<String> features;
   final String period;

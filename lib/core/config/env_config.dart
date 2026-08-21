@@ -15,7 +15,9 @@ class EnvConfig {
       debugPrint('[EnvConfig] Environment file (.env) successfully loaded.');
     } catch (e) {
       _isLoaded = false;
-      debugPrint('[EnvConfig] Could not load .env file: $e. Falling back to compile-time env variables.');
+      debugPrint(
+        '[EnvConfig] Could not load .env file: $e. Falling back to compile-time env variables.',
+      );
     }
   }
 
@@ -62,22 +64,21 @@ class EnvConfig {
   }
 
   // --- Supabase Config ---
-  static String get supabaseUrl => _get(
-        'SUPABASE_URL',
-        defaultValue: 'https://placeholder.supabase.co',
-      );
+  static String get supabaseUrl =>
+      _get('SUPABASE_URL', defaultValue: 'https://placeholder.supabase.co');
 
   static String get supabaseAnonKey => _get(
-        'SUPABASE_ANON_KEY',
-        defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder',
-      );
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder',
+  );
 
   // --- AI API Keys ---
   static String get geminiApiKey => _get('GEMINI_API_KEY');
   static String get openaiApiKey => _get('OPENAI_API_KEY');
 
   // --- App Environment ---
-  static String get environment => _get('ENVIRONMENT', defaultValue: 'development');
+  static String get environment =>
+      _get('ENVIRONMENT', defaultValue: 'development');
   static bool get isProduction => environment.toLowerCase() == 'production';
   static bool get isDevelopment => !isProduction;
 }

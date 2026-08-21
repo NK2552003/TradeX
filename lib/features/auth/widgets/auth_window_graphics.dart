@@ -1,6 +1,6 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 
 /// Which slice of TraderHub the showcase panel previews. Every scene is
@@ -18,9 +18,9 @@ enum AuthScene {
 ///
 /// Every element inside is a genuine TraderHub component (`AppStatCard`,
 /// `AppTickerCard`, `UiAreaChartCard`, `AppAiInsightCard`, `AppTradeCard`,
-/// `AppPostCard`) wired to lightweight mock data — the goal is that this
-/// panel reads like an actual screenshot of the product, not decoration
-/// bolted on next to it.
+/// `AppPostCard`) wired to the same [DemoDataSource] the signed-in app reads —
+/// the goal is that this panel reads like an actual screenshot of the product,
+/// not decoration bolted on next to it.
 class AuthWindowGraphics extends StatefulWidget {
   const AuthWindowGraphics({
     super.key,
@@ -45,113 +45,104 @@ class AuthWindowGraphics extends StatefulWidget {
 }
 
 class _AuthWindowGraphicsState extends State<AuthWindowGraphics> {
-  late final List<UiChartPoint> _areaData = <UiChartPoint>[
-    for (int i = 0; i < 36; i++)
-      UiChartPoint(
-        label: 'D$i',
-        values: <double>[
-          50 + math.sin(i * 0.8) * 26 + (i * 0.9),
-          30 + math.sin(i * 0.6) * 14 + (i * 0.45),
-        ],
-      ),
-  ];
+  /// Everything in the window comes from the same source the signed-in app
+  /// reads, so a visitor is never shown an instrument, trader or headline that
+  /// vanishes the moment they create an account.
+  final DemoDataSource _demo = DemoDataSource.instance;
 
-  static final List<AppTicker> _tickers = <AppTicker>[
-    const AppTicker(
-      symbol: 'AAPL',
-      name: 'Apple Inc.',
-      price: 221.44,
-      changePercent: 1.8,
-      spark: [10, 12, 11, 14, 16, 15, 18, 20],
-    ),
-    const AppTicker(
-      symbol: 'NVDA',
-      name: 'NVIDIA Corp.',
-      price: 138.92,
-      changePercent: -0.9,
-      spark: [22, 20, 21, 18, 17, 19, 16, 15],
-    ),
-    const AppTicker(
-      symbol: 'BTC',
-      name: 'Bitcoin',
-      price: 94210.0,
-      changePercent: 3.2,
-      currencySymbol: '₹',
-      spark: [40, 42, 41, 45, 48, 46, 50, 54],
-    ),
-  ];
+  /// Trades the account has actually closed. Open positions carry no P/L yet, so
+  /// they would drag both headline numbers toward zero if counted.
+  late final List<AppTrade> _closedTrades = _demo
+      .trades()
+      .where((AppTrade t) => t.outcome != AppOutcome.open)
+      .toList(growable: false);
 
-  static final AppStat _statPnl = AppStat(
+  late final List<AppSeriesPoint> _equity = _demo.equitySeries(points: 36);
+
+  /// Account equity against the index it trades. Both lines are rebased to 100
+  /// so a ₹5,00,000 book and a 24,000-point index can share one axis.
+  late final List<UiChartPoint> _areaData = _rebasedEquityVsIndex();
+
+  late final List<AppTicker> _tickers = _demo.tickers(limit: 3);
+
+  late final AppStat _statPnl = AppStat(
     label: 'Total P/L',
-    value: 12480,
-    delta: 8.4,
+    value: _closedTrades.fold<double>(
+      0,
+      (double sum, AppTrade t) => sum + t.pnl,
+    ),
+    delta: _equityChangePercent,
     icon: Icons.trending_up_rounded,
-    spark: const [4, 6, 5, 8, 10, 9, 12, 14],
-    formatter: (v) => '₹${v.toStringAsFixed(0)}',
+    spark: <double>[
+      for (final AppSeriesPoint p in _demo.equitySeries(points: 8)) p.value,
+    ],
+    formatter: (num v) => '₹${v.toStringAsFixed(0)}',
   );
 
-  static const AppStat _statWinRate = AppStat(
+  late final AppStat _statWinRate = AppStat(
     label: 'Win Rate',
-    value: 68,
-    delta: 3.2,
+    value: _winRate,
+    delta: null,
     icon: Icons.emoji_events_outlined,
     suffix: '%',
   );
 
-  static final AppTrade _trade = AppTrade(
-    id: 'trd-01',
-    ticker: 'NVDA',
-    side: AppSide.long,
-    entry: 128.40,
-    exit: 138.92,
-    openedAt: DateTime.now().subtract(const Duration(days: 4)),
-    closedAt: DateTime.now().subtract(const Duration(hours: 6)),
-    stopLoss: 124.0,
-    target: 140.0,
-    size: 40,
-    pnl: 420.80,
-    pnlPercent: 8.2,
-    rMultiple: 2.4,
-    outcome: AppOutcome.win,
-    strategy: 'Breakout',
-    tags: const ['earnings', 'momentum'],
-  );
+  /// The account's best closed trade — the one a reader would be shown on the
+  /// dashboard, not a hand-written example.
+  late final AppTrade _trade = _closedTrades.isEmpty
+      ? _demo.trades().first
+      : _closedTrades.reduce(
+          (AppTrade a, AppTrade b) => a.pnl >= b.pnl ? a : b,
+        );
 
-  static final AppAiInsight _insight = AppAiInsight(
-    id: 'ai-01',
-    title: 'NVDA setup looks extended',
-    body:
-        'Price is 6% above the 20-day average with RSI near overbought. '
-        'Consider trimming size or tightening the stop before the next print.',
-    confidence: 0.78,
-    sentimentScore: 0.4,
-    tickers: const ['NVDA'],
-    createdAt: DateTime.now().subtract(const Duration(minutes: 12)),
-  );
+  late final AppAiInsight _insight = _demo.insights(limit: 1).first;
 
-  static const AppTrader _trader = AppTrader(
-    id: 'usr-01',
-    handle: 'maya.trades',
-    displayName: 'Maya Chen',
-    tier: AppTier.premium,
-    followers: 2840,
-    winRate: 0.71,
-    verified: true,
-    tradingStyle: 'Swing · Options',
-  );
+  late final AppPost _post = _demo.posts(limit: 1).first;
 
-  late final AppPost _post = AppPost(
-    id: 'post-01',
-    author: _trader,
-    body:
-        'Trimmed half my NVDA position into strength today — locking in gains '
-        'ahead of earnings while letting the rest ride with a raised stop.',
-    createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-    type: 'Trade Analysis',
-    tickers: const ['NVDA'],
-    likes: 128,
-    comments: 24,
-  );
+  /// Share of closed trades that finished green, to one decimal.
+  double get _winRate {
+    if (_closedTrades.isEmpty) return 0;
+    final int wins = _closedTrades
+        .where((AppTrade t) => t.outcome == AppOutcome.win)
+        .length;
+    return double.parse((wins / _closedTrades.length * 100).toStringAsFixed(1));
+  }
+
+  /// Percentage move in equity across the charted window, which is what the
+  /// delta on the P/L card is measuring.
+  double get _equityChangePercent {
+    if (_equity.length < 2) return 0;
+    final double first = _equity.first.value;
+    if (first == 0) return 0;
+    return double.parse(
+      ((_equity.last.value - first) / first * 100).toStringAsFixed(1),
+    );
+  }
+
+  List<UiChartPoint> _rebasedEquityVsIndex() {
+    final List<AppCandle> index = _demo.candles(
+      'NIFTY50',
+      count: _equity.length,
+    );
+    final int points = _equity.length < index.length
+        ? _equity.length
+        : index.length;
+    if (points == 0) return const <UiChartPoint>[];
+    final double equityBase = _equity.first.value == 0
+        ? 1
+        : _equity.first.value;
+    final double indexBase = index.first.close == 0 ? 1 : index.first.close;
+    return <UiChartPoint>[
+      for (int i = 0; i < points; i++)
+        UiChartPoint(
+          label: _equity[i].label,
+          values: <double>[
+            _equity[i].value / equityBase * 100,
+            index[i].close / indexBase * 100,
+          ],
+        ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +155,7 @@ class _AuthWindowGraphicsState extends State<AuthWindowGraphics> {
 
     final List<UiChartSeries> areaSeries = <UiChartSeries>[
       UiChartSeries(name: 'Equity', color: colors.primary),
-      UiChartSeries(name: 'Benchmark', color: colors.borderStrong),
+      UiChartSeries(name: 'NIFTY 50', color: colors.borderStrong),
     ];
 
     return Container(
@@ -296,7 +287,7 @@ class _MarketsScene extends StatelessWidget {
         SizedBox(height: gap),
         UiAreaChartCard(
           title: 'Equity Curve',
-          subtitle: 'Last 3 months',
+          subtitle: 'Account vs index, rebased to 100',
           data: areaData,
           series: areaSeries,
           height: 190,

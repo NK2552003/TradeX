@@ -16,7 +16,9 @@ class ConnectedAccount {
   factory ConnectedAccount.fromJson(Map<String, dynamic> json) {
     return ConnectedAccount(
       provider: json['provider'] as String,
-      linkedAt: DateTime.tryParse(json['linked_at'] as String? ?? '') ?? DateTime.now(),
+      linkedAt:
+          DateTime.tryParse(json['linked_at'] as String? ?? '') ??
+          DateTime.now(),
       email: json['email'] as String?,
     );
   }

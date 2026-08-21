@@ -56,7 +56,9 @@ class _StrategyFormState extends State<_StrategyForm> {
     if (_category == _newCategory) {
       final String custom = _newCategoryName.text.trim();
       if (custom.isEmpty) {
-        setState(() => _error = 'Name the new category or pick an existing one.');
+        setState(
+          () => _error = 'Name the new category or pick an existing one.',
+        );
         return;
       }
       category = custom;

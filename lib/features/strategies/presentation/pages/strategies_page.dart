@@ -12,11 +12,17 @@ class StrategiesPage extends StatefulWidget {
   const StrategiesPage({
     super.key,
     this.repository,
+    this.initialStrategyId,
     this.onOpenAi,
     this.onOpenJournal,
   });
 
   final StrategyRepository? repository;
+
+  /// Opens this playbook on arrival, for a hand-off from search, a trade row or
+  /// a notification.
+  final String? initialStrategyId;
+
   final VoidCallback? onOpenAi;
   final VoidCallback? onOpenJournal;
 
@@ -58,6 +64,16 @@ class _StrategiesPageState extends State<StrategiesPage> {
       _graph = graph;
     });
     await _reload();
+    if (!mounted) return;
+    final String? id = widget.initialStrategyId?.trim();
+    if (id == null || id.isEmpty) return;
+    // Fetched by id rather than picked out of `_strategies`, so a deep link
+    // still opens the playbook when a search term or category is narrowing the
+    // library.
+    final AppStrategy? strategy = await _repo.getStrategy(id);
+    if (!mounted || strategy == null) return;
+    setState(() => _view = _StrategyView.library);
+    await _select(strategy);
   }
 
   Future<void> _reload() async {
@@ -177,7 +193,10 @@ class _StrategiesPageState extends State<StrategiesPage> {
     });
   }
 
-  Future<void> _restore(AppStrategy strategy, AppStrategyVersion version) async {
+  Future<void> _restore(
+    AppStrategy strategy,
+    AppStrategyVersion version,
+  ) async {
     final bool confirmed = await UiDialog.confirm(
       context,
       title: 'Restore v${version.version}?',
@@ -209,7 +228,7 @@ class _StrategiesPageState extends State<StrategiesPage> {
     setState(() => _category = value);
     await _reload();
   }
-// STRATEGY_ACTIONS_2
+  // STRATEGY_ACTIONS_2
 
   @override
   Widget build(BuildContext context) {
@@ -337,7 +356,10 @@ class _StrategiesPageState extends State<StrategiesPage> {
       ),
       detail: selected == null
           ? const SizedBox.shrink()
-          : AppFadeIn(key: ValueKey<String>(selected.id), child: _detail(selected)),
+          : AppFadeIn(
+              key: ValueKey<String>(selected.id),
+              child: _detail(selected),
+            ),
       detailTitle: selected?.name,
       detailActions: selected == null
           ? const <Widget>[]

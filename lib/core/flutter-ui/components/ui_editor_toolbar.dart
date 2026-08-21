@@ -26,40 +26,40 @@ enum UiEditorAction {
 
 extension UiEditorActionX on UiEditorAction {
   IconData get icon => switch (this) {
-        UiEditorAction.bold => Icons.format_bold,
-        UiEditorAction.italic => Icons.format_italic,
-        UiEditorAction.underline => Icons.format_underlined,
-        UiEditorAction.strikethrough => Icons.format_strikethrough,
-        UiEditorAction.heading => Icons.title,
-        UiEditorAction.quote => Icons.format_quote,
-        UiEditorAction.bulletList => Icons.format_list_bulleted,
-        UiEditorAction.numberedList => Icons.format_list_numbered,
-        UiEditorAction.codeBlock => Icons.code,
-        UiEditorAction.link => Icons.link,
-        UiEditorAction.image => Icons.image_outlined,
-        UiEditorAction.chart => Icons.candlestick_chart_outlined,
-        UiEditorAction.attachment => Icons.attach_file,
-        UiEditorAction.undo => Icons.undo,
-        UiEditorAction.redo => Icons.redo,
-      };
+    UiEditorAction.bold => Icons.format_bold,
+    UiEditorAction.italic => Icons.format_italic,
+    UiEditorAction.underline => Icons.format_underlined,
+    UiEditorAction.strikethrough => Icons.format_strikethrough,
+    UiEditorAction.heading => Icons.title,
+    UiEditorAction.quote => Icons.format_quote,
+    UiEditorAction.bulletList => Icons.format_list_bulleted,
+    UiEditorAction.numberedList => Icons.format_list_numbered,
+    UiEditorAction.codeBlock => Icons.code,
+    UiEditorAction.link => Icons.link,
+    UiEditorAction.image => Icons.image_outlined,
+    UiEditorAction.chart => Icons.candlestick_chart_outlined,
+    UiEditorAction.attachment => Icons.attach_file,
+    UiEditorAction.undo => Icons.undo,
+    UiEditorAction.redo => Icons.redo,
+  };
 
   String get label => switch (this) {
-        UiEditorAction.bold => 'Bold',
-        UiEditorAction.italic => 'Italic',
-        UiEditorAction.underline => 'Underline',
-        UiEditorAction.strikethrough => 'Strikethrough',
-        UiEditorAction.heading => 'Heading',
-        UiEditorAction.quote => 'Quote',
-        UiEditorAction.bulletList => 'Bullet list',
-        UiEditorAction.numberedList => 'Numbered list',
-        UiEditorAction.codeBlock => 'Code block',
-        UiEditorAction.link => 'Link',
-        UiEditorAction.image => 'Insert image',
-        UiEditorAction.chart => 'Insert chart',
-        UiEditorAction.attachment => 'Attach file',
-        UiEditorAction.undo => 'Undo',
-        UiEditorAction.redo => 'Redo',
-      };
+    UiEditorAction.bold => 'Bold',
+    UiEditorAction.italic => 'Italic',
+    UiEditorAction.underline => 'Underline',
+    UiEditorAction.strikethrough => 'Strikethrough',
+    UiEditorAction.heading => 'Heading',
+    UiEditorAction.quote => 'Quote',
+    UiEditorAction.bulletList => 'Bullet list',
+    UiEditorAction.numberedList => 'Numbered list',
+    UiEditorAction.codeBlock => 'Code block',
+    UiEditorAction.link => 'Link',
+    UiEditorAction.image => 'Insert image',
+    UiEditorAction.chart => 'Insert chart',
+    UiEditorAction.attachment => 'Attach file',
+    UiEditorAction.undo => 'Undo',
+    UiEditorAction.redo => 'Redo',
+  };
 }
 
 /// Rich-text editor toolbar. Scrolls horizontally on phones; the editor body
@@ -115,7 +115,9 @@ class UiEditorToolbar extends StatelessWidget {
                 children: <Widget>[
                   for (final UiEditorAction a in actions)
                     Container(
-                      margin: EdgeInsets.only(right: context.sp(theme.spacing.xxs)),
+                      margin: EdgeInsets.only(
+                        right: context.sp(theme.spacing.xxs),
+                      ),
                       decoration: BoxDecoration(
                         color: activeActions.contains(a)
                             ? UiIntent.primary.surface(context)

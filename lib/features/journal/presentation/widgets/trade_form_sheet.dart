@@ -10,6 +10,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 Future<AppTrade?> showTradeFormSheet(
   BuildContext context, {
   AppTrade? initial,
+  String? initialSymbol,
   required List<String> symbols,
   required List<String> strategies,
   required List<String> tags,
@@ -17,6 +18,7 @@ Future<AppTrade?> showTradeFormSheet(
   context,
   child: _TradeForm(
     initial: initial,
+    initialSymbol: initialSymbol,
     symbols: symbols,
     strategies: strategies,
     tags: tags,
@@ -29,19 +31,36 @@ class _TradeForm extends StatefulWidget {
     required this.strategies,
     required this.tags,
     this.initial,
+    this.initialSymbol,
   });
 
   final AppTrade? initial;
+
+  /// Instrument to open on, for a composer launched from a chart or an alert.
+  /// Ignored when [initial] carries one already.
+  final String? initialSymbol;
+
   final List<String> symbols;
   final List<String> strategies;
   final List<String> tags;
+
+  /// The instrument the form starts on, and the list it can be picked from. A
+  /// seeded symbol is added to the options so a deep link from an instrument
+  /// that has never been traded still has something to select.
+  ({String? value, List<String> options}) get _instrument {
+    final String? seed = initial?.ticker ?? initialSymbol?.trim().toUpperCase();
+    if (seed == null || seed.isEmpty || symbols.contains(seed)) {
+      return (value: seed, options: symbols);
+    }
+    return (value: seed, options: <String>[seed, ...symbols]);
+  }
 
   @override
   State<_TradeForm> createState() => _TradeFormState();
 }
 
 class _TradeFormState extends State<_TradeForm> {
-  late String? _symbol = widget.initial?.ticker;
+  late String? _symbol = widget._instrument.value;
   late AppSide _side = widget.initial?.side ?? AppSide.long;
   late String? _strategy = widget.initial?.strategy;
   late List<String> _tags = List<String>.from(
@@ -124,7 +143,9 @@ class _TradeFormState extends State<_TradeForm> {
 
     Navigator.of(context).pop(
       AppTrade(
-        id: widget.initial?.id ?? 'trd_${DateTime.now().microsecondsSinceEpoch}',
+        id:
+            widget.initial?.id ??
+            'trd_${DateTime.now().microsecondsSinceEpoch}',
         ticker: symbol,
         side: _side,
         entry: entry,
@@ -176,7 +197,9 @@ class _TradeFormState extends State<_TradeForm> {
     final double? entry = _num(_entry);
     final double? exit = _num(_exit);
     final double? size = _num(_size);
-    if (_stillOpen || entry == null || exit == null || size == null) return null;
+    if (_stillOpen || entry == null || exit == null || size == null) {
+      return null;
+    }
     if (entry <= 0 || size <= 0) return null;
 
     final double? stop = _num(_stop);
@@ -271,6 +294,7 @@ class _TradeFormState extends State<_TradeForm> {
       ],
     );
   }
+
   List<Widget> _fields(Widget? preview) {
     final double gap = context.ui.spacing.md;
     return <Widget>[
@@ -287,7 +311,7 @@ class _TradeFormState extends State<_TradeForm> {
         required: true,
         child: UiSelect<String>(
           options: <UiOption<String>>[
-            for (final String symbol in widget.symbols)
+            for (final String symbol in widget._instrument.options)
               UiOption<String>(value: symbol, label: symbol),
           ],
           value: _symbol,

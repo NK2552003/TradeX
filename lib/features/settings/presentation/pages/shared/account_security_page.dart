@@ -6,10 +6,7 @@ import 'package:tradex/features/settings/presentation/pages/shared/delete_accoun
 import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 class AccountSecurityPage extends StatefulWidget {
-  const AccountSecurityPage({
-    super.key,
-    this.repository,
-  });
+  const AccountSecurityPage({super.key, this.repository});
 
   final ProfileSettingsRepository? repository;
 
@@ -172,10 +169,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
               SizedBox(height: context.sp(context.ui.spacing.md)),
               UiField(
                 label: 'Verification Code',
-                child: UiInput(
-                  hintText: '123456',
-                  onChanged: (v) {},
-                ),
+                child: UiInput(hintText: '123456', onChanged: (v) {}),
               ),
             ],
           ),
@@ -200,7 +194,8 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                   UiToast.show(
                     context,
                     title: 'Email Updated',
-                    message: 'Your account email has been updated to $newEmail.',
+                    message:
+                        'Your account email has been updated to $newEmail.',
                     intent: UiIntent.success,
                   );
                 }
@@ -295,7 +290,9 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
       );
     }
 
-    final bool hasGoogle = _connectedAccounts.any((a) => a.provider == 'google');
+    final bool hasGoogle = _connectedAccounts.any(
+      (a) => a.provider == 'google',
+    );
     final bool hasApple = _connectedAccounts.any((a) => a.provider == 'apple');
 
     return SingleChildScrollView(
@@ -307,181 +304,213 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-          // Email Section
-          AppSettingsSectionBlock(
-            title: 'Account Email',
-            description: 'Your primary login credential and recipient for execution notifications.',
-            children: [
-              UiCard(
-                child: Row(
-                  children: [
-                    Icon(Icons.email_outlined, size: context.sz(20), color: colors.primary),
-                    SizedBox(width: context.sp(theme.spacing.md)),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Primary Email', style: context.uiText.caption.copyWith(color: colors.foregroundMuted)),
-                          Text(_currentEmail, style: context.uiText.bodyStrong),
-                        ],
-                      ),
-                    ),
-                    UiButton(
-                      label: 'Change Email',
-                      variant: UiVariant.outline,
-                      size: UiSize.sm,
-                      onPressed: _showChangeEmailDialog,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-
-          // Password Section
-          AppSettingsSectionBlock(
-            title: 'Change Password',
-            description: 'Ensure your account uses a long, unique password to prevent unauthorized access.',
-            children: [
-              UiCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    UiField(
-                      label: 'Current Password',
-                      child: UiPasswordField(
-                        hintText: '••••••••',
-                        onChanged: (v) => _curPwdController.text = v,
-                      ),
-                    ),
-                    SizedBox(height: context.sp(theme.spacing.sm)),
-                    UiField(
-                      label: 'New Password',
-                      child: UiPasswordField(
-                        hintText: 'At least 8 characters',
-                        onChanged: (v) => _newPwdController.text = v,
-                      ),
-                    ),
-                    SizedBox(height: context.sp(theme.spacing.sm)),
-                    UiField(
-                      label: 'Confirm New Password',
-                      child: UiPasswordField(
-                        hintText: 'Re-enter new password',
-                        onChanged: (v) => _confirmPwdController.text = v,
-                      ),
-                    ),
-                    SizedBox(height: context.sp(theme.spacing.md)),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+              // Email Section
+              AppSettingsSectionBlock(
+                title: 'Account Email',
+                description:
+                    'Your primary login credential and recipient for execution notifications.',
+                children: [
+                  UiCard(
+                    child: Row(
                       children: [
+                        Icon(
+                          Icons.email_outlined,
+                          size: context.sz(20),
+                          color: colors.primary,
+                        ),
+                        SizedBox(width: context.sp(theme.spacing.md)),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Primary Email',
+                                style: context.uiText.caption.copyWith(
+                                  color: colors.foregroundMuted,
+                                ),
+                              ),
+                              Text(
+                                _currentEmail,
+                                style: context.uiText.bodyStrong,
+                              ),
+                            ],
+                          ),
+                        ),
                         UiButton(
-                          label: 'Update Password',
-                          intent: UiIntent.primary,
-                          loading: _changingPassword,
-                          onPressed: _handleChangePassword,
+                          label: 'Change Email',
+                          variant: UiVariant.outline,
+                          size: UiSize.sm,
+                          onPressed: _showChangeEmailDialog,
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
+              SizedBox(height: context.sp(theme.spacing.lg)),
 
-          // Connected Accounts
-          AppSettingsSectionBlock(
-            title: 'Connected Accounts',
-            description: 'Sign in seamlessly using your existing OAuth identity providers.',
-            children: [
-              AppSettingCard(
-                title: 'Google',
-                description: hasGoogle ? 'Connected to nitish@gmail.com' : 'Not linked',
-                icon: Icons.g_mobiledata_rounded,
-                control: UiButton(
-                  label: hasGoogle ? 'Unlink' : 'Link Google',
-                  variant: hasGoogle ? UiVariant.outline : UiVariant.primary,
-                  size: UiSize.sm,
-                  onPressed: () async {
-                    if (hasGoogle) {
-                      await _repo.unlinkConnectedAccount('google');
-                    } else {
-                      await _repo.linkConnectedAccount('google');
-                    }
-                    final fresh = await _repo.getConnectedAccounts();
-                    if (mounted) setState(() => _connectedAccounts = fresh);
-                  },
-                ),
-              ),
-              AppSettingCard(
-                title: 'Apple',
-                description: hasApple ? 'Connected to Apple ID' : 'Not linked',
-                icon: Icons.apple_rounded,
-                control: UiButton(
-                  label: hasApple ? 'Unlink' : 'Link Apple',
-                  variant: hasApple ? UiVariant.outline : UiVariant.primary,
-                  size: UiSize.sm,
-                  onPressed: () async {
-                    if (hasApple) {
-                      await _repo.unlinkConnectedAccount('apple');
-                    } else {
-                      await _repo.linkConnectedAccount('apple');
-                    }
-                    final fresh = await _repo.getConnectedAccounts();
-                    if (mounted) setState(() => _connectedAccounts = fresh);
-                  },
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.xl)),
-
-          // Danger Zone Link
-          AppSettingsSectionBlock(
-            title: 'Danger Zone',
-            children: [
-              UiCard(
-                accentColor: colors.bearish,
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded, color: colors.bearish),
-                    SizedBox(width: context.sp(theme.spacing.md)),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Delete Account', style: context.uiText.bodyStrong.copyWith(color: colors.bearish)),
-                          Text(
-                            'Permanently close your account, wipe all active API sessions, and schedule data deletion.',
-                            style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
+              // Password Section
+              AppSettingsSectionBlock(
+                title: 'Change Password',
+                description:
+                    'Ensure your account uses a long, unique password to prevent unauthorized access.',
+                children: [
+                  UiCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        UiField(
+                          label: 'Current Password',
+                          child: UiPasswordField(
+                            hintText: '••••••••',
+                            onChanged: (v) => _curPwdController.text = v,
                           ),
-                        ],
-                      ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        UiField(
+                          label: 'New Password',
+                          child: UiPasswordField(
+                            hintText: 'At least 8 characters',
+                            onChanged: (v) => _newPwdController.text = v,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        UiField(
+                          label: 'Confirm New Password',
+                          child: UiPasswordField(
+                            hintText: 'Re-enter new password',
+                            onChanged: (v) => _confirmPwdController.text = v,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.md)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            UiButton(
+                              label: 'Update Password',
+                              intent: UiIntent.primary,
+                              loading: _changingPassword,
+                              onPressed: _handleChangePassword,
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    UiButton(
-                      label: 'Delete Account',
-                      variant: UiVariant.soft,
-                      intent: UiIntent.danger,
+                  ),
+                ],
+              ),
+              SizedBox(height: context.sp(theme.spacing.lg)),
+
+              // Connected Accounts
+              AppSettingsSectionBlock(
+                title: 'Connected Accounts',
+                description:
+                    'Sign in seamlessly using your existing OAuth identity providers.',
+                children: [
+                  AppSettingCard(
+                    title: 'Google',
+                    description: hasGoogle
+                        ? 'Connected to nitish@gmail.com'
+                        : 'Not linked',
+                    icon: Icons.g_mobiledata_rounded,
+                    control: UiButton(
+                      label: hasGoogle ? 'Unlink' : 'Link Google',
+                      variant: hasGoogle
+                          ? UiVariant.outline
+                          : UiVariant.primary,
                       size: UiSize.sm,
-                      onPressed: () {
-                        showSettingsSideSheet(
-                          context,
-                          title: 'Delete Trader Account',
-                          subtitle: 'Permanent account deletion and data wiping',
-                          child: DeleteAccountPage(repository: _repo),
-                        );
+                      onPressed: () async {
+                        if (hasGoogle) {
+                          await _repo.unlinkConnectedAccount('google');
+                        } else {
+                          await _repo.linkConnectedAccount('google');
+                        }
+                        final fresh = await _repo.getConnectedAccounts();
+                        if (mounted) setState(() => _connectedAccounts = fresh);
                       },
                     ),
-                  ],
-                ),
+                  ),
+                  AppSettingCard(
+                    title: 'Apple',
+                    description: hasApple
+                        ? 'Connected to Apple ID'
+                        : 'Not linked',
+                    icon: Icons.apple_rounded,
+                    control: UiButton(
+                      label: hasApple ? 'Unlink' : 'Link Apple',
+                      variant: hasApple ? UiVariant.outline : UiVariant.primary,
+                      size: UiSize.sm,
+                      onPressed: () async {
+                        if (hasApple) {
+                          await _repo.unlinkConnectedAccount('apple');
+                        } else {
+                          await _repo.linkConnectedAccount('apple');
+                        }
+                        final fresh = await _repo.getConnectedAccounts();
+                        if (mounted) setState(() => _connectedAccounts = fresh);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: context.sp(theme.spacing.xl)),
+
+              // Danger Zone Link
+              AppSettingsSectionBlock(
+                title: 'Danger Zone',
+                children: [
+                  UiCard(
+                    accentColor: colors.bearish,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: colors.bearish,
+                        ),
+                        SizedBox(width: context.sp(theme.spacing.md)),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Delete Account',
+                                style: context.uiText.bodyStrong.copyWith(
+                                  color: colors.bearish,
+                                ),
+                              ),
+                              Text(
+                                'Permanently close your account, wipe all active API sessions, and schedule data deletion.',
+                                style: context.uiText.caption.copyWith(
+                                  color: colors.foregroundMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        UiButton(
+                          label: 'Delete Account',
+                          variant: UiVariant.soft,
+                          intent: UiIntent.danger,
+                          size: UiSize.sm,
+                          onPressed: () {
+                            showSettingsSideSheet(
+                              context,
+                              title: 'Delete Trader Account',
+                              subtitle:
+                                  'Permanent account deletion and data wiping',
+                              child: DeleteAccountPage(repository: _repo),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 }

@@ -95,11 +95,17 @@ class UiSlider extends StatelessWidget {
               Expanded(
                 child: Text(
                   label ?? '',
-                  style: context.uiText.label
-                      .copyWith(color: theme.colors.foregroundMuted),
+                  // Two lines is enough for any control label; past that the row
+                  // grows tall enough to shove the track off a phone screen.
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.label.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
                 ),
               ),
-              if (showValue)
+              if (showValue) ...<Widget>[
+                SizedBox(width: context.sp(theme.spacing.xs)),
                 Container(
                   padding: EdgeInsets.symmetric(
                     horizontal: context.sp(theme.spacing.sm),
@@ -111,11 +117,14 @@ class UiSlider extends StatelessWidget {
                   ),
                   child: Text(
                     fmt(v),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: context.uiText.numeric.copyWith(
                       color: enabled ? active : theme.colors.disabledForeground,
                     ),
                   ),
                 ),
+              ],
             ],
           ),
         Row(
@@ -128,14 +137,16 @@ class UiSlider extends StatelessWidget {
               child: SliderTheme(
                 data: SliderThemeData(
                   trackHeight: context.sz(theme.sizes.trackThickness) * 0.6,
-                  activeTrackColor:
-                      enabled ? active : theme.colors.disabledForeground,
+                  activeTrackColor: enabled
+                      ? active
+                      : theme.colors.disabledForeground,
                   inactiveTrackColor: theme.colors.surfaceMuted,
                   thumbColor: theme.colors.surface,
                   overlayColor: active.withValues(alpha: 0.12),
                   valueIndicatorColor: active,
-                  valueIndicatorTextStyle: context.uiText.caption
-                      .copyWith(color: intent.onColor(context)),
+                  valueIndicatorTextStyle: context.uiText.caption.copyWith(
+                    color: intent.onColor(context),
+                  ),
                   showValueIndicator: ShowValueIndicator.onDrag,
                   activeTickMarkColor: showTicks
                       ? intent.onColor(context).withValues(alpha: 0.7)
@@ -170,17 +181,31 @@ class UiSlider extends StatelessWidget {
         ),
         if (showBounds)
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Text(
-                fmt(min),
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.foregroundSubtle),
+              // Each bound takes half the row and ellipsises inside it. Formatters
+              // can return anything — "₹1,00,00,000" is as valid as "10" — so the
+              // pair has to be bounded rather than trusted to be short.
+              Expanded(
+                child: Text(
+                  fmt(min),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundSubtle,
+                  ),
+                ),
               ),
-              Text(
-                fmt(max),
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.foregroundSubtle),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              Expanded(
+                child: Text(
+                  fmt(max),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundSubtle,
+                  ),
+                ),
               ),
             ],
           ),
@@ -200,31 +225,33 @@ class UiSlider extends StatelessWidget {
                   semanticLabel: (presetFormatter ?? fmt)(p),
                   builder: (BuildContext ctx, UiInteractiveState s) =>
                       AnimatedContainer(
-                    duration: theme.motion.fast,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: ctx.sp(theme.spacing.sm),
-                      vertical: ctx.sp(theme.spacing.xxs),
-                    ),
-                    decoration: BoxDecoration(
-                      color: v == p
-                          ? active.withValues(alpha: 0.16)
-                          : (s.hovered
-                              ? theme.colors.surfaceHover
-                              : Colors.transparent),
-                      borderRadius: ctx.radius(theme.radii.pill),
-                      border: Border.all(
-                        color: v == p ? active : theme.colors.border,
-                        width: theme.borders.hairline,
+                        duration: theme.motion.fast,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: ctx.sp(theme.spacing.sm),
+                          vertical: ctx.sp(theme.spacing.xxs),
+                        ),
+                        decoration: BoxDecoration(
+                          color: v == p
+                              ? active.withValues(alpha: 0.16)
+                              : (s.hovered
+                                    ? theme.colors.surfaceHover
+                                    : Colors.transparent),
+                          borderRadius: ctx.radius(theme.radii.pill),
+                          border: Border.all(
+                            color: v == p ? active : theme.colors.border,
+                            width: theme.borders.hairline,
+                          ),
+                        ),
+                        child: Text(
+                          (presetFormatter ?? fmt)(p),
+                          style: ctx.uiText.caption.copyWith(
+                            color: v == p
+                                ? active
+                                : theme.colors.foregroundMuted,
+                            fontWeight: v == p ? FontWeight.w600 : null,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      (presetFormatter ?? fmt)(p),
-                      style: ctx.uiText.caption.copyWith(
-                        color: v == p ? active : theme.colors.foregroundMuted,
-                        fontWeight: v == p ? FontWeight.w600 : null,
-                      ),
-                    ),
-                  ),
                 ),
             ],
           ),
@@ -233,8 +260,9 @@ class UiSlider extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.xxs)),
           Text(
             helper!,
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
         ],
       ],

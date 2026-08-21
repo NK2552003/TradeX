@@ -27,7 +27,9 @@ class OrgMember {
       displayName: json['display_name'] as String? ?? json['handle'] as String,
       role: json['role'] as String? ?? 'trader',
       avatarUrl: json['avatar_url'] as String?,
-      joinedAt: DateTime.tryParse(json['joined_at'] as String? ?? '') ?? DateTime.now(),
+      joinedAt:
+          DateTime.tryParse(json['joined_at'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 

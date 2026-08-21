@@ -92,6 +92,16 @@ class DemoDataSource {
     orElse: () => tickers().first,
   );
 
+  /// The round number just under a price — the sort of level an alert would have
+  /// been set at and has since been crossed.
+  double levelBelow(double price, {double step = 50}) =>
+      (price / step).floor() * step;
+
+  /// The round number just over a price — a level still to be taken out, which is
+  /// how a breakout or continuation trigger is quoted.
+  double levelAbove(double price, {double step = 50}) =>
+      (price / step).ceil() * step;
+
   /// OHLCV history for the price chart of [symbol].
   List<AppCandle> candles(String symbol, {int count = 90}) {
     final AppTicker ticker = tickerFor(symbol);
@@ -200,9 +210,8 @@ class DemoDataSource {
     final Random rng = _rng(41);
     final List<AppTrade> result = <AppTrade>[];
     for (int i = 0; i < count; i++) {
-      final _Instrument instrument = _instruments[rng.nextInt(
-        _instruments.length,
-      )];
+      final _Instrument instrument =
+          _instruments[rng.nextInt(_instruments.length)];
       final AppSide side = rng.nextBool() ? AppSide.long : AppSide.short;
       final double entry = _round(
         instrument.price * (0.94 + rng.nextDouble() * 0.12),
@@ -421,11 +430,10 @@ class DemoDataSource {
           attachments: <AppPostAttachment>[
             if (i % 3 == 0)
               AppPostChartAttachment(<UiCandle>[
-                for (final AppCandle c
-                    in candles(
-                      _instruments[i % _instruments.length].symbol,
-                      count: 32,
-                    ))
+                for (final AppCandle c in candles(
+                  _instruments[i % _instruments.length].symbol,
+                  count: 32,
+                ))
                   UiCandle(
                     time: c.time,
                     open: c.open,
@@ -474,10 +482,14 @@ class DemoDataSource {
   /// Leaderboard rows keyed by trader with the period return.
   List<MapEntry<AppTrader, double>> leaderboard(String period) {
     final Random rng = _rng(period.hashCode.abs() % 9999);
-    final List<MapEntry<AppTrader, double>> rows = <MapEntry<AppTrader, double>>[
-      for (final AppTrader t in traders())
-        MapEntry<AppTrader, double>(t, _round(rng.nextDouble() * 48000 - 6000)),
-    ];
+    final List<MapEntry<AppTrader, double>> rows =
+        <MapEntry<AppTrader, double>>[
+          for (final AppTrader t in traders())
+            MapEntry<AppTrader, double>(
+              t,
+              _round(rng.nextDouble() * 48000 - 6000),
+            ),
+        ];
     rows.sort(
       (MapEntry<AppTrader, double> a, MapEntry<AppTrader, double> b) =>
           b.value.compareTo(a.value),
@@ -539,10 +551,22 @@ class DemoDataSource {
 
   /// Notification-centre entries across every category.
   List<AppNotification> notifications() {
+    // The risk and billing entries quote figures that exist elsewhere in the
+    // app — the configured loss cap and the plan catalogue's price. They are
+    // read from those rather than written out, so a notification cannot tell the
+    // reader about a limit or a charge the rest of the app disagrees with.
+    final double dayNet = dayPnl(
+      days: 1,
+    ).fold<double>(0, (double sum, AppDayPnl d) => sum + d.pnl);
+    final double lossSoFar = dayNet < 0 ? -dayNet : 0;
+    final double premiumPrice = planPrice(AppTier.premium);
+    final AppTicker alertTicker = tickerFor('RELIANCE');
     final List<_NotificationSeed> seeds = <_NotificationSeed>[
-      const _NotificationSeed(
+      _NotificationSeed(
         'Price alert triggered',
-        'RELIANCE crossed above ₹2,900.00 — your alert fired.',
+        '${alertTicker.symbol} crossed above '
+            '${AppTokens.price(levelBelow(alertTicker.price))} — your alert '
+            'fired at ${AppTokens.money(alertTicker.price)}.',
         'Alerts',
         Icons.notifications_active_outlined,
         false,
@@ -561,16 +585,20 @@ class DemoDataSource {
         Icons.forum_outlined,
         false,
       ),
-      const _NotificationSeed(
-        'Risk limit warning',
-        'Daily loss reached 68% of your ₹8,000 cap.',
+      _NotificationSeed(
+        lossSoFar > 0 ? 'Risk limit warning' : 'Risk limits are clear',
+        lossSoFar > 0
+            ? 'Daily loss is ${AppTokens.money(lossSoFar, decimals: 0)} — '
+                  '${AppTokens.percent(lossSoFar / dailyLossCap * 100, decimals: 0)} '
+                  'of your ${AppTokens.money(dailyLossCap, decimals: 0)} cap.'
+            : 'Your full ${AppTokens.money(dailyLossCap, decimals: 0)} daily loss cap is still available.',
         'Risk',
         Icons.shield_outlined,
         false,
       ),
-      const _NotificationSeed(
+      _NotificationSeed(
         'Invoice paid',
-        'TradeX Pro renewed for ₹2,499.00.',
+        'TradeX ${AppTokens.tierLabel(AppTier.premium)} renewed for ${AppTokens.price(premiumPrice)}.',
         'Billing',
         Icons.credit_card_outlined,
         true,
@@ -660,23 +688,28 @@ class DemoDataSource {
 
   /// AI-generated market and journal insights.
   List<AppAiInsight> insights({int? limit}) {
-    const List<List<String>> seeds = <List<String>>[
+    // The continuation trigger is read off the instrument's own quote, so an
+    // insight can never point at a level the symbol is nowhere near.
+    final AppTicker flagTicker = tickerFor('RELIANCE');
+    final List<List<String>> seeds = <List<String>>[
       <String>[
-        'Pattern detected: bull flag on RELIANCE',
-        'RELIANCE is compressing on the 1H with falling volume. A close above ₹2,950 with expansion would confirm continuation.',
-        'RELIANCE',
+        'Pattern detected: bull flag on ${flagTicker.symbol}',
+        '${flagTicker.symbol} is compressing on the 1H with falling volume. '
+            'A close above ${AppTokens.price(levelAbove(flagTicker.price))} '
+            'with expansion would confirm continuation.',
+        flagTicker.symbol,
       ],
-      <String>[
+      const <String>[
         'Your win rate drops 19% after 2pm',
         'Across 42 logged trades, afternoon entries underperform. Consider a hard cut-off after the midday session.',
         'NIFTY50',
       ],
-      <String>[
+      const <String>[
         'Oversized losers are capping your expectancy',
         'Your three largest losses each exceeded 2R. Normalising risk would lift net P/L by an estimated 31%.',
         'BANKNIFTY',
       ],
-      <String>[
+      const <String>[
         'Gap fade edge is decaying',
         'Win rate on gap fades fell from 61% to 44% over the last 20 trades. Re-test the filter before sizing up.',
         'TATAMOTORS',
@@ -783,19 +816,8 @@ class DemoDataSource {
   ];
 
   /// Referred accounts owned by the signed-in affiliate.
-  List<({
-    String id,
-    String name,
-    String email,
-    String channel,
-    DateTime joinedAt,
-    AppTier tier,
-    String status,
-    double commission,
-  })> referrals() {
-    final Random rng = _rng(151);
-    const List<String> statuses = <String>['active', 'trialing', 'churned'];
-    return <({
+  List<
+    ({
       String id,
       String name,
       String email,
@@ -804,7 +826,23 @@ class DemoDataSource {
       AppTier tier,
       String status,
       double commission,
-    })>[
+    })
+  >
+  referrals() {
+    final Random rng = _rng(151);
+    const List<String> statuses = <String>['active', 'trialing', 'churned'];
+    return <
+      ({
+        String id,
+        String name,
+        String email,
+        String channel,
+        DateTime joinedAt,
+        AppTier tier,
+        String status,
+        double commission,
+      })
+    >[
       for (int i = 0; i < _referralSeeds.length; i++)
         (
           id: 'ref_${i + 1}',
@@ -817,7 +855,9 @@ class DemoDataSource {
               : (i.isEven ? AppTier.premium : AppTier.free),
           status: statuses[i % 3 == 2 && i > 6 ? 2 : (i % 5 == 1 ? 1 : 0)],
           commission: _round(
-            i % 4 == 0 ? 4200 + rng.nextDouble() * 2600 : rng.nextDouble() * 1800,
+            i % 4 == 0
+                ? 4200 + rng.nextDouble() * 2600
+                : rng.nextDouble() * 1800,
           ),
         ),
     ];
@@ -825,7 +865,8 @@ class DemoDataSource {
 
   /// Distinct acquisition channels, derived from the referral seeds.
   List<String> get referralChannels =>
-      _referralSeeds.map((_ReferralSeed s) => s.channel).toSet().toList()..sort();
+      _referralSeeds.map((_ReferralSeed s) => s.channel).toSet().toList()
+        ..sort();
 
   /// Click / signup funnel per channel.
   List<({String channel, int clicks, int signups, double revenue})>
@@ -855,17 +896,8 @@ class DemoDataSource {
   }
 
   /// Payout ledger rows for the affiliate payouts surface.
-  List<({
-    String id,
-    double amount,
-    DateTime requestedAt,
-    DateTime? paidAt,
-    String method,
-    String status,
-    String? reference,
-  })> payouts() {
-    final Random rng = _rng(181);
-    return <({
+  List<
+    ({
       String id,
       double amount,
       DateTime requestedAt,
@@ -873,15 +905,27 @@ class DemoDataSource {
       String method,
       String status,
       String? reference,
-    })>[
+    })
+  >
+  payouts() {
+    final Random rng = _rng(181);
+    return <
+      ({
+        String id,
+        double amount,
+        DateTime requestedAt,
+        DateTime? paidAt,
+        String method,
+        String status,
+        String? reference,
+      })
+    >[
       for (int i = 0; i < 6; i++)
         (
           id: 'pay_${1000 + i}',
           amount: _round(8000 + rng.nextDouble() * 42000),
           requestedAt: _now.subtract(Duration(days: 8 + i * 30)),
-          paidAt: i == 0
-              ? null
-              : _now.subtract(Duration(days: 4 + i * 30)),
+          paidAt: i == 0 ? null : _now.subtract(Duration(days: 4 + i * 30)),
           method: i.isEven ? 'Bank transfer (NEFT)' : 'UPI',
           status: i == 0 ? 'pending' : (i == 1 ? 'processing' : 'paid'),
           reference: i == 0 ? null : 'TXN${728400 + i * 137}',
@@ -891,126 +935,138 @@ class DemoDataSource {
 
   /// Withdrawal methods offered to affiliates, with the limits and lead times
   /// the finance team publishes for each one.
-  List<({
-    String id,
-    String label,
-    String detail,
-    IconData icon,
-    double minimum,
-    double feePercent,
-    String eta,
-  })> payoutMethods() => const <({
-    String id,
-    String label,
-    String detail,
-    IconData icon,
-    double minimum,
-    double feePercent,
-    String eta,
-  })>[
-    (
-      id: 'neft',
-      label: 'Bank transfer (NEFT)',
-      detail: 'To the account on your KYC record',
-      icon: Icons.account_balance_outlined,
-      minimum: 5000,
-      feePercent: 0,
-      eta: '2–3 working days',
-    ),
-    (
-      id: 'upi',
-      label: 'UPI',
-      detail: 'Instant to a verified UPI ID',
-      icon: Icons.qr_code_2_rounded,
-      minimum: 1000,
-      feePercent: 0,
-      eta: 'Same day',
-    ),
-    (
-      id: 'paypal',
-      label: 'PayPal',
-      detail: 'For partners billing from outside India',
-      icon: Icons.public_rounded,
-      minimum: 8000,
-      feePercent: 2.9,
-      eta: '3–5 working days',
-    ),
-    (
-      id: 'credit',
-      label: 'Platform credit',
-      detail: 'Applied to your own subscription, no fee',
-      icon: Icons.card_giftcard_outlined,
-      minimum: 500,
-      feePercent: 0,
-      eta: 'Immediate',
-    ),
-  ];
+  List<
+    ({
+      String id,
+      String label,
+      String detail,
+      IconData icon,
+      double minimum,
+      double feePercent,
+      String eta,
+    })
+  >
+  payoutMethods() =>
+      const <
+        ({
+          String id,
+          String label,
+          String detail,
+          IconData icon,
+          double minimum,
+          double feePercent,
+          String eta,
+        })
+      >[
+        (
+          id: 'neft',
+          label: 'Bank transfer (NEFT)',
+          detail: 'To the account on your KYC record',
+          icon: Icons.account_balance_outlined,
+          minimum: 5000,
+          feePercent: 0,
+          eta: '2–3 working days',
+        ),
+        (
+          id: 'upi',
+          label: 'UPI',
+          detail: 'Instant to a verified UPI ID',
+          icon: Icons.qr_code_2_rounded,
+          minimum: 1000,
+          feePercent: 0,
+          eta: 'Same day',
+        ),
+        (
+          id: 'paypal',
+          label: 'PayPal',
+          detail: 'For partners billing from outside India',
+          icon: Icons.public_rounded,
+          minimum: 8000,
+          feePercent: 2.9,
+          eta: '3–5 working days',
+        ),
+        (
+          id: 'credit',
+          label: 'Platform credit',
+          detail: 'Applied to your own subscription, no fee',
+          icon: Icons.card_giftcard_outlined,
+          minimum: 500,
+          feePercent: 0,
+          eta: 'Immediate',
+        ),
+      ];
 
   /// Downloadable creatives for the marketing kit.
-  List<({
-    String id,
-    String title,
-    String format,
-    String dimensions,
-    String sizeLabel,
-    IconData icon,
-  })> creatives() => const <({
-    String id,
-    String title,
-    String format,
-    String dimensions,
-    String sizeLabel,
-    IconData icon,
-  })>[
-    (
-      id: 'cr_banner_lg',
-      title: 'Leaderboard banner',
-      format: 'PNG',
-      dimensions: '728 × 90',
-      sizeLabel: '148 KB',
-      icon: Icons.image_outlined,
-    ),
-    (
-      id: 'cr_banner_sq',
-      title: 'Square social tile',
-      format: 'PNG',
-      dimensions: '1080 × 1080',
-      sizeLabel: '412 KB',
-      icon: Icons.crop_square_rounded,
-    ),
-    (
-      id: 'cr_story',
-      title: 'Story / Reels frame',
-      format: 'MP4',
-      dimensions: '1080 × 1920',
-      sizeLabel: '3.2 MB',
-      icon: Icons.smart_display_outlined,
-    ),
-    (
-      id: 'cr_deck',
-      title: 'Partner pitch deck',
-      format: 'PDF',
-      dimensions: '16 : 9',
-      sizeLabel: '1.8 MB',
-      icon: Icons.slideshow_rounded,
-    ),
-    (
-      id: 'cr_copy',
-      title: 'Email + caption copy pack',
-      format: 'DOCX',
-      dimensions: '6 templates',
-      sizeLabel: '64 KB',
-      icon: Icons.subject_rounded,
-    ),
-    (
-      id: 'cr_logo',
-      title: 'Brand & logo kit',
-      format: 'ZIP',
-      dimensions: 'SVG + PNG',
-      sizeLabel: '2.4 MB',
-      icon: Icons.workspaces_outline,
-    ),
-  ];
+  List<
+    ({
+      String id,
+      String title,
+      String format,
+      String dimensions,
+      String sizeLabel,
+      IconData icon,
+    })
+  >
+  creatives() =>
+      const <
+        ({
+          String id,
+          String title,
+          String format,
+          String dimensions,
+          String sizeLabel,
+          IconData icon,
+        })
+      >[
+        (
+          id: 'cr_banner_lg',
+          title: 'Leaderboard banner',
+          format: 'PNG',
+          dimensions: '728 × 90',
+          sizeLabel: '148 KB',
+          icon: Icons.image_outlined,
+        ),
+        (
+          id: 'cr_banner_sq',
+          title: 'Square social tile',
+          format: 'PNG',
+          dimensions: '1080 × 1080',
+          sizeLabel: '412 KB',
+          icon: Icons.crop_square_rounded,
+        ),
+        (
+          id: 'cr_story',
+          title: 'Story / Reels frame',
+          format: 'MP4',
+          dimensions: '1080 × 1920',
+          sizeLabel: '3.2 MB',
+          icon: Icons.smart_display_outlined,
+        ),
+        (
+          id: 'cr_deck',
+          title: 'Partner pitch deck',
+          format: 'PDF',
+          dimensions: '16 : 9',
+          sizeLabel: '1.8 MB',
+          icon: Icons.slideshow_rounded,
+        ),
+        (
+          id: 'cr_copy',
+          title: 'Email + caption copy pack',
+          format: 'DOCX',
+          dimensions: '6 templates',
+          sizeLabel: '64 KB',
+          icon: Icons.subject_rounded,
+        ),
+        (
+          id: 'cr_logo',
+          title: 'Brand & logo kit',
+          format: 'ZIP',
+          dimensions: 'SVG + PNG',
+          sizeLabel: '2.4 MB',
+          icon: Icons.workspaces_outline,
+        ),
+      ];
 
   // ---------------------------------------------------------------------------
   // Desk / organisation
@@ -1046,6 +1102,12 @@ class DemoDataSource {
     ];
   }
 
+  /// Desk seats a licence actually occupies. A suspended member keeps their
+  /// record but releases the seat, which is what the billing meter is counting.
+  int get occupiedDeskSeats => teamMembers()
+      .where((AppTeamMember m) => m.status != AppMemberStatus.suspended)
+      .length;
+
   static const List<String> _auditActions = <String>[
     'Signed in',
     'Updated risk limits',
@@ -1070,7 +1132,9 @@ class DemoDataSource {
         actor: actor.email,
         action: _auditActions[(i + rng.nextInt(3)) % _auditActions.length],
         at: _now.subtract(Duration(minutes: 24 + i * 97 + rng.nextInt(40))),
-        target: i.isEven ? 'desk/${actor.name.split(' ').first.toLowerCase()}' : null,
+        target: i.isEven
+            ? 'desk/${actor.name.split(' ').first.toLowerCase()}'
+            : null,
         ip: '10.${rng.nextInt(60)}.${rng.nextInt(255)}.${1 + rng.nextInt(240)}',
       );
     });
@@ -1110,7 +1174,10 @@ class DemoDataSource {
         (scope: 'trades:read', description: 'Read closed and open positions.'),
         (scope: 'trades:write', description: 'Log and amend trades.'),
         (scope: 'journal:read', description: 'Read journal entries and notes.'),
-        (scope: 'analytics:read', description: 'Pull desk analytics and equity.'),
+        (
+          scope: 'analytics:read',
+          description: 'Pull desk analytics and equity.',
+        ),
         (scope: 'team:read', description: 'List seats, roles and statuses.'),
         (scope: 'audit:read', description: 'Stream the audit trail.'),
       ];
@@ -1121,10 +1188,7 @@ class DemoDataSource {
     return <AppUsageMetric>[
       AppUsageMetric(
         label: 'Seats',
-        used: teamMembers()
-            .where((AppTeamMember m) => m.status != AppMemberStatus.suspended)
-            .length
-            .toDouble(),
+        used: occupiedDeskSeats.toDouble(),
         limit: deskSeatLicences.toDouble(),
         unit: 'seats',
       ),
@@ -1155,47 +1219,171 @@ class DemoDataSource {
   }
 
   /// Subscription plans for pricing / paywall surfaces.
-  List<AppPlan> plans({AppTier current = AppTier.free}) => <AppPlan>[
-    AppPlan(
+  /// The single plan catalogue. Both the subscription repository and the billing
+  /// settings repository read it, so a price or a feature line only ever exists
+  /// once — the backend swaps this for the products it sells.
+  ///
+  /// Pass [annual] to price the same catalogue per year. Nothing is re-typed:
+  /// the yearly amount is [annualMonthsBilled] times the monthly one, which is
+  /// the same arithmetic the invoice total uses.
+  List<AppPlan> plans({AppTier current = AppTier.free, bool annual = false}) {
+    final List<AppPlan> monthly = _monthlyPlans(current);
+    if (!annual) return monthly;
+    return <AppPlan>[
+      for (final AppPlan plan in monthly)
+        AppPlan(
+          tier: plan.tier,
+          amount: plan.amount * annualMonthsBilled,
+          priceLabel: AppTokens.price(plan.amount * annualMonthsBilled),
+          period: '/yr',
+          description: plan.description,
+          features: <String>[
+            ...plan.features,
+            if (plan.amount > 0) '$annualMonthsFree months free, billed yearly',
+          ],
+          highlighted: plan.highlighted,
+          current: plan.current,
+        ),
+    ];
+  }
+
+  /// Months charged when a plan is billed yearly. The rest of the year is the
+  /// discount, so the saving on the toggle and the invoice total agree.
+  int get annualMonthsBilled => 10;
+
+  /// Months of the year an annual plan does not pay for. The saving the plan
+  /// chooser advertises is derived from this, so the toggle cannot promise a
+  /// discount the invoice does not take off.
+  int get annualMonthsFree => 12 - annualMonthsBilled;
+
+  /// Monthly list price per tier — the one place a plan's number is written
+  /// down. Labels, annual totals, invoices and coupon arithmetic are all
+  /// derived from it, so a price change here moves every surface at once.
+  static const Map<AppTier, double> _monthlyAmounts = <AppTier, double>{
+    AppTier.free: 0,
+    AppTier.premium: 2499,
+    AppTier.enterprise: 7999,
+  };
+
+  List<AppPlan> _monthlyPlans(AppTier current) => <AppPlan>[
+    _plan(
       tier: AppTier.free,
-      priceLabel: '₹0',
-      description: 'Log trades and learn the workflow.',
+      current: current,
+      description: 'Core journal logging and basic charts for individuals.',
       features: const <String>[
         'Up to 100 journal entries',
         'One watchlist',
+        'Basic NSE / BSE scanner',
+        'Standard charts and technical indicators',
         '20 AI copilot requests / month',
         'Community read access',
       ],
-      current: current == AppTier.free,
     ),
-    AppPlan(
+    _plan(
       tier: AppTier.premium,
-      priceLabel: '₹1,499',
-      description: 'The full analytics and copilot workflow.',
+      current: current,
+      description: 'Advanced analytics, AI copilot and unlimited journaling.',
       features: const <String>[
         'Unlimited journal entries',
         'Unlimited watchlists and alerts',
+        'Real-time Level 2 market scanner',
         '500 AI copilot requests / month',
         'Strategy backtests and version history',
-        'Direct messages and community posting',
+        'Direct messages, community posting and mentor reviews',
+        'Export journal to CSV / PDF',
       ],
       highlighted: true,
-      current: current == AppTier.premium,
     ),
-    AppPlan(
+    _plan(
       tier: AppTier.enterprise,
-      priceLabel: '₹6,999',
-      description: 'For desks that need controls and audit.',
+      current: current,
+      description:
+          'Multi-seat desks that need controls, audit and priority support.',
       features: const <String>[
         'Everything in Premium',
         '10 desk seats with role controls',
-        'Risk limits, audit log and SSO',
+        'Institutional risk limits, audit trail and SSO',
+        'Unlimited AI copilot requests',
         'API keys and warehouse export',
-        'Priority support',
+        'Dedicated account manager and priority support',
       ],
-      current: current == AppTier.enterprise,
     ),
   ];
+
+  /// Assembles one catalogue row, pricing it from [_monthlyAmounts] so the
+  /// amount a checkout charges and the label a plan card shows are the same
+  /// number formatted once.
+  AppPlan _plan({
+    required AppTier tier,
+    required AppTier current,
+    required String description,
+    required List<String> features,
+    bool highlighted = false,
+  }) {
+    final double amount = planPrice(tier);
+    return AppPlan(
+      tier: tier,
+      amount: amount,
+      priceLabel: AppTokens.price(amount),
+      description: description,
+      features: features,
+      highlighted: highlighted,
+      current: tier == current,
+    );
+  }
+
+  /// Monthly list price for [tier].
+  double planPrice(AppTier tier) => _monthlyAmounts[tier] ?? 0;
+
+  /// Allowances for [tier]. Keyed so the billing meters, the copilot gate and
+  /// the journal limit all read the same ceiling for the same plan.
+  Map<String, int> planLimits(AppTier tier) => switch (tier) {
+    AppTier.free => const <String, int>{
+      'ai_queries': 20,
+      'journal_trades': 100,
+      'watchlists': 1,
+      'alerts': 3,
+    },
+    AppTier.premium => const <String, int>{
+      'ai_queries': 500,
+      'journal_trades': 5000,
+      'watchlists': 20,
+      'alerts': 100,
+    },
+    AppTier.enterprise => const <String, int>{
+      'ai_queries': 5000,
+      'journal_trades': 50000,
+      'watchlists': 100,
+      'alerts': 500,
+    },
+  };
+
+  /// Per-account usage behind the billing meters. Counts come from the same
+  /// seeded records the pages render and are capped by the plan, so a meter can
+  /// never show more consumed than the plan allows.
+  Map<String, int> accountUsage(AppTier tier) {
+    final Map<String, int> limits = planLimits(tier);
+    final Random rng = _rng(447);
+    int within(String key, int used) =>
+        used.clamp(0, limits[key] ?? used).toInt();
+    return <String, int>{
+      'ai_queries_used': within(
+        'ai_queries',
+        (limits['ai_queries']! * 0.28).round() + rng.nextInt(24),
+      ),
+      'ai_queries_limit': limits['ai_queries']!,
+      'journal_trades_used': within('journal_trades', trades().length),
+      'journal_trades_limit': limits['journal_trades']!,
+      'watchlists_used': within('watchlists', 7),
+      'watchlists_limit': limits['watchlists']!,
+      'alerts_used': within('alerts', 5),
+      'alerts_limit': limits['alerts']!,
+      // Seats are a desk capability: a single-trader plan is one seat, and an
+      // enterprise licence carries the same number the plan advertises.
+      'seats_used': tier == AppTier.enterprise ? occupiedDeskSeats : 1,
+      'seats_limit': tier == AppTier.enterprise ? deskSeatLicences : 1,
+    };
+  }
 
   /// Achievements / streak badges for the profile surface.
   List<AppAchievement> achievements() => const <AppAchievement>[
@@ -1234,10 +1422,15 @@ class DemoDataSource {
   // ---------------------------------------------------------------------------
 
   /// Flattened index behind the ⌘K palette and the search surface.
+  ///
+  /// Every row carries the id of the record it points at, so the surface that
+  /// opens a hit can load the real trade, strategy or trader rather than
+  /// unpicking the display title.
   List<AppSearchResult> searchIndex() => <AppSearchResult>[
     for (final AppTicker ticker in tickers())
       AppSearchResult(
         id: 'sr_tk_${ticker.symbol}',
+        entityId: ticker.symbol,
         title: ticker.symbol,
         kind: AppSearchKind.ticker,
         subtitle: ticker.name,
@@ -1246,6 +1439,7 @@ class DemoDataSource {
     for (final AppTrade trade in trades().take(18))
       AppSearchResult(
         id: 'sr_tr_${trade.id}',
+        entityId: trade.id,
         title: '${trade.ticker} · ${AppTokens.sideLabel(trade.side)}',
         kind: AppSearchKind.trade,
         subtitle:
@@ -1255,6 +1449,7 @@ class DemoDataSource {
     for (final AppStrategy strategy in strategies())
       AppSearchResult(
         id: 'sr_st_${strategy.id}',
+        entityId: strategy.id,
         title: strategy.name,
         kind: AppSearchKind.strategy,
         subtitle: strategy.summary,
@@ -1263,6 +1458,7 @@ class DemoDataSource {
     for (final AppTrader trader in traders())
       AppSearchResult(
         id: 'sr_us_${trader.id}',
+        entityId: trader.id,
         title: trader.displayName ?? trader.handle,
         kind: AppSearchKind.trader,
         subtitle: '@${trader.handle}',
@@ -1271,17 +1467,18 @@ class DemoDataSource {
     for (final AppPost post in posts().take(10))
       AppSearchResult(
         id: 'sr_po_${post.id}',
+        entityId: post.id,
         title: post.body.length > 60
             ? '${post.body.substring(0, 60)}…'
             : post.body,
         kind: AppSearchKind.post,
         subtitle: '@${post.author.handle}',
       ),
-    for (final AppTrade trade in trades().where(
-      (AppTrade t) => (t.notes ?? '').isNotEmpty,
-    ).take(8))
+    for (final AppTrade trade
+        in trades().where((AppTrade t) => (t.notes ?? '').isNotEmpty).take(8))
       AppSearchResult(
         id: 'sr_nt_${trade.id}',
+        entityId: trade.id,
         title: trade.notes!,
         kind: AppSearchKind.note,
         subtitle: '${trade.ticker} · ${AppTokens.shortDate(trade.openedAt)}',

@@ -2,7 +2,9 @@ import 'package:tradex/features/settings/models/notification_prefs_model.dart';
 
 abstract class NotificationPrefsRepository {
   Future<NotificationPrefsModel> getPreferences();
-  Future<NotificationPrefsModel> updatePreferences(NotificationPrefsModel prefs);
+  Future<NotificationPrefsModel> updatePreferences(
+    NotificationPrefsModel prefs,
+  );
 }
 
 class NotificationPrefsRepositoryImpl implements NotificationPrefsRepository {
@@ -15,7 +17,9 @@ class NotificationPrefsRepositoryImpl implements NotificationPrefsRepository {
   }
 
   @override
-  Future<NotificationPrefsModel> updatePreferences(NotificationPrefsModel prefs) async {
+  Future<NotificationPrefsModel> updatePreferences(
+    NotificationPrefsModel prefs,
+  ) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     _prefs = prefs;
     return _prefs;

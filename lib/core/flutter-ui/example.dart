@@ -46,13 +46,41 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                 spacing: 12,
                 runSpacing: 12,
                 children: <Widget>[
-                  UiButton(label: 'Primary Action', variant: UiVariant.primary, onPressed: () {}),
-                  UiButton(label: 'Secondary Action', variant: UiVariant.secondary, onPressed: () {}),
-                  UiButton(label: 'Outline Action', variant: UiVariant.outline, onPressed: () {}),
-                  UiButton(label: 'Ghost Action', variant: UiVariant.ghost, onPressed: () {}),
-                  UiButton(label: 'Destructive', variant: UiVariant.destructive, onPressed: () {}),
-                  const UiButton(label: 'Disabled', variant: UiVariant.primary, onPressed: null),
-                  UiIconButton(icon: Icons.star_border, tooltip: 'Favorite', onPressed: () {}),
+                  UiButton(
+                    label: 'Primary Action',
+                    variant: UiVariant.primary,
+                    onPressed: () {},
+                  ),
+                  UiButton(
+                    label: 'Secondary Action',
+                    variant: UiVariant.secondary,
+                    onPressed: () {},
+                  ),
+                  UiButton(
+                    label: 'Outline Action',
+                    variant: UiVariant.outline,
+                    onPressed: () {},
+                  ),
+                  UiButton(
+                    label: 'Ghost Action',
+                    variant: UiVariant.ghost,
+                    onPressed: () {},
+                  ),
+                  UiButton(
+                    label: 'Destructive',
+                    variant: UiVariant.destructive,
+                    onPressed: () {},
+                  ),
+                  const UiButton(
+                    label: 'Disabled',
+                    variant: UiVariant.primary,
+                    onPressed: null,
+                  ),
+                  UiIconButton(
+                    icon: Icons.star_border,
+                    tooltip: 'Favorite',
+                    onPressed: () {},
+                  ),
                   const UiToggleGroup<String>(
                     value: '1D',
                     options: <UiToggleOption<String>>[
@@ -85,7 +113,8 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                   SizedBox(height: context.sp(theme.spacing.md)),
                   const UiCallout(
                     title: 'Risk Warning',
-                    message: 'High volatility expected during upcoming FOMC interest rate decision.',
+                    message:
+                        'High volatility expected during upcoming FOMC interest rate decision.',
                     intent: UiIntent.warning,
                   ),
                 ],
@@ -113,7 +142,11 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                     value: _selectVal,
                     hintText: 'Select Base Currency',
                     options: const <UiOption<String>>[
-                      UiOption(value: 'usd', label: 'USD - United States Dollar'),
+                      UiOption(value: 'inr', label: 'INR - Indian Rupee'),
+                      UiOption(
+                        value: 'usd',
+                        label: 'USD - United States Dollar',
+                      ),
                       UiOption(value: 'eur', label: 'EUR - Euro'),
                       UiOption(value: 'gbp', label: 'GBP - British Pound'),
                     ],
@@ -187,7 +220,9 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                   const UiCard(
                     title: 'Trade Summary Card',
                     subtitle: 'Execution details & risk metrics',
-                    child: Text('Position sizing optimal at 2.5% max risk per trade.'),
+                    child: Text(
+                      'Position sizing optimal at 2.5% max risk per trade.',
+                    ),
                   ),
                 ],
               ),
@@ -200,9 +235,18 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                 children: <Widget>[
                   UiTabs(
                     items: const <UiTabItem>[
-                      UiTabItem(label: 'Overview', content: Text('Overview Tab Panel Content')),
-                      UiTabItem(label: 'Analytics', content: Text('Analytics Tab Panel Content')),
-                      UiTabItem(label: 'Settings', content: Text('Settings Tab Panel Content')),
+                      UiTabItem(
+                        label: 'Overview',
+                        content: Text('Overview Tab Panel Content'),
+                      ),
+                      UiTabItem(
+                        label: 'Analytics',
+                        content: Text('Analytics Tab Panel Content'),
+                      ),
+                      UiTabItem(
+                        label: 'Settings',
+                        content: Text('Settings Tab Panel Content'),
+                      ),
                     ],
                     initialIndex: _tabIndex,
                     onChanged: (i) => setState(() => _tabIndex = i),
@@ -212,7 +256,9 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                     items: <UiAccordionItem>[
                       UiAccordionItem(
                         title: 'Trading Rules & Strategy Parameters',
-                        content: Text('1. Max 2% risk per trade. 2. Cut losses fast. 3. Let winners run.'),
+                        content: Text(
+                          '1. Max 2% risk per trade. 2. Cut losses fast. 3. Let winners run.',
+                        ),
                       ),
                     ],
                   ),
@@ -241,14 +287,27 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                 children: <Widget>[
                   UiTable<Map<String, String>>(
                     rows: const <Map<String, String>>[
-                      {'ticker': 'AAPL', 'price': '\$224.30', 'change': '+1.8%'},
-                      {'ticker': 'TSLA', 'price': '\$210.15', 'change': '-2.4%'},
-                      {'ticker': 'NVDA', 'price': '\$132.80', 'change': '+4.1%'},
+                      {
+                        'ticker': 'AAPL',
+                        'price': '\$224.30',
+                        'change': '+1.8%',
+                      },
+                      {
+                        'ticker': 'TSLA',
+                        'price': '\$210.15',
+                        'change': '-2.4%',
+                      },
+                      {
+                        'ticker': 'NVDA',
+                        'price': '\$132.80',
+                        'change': '+4.1%',
+                      },
                     ],
                     columns: <UiTableColumn<Map<String, String>>>[
                       UiTableColumn<Map<String, String>>(
                         header: 'Ticker',
-                        cell: (ctx, item) => Text(item['ticker']!, style: ctx.uiText.bodyStrong),
+                        cell: (ctx, item) =>
+                            Text(item['ticker']!, style: ctx.uiText.bodyStrong),
                       ),
                       UiTableColumn<Map<String, String>>(
                         header: 'Price',
@@ -268,12 +327,23 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                     ],
                   ),
                   SizedBox(height: context.sp(theme.spacing.md)),
-                  const UiProgressBar(value: 0.72, label: 'Monthly Goal Target'),
+                  const UiProgressBar(
+                    value: 0.72,
+                    label: 'Monthly Goal Target',
+                  ),
                   SizedBox(height: context.sp(theme.spacing.md)),
                   const UiCategoryBar(
                     segments: <UiCategorySegment>[
-                      UiCategorySegment(value: 65, label: 'Win', color: Colors.green),
-                      UiCategorySegment(value: 35, label: 'Loss', color: Colors.red),
+                      UiCategorySegment(
+                        value: 65,
+                        label: 'Win',
+                        color: Colors.green,
+                      ),
+                      UiCategorySegment(
+                        value: 35,
+                        label: 'Loss',
+                        color: Colors.red,
+                      ),
                     ],
                   ),
                   SizedBox(height: context.sp(theme.spacing.md)),
@@ -300,8 +370,20 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                   UiCandleChart(
                     height: 160,
                     candles: <UiCandle>[
-                      UiCandle(time: DateTime.now().subtract(const Duration(days: 2)), open: 120, high: 126, low: 119, close: 125),
-                      UiCandle(time: DateTime.now().subtract(const Duration(days: 1)), open: 125, high: 130, low: 124, close: 128),
+                      UiCandle(
+                        time: DateTime.now().subtract(const Duration(days: 2)),
+                        open: 120,
+                        high: 126,
+                        low: 119,
+                        close: 125,
+                      ),
+                      UiCandle(
+                        time: DateTime.now().subtract(const Duration(days: 1)),
+                        open: 125,
+                        high: 130,
+                        low: 124,
+                        close: 128,
+                      ),
                     ],
                   ),
                   SizedBox(height: context.sp(theme.spacing.md)),
@@ -318,9 +400,21 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                     height: 140,
                     child: UiDonutChart(
                       slices: const <UiDonutSlice>[
-                        UiDonutSlice(label: 'Tech', value: 60, color: Colors.blue),
-                        UiDonutSlice(label: 'Energy', value: 25, color: Colors.orange),
-                        UiDonutSlice(label: 'Cash', value: 15, color: Colors.green),
+                        UiDonutSlice(
+                          label: 'Tech',
+                          value: 60,
+                          color: Colors.blue,
+                        ),
+                        UiDonutSlice(
+                          label: 'Energy',
+                          value: 25,
+                          color: Colors.orange,
+                        ),
+                        UiDonutSlice(
+                          label: 'Cash',
+                          value: 15,
+                          color: Colors.green,
+                        ),
                       ],
                     ),
                   ),
@@ -330,8 +424,18 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                   UiGraphCanvas(
                     height: 140,
                     nodes: const <UiGraphNode>[
-                      UiGraphNode(id: 'n1', label: 'NVDA', weight: 1.5, intent: UiIntent.bullish),
-                      UiGraphNode(id: 'n2', label: 'AI Strategy', weight: 1.2, intent: UiIntent.primary),
+                      UiGraphNode(
+                        id: 'n1',
+                        label: 'NVDA',
+                        weight: 1.5,
+                        intent: UiIntent.bullish,
+                      ),
+                      UiGraphNode(
+                        id: 'n2',
+                        label: 'AI Strategy',
+                        weight: 1.2,
+                        intent: UiIntent.primary,
+                      ),
                     ],
                     edges: const <UiGraphEdge>[
                       UiGraphEdge(from: 'n1', to: 'n2'),
@@ -354,7 +458,8 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                       UiDialog.confirm(
                         context,
                         title: 'Order Confirmation',
-                        description: 'Execute Market Order: BUY 100 NVDA @ \$135.00?',
+                        description:
+                            'Execute Market Order: BUY 100 NVDA @ \$135.00?',
                       );
                     },
                   ),
@@ -367,7 +472,9 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                         title: 'Position Settings',
                         child: Padding(
                           padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-                          child: const Text('Configure trailing stop and price alert thresholds.'),
+                          child: const Text(
+                            'Configure trailing stop and price alert thresholds.',
+                          ),
                         ),
                       );
                     },
@@ -381,7 +488,11 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
     );
   }
 
-  Widget _buildSection(BuildContext context, {required String title, required Widget child}) {
+  Widget _buildSection(
+    BuildContext context, {
+    required String title,
+    required Widget child,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[

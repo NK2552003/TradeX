@@ -99,7 +99,8 @@ class DashboardRepositoryImpl implements DashboardRepository {
           value: netPnl,
           delta: todayPnl,
           icon: Icons.account_balance_wallet_outlined,
-          spark: _source.equitySeries(points: 14)
+          spark: _source
+              .equitySeries(points: 14)
               .map((AppSeriesPoint p) => p.value)
               .toList(growable: false),
           formatter: AppTokens.signedMoney,

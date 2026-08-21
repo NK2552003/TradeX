@@ -64,11 +64,7 @@ class UiCandleMarker {
 /// Named overlay line computed from the candles (moving average etc.).
 @immutable
 class UiCandleOverlay {
-  const UiCandleOverlay({
-    required this.name,
-    required this.values,
-    this.color,
-  });
+  const UiCandleOverlay({required this.name, required this.values, this.color});
 
   final String name;
 
@@ -120,6 +116,7 @@ class UiCandleChart extends StatefulWidget {
   final List<UiCandleOverlay> overlays;
   final List<UiPriceLine> priceLines;
   final List<UiCandleMarker> markers;
+  /// Height of the price pane in logical points (scaled internally).
   final double? height;
   final bool showVolume;
   final bool showGrid;
@@ -140,14 +137,18 @@ class _UiCandleChartState extends State<UiCandleChart> {
     widget.onHoverIndex?.call(index);
   }
 
-  String _fmt(num v) =>
-      widget.priceFormatter?.call(v) ?? v.toStringAsFixed(2);
+  String _fmt(num v) => widget.priceFormatter?.call(v) ?? v.toStringAsFixed(2);
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final double height =
-        widget.height ?? context.sz(theme.sizes.chartHeight);
+    // Scaled here, not by the caller: UiChartBase and UiSkeleton both take a
+    // logical height and scale it themselves, and a caller cannot tell which
+    // components do. An unscaled height was the one chart on a tablet that
+    // stayed phone-sized while everything around it grew.
+    final double height = context.sz(
+      widget.height ?? theme.sizes.chartHeight,
+    );
 
     if (widget.candles.isEmpty) {
       return SizedBox(
@@ -155,15 +156,17 @@ class _UiCandleChartState extends State<UiCandleChart> {
         child: Center(
           child: Text(
             'No price data',
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
         ),
       );
     }
 
-    final UiCandle? active =
-        _active == null ? null : widget.candles[_active!.clamp(0, widget.candles.length - 1)];
+    final UiCandle? active = _active == null
+        ? null
+        : widget.candles[_active!.clamp(0, widget.candles.length - 1)];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,9 +182,10 @@ class _UiCandleChartState extends State<UiCandleChart> {
                 if (!widget.interactive) return;
                 final double w = c.maxWidth;
                 final double step = w / widget.candles.length;
-                final int i = (local.dx / step)
-                    .floor()
-                    .clamp(0, widget.candles.length - 1);
+                final int i = (local.dx / step).floor().clamp(
+                  0,
+                  widget.candles.length - 1,
+                );
                 _setActive(i);
               }
 
@@ -197,10 +201,12 @@ class _UiCandleChartState extends State<UiCandleChart> {
                   showVolume: widget.showVolume,
                   showGrid: widget.showGrid,
                   activeIndex: _active,
-                  labelStyle: context.uiText.caption
-                      .copyWith(color: theme.colors.foregroundSubtle),
-                  markerStyle: context.uiText.caption
-                      .copyWith(color: theme.colors.foreground),
+                  labelStyle: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundSubtle,
+                  ),
+                  markerStyle: context.uiText.caption.copyWith(
+                    color: theme.colors.foreground,
+                  ),
                   format: _fmt,
                   radius: context.sz(theme.radii.sm),
                 ),
@@ -235,14 +241,23 @@ class _UiCandleChartState extends State<UiCandleChart> {
                     Container(
                       width: context.sz(10),
                       height: context.sz(2),
-                      color: widget.overlays[i].color ??
+                      color:
+                          widget.overlays[i].color ??
                           theme.colors.series[i % theme.colors.series.length],
                     ),
                     SizedBox(width: context.sp(theme.spacing.xs)),
-                    Text(
-                      widget.overlays[i].name,
-                      style: context.uiText.caption
-                          .copyWith(color: theme.colors.foregroundMuted),
+                    // Overlay names are caller-supplied ("EMA 200", "VWAP
+                    // session") so they truncate inside their own chip.
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: context.sz(150)),
+                      child: Text(
+                        widget.overlays[i].name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -265,19 +280,28 @@ class _UiCandleReadout extends StatelessWidget {
     final UiColors c = context.uiColors;
     final Color tint = candle.bullish ? c.bullish : c.bearish;
     Widget pair(String label, double value, {Color? color}) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Text(
-              '$label ',
-              style: context.uiText.caption.copyWith(color: c.foregroundSubtle),
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          '$label ',
+          style: context.uiText.caption.copyWith(color: c.foregroundSubtle),
+        ),
+        // The formatter is caller-supplied and volume runs to eight figures,
+        // so the figure truncates inside its own pair rather than overrunning
+        // the read-out row.
+        Flexible(
+          child: Text(
+            format(value),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.uiText.numeric.copyWith(
+              color: color ?? c.foreground,
+              fontSize: context.uiText.caption.fontSize,
             ),
-            Text(
-              format(value),
-              style: context.uiText.numeric
-                  .copyWith(color: color ?? c.foreground, fontSize: context.uiText.caption.fontSize),
-            ),
-          ],
-        );
+          ),
+        ),
+      ],
+    );
 
     return Wrap(
       spacing: context.sp(context.uiSpace.md),
@@ -379,12 +403,17 @@ class _UiCandlePainter extends CustomPainter {
           final UiCandle k = candles[i];
           final double h = (k.volume / maxVol) * volumeH;
           final Paint p = Paint()
-            ..color = (k.bullish ? colors.bullish : colors.bearish)
-                .withValues(alpha: 0.35);
+            ..color = (k.bullish ? colors.bullish : colors.bearish).withValues(
+              alpha: 0.35,
+            );
           canvas.drawRRect(
             RRect.fromRectAndRadius(
-              Rect.fromLTWH(i * step + (step - bodyW) / 2, top + volumeH - h,
-                  bodyW, math.max(1, h)),
+              Rect.fromLTWH(
+                i * step + (step - bodyW) / 2,
+                top + volumeH - h,
+                bodyW,
+                math.max(1, h),
+              ),
               Radius.circular(radius / 2),
             ),
             p,
@@ -447,8 +476,7 @@ class _UiCandlePainter extends CustomPainter {
             cx + bodyW / 2,
             math.max(bottom, top + 1),
           );
-          final bool hollow =
-              type == UiPriceChartType.hollow && k.bullish;
+          final bool hollow = type == UiPriceChartType.hollow && k.bullish;
           canvas.drawRRect(
             RRect.fromRectAndRadius(body, Radius.circular(radius / 2)),
             Paint()
@@ -514,8 +542,12 @@ class _UiCandlePainter extends CustomPainter {
       final double my = m.above ? y(k.high) - 12 : y(k.low) + 12;
       final Color tint = _intentColor(m.intent);
       canvas.drawCircle(Offset(cx, my), 4, Paint()..color = tint);
-      _label(canvas, m.label, Offset(cx + 6, my - 8),
-          style: markerStyle.copyWith(color: tint));
+      _label(
+        canvas,
+        m.label,
+        Offset(cx + 6, my - 8),
+        style: markerStyle.copyWith(color: tint),
+      );
     }
 
     // Crosshair

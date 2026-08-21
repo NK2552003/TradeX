@@ -35,17 +35,16 @@ class UiBadge extends StatelessWidget {
     int decimals = 2,
     UiBadgeVariant variant = UiBadgeVariant.soft,
     bool showIcon = true,
-  }) =>
-      UiBadge(
-        key: key,
-        label: uiSignedPercent(percent, decimals: decimals),
-        intent: percent >= 0 ? UiIntent.bullish : UiIntent.bearish,
-        icon: showIcon
-            ? (percent >= 0 ? Icons.trending_up : Icons.trending_down)
-            : null,
-        variant: variant,
-        size: size,
-      );
+  }) => UiBadge(
+    key: key,
+    label: uiSignedPercent(percent, decimals: decimals),
+    intent: percent >= 0 ? UiIntent.bullish : UiIntent.bearish,
+    icon: showIcon
+        ? (percent >= 0 ? Icons.trending_up : Icons.trending_down)
+        : null,
+    variant: variant,
+    size: size,
+  );
 
   /// Compact numeric counter, e.g. unread notifications.
   factory UiBadge.count(
@@ -54,14 +53,13 @@ class UiBadge extends StatelessWidget {
     int max = 99,
     UiIntent intent = UiIntent.primary,
     UiSize size = UiSize.xs,
-  }) =>
-      UiBadge(
-        key: key,
-        label: count > max ? '$max+' : '$count',
-        intent: intent,
-        size: size,
-        variant: UiBadgeVariant.solid,
-      );
+  }) => UiBadge(
+    key: key,
+    label: count > max ? '$max+' : '$count',
+    intent: intent,
+    size: size,
+    variant: UiBadgeVariant.solid,
+  );
 
   /// Live status pill with a leading dot.
   factory UiBadge.status(
@@ -70,15 +68,14 @@ class UiBadge extends StatelessWidget {
     UiIntent intent = UiIntent.bullish,
     UiSize size = UiSize.sm,
     bool pulse = true,
-  }) =>
-      UiBadge(
-        key: key,
-        label: label,
-        intent: intent,
-        size: size,
-        showDot: true,
-        pulse: pulse,
-      );
+  }) => UiBadge(
+    key: key,
+    label: label,
+    intent: intent,
+    size: size,
+    showDot: true,
+    pulse: pulse,
+  );
 
   final String label;
   final UiIntent intent;
@@ -102,8 +99,7 @@ class UiBadge extends StatelessWidget {
   /// Renders a trailing close affordance (filter chips).
   final VoidCallback? onRemove;
 
-  UiBadgeVariant get _variant =>
-      filled ? UiBadgeVariant.solid : variant;
+  UiBadgeVariant get _variant => filled ? UiBadgeVariant.solid : variant;
 
   @override
   Widget build(BuildContext context) {
@@ -113,14 +109,15 @@ class UiBadge extends StatelessWidget {
     final bool solid = _variant == UiBadgeVariant.solid;
 
     final Color fg = solid ? intent.onColor(context) : base;
-    final TextStyle textStyle = (size == UiSize.xs || size == UiSize.sm
-            ? context.uiText.caption
-            : context.uiText.label)
-        .copyWith(
-      color: fg,
-      fontWeight: FontWeight.w600,
-      letterSpacing: uppercase ? 0.6 : null,
-    );
+    final TextStyle textStyle =
+        (size == UiSize.xs || size == UiSize.sm
+                ? context.uiText.caption
+                : context.uiText.label)
+            .copyWith(
+              color: fg,
+              fontWeight: FontWeight.w600,
+              letterSpacing: uppercase ? 0.6 : null,
+            );
 
     Color background;
     Color borderColor;
@@ -148,8 +145,9 @@ class UiBadge extends StatelessWidget {
     final Widget chip = AnimatedContainer(
       duration: theme.motion.fast,
       curve: theme.motion.curve,
-      constraints:
-          maxWidth == null ? null : BoxConstraints(maxWidth: maxWidth!),
+      constraints: maxWidth == null
+          ? null
+          : BoxConstraints(maxWidth: maxWidth!),
       padding: EdgeInsets.symmetric(
         horizontal: context.sp(
           _variant == UiBadgeVariant.dot ? theme.spacing.xxs : theme.spacing.sm,
@@ -200,10 +198,8 @@ class UiBadge extends StatelessWidget {
       result = UiInteractive(
         onTap: onTap,
         semanticLabel: label,
-        builder: (_, UiInteractiveState s) => Opacity(
-          opacity: s.active ? 0.85 : 1,
-          child: chip,
-        ),
+        builder: (_, UiInteractiveState s) =>
+            Opacity(opacity: s.active ? 0.85 : 1, child: chip),
       );
     }
     if (tooltip != null) result = Tooltip(message: tooltip!, child: result);

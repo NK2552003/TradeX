@@ -20,6 +20,8 @@ class RoleNavigationConfig {
     required this.mobilePrimaryItems,
     required this.mobileMoreItems,
     required this.userMenuItems,
+    this.notificationTargets = const <String, String>{},
+    this.upgradeSectionId = 'settings_billing',
   });
 
   final UserRole role;
@@ -30,7 +32,17 @@ class RoleNavigationConfig {
   final List<AppNavItem> mobileMoreItems;
   final List<AppNavItem> userMenuItems;
 
-  bool allows(String destinationId) {
+  /// Notification category to the destination id that answers it. Navigation is
+  /// this model's job, so the inbox asks here rather than deciding for itself; a
+  /// category with no entry simply has nowhere to go for this role.
+  final Map<String, String> notificationTargets;
+
+  /// Where an upgrade prompt lands for this role. Plan gates appear on several
+  /// surfaces, and every one of them should arrive at the same place.
+  final String upgradeSectionId;
+
+  /// Every destination this role can reach, including nested settings items.
+  Iterable<AppNavItem> get destinations {
     Iterable<AppNavItem> flatten(Iterable<AppNavItem> items) sync* {
       for (final AppNavItem item in items) {
         yield item;
@@ -38,10 +50,28 @@ class RoleNavigationConfig {
       }
     }
 
-    return flatten(
-      sections.expand((AppNavSection section) => section.items),
-    ).any((AppNavItem item) => item.id == destinationId);
+    return flatten(sections.expand((AppNavSection section) => section.items));
   }
+
+  bool allows(String destinationId) =>
+      destinations.any((AppNavItem item) => item.id == destinationId);
+
+  /// Sidebar label of a destination, or null when this role cannot reach it.
+  /// Used to describe a jump in the reader's own vocabulary instead of a
+  /// second, hand-written copy of the same name.
+  String? labelFor(String destinationId) {
+    for (final AppNavItem item in destinations) {
+      if (item.id == destinationId) return item.label;
+    }
+    return null;
+  }
+
+  /// Notification categories this role can act on, mapped to the label of the
+  /// surface they open.
+  Map<String, String> get notificationDestinations => <String, String>{
+    for (final MapEntry<String, String> entry in notificationTargets.entries)
+      if (labelFor(entry.value) != null) entry.key: labelFor(entry.value)!,
+  };
 
   static RoleNavigationConfig forRole(UserRole role) => switch (role) {
     UserRole.customer => _trader,
@@ -67,6 +97,15 @@ class RoleNavigationConfig {
     role: UserRole.customer,
     workspaceName: 'TradeX Pro Terminal',
     workspaceLabel: 'Active Trader',
+    upgradeSectionId: 'settings_billing',
+    notificationTargets: <String, String>{
+      'Alerts': 'watchlists',
+      'AI': 'ai_copilot',
+      'Community': 'community',
+      'Risk': 'portfolio',
+      'Strategies': 'strategies',
+      'Billing': 'settings_billing',
+    },
     mobilePrimaryItems: <AppNavItem>[
       AppNavItem(
         id: 'overview',
@@ -257,6 +296,12 @@ class RoleNavigationConfig {
     role: UserRole.affiliate,
     workspaceName: 'Affiliate Partner Hub',
     workspaceLabel: 'Affiliate Partner',
+    upgradeSectionId: 'settings_affiliate',
+    notificationTargets: <String, String>{
+      'AI': 'ai_copilot',
+      'Community': 'community',
+      'Billing': 'payouts',
+    },
     mobilePrimaryItems: <AppNavItem>[
       AppNavItem(
         id: 'overview',
@@ -431,6 +476,13 @@ class RoleNavigationConfig {
     role: UserRole.userAdmin,
     workspaceName: 'Institutional Desk',
     workspaceLabel: 'Desk Administrator',
+    upgradeSectionId: 'settings_organization',
+    notificationTargets: <String, String>{
+      'AI': 'ai_copilot',
+      'Risk': 'org_risk',
+      'Alerts': 'org_audit',
+      'Billing': 'settings_organization',
+    },
     mobilePrimaryItems: <AppNavItem>[
       AppNavItem(
         id: 'overview',

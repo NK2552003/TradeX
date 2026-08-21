@@ -4,6 +4,7 @@ import 'package:quiet_dock/quiet_dock.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/navigation/role_navigation_config.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
@@ -17,6 +18,10 @@ import 'package:tradex/features/settings/presentation/widgets/settings_side_shee
 import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
 
 void main() {
+  // Entitlement lives in a process-wide session, so a plan changed by one test
+  // would otherwise decide what the next test's gates render.
+  setUp(AppSession.instance.reset);
+
   group('RoleNavigationConfig', () {
     test('trader only exposes trader settings', () {
       final RoleNavigationConfig config = RoleNavigationConfig.forRole(

@@ -74,11 +74,22 @@ class _UiTagInputState extends State<UiTagInput> {
                 for (final String tag in widget.tags)
                   UiInteractive(
                     onTap: () => _remove(tag),
-                    builder: (BuildContext ctx, UiInteractiveState _) =>
-                        Container(
+                    builder: (BuildContext ctx, UiInteractiveState _) => Container(
                       padding: EdgeInsets.symmetric(
                         horizontal: ctx.sp(theme.spacing.sm),
                         vertical: ctx.sp(theme.spacing.xxs),
+                      ),
+                      // Tags are typed by the reader, so a chip needs both a
+                      // width ceiling and a height floor: one keeps a long tag
+                      // inside its pill, the other keeps the pill big enough
+                      // to hit with a thumb.
+                      constraints: BoxConstraints(
+                        maxWidth: ctx.sz(220),
+                        minHeight: ctx.sz(
+                          ctx.uiRes.isMobile
+                              ? theme.sizes.minTapTarget * 0.75
+                              : theme.sizes.controlHeightSm,
+                        ),
                       ),
                       decoration: BoxDecoration(
                         color: widget.intent.surface(ctx),
@@ -87,10 +98,15 @@ class _UiTagInputState extends State<UiTagInput> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Text(
-                            '${widget.prefix ?? ''}$tag',
-                            style: ctx.uiText.label
-                                .copyWith(color: widget.intent.color(ctx)),
+                          Flexible(
+                            child: Text(
+                              '${widget.prefix ?? ''}$tag',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: ctx.uiText.label.copyWith(
+                                color: widget.intent.color(ctx),
+                              ),
+                            ),
                           ),
                           SizedBox(width: ctx.sp(theme.spacing.xxs)),
                           Icon(

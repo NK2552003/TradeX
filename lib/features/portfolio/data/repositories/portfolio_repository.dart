@@ -145,7 +145,8 @@ class PortfolioRepositoryImpl implements PortfolioRepository {
       byStrategy: _barsBy(closed, (AppTrade t) => t.strategy ?? 'Unclassified'),
       bySession: _barsBy(
         closed,
-        (AppTrade t) => t.openedAt.hour < 12 ? 'Morning session' : 'Afternoon session',
+        (AppTrade t) =>
+            t.openedAt.hour < 12 ? 'Morning session' : 'Afternoon session',
       ),
       days: _source.dayPnl(),
       drawdown: drawdown,

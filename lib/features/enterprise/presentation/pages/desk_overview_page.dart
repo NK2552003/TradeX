@@ -114,7 +114,8 @@ class _DeskOverviewPageState extends State<DeskOverviewPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          if (snapshot != null && snapshot.breachedLimits.isNotEmpty) ...<Widget>[
+          if (snapshot != null &&
+              snapshot.breachedLimits.isNotEmpty) ...<Widget>[
             AppFadeIn(child: _breachCallout(snapshot)),
             UiGap.v(theme.spacing.md),
           ],
@@ -201,7 +202,8 @@ class _DeskOverviewPageState extends State<DeskOverviewPage> {
         : '${snapshot.breachedLimits.length} risk limits have been hit',
     message: snapshot.breachedLimits
         .map(
-          (RiskLimit l) => '${l.label}: ${l.format(l.used)} of ${l.format(l.value)}',
+          (RiskLimit l) =>
+              '${l.label}: ${l.format(l.used)} of ${l.format(l.value)}',
         )
         .join(' · '),
     intent: UiIntent.danger,
@@ -319,7 +321,8 @@ class _DeskOverviewPageState extends State<DeskOverviewPage> {
   }
 
   Widget _breakdownCard(DeskSnapshot? snapshot) {
-    final List<UiBarListItem> bySeat = snapshot?.bySeat ?? const <UiBarListItem>[];
+    final List<UiBarListItem> bySeat =
+        snapshot?.bySeat ?? const <UiBarListItem>[];
     final List<UiBarListItem> byStrategy =
         snapshot?.byStrategy ?? const <UiBarListItem>[];
     final List<UiBarListItem> active = _breakdown == 0 ? bySeat : byStrategy;
@@ -369,10 +372,8 @@ class _DeskOverviewPageState extends State<DeskOverviewPage> {
             emptyMessage:
                 'Attribution appears once desk seats close their first trades.',
             emptyIcon: Icons.bar_chart_outlined,
-            builder: (BuildContext ctx) => UiBarList(
-              items: active,
-              valueFormatter: AppTokens.signedMoney,
-            ),
+            builder: (BuildContext ctx) =>
+                UiBarList(items: active, valueFormatter: AppTokens.signedMoney),
           ),
         ],
       ),
@@ -381,7 +382,9 @@ class _DeskOverviewPageState extends State<DeskOverviewPage> {
 
   Widget _shortcutsCard() {
     final UiTheme theme = context.ui;
-    final List<({IconData icon, String label, String detail, VoidCallback? tap})>
+    final List<
+      ({IconData icon, String label, String detail, VoidCallback? tap})
+    >
     shortcuts =
         <({IconData icon, String label, String detail, VoidCallback? tap})>[
           (
@@ -443,7 +446,10 @@ class _DeskOverviewPageState extends State<DeskOverviewPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
-                              Text(shortcut.label, style: context.uiText.bodyStrong),
+                              Text(
+                                shortcut.label,
+                                style: context.uiText.bodyStrong,
+                              ),
                               Text(
                                 shortcut.detail,
                                 style: context.uiText.caption.copyWith(

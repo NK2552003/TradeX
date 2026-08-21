@@ -3,10 +3,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
 
 class BlockedUsersPage extends StatefulWidget {
-  const BlockedUsersPage({
-    super.key,
-    this.repository,
-  });
+  const BlockedUsersPage({super.key, this.repository});
 
   final PrivacyRepository? repository;
 

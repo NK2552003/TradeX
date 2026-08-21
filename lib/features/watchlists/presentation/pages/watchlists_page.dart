@@ -379,7 +379,10 @@ class _WatchlistsPageState extends State<WatchlistsPage> {
     final int up = rows.where((AppTicker t) => t.changePercent > 0).length;
     final int down = rows.where((AppTicker t) => t.changePercent < 0).length;
     final double avg =
-        rows.fold<double>(0, (double sum, AppTicker t) => sum + t.changePercent) /
+        rows.fold<double>(
+          0,
+          (double sum, AppTicker t) => sum + t.changePercent,
+        ) /
         rows.length;
     final List<AppTicker> sorted = <AppTicker>[...rows]
       ..sort(
@@ -633,10 +636,7 @@ class _WatchlistsPageState extends State<WatchlistsPage> {
         UiGap.v(context.ui.spacing.lg),
         AppDashboardLayoutBlock(
           main: <Widget>[
-            AppNewsFeedBlock(
-              items: _news,
-              title: '${ticker.symbol} headlines',
-            ),
+            AppNewsFeedBlock(items: _news, title: '${ticker.symbol} headlines'),
             AppMarketAiInsightsBlock(
               insights: _insights,
               title: 'AI reads on ${ticker.symbol}',
@@ -929,4 +929,3 @@ class _WatchlistsPageState extends State<WatchlistsPage> {
     );
   }
 }
-

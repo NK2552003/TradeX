@@ -48,8 +48,9 @@ class UiMetricCard extends StatelessWidget {
                 child: Text(
                   label,
                   overflow: TextOverflow.ellipsis,
-                  style: context.uiText.label
-                      .copyWith(color: theme.colors.foregroundMuted),
+                  style: context.uiText.label.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
                 ),
               ),
             ],
@@ -62,8 +63,9 @@ class UiMetricCard extends StatelessWidget {
                 child: Text(
                   value,
                   overflow: TextOverflow.ellipsis,
-                  style: context.uiText.title
-                      .copyWith(color: theme.colors.foreground),
+                  style: context.uiText.title.copyWith(
+                    color: theme.colors.foreground,
+                  ),
                 ),
               ),
               if (delta != null)
@@ -75,10 +77,7 @@ class UiMetricCard extends StatelessWidget {
           ),
           if (chart != null) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.md)),
-            SizedBox(
-              height: context.sz(theme.sizes.sparkHeight),
-              child: chart,
-            ),
+            SizedBox(height: context.sz(theme.sizes.sparkHeight), child: chart),
           ],
         ],
       ),

@@ -122,7 +122,8 @@ class _UiAccordionState extends State<UiAccordion> {
           variant: widget.variant,
           chevronIcon: widget.chevronIcon,
           chevronLeading: widget.chevronLeading,
-          showDivider: widget.dividers &&
+          showDivider:
+              widget.dividers &&
               widget.variant == UiAccordionVariant.contained &&
               i != widget.items.length - 1,
           enabled: widget.enabled && widget.items[i].enabled,
@@ -229,100 +230,112 @@ class _UiAccordionTile extends StatelessWidget {
           onTap: enabled ? onTap : null,
           selected: open,
           semanticLabel: item.title,
-          builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
-            duration: theme.motion.fast,
-            decoration: BoxDecoration(
-              color: !enabled
-                  ? c.disabledBackground
-                  : s.hovered
+          builder: (BuildContext ctx, UiInteractiveState s) =>
+              AnimatedContainer(
+                duration: theme.motion.fast,
+                decoration: BoxDecoration(
+                  color: !enabled
+                      ? c.disabledBackground
+                      : s.hovered
                       ? c.surfaceHover
                       : (open && variant != UiAccordionVariant.ghost
-                          ? c.surfaceMuted
-                          : const Color(0x00000000)),
-              border: accent != null
-                  ? Border(left: BorderSide(color: accent, width: ctx.sz(3)))
-                  : null,
-            ),
-            foregroundDecoration: s.focused
-                ? uiFocusRing(ctx, BorderRadius.zero)
-                : null,
-            padding: pad,
-            child: Row(
-              children: <Widget>[
-                if (chevronLeading) ...<Widget>[
-                  chevron,
-                  SizedBox(width: ctx.sp(theme.spacing.sm)),
-                ],
-                if (item.leading != null) ...<Widget>[
-                  item.leading!,
-                  SizedBox(width: ctx.sp(theme.spacing.md)),
-                ] else if (item.leadingIcon != null) ...<Widget>[
-                  Icon(
-                    item.leadingIcon,
-                    size: size.icon(ctx),
-                    color: accent ??
-                        (enabled ? c.foregroundMuted : c.disabledForeground),
-                  ),
-                  SizedBox(width: ctx.sp(theme.spacing.md)),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        item.title,
-                        style: size.textStyle(ctx).copyWith(
-                              color: enabled
-                                  ? (accent ?? c.foreground)
-                                  : c.disabledForeground,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                      if (item.subtitle != null)
-                        Text(
-                          item.subtitle!,
-                          style: ctx.uiText.caption
-                              .copyWith(color: c.foregroundMuted),
-                        ),
-                    ],
-                  ),
+                            ? c.surfaceMuted
+                            : const Color(0x00000000)),
+                  border: accent != null
+                      ? Border(
+                          left: BorderSide(color: accent, width: ctx.sz(3)),
+                        )
+                      : null,
                 ),
-                if (item.badge != null) ...<Widget>[
-                  SizedBox(width: ctx.sp(theme.spacing.sm)),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: ctx.sp(theme.spacing.xs),
+                foregroundDecoration: s.focused
+                    ? uiFocusRing(ctx, BorderRadius.zero)
+                    : null,
+                padding: pad,
+                child: Row(
+                  children: <Widget>[
+                    if (chevronLeading) ...<Widget>[
+                      chevron,
+                      SizedBox(width: ctx.sp(theme.spacing.sm)),
+                    ],
+                    if (item.leading != null) ...<Widget>[
+                      item.leading!,
+                      SizedBox(width: ctx.sp(theme.spacing.md)),
+                    ] else if (item.leadingIcon != null) ...<Widget>[
+                      Icon(
+                        item.leadingIcon,
+                        size: size.icon(ctx),
+                        color:
+                            accent ??
+                            (enabled
+                                ? c.foregroundMuted
+                                : c.disabledForeground),
+                      ),
+                      SizedBox(width: ctx.sp(theme.spacing.md)),
+                    ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            item.title,
+                            style: size
+                                .textStyle(ctx)
+                                .copyWith(
+                                  color: enabled
+                                      ? (accent ?? c.foreground)
+                                      : c.disabledForeground,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          if (item.subtitle != null)
+                            Text(
+                              item.subtitle!,
+                              style: ctx.uiText.caption.copyWith(
+                                color: c.foregroundMuted,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                    decoration: BoxDecoration(
-                      color: (accent ?? c.foregroundMuted)
-                          .withValues(alpha: 0.14),
-                      borderRadius: ctx.radius(theme.radii.pill),
-                    ),
-                    child: Text(
-                      item.badge!,
-                      style: ctx.uiText.caption
-                          .copyWith(color: accent ?? c.foregroundMuted),
-                    ),
-                  ),
-                ],
-                if (item.trailing != null) ...<Widget>[
-                  SizedBox(width: ctx.sp(theme.spacing.sm)),
-                  item.trailing!,
-                ],
-                if (!chevronLeading) ...<Widget>[
-                  SizedBox(width: ctx.sp(theme.spacing.sm)),
-                  chevron,
-                ],
-              ],
-            ),
-          ),
+                    if (item.badge != null) ...<Widget>[
+                      SizedBox(width: ctx.sp(theme.spacing.sm)),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: ctx.sp(theme.spacing.xs),
+                        ),
+                        decoration: BoxDecoration(
+                          color: (accent ?? c.foregroundMuted).withValues(
+                            alpha: 0.14,
+                          ),
+                          borderRadius: ctx.radius(theme.radii.pill),
+                        ),
+                        child: Text(
+                          item.badge!,
+                          style: ctx.uiText.caption.copyWith(
+                            color: accent ?? c.foregroundMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (item.trailing != null) ...<Widget>[
+                      SizedBox(width: ctx.sp(theme.spacing.sm)),
+                      item.trailing!,
+                    ],
+                    if (!chevronLeading) ...<Widget>[
+                      SizedBox(width: ctx.sp(theme.spacing.sm)),
+                      chevron,
+                    ],
+                  ],
+                ),
+              ),
         ),
         AnimatedCrossFade(
           duration: theme.motion.normal,
           sizeCurve: theme.motion.curve,
           firstCurve: theme.motion.curve,
-          crossFadeState:
-              open ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+          crossFadeState: open
+              ? CrossFadeState.showFirst
+              : CrossFadeState.showSecond,
           firstChild: Container(
             width: double.infinity,
             padding: pad.copyWith(top: 0),

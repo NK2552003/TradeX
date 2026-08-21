@@ -59,9 +59,12 @@ class AppWatchlistBlock extends StatelessWidget {
             delay: Duration(milliseconds: 40 * i),
             child: AppTickerCard(
               ticker: tickers[i],
-              onTap: onTickerTap == null ? null : () => onTickerTap!(tickers[i]),
-              onFavorite:
-                  onFavorite == null ? null : () => onFavorite!(tickers[i]),
+              onTap: onTickerTap == null
+                  ? null
+                  : () => onTickerTap!(tickers[i]),
+              onFavorite: onFavorite == null
+                  ? null
+                  : () => onFavorite!(tickers[i]),
             ),
           ),
       ],
@@ -85,8 +88,12 @@ class AppHeatmapBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final int cols =
-        context.uiRes.columns(mobile: 2, tablet: 3, desktop: 4, large: 6);
+    final int cols = context.uiRes.columns(
+      mobile: 2,
+      tablet: 3,
+      desktop: 4,
+      large: 6,
+    );
     return UiCard(
       title: title,
       child: GridView.builder(
@@ -148,15 +155,17 @@ class AppAlertsBlock extends StatelessWidget {
               children: <Widget>[
                 for (int i = 0; i < alerts.length; i++)
                   Padding(
-                    padding:
-                        EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+                    padding: EdgeInsets.only(
+                      bottom: context.sp(theme.spacing.sm),
+                    ),
                     child: AppPriceAlertCard(
                       alert: alerts[i],
                       onToggle: onToggle == null
                           ? null
                           : (bool v) => onToggle!(alerts[i], v),
-                      onDelete:
-                          onDelete == null ? null : () => onDelete!(alerts[i]),
+                      onDelete: onDelete == null
+                          ? null
+                          : () => onDelete!(alerts[i]),
                     ),
                   ),
               ],
@@ -239,13 +248,20 @@ class AppSentimentBlock extends StatelessWidget {
             marker: ((score + 1) / 2).clamp(0, 1),
             segments: <UiCategorySegment>[
               UiCategorySegment(
-                  value: bearish, label: 'Bearish', color: theme.colors.bearish),
+                value: bearish,
+                label: 'Bearish',
+                color: theme.colors.bearish,
+              ),
               UiCategorySegment(
-                  value: neutral,
-                  label: 'Neutral',
-                  color: theme.colors.foregroundSubtle),
+                value: neutral,
+                label: 'Neutral',
+                color: theme.colors.foregroundSubtle,
+              ),
               UiCategorySegment(
-                  value: bullish, label: 'Bullish', color: theme.colors.bullish),
+                value: bullish,
+                label: 'Bullish',
+                color: theme.colors.bullish,
+              ),
             ],
           ),
         ],
@@ -277,11 +293,20 @@ class AppMarketAiInsightsBlock extends StatelessWidget {
       children: <Widget>[
         Row(
           children: <Widget>[
-            Icon(Icons.auto_awesome,
-                size: context.sz(theme.sizes.iconSm),
-                color: theme.colors.primary),
+            Icon(
+              Icons.auto_awesome,
+              size: context.sz(theme.sizes.iconSm),
+              color: theme.colors.primary,
+            ),
             SizedBox(width: context.sp(theme.spacing.xs)),
-            Text(title, style: context.uiText.subheading),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: context.uiText.subheading,
+              ),
+            ),
           ],
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
@@ -336,8 +361,9 @@ class AppSymbolHeaderBlock extends StatelessWidget {
                       ticker.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: context.uiText.caption
-                          .copyWith(color: theme.colors.foregroundMuted),
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.foregroundMuted,
+                      ),
                     ),
                   ],
                 ),

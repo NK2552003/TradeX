@@ -521,7 +521,7 @@ class _DeskAnalyticsPageState extends State<DeskAnalyticsPage> {
       return UiCard(
         title: 'Consistency',
         loading: true,
-        loadingHeight: context.sz(200),
+        loadingHeight: 200,
         child: const SizedBox.shrink(),
       );
     }
@@ -648,7 +648,7 @@ class _DeskAnalyticsPageState extends State<DeskAnalyticsPage> {
       return UiCard(
         title: 'Behaviour',
         loading: true,
-        loadingHeight: context.sz(220),
+        loadingHeight: 220,
         child: const SizedBox.shrink(),
       );
     }

@@ -38,7 +38,8 @@ class RiskLimit {
   bool get breached => enabled && used >= value;
 
   /// Slider stops between [min] and [max] at [step] intervals.
-  int get divisions => step <= 0 ? 1 : ((max - min) / step).round().clamp(1, 400);
+  int get divisions =>
+      step <= 0 ? 1 : ((max - min) / step).round().clamp(1, 400);
 
   /// Formats a value in this limit's own unit so no call site has to guess.
   String format(double raw) => switch (unit) {
@@ -503,9 +504,7 @@ class DeskRepositoryImpl implements DeskRepository {
     final AppTeamMember? removed = _members
         .where((AppTeamMember m) => m.id == memberId)
         .firstOrNull;
-    _members = _members
-        .where((AppTeamMember m) => m.id != memberId)
-        .toList();
+    _members = _members.where((AppTeamMember m) => m.id != memberId).toList();
     if (removed != null) {
       _record('Removed a team member', target: removed.email);
     }
@@ -687,6 +686,7 @@ class DeskRepositoryImpl implements DeskRepository {
           : traded.reduce((AppDayPnl a, AppDayPnl b) => a.pnl <= b.pnl ? a : b),
     );
   }
+
   /// Headline analytics figures. Kept beside the query so the console cannot
   /// disagree with the numbers behind it.
   List<AppStat> _analyticsStats({
@@ -735,6 +735,7 @@ class DeskRepositoryImpl implements DeskRepository {
       formatter: (num v) => v.toStringAsFixed(1),
     ),
   ];
+
   /// Net P/L per bucket, biggest contribution first.
   List<UiBarListItem> _rank(
     List<AppTrade> closed,
@@ -746,13 +747,14 @@ class DeskRepositoryImpl implements DeskRepository {
       final String bucket = key(trade);
       totals[bucket] = (totals[bucket] ?? 0) + trade.pnl;
     }
-    final List<UiBarListItem> items = <UiBarListItem>[
-      for (final MapEntry<String, double> e in totals.entries)
-        UiBarListItem(label: e.key, value: e.value),
-    ]..sort(
-      (UiBarListItem a, UiBarListItem b) =>
-          b.value.abs().compareTo(a.value.abs()),
-    );
+    final List<UiBarListItem> items =
+        <UiBarListItem>[
+          for (final MapEntry<String, double> e in totals.entries)
+            UiBarListItem(label: e.key, value: e.value),
+        ]..sort(
+          (UiBarListItem a, UiBarListItem b) =>
+              b.value.abs().compareTo(a.value.abs()),
+        );
     return limit == null || items.length <= limit
         ? items
         : items.take(limit).toList(growable: false);
@@ -769,6 +771,7 @@ class DeskRepositoryImpl implements DeskRepository {
           pnl: _net(closed.where((AppTrade t) => t.outcome == outcome)),
         ),
   ];
+
   /// P/L by the part of the session a trade was opened in, using the venue's
   /// own session blocks rather than boundaries invented here.
   List<UiBarListItem> _sessionMix(List<AppTrade> closed) {
@@ -788,6 +791,7 @@ class DeskRepositoryImpl implements DeskRepository {
         ),
     ];
   }
+
   /// Per-seat performance, ranked by contribution. Shares are expressed against
   /// the summed absolute movement so a losing seat still reads as significant.
   List<DeskSeatPerformance> _seatPerformance(
@@ -797,13 +801,14 @@ class DeskRepositoryImpl implements DeskRepository {
       0,
       (double sum, List<AppTrade> trades) => sum + _net(trades).abs(),
     );
-    final List<DeskSeatPerformance> rows = <DeskSeatPerformance>[
-      for (final AppTeamMember seat in _activeSeats)
-        _seatRow(seat, bySeatId[seat.id] ?? const <AppTrade>[], totalAbs),
-    ]..sort(
-      (DeskSeatPerformance a, DeskSeatPerformance b) =>
-          b.netPnl.compareTo(a.netPnl),
-    );
+    final List<DeskSeatPerformance> rows =
+        <DeskSeatPerformance>[
+          for (final AppTeamMember seat in _activeSeats)
+            _seatRow(seat, bySeatId[seat.id] ?? const <AppTrade>[], totalAbs),
+        ]..sort(
+          (DeskSeatPerformance a, DeskSeatPerformance b) =>
+              b.netPnl.compareTo(a.netPnl),
+        );
     return rows;
   }
 
@@ -849,9 +854,7 @@ class DeskRepositoryImpl implements DeskRepository {
     return <UiBarListItem>[
       for (final AppTeamMember seat in _activeSeats)
         UiBarListItem(label: seat.name, value: _net(bySeat[seat.id]!)),
-    ]..sort(
-      (UiBarListItem a, UiBarListItem b) => b.value.compareTo(a.value),
-    );
+    ]..sort((UiBarListItem a, UiBarListItem b) => b.value.compareTo(a.value));
   }
 
   List<AppTeamMember> get _activeSeats => _members
@@ -863,11 +866,14 @@ class DeskRepositoryImpl implements DeskRepository {
     final DateTime? from = windowDays == null
         ? null
         : DateTime.now().subtract(Duration(days: windowDays));
-    return _source.trades().where((AppTrade t) {
-      if (t.outcome == AppOutcome.open) return false;
-      if (from == null) return true;
-      return (t.closedAt ?? t.openedAt).isAfter(from);
-    }).toList(growable: false);
+    return _source
+        .trades()
+        .where((AppTrade t) {
+          if (t.outcome == AppOutcome.open) return false;
+          if (from == null) return true;
+          return (t.closedAt ?? t.openedAt).isAfter(from);
+        })
+        .toList(growable: false);
   }
 
   /// Attribution of closed trades to active seats. The demo backend does not

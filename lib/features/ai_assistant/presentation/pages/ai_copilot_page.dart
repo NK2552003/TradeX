@@ -5,8 +5,9 @@ import 'package:tradex/core/data/session_trader.dart';
 import 'package:tradex/features/ai_assistant/data/repositories/ai_assistant_repository.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/journal/data/repositories/journal_repository.dart';
+import 'package:tradex/features/settings/data/repositories/billing_settings_repository.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
-import 'package:tradex/features/subscriptions/data/repositories/subscription_repository.dart';
+import 'package:tradex/features/settings/models/billing_models.dart';
 
 /// The three things a trader actually wants from a copilot: a conversation, a
 /// standing set of observations about their account, and a verdict on one trade.
@@ -37,20 +38,26 @@ class AiCopilotPage extends StatefulWidget {
     super.key,
     this.repository,
     this.profileRepository,
-    this.subscriptionRepository,
+    this.billingRepository,
     this.journalRepository,
     this.initialScope,
+    this.initialPrompt,
     this.onUpgrade,
     this.onOpenSymbol,
   });
 
   final AiAssistantRepository? repository;
   final ProfileSettingsRepository? profileRepository;
-  final SubscriptionRepository? subscriptionRepository;
+  final BillingSettingsRepository? billingRepository;
   final JournalRepository? journalRepository;
 
   /// Lets the shell deep-link into a lens ("review my risk") from elsewhere.
   final AiScope? initialScope;
+
+  /// Question to ask on arrival, so "ask the copilot about this" carries the
+  /// instrument or trade it came from instead of dropping the reader into an
+  /// empty thread.
+  final String? initialPrompt;
 
   final VoidCallback? onUpgrade;
   final ValueChanged<String>? onOpenSymbol;
@@ -64,8 +71,8 @@ class _AiCopilotPageState extends State<AiCopilotPage> {
       widget.repository ?? AiAssistantRepositoryImpl();
   late final ProfileSettingsRepository _profiles =
       widget.profileRepository ?? ProfileSettingsRepositoryImpl();
-  late final SubscriptionRepository _billing =
-      widget.subscriptionRepository ?? SubscriptionRepositoryImpl();
+  late final BillingSettingsRepository _billing =
+      widget.billingRepository ?? BillingSettingsRepositoryImpl();
   late final JournalRepository _journal =
       widget.journalRepository ?? JournalRepositoryImpl();
 
@@ -122,7 +129,7 @@ class _AiCopilotPageState extends State<AiCopilotPage> {
       _journal.getTrades(),
     ]);
     if (!mounted) return;
-    final AppTier tier = (results[1]! as Subscription).tier;
+    final AppTier tier = (results[1]! as SubscriptionSummary).tier;
     final AiCredits credits = await _ai.getCredits(tier);
     if (!mounted) return;
     setState(() {
@@ -135,6 +142,11 @@ class _AiCopilotPageState extends State<AiCopilotPage> {
       _credits = credits;
       _loading = false;
     });
+    final String? ask = widget.initialPrompt?.trim();
+    if (ask == null || ask.isEmpty) return;
+    // Sent rather than parked in the composer: the caller already phrased the
+    // question, and the allowance gate inside [_send] still gets the last word.
+    await _send(ask);
   }
 
   /// Each lens keeps its own thread and prompt set, so switching reloads both.
@@ -274,9 +286,7 @@ class _AiCopilotPageState extends State<AiCopilotPage> {
         '${trade.ticker} · ${AppTokens.shortDate(trade.openedAt)} · '
         '${AppTokens.signedMoney(trade.pnl)}';
     if (_attachments.contains(label)) return;
-    setState(
-      () => _attachments = <String>[..._attachments, label],
-    );
+    setState(() => _attachments = <String>[..._attachments, label]);
   }
 
   void _removeAttachment(String label) => setState(
@@ -923,6 +933,7 @@ class _AiCopilotPageState extends State<AiCopilotPage> {
           ),
     ],
   );
+
   /// Detail pane for a review: the execution itself, then the verdict. The
   /// verdict spends a credit, so an exhausted allowance shows the gate here too
   /// rather than a silently empty card.
@@ -948,7 +959,7 @@ class _AiCopilotPageState extends State<AiCopilotPage> {
         '${AppTokens.signedMoney(trade.pnl)}',
     accentColor: context.uiColors.primary,
     loading: _reviewing,
-    loadingHeight: context.sz(140),
+    loadingHeight: 140,
     actions: <Widget>[
       UiButton(
         label: 'Discuss in chat',

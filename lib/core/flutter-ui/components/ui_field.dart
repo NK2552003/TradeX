@@ -65,18 +65,22 @@ class UiField extends StatelessWidget {
       return (
         text: warning!,
         color: c.warning,
-        icon: Icons.warning_amber_rounded
+        icon: Icons.warning_amber_rounded,
       );
     }
     if (success != null) {
       return (
         text: success!,
         color: UiIntent.success.color(context),
-        icon: Icons.check_circle_outline
+        icon: Icons.check_circle_outline,
       );
     }
     if (helper != null) {
-      return (text: helper!, color: c.foregroundMuted, icon: Icons.info_outline);
+      return (
+        text: helper!,
+        color: c.foregroundMuted,
+        icon: Icons.info_outline,
+      );
     }
     return null;
   }
@@ -91,31 +95,40 @@ class UiField extends StatelessWidget {
     final msg = _message(context);
 
     final Widget header = Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
         Flexible(
-          child: UiLabel(text: label ?? '', required: required),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Flexible(
+                child: UiLabel(text: label ?? '', required: required),
+              ),
+              if (optionalLabel != null && !required) ...<Widget>[
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                Text(
+                  optionalLabel!,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundSubtle,
+                  ),
+                ),
+              ],
+              if (tooltip != null) ...<Widget>[
+                SizedBox(width: context.sp(theme.spacing.xxs)),
+                Tooltip(
+                  message: tooltip!,
+                  child: Icon(
+                    Icons.help_outline,
+                    size: context.sz(theme.sizes.iconSm),
+                    color: theme.colors.foregroundSubtle,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
-        if (optionalLabel != null && !required) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          Text(
-            optionalLabel!,
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundSubtle),
-          ),
-        ],
-        if (tooltip != null) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.xxs)),
-          Tooltip(
-            message: tooltip!,
-            child: Icon(
-              Icons.help_outline,
-              size: context.sz(theme.sizes.iconSm),
-              color: theme.colors.foregroundSubtle,
-            ),
-          ),
-        ],
         if (headerAction != null) ...<Widget>[
-          const Spacer(),
+          SizedBox(width: context.sp(theme.spacing.xs)),
           headerAction!,
         ],
       ],
@@ -129,7 +142,11 @@ class UiField extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 if (msg != null) ...<Widget>[
-                  Icon(msg.icon, size: context.sz(theme.sizes.iconXs), color: msg.color),
+                  Icon(
+                    msg.icon,
+                    size: context.sz(theme.sizes.iconXs),
+                    color: msg.color,
+                  ),
                   SizedBox(width: context.sp(theme.spacing.xxs)),
                   Expanded(
                     child: Text(
@@ -143,8 +160,9 @@ class UiField extends StatelessWidget {
                   SizedBox(width: context.sp(theme.spacing.sm)),
                   Text(
                     counter!,
-                    style: context.uiText.caption
-                        .copyWith(color: theme.colors.foregroundSubtle),
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundSubtle,
+                    ),
                   ),
                 ],
               ],
@@ -154,7 +172,7 @@ class UiField extends StatelessWidget {
     final Widget content = Opacity(
       opacity: enabled ? 1 : 0.6,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[child, footer],
       ),
@@ -180,7 +198,7 @@ class UiField extends StatelessWidget {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         header,

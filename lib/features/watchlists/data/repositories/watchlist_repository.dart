@@ -5,7 +5,11 @@ import 'package:tradex/core/data/demo_data_source.dart';
 /// A named collection of instruments the trader tracks.
 @immutable
 class Watchlist {
-  const Watchlist({required this.id, required this.name, required this.symbols});
+  const Watchlist({
+    required this.id,
+    required this.name,
+    required this.symbols,
+  });
 
   final String id;
   final String name;
@@ -39,27 +43,35 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
     : _source = source ?? DemoDataSource.instance {
     final List<String> all = _source.symbols;
     _watchlists = <Watchlist>[
-      Watchlist(id: 'wl_core', name: 'Core holdings', symbols: all.take(6).toList()),
+      Watchlist(
+        id: 'wl_core',
+        name: 'Core holdings',
+        symbols: all.take(6).toList(),
+      ),
       Watchlist(
         id: 'wl_intraday',
         name: 'Intraday scan',
         symbols: all.skip(4).take(5).toList(),
       ),
-      Watchlist(id: 'wl_index', name: 'Index & futures', symbols: <String>[
-        'NIFTY50',
-        'BANKNIFTY',
-      ]),
+      Watchlist(
+        id: 'wl_index',
+        name: 'Index & futures',
+        symbols: <String>['NIFTY50', 'BANKNIFTY'],
+      ),
     ];
     _alerts = <AppPriceAlert>[
       for (int i = 0; i < 4; i++)
         AppPriceAlert(
           id: 'alr_${i + 1}',
           symbol: all[i],
-          targetPrice: _source.tickerFor(all[i]).price * (i.isEven ? 1.03 : 0.97),
+          targetPrice:
+              _source.tickerFor(all[i]).price * (i.isEven ? 1.03 : 0.97),
           above: i.isEven,
           currentPrice: _source.tickerFor(all[i]).price,
           active: i != 3,
-          triggeredAt: i == 3 ? DateTime.now().subtract(const Duration(hours: 5)) : null,
+          triggeredAt: i == 3
+              ? DateTime.now().subtract(const Duration(hours: 5))
+              : null,
         ),
     ];
   }

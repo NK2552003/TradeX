@@ -185,7 +185,9 @@ class _TraderOverviewPageState extends State<TraderOverviewPage> {
                     context,
                     title: item.source,
                     message: item.headline,
-                    intent: switch (AppTokens.sentimentOf(item.sentimentScore)) {
+                    intent: switch (AppTokens.sentimentOf(
+                      item.sentimentScore,
+                    )) {
                       AppSentiment.bullish => UiIntent.success,
                       AppSentiment.bearish => UiIntent.danger,
                       AppSentiment.neutral => UiIntent.neutral,
@@ -236,7 +238,10 @@ class _RiskMeter extends StatelessWidget {
           onPressed: onReview,
         ),
       ],
-      child: UiProgressBar(value: (usedPercent / 100).clamp(0, 1), intent: intent),
+      child: UiProgressBar(
+        value: (usedPercent / 100).clamp(0, 1),
+        intent: intent,
+      ),
     );
   }
 }

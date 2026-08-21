@@ -36,23 +36,22 @@ class UiIconButton extends StatelessWidget {
         final c = ctx.uiColors;
         final Color bg = !s.enabled
             ? (variant == UiVariant.ghost
-                ? Colors.transparent
-                : c.disabledBackground)
+                  ? Colors.transparent
+                  : c.disabledBackground)
             : switch (variant) {
                 UiVariant.primary => s.hovered ? c.primaryHover : c.primary,
                 UiVariant.destructive => c.destructive,
                 UiVariant.success => c.bullish,
-                UiVariant.secondary =>
-                  s.hovered ? c.surfaceHover : c.secondary,
+                UiVariant.secondary => s.hovered ? c.surfaceHover : c.secondary,
                 _ => s.hovered ? c.surfaceHover : Colors.transparent,
               };
         final Color fg = !s.enabled
             ? c.disabledForeground
             : (variant == UiVariant.primary ||
-                    variant == UiVariant.destructive ||
-                    variant == UiVariant.success)
-                ? c.onPrimary
-                : c.foreground;
+                  variant == UiVariant.destructive ||
+                  variant == UiVariant.success)
+            ? c.onPrimary
+            : c.foreground;
         return AnimatedContainer(
           duration: theme.motion.fast,
           width: dim,
@@ -62,7 +61,10 @@ class UiIconButton extends StatelessWidget {
             color: bg,
             borderRadius: radius,
             border: variant == UiVariant.outline
-                ? Border.all(color: c.borderStrong, width: theme.borders.hairline)
+                ? Border.all(
+                    color: c.borderStrong,
+                    width: theme.borders.hairline,
+                  )
                 : null,
           ),
           foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
@@ -92,8 +94,9 @@ class UiIconButton extends StatelessWidget {
               alignment: Alignment.center,
               child: Text(
                 badgeCount! > 99 ? '99+' : '$badgeCount',
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.onDestructive),
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.onDestructive,
+                ),
               ),
             ),
           ),

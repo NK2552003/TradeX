@@ -59,7 +59,8 @@ class DataExportRequest {
   factory DataExportRequest.fromJson(Map<String, dynamic> json) {
     return DataExportRequest(
       status: json['status'] as String? ?? 'pending',
-      requestedAt: DateTime.tryParse(json['requested_at'] as String? ?? '') ??
+      requestedAt:
+          DateTime.tryParse(json['requested_at'] as String? ?? '') ??
           DateTime.now(),
       downloadUrl: json['download_url'] as String?,
       completedAt: json['completed_at'] != null

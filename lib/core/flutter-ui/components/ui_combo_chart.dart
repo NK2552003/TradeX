@@ -39,18 +39,18 @@ class UiComboChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => UiChart(
-        data: data,
-        series: series,
-        height: height,
-        showGrid: showGrid,
-        showAxisLabels: showAxisLabels,
-        showLegend: showLegend,
-        valueFormatter: valueFormatter,
-        curved: curved,
-        interactive: interactive,
-        toggleableLegend: toggleableLegend,
-        stacked: stacked,
-        glow: glow,
-        thresholds: thresholds,
-      );
+    data: data,
+    series: series,
+    height: height,
+    showGrid: showGrid,
+    showAxisLabels: showAxisLabels,
+    showLegend: showLegend,
+    valueFormatter: valueFormatter,
+    curved: curved,
+    interactive: interactive,
+    toggleableLegend: toggleableLegend,
+    stacked: stacked,
+    glow: glow,
+    thresholds: thresholds,
+  );
 }

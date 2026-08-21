@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/data/session_trader.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
@@ -74,8 +75,28 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     _displayNameController = TextEditingController();
     _bioController = TextEditingController();
     _customFieldController = TextEditingController();
+    // Seeded from the cache so the first frame shows the reader's own name and
+    // avatar rather than a placeholder that then swaps under them.
+    _applyProfile(_repo.cachedProfile);
     _loadProfile();
   }
+
+  /// Copies [profile] into the form. Called once synchronously at mount and
+  /// again whenever the repository returns, so the controllers and the model
+  /// never describe two different people.
+  void _applyProfile(UserProfileModel profile) {
+    _profile = profile;
+    _displayNameController.text = profile.displayName;
+    _bioController.text = profile.bio ?? '';
+    _selectedExperience = profile.experienceLevel ?? _experienceOptions[2];
+    _selectedStyle = profile.tradingStyle ?? _tradingStyles[2];
+    _publicStatsEnabled = profile.publicJournals;
+  }
+
+  /// Whether the account carries a verification mark. Verification follows the
+  /// plan in this product, so it is derived rather than assumed true.
+  bool get _verified =>
+      appTierFromId(_profile?.subscriptionTier ?? '') != AppTier.free;
 
   @override
   void dispose() {
@@ -91,12 +112,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       final p = await _repo.getProfile();
       if (mounted) {
         setState(() {
-          _profile = p;
-          _displayNameController.text = p.displayName;
-          _bioController.text = p.bio ?? '';
-          _selectedExperience = p.experienceLevel ?? _experienceOptions[2];
-          _selectedStyle = p.tradingStyle ?? _tradingStyles[2];
-          _publicStatsEnabled = p.publicJournals;
+          _applyProfile(p);
           _loading = false;
         });
       }
@@ -168,7 +184,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   UiAvatar(
                     name: _displayNameController.text.isNotEmpty
                         ? _displayNameController.text
-                        : 'Nitish Kumar',
+                        : (_profile?.displayName ?? ''),
                     imageUrl: _profile?.avatarUrl,
                     size: UiSize.xl,
                   ),
@@ -251,8 +267,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       subtitle: 'Preview how other traders see your public presence',
       desktopWidthRatio: 0.58,
       child: TraderProfilePreviewPage(
-        displayName: _profile?.displayName ?? 'Nitish Kumar',
-        handle: _profile?.handle ?? 'nitish_trader',
+        displayName: _profile?.displayName ?? '',
+        handle: _profile?.handle ?? '',
         bio: _profile?.bio,
         avatarUrl: _profile?.avatarUrl,
         userRole: widget.userRole,
@@ -310,10 +326,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                               alignment: Alignment.bottomRight,
                               children: [
                                 UiAvatar(
-                                  name: _profile?.displayName ?? 'Nitish Kumar',
+                                  name: _profile?.displayName ?? '',
                                   imageUrl: _profile?.avatarUrl,
                                   size: UiSize.lg,
-                                  verified: true,
+                                  verified: _verified,
                                   verifiedColor: verifiedColor,
                                 ),
                                 InkWell(
@@ -349,24 +365,25 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                                     runSpacing: 4,
                                     children: [
                                       Text(
-                                        _profile?.displayName ?? 'Nitish Kumar',
+                                        _profile?.displayName ?? '',
                                         style: context.uiText.heading,
                                       ),
-                                      UiTooltip(
-                                        message: 'Verified trader',
-                                        child: Icon(
-                                          Icons.verified_rounded,
-                                          color: verifiedColor,
-                                          size: context.sz(18),
+                                      if (_verified)
+                                        UiTooltip(
+                                          message: 'Verified trader',
+                                          child: Icon(
+                                            Icons.verified_rounded,
+                                            color: verifiedColor,
+                                            size: context.sz(18),
+                                          ),
                                         ),
-                                      ),
                                     ],
                                   ),
                                   SizedBox(
                                     height: context.sp(theme.spacing.xxs),
                                   ),
                                   Text(
-                                    '@${_profile?.handle ?? 'nitish_trader'}',
+                                    '@${_profile?.handle ?? ''}',
                                     style: context.uiText.caption.copyWith(
                                       color: colors.foregroundMuted,
                                     ),

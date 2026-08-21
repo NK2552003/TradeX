@@ -4,10 +4,7 @@ import 'package:tradex/features/settings/data/repositories/organization_settings
 import 'package:tradex/features/settings/models/org_models.dart';
 
 class TeamRolesPage extends StatefulWidget {
-  const TeamRolesPage({
-    super.key,
-    this.repository,
-  });
+  const TeamRolesPage({super.key, this.repository});
 
   final OrganizationSettingsRepository? repository;
 
@@ -20,7 +17,12 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
   List<OrgMember> _members = [];
   bool _loading = true;
 
-  final List<String> _roleOptions = const <String>['owner', 'admin', 'trader', 'viewer'];
+  final List<String> _roleOptions = const <String>[
+    'owner',
+    'admin',
+    'trader',
+    'viewer',
+  ];
 
   @override
   void initState() {
@@ -60,7 +62,9 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
             children: [
               Text(
                 'Send an invitation to join your institutional trading desk workspace.',
-                style: context.uiText.caption.copyWith(color: context.ui.colors.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: context.ui.colors.foregroundMuted,
+                ),
               ),
               SizedBox(height: context.sp(context.ui.spacing.md)),
               UiField(
@@ -77,7 +81,10 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
                 child: UiSelect<String>(
                   value: selectedRole,
                   options: _roleOptions
-                      .map((r) => UiOption<String>(label: r.toUpperCase(), value: r))
+                      .map(
+                        (r) =>
+                            UiOption<String>(label: r.toUpperCase(), value: r),
+                      )
                       .toList(),
                   onChanged: (v) {
                     setDialogState(() => selectedRole = v);
@@ -110,7 +117,8 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
                     UiToast.show(
                       context,
                       title: 'Invitation Sent',
-                      message: 'Invited $email as ${selectedRole.toUpperCase()}.',
+                      message:
+                          'Invited $email as ${selectedRole.toUpperCase()}.',
                       intent: UiIntent.success,
                     );
                   }
@@ -151,7 +159,8 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
                 UiToast.show(
                   context,
                   title: 'Member Removed',
-                  message: '${member.displayName} has been removed from the team.',
+                  message:
+                      '${member.displayName} has been removed from the team.',
                   intent: UiIntent.info,
                 );
               }
@@ -190,7 +199,9 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
             children: [
               Text(
                 '${_members.length} Active Desk Members',
-                style: context.uiText.bodyStrong.copyWith(color: colors.foregroundMuted),
+                style: context.uiText.bodyStrong.copyWith(
+                  color: colors.foregroundMuted,
+                ),
               ),
               UiButton(
                 label: 'Invite Member',
@@ -237,10 +248,13 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
                               children: [
                                 Row(
                                   children: [
-                                    Text(member.displayName,
-                                        style: context.uiText.bodyStrong),
+                                    Text(
+                                      member.displayName,
+                                      style: context.uiText.bodyStrong,
+                                    ),
                                     SizedBox(
-                                        width: context.sp(theme.spacing.xs)),
+                                      width: context.sp(theme.spacing.xs),
+                                    ),
                                     UiBadge(
                                       label: member.role.toUpperCase(),
                                       intent: _getRoleBadgeIntent(member.role),
@@ -250,8 +264,9 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
                                 ),
                                 Text(
                                   '@${member.handle} · Joined ${member.joinedAt.year}-${member.joinedAt.month.toString().padLeft(2, '0')}-${member.joinedAt.day.toString().padLeft(2, '0')}',
-                                  style: context.uiText.caption
-                                      .copyWith(color: colors.foregroundMuted),
+                                  style: context.uiText.caption.copyWith(
+                                    color: colors.foregroundMuted,
+                                  ),
                                 ),
                               ],
                             ),
@@ -261,12 +276,18 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
                               value: member.role,
                               options: _roleOptions
                                   .where((r) => r != 'owner')
-                                  .map((r) => UiOption<String>(
-                                      label: r.toUpperCase(), value: r))
+                                  .map(
+                                    (r) => UiOption<String>(
+                                      label: r.toUpperCase(),
+                                      value: r,
+                                    ),
+                                  )
                                   .toList(),
                               onChanged: (newRole) async {
                                 await _repo.updateMemberRole(
-                                    userId: member.userId, role: newRole);
+                                  userId: member.userId,
+                                  role: newRole,
+                                );
                                 await _loadMembers();
                               },
                             ),

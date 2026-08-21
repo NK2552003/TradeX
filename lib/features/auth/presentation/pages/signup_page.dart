@@ -415,8 +415,12 @@ class _SignupPageState extends State<SignupPage> {
                                               UiField(
                                                 label:
                                                     'Partner Referral Code (Optional)',
+                                                // No figure here: nothing in the
+                                                // app pays a signing bonus, so
+                                                // quoting one would promise money
+                                                // the payouts ledger never shows.
                                                 helper:
-                                                    'Earn instant ₹500 affiliate bonus credit',
+                                                    'Credits your signup to the partner who referred you',
                                                 child: UiInput(
                                                   value: _referralCodeController
                                                       .text,

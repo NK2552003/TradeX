@@ -544,7 +544,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       return UiCard(
         title: 'In-app delivery',
         loading: true,
-        loadingHeight: context.sz(220),
+        loadingHeight: 220,
         child: const SizedBox.shrink(),
       );
     }

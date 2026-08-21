@@ -256,8 +256,8 @@ class _NavButton extends StatelessWidget {
         final Color fg = !enabled
             ? c.disabledForeground
             : selected
-                ? accent
-                : (s.hovered ? c.foreground : c.foregroundMuted);
+            ? accent
+            : (s.hovered ? c.foreground : c.foregroundMuted);
 
         final Widget icon = Stack(
           clipBehavior: Clip.none,
@@ -296,8 +296,10 @@ class _NavButton extends StatelessWidget {
                 child: Container(
                   width: ctx.sz(7),
                   height: ctx.sz(7),
-                  decoration:
-                      BoxDecoration(shape: BoxShape.circle, color: c.destructive),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: c.destructive,
+                  ),
                 ),
               ),
           ],
@@ -322,8 +324,8 @@ class _NavButton extends StatelessWidget {
             color: selected
                 ? accent.withValues(alpha: 0.12)
                 : (s.hovered && enabled
-                    ? c.surfaceHover
-                    : const Color(0x00000000)),
+                      ? c.surfaceHover
+                      : const Color(0x00000000)),
             borderRadius: radius,
           ),
           foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,

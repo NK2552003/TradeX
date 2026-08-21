@@ -59,7 +59,6 @@ class UiPalette {
   ];
 }
 
-
 /// Semantic colors consumed by every component.
 @immutable
 class UiColors {
@@ -118,92 +117,96 @@ class UiColors {
   final List<Color> series;
 
   factory UiColors.light() => const UiColors(
-        background: UiPalette.gray50,
-        surface: UiPalette.white,
-        surfaceMuted: UiPalette.gray100,
-        surfaceHover: UiPalette.gray150,
-        overlay: Color(0x99151312),
-        border: UiPalette.gray200,
-        borderStrong: UiPalette.gray300,
-        foreground: UiPalette.gray900,
-        foregroundMuted: UiPalette.gray500,
-        foregroundSubtle: UiPalette.gray400,
-        primary: UiPalette.gray900,
-        primaryHover: UiPalette.gray800,
-        onPrimary: UiPalette.gray50,
-        secondary: UiPalette.gray100,
-        onSecondary: UiPalette.gray900,
-        bullish: UiPalette.bullish500,
-        bearish: UiPalette.bearish500,
-        warning: UiPalette.warning500,
-        info: UiPalette.info500,
-        destructive: UiPalette.bearish500,
-        onDestructive: UiPalette.white,
-        focusRing: UiPalette.brand500,
-        disabledBackground: UiPalette.gray100,
-        disabledForeground: UiPalette.gray400,
-        series: UiPalette.series,
-      );
+    background: UiPalette.gray50,
+    surface: UiPalette.white,
+    surfaceMuted: UiPalette.gray100,
+    surfaceHover: UiPalette.gray150,
+    overlay: Color(0x99151312),
+    border: UiPalette.gray200,
+    borderStrong: UiPalette.gray300,
+    foreground: UiPalette.gray900,
+    foregroundMuted: UiPalette.gray500,
+    foregroundSubtle: UiPalette.gray400,
+    primary: UiPalette.gray900,
+    primaryHover: UiPalette.gray800,
+    onPrimary: UiPalette.gray50,
+    secondary: UiPalette.gray100,
+    onSecondary: UiPalette.gray900,
+    bullish: UiPalette.bullish500,
+    bearish: UiPalette.bearish500,
+    warning: UiPalette.warning500,
+    info: UiPalette.info500,
+    destructive: UiPalette.bearish500,
+    onDestructive: UiPalette.white,
+    focusRing: UiPalette.brand500,
+    disabledBackground: UiPalette.gray100,
+    disabledForeground: UiPalette.gray400,
+    series: UiPalette.series,
+  );
 
   factory UiColors.dark() => const UiColors(
-        background: UiPalette.gray950,
-        surface: UiPalette.gray900,
-        surfaceMuted: UiPalette.gray850,
-        surfaceHover: UiPalette.gray800,
-        overlay: Color(0xCC0D0C0B),
-        border: Color(0xFF262322),
-        borderStrong: UiPalette.gray700,
-        foreground: UiPalette.gray50,
-        foregroundMuted: UiPalette.gray400,
-        foregroundSubtle: UiPalette.gray500,
-        primary: UiPalette.gray50,
-        primaryHover: UiPalette.white,
-        onPrimary: UiPalette.gray950,
-        secondary: UiPalette.gray800,
-        onSecondary: UiPalette.gray50,
-        bullish: UiPalette.bullish400,
-        bearish: UiPalette.bearish400,
-        warning: UiPalette.warning500,
-        info: UiPalette.info500,
-        destructive: UiPalette.bearish400,
-        onDestructive: UiPalette.white,
-        focusRing: UiPalette.brand400,
-        disabledBackground: UiPalette.gray800,
-        disabledForeground: UiPalette.gray600,
-        series: UiPalette.series,
-      );
-
+    background: UiPalette.gray950,
+    surface: UiPalette.gray900,
+    surfaceMuted: UiPalette.gray850,
+    surfaceHover: UiPalette.gray800,
+    overlay: Color(0xCC0D0C0B),
+    border: Color(0xFF262322),
+    borderStrong: UiPalette.gray700,
+    foreground: UiPalette.gray50,
+    foregroundMuted: UiPalette.gray400,
+    foregroundSubtle: UiPalette.gray500,
+    primary: UiPalette.gray50,
+    primaryHover: UiPalette.white,
+    onPrimary: UiPalette.gray950,
+    secondary: UiPalette.gray800,
+    onSecondary: UiPalette.gray50,
+    bullish: UiPalette.bullish400,
+    bearish: UiPalette.bearish400,
+    warning: UiPalette.warning500,
+    info: UiPalette.info500,
+    destructive: UiPalette.bearish400,
+    onDestructive: UiPalette.white,
+    focusRing: UiPalette.brand400,
+    disabledBackground: UiPalette.gray800,
+    disabledForeground: UiPalette.gray600,
+    series: UiPalette.series,
+  );
 
   UiColors lerpTo(UiColors other, double t) => UiColors(
-        background: Color.lerp(background, other.background, t)!,
-        surface: Color.lerp(surface, other.surface, t)!,
-        surfaceMuted: Color.lerp(surfaceMuted, other.surfaceMuted, t)!,
-        surfaceHover: Color.lerp(surfaceHover, other.surfaceHover, t)!,
-        overlay: Color.lerp(overlay, other.overlay, t)!,
-        border: Color.lerp(border, other.border, t)!,
-        borderStrong: Color.lerp(borderStrong, other.borderStrong, t)!,
-        foreground: Color.lerp(foreground, other.foreground, t)!,
-        foregroundMuted: Color.lerp(foregroundMuted, other.foregroundMuted, t)!,
-        foregroundSubtle:
-            Color.lerp(foregroundSubtle, other.foregroundSubtle, t)!,
-        primary: Color.lerp(primary, other.primary, t)!,
-        primaryHover: Color.lerp(primaryHover, other.primaryHover, t)!,
-        onPrimary: Color.lerp(onPrimary, other.onPrimary, t)!,
-        secondary: Color.lerp(secondary, other.secondary, t)!,
-        onSecondary: Color.lerp(onSecondary, other.onSecondary, t)!,
-        bullish: Color.lerp(bullish, other.bullish, t)!,
-        bearish: Color.lerp(bearish, other.bearish, t)!,
-        warning: Color.lerp(warning, other.warning, t)!,
-        info: Color.lerp(info, other.info, t)!,
-        destructive: Color.lerp(destructive, other.destructive, t)!,
-        onDestructive: Color.lerp(onDestructive, other.onDestructive, t)!,
-        focusRing: Color.lerp(focusRing, other.focusRing, t)!,
-        disabledBackground:
-            Color.lerp(disabledBackground, other.disabledBackground, t)!,
-        disabledForeground:
-            Color.lerp(disabledForeground, other.disabledForeground, t)!,
-        series: t < 0.5 ? series : other.series,
-      );
+    background: Color.lerp(background, other.background, t)!,
+    surface: Color.lerp(surface, other.surface, t)!,
+    surfaceMuted: Color.lerp(surfaceMuted, other.surfaceMuted, t)!,
+    surfaceHover: Color.lerp(surfaceHover, other.surfaceHover, t)!,
+    overlay: Color.lerp(overlay, other.overlay, t)!,
+    border: Color.lerp(border, other.border, t)!,
+    borderStrong: Color.lerp(borderStrong, other.borderStrong, t)!,
+    foreground: Color.lerp(foreground, other.foreground, t)!,
+    foregroundMuted: Color.lerp(foregroundMuted, other.foregroundMuted, t)!,
+    foregroundSubtle: Color.lerp(foregroundSubtle, other.foregroundSubtle, t)!,
+    primary: Color.lerp(primary, other.primary, t)!,
+    primaryHover: Color.lerp(primaryHover, other.primaryHover, t)!,
+    onPrimary: Color.lerp(onPrimary, other.onPrimary, t)!,
+    secondary: Color.lerp(secondary, other.secondary, t)!,
+    onSecondary: Color.lerp(onSecondary, other.onSecondary, t)!,
+    bullish: Color.lerp(bullish, other.bullish, t)!,
+    bearish: Color.lerp(bearish, other.bearish, t)!,
+    warning: Color.lerp(warning, other.warning, t)!,
+    info: Color.lerp(info, other.info, t)!,
+    destructive: Color.lerp(destructive, other.destructive, t)!,
+    onDestructive: Color.lerp(onDestructive, other.onDestructive, t)!,
+    focusRing: Color.lerp(focusRing, other.focusRing, t)!,
+    disabledBackground: Color.lerp(
+      disabledBackground,
+      other.disabledBackground,
+      t,
+    )!,
+    disabledForeground: Color.lerp(
+      disabledForeground,
+      other.disabledForeground,
+      t,
+    )!,
+    series: t < 0.5 ? series : other.series,
+  );
 }
 
 /// Spacing scale (logical px, later scaled by device).
@@ -262,7 +265,6 @@ class UiBorders {
   final double focus;
 }
 
-
 @immutable
 class UiTypography {
   const UiTypography({
@@ -291,24 +293,20 @@ class UiTypography {
   final TextStyle caption;
   final TextStyle numeric;
 
-  factory UiTypography.standard({
-    String? fontFamily,
-    String? monoFontFamily,
-  }) {
+  factory UiTypography.standard({String? fontFamily, String? monoFontFamily}) {
     // Optical tracking: large text tightens, small text opens up slightly.
     TextStyle base(
       double size,
       FontWeight weight,
       double height, [
       double tracking = 0,
-    ]) =>
-        TextStyle(
-          fontFamily: fontFamily,
-          fontSize: size,
-          fontWeight: weight,
-          height: height,
-          letterSpacing: tracking,
-        );
+    ]) => TextStyle(
+      fontFamily: fontFamily,
+      fontSize: size,
+      fontWeight: weight,
+      height: height,
+      letterSpacing: tracking,
+    );
     return UiTypography(
       fontFamily: fontFamily,
       monoFontFamily: monoFontFamily,
@@ -332,18 +330,18 @@ class UiTypography {
   }
 
   UiTypography scaled(double factor) => UiTypography(
-        fontFamily: fontFamily,
-        monoFontFamily: monoFontFamily,
-        display: _s(display, factor),
-        title: _s(title, factor),
-        heading: _s(heading, factor),
-        subheading: _s(subheading, factor),
-        body: _s(body, factor),
-        bodyStrong: _s(bodyStrong, factor),
-        label: _s(label, factor),
-        caption: _s(caption, factor),
-        numeric: _s(numeric, factor),
-      );
+    fontFamily: fontFamily,
+    monoFontFamily: monoFontFamily,
+    display: _s(display, factor),
+    title: _s(title, factor),
+    heading: _s(heading, factor),
+    subheading: _s(subheading, factor),
+    body: _s(body, factor),
+    bodyStrong: _s(bodyStrong, factor),
+    label: _s(label, factor),
+    caption: _s(caption, factor),
+    numeric: _s(numeric, factor),
+  );
 
   static TextStyle _s(TextStyle style, double f) =>
       style.copyWith(fontSize: (style.fontSize ?? 14) * f);
@@ -361,32 +359,40 @@ class UiShadows {
   final List<BoxShadow> lg;
 
   factory UiShadows.light() => const UiShadows(
-        sm: <BoxShadow>[
-          BoxShadow(color: Color(0x0A1A1512), blurRadius: 2, offset: Offset(0, 1)),
-        ],
-        md: <BoxShadow>[
-          BoxShadow(color: Color(0x0F1A1512), blurRadius: 10, offset: Offset(0, 3)),
-          BoxShadow(color: Color(0x0A1A1512), blurRadius: 2, offset: Offset(0, 1)),
-        ],
-        lg: <BoxShadow>[
-          BoxShadow(color: Color(0x1A1A1512), blurRadius: 32, offset: Offset(0, 16)),
-          BoxShadow(color: Color(0x0D1A1512), blurRadius: 6, offset: Offset(0, 2)),
-        ],
-      );
+    sm: <BoxShadow>[
+      BoxShadow(color: Color(0x0A1A1512), blurRadius: 2, offset: Offset(0, 1)),
+    ],
+    md: <BoxShadow>[
+      BoxShadow(color: Color(0x0F1A1512), blurRadius: 10, offset: Offset(0, 3)),
+      BoxShadow(color: Color(0x0A1A1512), blurRadius: 2, offset: Offset(0, 1)),
+    ],
+    lg: <BoxShadow>[
+      BoxShadow(
+        color: Color(0x1A1A1512),
+        blurRadius: 32,
+        offset: Offset(0, 16),
+      ),
+      BoxShadow(color: Color(0x0D1A1512), blurRadius: 6, offset: Offset(0, 2)),
+    ],
+  );
 
   factory UiShadows.dark() => const UiShadows(
-        sm: <BoxShadow>[
-          BoxShadow(color: Color(0x33000000), blurRadius: 2, offset: Offset(0, 1)),
-        ],
-        md: <BoxShadow>[
-          BoxShadow(color: Color(0x47000000), blurRadius: 12, offset: Offset(0, 4)),
-          BoxShadow(color: Color(0x2E000000), blurRadius: 2, offset: Offset(0, 1)),
-        ],
-        lg: <BoxShadow>[
-          BoxShadow(color: Color(0x66000000), blurRadius: 36, offset: Offset(0, 18)),
-          BoxShadow(color: Color(0x3D000000), blurRadius: 6, offset: Offset(0, 2)),
-        ],
-      );
+    sm: <BoxShadow>[
+      BoxShadow(color: Color(0x33000000), blurRadius: 2, offset: Offset(0, 1)),
+    ],
+    md: <BoxShadow>[
+      BoxShadow(color: Color(0x47000000), blurRadius: 12, offset: Offset(0, 4)),
+      BoxShadow(color: Color(0x2E000000), blurRadius: 2, offset: Offset(0, 1)),
+    ],
+    lg: <BoxShadow>[
+      BoxShadow(
+        color: Color(0x66000000),
+        blurRadius: 36,
+        offset: Offset(0, 18),
+      ),
+      BoxShadow(color: Color(0x3D000000), blurRadius: 6, offset: Offset(0, 2)),
+    ],
+  );
 }
 
 @immutable
@@ -434,7 +440,6 @@ class UiSizes {
     this.minTapTarget = 44,
     this.maxContentWidth = 1180,
   });
-
 
   final double controlHeightXs;
   final double controlHeightSm;

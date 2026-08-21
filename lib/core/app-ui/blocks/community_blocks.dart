@@ -31,10 +31,7 @@ class AppComposerBlock extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          UiAvatar(
-            imageUrl: me.avatarUrl,
-            name: me.displayName ?? me.handle,
-          ),
+          UiAvatar(imageUrl: me.avatarUrl, name: me.displayName ?? me.handle),
           SizedBox(width: context.sp(theme.spacing.md)),
           Expanded(
             child: Column(
@@ -128,8 +125,9 @@ class AppFeedBlock extends StatelessWidget {
                 post: posts[i],
                 onTap: onOpen == null ? null : () => onOpen!(posts[i]),
                 onLike: onLike == null ? null : () => onLike!(posts[i]),
-                onComment:
-                    onComment == null ? null : () => onComment!(posts[i]),
+                onComment: onComment == null
+                    ? null
+                    : () => onComment!(posts[i]),
                 onSave: onSave == null ? null : () => onSave!(posts[i]),
                 onAuthorTap: onAuthorTap == null
                     ? null
@@ -177,8 +175,9 @@ class AppSuggestedTradersBlock extends StatelessWidget {
                       : UiVariant.primary,
                   size: UiSize.sm,
                   expandOnMobile: false,
-                  onPressed:
-                      onFollow == null ? null : () => onFollow!(traders[i]),
+                  onPressed: onFollow == null
+                      ? null
+                      : () => onFollow!(traders[i]),
                 ),
               ),
             ),
@@ -289,11 +288,7 @@ class AppCommentThreadBlock extends StatelessWidget {
 
 /// Direct-message inbox list.
 class AppInboxBlock extends StatelessWidget {
-  const AppInboxBlock({
-    super.key,
-    required this.conversations,
-    this.onOpen,
-  });
+  const AppInboxBlock({super.key, required this.conversations, this.onOpen});
 
   final List<AppConversation> conversations;
   final ValueChanged<AppConversation>? onOpen;
@@ -350,7 +345,9 @@ class AppChatThreadBlock extends StatelessWidget {
         UiDivider(),
         Expanded(
           child: ListView(
-            padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.md),
+            ),
             children: <Widget>[
               for (final AppChatMessage m in messages)
                 AppMessageBubble(message: m),
@@ -414,7 +411,9 @@ class AppNotificationsBlock extends StatelessWidget {
         SizedBox(height: context.sp(theme.spacing.md)),
         if (notifications.isEmpty)
           const UiEmptyState(
-              title: 'All caught up', icon: Icons.notifications_none)
+            title: 'All caught up',
+            icon: Icons.notifications_none,
+          )
         else
           for (final AppNotification n in notifications)
             Padding(

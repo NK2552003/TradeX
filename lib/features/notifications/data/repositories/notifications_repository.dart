@@ -122,9 +122,7 @@ class NotificationsRepositoryImpl implements NotificationsRepository {
   @override
   Future<void> markAllRead() async {
     await Future<void>.delayed(const Duration(milliseconds: 180));
-    _items = _items
-        .map((AppNotification n) => _copy(n, read: true))
-        .toList();
+    _items = _items.map((AppNotification n) => _copy(n, read: true)).toList();
   }
 
   @override

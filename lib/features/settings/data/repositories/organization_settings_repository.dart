@@ -6,10 +6,15 @@ abstract class OrganizationSettingsRepository {
   Future<void> updateMemberRole({required String userId, required String role});
   Future<void> removeMember(String userId);
   Future<OrgBranding> getBranding();
-  Future<OrgBranding> updateBranding({String? logoUrl, String? displayName, String? primaryColor});
+  Future<OrgBranding> updateBranding({
+    String? logoUrl,
+    String? displayName,
+    String? primaryColor,
+  });
 }
 
-class OrganizationSettingsRepositoryImpl implements OrganizationSettingsRepository {
+class OrganizationSettingsRepositoryImpl
+    implements OrganizationSettingsRepository {
   final List<OrgMember> _members = <OrgMember>[
     OrgMember(
       userId: 'usr_org_owner',
@@ -50,7 +55,10 @@ class OrganizationSettingsRepositoryImpl implements OrganizationSettingsReposito
   }
 
   @override
-  Future<void> inviteMember({required String email, required String role}) async {
+  Future<void> inviteMember({
+    required String email,
+    required String role,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 400));
     final String handle = email.split('@').first;
     _members.add(
@@ -66,7 +74,10 @@ class OrganizationSettingsRepositoryImpl implements OrganizationSettingsReposito
   }
 
   @override
-  Future<void> updateMemberRole({required String userId, required String role}) async {
+  Future<void> updateMemberRole({
+    required String userId,
+    required String role,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     final index = _members.indexWhere((m) => m.userId == userId);
     if (index != -1) {

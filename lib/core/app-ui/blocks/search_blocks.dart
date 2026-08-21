@@ -4,22 +4,22 @@ import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models_extra.dart';
 
 IconData appSearchKindIcon(AppSearchKind kind) => switch (kind) {
-      AppSearchKind.trade => Icons.candlestick_chart_outlined,
-      AppSearchKind.strategy => Icons.schema_outlined,
-      AppSearchKind.ticker => Icons.show_chart,
-      AppSearchKind.trader => Icons.person_outline,
-      AppSearchKind.post => Icons.forum_outlined,
-      AppSearchKind.note => Icons.sticky_note_2_outlined,
-    };
+  AppSearchKind.trade => Icons.candlestick_chart_outlined,
+  AppSearchKind.strategy => Icons.schema_outlined,
+  AppSearchKind.ticker => Icons.show_chart,
+  AppSearchKind.trader => Icons.person_outline,
+  AppSearchKind.post => Icons.forum_outlined,
+  AppSearchKind.note => Icons.sticky_note_2_outlined,
+};
 
 String appSearchKindLabel(AppSearchKind kind) => switch (kind) {
-      AppSearchKind.trade => 'Trades',
-      AppSearchKind.strategy => 'Strategies',
-      AppSearchKind.ticker => 'Tickers',
-      AppSearchKind.trader => 'Traders',
-      AppSearchKind.post => 'Posts',
-      AppSearchKind.note => 'Notes',
-    };
+  AppSearchKind.trade => 'Trades',
+  AppSearchKind.strategy => 'Strategies',
+  AppSearchKind.ticker => 'Tickers',
+  AppSearchKind.trader => 'Traders',
+  AppSearchKind.post => 'Posts',
+  AppSearchKind.note => 'Notes',
+};
 
 /// Global search surface: query field, kind filters and grouped results.
 class AppSearchBlock extends StatelessWidget {
@@ -111,18 +111,19 @@ class AppSearchBlock extends StatelessWidget {
                 for (final MapEntry<AppSearchKind, List<AppSearchResult>> g
                     in grouped.entries) ...<Widget>[
                   Padding(
-                    padding:
-                        EdgeInsets.only(bottom: ctx.sp(theme.spacing.sm)),
+                    padding: EdgeInsets.only(bottom: ctx.sp(theme.spacing.sm)),
                     child: Text(
                       appSearchKindLabel(g.key),
-                      style: ctx.uiText.label
-                          .copyWith(color: theme.colors.foregroundMuted),
+                      style: ctx.uiText.label.copyWith(
+                        color: theme.colors.foregroundMuted,
+                      ),
                     ),
                   ),
                   for (final AppSearchResult r in g.value)
                     Padding(
-                      padding:
-                          EdgeInsets.only(bottom: ctx.sp(theme.spacing.sm)),
+                      padding: EdgeInsets.only(
+                        bottom: ctx.sp(theme.spacing.sm),
+                      ),
                       child: AppSearchResultTile(
                         result: r,
                         onTap: onResultTap == null
@@ -182,15 +183,18 @@ class AppSearchResultTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Text(result.title,
-                    style: context.uiText.bodyStrong,
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  result.title,
+                  style: context.uiText.bodyStrong,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 if (result.subtitle != null)
                   Text(
                     result.subtitle!,
                     overflow: TextOverflow.ellipsis,
-                    style: context.uiText.caption
-                        .copyWith(color: theme.colors.foregroundMuted),
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
                   ),
               ],
             ),
@@ -198,8 +202,9 @@ class AppSearchResultTile extends StatelessWidget {
           if (result.meta != null)
             Text(
               result.meta!,
-              style: context.uiText.caption
-                  .copyWith(color: theme.colors.foregroundSubtle),
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundSubtle,
+              ),
             ),
         ],
       ),

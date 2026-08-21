@@ -60,7 +60,8 @@ class _AlertFormState extends State<_AlertForm> {
 
   double get _current => _symbol.isEmpty ? 0 : widget.priceOf(_symbol);
 
-  double? get _target => double.tryParse(_price.text.trim().replaceAll(',', ''));
+  double? get _target =>
+      double.tryParse(_price.text.trim().replaceAll(',', ''));
 
   void _submit() {
     if (_symbol.isEmpty) {
@@ -90,7 +91,9 @@ class _AlertFormState extends State<_AlertForm> {
 
     Navigator.of(context).pop(
       AppPriceAlert(
-        id: widget.initial?.id ?? 'alr_${DateTime.now().microsecondsSinceEpoch}',
+        id:
+            widget.initial?.id ??
+            'alr_${DateTime.now().microsecondsSinceEpoch}',
         symbol: _symbol,
         targetPrice: target,
         above: _above,

@@ -59,9 +59,8 @@ class _JournalFiltersState extends State<_JournalFilters> {
     );
   }
 
-  void _reset() => Navigator.of(
-    context,
-  ).pop(JournalQuery(search: widget.query.search));
+  void _reset() =>
+      Navigator.of(context).pop(JournalQuery(search: widget.query.search));
 
   @override
   Widget build(BuildContext context) {

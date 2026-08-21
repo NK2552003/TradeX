@@ -106,7 +106,6 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
       'trading' => const TradingPreferencesPage(),
       'billing' => BillingSettingsPage(
         userRole: widget.userRole,
-        currentTier: widget.subscriptionTier,
         onSubscriptionTierChanged: widget.onSubscriptionTierChanged,
       ),
       'help' => const HelpAboutPage(),
@@ -611,11 +610,12 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                   subtitle:
                       'Membership tier, renewal date, payment cards, invoices',
                   icon: Icons.credit_card_outlined,
-                  badgeLabel: 'PRO TIER',
+                  badgeLabel: AppTokens.tierLabel(
+                    widget.subscriptionTier,
+                  ).toUpperCase(),
                   onTap: () => _navigateToSubpage(
                     BillingSettingsPage(
                       userRole: widget.userRole,
-                      currentTier: widget.subscriptionTier,
                       onSubscriptionTierChanged:
                           widget.onSubscriptionTierChanged,
                     ),

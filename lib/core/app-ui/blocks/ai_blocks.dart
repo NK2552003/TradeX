@@ -189,8 +189,9 @@ class AppAiInsightsBlock extends StatelessWidget {
                 child: AppAiAnalysisCard(
                   insight: insights[i],
                   onAsk: onAsk == null ? null : () => onAsk!(insights[i]),
-                  onDismiss:
-                      onDismiss == null ? null : () => onDismiss!(insights[i]),
+                  onDismiss: onDismiss == null
+                      ? null
+                      : () => onDismiss!(insights[i]),
                 ),
               ),
             ),
@@ -233,7 +234,9 @@ class AppStrategyGraphBlock extends StatelessWidget {
           UiGraphCanvas(
             height: height,
             selectedId: selectedId,
-            onSelect: onSelect == null ? null : (UiGraphNode? node) => onSelect!(node?.id),
+            onSelect: onSelect == null
+                ? null
+                : (UiGraphNode? node) => onSelect!(node?.id),
             nodes: <UiGraphNode>[
               for (final AppGraphNode n in nodes)
                 UiGraphNode(

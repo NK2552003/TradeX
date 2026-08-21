@@ -82,10 +82,7 @@ class _AffiliatePayoutsPageState extends State<AffiliatePayoutsPage> {
   Future<void> _requestPayout() async {
     final _PayoutRequest? request = await UiDialog.show<_PayoutRequest>(
       context,
-      child: _RequestSheet(
-        balance: _pending,
-        methods: _methods,
-      ),
+      child: _RequestSheet(balance: _pending, methods: _methods),
     );
     if (request == null || !mounted) return;
     setState(() => _requesting = true);
@@ -381,10 +378,8 @@ class _AffiliatePayoutsPageState extends State<AffiliatePayoutsPage> {
       header: 'Amount',
       numeric: true,
       compare: (Payout a, Payout b) => a.amount.compareTo(b.amount),
-      cell: (BuildContext context, Payout row) => Text(
-        AppTokens.money(row.amount),
-        style: context.uiText.bodyStrong,
-      ),
+      cell: (BuildContext context, Payout row) =>
+          Text(AppTokens.money(row.amount), style: context.uiText.bodyStrong),
     ),
   ];
 
@@ -475,7 +470,10 @@ class _AffiliatePayoutsPageState extends State<AffiliatePayoutsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            Text(method.label, style: context.uiText.bodyStrong),
+                            Text(
+                              method.label,
+                              style: context.uiText.bodyStrong,
+                            ),
                             Text(
                               'Min ${AppTokens.money(method.minimum)} · '
                               '${method.feePercent == 0 ? 'no fee' : '${AppTokens.percent(method.feePercent)} fee'} · '
@@ -693,9 +691,9 @@ class _RequestSheetState extends State<_RequestSheet> {
               expandOnMobile: false,
               onPressed: error != null
                   ? null
-                  : () => Navigator.of(context).pop(
-                      _PayoutRequest(amount: amount, method: _method),
-                    ),
+                  : () => Navigator.of(
+                      context,
+                    ).pop(_PayoutRequest(amount: amount, method: _method)),
             ),
           ],
         ),
@@ -838,8 +836,10 @@ class _PayoutSheet extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(AppTokens.money(payout.amount),
-                    style: context.uiText.heading),
+                Text(
+                  AppTokens.money(payout.amount),
+                  style: context.uiText.heading,
+                ),
                 Text(
                   '${payout.method} · requested '
                   '${AppTokens.relativeTime(payout.requestedAt)}',
@@ -892,7 +892,9 @@ class _PayoutSheet extends StatelessWidget {
                         : UiIntent.success,
                   ),
                   UiTimelineEntry(
-                    title: payout.paidAt == null ? 'Not settled yet' : 'Settled',
+                    title: payout.paidAt == null
+                        ? 'Not settled yet'
+                        : 'Settled',
                     subtitle: payout.reference == null
                         ? 'A bank reference appears once it settles'
                         : 'Reference ${payout.reference}',

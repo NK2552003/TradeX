@@ -117,8 +117,8 @@ class StrategyRepositoryImpl implements StrategyRepository {
   @override
   Future<StrategyGraph> getGraph() async {
     await Future<void>.delayed(const Duration(milliseconds: 260));
-    final ({List<AppGraphNode> nodes, List<AppGraphLink> links}) graph =
-        _source.strategyGraph();
+    final ({List<AppGraphNode> nodes, List<AppGraphLink> links}) graph = _source
+        .strategyGraph();
     return StrategyGraph(nodes: graph.nodes, links: graph.links);
   }
 
