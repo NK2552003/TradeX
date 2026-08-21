@@ -89,6 +89,8 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final UiResponsive r = context.uiRes;
+    final MediaQueryData mediaQuery = MediaQuery.of(context);
+    final bool keyboardVisible = mediaQuery.viewInsets.bottom > 0;
 
     final Widget contentSurface = Container(
       key: const ValueKey<String>('app-content-surface'),
@@ -161,6 +163,27 @@ class _AppShellState extends State<AppShell> {
     );
 
     if (r.isMobile) {
+      // QuietDockScaffold intentionally extends its body beneath the floating
+      // dock. Reserve the complete dock footprint here so every page (even a
+      // page with its own ScrollView) receives safe layout constraints.
+      const double dockHeight = 56;
+      const double dockMargin = 16;
+      final double dockClearance = keyboardVisible
+          ? mediaQuery.padding.bottom
+          : dockHeight +
+                dockMargin +
+                mediaQuery.padding.bottom +
+                context.sp(theme.spacing.xs);
+      // Publish the clearance as a safe inset instead of shrinking the whole
+      // workspace. SafeArea-aware pages keep their controls above the dock,
+      // while their background still paints beneath the floating glass bar.
+      final Widget dockSafeContent = MediaQuery(
+        data: mediaQuery.copyWith(
+          padding: mediaQuery.padding.copyWith(bottom: dockClearance),
+        ),
+        child: contentSurface,
+      );
+
       final List<AppNavItem> destinations =
           (widget.mobilePrimaryItems ?? _flatItems.take(4).toList())
               .take(4)
@@ -174,11 +197,14 @@ class _AppShellState extends State<AppShell> {
         );
       }
       final int initialIndex = selectedIndex < 0 ? 0 : selectedIndex;
-      final bool moreRouteSelected = widget.mobileMoreItems.any(
-        (AppNavItem item) =>
-            item.id == widget.selectedId ||
-            (item.id == 'settings' && widget.selectedId == 'settings'),
-      );
+      AppNavItem? activeMoreItem;
+      for (final AppNavItem item in widget.mobileMoreItems) {
+        if (item.id == widget.selectedId) {
+          activeMoreItem = item;
+          break;
+        }
+      }
+      final bool moreRouteSelected = activeMoreItem != null;
       final Widget dockScaffold = QuietDockScaffold(
         destinations: destinations
             .map(
@@ -199,6 +225,9 @@ class _AppShellState extends State<AppShell> {
         centerAction: QuietDockCenterAction(
           semanticLabel: 'More tools',
           icon: Icons.grid_view_rounded,
+          closeIcon: moreRouteSelected
+              ? (activeMoreItem.selectedIcon ?? activeMoreItem.icon)
+              : Icons.close_rounded,
           columns: 3,
           items: widget.mobileMoreItems
               .map(
@@ -216,19 +245,98 @@ class _AppShellState extends State<AppShell> {
         keepAlive: false,
         useRail: false,
         backgroundColor: theme.colors.background,
-        pageBuilder: (BuildContext context, int index) => workspace,
+        pageBuilder: (BuildContext context, int index) => dockSafeContent,
         theme: QuietDockTheme(
-          background: theme.colors.surface.withValues(alpha: 0.9),
-          borderColor: theme.colors.border,
+          background: keyboardVisible
+              ? Colors.transparent
+              : theme.colors.surface.withValues(alpha: 0.9),
+          borderColor: keyboardVisible
+              ? Colors.transparent
+              : theme.colors.border,
           selectedColor: theme.colors.primary,
           unselectedColor: theme.colors.foregroundMuted,
-          indicatorColor: theme.colors.primary.withValues(alpha: 0.12),
-          indicatorBorderColor: theme.colors.primary.withValues(alpha: 0.3),
-          shadowColor: Colors.black.withValues(alpha: 0.24),
+          indicatorColor: keyboardVisible
+              ? Colors.transparent
+              : theme.colors.primary.withValues(alpha: 0.12),
+          indicatorBorderColor: keyboardVisible
+              ? Colors.transparent
+              : theme.colors.primary.withValues(alpha: 0.3),
+          shadowColor: keyboardVisible
+              ? Colors.transparent
+              : Colors.black.withValues(alpha: 0.24),
+          height: keyboardVisible ? 0 : dockHeight,
+          margin: keyboardVisible ? 0 : dockMargin,
+          iconSize: keyboardVisible ? 0 : 22,
+          frosted: !keyboardVisible,
           showLabels: false,
         ),
       );
-      return dockScaffold;
+      Widget dockLayer = dockScaffold;
+
+      // The selected More destination owns the center slot. Keep the dock's
+      // original hit target underneath so tapping it reopens the chooser, and
+      // add a small arrow overlay to communicate that it can be changed.
+      if (moreRouteSelected && !keyboardVisible) {
+        const double centerSlotSize = 56;
+        dockLayer = Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            dockScaffold,
+            Positioned(
+              left: (mediaQuery.size.width - centerSlotSize) / 2,
+              bottom: mediaQuery.padding.bottom + dockMargin,
+              width: centerSlotSize,
+              height: dockHeight,
+              child: IgnorePointer(
+                child: Stack(
+                  children: <Widget>[
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Icon(
+                        Icons.arrow_back_rounded,
+                        size: context.sz(11),
+                        color: theme.colors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      }
+
+      // The header is intentionally outside QuietDockScaffold's PageView so
+      // only screen content participates in destination swipe transitions.
+      final Widget mobileShell = Column(
+        children: <Widget>[
+          topBar,
+          Expanded(child: dockLayer),
+        ],
+      );
+      return ColoredBox(
+        key: const ValueKey<String>('app-mobile-shell-background'),
+        color: theme.colors.background,
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final double keyboardTop =
+                mediaQuery.size.height - mediaQuery.viewInsets.bottom;
+            final double visibleHeight = keyboardVisible
+                ? constraints.maxHeight.clamp(0.0, keyboardTop)
+                : constraints.maxHeight;
+            return MediaQuery(
+              // The shell height already excludes the keyboard. Prevent the
+              // nested dock Scaffold from applying the inset a second time.
+              data: mediaQuery.copyWith(viewInsets: EdgeInsets.zero),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: SizedBox(height: visibleHeight, child: mobileShell),
+              ),
+            );
+          },
+        ),
+      );
     }
 
     final Widget expandedSidebar = AppSidebar(
@@ -958,7 +1066,11 @@ class AppTopBar extends StatelessWidget {
                   pageTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: context.uiText.label,
+                  style: context.uiText.label.copyWith(
+                    color: theme.colors.foreground,
+                    decoration: TextDecoration.none,
+                    decorationColor: Colors.transparent,
+                  ),
                 )
               : UiBreadcrumbs(
                   crumbs: <UiCrumb>[
@@ -973,14 +1085,14 @@ class AppTopBar extends StatelessWidget {
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          isMobile ? context.sp(theme.spacing.sm) : 0,
-          context.sp(isMobile ? theme.spacing.sm : theme.spacing.xs),
-          isMobile
-              ? context.sp(theme.spacing.sm)
-              : context.sp(theme.spacing.xs + 3),
-          context.sp(theme.spacing.xs),
-        ),
+        padding: isMobile
+            ? EdgeInsets.all(context.sp(theme.spacing.sm))
+            : EdgeInsets.fromLTRB(
+                0,
+                context.sp(theme.spacing.xs),
+                context.sp(theme.spacing.xs + 3),
+                context.sp(theme.spacing.xs),
+              ),
         child: Container(
           key: const ValueKey<String>('app-header-surface'),
           height: context.sz(isMobile ? 56 : 50),
@@ -1011,7 +1123,7 @@ class AppTopBar extends StatelessWidget {
                 SizedBox(width: context.sp(theme.spacing.sm)),
               ],
               if (showLogo) ...<Widget>[
-                const AppLogo(size: 16, markRounded: false),
+                const AppLogoMark(size: 16, rounded: false),
                 SizedBox(width: context.sp(theme.spacing.sm)),
               ],
               Expanded(
@@ -1024,9 +1136,7 @@ class AppTopBar extends StatelessWidget {
                       switchOutCurve: theme.motion.curve,
                       child: KeyedSubtree(
                         key: ValueKey<String>(selectedId ?? pageTitle),
-                        child: isMobile
-                            ? const SizedBox.shrink()
-                            : breadcrumbWidget,
+                        child: breadcrumbWidget,
                       ),
                     ),
                   ),

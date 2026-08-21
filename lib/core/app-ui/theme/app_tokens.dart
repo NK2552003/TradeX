@@ -181,4 +181,13 @@ class AppTokens {
 
   static String shortDate(DateTime date) =>
       '${monthLabels[date.month - 1]} ${date.day}';
+
+  /// 24-hour wall clock, for surfaces where the exact moment matters more than
+  /// how long ago it was — audit trails, message stamps, execution logs.
+  static String clockTime(DateTime time) =>
+      '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+
+  /// Date and wall clock together, so a table row is never ambiguous about
+  /// which day an entry belongs to.
+  static String stamp(DateTime time) => '${shortDate(time)} · ${clockTime(time)}';
 }

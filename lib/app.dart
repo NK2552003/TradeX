@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
 import 'package:tradex/features/auth/auth.dart';
@@ -11,8 +12,10 @@ class TradeXApp extends StatefulWidget {
 }
 
 class _TradeXAppState extends State<TradeXApp> {
-  final AppThemeController _themeController =
-      AppThemeController(ThemeMode.dark, 'Comfortable');
+  final AppThemeController _themeController = AppThemeController(
+    ThemeMode.dark,
+    'Comfortable',
+  );
 
   @override
   void dispose() {
@@ -22,6 +25,13 @@ class _TradeXAppState extends State<TradeXApp> {
 
   @override
   Widget build(BuildContext context) {
+    assert(() {
+      // Inspector paint flags are global and can survive a hot reload. Keep
+      // development-only baselines/bounds out of the product header.
+      debugPaintBaselinesEnabled = false;
+      debugPaintSizeEnabled = false;
+      return true;
+    }());
     return AppThemeScope(
       controller: _themeController,
       child: ListenableBuilder(
@@ -61,9 +71,8 @@ class _TradeXAppState extends State<TradeXApp> {
               theme: UiTheme.light(spacing: spacing).toThemeData(),
               darkTheme: UiTheme.dark(spacing: spacing).toThemeData(),
               themeMode: _themeController.value,
-              builder: (context, child) => UiToastScope(
-                child: child ?? const SizedBox.shrink(),
-              ),
+              builder: (context, child) =>
+                  UiToastScope(child: child ?? const SizedBox.shrink()),
               home: const AuthWrapper(),
             ),
           );

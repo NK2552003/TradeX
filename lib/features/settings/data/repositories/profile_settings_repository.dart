@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/settings/models/connected_account_model.dart';
@@ -39,7 +40,6 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     experienceLevel: 'Advanced (3-5 years)',
     tradingStyle: 'Swing Trading',
     publicJournals: true,
-    subscriptionTier: 'premium',
     createdAt: DateTime.now().subtract(const Duration(days: 180)),
   );
 
@@ -59,7 +59,11 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
   @override
   Future<UserProfileModel> getProfile() async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    return _profile;
+    // The plan is entitlement, not profile copy: read it from the shared
+    // session so a change made on the billing page is visible here too.
+    return _profile.copyWith(
+      subscriptionTier: AppSession.instance.tier.value.name,
+    );
   }
 
   @override

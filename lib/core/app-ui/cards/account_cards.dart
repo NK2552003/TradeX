@@ -301,28 +301,62 @@ class AppSettingCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final bool stack = constraints.maxWidth < context.sz(520);
+        final bool mobile = context.uiRes.isMobile;
+        final bool trailingSwitch = mobile && control is UiSwitch;
         final Widget copy = Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: mobile
+              ? CrossAxisAlignment.center
+              : CrossAxisAlignment.start,
           children: <Widget>[
             if (icon != null) ...<Widget>[
-              Icon(
-                icon,
-                size: context.sz(theme.sizes.iconSm),
-                color: theme.colors.foregroundMuted,
+              if (mobile)
+                Container(
+                  padding: EdgeInsets.all(context.sp(theme.spacing.xs + 1)),
+                  decoration: BoxDecoration(
+                    color: theme.colors.primary.withValues(alpha: 0.08),
+                    borderRadius: context.radius(theme.radii.md),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: context.sz(theme.sizes.iconXs),
+                    color: theme.colors.primary,
+                  ),
+                )
+              else
+                Icon(
+                  icon,
+                  size: context.sz(theme.sizes.iconSm),
+                  color: theme.colors.foregroundMuted,
+                ),
+              SizedBox(
+                width: context.sp(mobile ? theme.spacing.sm : theme.spacing.md),
               ),
-              SizedBox(width: context.sp(theme.spacing.md)),
             ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Text(title, style: context.uiText.bodyStrong),
+                  Text(
+                    title,
+                    maxLines: mobile ? 2 : null,
+                    overflow: mobile ? TextOverflow.ellipsis : null,
+                    style: mobile
+                        ? context.uiText.label.copyWith(
+                            color: theme.colors.foreground,
+                          )
+                        : context.uiText.bodyStrong,
+                  ),
                   if (description != null) ...<Widget>[
                     SizedBox(height: context.sp(theme.spacing.xxs)),
                     Text(
                       description!,
+                      maxLines: mobile ? 3 : null,
+                      overflow: mobile ? TextOverflow.ellipsis : null,
                       style: context.uiText.caption.copyWith(
                         color: theme.colors.foregroundMuted,
+                        fontSize: mobile ? 11.5 : null,
+                        height: mobile ? 1.35 : null,
                       ),
                     ),
                   ],
@@ -334,14 +368,37 @@ class AppSettingCard extends StatelessWidget {
 
         return UiCard(
           radius: theme.radii.lg,
-          padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-          child: stack
+          padding: mobile
+              ? EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.md),
+                  vertical: context.sp(theme.spacing.sm + 2),
+                )
+              : EdgeInsets.all(context.sp(theme.spacing.md)),
+          child: trailingSwitch
+              ? Row(
+                  children: <Widget>[
+                    Expanded(child: copy),
+                    SizedBox(width: context.sp(theme.spacing.sm)),
+                    control,
+                  ],
+                )
+              : stack
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     copy,
-                    SizedBox(height: context.sp(theme.spacing.md)),
-                    control,
+                    SizedBox(
+                      height: context.sp(
+                        mobile ? theme.spacing.sm : theme.spacing.md,
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: context.sz(280)),
+                        child: control,
+                      ),
+                    ),
                   ],
                 )
               : Row(

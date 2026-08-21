@@ -14,6 +14,7 @@ import 'package:tradex/features/settings/presentation/pages/shared/settings_root
 import 'package:tradex/features/settings/presentation/pages/trader/change_plan_page.dart';
 import 'package:tradex/features/settings/data/repositories/billing_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
 
 void main() {
   group('RoleNavigationConfig', () {
@@ -118,9 +119,46 @@ void main() {
     await tester.tap(find.bySemanticsLabel('More tools'));
     await tester.pumpAndSettle();
 
+    expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back_rounded), findsNothing);
     expect(find.text('Affiliate Settings'), findsOneWidget);
     expect(find.text('Payouts'), findsOneWidget);
     expect(find.text('Compliance'), findsNothing);
+  });
+
+  testWidgets('mobile More destination shows its icon with a change arrow', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final RoleNavigationConfig config = RoleNavigationConfig.forRole(
+      UserRole.customer,
+    );
+
+    await tester.pumpWidget(
+      UiApp(
+        theme: UiTheme.dark(),
+        builder: (BuildContext context) => MaterialApp(
+          home: AppShell(
+            sections: config.sections,
+            selectedId: config.mobileMoreItems.first.id,
+            mobilePrimaryItems: config.mobilePrimaryItems,
+            mobileMoreItems: config.mobileMoreItems,
+            onSelect: (_) {},
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(config.mobileMoreItems.first.icon), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.close_rounded), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('mobile shell uses the compact branded header and quiet dock', (
@@ -156,13 +194,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(AppLogo), findsOneWidget);
-    final AppLogo mobileLogo = tester.widget<AppLogo>(find.byType(AppLogo));
-    expect(mobileLogo.markRounded, isFalse);
+    expect(find.byType(AppLogo), findsNothing);
+    expect(find.byType(AppWordmark), findsNothing);
+    final AppLogoMark mobileLogo = tester.widget<AppLogoMark>(
+      find.byType(AppLogoMark),
+    );
+    expect(mobileLogo.rounded, isFalse);
     expect(find.byTooltip('Search'), findsOneWidget);
     expect(find.byTooltip('Notifications'), findsOneWidget);
     expect(find.byTooltip('AI Assistant'), findsOneWidget);
     expect(find.byTooltip('Settings'), findsNothing);
+    expect(find.text('Profile'), findsOneWidget);
     expect(find.text('Settings'), findsNothing);
     expect(find.bySemanticsLabel('Settings'), findsOneWidget);
 
@@ -172,8 +214,45 @@ void main() {
     final Finder headerSurface = find.byKey(
       const ValueKey<String>('app-header-surface'),
     );
-    expect(tester.getTopLeft(headerSurface).dx, greaterThan(0));
-    expect(tester.getTopRight(headerSurface).dx, lessThan(390));
+    final Rect headerRect = tester.getRect(headerSurface);
+    expect(headerRect.left, closeTo(headerRect.top, 0.01));
+    expect(390 - headerRect.right, closeTo(headerRect.top, 0.01));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mobile shell background follows the active theme', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final RoleNavigationConfig config = RoleNavigationConfig.forRole(
+      UserRole.customer,
+    );
+    final UiTheme lightTheme = UiTheme.light();
+    await tester.pumpWidget(
+      UiApp(
+        theme: lightTheme,
+        builder: (BuildContext context) => MaterialApp(
+          theme: lightTheme.toThemeData(),
+          home: AppShell(
+            sections: config.sections,
+            selectedId: 'overview',
+            mobilePrimaryItems: config.mobilePrimaryItems,
+            mobileMoreItems: config.mobileMoreItems,
+            onSelect: (_) {},
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+
+    final ColoredBox background = tester.widget<ColoredBox>(
+      find.byKey(const ValueKey<String>('app-mobile-shell-background')),
+    );
+    expect(background.color, lightTheme.colors.background);
     expect(tester.takeException(), isNull);
   });
 
@@ -194,14 +273,140 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    final Finder header = find.byKey(
+      const ValueKey<String>('app-header-surface'),
+    );
+    final Rect initialHeaderRect = tester.getRect(header);
+    expect(
+      find.descendant(of: header, matching: find.text('Dashboard')),
+      findsOneWidget,
+    );
+    final Text dashboardTitle = tester.widget<Text>(
+      find.descendant(of: header, matching: find.text('Dashboard')),
+    );
+    expect(dashboardTitle.style?.color, UiTheme.dark().colors.foreground);
+    expect(dashboardTitle.style?.decoration, TextDecoration.none);
+    expect(
+      find.ancestor(of: header, matching: find.byType(PageView)),
+      findsNothing,
+    );
+
     await tester.tap(find.bySemanticsLabel('Journal'));
     await tester.pumpAndSettle();
-    expect(find.text('Trade Journal'), findsOneWidget);
+    expect(find.text('Trade Journal'), findsWidgets);
+    expect(
+      find.descendant(of: header, matching: find.text('Trade Journal')),
+      findsOneWidget,
+    );
+    expect(tester.getRect(header), initialHeaderRect);
 
     await tester.tap(find.bySemanticsLabel('Settings'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Account & Security'), findsOneWidget);
+    expect(
+      find.descendant(of: header, matching: find.text('Settings')),
+      findsOneWidget,
+    );
+    expect(tester.getRect(header), initialHeaderRect);
     expect(find.byType(QuietDockScaffold), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mobile settings content finishes above the floating dock', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      UiApp(
+        theme: UiTheme.dark(),
+        builder: (BuildContext context) =>
+            const MaterialApp(home: AppScaffold()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Settings'));
+    await tester.pumpAndSettle();
+
+    final Finder logout = find.text('Log Out of Account');
+    final Finder settingsScrollView = find.ancestor(
+      of: logout,
+      matching: find.byType(SingleChildScrollView),
+    );
+    await tester.drag(settingsScrollView, const Offset(0, -2400));
+    await tester.pumpAndSettle();
+
+    final Finder logoutRow = find.ancestor(
+      of: logout,
+      matching: find.byType(SettingsNavRow),
+    );
+    final Rect logoutRect = tester.getRect(logoutRow);
+    final Rect dockRect = tester.getRect(find.bySemanticsLabel('More tools'));
+    expect(logoutRect.bottom, lessThanOrEqualTo(dockRect.top));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mobile dock yields to the keyboard inset', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetViewInsets);
+
+    final RoleNavigationConfig config = RoleNavigationConfig.forRole(
+      UserRole.customer,
+    );
+    await tester.pumpWidget(
+      UiApp(
+        theme: UiTheme.dark(),
+        builder: (BuildContext context) => MaterialApp(
+          home: AppShell(
+            sections: config.sections,
+            selectedId: 'settings_profile',
+            mobilePrimaryItems: config.mobilePrimaryItems,
+            mobileMoreItems: config.mobileMoreItems,
+            onSelect: (_) {},
+            child: const UiPage(
+              child: Column(
+                children: <Widget>[
+                  SizedBox(height: 420),
+                  UiInput(hintText: 'Keyboard-safe input'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(QuietDock), findsOneWidget);
+
+    final Finder editable = find.byType(EditableText);
+    await tester.ensureVisible(editable);
+    await tester.showKeyboard(editable);
+    await tester.pump();
+    expect(tester.widget<EditableText>(editable).focusNode.hasFocus, isTrue);
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(QuietDock), findsOneWidget);
+    expect(tester.getSize(find.bySemanticsLabel('More tools')).height, 0);
+    expect(tester.widget<EditableText>(editable).focusNode.hasFocus, isTrue);
+    final MediaQueryData keyboardMediaQuery = MediaQuery.of(
+      tester.element(editable),
+    );
+    final double keyboardTop =
+        keyboardMediaQuery.size.height - keyboardMediaQuery.viewInsets.bottom;
+    expect(
+      tester.getRect(find.byType(SingleChildScrollView)).bottom,
+      lessThanOrEqualTo(keyboardTop),
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -367,6 +572,48 @@ void main() {
     );
 
     expect(tester.getSize(find.byType(UiToggleGroup<String>)).width, 390);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mobile setting cards keep switches compact and trailing', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      UiApp(
+        theme: UiTheme.dark(),
+        builder: (BuildContext context) => MaterialApp(
+          home: Scaffold(
+            body: AppSettingCard(
+              title: 'Trade Executions & Orders',
+              description:
+                  'Fills, partial fills, stop-loss triggers, and order cancellations.',
+              icon: Icons.receipt_long_outlined,
+              control: UiSwitch(value: true, onChanged: (_) {}),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final Rect cardRect = tester.getRect(find.byType(AppSettingCard));
+    final Rect switchRect = tester.getRect(find.byType(UiSwitch));
+    final Text title = tester.widget<Text>(
+      find.text('Trade Executions & Orders'),
+    );
+    final Icon icon = tester.widget<Icon>(
+      find.byIcon(Icons.receipt_long_outlined),
+    );
+
+    expect(cardRect.height, lessThan(140));
+    expect(switchRect.width, lessThan(60));
+    expect(switchRect.center.dx, greaterThan(cardRect.center.dx));
+    expect(title.style?.fontSize, lessThanOrEqualTo(13));
+    expect(icon.size, UiTheme.dark().sizes.iconXs);
     expect(tester.takeException(), isNull);
   });
 

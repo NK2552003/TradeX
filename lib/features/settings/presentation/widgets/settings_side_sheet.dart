@@ -35,9 +35,17 @@ Future<T?> showSettingsSideSheet<T>(
               : (screenWidth * desktopWidthRatio).clamp(560.0, 760.0);
 
           final double floatingInset = isMobile ? 0 : ctx.sp(theme.spacing.sm);
+          final double keyboardInset = MediaQuery.viewInsetsOf(ctx).bottom;
 
-          return Padding(
-            padding: EdgeInsets.all(floatingInset),
+          return AnimatedPadding(
+            duration: theme.motion.fast,
+            curve: theme.motion.curve,
+            padding: EdgeInsets.fromLTRB(
+              floatingInset,
+              floatingInset,
+              floatingInset,
+              floatingInset + keyboardInset,
+            ),
             child: Align(
               alignment: Alignment.centerRight,
               child: Material(

@@ -200,21 +200,25 @@ class _LoginPageState extends State<LoginPage> {
                                                       ),
                                                     ),
                                                     const AppLogoMark(size: 20),
-                                                    SizedBox(
-                                                      width: context.sp(
-                                                        theme.spacing.xs,
+                                                    if (!responsive
+                                                        .isMobile) ...[
+                                                      SizedBox(
+                                                        width: context.sp(
+                                                          theme.spacing.xs,
+                                                        ),
                                                       ),
-                                                    ),
-                                                    Text(
-                                                      'TradeX',
-                                                      style: context
-                                                          .uiText
-                                                          .bodyStrong
-                                                          .copyWith(
-                                                            fontSize: 16,
-                                                            letterSpacing: -0.2,
-                                                          ),
-                                                    ),
+                                                      Text(
+                                                        'TradeX',
+                                                        style: context
+                                                            .uiText
+                                                            .bodyStrong
+                                                            .copyWith(
+                                                              fontSize: 16,
+                                                              letterSpacing:
+                                                                  -0.2,
+                                                            ),
+                                                      ),
+                                                    ],
                                                   ],
                                                 ),
                                                 RoleSelectorTab(
@@ -313,7 +317,9 @@ class _LoginPageState extends State<LoginPage> {
                                                 onTap: widget
                                                     .onNavigateToForgotPassword,
                                                 child: Text(
-                                                  'Forgot your password?',
+                                                  responsive.isMobile
+                                                      ? 'Forgot?'
+                                                      : 'Forgot your password?',
                                                   style: context.uiText.caption
                                                       .copyWith(
                                                         color: colors.primary,
@@ -324,6 +330,7 @@ class _LoginPageState extends State<LoginPage> {
                                               ),
                                               child: UiPasswordField(
                                                 controller: _passwordController,
+                                                showStrength: false,
                                               ),
                                             ),
                                             SizedBox(

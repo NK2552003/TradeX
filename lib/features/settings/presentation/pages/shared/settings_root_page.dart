@@ -434,8 +434,15 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
     }
 
     // MOBILE / TABLET LAYOUT (Stacked Sections pushing Sub-pages tailored by role)
+    final double pagePadding = context.sp(theme.spacing.md);
     return SingleChildScrollView(
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+      padding: EdgeInsets.fromLTRB(
+        pagePadding,
+        pagePadding,
+        pagePadding,
+        pagePadding + MediaQuery.paddingOf(context).bottom,
+      ),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

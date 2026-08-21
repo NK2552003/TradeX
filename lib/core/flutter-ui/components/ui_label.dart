@@ -20,34 +20,36 @@ class UiLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    final Color color =
-        disabled ? theme.colors.disabledForeground : theme.colors.foreground;
+    final Color color = disabled
+        ? theme.colors.disabledForeground
+        : theme.colors.foreground;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Row(
-          children: <Widget>[
-            Flexible(
-              child: Text(
-                text,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.label.copyWith(color: color),
-              ),
-            ),
-            if (required)
-              Text(
-                ' *',
-                style: context.uiText.label
-                    .copyWith(color: theme.colors.destructive),
-              ),
-          ],
+        Text.rich(
+          TextSpan(
+            style: context.uiText.label.copyWith(color: color),
+            children: <InlineSpan>[
+              TextSpan(text: text),
+              if (required)
+                TextSpan(
+                  text: ' *',
+                  style: context.uiText.label.copyWith(
+                    color: theme.colors.destructive,
+                  ),
+                ),
+            ],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         if (helper != null) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.xxs)),
           Text(
             helper!,
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
         ],
       ],

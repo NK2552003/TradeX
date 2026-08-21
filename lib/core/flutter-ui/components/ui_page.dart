@@ -55,7 +55,13 @@ class UiPage extends StatelessWidget {
     return ColoredBox(
       color: theme.colors.background,
       child: SafeArea(
-        child: scrollable ? SingleChildScrollView(child: body) : body,
+        child: scrollable
+            ? SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                child: body,
+              )
+            : body,
       ),
     );
   }
