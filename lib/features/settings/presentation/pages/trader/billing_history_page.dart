@@ -134,7 +134,17 @@ class _BillingHistoryPageState extends State<BillingHistoryPage> {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final EdgeInsets padding = EdgeInsets.all(context.sp(theme.spacing.lg));
+    final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final bool isMobile = context.uiRes.isMobile;
+    final double bottomInset = isMobile
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        : context.sp(theme.spacing.lg);
+    final EdgeInsets padding = EdgeInsets.fromLTRB(
+      context.sp(theme.spacing.lg),
+      context.sp(theme.spacing.lg),
+      context.sp(theme.spacing.lg),
+      bottomInset,
+    );
 
     if (_loading) {
       return Padding(

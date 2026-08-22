@@ -301,33 +301,35 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
     final theme = context.ui;
     final colors = theme.colors;
     final responsive = context.uiRes;
+    final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final double bottomInset = responsive.isMobile
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        : context.sp(theme.spacing.xl);
+
     return Scaffold(
       backgroundColor: colors.background,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints viewportConstraints) {
-            return SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.symmetric(
-                horizontal: context.sp(
-                  responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
-                ),
-                vertical: context.sp(theme.spacing.xl),
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: viewportConstraints.maxHeight -
-                      context.sp(theme.spacing.xl) * 2,
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: context.sz(680)),
-                    child: const _ApplicationPageSkeleton(),
-                  ),
-                ),
-              ),
-            );
-          },
+        bottom: false,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(
+            context.sp(
+              responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
+            ),
+            context.sp(theme.spacing.md),
+            context.sp(
+              responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
+            ),
+            bottomInset,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: context.sz(680)),
+              child: const _ApplicationPageSkeleton(),
+            ),
+          ),
         ),
       ),
     );
@@ -351,162 +353,166 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
       _ => (Icons.fact_check_outlined, UiIntent.primary),
     };
 
+    final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final double bottomInset = responsive.isMobile
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        : context.sp(theme.spacing.xl);
+
     return Scaffold(
       backgroundColor: colors.background,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints viewportConstraints) {
-            return SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.symmetric(
-                horizontal: context.sp(
-                  responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
-                ),
-                vertical: context.sp(theme.spacing.xl),
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: (viewportConstraints.maxHeight -
-                          context.sp(theme.spacing.xl) * 2)
-                      .clamp(0.0, double.infinity),
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: context.sz(680)),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        UiCard(
-                          variant: UiCardVariant.surface,
-                          child: Padding(
-                            padding: EdgeInsets.all(
-                              context.sp(
-                                responsive.isMobile
-                                    ? theme.spacing.lg
-                                    : theme.spacing.xl,
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Unified Header inside Card: Back Button, Logo, TradeX & Step Badge
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
+        bottom: false,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(
+            context.sp(
+              responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
+            ),
+            context.sp(theme.spacing.md),
+            context.sp(
+              responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
+            ),
+            bottomInset,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: context.sz(680)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  UiCard(
+                    variant: UiCardVariant.surface,
+                    child: Padding(
+                      padding: EdgeInsets.all(
+                        context.sp(
+                          responsive.isMobile
+                              ? theme.spacing.md
+                              : theme.spacing.xl,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Unified Header inside Card: Back Button, Logo, TradeX & Step Badge
+                          Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Flexible(
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (widget.onCancel != null)
-                                            UiIconButton(
-                                              icon: Icons.arrow_back_rounded,
-                                              size: UiSize.sm,
-                                              tooltip: widget.isExistingCustomer
-                                                  ? 'Back to Workspace'
-                                                  : 'Back to Sign in',
-                                              onPressed: widget.onCancel,
-                                            ),
-                                          if (widget.onCancel != null)
-                                            SizedBox(
-                                              width: context.sp(theme.spacing.xs),
-                                            ),
-                                          const AppLogoMark(size: 20),
-                                          if (!responsive.isMobile) ...[
-                                            SizedBox(
-                                              width: context.sp(theme.spacing.xs),
-                                            ),
-                                            Text(
-                                              'TradeX',
-                                              style: context.uiText.bodyStrong
-                                                  .copyWith(
-                                                fontSize: 16,
-                                                letterSpacing: -0.2,
-                                              ),
-                                            ),
-                                          ],
-                                        ],
+                                    if (widget.onCancel != null)
+                                      UiIconButton(
+                                        icon: Icons.arrow_back_rounded,
+                                        size: UiSize.sm,
+                                        tooltip: widget.isExistingCustomer
+                                            ? 'Back to Workspace'
+                                            : 'Back to Sign in',
+                                        onPressed: widget.onCancel,
                                       ),
-                                    ),
-                                    UiBadge(
-                                      label: 'STEP ${_step + 1} OF 4',
-                                      intent: UiIntent.primary,
-                                      variant: UiBadgeVariant.soft,
-                                      size: UiSize.sm,
-                                    ),
+                                    if (widget.onCancel != null)
+                                      SizedBox(
+                                        width: context.sp(theme.spacing.xs),
+                                      ),
+                                    const AppLogoMark(size: 20),
+                                    if (!responsive.isMobile) ...[
+                                      SizedBox(
+                                        width: context.sp(theme.spacing.xs),
+                                      ),
+                                      Text(
+                                        'TradeX',
+                                        style: context.uiText.bodyStrong
+                                            .copyWith(
+                                          fontSize: 16,
+                                          letterSpacing: -0.2,
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
-                                if (!responsive.isMobile) ...[
-                                  SizedBox(
-                                    height: context.sp(theme.spacing.lg),
-                                  ),
-                                  UiStepper(
-                                    steps: const [
-                                      UiStepperStep(
-                                        title: 'Personal',
-                                        subtitle: 'Basic info',
-                                      ),
-                                      UiStepperStep(
-                                        title: 'Presence',
-                                        subtitle: 'Channels',
-                                      ),
-                                      UiStepperStep(
-                                        title: 'Payout',
-                                        subtitle: 'Bank details',
-                                      ),
-                                      UiStepperStep(
-                                        title: 'Review',
-                                        subtitle: 'Confirm',
-                                      ),
-                                    ],
-                                    currentIndex: _step.clamp(0, 3),
-                                  ),
-                                ] else ...[
-                                  SizedBox(
-                                    height: context.sp(theme.spacing.lg),
-                                  ),
-                                  // Minimal Modern Segmented Step Indicator inside card on mobile
-                                  Row(
-                                    children: [
-                                      for (int i = 0; i < 4; i++)
-                                        Expanded(
-                                          child: Container(
-                                            height: 3.5,
-                                            margin: EdgeInsets.only(
-                                              right: i < 3 ? 6.0 : 0.0,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(2),
-                                              color: i <= _step
-                                                  ? colors.primary
-                                                  : colors.borderStrong
-                                                      .withValues(
-                                                          alpha: 0.5),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                                SizedBox(height: context.sp(theme.spacing.xl)),
-                                AuthStepIcon(
-                                  icon: stepIcon,
-                                  intent: stepIntent,
+                              ),
+                              UiBadge(
+                                label: 'STEP ${_step + 1} OF 4',
+                                intent: UiIntent.primary,
+                                variant: UiBadgeVariant.soft,
+                                size: UiSize.sm,
+                              ),
+                            ],
+                          ),
+                          if (!responsive.isMobile) ...[
+                            SizedBox(
+                              height: context.sp(theme.spacing.lg),
+                            ),
+                            UiStepper(
+                              steps: const [
+                                UiStepperStep(
+                                  title: 'Personal',
+                                  subtitle: 'Basic info',
                                 ),
-                                SizedBox(height: context.sp(theme.spacing.md)),
-                                Text(
-                                  widget.isExistingCustomer
-                                      ? 'Add Affiliate Access'
-                                      : 'Complete Affiliate Application',
-                                  textAlign: TextAlign.center,
-                                  style: context.uiText.display.copyWith(
-                                    fontSize: 28.0,
-                                    fontWeight: FontWeight.w400,
-                                    letterSpacing: -0.5,
+                                UiStepperStep(
+                                  title: 'Presence',
+                                  subtitle: 'Channels',
+                                ),
+                                UiStepperStep(
+                                  title: 'Payout',
+                                  subtitle: 'Bank details',
+                                ),
+                                UiStepperStep(
+                                  title: 'Review',
+                                  subtitle: 'Confirm',
+                                ),
+                              ],
+                              currentIndex: _step.clamp(0, 3),
+                            ),
+                          ] else ...[
+                            SizedBox(
+                              height: context.sp(theme.spacing.md),
+                            ),
+                            // Minimal Modern Segmented Step Indicator inside card on mobile
+                            Row(
+                              children: [
+                                for (int i = 0; i < 4; i++)
+                                  Expanded(
+                                    child: Container(
+                                      height: 3.5,
+                                      margin: EdgeInsets.only(
+                                        right: i < 3 ? 6.0 : 0.0,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        borderRadius:
+                                            BorderRadius.circular(2),
+                                        color: i <= _step
+                                            ? colors.primary
+                                            : colors.borderStrong
+                                                .withValues(
+                                                    alpha: 0.5),
+                                      ),
+                                    ),
                                   ),
+                              ],
+                            ),
+                          ],
+                          SizedBox(height: context.sp(theme.spacing.lg)),
+                          AuthStepIcon(
+                            icon: stepIcon,
+                            intent: stepIntent,
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.sm)),
+                          Text(
+                            widget.isExistingCustomer
+                                ? 'Add Affiliate Access'
+                                : 'Complete Affiliate Application',
+                            textAlign: TextAlign.center,
+                            style: context.uiText.display.copyWith(
+                              fontSize: 28.0,
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: -0.5,
+                            ),
                           ),
                           SizedBox(height: context.sp(theme.spacing.xxs)),
                           Text(
@@ -517,7 +523,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                               fontSize: 13.5,
                             ),
                           ),
-                          SizedBox(height: context.sp(theme.spacing.lg)),
+                          SizedBox(height: context.sp(theme.spacing.md)),
                           if (_error != null) ...[
                             UiCallout(
                               title: 'Check this step',
@@ -548,7 +554,9 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                                     leadingIcon: Icons.arrow_back_rounded,
                                     variant: UiVariant.outline,
                                     intent: UiIntent.neutral,
-                                    size: UiSize.lg,
+                                    size: responsive.isMobile
+                                        ? UiSize.md
+                                        : UiSize.lg,
                                     onPressed: () => setState(() {
                                       _error = null;
                                       _step--;
@@ -562,14 +570,16 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                                   label: _step == 3
                                       ? (_submitting
                                           ? 'Submitting…'
-                                          : 'Submit for Review')
+                                          : 'Submit Application')
                                       : 'Continue',
                                   trailingIcon: _step == 3
                                       ? null
                                       : Icons.arrow_forward_rounded,
                                   variant: UiVariant.primary,
                                   intent: UiIntent.primary,
-                                  size: UiSize.lg,
+                                  size: responsive.isMobile
+                                      ? UiSize.md
+                                      : UiSize.lg,
                                   onPressed: _submitting
                                       ? null
                                       : (_step == 3 ? _submit : _next),
@@ -577,19 +587,20 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                               ),
                             ],
                           ),
-                          SizedBox(height: context.sp(theme.spacing.md)),
+                          SizedBox(height: context.sp(theme.spacing.sm)),
                           Text(
                             'Approval adds affiliate tools to your existing account. Your trading workspace and customer access remain unchanged.',
                             textAlign: TextAlign.center,
                             style: context.uiText.caption.copyWith(
                               color: theme.colors.foregroundSubtle,
+                              fontSize: 11.5,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  SizedBox(height: context.sp(theme.spacing.lg)),
+                  SizedBox(height: context.sp(theme.spacing.md)),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
@@ -612,16 +623,13 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                       ),
                     ],
                   ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
-  },
-),
-),
-);
   }
 
   Widget _buildPersonal(BuildContext context) {
@@ -1201,15 +1209,22 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
       () => setState(() => _step = 2),
     );
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(child: personalCard),
-        SizedBox(width: context.sp(theme.spacing.sm)),
-        Expanded(child: presenceCard),
-        SizedBox(width: context.sp(theme.spacing.sm)),
-        Expanded(child: payoutCard),
-      ],
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        if (constraints.maxWidth < 580) {
+          return _buildMobileReviewTiles(context);
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(child: personalCard),
+            SizedBox(width: context.sp(theme.spacing.sm)),
+            Expanded(child: presenceCard),
+            SizedBox(width: context.sp(theme.spacing.sm)),
+            Expanded(child: payoutCard),
+          ],
+        );
+      },
     );
   }
 
@@ -1280,30 +1295,35 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
     final theme = context.ui;
     final colors = theme.colors;
     final responsive = context.uiRes;
+    final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final double bottomInset = responsive.isMobile
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        : context.sp(theme.spacing.xl);
+
     return Scaffold(
       backgroundColor: colors.background,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints viewportConstraints) {
-            return SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.symmetric(
-                horizontal: context.sp(
-                  responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
-                ),
-                vertical: context.sp(theme.spacing.xl),
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: viewportConstraints.maxHeight -
-                      context.sp(theme.spacing.xl) * 2,
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: context.sz(680)),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
+        bottom: false,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(
+            context.sp(
+              responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
+            ),
+            context.sp(theme.spacing.md),
+            context.sp(
+              responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
+            ),
+            bottomInset,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: context.sz(680)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -1318,14 +1338,14 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                       ),
                     ],
                   ),
-                  SizedBox(height: context.sp(theme.spacing.xl)),
+                  SizedBox(height: context.sp(theme.spacing.lg)),
                   UiCard(
                     variant: UiCardVariant.surface,
                     child: Padding(
                       padding: EdgeInsets.all(
                         context.sp(
                           responsive.isMobile
-                              ? theme.spacing.lg
+                              ? theme.spacing.md
                               : theme.spacing.xl,
                         ),
                       ),
@@ -1357,7 +1377,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                               fontSize: 13.5,
                             ),
                           ),
-                          SizedBox(height: context.sp(theme.spacing.lg)),
+                          SizedBox(height: context.sp(theme.spacing.md)),
                           const UiCallout(
                             title: 'Awaiting administrator review',
                             message:
@@ -1370,23 +1390,25 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                             textAlign: TextAlign.center,
                             style: context.uiText.body.copyWith(
                               color: theme.colors.foregroundMuted,
-                              fontSize: 13.5,
+                              fontSize: 13.0,
                             ),
                           ),
-                          SizedBox(height: context.sp(theme.spacing.xl)),
+                          SizedBox(height: context.sp(theme.spacing.lg)),
                           UiButton(
                             label: 'Continue to TradeX',
                             trailingIcon: Icons.arrow_forward_rounded,
                             variant: UiVariant.primary,
                             intent: UiIntent.primary,
-                            size: UiSize.lg,
+                            size: responsive.isMobile
+                                ? UiSize.md
+                                : UiSize.lg,
                             onPressed: widget.onDone ?? widget.onCancel,
                           ),
                         ],
                       ),
                     ),
                   ),
-                  SizedBox(height: context.sp(theme.spacing.lg)),
+                  SizedBox(height: context.sp(theme.spacing.md)),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -1410,15 +1432,14 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
             ),
           ),
         ),
-      );
-    },
-  ),
-),
-);
+      ),
+    );
   }
 
   Widget _responsivePair(BuildContext context, Widget first, Widget second) {
-    if (context.uiRes.isMobile) {
+    final bool stack =
+        context.uiRes.isMobile || MediaQuery.sizeOf(context).width < 560;
+    if (stack) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[

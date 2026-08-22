@@ -69,7 +69,7 @@ class AppJournalFilterBlock extends StatelessWidget {
       children: <Widget>[
         Expanded(child: search),
         SizedBox(width: context.sp(theme.spacing.md)),
-        Flexible(child: filters),
+        filters,
         if (onOpenFilters != null) ...<Widget>[
           SizedBox(width: context.sp(theme.spacing.sm)),
           UiIconButton(

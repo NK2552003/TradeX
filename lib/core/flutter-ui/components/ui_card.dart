@@ -163,6 +163,7 @@ class _UiCardState extends State<UiCard> {
             child: widget.accentColor == null && widget.intent == null
                 ? _body(ctx, pad, f)
                 : Stack(
+                    fit: StackFit.passthrough,
                     children: <Widget>[
                       Padding(
                         padding: EdgeInsets.only(left: ctx.sz(3)),
@@ -192,73 +193,82 @@ class _UiCardState extends State<UiCard> {
         widget.leading != null ||
         widget.collapsible;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        if (widget.media != null) widget.media!,
-        Padding(
-          padding: pad,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              if (hasHeader)
-                _UiCardHeader(
-                  title: widget.title,
-                  titleWidget: widget.titleWidget,
-                  subtitle: widget.subtitle,
-                  leading: widget.leading,
-                  trailing: widget.trailing,
-                  collapsible: widget.collapsible,
-                  expanded: _expanded,
-                  onToggle: _toggle,
-                ),
-              if (hasHeader && widget.headerDivider) ...<Widget>[
-                SizedBox(height: ctx.sp(theme.spacing.md) * f),
-                Divider(
-                  height: theme.borders.hairline,
-                  color: theme.colors.border,
-                ),
-              ],
-              if (hasHeader) SizedBox(height: ctx.sp(theme.spacing.md) * f),
-              AnimatedCrossFade(
-                duration: theme.motion.normal,
-                sizeCurve: theme.motion.curve,
-                crossFadeState: _expanded
-                    ? CrossFadeState.showFirst
-                    : CrossFadeState.showSecond,
-                firstChild: SizedBox(
-                  width: double.infinity,
-                  child: widget.loading
-                      ? _LoadingBody(height: widget.loadingHeight)
-                      : widget.child,
-                ),
-                secondChild: const SizedBox(width: double.infinity),
+    final Widget content = widget.collapsible || widget.loading
+        ? AnimatedCrossFade(
+            duration: theme.motion.normal,
+            sizeCurve: theme.motion.curve,
+            crossFadeState: _expanded
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
+            firstChild: SizedBox(
+              width: double.infinity,
+              child: widget.loading
+                  ? _LoadingBody(height: widget.loadingHeight)
+                  : widget.child,
+            ),
+            secondChild: const SizedBox(width: double.infinity),
+          )
+        : widget.child;
+
+    if (!hasHeader &&
+        widget.media == null &&
+        (widget.actions == null || widget.actions!.isEmpty) &&
+        widget.footer == null) {
+      return Padding(
+        padding: pad,
+        child: content,
+      );
+    }
+
+    return Padding(
+      padding: pad,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (widget.media != null) widget.media!,
+          if (hasHeader) ...<Widget>[
+            _UiCardHeader(
+              title: widget.title,
+              titleWidget: widget.titleWidget,
+              subtitle: widget.subtitle,
+              leading: widget.leading,
+              trailing: widget.trailing,
+              collapsible: widget.collapsible,
+              expanded: _expanded,
+              onToggle: _toggle,
+            ),
+            if (widget.headerDivider) ...<Widget>[
+              SizedBox(height: ctx.sp(theme.spacing.md) * f),
+              Divider(
+                height: theme.borders.hairline,
+                color: theme.colors.border,
               ),
-              if (_expanded &&
-                  widget.actions != null &&
-                  widget.actions!.isNotEmpty) ...<Widget>[
-                SizedBox(height: ctx.sp(theme.spacing.md) * f),
-                Wrap(
-                  spacing: ctx.sp(theme.spacing.sm),
-                  runSpacing: ctx.sp(theme.spacing.sm),
-                  children: widget.actions!,
-                ),
-              ],
-              if (_expanded && widget.footer != null) ...<Widget>[
-                SizedBox(height: ctx.sp(theme.spacing.md) * f),
-                Divider(
-                  height: theme.borders.hairline,
-                  color: theme.colors.border,
-                ),
-                SizedBox(height: ctx.sp(theme.spacing.md) * f),
-                widget.footer!,
-              ],
             ],
-          ),
-        ),
-      ],
+            SizedBox(height: ctx.sp(theme.spacing.md) * f),
+          ],
+          content,
+          if (_expanded &&
+              widget.actions != null &&
+              widget.actions!.isNotEmpty) ...<Widget>[
+            SizedBox(height: ctx.sp(theme.spacing.md) * f),
+            Wrap(
+              spacing: ctx.sp(theme.spacing.sm),
+              runSpacing: ctx.sp(theme.spacing.sm),
+              children: widget.actions!,
+            ),
+          ],
+          if (_expanded && widget.footer != null) ...<Widget>[
+            SizedBox(height: ctx.sp(theme.spacing.md) * f),
+            Divider(
+              height: theme.borders.hairline,
+              color: theme.colors.border,
+            ),
+            SizedBox(height: ctx.sp(theme.spacing.md) * f),
+            widget.footer!,
+          ],
+        ],
+      ),
     );
   }
 

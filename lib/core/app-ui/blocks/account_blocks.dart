@@ -182,33 +182,94 @@ class AppPricingBlock extends StatelessWidget {
       children: <Widget>[
         Text(title, style: context.uiText.heading, textAlign: TextAlign.center),
         SizedBox(height: context.sp(theme.spacing.xl)),
-        if (context.uiRes.isMobile)
-          for (final AppPlan p in plans)
-            Padding(
-              padding: EdgeInsets.only(bottom: context.sp(theme.spacing.md)),
-              child: AppPlanCard(
-                plan: p,
-                onSelect: onSelect == null ? null : () => onSelect!(p),
-              ),
-            )
-        else
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              for (int i = 0; i < plans.length; i++) ...<Widget>[
-                Expanded(
-                  child: AppPlanCard(
-                    plan: plans[i],
-                    onSelect: onSelect == null
-                        ? null
-                        : () => onSelect!(plans[i]),
-                  ),
+        LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final double w = constraints.maxWidth;
+            final double gap = context.sp(theme.spacing.md);
+
+            if (w >= 780 && plans.length >= 3) {
+              // 3-column desktop layout with equal height cards
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    for (int i = 0; i < plans.length; i++) ...<Widget>[
+                      Expanded(
+                        child: AppPlanCard(
+                          plan: plans[i],
+                          fillHeight: true,
+                          onSelect: onSelect == null
+                              ? null
+                              : () => onSelect!(plans[i]),
+                        ),
+                      ),
+                      if (i != plans.length - 1)
+                        SizedBox(width: gap),
+                    ],
+                  ],
                 ),
-                if (i != plans.length - 1)
-                  SizedBox(width: context.sp(theme.spacing.lg)),
-              ],
-            ],
-          ),
+              );
+            } else if (w >= 560 && plans.length == 2) {
+              // 2-column layout with equal height cards
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    for (int i = 0; i < plans.length; i++) ...<Widget>[
+                      Expanded(
+                        child: AppPlanCard(
+                          plan: plans[i],
+                          fillHeight: true,
+                          onSelect: onSelect == null
+                              ? null
+                              : () => onSelect!(plans[i]),
+                        ),
+                      ),
+                      if (i != plans.length - 1)
+                        SizedBox(width: gap),
+                    ],
+                  ],
+                ),
+              );
+            } else if (w >= 600 && plans.length == 3) {
+              // 2-column auto-grid for 3 plans (top 2 + bottom 1 full width)
+              final double cardWidth = (w - gap) / 2;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: <Widget>[
+                  for (final AppPlan p in plans)
+                    SizedBox(
+                      width: p == plans.last ? w : cardWidth,
+                      child: AppPlanCard(
+                        plan: p,
+                        onSelect: onSelect == null ? null : () => onSelect!(p),
+                      ),
+                    ),
+                ],
+              );
+            } else {
+              // 1-column mobile / compact drawer layout
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  for (int i = 0; i < plans.length; i++)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: i == plans.length - 1 ? 0 : gap,
+                      ),
+                      child: AppPlanCard(
+                        plan: plans[i],
+                        onSelect: onSelect == null
+                            ? null
+                            : () => onSelect!(plans[i]),
+                      ),
+                    ),
+                ],
+              );
+            }
+          },
+        ),
       ],
     );
   }

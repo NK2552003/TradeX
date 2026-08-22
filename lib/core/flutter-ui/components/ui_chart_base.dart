@@ -169,15 +169,16 @@ class _UiChartState extends State<UiChart> {
     final List<int> shown = _visibleIdx;
     final bool axes = widget.showAxisLabels && !widget.minimal;
     final EdgeInsets pad = EdgeInsets.only(
-      left: axes ? context.sz(40) : 0,
+      left: axes ? context.sz(56) : 0,
       bottom: axes ? context.sz(22) : 0,
-      top: context.sz(4),
-      right: context.sz(4),
+      top: context.sz(6),
+      right: context.sz(6),
     );
     final UiValueFormatter fmt = widget.valueFormatter ?? uiCompactNumber;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         if (widget.showLegend && widget.series.length > 1) ...<Widget>[
           Wrap(

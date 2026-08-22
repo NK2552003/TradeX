@@ -54,8 +54,12 @@ class UiAreaChart extends StatelessWidget {
           (UiChartSeries s) => UiChartSeries(
             name: s.name,
             color: s.color,
-            type: UiChartSeriesType.area,
+            type: s.type,
             axis: s.axis,
+            lineGlow: s.lineGlow,
+            fillOpacity: s.fillOpacity,
+            gradientColors: s.gradientColors,
+            showDots: s.showDots,
           ),
         )
         .toList(),

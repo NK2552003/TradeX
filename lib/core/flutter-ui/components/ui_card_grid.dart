@@ -11,7 +11,7 @@ class UiCardGrid extends StatelessWidget {
     this.tabletColumns = 2,
     this.desktopColumns = 3,
     this.largeColumns = 4,
-    this.childAspectRatio = 1.6,
+    this.childAspectRatio = 1.95,
   });
 
   final List<Widget> children;
@@ -27,10 +27,12 @@ class UiCardGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         int cols;
-        if (constraints.maxWidth < 280) {
+        if (constraints.maxWidth < 360) {
           cols = 1;
-        } else if (constraints.maxWidth < 560) {
+        } else if (constraints.maxWidth < 640) {
           cols = 2;
+        } else if (constraints.maxWidth < 920) {
+          cols = desktopColumns.clamp(2, 3);
         } else {
           cols = context.uiRes.columns(
             mobile: mobileColumns,
@@ -39,7 +41,7 @@ class UiCardGrid extends StatelessWidget {
             large: largeColumns,
           );
         }
-        final double gap = context.sp(theme.spacing.lg);
+        final double gap = context.sp(theme.spacing.md);
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),

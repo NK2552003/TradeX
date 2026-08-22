@@ -294,9 +294,20 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
       (a) => a.provider == 'google',
     );
     final bool hasApple = _connectedAccounts.any((a) => a.provider == 'apple');
+    final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final bool isMobile = context.uiRes.isMobile;
+    final double bottomInset = isMobile
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(
-      padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+      padding: EdgeInsets.fromLTRB(
+        context.sp(theme.spacing.lg),
+        context.sp(theme.spacing.lg),
+        context.sp(theme.spacing.lg),
+        bottomInset,
+      ),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -311,39 +322,81 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                     'Your primary login credential and recipient for execution notifications.',
                 children: [
                   UiCard(
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.email_outlined,
-                          size: context.sz(20),
-                          color: colors.primary,
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    child: isMobile
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Text(
-                                'Primary Email',
-                                style: context.uiText.caption.copyWith(
-                                  color: colors.foregroundMuted,
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.email_outlined,
+                                    size: context.sz(20),
+                                    color: colors.primary,
+                                  ),
+                                  SizedBox(width: context.sp(theme.spacing.sm)),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Primary Email',
+                                          style:
+                                              context.uiText.caption.copyWith(
+                                            color: colors.foregroundMuted,
+                                          ),
+                                        ),
+                                        Text(
+                                          _currentEmail,
+                                          style: context.uiText.bodyStrong,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.md)),
+                              UiButton(
+                                label: 'Change Email',
+                                variant: UiVariant.outline,
+                                expand: true,
+                                onPressed: _showChangeEmailDialog,
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Icon(
+                                Icons.email_outlined,
+                                size: context.sz(20),
+                                color: colors.primary,
+                              ),
+                              SizedBox(width: context.sp(theme.spacing.md)),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Primary Email',
+                                      style: context.uiText.caption.copyWith(
+                                        color: colors.foregroundMuted,
+                                      ),
+                                    ),
+                                    Text(
+                                      _currentEmail,
+                                      style: context.uiText.bodyStrong,
+                                    ),
+                                  ],
                                 ),
                               ),
-                              Text(
-                                _currentEmail,
-                                style: context.uiText.bodyStrong,
+                              UiButton(
+                                label: 'Change Email',
+                                variant: UiVariant.outline,
+                                size: UiSize.sm,
+                                onPressed: _showChangeEmailDialog,
                               ),
                             ],
                           ),
-                        ),
-                        UiButton(
-                          label: 'Change Email',
-                          variant: UiVariant.outline,
-                          size: UiSize.sm,
-                          onPressed: _showChangeEmailDialog,
-                        ),
-                      ],
-                    ),
                   ),
                 ],
               ),
@@ -383,17 +436,26 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                           ),
                         ),
                         SizedBox(height: context.sp(theme.spacing.md)),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            UiButton(
-                              label: 'Update Password',
-                              intent: UiIntent.primary,
-                              loading: _changingPassword,
-                              onPressed: _handleChangePassword,
-                            ),
-                          ],
-                        ),
+                        if (isMobile)
+                          UiButton(
+                            label: 'Update Password',
+                            intent: UiIntent.primary,
+                            loading: _changingPassword,
+                            expand: true,
+                            onPressed: _handleChangePassword,
+                          )
+                        else
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              UiButton(
+                                label: 'Update Password',
+                                intent: UiIntent.primary,
+                                loading: _changingPassword,
+                                onPressed: _handleChangePassword,
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                   ),
@@ -461,49 +523,95 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                 children: [
                   UiCard(
                     accentColor: colors.bearish,
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.warning_amber_rounded,
-                          color: colors.bearish,
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    child: isMobile
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Text(
-                                'Delete Account',
-                                style: context.uiText.bodyStrong.copyWith(
-                                  color: colors.bearish,
-                                ),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: colors.bearish,
+                                  ),
+                                  SizedBox(width: context.sp(theme.spacing.sm)),
+                                  Expanded(
+                                    child: Text(
+                                      'Delete Account',
+                                      style: context.uiText.bodyStrong.copyWith(
+                                        color: colors.bearish,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
+                              SizedBox(height: context.sp(theme.spacing.xs)),
                               Text(
                                 'Permanently close your account, wipe all active API sessions, and schedule data deletion.',
                                 style: context.uiText.caption.copyWith(
                                   color: colors.foregroundMuted,
                                 ),
                               ),
+                              SizedBox(height: context.sp(theme.spacing.md)),
+                              UiButton(
+                                label: 'Delete Account',
+                                variant: UiVariant.soft,
+                                intent: UiIntent.danger,
+                                expand: true,
+                                onPressed: () {
+                                  showSettingsSideSheet(
+                                    context,
+                                    title: 'Delete Trader Account',
+                                    subtitle:
+                                        'Permanent account deletion and data wiping',
+                                    child: DeleteAccountPage(repository: _repo),
+                                  );
+                                },
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                color: colors.bearish,
+                              ),
+                              SizedBox(width: context.sp(theme.spacing.md)),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Delete Account',
+                                      style: context.uiText.bodyStrong.copyWith(
+                                        color: colors.bearish,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Permanently close your account, wipe all active API sessions, and schedule data deletion.',
+                                      style: context.uiText.caption.copyWith(
+                                        color: colors.foregroundMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              UiButton(
+                                label: 'Delete Account',
+                                variant: UiVariant.soft,
+                                intent: UiIntent.danger,
+                                size: UiSize.sm,
+                                onPressed: () {
+                                  showSettingsSideSheet(
+                                    context,
+                                    title: 'Delete Trader Account',
+                                    subtitle:
+                                        'Permanent account deletion and data wiping',
+                                    child: DeleteAccountPage(repository: _repo),
+                                  );
+                                },
+                              ),
                             ],
                           ),
-                        ),
-                        UiButton(
-                          label: 'Delete Account',
-                          variant: UiVariant.soft,
-                          intent: UiIntent.danger,
-                          size: UiSize.sm,
-                          onPressed: () {
-                            showSettingsSideSheet(
-                              context,
-                              title: 'Delete Trader Account',
-                              subtitle:
-                                  'Permanent account deletion and data wiping',
-                              child: DeleteAccountPage(repository: _repo),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
                   ),
                 ],
               ),

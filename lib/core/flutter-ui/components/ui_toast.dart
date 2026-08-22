@@ -145,10 +145,11 @@ class UiToast extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final colors = theme.colors;
+    final bool mobile = context.uiRes.isMobile;
     final Color accent = data.intent.color(context);
     final IconData icon = _resolveIcon(data.intent);
 
-    return Material(
+    Widget toastBody = Material(
       type: MaterialType.transparency,
       child: DefaultTextStyle(
         style: TextStyle(
@@ -157,7 +158,7 @@ class UiToast extends StatelessWidget {
         ),
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            minWidth: context.sz(320),
+            minWidth: mobile ? 0 : context.sz(320),
             maxWidth: context.sz(420),
           ),
           child: Container(
@@ -264,27 +265,39 @@ class UiToast extends StatelessWidget {
                   ),
                 ],
 
-                // Close Button
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                GestureDetector(
-                  onTap: onDismiss,
-                  behavior: HitTestBehavior.opaque,
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      top: context.sp(theme.spacing.xxs),
-                    ),
-                    child: Icon(
-                      Icons.close_rounded,
-                      size: context.sz(14),
-                      color: colors.foregroundSubtle,
+                // Close Button (desktop only)
+                if (!mobile) ...<Widget>[
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  GestureDetector(
+                    onTap: onDismiss,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        top: context.sp(theme.spacing.xxs),
+                      ),
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: context.sz(14),
+                        color: colors.foregroundSubtle,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
         ),
       ),
     );
+
+    if (mobile) {
+      toastBody = GestureDetector(
+        onTap: onDismiss,
+        behavior: HitTestBehavior.opaque,
+        child: toastBody,
+      );
+    }
+
+    return toastBody;
   }
 }

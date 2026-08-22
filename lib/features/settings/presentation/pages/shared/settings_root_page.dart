@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
@@ -28,6 +29,7 @@ class SettingsRootPage extends StatefulWidget {
     this.onSubscriptionTierChanged,
     this.subscriptionTier = AppTier.free,
     this.onApplyForAffiliate,
+    this.onSubpageChanged,
   });
 
   final UserRole userRole;
@@ -37,6 +39,8 @@ class SettingsRootPage extends StatefulWidget {
   final ValueChanged<AppTier>? onSubscriptionTierChanged;
   final AppTier subscriptionTier;
   final VoidCallback? onApplyForAffiliate;
+  final void Function(String? title, IconData? icon, VoidCallback? onBack)?
+  onSubpageChanged;
 
   @override
   State<SettingsRootPage> createState() => _SettingsRootPageState();
@@ -44,6 +48,7 @@ class SettingsRootPage extends StatefulWidget {
 
 class _SettingsRootPageState extends State<SettingsRootPage> {
   late String _selectedSectionId;
+  ({String title, Widget page, IconData icon})? _activeMobileSubpage;
 
   @override
   void initState() {
@@ -58,6 +63,10 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
         (widget.initialSectionId != null &&
             widget.initialSectionId != oldWidget.initialSectionId)) {
       _selectedSectionId = widget.initialSectionId ?? 'profile';
+      if (_activeMobileSubpage != null) {
+        _activeMobileSubpage = null;
+        widget.onSubpageChanged?.call(null, null, null);
+      }
     }
   }
 
@@ -113,8 +122,22 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
     };
   }
 
-  void _navigateToSubpage(Widget page, String title) {
-    showSettingsSideSheet(context, title: title, child: page);
+  void _navigateToSubpage(Widget page, String title, IconData icon) {
+    if (context.uiRes.isMobile) {
+      void onBack() {
+        if (mounted) {
+          setState(() => _activeMobileSubpage = null);
+        }
+        widget.onSubpageChanged?.call(null, null, null);
+      }
+
+      setState(() {
+        _activeMobileSubpage = (title: title, page: page, icon: icon);
+      });
+      widget.onSubpageChanged?.call(title, icon, onBack);
+    } else {
+      showSettingsSideSheet(context, title: title, child: page);
+    }
   }
 
   List<Map<String, dynamic>> _getSectionsForRole() {
@@ -296,14 +319,41 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
       return _buildDetailPane(_selectedSectionId);
     }
 
+    if (isMobile) {
+      return PageTransitionSwitcher(
+        duration: const Duration(milliseconds: 240),
+        reverse: _activeMobileSubpage == null,
+        layoutBuilder: (List<Widget> entries) => Stack(
+          alignment: Alignment.topLeft,
+          children: entries,
+        ),
+        transitionBuilder: (
+          Widget child,
+          Animation<double> primaryAnimation,
+          Animation<double> secondaryAnimation,
+        ) {
+          return SharedAxisTransition(
+            animation: primaryAnimation,
+            secondaryAnimation: secondaryAnimation,
+            transitionType: SharedAxisTransitionType.horizontal,
+            fillColor: theme.colors.background,
+            child: child,
+          );
+        },
+        child: KeyedSubtree(
+          key: ValueKey<String>(_activeMobileSubpage?.title ?? 'overview'),
+          child: _activeMobileSubpage?.page ?? _buildSettingsOverview(context),
+        ),
+      );
+    }
+
     // Tablet and desktop keep settings navigation visible beside the detail.
-    if (!isMobile) {
-      return Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: context.sz(1120)),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: context.sz(1120)),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
               // In-Page Navigation Pane (~240px)
               SizedBox(
                 width: context.uiRes.isTablet
@@ -430,9 +480,11 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
           ),
         ),
       );
-    }
+  }
 
-    // MOBILE / TABLET LAYOUT (Stacked Sections pushing Sub-pages tailored by role)
+  Widget _buildSettingsOverview(BuildContext context) {
+    final theme = context.ui;
+    final isMobile = context.uiRes.isMobile;
     final double pagePadding = context.sp(theme.spacing.md);
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
@@ -463,7 +515,12 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                 icon: Icons.person_outline_rounded,
                 onTap: () => _navigateToSubpage(
                   ProfileSettingsPage(userRole: widget.userRole),
-                  'Profile',
+                  widget.userRole == UserRole.customer
+                      ? 'Personal Profile'
+                      : (widget.userRole == UserRole.affiliate
+                            ? 'Partner Identity'
+                            : 'Admin Profile'),
+                  Icons.person_outline_rounded,
                 ),
               ),
               SettingsNavRow(
@@ -473,6 +530,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                 onTap: () => _navigateToSubpage(
                   const AccountSecurityPage(),
                   'Email & Security',
+                  Icons.lock_outline_rounded,
                 ),
               ),
             ],
@@ -493,6 +551,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                   onTap: () => _navigateToSubpage(
                     const AffiliateSettingsPage(),
                     'Affiliate & Payouts',
+                    Icons.handshake_outlined,
                   ),
                 ),
               ],
@@ -511,13 +570,18 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                   onTap: () => _navigateToSubpage(
                     TraderAffiliatePerksPage(
                       onUpgradeToAffiliate: () {
-                        Navigator.of(context).pop();
+                        if (!isMobile) {
+                          Navigator.of(context).pop();
+                        } else {
+                          setState(() => _activeMobileSubpage = null);
+                        }
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           widget.onApplyForAffiliate?.call();
                         });
                       },
                     ),
                     'TradeX Affiliate Program',
+                    Icons.handshake_outlined,
                   ),
                 ),
               ],
@@ -535,6 +599,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                   onTap: () => _navigateToSubpage(
                     const OrganizationSettingsPage(),
                     'Organization Settings',
+                    Icons.corporate_fare_rounded,
                   ),
                 ),
                 SettingsNavRow(
@@ -545,6 +610,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                   onTap: () => _navigateToSubpage(
                     const DeskRiskPage(),
                     'Desk Risk Policies',
+                    Icons.shield_outlined,
                   ),
                 ),
               ],
@@ -565,6 +631,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                   onTap: () => _navigateToSubpage(
                     const TradingPreferencesPage(),
                     'Personal Trading Rules',
+                    Icons.candlestick_chart_outlined,
                   ),
                 ),
               SettingsNavRow(
@@ -576,6 +643,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                 onTap: () => _navigateToSubpage(
                   const NotificationsSettingsPage(),
                   'Notifications',
+                  Icons.notifications_none_rounded,
                 ),
               ),
               SettingsNavRow(
@@ -585,6 +653,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                 onTap: () => _navigateToSubpage(
                   const PrivacySettingsPage(),
                   'Privacy & Data',
+                  Icons.security_rounded,
                 ),
               ),
               SettingsNavRow(
@@ -593,7 +662,8 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                 icon: Icons.palette_outlined,
                 onTap: () => _navigateToSubpage(
                   const AppearanceSettingsPage(),
-                  'Appearance',
+                  'Appearance & Charts',
+                  Icons.palette_outlined,
                 ),
               ),
             ],
@@ -620,6 +690,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                           widget.onSubscriptionTierChanged,
                     ),
                     'Subscription & Billing',
+                    Icons.credit_card_outlined,
                   ),
                 ),
               ],
@@ -635,8 +706,11 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                 title: 'Help, Support & Changelog',
                 subtitle: 'Desk ticketing, release notes, terms & privacy',
                 icon: Icons.help_outline_rounded,
-                onTap: () =>
-                    _navigateToSubpage(const HelpAboutPage(), 'Help & Support'),
+                onTap: () => _navigateToSubpage(
+                  const HelpAboutPage(),
+                  'Help & Support',
+                  Icons.help_outline_rounded,
+                ),
               ),
             ],
           ),

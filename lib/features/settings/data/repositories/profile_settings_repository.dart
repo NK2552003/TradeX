@@ -16,6 +16,12 @@ abstract class ProfileSettingsRepository {
     String? bio,
     String? experienceLevel,
     String? tradingStyle,
+    String? location,
+    String? website,
+    String? avgHoldDuration,
+    String? primaryMarket,
+    String? topStrategy,
+    String? riskMantra,
     bool? publicStatsEnabled,
   });
   Future<String> uploadAvatar(Uint8List imageBytes, String contentType);
@@ -45,6 +51,12 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     avatarUrl: null,
     experienceLevel: 'Advanced (3-5 years)',
     tradingStyle: 'Swing Trading',
+    location: 'Mumbai, IN',
+    website: 'tradex.io/@nitish_trader',
+    avgHoldDuration: '45 mins',
+    primaryMarket: 'Equities & Index Options',
+    topStrategy: 'ORB Breakout',
+    riskMantra: 'Focus on risk management over FOMO',
     publicJournals: true,
     createdAt: DateTime.now().subtract(const Duration(days: 180)),
   );
@@ -82,6 +94,12 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     String? bio,
     String? experienceLevel,
     String? tradingStyle,
+    String? location,
+    String? website,
+    String? avgHoldDuration,
+    String? primaryMarket,
+    String? topStrategy,
+    String? riskMantra,
     bool? publicStatsEnabled,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 500));
@@ -90,6 +108,12 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       bio: bio,
       experienceLevel: experienceLevel,
       tradingStyle: tradingStyle,
+      location: location,
+      website: website,
+      avgHoldDuration: avgHoldDuration,
+      primaryMarket: primaryMarket,
+      topStrategy: topStrategy,
+      riskMantra: riskMantra,
       publicJournals: publicStatsEnabled,
     );
     return _profile;

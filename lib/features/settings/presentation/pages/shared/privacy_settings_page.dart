@@ -199,9 +199,20 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
         ),
       );
     }
+    final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final bool isMobile = context.uiRes.isMobile;
+    final double bottomInset = isMobile
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(
-      padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+      padding: EdgeInsets.fromLTRB(
+        context.sp(theme.spacing.lg),
+        context.sp(theme.spacing.lg),
+        context.sp(theme.spacing.lg),
+        bottomInset,
+      ),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(

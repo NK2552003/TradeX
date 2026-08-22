@@ -8,11 +8,13 @@ import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/navigation/role_navigation_config.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/settings/presentation/pages/shared/account_security_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/help_about_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/appearance_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/profile_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
 import 'package:tradex/features/settings/presentation/pages/trader/change_plan_page.dart';
+import 'package:tradex/features/settings/presentation/pages/trader/trader_affiliate_perks_page.dart';
 import 'package:tradex/features/settings/data/repositories/billing_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
@@ -618,7 +620,7 @@ void main() {
     expect(switchRect.width, lessThan(60));
     expect(switchRect.center.dx, greaterThan(cardRect.center.dx));
     expect(title.style?.fontSize, lessThanOrEqualTo(13));
-    expect(icon.size, UiTheme.dark().sizes.iconXs);
+    expect(icon.size, UiTheme.dark().sizes.iconSm);
     expect(tester.takeException(), isNull);
   });
 
@@ -852,6 +854,7 @@ void main() {
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
 
     expect(find.text('Journal & Profile Visibility'), findsOneWidget);
@@ -877,11 +880,12 @@ void main() {
     );
 
     await pumpTier(AppTier.free);
+    await tester.pump(const Duration(seconds: 1));
     expect(find.text('TradeX Basic'), findsOneWidget);
     expect(find.text('Basic Plan'), findsOneWidget);
 
     await pumpTier(AppTier.premium);
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
     expect(find.text('TradeX Pro'), findsOneWidget);
     expect(find.text('Pro Plan'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -981,4 +985,207 @@ void main() {
     expect(headerRight, closeTo(contentRight, 0.01));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'TraderAffiliatePerksPage renders without overflow on narrow 289px container and mobile viewport',
+    (WidgetTester tester) async {
+      // Test at tight 289px width
+      tester.view.physicalSize = const Size(289, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        UiApp(
+          theme: UiTheme.dark(),
+          builder: (BuildContext context) =>
+              const MaterialApp(home: Scaffold(body: TraderAffiliatePerksPage())),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+
+      expect(find.text('TradeX Partner & Affiliate Program'), findsOneWidget);
+      expect(find.text('30% REVSHARE'), findsOneWidget);
+      expect(find.text('Estimated Earnings Calculator'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'AppearanceSettingsPage mobile cards render full width controls and dock clearance',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final AppThemeController controller = AppThemeController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        AppThemeScope(
+          controller: controller,
+          child: UiApp(
+            theme: UiTheme.dark(),
+            builder: (BuildContext context) => const MaterialApp(
+              home: Scaffold(body: AppearanceSettingsPage()),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+
+      expect(find.text('Interface Theme'), findsOneWidget);
+      expect(find.text('Color Theme Mode'), findsOneWidget);
+      expect(find.text('Default Financial Chart Settings'), findsOneWidget);
+      expect(find.text('Primary Chart Type'), findsOneWidget);
+
+      final SingleChildScrollView scrollView = tester.widget<SingleChildScrollView>(
+        find.byType(SingleChildScrollView),
+      );
+      final EdgeInsets padding = scrollView.padding! as EdgeInsets;
+      expect(padding.bottom, greaterThanOrEqualTo(100.0));
+
+      final selectFinder = find.byType(UiSelect<String>).first;
+      final selectWidth = tester.getSize(selectFinder).width;
+      expect(selectWidth, greaterThan(300.0));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'mobile settings subpage drill-in renders inside container with back navigation',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final AppThemeController controller = AppThemeController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        AppThemeScope(
+          controller: controller,
+          child: UiApp(
+            theme: UiTheme.dark(),
+            builder: (BuildContext context) => const MaterialApp(
+              home: AppScaffold(
+                userRole: UserRole.customer,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      // Go to Settings tab
+      await tester.tap(find.bySemanticsLabel('Settings'));
+      await tester.pumpAndSettle();
+
+      // In settings overview, tap Personal Profile
+      expect(find.text('Personal Profile'), findsOneWidget);
+      await tester.tap(find.text('Personal Profile'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      // Verify that Profile subpage is rendered with top header back button and icon
+      expect(find.byTooltip('Back'), findsOneWidget);
+      expect(find.byIcon(Icons.person_outline_rounded), findsWidgets);
+      expect(find.text('Personal Profile'), findsWidgets);
+
+      // Verify top header back button returns to settings overview
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Personal Profile'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('mobile toast notifications float snugly above the quiet dock without close icon', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      UiApp(
+        theme: UiTheme.dark(),
+        builder: (BuildContext context) => MaterialApp(
+          home: UiToastScope(
+            child: Builder(
+              builder: (BuildContext ctx) => Scaffold(
+                body: UiButton(
+                  label: 'Show Toast',
+                  onPressed: () => UiToast.success(
+                    ctx,
+                    title: 'Trade Executed',
+                    message: 'Bought 10 AAPL @ \$220.00',
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Show Toast'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Trade Executed'), findsOneWidget);
+    // Mobile toast should not render the cross / close button
+    expect(find.byIcon(Icons.close_rounded), findsNothing);
+
+    final Rect toastRect = tester.getRect(find.byType(UiToast));
+    // Toast bottom sits snugly right above dock (844 - 76 = 768)
+    expect(toastRect.bottom, lessThanOrEqualTo(844 - 76.0));
+
+    // Tap on mobile toast should dismiss it
+    await tester.tap(find.byType(UiToast));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Trade Executed'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'AccountSecurityPage renders on mobile without unconstrained button errors',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        UiApp(
+          theme: UiTheme.dark(),
+          builder: (BuildContext context) => const MaterialApp(
+            home: Scaffold(
+              body: AccountSecurityPage(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Account Email'), findsOneWidget);
+      expect(find.text('Change Password'), findsOneWidget);
+      expect(find.text('Update Password'), findsOneWidget);
+      expect(find.text('Connected Accounts'), findsOneWidget);
+      expect(find.text('Delete Account'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

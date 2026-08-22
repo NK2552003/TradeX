@@ -121,4 +121,43 @@ void main() {
       expect(find.text('Review'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'mobile affiliate application applies dock clearance and handles keyboard inset without overflow',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        UiApp(
+          theme: UiTheme.dark(),
+          builder: (BuildContext context) => const MaterialApp(
+            home: AffiliateApplicationPage(
+              userId: 'test_user',
+              email: 'test@tradex.test',
+              displayName: 'Test User',
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 180));
+      await tester.pump();
+
+      // Check SingleChildScrollView has generous dock clearance padding
+      final SingleChildScrollView scrollView = tester.widget<SingleChildScrollView>(
+        find.byType(SingleChildScrollView),
+      );
+      final EdgeInsets padding = scrollView.padding as EdgeInsets;
+      expect(padding.bottom, greaterThanOrEqualTo(100.0));
+
+      // Simulate keyboard appearing
+      tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+      await tester.pump();
+
+      // Ensure no exceptions or overflows
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

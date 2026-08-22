@@ -39,8 +39,20 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
     final theme = context.ui;
     final colors = theme.colors;
 
+    final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final responsive = context.uiRes;
+    final double bottomInset = responsive.isMobile
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        : context.sp(theme.spacing.lg);
+
     return SingleChildScrollView(
-      padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: EdgeInsets.fromLTRB(
+        context.sp(responsive.isMobile ? theme.spacing.sm : theme.spacing.lg),
+        context.sp(responsive.isMobile ? theme.spacing.sm : theme.spacing.lg),
+        context.sp(responsive.isMobile ? theme.spacing.sm : theme.spacing.lg),
+        bottomInset,
+      ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 860),
@@ -51,14 +63,68 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
               UiCard(
                 accentColor: colors.warning,
                 child: Padding(
-                  padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+                  padding: EdgeInsets.all(
+                    context.sp(
+                      responsive.isMobile
+                          ? theme.spacing.md
+                          : theme.spacing.lg,
+                    ),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
+                      LayoutBuilder(
+                        builder: (context, headerConstraints) {
+                          final isNarrow = headerConstraints.maxWidth < 480;
+                          if (isNarrow) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      padding: EdgeInsets.all(
+                                        context.sp(theme.spacing.sm),
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: colors.warning
+                                            .withValues(alpha: 0.15),
+                                        borderRadius:
+                                            context.radius(theme.radii.md),
+                                      ),
+                                      child: Icon(
+                                        Icons.handshake_outlined,
+                                        color: colors.warning,
+                                        size: context.sz(24),
+                                      ),
+                                    ),
+                                    const UiBadge(
+                                      label: '30% REVSHARE',
+                                      intent: UiIntent.warning,
+                                      size: UiSize.sm,
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: context.sp(theme.spacing.sm)),
+                                Text(
+                                  'TradeX Partner & Affiliate Program',
+                                  style: context.uiText.heading,
+                                ),
+                                SizedBox(height: context.sp(theme.spacing.xxs)),
+                                Text(
+                                  'Monetize your trading edge & community',
+                                  style: context.uiText.caption.copyWith(
+                                    color: colors.foregroundMuted,
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Container(
                                 padding: EdgeInsets.all(
@@ -75,29 +141,32 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                                 ),
                               ),
                               SizedBox(width: context.sp(theme.spacing.md)),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'TradeX Partner & Affiliate Program',
-                                    style: context.uiText.heading,
-                                  ),
-                                  Text(
-                                    'Monetize your trading edge & community',
-                                    style: context.uiText.caption.copyWith(
-                                      color: colors.foregroundMuted,
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'TradeX Partner & Affiliate Program',
+                                      style: context.uiText.heading,
                                     ),
-                                  ),
-                                ],
+                                    Text(
+                                      'Monetize your trading edge & community',
+                                      style: context.uiText.caption.copyWith(
+                                        color: colors.foregroundMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: context.sp(theme.spacing.sm)),
+                              const UiBadge(
+                                label: '30% REVSHARE',
+                                intent: UiIntent.warning,
+                                size: UiSize.sm,
                               ),
                             ],
-                          ),
-                          const UiBadge(
-                            label: '30% REVSHARE',
-                            intent: UiIntent.warning,
-                            size: UiSize.sm,
-                          ),
-                        ],
+                          );
+                        },
                       ),
                       SizedBox(height: context.sp(theme.spacing.md)),
                       Text(
@@ -117,7 +186,13 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
               // Your Personal Referral Link Box
               UiCard(
                 child: Padding(
-                  padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+                  padding: EdgeInsets.all(
+                    context.sp(
+                      responsive.isMobile
+                          ? theme.spacing.md
+                          : theme.spacing.lg,
+                    ),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -265,12 +340,21 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
               // Interactive Commission Calculator Card
               UiCard(
                 child: Padding(
-                  padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+                  padding: EdgeInsets.all(
+                    context.sp(
+                      responsive.isMobile
+                          ? theme.spacing.md
+                          : theme.spacing.lg,
+                    ),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Wrap(
+                        spacing: context.sp(theme.spacing.sm),
+                        runSpacing: context.sp(theme.spacing.xs),
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        alignment: WrapAlignment.spaceBetween,
                         children: [
                           Text(
                             'Estimated Earnings Calculator',
@@ -299,78 +383,94 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       SizedBox(height: context.sp(theme.spacing.lg)),
 
                       // Earnings Display Cards
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              padding: EdgeInsets.all(
-                                context.sp(theme.spacing.md),
-                              ),
-                              decoration: BoxDecoration(
-                                color: colors.surfaceHover,
-                                borderRadius: context.radius(theme.radii.md),
-                                border: Border.all(color: colors.border),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Monthly Recurring Revenue',
-                                    style: context.uiText.caption.copyWith(
-                                      color: colors.foregroundMuted,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    height: context.sp(theme.spacing.xxs),
-                                  ),
-                                  Text(
-                                    '₹${_monthlyEarnings.toStringAsFixed(0)} / mo',
-                                    style: context.uiText.heading.copyWith(
-                                      color: colors.warning,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                      LayoutBuilder(
+                        builder: (context, earningsConstraints) {
+                          final isNarrow = earningsConstraints.maxWidth < 460;
+                          final monthlyCard = Container(
+                            padding: EdgeInsets.all(
+                              context.sp(theme.spacing.md),
                             ),
-                          ),
-                          SizedBox(width: context.sp(theme.spacing.md)),
-                          Expanded(
-                            child: Container(
-                              padding: EdgeInsets.all(
-                                context.sp(theme.spacing.md),
-                              ),
-                              decoration: BoxDecoration(
-                                color: colors.surfaceHover,
-                                borderRadius: context.radius(theme.radii.md),
-                                border: Border.all(color: colors.border),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Annual Passive Income',
-                                    style: context.uiText.caption.copyWith(
-                                      color: colors.foregroundMuted,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    height: context.sp(theme.spacing.xxs),
-                                  ),
-                                  Text(
-                                    '₹${_annualEarnings.toStringAsFixed(0)} / yr',
-                                    style: context.uiText.heading.copyWith(
-                                      color: colors.bullish,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            decoration: BoxDecoration(
+                              color: colors.surfaceHover,
+                              borderRadius: context.radius(theme.radii.md),
+                              border: Border.all(color: colors.border),
                             ),
-                          ),
-                        ],
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Monthly Recurring Revenue',
+                                  style: context.uiText.caption.copyWith(
+                                    color: colors.foregroundMuted,
+                                  ),
+                                ),
+                                SizedBox(
+                                  height: context.sp(theme.spacing.xxs),
+                                ),
+                                Text(
+                                  '₹${_monthlyEarnings.toStringAsFixed(0)} / mo',
+                                  style: context.uiText.heading.copyWith(
+                                    color: colors.warning,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          final annualCard = Container(
+                            padding: EdgeInsets.all(
+                              context.sp(theme.spacing.md),
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.surfaceHover,
+                              borderRadius: context.radius(theme.radii.md),
+                              border: Border.all(color: colors.border),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Annual Passive Income',
+                                  style: context.uiText.caption.copyWith(
+                                    color: colors.foregroundMuted,
+                                  ),
+                                ),
+                                SizedBox(
+                                  height: context.sp(theme.spacing.xxs),
+                                ),
+                                Text(
+                                  '₹${_annualEarnings.toStringAsFixed(0)} / yr',
+                                  style: context.uiText.heading.copyWith(
+                                    color: colors.bullish,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (isNarrow) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                monthlyCard,
+                                SizedBox(height: context.sp(theme.spacing.sm)),
+                                annualCard,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              Expanded(child: monthlyCard),
+                              SizedBox(width: context.sp(theme.spacing.md)),
+                              Expanded(child: annualCard),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -422,8 +522,11 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
     required String description,
     required String badge,
   }) {
+    final responsive = context.uiRes;
     return Container(
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+      padding: EdgeInsets.all(
+        context.sp(responsive.isMobile ? theme.spacing.sm : theme.spacing.md),
+      ),
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: context.radius(theme.radii.md),
@@ -435,12 +538,21 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: colors.warning, size: context.sz(22)),
+              Icon(
+                icon,
+                color: colors.warning,
+                size: context.sz(responsive.isMobile ? 18 : 22),
+              ),
               UiBadge(label: badge, intent: UiIntent.warning, size: UiSize.xs),
             ],
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
-          Text(title, style: context.uiText.bodyStrong),
+          Text(
+            title,
+            style: context.uiText.bodyStrong,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
           SizedBox(height: context.sp(theme.spacing.xxs)),
           Text(
             description,

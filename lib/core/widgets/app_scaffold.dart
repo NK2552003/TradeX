@@ -12,28 +12,10 @@ import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_m
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_overview_page.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_payouts_page.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart';
-import 'package:tradex/features/ai_assistant/data/repositories/ai_assistant_repository.dart';
-import 'package:tradex/features/ai_assistant/presentation/pages/ai_copilot_page.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
-import 'package:tradex/features/community/presentation/pages/community_page.dart';
-import 'package:tradex/features/dashboard/presentation/pages/trader_overview_page.dart';
-import 'package:tradex/features/enterprise/presentation/pages/desk_analytics_page.dart';
-import 'package:tradex/features/enterprise/presentation/pages/desk_audit_page.dart';
-import 'package:tradex/features/enterprise/presentation/pages/desk_overview_page.dart';
-import 'package:tradex/features/enterprise/presentation/pages/desk_risk_page.dart';
-import 'package:tradex/features/enterprise/presentation/pages/desk_team_page.dart';
-import 'package:tradex/features/journal/presentation/pages/journal_page.dart';
-import 'package:tradex/features/messages/presentation/pages/messages_page.dart';
-import 'package:tradex/features/notifications/data/repositories/notifications_repository.dart';
-import 'package:tradex/features/notifications/presentation/pages/notifications_page.dart';
-import 'package:tradex/features/portfolio/presentation/pages/portfolio_page.dart';
-import 'package:tradex/features/search/data/repositories/search_repository.dart';
-import 'package:tradex/features/search/presentation/pages/search_page.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
-import 'package:tradex/features/strategies/presentation/pages/strategies_page.dart';
-import 'package:tradex/features/watchlists/presentation/pages/watchlists_page.dart';
 
 /// The signed-in application shell: chrome, navigation and the active page.
 ///
@@ -83,26 +65,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     'search': 'Search',
   };
 
-  /// Which sidebar destination answers each kind of search hit, best first. The
-  /// first one the role can actually reach wins, so a partner's trader hit lands
-  /// in the community and a desk admin's lands in the seats table — and a kind
-  /// with no reachable destination is never searched at all.
-  static const Map<AppSearchKind, List<String>> _searchTargets =
-      <AppSearchKind, List<String>>{
-        AppSearchKind.ticker: <String>['watchlists'],
-        AppSearchKind.trade: <String>['journal'],
-        AppSearchKind.note: <String>['journal'],
-        AppSearchKind.strategy: <String>['strategies'],
-        AppSearchKind.trader: <String>['community', 'org_team'],
-        AppSearchKind.post: <String>['community'],
-      };
-
   final AppSession _session = AppSession.instance;
-
-  // Shell-owned repositories. They outlive the pages that read them, so the
-  // unread badge and the recent-search list survive a page remount.
-  final NotificationsRepository _notifications = NotificationsRepositoryImpl();
-  final SearchRepository _search = SearchRepositoryImpl();
   final ProfileSettingsRepository _profiles = ProfileSettingsRepositoryImpl();
 
   String _selectedId = 'overview';
@@ -110,20 +73,6 @@ class _AppScaffoldState extends State<AppScaffold> {
   int _unread = 0;
   bool _showAffiliateApplication = false;
   AffiliateApplicationStatus? _affiliateApplicationStatus;
-
-  // Deep-link intents. Each one is a one-shot instruction for the page that is
-  // about to mount, cleared by every navigation so a stale symbol can never
-  // re-open a composer the reader already dismissed.
-  String? _watchSymbol;
-  String? _journalSymbol;
-  String? _journalTradeId;
-  String? _strategyId;
-  String? _postId;
-  String? _traderId;
-  AppTrader? _messagePeer;
-  AiScope? _aiScope;
-  String? _aiPrompt;
-  String? _searchQuery;
 
   RoleNavigationConfig get _navigation =>
       RoleNavigationConfig.forRole(widget.userRole);
@@ -167,9 +116,8 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   Future<void> _loadUnread() async {
-    final int count = await _notifications.getUnreadCount();
     if (!mounted) return;
-    setState(() => _unread = count);
+    setState(() => _unread = 0);
   }
 
   Future<void> _loadAffiliateApplicationStatus() async {
@@ -211,57 +159,46 @@ class _AppScaffoldState extends State<AppScaffold> {
     );
   }
 
+  String? _activeSettingsSubpageTitle;
+  IconData? _activeSettingsSubpageIcon;
+  VoidCallback? _activeSettingsSubpageOnBack;
+
+  void _onSettingsSubpageChanged(
+    String? title,
+    IconData? icon,
+    VoidCallback? onBack,
+  ) {
+    if (!mounted) return;
+    setState(() {
+      _activeSettingsSubpageTitle = title;
+      _activeSettingsSubpageIcon = icon;
+      _activeSettingsSubpageOnBack = onBack;
+    });
+  }
+
   /// Sends the reader home and forgets every pending deep link. Written without
   /// [setState] because the only caller is [didUpdateWidget], where a rebuild is
   /// already on the way.
   void _resetToOverview() {
     _selectedId = 'overview';
     _showAffiliateApplication = false;
-    _watchSymbol = null;
-    _journalSymbol = null;
-    _journalTradeId = null;
-    _strategyId = null;
-    _postId = null;
-    _traderId = null;
-    _messagePeer = null;
-    _aiScope = null;
-    _aiPrompt = null;
-    _searchQuery = null;
+    _activeSettingsSubpageTitle = null;
+    _activeSettingsSubpageIcon = null;
+    _activeSettingsSubpageOnBack = null;
   }
 
   bool _canReach(String id) =>
       _shellDestinations.containsKey(id) || _navigation.allows(id);
 
-  /// The one way a destination changes. Every intent is reset and only the ones
-  /// the caller passed are set, so navigation carries exactly the payload the
-  /// jump asked for and nothing left over from the last one.
-  void _go(
-    String id, {
-    String? watchSymbol,
-    String? journalSymbol,
-    String? journalTradeId,
-    String? strategyId,
-    String? postId,
-    String? traderId,
-    AppTrader? messagePeer,
-    AiScope? aiScope,
-    String? aiPrompt,
-    String? searchQuery,
-  }) {
+  /// The one way a destination changes.
+  void _go(String id) {
     if (!_canReach(id)) return;
     setState(() {
       _selectedId = id;
       _showAffiliateApplication = false;
-      _watchSymbol = watchSymbol;
-      _journalSymbol = journalSymbol;
-      _journalTradeId = journalTradeId;
-      _strategyId = strategyId;
-      _postId = postId;
-      _traderId = traderId;
-      _messagePeer = messagePeer;
-      _aiScope = aiScope;
-      _aiPrompt = aiPrompt;
-      _searchQuery = searchQuery;
+      _activeSettingsSubpageTitle = null;
+      _activeSettingsSubpageIcon = null;
+      _activeSettingsSubpageOnBack = null;
     });
   }
 
@@ -269,55 +206,21 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// cross-link renders as absent rather than as a button that does nothing.
   VoidCallback? _jump(String id) => _canReach(id) ? () => _go(id) : null;
 
-  /// Where a plan gate sends the reader. Every paywall on every surface arrives
-  /// at the same place because the role config decides, not the page.
-  void _upgrade() => _go(_navigation.upgradeSectionId);
-
-  /// Sidebar destination that answers hits of [kind] for this role.
-  String? _searchDestinationId(AppSearchKind kind) {
-    for (final String id in _searchTargets[kind] ?? const <String>[]) {
-      if (_navigation.allows(id)) return id;
-    }
-    return null;
-  }
-
-  /// Kind to the label of the surface behind it. Doubles as the allow-list the
-  /// search page searches, which is what keeps results and navigation agreeing.
-  Map<AppSearchKind, String> get _searchDestinations => <AppSearchKind, String>{
-    for (final AppSearchKind kind in AppSearchKind.values)
-      if (_searchDestinationId(kind) case final String id)
-        if (_navigation.labelFor(id) case final String label) kind: label,
-  };
-
-  void _openSearchResult(AppSearchResult result) {
-    final String? id = _searchDestinationId(result.kind);
-    if (id == null) return;
-    final String? entity = result.entityId;
-    switch (result.kind) {
-      case AppSearchKind.ticker:
-        _go(id, watchSymbol: entity);
-      case AppSearchKind.trade:
-      case AppSearchKind.note:
-        _go(id, journalTradeId: entity);
-      case AppSearchKind.strategy:
-        _go(id, strategyId: entity);
-      case AppSearchKind.trader:
-        _go(id, traderId: entity);
-      case AppSearchKind.post:
-        _go(id, postId: entity);
-    }
-  }
-
   /// Breadcrumb leaf when the active surface has no sidebar entry to name it.
   String? get _pageTitleOverride => _showAffiliateApplication
       ? 'Affiliate application'
-      : _shellDestinations[_selectedId];
+      : _activeSettingsSubpageTitle ?? _shellDestinations[_selectedId];
 
-  // -------------------------------------------------------------------------
-  // Active page
-  // -------------------------------------------------------------------------
+  IconData? get _pageIconOverride => _showAffiliateApplication
+      ? Icons.handshake_outlined
+      : _activeSettingsSubpageIcon;
+
+  VoidCallback? get _pageBackOverride => _showAffiliateApplication
+      ? () => setState(() => _showAffiliateApplication = false)
+      : _activeSettingsSubpageOnBack;
 
   Widget _buildActivePage() {
+    if (_showAffiliateApplication) return _affiliateApplicationPage();
     if (_selectedId == 'search') return _searchPage();
     if (_selectedId == 'notifications') return _notificationsPage();
     if (_selectedId.startsWith('settings')) return _settingsPage();
@@ -343,26 +246,24 @@ class _AppScaffoldState extends State<AppScaffold> {
     },
   );
 
-  Widget _searchPage() => SearchPage(
-    key: ValueKey<String>('search_${_searchQuery ?? ''}'),
-    repository: _search,
-    initialQuery: _searchQuery,
-    destinations: _searchDestinations,
-    onOpen: _openSearchResult,
+  Widget _placeholderPage(String title, String description, IconData icon) => AppPageBlock(
+    title: title,
+    subtitle: '$title Surface',
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: UiEmptyState(
+          icon: icon,
+          title: title,
+          message: description,
+        ),
+      ),
+    ),
   );
 
-  Widget _notificationsPage() => NotificationsPage(
-    repository: _notifications,
-    destinations: _navigation.notificationDestinations,
-    onOpenCategory: (String category) {
-      final String? target = _navigation.notificationTargets[category];
-      if (target != null) _go(target);
-    },
-    onOpenSettings: () => _go('settings_notifications'),
-    onUnreadChanged: (int count) {
-      if (mounted) setState(() => _unread = count);
-    },
-  );
+  Widget _searchPage() => UiSkeleton.search();
+
+  Widget _notificationsPage() => UiSkeleton.notifications();
 
   Widget _settingsPage() {
     final String sectionId = _selectedId == 'settings'
@@ -380,86 +281,19 @@ class _AppScaffoldState extends State<AppScaffold> {
       onSubscriptionTierChanged: _session.changeTier,
       onApplyForAffiliate: () =>
           setState(() => _showAffiliateApplication = true),
+      onSubpageChanged: _onSettingsSubpageChanged,
     );
   }
 
-  /// Shared AI surface. Every role gets the copilot; only the lens differs, and
-  /// the shell hands over the question that sent the reader there.
-  Widget _aiPage() => AiCopilotPage(
-    key: ValueKey<String>('ai_${_aiScope?.name ?? ''}_${_aiPrompt ?? ''}'),
-    initialScope: _aiScope,
-    initialPrompt: _aiPrompt,
-    onUpgrade: _upgrade,
-    onOpenSymbol: _canReach('watchlists')
-        ? (String symbol) => _go('watchlists', watchSymbol: symbol)
-        : null,
-  );
-
-  Widget _communityPage() => CommunityPage(
-    key: ValueKey<String>('community_${_postId ?? ''}_${_traderId ?? ''}'),
-    initialPostId: _postId,
-    initialTraderId: _traderId,
-    onOpenSymbol: _canReach('watchlists')
-        ? (String symbol) => _go('watchlists', watchSymbol: symbol)
-        : null,
-    onMessageTrader: _canReach('messages')
-        ? (AppTrader trader) => _go('messages', messagePeer: trader)
-        : null,
-  );
-
-  Widget _messagesPage() => MessagesPage(
-    key: ValueKey<String>('messages_${_messagePeer?.id ?? ''}'),
-    initialPeer: _messagePeer,
-    onUpgrade: _upgrade,
-    onOpenTrader: _canReach('community')
-        ? (AppTrader trader) => _go('community', traderId: trader.id)
-        : null,
-  );
-
   Widget _traderPage() => switch (_selectedId) {
-    'overview' => TraderOverviewPage(
-      displayName: _chromeIdentity.displayName,
-      onOpenJournal: _jump('journal'),
-      onOpenTrade: (AppTrade trade) => _go('journal', journalTradeId: trade.id),
-      onOpenWatchlists: _jump('watchlists'),
-      onOpenTicker: (AppTicker ticker) =>
-          _go('watchlists', watchSymbol: ticker.symbol),
-      onOpenAi: _jump('ai_copilot'),
-      onOpenPortfolio: _jump('portfolio'),
-    ),
-    'journal' => JournalPage(
-      key: ValueKey<String>(
-        'journal_${_journalSymbol ?? ''}_${_journalTradeId ?? ''}',
-      ),
-      composeSymbol: _journalSymbol,
-      focusTradeId: _journalTradeId,
-      onOpenAi: () => _go('ai_copilot', aiScope: AiScope.journal),
-      onOpenTicker: (String symbol) => _go('watchlists', watchSymbol: symbol),
-    ),
-    'strategies' => StrategiesPage(
-      key: ValueKey<String>('strategies_${_strategyId ?? ''}'),
-      initialStrategyId: _strategyId,
-      onOpenAi: () => _go('ai_copilot', aiScope: AiScope.strategy),
-      onOpenJournal: _jump('journal'),
-    ),
-    'watchlists' => WatchlistsPage(
-      key: ValueKey<String>('watchlists_${_watchSymbol ?? ''}'),
-      initialSymbol: _watchSymbol,
-      onOpenAi: (String symbol) => _go(
-        'ai_copilot',
-        aiScope: AiScope.market,
-        aiPrompt: 'Read the setup on $symbol and tell me where the risk is.',
-      ),
-      onLogTrade: (String symbol) => _go('journal', journalSymbol: symbol),
-    ),
-    'portfolio' => PortfolioPage(
-      onOpenJournal: _jump('journal'),
-      onOpenStrategies: _jump('strategies'),
-      onOpenTrade: (AppTrade trade) => _go('journal', journalTradeId: trade.id),
-    ),
-    'community' => _communityPage(),
-    'messages' => _messagesPage(),
-    'ai_copilot' => _aiPage(),
+    'overview' => UiSkeleton.dashboard(),
+    'journal' => UiSkeleton.journal(),
+    'strategies' => UiSkeleton.strategies(),
+    'watchlists' => UiSkeleton.watchlists(),
+    'portfolio' => UiSkeleton.portfolio(),
+    'community' => UiSkeleton.community(),
+    'messages' => UiSkeleton.messages(),
+    'ai_copilot' => UiSkeleton.ai(),
     _ => _unknownPage(),
   };
 
@@ -481,42 +315,56 @@ class _AppScaffoldState extends State<AppScaffold> {
       onOpenReferrals: _jump('referrals'),
       onOpenSettings: _jump('settings_affiliate'),
     ),
-    'community' => _communityPage(),
-    'messages' => _messagesPage(),
-    'ai_copilot' => _aiPage(),
+    'community' => _placeholderPage(
+      'Community',
+      'This screen will feature affiliate partner forums and leaderboards.',
+      Icons.groups_outlined,
+    ),
+    'messages' => _placeholderPage(
+      'Messages',
+      'This screen will provide direct communication channels with your affiliate manager.',
+      Icons.chat_bubble_outline_rounded,
+    ),
+    'ai_copilot' => _placeholderPage(
+      'AI Assistant',
+      'This screen will provide AI-powered marketing copy generation and conversion tips.',
+      Icons.auto_awesome_outlined,
+    ),
     _ => _unknownPage(),
   };
 
   Widget _adminPage() => switch (_selectedId) {
-    'overview' => DeskOverviewPage(
-      deskName: _navigation.workspaceName,
-      onOpenTeam: _jump('org_team'),
-      onOpenRisk: _jump('org_risk'),
-      onOpenAudit: _jump('org_audit'),
-      onOpenAnalytics: _jump('org_analytics'),
-      onOpenAffiliateReviews: _jump('affiliate_reviews'),
-      onUpgrade: _upgrade,
+    'overview' => _placeholderPage(
+      'Desk Overview',
+      'This screen will display the trading firm executive summary and risk metrics.',
+      Icons.business_outlined,
     ),
-    'org_team' => DeskTeamPage(
-      onOpenAudit: _jump('org_audit'),
-      onUpgrade: _upgrade,
+    'org_team' => _placeholderPage(
+      'Team & Seats',
+      'This screen will manage trader seats, account provisioning, and role assignments.',
+      Icons.badge_outlined,
     ),
-    'org_risk' => DeskRiskPage(
-      onOpenAudit: _jump('org_audit'),
-      onOpenTeam: _jump('org_team'),
+    'org_risk' => _placeholderPage(
+      'Risk Management',
+      'This screen will enforce margin rules, daily loss caps, and max position limits.',
+      Icons.shield_outlined,
     ),
-    'org_audit' => DeskAuditPage(
-      onOpenTeam: _jump('org_team'),
-      onOpenRisk: _jump('org_risk'),
+    'org_audit' => _placeholderPage(
+      'Audit Log',
+      'This screen will track compliance logs, trade modifications, and login events.',
+      Icons.history_rounded,
     ),
-    'org_analytics' => DeskAnalyticsPage(
-      onOpenTeam: _jump('org_team'),
-      onOpenRisk: _jump('org_risk'),
-      onOpenAudit: _jump('org_audit'),
-      onUpgrade: _upgrade,
+    'org_analytics' => _placeholderPage(
+      'Analytics',
+      'This screen will aggregate firm-wide P&L, Sharpe ratios, and trader scorecards.',
+      Icons.analytics_outlined,
     ),
     'affiliate_reviews' => const AffiliateApprovalsPage(),
-    'ai_copilot' => _aiPage(),
+    'ai_copilot' => _placeholderPage(
+      'AI Assistant',
+      'This screen will analyze organizational risk patterns and trader compliance.',
+      Icons.auto_awesome_outlined,
+    ),
     _ => _unknownPage(),
   };
 
@@ -527,17 +375,22 @@ class _AppScaffoldState extends State<AppScaffold> {
     subtitle:
         'This surface is not part of the ${widget.userRole.label} '
         'workspace yet',
-    child: UiEmptyState(
-      icon: Icons.construction_rounded,
-      title: 'Nothing here yet',
-      message:
-          'The navigation lists this destination but no page answers it. Pick '
-          'another item from the sidebar.',
-      action: UiButton(
-        label: 'Back to ${_navigation.labelFor('overview') ?? 'the start'}',
-        leadingIcon: Icons.arrow_back_rounded,
-        variant: UiVariant.outline,
-        onPressed: _jump('overview'),
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: UiEmptyState(
+          icon: Icons.construction_rounded,
+          title: 'Nothing here yet',
+          message:
+              'The navigation lists this destination but no page answers it. Pick '
+              'another item from the sidebar.',
+          action: UiButton(
+            label: 'Back to ${_navigation.labelFor('overview') ?? 'the start'}',
+            leadingIcon: Icons.arrow_back_rounded,
+            variant: UiVariant.outline,
+            onPressed: _jump('overview'),
+          ),
+        ),
       ),
     ),
   );
@@ -773,6 +626,8 @@ class _AppScaffoldState extends State<AppScaffold> {
                 : navigation.workspaceLabel,
             unreadNotifications: _unread,
             pageTitle: _pageTitleOverride,
+            pageIcon: _pageIconOverride,
+            onBack: _pageBackOverride,
             primaryAction: widget.onRoleChanged == null
                 ? null
                 : _buildDesktopPreviewControls(),
@@ -781,17 +636,6 @@ class _AppScaffoldState extends State<AppScaffold> {
         ),
       ],
     );
-
-    if (_showAffiliateApplication) {
-      return Stack(
-        children: <Widget>[
-          scaffoldContent,
-          Positioned.fill(
-            child: _affiliateApplicationPage(),
-          ),
-        ],
-      );
-    }
 
     return scaffoldContent;
   }

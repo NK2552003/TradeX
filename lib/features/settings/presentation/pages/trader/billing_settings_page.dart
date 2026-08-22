@@ -397,6 +397,9 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                 context,
                 title: 'Choose a plan',
                 subtitle: 'Pick the tier that matches your volume',
+                desktopWidthRatio: 0.86,
+                maxWidth: 1260.0,
+                minDesktopWidth: 900.0,
                 child: ChangePlanPage(
                   repository: _repo,
                   onPlanChanged: (AppTier tier) async {

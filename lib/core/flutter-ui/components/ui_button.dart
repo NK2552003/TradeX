@@ -52,7 +52,7 @@ class UiButton extends StatelessWidget {
     this.loading = false,
     this.loadingLabel,
     this.expand = false,
-    this.expandOnMobile = true,
+    this.expandOnMobile = false,
     this.tooltip,
     this.badgeCount,
     this.selected = false,

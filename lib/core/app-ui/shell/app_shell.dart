@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:quiet_dock/quiet_dock.dart';
 
@@ -35,6 +36,8 @@ class AppShell extends StatefulWidget {
     this.onLogout,
     this.pageTitle,
     this.pageSectionTitle,
+    this.pageIcon,
+    this.onBack,
   });
 
   final List<AppNavSection> sections;
@@ -55,6 +58,8 @@ class AppShell extends StatefulWidget {
   final String? workspaceName;
   final String? tierLabel;
   final VoidCallback? onLogout;
+  final IconData? pageIcon;
+  final VoidCallback? onBack;
 
   /// Breadcrumb leaf for a [selectedId] that no [sections] entry declares. The
   /// shell owns a few surfaces the sidebar never lists — search and the inbox
@@ -124,18 +129,32 @@ class _AppShellState extends State<AppShell> {
               ),
             ),
       clipBehavior: r.isMobile ? Clip.none : Clip.antiAlias,
-      child: AnimatedSwitcher(
-        duration: theme.motion.normal,
-        switchInCurve: theme.motion.curve,
-        switchOutCurve: theme.motion.curve,
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          final Animation<Offset> position = Tween<Offset>(
-            begin: Offset(_navigationForward ? 0.08 : -0.08, 0),
-            end: Offset.zero,
-          ).animate(animation);
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(position: position, child: child),
+      child: PageTransitionSwitcher(
+        duration: const Duration(milliseconds: 250),
+        reverse: !_navigationForward,
+        layoutBuilder: (List<Widget> entries) => Stack(
+          alignment: Alignment.topLeft,
+          children: entries,
+        ),
+        transitionBuilder: (
+          Widget child,
+          Animation<double> primaryAnimation,
+          Animation<double> secondaryAnimation,
+        ) {
+          if (r.isMobile) {
+            return SharedAxisTransition(
+              animation: primaryAnimation,
+              secondaryAnimation: secondaryAnimation,
+              transitionType: SharedAxisTransitionType.horizontal,
+              fillColor: theme.colors.background,
+              child: child,
+            );
+          }
+          return FadeThroughTransition(
+            animation: primaryAnimation,
+            secondaryAnimation: secondaryAnimation,
+            fillColor: theme.colors.background,
+            child: child,
           );
         },
         child: KeyedSubtree(
@@ -158,6 +177,10 @@ class _AppShellState extends State<AppShell> {
       sectionTitle: widget.pageSectionTitle,
       selectedId: widget.selectedId,
       sections: widget.sections,
+      mobilePrimaryItems: widget.mobilePrimaryItems,
+      mobileMoreItems: widget.mobileMoreItems,
+      pageIcon: widget.pageIcon,
+      onBack: widget.onBack,
       leading: r.isMobile
           ? null
           : UiIconButton(
@@ -1046,6 +1069,10 @@ class AppTopBar extends StatelessWidget {
     this.sectionTitle,
     this.selectedId,
     this.sections,
+    this.mobilePrimaryItems,
+    this.mobileMoreItems,
+    this.pageIcon,
+    this.onBack,
   });
 
   final AppTrader? trader;
@@ -1057,18 +1084,14 @@ class AppTopBar extends StatelessWidget {
   final int unread;
   final Widget? leading;
   final bool showLogo;
-
-  /// Breadcrumb leaf for a destination that has no nav item — the shell's own
-  /// surfaces (search, the inbox) are reached from this bar rather than the
-  /// sidebar, so there is no [sections] entry to read a label from. Set it and
-  /// the lookup is skipped entirely.
   final String? title;
-
-  /// Breadcrumb root that goes with [title].
   final String? sectionTitle;
-
   final String? selectedId;
   final List<AppNavSection>? sections;
+  final List<AppNavItem>? mobilePrimaryItems;
+  final List<AppNavItem>? mobileMoreItems;
+  final IconData? pageIcon;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -1082,17 +1105,21 @@ class AppTopBar extends StatelessWidget {
     String sectionTitle = this.sectionTitle ?? 'Terminal';
     String pageTitle = title ?? 'Dashboard';
 
+    IconData? activeIcon = pageIcon;
+
     if (title == null && sections != null && selectedId != null) {
       for (final s in sections!) {
         for (final item in s.items) {
           if (item.id == selectedId) {
             sectionTitle = s.title ?? 'Terminal';
             pageTitle = item.label;
+            activeIcon ??= item.icon;
           } else if (item.subItems != null) {
             for (final sub in item.subItems!) {
               if (sub.id == selectedId) {
                 sectionTitle = item.label;
                 pageTitle = sub.label;
+                activeIcon ??= sub.icon;
               }
             }
           }
@@ -1100,27 +1127,63 @@ class AppTopBar extends StatelessWidget {
       }
     }
 
-    final Widget breadcrumbWidget = (sections != null && selectedId != null)
-        ? (isMobile
-              ? Text(
-                  pageTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.uiText.label.copyWith(
+    if (activeIcon == null && mobilePrimaryItems != null && selectedId != null) {
+      for (final item in mobilePrimaryItems!) {
+        if (item.id == selectedId) {
+          activeIcon = item.icon;
+          break;
+        }
+      }
+    }
+    if (activeIcon == null && mobileMoreItems != null && selectedId != null) {
+      for (final item in mobileMoreItems!) {
+        if (item.id == selectedId) {
+          activeIcon = item.icon;
+          break;
+        }
+      }
+    }
+    if (activeIcon == null && selectedId != null) {
+      activeIcon = switch (selectedId) {
+        'overview' => Icons.dashboard_outlined,
+        'search' => Icons.search_rounded,
+        'notifications' => Icons.notifications_none_rounded,
+        'ai_copilot' => Icons.auto_awesome_outlined,
+        'settings' || 'settings_profile' => Icons.person_outline_rounded,
+        'settings_security' => Icons.lock_outline_rounded,
+        'settings_affiliate_perks' => Icons.handshake_outlined,
+        'settings_billing' => Icons.credit_card_outlined,
+        'settings_appearance' => Icons.palette_outlined,
+        'settings_trading' => Icons.candlestick_chart_outlined,
+        'settings_privacy' => Icons.security_rounded,
+        'settings_help' => Icons.help_outline_rounded,
+        'settings_organization' => Icons.corporate_fare_rounded,
+        'settings_desk_risk' => Icons.shield_outlined,
+        'settings_affiliate' => Icons.handshake_outlined,
+        _ => null,
+      };
+    }
+
+    final Widget breadcrumbWidget = (sections != null && selectedId != null && !isMobile)
+        ? UiBreadcrumbs(
+            crumbs: <UiCrumb>[
+              UiCrumb(label: sectionTitle),
+              UiCrumb(label: pageTitle),
+            ],
+          )
+        : Text(
+            pageTitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: isMobile
+                ? context.uiText.label.copyWith(
                     color: theme.colors.foreground,
+                    fontWeight: FontWeight.w600,
                     decoration: TextDecoration.none,
                     decorationColor: Colors.transparent,
-                  ),
-                )
-              : UiBreadcrumbs(
-                  crumbs: <UiCrumb>[
-                    UiCrumb(label: sectionTitle),
-                    UiCrumb(label: pageTitle),
-                  ],
-                ))
-        : (title != null
-              ? Text(title!, style: context.uiText.subheading)
-              : const SizedBox.shrink());
+                  )
+                : context.uiText.subheading,
+          );
 
     return SafeArea(
       bottom: false,
@@ -1137,7 +1200,10 @@ class AppTopBar extends StatelessWidget {
           key: const ValueKey<String>('app-header-surface'),
           height: context.sz(isMobile ? 56 : 50),
           padding: isMobile
-              ? EdgeInsets.all(context.sp(theme.spacing.sm))
+              ? EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.xs + 2),
+                  vertical: context.sp(theme.spacing.xs),
+                )
               : EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.md)),
           decoration: BoxDecoration(
             color: theme.colors.surface.withValues(alpha: 0.94),
@@ -1151,7 +1217,7 @@ class AppTopBar extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              // Left: Hamburger toggle + divider + breadcrumbs
+              // Left: Desktop Sidebar toggle (if any)
               ?leading,
               if (leading != null) ...<Widget>[
                 SizedBox(width: context.sp(theme.spacing.xs)),
@@ -1162,21 +1228,62 @@ class AppTopBar extends StatelessWidget {
                 ),
                 SizedBox(width: context.sp(theme.spacing.sm)),
               ],
-              if (showLogo) ...<Widget>[
-                AppLogoMark(size: context.sz(16), rounded: false),
-                SizedBox(width: context.sp(theme.spacing.sm)),
-              ],
               Expanded(
                 child: ClipRect(
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: AnimatedSwitcher(
-                      duration: theme.motion.fast,
-                      switchInCurve: theme.motion.curve,
-                      switchOutCurve: theme.motion.curve,
+                    child: PageTransitionSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      reverse: onBack == null,
+                      layoutBuilder: (List<Widget> entries) => Stack(
+                        alignment: Alignment.centerLeft,
+                        children: entries,
+                      ),
+                      transitionBuilder: (
+                        Widget child,
+                        Animation<double> primaryAnimation,
+                        Animation<double> secondaryAnimation,
+                      ) {
+                        return SharedAxisTransition(
+                          animation: primaryAnimation,
+                          secondaryAnimation: secondaryAnimation,
+                          transitionType: SharedAxisTransitionType.horizontal,
+                          fillColor: Colors.transparent,
+                          child: child,
+                        );
+                      },
                       child: KeyedSubtree(
-                        key: ValueKey<String>(selectedId ?? pageTitle),
-                        child: breadcrumbWidget,
+                        key: ValueKey<String>(
+                          '${selectedId ?? pageTitle}_${onBack != null}',
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: <Widget>[
+                            if (onBack != null) ...<Widget>[
+                              UiIconButton(
+                                icon: Icons.arrow_back_rounded,
+                                size: UiSize.xs,
+                                variant: UiVariant.ghost,
+                                tooltip: 'Back',
+                                onPressed: onBack,
+                              ),
+                              SizedBox(width: context.sp(theme.spacing.xxs)),
+                              if (activeIcon != null) ...<Widget>[
+                                Icon(
+                                  activeIcon,
+                                  size: context.sz(18),
+                                  color: theme.colors.primary,
+                                ),
+                                SizedBox(width: context.sp(theme.spacing.xs)),
+                              ],
+                            ] else if (showLogo) ...<Widget>[
+                              AppLogoMark(size: context.sz(16), rounded: false),
+                              SizedBox(width: context.sp(theme.spacing.xs)),
+                            ],
+                            Flexible(child: breadcrumbWidget),
+                          ],
+                        ),
                       ),
                     ),
                   ),

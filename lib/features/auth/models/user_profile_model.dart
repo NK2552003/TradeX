@@ -19,6 +19,12 @@ class UserProfileModel {
     this.avatarUrl,
     this.experienceLevel,
     this.tradingStyle,
+    this.location,
+    this.website,
+    this.avgHoldDuration,
+    this.primaryMarket,
+    this.topStrategy,
+    this.riskMantra,
     this.publicJournals = false,
     this.subscriptionTier = 'free',
     this.createdAt,
@@ -38,6 +44,12 @@ class UserProfileModel {
   final String? avatarUrl;
   final String? experienceLevel;
   final String? tradingStyle;
+  final String? location;
+  final String? website;
+  final String? avgHoldDuration;
+  final String? primaryMarket;
+  final String? topStrategy;
+  final String? riskMantra;
   final bool publicJournals;
   final String subscriptionTier;
   final DateTime? createdAt;
@@ -58,6 +70,12 @@ class UserProfileModel {
       avatarUrl: json['avatar_url'] as String?,
       experienceLevel: json['experience_level'] as String?,
       tradingStyle: json['trading_style'] as String?,
+      location: json['location'] as String?,
+      website: json['website'] as String?,
+      avgHoldDuration: json['avg_hold_duration'] as String?,
+      primaryMarket: json['primary_market'] as String?,
+      topStrategy: json['top_strategy'] as String?,
+      riskMantra: json['risk_mantra'] as String?,
       publicJournals: json['public_journals'] as bool? ?? false,
       subscriptionTier: json['subscription_tier'] as String? ?? 'free',
       createdAt: json['created_at'] != null
@@ -84,6 +102,12 @@ class UserProfileModel {
       'avatar_url': avatarUrl,
       'experience_level': experienceLevel,
       'trading_style': tradingStyle,
+      'location': location,
+      'website': website,
+      'avg_hold_duration': avgHoldDuration,
+      'primary_market': primaryMarket,
+      'top_strategy': topStrategy,
+      'risk_mantra': riskMantra,
       'public_journals': publicJournals,
       'subscription_tier': subscriptionTier,
       'created_at': createdAt?.toIso8601String(),
@@ -105,6 +129,12 @@ class UserProfileModel {
     String? avatarUrl,
     String? experienceLevel,
     String? tradingStyle,
+    String? location,
+    String? website,
+    String? avgHoldDuration,
+    String? primaryMarket,
+    String? topStrategy,
+    String? riskMantra,
     bool? publicJournals,
     String? subscriptionTier,
     DateTime? createdAt,
@@ -124,6 +154,12 @@ class UserProfileModel {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       experienceLevel: experienceLevel ?? this.experienceLevel,
       tradingStyle: tradingStyle ?? this.tradingStyle,
+      location: location ?? this.location,
+      website: website ?? this.website,
+      avgHoldDuration: avgHoldDuration ?? this.avgHoldDuration,
+      primaryMarket: primaryMarket ?? this.primaryMarket,
+      topStrategy: topStrategy ?? this.topStrategy,
+      riskMantra: riskMantra ?? this.riskMantra,
       publicJournals: publicJournals ?? this.publicJournals,
       subscriptionTier: subscriptionTier ?? this.subscriptionTier,
       createdAt: createdAt ?? this.createdAt,

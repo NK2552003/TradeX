@@ -44,14 +44,17 @@ class UiPage extends StatelessWidget {
             header!,
             SizedBox(height: context.sp(theme.spacing.lg)),
           ],
-          child,
+          if (scrollable) child else Expanded(child: child),
         ],
       ),
     );
 
     body = Padding(
       padding: pad,
-      child: Center(child: body),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: body,
+      ),
     );
     return ColoredBox(
       color: theme.colors.background,
@@ -62,7 +65,7 @@ class UiPage extends StatelessWidget {
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 child: body,
               )
-            : body,
+            : SizedBox.expand(child: body),
       ),
     );
   }

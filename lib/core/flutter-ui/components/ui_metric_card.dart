@@ -33,6 +33,7 @@ class UiMetricCard extends StatelessWidget {
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -47,6 +48,7 @@ class UiMetricCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: context.uiText.label.copyWith(
                     color: theme.colors.foregroundMuted,
@@ -55,28 +57,33 @@ class UiMetricCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          SizedBox(height: context.sp(theme.spacing.xs)),
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: 6,
+            runSpacing: 2,
             children: <Widget>[
-              Expanded(
-                child: Text(
-                  value,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.uiText.title.copyWith(
-                    color: theme.colors.foreground,
-                  ),
+              Text(
+                value,
+                style: context.uiText.title.copyWith(
+                  color: theme.colors.foreground,
+                  fontWeight: FontWeight.w700,
+                  fontSize: context.fs(18),
                 ),
               ),
               if (delta != null)
                 Text(
                   uiSignedPercent(delta!),
-                  style: context.uiText.bodyStrong.copyWith(color: deltaColor),
+                  style: context.uiText.caption.copyWith(
+                    color: deltaColor,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
             ],
           ),
           if (chart != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
+            SizedBox(height: context.sp(theme.spacing.xs)),
             SizedBox(height: context.sz(theme.sizes.sparkHeight), child: chart),
           ],
         ],

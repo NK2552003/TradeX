@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../theme/ui_theme.dart';
 import 'ui_common.dart';
@@ -53,16 +55,18 @@ class UiToastData {
 
 class UiToastScopeState extends State<UiToastScope> {
   final List<UiToastData> _queue = <UiToastData>[];
+  final Map<UiToastData, Timer> _timers = <UiToastData, Timer>{};
 
   void show(UiToastData toast) {
     setState(() {
       _queue.add(toast);
       if (_queue.length > 5) {
-        _queue.removeAt(0);
+        final removed = _queue.removeAt(0);
+        _timers.remove(removed)?.cancel();
       }
     });
 
-    Future<void>.delayed(toast.duration, () {
+    _timers[toast] = Timer(toast.duration, () {
       if (mounted && _queue.contains(toast)) {
         dismiss(toast);
       }
@@ -70,24 +74,42 @@ class UiToastScopeState extends State<UiToastScope> {
   }
 
   void dismiss(UiToastData toast) {
+    _timers.remove(toast)?.cancel();
     if (_queue.contains(toast)) {
       setState(() => _queue.remove(toast));
     }
   }
 
   @override
+  void dispose() {
+    for (final timer in _timers.values) {
+      timer.cancel();
+    }
+    _timers.clear();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = context.ui;
     final bool mobile = context.uiRes.isMobile;
+    final MediaQueryData mediaQuery = MediaQuery.of(context);
+    final double keyboardInset = mediaQuery.viewInsets.bottom;
+    final double bottomInset = mobile
+        ? (keyboardInset > 0 ? keyboardInset + 12.0 : 76.0)
+        : context.sp(theme.spacing.lg);
 
     return Stack(
       children: <Widget>[
         widget.child,
         Positioned(
           left: mobile ? context.sp(theme.spacing.md) : null,
-          right: context.sp(theme.spacing.lg),
-          bottom: context.sp(theme.spacing.lg),
+          right: mobile
+              ? context.sp(theme.spacing.md)
+              : context.sp(theme.spacing.lg),
+          bottom: bottomInset,
           child: SafeArea(
+            bottom: !mobile,
             child: Material(
               type: MaterialType.transparency,
               child: DefaultTextStyle(

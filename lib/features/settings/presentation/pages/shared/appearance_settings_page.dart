@@ -40,8 +40,20 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     final currentThemeMode = themeController.value;
     final currentDensity = themeController.density;
 
+    final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final bool isMobile = context.uiRes.isMobile;
+    final double bottomInset = isMobile
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        : context.sp(theme.spacing.lg);
+
     return SingleChildScrollView(
-      padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: EdgeInsets.fromLTRB(
+        context.sp(isMobile ? theme.spacing.md : theme.spacing.lg),
+        context.sp(isMobile ? theme.spacing.md : theme.spacing.lg),
+        context.sp(isMobile ? theme.spacing.md : theme.spacing.lg),
+        bottomInset,
+      ),
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -150,7 +162,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                         'Default rendering style for price action bars.',
                     icon: Icons.candlestick_chart_outlined,
                     control: UiSelect<String>(
-                      width: 180,
+                      width: isMobile ? null : 220,
                       value: _chartStyle,
                       options: _chartStyles
                           .map((s) => UiOption<String>(label: s, value: s))
@@ -166,7 +178,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                         'Ensure price signals match your regional or accessibility requirements.',
                     icon: Icons.invert_colors_rounded,
                     control: UiSelect<String>(
-                      width: 180,
+                      width: isMobile ? null : 220,
                       value: _colorScheme,
                       options: _colorSchemes
                           .map((c) => UiOption<String>(label: c, value: c))
