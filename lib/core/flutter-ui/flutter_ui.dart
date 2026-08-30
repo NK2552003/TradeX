@@ -27,6 +27,7 @@ export 'components/ui_tab_navigation.dart';
 export 'components/ui_accordion.dart';
 export 'components/ui_empty_state.dart';
 export 'components/ui_skeleton.dart';
+export 'components/ui_scrollbar.dart';
 
 // Actions
 export 'components/ui_button.dart';
@@ -99,5 +100,6 @@ export 'components/ui_tag_input.dart';
 export 'components/ui_password_field.dart';
 export 'components/ui_dropzone.dart';
 export 'components/ui_lightbox.dart';
+export 'components/ui_remote_image.dart';
 export 'components/ui_editor_toolbar.dart';
 export 'components/ui_typing_indicator.dart';

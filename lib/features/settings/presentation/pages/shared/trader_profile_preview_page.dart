@@ -1,0 +1,3594 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
+// Required unified primitive import for the profile preview surface.
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/auth/models/auth_user_role.dart';
+
+/// Stunning, responsive public profile preview resembling Twitter (X) + Trading Journal + Notes.
+class TraderProfilePreviewPage extends StatefulWidget {
+  const TraderProfilePreviewPage({
+    super.key,
+    required this.displayName,
+    required this.handle,
+    required this.userRole,
+    this.bio,
+    this.avatarUrl,
+    this.location,
+    this.website,
+    this.avgHoldDuration,
+    this.primaryMarket,
+    this.topStrategy,
+    this.riskMantra,
+    this.referralCode,
+    this.channelHandle,
+    this.audienceReach,
+    this.payoutMethod,
+  });
+
+  final String displayName;
+  final String handle;
+  final String? bio;
+  final String? avatarUrl;
+  final UserRole userRole;
+  final String? location;
+  final String? website;
+  final String? avgHoldDuration;
+  final String? primaryMarket;
+  final String? topStrategy;
+  final String? riskMantra;
+  final String? referralCode;
+  final String? channelHandle;
+  final String? audienceReach;
+  final String? payoutMethod;
+
+  @override
+  State<TraderProfilePreviewPage> createState() =>
+      _TraderProfilePreviewPageState();
+}
+
+class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
+  bool _isFollowing = false;
+  int _selectedFilterIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final isMobile = context.uiRes.isMobile;
+    final bool isAffiliate = widget.userRole == UserRole.affiliate;
+    final bool isAdmin = widget.userRole == UserRole.userAdmin;
+
+    final Color verifiedColor = switch (widget.userRole) {
+      UserRole.customer => theme.colors.primary,
+      UserRole.affiliate => theme.colors.warning,
+      UserRole.userAdmin => theme.colors.destructive,
+    };
+
+    final String roleBadgeText = switch (widget.userRole) {
+      UserRole.customer => 'PRO TRADER',
+      UserRole.affiliate => 'OFFICIAL PARTNER',
+      UserRole.userAdmin => 'DESK SUPERADMIN · ROOT',
+    };
+
+    final String displayBio = widget.bio?.trim().isNotEmpty == true
+        ? widget.bio!
+        : (isAdmin
+              ? 'Chief Risk Officer & Proprietary Desk Overseer. Managing firm-wide risk boundaries, capital allocation matrices, and trading engine infrastructure.'
+              : (isAffiliate
+                    ? 'Official TradeX Partner & trading educator. Sharing trade setups, execution blueprints, and exclusive member discounts.'
+                    : 'Disciplined swing trader & price action specialist. Sharing execution notes, market structure, and verified playbooks.'));
+
+    final List<UiTabItem> tabItems = switch (widget.userRole) {
+      UserRole.userAdmin => <UiTabItem>[
+        UiTabItem(
+          label: 'Command Center',
+          icon: Icons.terminal_rounded,
+          content: const _AdminCommandCenterPreview(),
+        ),
+        UiTabItem(
+          label: 'Risk & Audit Stream',
+          icon: Icons.security_rounded,
+          content: const _AdminRiskAuditPreview(),
+        ),
+        UiTabItem(
+          label: 'Desk Governance',
+          icon: Icons.account_tree_rounded,
+          content: const _AdminDeskGovernancePreview(),
+        ),
+        UiTabItem(
+          label: 'Firm Analytics',
+          icon: Icons.analytics_outlined,
+          content: const _AdminAnalyticsPreview(),
+        ),
+      ],
+      UserRole.affiliate => <UiTabItem>[
+        UiTabItem(
+          label: 'Campaigns',
+          icon: Icons.campaign_outlined,
+          content: _AffiliateCampaignsPreview(
+            displayName: widget.displayName,
+            handle: widget.handle,
+            referralCode: widget.referralCode ?? 'TRADEX-PARTNER-2026',
+            avatarUrl: widget.avatarUrl,
+            verifiedColor: verifiedColor,
+          ),
+        ),
+        UiTabItem(
+          label: 'Community Perks',
+          icon: Icons.card_giftcard_rounded,
+          content: _AffiliateReferralPortalPreview(
+            referralCode: widget.referralCode ?? 'TRADEX-PARTNER-2026',
+            audienceReach: widget.audienceReach ?? '10,000 – 100,000',
+          ),
+        ),
+        const UiTabItem(
+          label: 'Playbooks',
+          icon: Icons.menu_book_outlined,
+          content: _NotesPlaybooksPreview(),
+        ),
+        const UiTabItem(
+          label: 'Community Overview',
+          icon: Icons.groups_outlined,
+          content: _AffiliateCommunityOverviewPreview(),
+        ),
+      ],
+      UserRole.customer => <UiTabItem>[
+        UiTabItem(
+          label: 'Posts',
+          icon: Icons.dynamic_feed_outlined,
+          content: _TwitterFeedPreview(
+            displayName: widget.displayName,
+            handle: widget.handle,
+            avatarUrl: widget.avatarUrl,
+            verifiedColor: verifiedColor,
+          ),
+        ),
+        UiTabItem(
+          label: 'Journal',
+          icon: Icons.auto_stories_outlined,
+          content: _PublicJournalPreview(
+            selectedFilter: _selectedFilterIndex,
+            onFilterChanged: (int idx) =>
+                setState(() => _selectedFilterIndex = idx),
+          ),
+        ),
+        const UiTabItem(
+          label: 'Notes',
+          icon: Icons.note_alt_outlined,
+          content: _NotesPlaybooksPreview(),
+        ),
+        const UiTabItem(
+          label: 'Dashboard',
+          icon: Icons.space_dashboard_outlined,
+          content: _PublicDashboardPreview(),
+        ),
+      ],
+    };
+
+    final Color bannerColor = isAdmin
+        ? theme.colors.destructive
+        : (isAffiliate ? theme.colors.warning : theme.colors.primary);
+
+    final String bannerBadgeText = isAdmin
+        ? 'ROOT SUPERUSER · LEVEL 5'
+        : (isAffiliate ? 'PARTNER PORTAL' : 'PUBLIC PROFILE');
+
+    final IconData bannerBadgeIcon = isAdmin
+        ? Icons.admin_panel_settings_rounded
+        : (isAffiliate
+              ? Icons.workspace_premium_rounded
+              : Icons.public_rounded);
+
+    final String calloutTitle = isAdmin
+        ? 'Desk superadmin profile & root governance'
+        : (isAffiliate
+              ? 'Affiliate partner profile preview'
+              : 'Public profile preview');
+
+    final String calloutMessage = isAdmin
+        ? 'Root administrator preview. You have unrestricted execution clearance across risk parameters, desk allocation, killswitch mechanisms, and global platform state.'
+        : (isAffiliate
+              ? 'This is how referred traders, students, and community members see your partner portal, referral codes, and verified campaigns.'
+              : 'This is how verified traders, subscribers, and community members see your public presence and track record.');
+
+    final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final double bottomInset = isMobile
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
+        : context.sp(theme.spacing.lg);
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        context.sp(isMobile ? theme.spacing.sm : theme.spacing.lg),
+        context.sp(theme.spacing.md),
+        context.sp(isMobile ? theme.spacing.sm : theme.spacing.lg),
+        bottomInset,
+      ),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.sz(840)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              UiCallout(
+                title: calloutTitle,
+                message: calloutMessage,
+                intent: isAdmin
+                    ? UiIntent.danger
+                    : (isAffiliate ? UiIntent.warning : UiIntent.info),
+              ),
+              SizedBox(height: context.sp(theme.spacing.md)),
+
+              // ---------------------------------------------------------------
+              // Twitter/X Style Profile Hero Card
+              // ---------------------------------------------------------------
+              UiCard(
+                padding: EdgeInsets.zero,
+                variant: UiCardVariant.surface,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    // 1. Cover / Banner Header
+                    Container(
+                      height: context.sz(isMobile ? 120 : 160),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: <Color>[
+                            bannerColor.withValues(alpha: 0.85),
+                            theme.colors.surfaceMuted,
+                            bannerColor.withValues(alpha: 0.35),
+                          ],
+                        ),
+                      ),
+                      child: Stack(
+                        children: <Widget>[
+                          // Subtle financial grid pattern overlay
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _GridPatternPainter(
+                                gridColor: Colors.white.withValues(alpha: 0.08),
+                              ),
+                            ),
+                          ),
+                          // Top banner badge
+                          Positioned(
+                            top: context.sp(theme.spacing.sm),
+                            right: context.sp(theme.spacing.sm),
+                            child: UiBadge(
+                              label: bannerBadgeText,
+                              icon: bannerBadgeIcon,
+                              intent: isAdmin
+                                  ? UiIntent.danger
+                                  : (isAffiliate
+                                        ? UiIntent.warning
+                                        : UiIntent.primary),
+                              variant: UiBadgeVariant.solid,
+                              size: UiSize.xs,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // 2. Avatar + Action Buttons Row (Overlapping Banner)
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.sp(
+                          isMobile ? theme.spacing.md : theme.spacing.lg,
+                        ),
+                      ),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: <Widget>[
+                          // Overlapping Avatar
+                          Positioned(
+                            top: -context.sz(isMobile ? 36 : 48),
+                            left: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(3.5),
+                              decoration: BoxDecoration(
+                                color: theme.colors.surface,
+                                shape: BoxShape.circle,
+                                boxShadow: <BoxShadow>[
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.25),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: UiAvatar(
+                                name: widget.displayName,
+                                imageUrl: widget.avatarUrl,
+                                size: isMobile ? UiSize.lg : UiSize.xl,
+                                verified: true,
+                                verifiedColor: verifiedColor,
+                              ),
+                            ),
+                          ),
+
+                          // Top-right Action Buttons
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                top: context.sp(theme.spacing.sm),
+                                bottom: context.sp(theme.spacing.xs),
+                                left: context.sz(isMobile ? 84 : 108),
+                              ),
+                              child: Wrap(
+                                alignment: WrapAlignment.end,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: context.sp(theme.spacing.xs),
+                                runSpacing: context.sp(theme.spacing.xs),
+                                children: <Widget>[
+                                if (isAdmin) ...[
+                                  UiButton(
+                                    label: 'Root Terminal',
+                                    leadingIcon: Icons.terminal_rounded,
+                                    variant: UiVariant.primary,
+                                    intent: UiIntent.danger,
+                                    size: UiSize.sm,
+                                    expandOnMobile: false,
+                                    onPressed: () {
+                                      UiToast.show(
+                                        context,
+                                        title: 'Admin Terminal',
+                                        message:
+                                            'Initializing root administrative session with Level 5 clearance...',
+                                        intent: UiIntent.danger,
+                                      );
+                                    },
+                                  ),
+                                  UiIconButton(
+                                    icon: Icons.crisis_alert_rounded,
+                                    tooltip: 'Emergency Killswitch',
+                                    variant: UiVariant.outline,
+                                    onPressed: () {
+                                      UiToast.show(
+                                        context,
+                                        title: 'Killswitch Armed',
+                                        message:
+                                            'Global trade matching and margin engines are nominal.',
+                                        intent: UiIntent.warning,
+                                      );
+                                    },
+                                  ),
+                                  UiIconButton(
+                                    icon: Icons.tune_rounded,
+                                    tooltip: 'Risk Governance Config',
+                                    variant: UiVariant.outline,
+                                    onPressed: () {
+                                      UiToast.show(
+                                        context,
+                                        title: 'Risk Config',
+                                        message:
+                                            'Opening institutional risk parameters panel.',
+                                        intent: UiIntent.info,
+                                      );
+                                    },
+                                  ),
+                                ] else ...[
+                                  UiIconButton(
+                                    icon: Icons.share_outlined,
+                                    tooltip: isAffiliate
+                                        ? 'Share Referral Link'
+                                        : 'Share Profile',
+                                    variant: UiVariant.outline,
+                                    onPressed: () {
+                                      final link = isAffiliate
+                                          ? 'https://tradex.io/join/${widget.referralCode ?? widget.handle}'
+                                          : 'https://tradex.io/@${widget.handle}';
+                                      Clipboard.setData(
+                                        ClipboardData(text: link),
+                                      );
+                                      UiToast.show(
+                                        context,
+                                        title: isAffiliate
+                                            ? 'Referral link copied'
+                                            : 'Profile link copied',
+                                        message: link,
+                                        intent: UiIntent.success,
+                                      );
+                                    },
+                                  ),
+                                  UiIconButton(
+                                    icon: Icons.mail_outline_rounded,
+                                    tooltip: 'Direct Message',
+                                    variant: UiVariant.outline,
+                                    onPressed: () {
+                                      UiToast.show(
+                                        context,
+                                        title: 'Direct Message',
+                                        message:
+                                            'Opening conversation with @${widget.handle}',
+                                        intent: UiIntent.info,
+                                      );
+                                    },
+                                  ),
+                                  UiButton(
+                                    label: isAffiliate
+                                        ? (_isFollowing
+                                              ? 'Subscribed'
+                                              : 'Subscribe')
+                                        : (_isFollowing
+                                              ? 'Following'
+                                              : 'Follow'),
+                                    leadingIcon: _isFollowing
+                                        ? Icons.check_rounded
+                                        : (isAffiliate
+                                              ? Icons.stars_rounded
+                                              : Icons.person_add_alt_1_rounded),
+                                    variant: _isFollowing
+                                        ? UiVariant.outline
+                                        : UiVariant.primary,
+                                    intent: isAffiliate
+                                        ? UiIntent.warning
+                                        : UiIntent.primary,
+                                    expandOnMobile: false,
+                                    onPressed: () {
+                                      setState(
+                                        () => _isFollowing = !_isFollowing,
+                                      );
+                                      UiToast.show(
+                                        context,
+                                        title: _isFollowing
+                                            ? 'Subscribed to @${widget.handle}'
+                                            : 'Unsubscribed from @${widget.handle}',
+                                        message: _isFollowing
+                                            ? 'You will receive creator market playbooks and discount updates.'
+                                            : 'You have unsubscribed from partner alerts.',
+                                        intent: _isFollowing
+                                            ? UiIntent.success
+                                            : UiIntent.neutral,
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ),
+
+                    // 3. User Identity & Details
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        context.sp(
+                          isMobile ? theme.spacing.md : theme.spacing.lg,
+                        ),
+                        context.sp(
+                          isMobile ? theme.spacing.sm : theme.spacing.md,
+                        ),
+                        context.sp(
+                          isMobile ? theme.spacing.md : theme.spacing.lg,
+                        ),
+                        context.sp(theme.spacing.md),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          // Name + Checkmark + Role Badge
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: context.sp(theme.spacing.xs),
+                            runSpacing: context.sp(theme.spacing.xxs),
+                            children: <Widget>[
+                              Text(
+                                widget.displayName,
+                                style: context.uiText.heading.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: context.fs(isMobile ? 18 : 22),
+                                ),
+                              ),
+                              UiTooltip(
+                                message: isAdmin
+                                    ? 'Desk Superadmin (Root Clearance)'
+                                    : (isAffiliate
+                                          ? 'Verified Affiliate Partner'
+                                          : 'Verified market participant'),
+                                child: Icon(
+                                  isAdmin
+                                      ? Icons.admin_panel_settings_rounded
+                                      : Icons.verified_rounded,
+                                  color: verifiedColor,
+                                  size: context.sz(20),
+                                ),
+                              ),
+                              UiBadge(
+                                label: roleBadgeText,
+                                intent: isAdmin
+                                    ? UiIntent.danger
+                                    : (isAffiliate
+                                          ? UiIntent.warning
+                                          : UiIntent.primary),
+                                variant: UiBadgeVariant.soft,
+                                size: UiSize.xs,
+                              ),
+                            ],
+                          ),
+
+                          // Handle & Meta row
+                          SizedBox(height: context.sp(theme.spacing.xxs)),
+                          Text(
+                            '@${widget.handle}',
+                            style: context.uiText.body.copyWith(
+                              color: theme.colors.foregroundMuted,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+
+                          // Bio
+                          SizedBox(height: context.sp(theme.spacing.sm)),
+                          Text(
+                            displayBio,
+                            style: context.uiText.body.copyWith(
+                              height: 1.45,
+                              fontSize: context.fs(14),
+                            ),
+                          ),
+
+                          // Metadata row (Location, Joined, Link, Style)
+                          SizedBox(height: context.sp(theme.spacing.sm)),
+                          Wrap(
+                            spacing: context.sp(theme.spacing.md),
+                            runSpacing: context.sp(theme.spacing.xs),
+                            children: <Widget>[
+                              if (isAdmin) ...[
+                                const _MetaItem(
+                                  icon: Icons.shield_rounded,
+                                  text: 'Clearance: Root Admin / L5',
+                                ),
+                                _MetaItem(
+                                  icon: Icons.domain_rounded,
+                                  text:
+                                      widget.topStrategy?.trim().isNotEmpty ==
+                                          true
+                                      ? widget.topStrategy!
+                                      : 'Proprietary Trading Desk',
+                                ),
+                                const _MetaItem(
+                                  icon: Icons.security_rounded,
+                                  text: 'Audit Trail: Cryptographic SHA-256',
+                                ),
+                                const _MetaItem(
+                                  icon: Icons.speed_rounded,
+                                  text: 'Engine Latency: 1.2ms Direct',
+                                ),
+                                const _MetaItem(
+                                  icon: Icons.terminal_rounded,
+                                  text: 'tradex.internal/root',
+                                  isLink: true,
+                                ),
+                              ] else ...[
+                                _MetaItem(
+                                  icon: Icons.location_on_outlined,
+                                  text:
+                                      widget.location?.trim().isNotEmpty == true
+                                      ? widget.location!
+                                      : 'Mumbai, IN',
+                                ),
+                                const _MetaItem(
+                                  icon: Icons.calendar_month_outlined,
+                                  text: 'Joined March 2024',
+                                ),
+                                _MetaItem(
+                                  icon: Icons.link_rounded,
+                                  text: isAffiliate
+                                      ? 'tradex.io/join/${widget.referralCode ?? widget.handle}'
+                                      : (widget.website?.trim().isNotEmpty ==
+                                                true
+                                            ? widget.website!
+                                            : 'tradex.io/@${widget.handle}'),
+                                  isLink: true,
+                                ),
+                                if (isAffiliate) ...[
+                                  _MetaItem(
+                                    icon: Icons.smart_display_outlined,
+                                    text:
+                                        widget.topStrategy?.trim().isNotEmpty ==
+                                            true
+                                        ? widget.topStrategy!
+                                        : 'YouTube',
+                                  ),
+                                  _MetaItem(
+                                    icon: Icons.groups_outlined,
+                                    text:
+                                        'Reach: ${widget.audienceReach?.trim().isNotEmpty == true ? widget.audienceReach! : "10K - 100K"}',
+                                  ),
+                                ] else ...[
+                                  _MetaItem(
+                                    icon: Icons.bolt_rounded,
+                                    text:
+                                        'Avg Hold: ${widget.avgHoldDuration?.trim().isNotEmpty == true ? widget.avgHoldDuration! : "45 mins"}',
+                                  ),
+                                  if (widget.primaryMarket?.trim().isNotEmpty ==
+                                      true)
+                                    _MetaItem(
+                                      icon: Icons.show_chart_rounded,
+                                      text: widget.primaryMarket!,
+                                    ),
+                                ],
+                              ],
+                            ],
+                          ),
+
+                          // Follower / Following Stats
+                          SizedBox(height: context.sp(theme.spacing.md)),
+                          Wrap(
+                            spacing: context.sp(theme.spacing.lg),
+                            runSpacing: context.sp(theme.spacing.sm),
+                            children: isAdmin
+                                ? const <Widget>[
+                                    _SocialStat(
+                                      count: '12.4K',
+                                      label: 'Monitored Traders',
+                                    ),
+                                    _SocialStat(
+                                      count: '₹148.2 Cr',
+                                      label: 'Supervised AUM',
+                                    ),
+                                    _SocialStat(
+                                      count: '99.99%',
+                                      label: 'Systems Uptime',
+                                    ),
+                                    _SocialStat(
+                                      count: '0',
+                                      label: 'Critical Breaches',
+                                    ),
+                                  ]
+                                : (isAffiliate
+                                      ? const <Widget>[
+                                          _SocialStat(
+                                            count: '48.5K',
+                                            label: 'Community Reach',
+                                          ),
+                                          _SocialStat(
+                                            count: '148',
+                                            label: 'Traders Mentored',
+                                          ),
+                                          _SocialStat(
+                                            count: '24',
+                                            label: 'Shared Playbooks',
+                                          ),
+                                          _SocialStat(
+                                            count: '4.9★',
+                                            label: 'Community Rating',
+                                          ),
+                                        ]
+                                      : const <Widget>[
+                                          _SocialStat(
+                                            count: '2.4K',
+                                            label: 'Following',
+                                          ),
+                                          _SocialStat(
+                                            count: '14.8K',
+                                            label: 'Followers',
+                                          ),
+                                          _SocialStat(
+                                            count: '342',
+                                            label: 'Public Trades',
+                                          ),
+                                          _SocialStat(
+                                            count: '98.4%',
+                                            label: 'Discipline Score',
+                                          ),
+                                        ]),
+                          ),
+
+                          // Trading Performance / Governance Strip - Full Width & Responsive
+                          SizedBox(height: context.sp(theme.spacing.md)),
+                          Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: context.sp(theme.spacing.md),
+                              vertical: context.sp(theme.spacing.sm),
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colors.surfaceMuted,
+                              borderRadius: context.radius(theme.radii.md),
+                              border: Border.all(
+                                color: theme.colors.border,
+                                width: theme.borders.hairline,
+                              ),
+                            ),
+                            child: LayoutBuilder(
+                              builder:
+                                  (
+                                    BuildContext context,
+                                    BoxConstraints constraints,
+                                  ) {
+                                    if (isAdmin) {
+                                      if (constraints.maxWidth > 520) {
+                                        return Row(
+                                          children: <Widget>[
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Admin Clearance',
+                                                value: 'Root / L5',
+                                                isPositive: false,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Firm Risk Status',
+                                                value: 'Optimal (1.4% VaR)',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Active Desks',
+                                                value: '8 Divisions',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Engine Latency',
+                                                value: '1.2 ms Direct',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Governance',
+                                                value: 'SEBI & ISO 27001',
+                                                isPositive: null,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      } else {
+                                        return Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: <Widget>[
+                                            Row(
+                                              children: const <Widget>[
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Clearance',
+                                                    value: 'Root / L5',
+                                                    isPositive: false,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Firm Risk',
+                                                    value: 'Optimal',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Active Desks',
+                                                    value: '8 Divisions',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                vertical: context.sp(
+                                                  theme.spacing.xs,
+                                                ),
+                                              ),
+                                              child: Divider(
+                                                height: 1,
+                                                color: theme.colors.border
+                                                    .withValues(alpha: 0.5),
+                                              ),
+                                            ),
+                                            Row(
+                                              children: const <Widget>[
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Engine Latency',
+                                                    value: '1.2 ms Direct',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Governance',
+                                                    value: 'ISO 27001',
+                                                    isPositive: null,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'System Uptime',
+                                                    value: '99.99%',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        );
+                                      }
+                                    }
+
+                                    if (isAffiliate) {
+                                      final String nicheText =
+                                          widget.primaryMarket
+                                                  ?.trim()
+                                                  .isNotEmpty ==
+                                              true
+                                          ? widget.primaryMarket!
+                                          : 'Trading Education';
+                                      if (constraints.maxWidth > 520) {
+                                        return Row(
+                                          children: <Widget>[
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Partner Status',
+                                                value: 'Verified Creator',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Active Community',
+                                                value: '148 Traders',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Trader Perk',
+                                                value: '20% Lifetime Off',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Member Trust',
+                                                value: '98.4% Positive',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            Expanded(
+                                              child: _KpiPill(
+                                                label: 'Content Focus',
+                                                value: nicheText,
+                                                isPositive: null,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      } else {
+                                        return Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: <Widget>[
+                                            Row(
+                                              children: const <Widget>[
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Status',
+                                                    value: 'Verified Creator',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Community',
+                                                    value: '148 Traders',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Discount',
+                                                    value: '20% Off Pro',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                vertical: context.sp(
+                                                  theme.spacing.xs,
+                                                ),
+                                              ),
+                                              child: Divider(
+                                                height: 1,
+                                                color: theme.colors.border
+                                                    .withValues(alpha: 0.5),
+                                              ),
+                                            ),
+                                            Row(
+                                              children: <Widget>[
+                                                const Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Member Trust',
+                                                    value: '98.4% Rating',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Niche',
+                                                    value: nicheText,
+                                                    isPositive: null,
+                                                  ),
+                                                ),
+                                                const Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Playbooks',
+                                                    value: '24 Guides',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        );
+                                      }
+                                    }
+
+                                    final String topStrategyText =
+                                        widget.topStrategy?.trim().isNotEmpty ==
+                                            true
+                                        ? widget.topStrategy!
+                                        : 'ORB Breakout';
+                                    if (constraints.maxWidth > 520) {
+                                      return Row(
+                                        children: <Widget>[
+                                          const Expanded(
+                                            child: _KpiPill(
+                                              label: 'Win Rate',
+                                              value: '68.4%',
+                                              isPositive: true,
+                                            ),
+                                          ),
+                                          _buildKpiDivider(theme),
+                                          const Expanded(
+                                            child: _KpiPill(
+                                              label: 'Avg R Multiple',
+                                              value: '2.15R',
+                                              isPositive: true,
+                                            ),
+                                          ),
+                                          _buildKpiDivider(theme),
+                                          const Expanded(
+                                            child: _KpiPill(
+                                              label: 'Profit Factor',
+                                              value: '2.48',
+                                              isPositive: true,
+                                            ),
+                                          ),
+                                          _buildKpiDivider(theme),
+                                          const Expanded(
+                                            child: _KpiPill(
+                                              label: 'Best Streak',
+                                              value: '9 Wins',
+                                              isPositive: true,
+                                            ),
+                                          ),
+                                          _buildKpiDivider(theme),
+                                          Expanded(
+                                            child: _KpiPill(
+                                              label: 'Top Strategy',
+                                              value: topStrategyText,
+                                              isPositive: null,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    } else {
+                                      return Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: <Widget>[
+                                          Row(
+                                            children: const <Widget>[
+                                              Expanded(
+                                                child: _KpiPill(
+                                                  label: 'Win Rate',
+                                                  value: '68.4%',
+                                                  isPositive: true,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: _KpiPill(
+                                                  label: 'Avg R Multiple',
+                                                  value: '2.15R',
+                                                  isPositive: true,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: _KpiPill(
+                                                  label: 'Profit Factor',
+                                                  value: '2.48',
+                                                  isPositive: true,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Padding(
+                                            padding: EdgeInsets.symmetric(
+                                              vertical: context.sp(
+                                                theme.spacing.xs,
+                                              ),
+                                            ),
+                                            child: Divider(
+                                              height: 1,
+                                              color: theme.colors.border
+                                                  .withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                          Row(
+                                            children: <Widget>[
+                                              const Expanded(
+                                                child: _KpiPill(
+                                                  label: 'Best Streak',
+                                                  value: '9 Wins',
+                                                  isPositive: true,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: _KpiPill(
+                                                  label: 'Top Strategy',
+                                                  value: topStrategyText,
+                                                  isPositive: null,
+                                                ),
+                                              ),
+                                              const Expanded(
+                                                child: _KpiPill(
+                                                  label: 'Discipline',
+                                                  value: '98.4%',
+                                                  isPositive: true,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      );
+                                    }
+                                  },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: context.sp(theme.spacing.md)),
+
+              // ---------------------------------------------------------------
+              // Rich Interactive Navigation Tabs
+              // ---------------------------------------------------------------
+              UiTabs(
+                stretch: true,
+                variant: UiTabsVariant.underline,
+                items: tabItems,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Meta Item & Social Stat Helpers
+// ---------------------------------------------------------------------------
+
+class _MetaItem extends StatelessWidget {
+  const _MetaItem({
+    required this.icon,
+    required this.text,
+    this.isLink = false,
+  });
+
+  final IconData icon;
+  final String text;
+  final bool isLink;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Icon(
+          icon,
+          size: context.sz(14),
+          color: isLink ? theme.colors.primary : theme.colors.foregroundMuted,
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.uiText.caption.copyWith(
+              color: isLink ? theme.colors.primary : theme.colors.foregroundMuted,
+              fontWeight: isLink ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SocialStat extends StatelessWidget {
+  const _SocialStat({required this.count, required this.label});
+
+  final String count;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      Text(
+        count,
+        style: context.uiText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
+      ),
+      const SizedBox(width: 4),
+      Flexible(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.uiText.caption.copyWith(
+            color: context.ui.colors.foregroundMuted,
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _KpiPill extends StatelessWidget {
+  const _KpiPill({
+    required this.label,
+    required this.value,
+    required this.isPositive,
+  });
+
+  final String label;
+  final String value;
+  final bool? isPositive;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    final Color valueColor = isPositive == true
+        ? theme.colors.bullish
+        : (isPositive == false ? theme.colors.bearish : theme.colors.primary);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          label,
+          style: context.uiText.caption.copyWith(
+            color: theme.colors.foregroundMuted,
+            fontSize: context.fs(11),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: context.uiText.bodyStrong.copyWith(
+            color: valueColor,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+Widget _buildKpiDivider(UiTheme theme) => Container(
+  width: 1,
+  height: 26,
+  margin: const EdgeInsets.symmetric(horizontal: 4),
+  color: theme.colors.border.withValues(alpha: 0.6),
+);
+
+// ---------------------------------------------------------------------------
+// 1. Twitter / X Style Feed Preview
+// ---------------------------------------------------------------------------
+
+class _TwitterFeedPreview extends StatelessWidget {
+  const _TwitterFeedPreview({
+    required this.displayName,
+    required this.handle,
+    this.avatarUrl,
+    required this.verifiedColor,
+  });
+
+  final String displayName;
+  final String handle;
+  final String? avatarUrl;
+  final Color verifiedColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // Pinned Post
+        _TwitterPostCard(
+          displayName: displayName,
+          handle: handle,
+          avatarUrl: avatarUrl,
+          verifiedColor: verifiedColor,
+          isPinned: true,
+          timestamp: '2h ago',
+          body:
+              'NIFTY reclaimed the opening range with improving breadth. Waiting for the retest instead of chasing the first expansion candle. Focus on risk management over FOMO.',
+          tags: const <String>['NIFTY', 'MarketStructure', 'PriceAction'],
+          likes: '148',
+          reposts: '32',
+          replies: '19',
+          views: '3.4K',
+          setupSnapshot: const _TradeSetupSnippet(
+            ticker: 'NIFTY 24400 CE',
+            side: 'LONG',
+            entry: '₹142.50',
+            exit: '₹188.00',
+            rMultiple: '+2.4R',
+            pnl: '+₹34,500',
+            isWin: true,
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.sm)),
+
+        // Thread Post 2
+        _TwitterPostCard(
+          displayName: displayName,
+          handle: handle,
+          avatarUrl: avatarUrl,
+          verifiedColor: verifiedColor,
+          isPinned: false,
+          timestamp: 'Yesterday',
+          body:
+              'Weekly review: best trades came from following the plan. The two avoidable losses both happened after moving stops without new information. Sticking strictly to the 2-Strike Rule next week.',
+          tags: const <String>['WeeklyReview', 'Discipline', 'RiskRules'],
+          likes: '94',
+          reposts: '16',
+          replies: '11',
+          views: '2.1K',
+        ),
+        SizedBox(height: context.sp(theme.spacing.sm)),
+
+        // Thread Post 3
+        _TwitterPostCard(
+          displayName: displayName,
+          handle: handle,
+          avatarUrl: avatarUrl,
+          verifiedColor: verifiedColor,
+          isPinned: false,
+          timestamp: '3d ago',
+          body:
+              'RELIANCE broke out of a 3-week consolidation base on 2.5x volume. Scaled out 50% at 2R, trailing the stop under the prior 15-minute swing pivot.',
+          tags: const <String>['RELIANCE', 'Breakout', 'SwingTrade'],
+          likes: '215',
+          reposts: '48',
+          replies: '27',
+          views: '5.8K',
+          setupSnapshot: const _TradeSetupSnippet(
+            ticker: 'RELIANCE',
+            side: 'LONG',
+            entry: '₹2,890.00',
+            exit: '₹2,955.00',
+            rMultiple: '+2.8R',
+            pnl: '+₹42,800',
+            isWin: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TwitterPostCard extends StatefulWidget {
+  const _TwitterPostCard({
+    required this.displayName,
+    required this.handle,
+    this.avatarUrl,
+    required this.verifiedColor,
+    this.isPinned = false,
+    required this.timestamp,
+    required this.body,
+    required this.tags,
+    required this.likes,
+    required this.reposts,
+    required this.replies,
+    required this.views,
+    this.setupSnapshot,
+  });
+
+  final String displayName;
+  final String handle;
+  final String? avatarUrl;
+  final Color verifiedColor;
+  final bool isPinned;
+  final String timestamp;
+  final String body;
+  final List<String> tags;
+  final String likes;
+  final String reposts;
+  final String replies;
+  final String views;
+  final Widget? setupSnapshot;
+
+  @override
+  State<_TwitterPostCard> createState() => _TwitterPostCardState();
+}
+
+class _TwitterPostCardState extends State<_TwitterPostCard> {
+  bool _liked = false;
+  bool _bookmarked = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+
+    return UiCard(
+      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (widget.isPinned) ...<Widget>[
+            Row(
+              children: <Widget>[
+                Icon(
+                  Icons.push_pin_rounded,
+                  size: context.sz(13),
+                  color: theme.colors.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Pinned Setup',
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: context.fs(11),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: context.sp(theme.spacing.xs)),
+          ],
+
+          // Post Author Row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              UiAvatar(
+                name: widget.displayName,
+                imageUrl: widget.avatarUrl,
+                size: UiSize.sm,
+              ),
+              SizedBox(width: context.sp(theme.spacing.sm)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 4,
+                      children: <Widget>[
+                        Text(
+                          widget.displayName,
+                          style: context.uiText.bodyStrong.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Icon(
+                          Icons.verified_rounded,
+                          color: widget.verifiedColor,
+                          size: context.sz(15),
+                        ),
+                        Text(
+                          '@${widget.handle}',
+                          style: context.uiText.caption.copyWith(
+                            color: theme.colors.foregroundMuted,
+                          ),
+                        ),
+                        Text(
+                          '· ${widget.timestamp}',
+                          style: context.uiText.caption.copyWith(
+                            color: theme.colors.foregroundMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              UiIconButton(
+                icon: Icons.more_horiz_rounded,
+                size: UiSize.xs,
+                tooltip: 'Post options',
+                onPressed: () {},
+              ),
+            ],
+          ),
+
+          // Post Text Body
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Text(
+            widget.body,
+            style: context.uiText.body.copyWith(
+              height: 1.45,
+              fontSize: context.fs(14),
+            ),
+          ),
+
+          // Embedded Setup Snapshot Card (if any)
+          if (widget.setupSnapshot != null) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            widget.setupSnapshot!,
+          ],
+
+          // Hashtags
+          if (widget.tags.isNotEmpty) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            Wrap(
+              spacing: context.sp(theme.spacing.xs),
+              runSpacing: context.sp(theme.spacing.xs),
+              children: widget.tags
+                  .map(
+                    (String tag) => UiBadge(
+                      label: '#$tag',
+                      intent: UiIntent.primary,
+                      variant: UiBadgeVariant.soft,
+                      size: UiSize.xs,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+
+          // Twitter Style Action Bar (Comments, Reposts, Likes, Views, Bookmark, Share)
+          SizedBox(height: context.sp(theme.spacing.md)),
+          Container(
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.xxs),
+            ),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: theme.colors.border.withValues(alpha: 0.5),
+                  width: theme.borders.hairline,
+                ),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                _EngagementButton(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  count: widget.replies,
+                  activeColor: theme.colors.primary,
+                  onTap: () {},
+                ),
+                _EngagementButton(
+                  icon: Icons.repeat_rounded,
+                  count: widget.reposts,
+                  activeColor: theme.colors.bullish,
+                  onTap: () {},
+                ),
+                _EngagementButton(
+                  icon: _liked
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  count: (int.tryParse(widget.likes) ?? 0 + (_liked ? 1 : 0))
+                      .toString(),
+                  isActive: _liked,
+                  activeColor: Colors.redAccent,
+                  onTap: () => setState(() => _liked = !_liked),
+                ),
+                _EngagementButton(
+                  icon: Icons.bar_chart_rounded,
+                  count: widget.views,
+                  activeColor: theme.colors.primary,
+                  onTap: () {},
+                ),
+                _EngagementButton(
+                  icon: _bookmarked
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
+                  count: '',
+                  isActive: _bookmarked,
+                  activeColor: theme.colors.warning,
+                  onTap: () => setState(() => _bookmarked = !_bookmarked),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EngagementButton extends StatelessWidget {
+  const _EngagementButton({
+    required this.icon,
+    required this.count,
+    this.isActive = false,
+    required this.activeColor,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String count;
+  final bool isActive;
+  final Color activeColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    final Color color = isActive ? activeColor : theme.colors.foregroundMuted;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: context.sz(16), color: color),
+            if (count.isNotEmpty) ...<Widget>[
+              const SizedBox(width: 4),
+              Text(
+                count,
+                style: context.uiText.caption.copyWith(
+                  color: color,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.normal,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TradeSetupSnippet extends StatelessWidget {
+  const _TradeSetupSnippet({
+    required this.ticker,
+    required this.side,
+    required this.entry,
+    required this.exit,
+    required this.rMultiple,
+    required this.pnl,
+    required this.isWin,
+  });
+
+  final String ticker;
+  final String side;
+  final String entry;
+  final String exit;
+  final String rMultiple;
+  final String pnl;
+  final bool isWin;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return Container(
+      padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+      decoration: BoxDecoration(
+        color: theme.colors.surfaceMuted,
+        borderRadius: context.radius(theme.radii.md),
+        border: Border.all(
+          color: isWin
+              ? theme.colors.bullish.withValues(alpha: 0.3)
+              : theme.colors.bearish.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              UiBadge(
+                label: side,
+                intent: side == 'LONG' ? UiIntent.bullish : UiIntent.bearish,
+                size: UiSize.xs,
+              ),
+              const SizedBox(width: 6),
+              Text(ticker, style: context.uiText.bodyStrong),
+              const Spacer(),
+              UiBadge(
+                label: '$pnl ($rMultiple)',
+                intent: isWin ? UiIntent.bullish : UiIntent.bearish,
+                variant: UiBadgeVariant.solid,
+                size: UiSize.xs,
+              ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.xs)),
+          Wrap(
+            spacing: context.sp(theme.spacing.md),
+            runSpacing: 4,
+            children: <Widget>[
+              Text('Entry: $entry', style: context.uiText.caption),
+              Text('Exit: $exit', style: context.uiText.caption),
+              Text(
+                'Execution: Verified ✓',
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.bullish,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2. Public Journal & Trade Logs Preview
+// ---------------------------------------------------------------------------
+
+class _PublicJournalPreview extends StatelessWidget {
+  const _PublicJournalPreview({
+    required this.selectedFilter,
+    required this.onFilterChanged,
+  });
+
+  final int selectedFilter;
+  final ValueChanged<int> onFilterChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // Summary & Audit Banner
+        UiCard(
+          variant: UiCardVariant.surface,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(
+                    Icons.verified_user_outlined,
+                    color: theme.colors.bullish,
+                    size: context.sz(20),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  Expanded(
+                    child: Text(
+                      'Verified Public Execution Log',
+                      style: context.uiText.bodyStrong,
+                    ),
+                  ),
+                  UiBadge(
+                    label: 'AUDITED BROKER FEED',
+                    intent: UiIntent.bullish,
+                    size: UiSize.xs,
+                  ),
+                ],
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+              Text(
+                'Every trade shown below is cryptographically hashed against broker fill timestamps. Private personal executions remain confidential.',
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.md)),
+              Wrap(
+                spacing: context.sp(theme.spacing.lg),
+                runSpacing: context.sp(theme.spacing.xs),
+                children: const <Widget>[
+                  _JournalStat(title: 'Public Trades', val: '48 Logged'),
+                  _JournalStat(
+                    title: 'Net Realized PnL',
+                    val: '+₹1,84,200',
+                    color: Colors.green,
+                  ),
+                  _JournalStat(
+                    title: 'Win Ratio',
+                    val: '68.8% (33W - 15L)',
+                    color: Colors.green,
+                  ),
+                  _JournalStat(
+                    title: 'Total R Gained',
+                    val: '+38.4R',
+                    color: Colors.green,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.sm)),
+
+        // Filter Pills
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children:
+                <String>[
+                  'All Trades (48)',
+                  'Wins (33)',
+                  'Losses (15)',
+                  'Breakouts (24)',
+                  'Pullbacks (18)',
+                  'Reversals (6)',
+                ].asMap().entries.map((MapEntry<int, String> e) {
+                  final bool isSelected = selectedFilter == e.key;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(e.value),
+                      selected: isSelected,
+                      selectedColor: theme.colors.primary.withValues(
+                        alpha: 0.2,
+                      ),
+                      onSelected: (_) => onFilterChanged(e.key),
+                    ),
+                  );
+                }).toList(),
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.sm)),
+
+        // Trade Entry 1
+        _JournalTradeCard(
+          ticker: 'RELIANCE',
+          side: 'LONG',
+          date: 'Aug 21, 2026 · 10:14 AM',
+          setup: 'Opening Range Breakout',
+          duration: '38 mins',
+          pnl: '+₹34,500',
+          rMultiple: '+2.3R',
+          isWin: true,
+          entryPrice: '₹2,890.00',
+          exitPrice: '₹2,955.00',
+          quantity: '500 Qty',
+          notes:
+              'High relative volume on 5-min breakout. Reclaimed VWAP with index confirmation. Scaled out at 2R target.',
+          tags: const <String>['ORB', 'VWAP', 'Momentum'],
+        ),
+        SizedBox(height: context.sp(theme.spacing.sm)),
+
+        // Trade Entry 2
+        _JournalTradeCard(
+          ticker: 'NIFTY 24400 CE',
+          side: 'LONG',
+          date: 'Aug 20, 2026 · 02:30 PM',
+          setup: 'VWAP Bounce & Trend Retest',
+          duration: '52 mins',
+          pnl: '+₹22,800',
+          rMultiple: '+1.9R',
+          isWin: true,
+          entryPrice: '₹145.00',
+          exitPrice: '₹190.60',
+          quantity: '400 Qty',
+          notes:
+              'Afternoon session breakout continuation. Protected capital by trailing stop loss to entry after 1R.',
+          tags: const <String>['Options', 'Index', 'Trend'],
+        ),
+        SizedBox(height: context.sp(theme.spacing.sm)),
+
+        // Trade Entry 3
+        _JournalTradeCard(
+          ticker: 'TCS',
+          side: 'SHORT',
+          date: 'Aug 19, 2026 · 11:20 AM',
+          setup: 'Key Level Breakdown',
+          duration: '18 mins',
+          pnl: '-₹7,400',
+          rMultiple: '-1.0R',
+          isWin: false,
+          entryPrice: '₹3,920.00',
+          exitPrice: '₹3,935.00',
+          quantity: '200 Qty',
+          notes:
+              'Failed breakdown attempt as IT sector reversed. Stopped out cleanly without adding or widening stop.',
+          tags: const <String>['Discipline', 'StopLoss'],
+        ),
+      ],
+    );
+  }
+}
+
+class _JournalStat extends StatelessWidget {
+  const _JournalStat({required this.title, required this.val, this.color});
+
+  final String title;
+  final String val;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          title,
+          style: context.uiText.caption.copyWith(
+            color: theme.colors.foregroundMuted,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          val,
+          style: context.uiText.bodyStrong.copyWith(
+            color: color ?? theme.colors.foreground,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _JournalTradeCard extends StatelessWidget {
+  const _JournalTradeCard({
+    required this.ticker,
+    required this.side,
+    required this.date,
+    required this.setup,
+    required this.duration,
+    required this.pnl,
+    required this.rMultiple,
+    required this.isWin,
+    required this.entryPrice,
+    required this.exitPrice,
+    required this.quantity,
+    required this.notes,
+    required this.tags,
+  });
+
+  final String ticker;
+  final String side;
+  final String date;
+  final String setup;
+  final String duration;
+  final String pnl;
+  final String rMultiple;
+  final bool isWin;
+  final String entryPrice;
+  final String exitPrice;
+  final String quantity;
+  final String notes;
+  final List<String> tags;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    final Color tint = isWin ? theme.colors.bullish : theme.colors.bearish;
+
+    return UiCard(
+      accentColor: tint,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          // Top Row: Ticker, Side, PnL
+          Row(
+            children: <Widget>[
+              UiBadge(
+                label: side,
+                intent: side == 'LONG' ? UiIntent.bullish : UiIntent.bearish,
+                size: UiSize.xs,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                ticker,
+                style: context.uiText.bodyStrong.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '· $setup',
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
+              ),
+              const Spacer(),
+              UiBadge(
+                label: '$pnl ($rMultiple)',
+                intent: isWin ? UiIntent.bullish : UiIntent.bearish,
+                variant: UiBadgeVariant.solid,
+                size: UiSize.sm,
+              ),
+            ],
+          ),
+
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Text(
+            notes,
+            style: context.uiText.body.copyWith(
+              fontSize: context.fs(13),
+              height: 1.4,
+            ),
+          ),
+
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: theme.colors.surfaceMuted,
+              borderRadius: context.radius(theme.radii.sm),
+            ),
+            child: Wrap(
+              spacing: context.sp(theme.spacing.md),
+              runSpacing: 4,
+              children: <Widget>[
+                Text('Entry: $entryPrice', style: context.uiText.caption),
+                Text('Exit: $exitPrice', style: context.uiText.caption),
+                Text('Qty: $quantity', style: context.uiText.caption),
+                Text('Time: $duration', style: context.uiText.caption),
+                Text(
+                  date,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (tags.isNotEmpty) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.xs)),
+            Wrap(
+              spacing: 6,
+              children: tags
+                  .map(
+                    (String t) => UiBadge(
+                      label: '#$t',
+                      intent: UiIntent.primary,
+                      size: UiSize.xs,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3. Notes & Playbooks Preview (Notion / Substack Style)
+// ---------------------------------------------------------------------------
+
+class _NotesPlaybooksPreview extends StatelessWidget {
+  const _NotesPlaybooksPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // Note 1
+        _NotePlaybookCard(
+          title: 'Opening range playbook',
+          subtitle: 'Updated 2 days ago · 8 linked trades · 4 min read',
+          icon: Icons.menu_book_rounded,
+          summary:
+              'Conditions, invalidation rules, and review questions for high-volume opening range setups. Trigger rules strictly require index confirmation and 1.5x volume expansion.',
+          tags: const <String>['Playbook', 'Strategy', 'ORB'],
+          isPublic: true,
+        ),
+        SizedBox(height: context.sp(theme.spacing.sm)),
+
+        // Note 2
+        _NotePlaybookCard(
+          title: 'Risk reset checklist',
+          subtitle: 'Updated last week · Public note · 2 min read',
+          icon: Icons.shield_outlined,
+          summary:
+              'A five-minute reset used after two consecutive losses or a process violation. Mandatory step-away protocol before executing another order.',
+          tags: const <String>['Psychology', 'Risk Rules', 'Discipline'],
+          isPublic: true,
+        ),
+        SizedBox(height: context.sp(theme.spacing.sm)),
+
+        // Note 3
+        _NotePlaybookCard(
+          title: 'Pre-Market Preparation Checklist',
+          subtitle: 'Updated Aug 20, 2026 · Daily Routine',
+          icon: Icons.checklist_rtl_rounded,
+          summary:
+              '1. Review SGX/Gift Nifty & US markets. 2. Mark major support/resistance on top 5 index heavyweight stocks. 3. Check open interest concentration and sector heatmap.',
+          tags: const <String>['Routine', 'PreMarket', 'Checklist'],
+          isPublic: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _NotePlaybookCard extends StatelessWidget {
+  const _NotePlaybookCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.summary,
+    required this.tags,
+    required this.isPublic,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String summary;
+  final List<String> tags;
+  final bool isPublic;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return UiCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(icon, color: theme.colors.primary, size: context.sz(20)),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              Expanded(
+                child: Text(
+                  title,
+                  style: context.uiText.bodyStrong.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              UiBadge(
+                label: 'PUBLIC PLAYBOOK',
+                intent: UiIntent.primary,
+                size: UiSize.xs,
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            subtitle,
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Text(
+            summary,
+            style: context.uiText.body.copyWith(
+              height: 1.45,
+              fontSize: context.fs(13.5),
+            ),
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Wrap(
+            spacing: 6,
+            children: tags
+                .map(
+                  (String t) => UiBadge(
+                    label: t,
+                    intent: UiIntent.neutral,
+                    size: UiSize.xs,
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 4. Public Dashboard Preview
+// ---------------------------------------------------------------------------
+
+class _PublicDashboardPreview extends StatelessWidget {
+  const _PublicDashboardPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        UiCardGrid(
+          mobileColumns: 2,
+          tabletColumns: 2,
+          desktopColumns: 2,
+          largeColumns: 4,
+          childAspectRatio: context.uiRes.pick<double>(
+            mobile: 1.25,
+            tablet: 1.45,
+            desktop: 1.55,
+          ),
+          children: <Widget>[
+            UiMetricCard(
+              label: '30D return',
+              value: '+18.4%',
+              delta: 18.4,
+              icon: Icons.trending_up_rounded,
+              chart: UiSparkChart(
+                values: const <double>[
+                  10,
+                  12,
+                  11,
+                  14,
+                  13,
+                  16,
+                  15,
+                  18,
+                  17,
+                  18.4,
+                ],
+                color: theme.colors.bullish,
+              ),
+            ),
+            UiMetricCard(
+              label: 'Avg. R multiple',
+              value: '2.15R',
+              delta: 0.18,
+              icon: Icons.analytics_outlined,
+              chart: UiSparkChart(
+                values: const <double>[
+                  1.8,
+                  1.9,
+                  1.85,
+                  2.0,
+                  1.95,
+                  2.1,
+                  2.05,
+                  2.15,
+                ],
+                color: theme.colors.primary,
+              ),
+            ),
+            UiMetricCard(
+              label: 'Plan adherence',
+              value: '94%',
+              delta: 3.2,
+              icon: Icons.fact_check_outlined,
+              chart: UiSparkChart(
+                values: const <double>[88, 90, 89, 92, 91, 93, 92, 94],
+                color: theme.colors.bullish,
+              ),
+            ),
+            UiMetricCard(
+              label: 'Public playbooks',
+              value: '6',
+              icon: Icons.menu_book_outlined,
+              chart: UiSparkChart(
+                values: const <double>[1, 2, 2, 3, 4, 4, 5, 6],
+                color: theme.colors.warning,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+
+        // Interactive Cumulative Equity Curve Chart Card
+        UiCard(
+          title: 'Equity Curve & Cumulative Return',
+          subtitle: '30-day verified growth trajectory vs NIFTY benchmark',
+          trailing: UiBadge(
+            label: '+18.4% Alpha',
+            intent: UiIntent.success,
+            variant: UiBadgeVariant.soft,
+            size: UiSize.xs,
+          ),
+          child: UiAreaChart(
+            height: 200,
+            data: const <UiChartPoint>[
+              UiChartPoint(label: 'Day 1', values: <double>[0.0, 0.0]),
+              UiChartPoint(label: 'Day 5', values: <double>[3.2, 0.8]),
+              UiChartPoint(label: 'Day 10', values: <double>[6.4, 1.2]),
+              UiChartPoint(label: 'Day 15', values: <double>[9.1, 1.9]),
+              UiChartPoint(label: 'Day 20', values: <double>[12.5, 2.6]),
+              UiChartPoint(label: 'Day 25', values: <double>[15.2, 3.1]),
+              UiChartPoint(label: 'Day 30', values: <double>[18.4, 3.8]),
+            ],
+            series: <UiChartSeries>[
+              UiChartSeries(
+                name: 'Cumulative Return',
+                color: theme.colors.bullish,
+                type: UiChartSeriesType.area,
+              ),
+              UiChartSeries(
+                name: 'Benchmark Index',
+                color: theme.colors.foregroundMuted,
+                type: UiChartSeriesType.line,
+              ),
+            ],
+            valueFormatter: (num v) => '+${v.toStringAsFixed(1)}%',
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+
+        // Instrument Breakdown
+        UiCard(
+          title: 'Top Instrument Breakdown',
+          subtitle: 'Realized performance by primary traded universe',
+          child: Column(
+            children: <Widget>[
+              _SectorBar(
+                label: 'NIFTY & Index Options',
+                pct: 0.55,
+                amount: '+₹1,02,400',
+                color: theme.colors.primary,
+              ),
+              const SizedBox(height: 10),
+              _SectorBar(
+                label: 'High-Beta Equities (Large Cap)',
+                pct: 0.30,
+                amount: '+₹54,600',
+                color: theme.colors.bullish,
+              ),
+              const SizedBox(height: 10),
+              _SectorBar(
+                label: 'Swing Breakouts (Mid Cap)',
+                pct: 0.15,
+                amount: '+₹27,200',
+                color: theme.colors.warning,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectorBar extends StatelessWidget {
+  const _SectorBar({
+    required this.label,
+    required this.pct,
+    required this.amount,
+    required this.color,
+  });
+
+  final String label;
+  final double pct;
+  final String amount;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.uiText.bodyStrong.copyWith(
+                  fontSize: context.fs(13),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              amount,
+              maxLines: 1,
+              style: context.uiText.bodyStrong.copyWith(color: color),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: pct,
+            backgroundColor: theme.colors.surfaceMuted,
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+            minHeight: 6,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 5. Affiliate Campaigns Preview
+// ---------------------------------------------------------------------------
+
+class _AffiliateCampaignsPreview extends StatelessWidget {
+  const _AffiliateCampaignsPreview({
+    required this.displayName,
+    required this.handle,
+    required this.referralCode,
+    this.avatarUrl,
+    required this.verifiedColor,
+  });
+
+  final String displayName;
+  final String handle;
+  final String referralCode;
+  final String? avatarUrl;
+  final Color verifiedColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // Pinned Promo Card
+        UiCard(
+          accentColor: theme.colors.warning,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  UiBadge(
+                    label: 'PINNED CAMPAIGN · 20% DISCOUNT',
+                    icon: Icons.local_offer_outlined,
+                    intent: UiIntent.warning,
+                    variant: UiBadgeVariant.solid,
+                    size: UiSize.xs,
+                  ),
+                  const Spacer(),
+                  Text(
+                    'Active through 2026',
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+              Text(
+                'Exclusive TradeX Community Discount 🎉',
+                style: context.uiText.heading.copyWith(
+                  fontSize: context.fs(16),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Get 20% OFF all TradeX Pro & Team annual memberships. Includes access to my verified trade journals, setup notes, and private strategy templates.',
+                style: context.uiText.body.copyWith(
+                  height: 1.45,
+                  fontSize: context.fs(13.5),
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.md)),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.md),
+                  vertical: context.sp(theme.spacing.sm),
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colors.surfaceMuted,
+                  borderRadius: context.radius(theme.radii.md),
+                  border: Border.all(color: theme.colors.border),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.vpn_key_rounded,
+                      size: 18,
+                      color: theme.colors.warning,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        referralCode,
+                        style: context.uiText.bodyStrong.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                    UiButton(
+                      label: 'Copy Code',
+                      variant: UiVariant.outline,
+                      size: UiSize.xs,
+                      leadingIcon: Icons.copy_rounded,
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: referralCode));
+                        UiToast.show(
+                          context,
+                          title: 'Code copied',
+                          message:
+                              'Referral code $referralCode copied to clipboard.',
+                          intent: UiIntent.success,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+
+        // Video Masterclass Setup Card
+        UiCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  UiAvatar(
+                    name: displayName,
+                    imageUrl: avatarUrl,
+                    size: UiSize.sm,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(displayName, style: context.uiText.bodyStrong),
+                        Text(
+                          '@$handle · 2h ago',
+                          style: context.uiText.caption.copyWith(
+                            color: theme.colors.foregroundMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  UiBadge(
+                    label: 'NEW VIDEO',
+                    intent: UiIntent.primary,
+                    size: UiSize.xs,
+                  ),
+                ],
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+              Text(
+                'Mastering the Opening Range Breakout (ORB) on NIFTY & Tech Stocks',
+                style: context.uiText.heading.copyWith(
+                  fontSize: context.fs(15),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'In this 35-minute workshop, I break down my exact execution rules, risk management plan, and why TradeX orderflow charts give an unfair edge.',
+                style: context.uiText.body.copyWith(height: 1.4),
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+              Container(
+                height: 140,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: theme.colors.surfaceMuted,
+                  borderRadius: context.radius(theme.radii.md),
+                  border: Border.all(color: theme.colors.border),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(
+                        Icons.play_circle_fill_rounded,
+                        size: 48,
+                        color: theme.colors.warning,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Watch Full Masterclass (35 mins)',
+                        style: context.uiText.caption.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 6. Affiliate Community Perks & 4-Step Trader Journey
+// ---------------------------------------------------------------------------
+
+class _AffiliateReferralPortalPreview extends StatelessWidget {
+  const _AffiliateReferralPortalPreview({
+    required this.referralCode,
+    required this.audienceReach,
+  });
+
+  final String referralCode;
+  final String audienceReach;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // Shareable Referral Link Card
+        UiCard(
+          accentColor: theme.colors.warning,
+          title: 'Join via Partner Link & Unlock VIP Perks',
+          subtitle:
+              'Use this link to automatically apply a 20% discount on all platform subscriptions and gain instant access to private setups.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.md),
+                  vertical: context.sp(theme.spacing.sm),
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colors.surfaceMuted,
+                  borderRadius: context.radius(theme.radii.md),
+                  border: Border.all(color: theme.colors.border),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.link_rounded,
+                      size: 20,
+                      color: theme.colors.warning,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'https://tradex.io/join/$referralCode',
+                        style: context.uiText.bodyStrong.copyWith(
+                          color: theme.colors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    UiButton(
+                      label: 'Copy Link',
+                      size: UiSize.xs,
+                      leadingIcon: Icons.copy_rounded,
+                      onPressed: () {
+                        Clipboard.setData(
+                          ClipboardData(
+                            text: 'https://tradex.io/join/$referralCode',
+                          ),
+                        );
+                        UiToast.show(
+                          context,
+                          title: 'Link copied',
+                          message: 'https://tradex.io/join/$referralCode',
+                          intent: UiIntent.success,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.md)),
+              Text(
+                'Member Perks When Joining via This Partner:',
+                style: context.uiText.caption.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: const <Widget>[
+                  UiBadge(
+                    label: '20% Lifetime Platform Discount',
+                    intent: UiIntent.success,
+                    size: UiSize.xs,
+                  ),
+                  UiBadge(
+                    label: 'Free Curated Playbooks',
+                    intent: UiIntent.primary,
+                    size: UiSize.xs,
+                  ),
+                  UiBadge(
+                    label: 'VIP Live Workshop Access',
+                    intent: UiIntent.warning,
+                    size: UiSize.xs,
+                  ),
+                  UiBadge(
+                    label: 'Zero Setup / Hidden Fees',
+                    intent: UiIntent.neutral,
+                    size: UiSize.xs,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+
+        // 4-Step Community Trader Journey Card
+        UiCard(
+          title: 'How to Get Started in 4 Easy Steps',
+          subtitle:
+              'Simple onboarding steps to activate your partner perks and join the private trade room',
+          child: Column(
+            children: <Widget>[
+              const _AffiliateStepTile(
+                stepNumber: '1',
+                title: 'Create Your Free Account',
+                description:
+                    'Sign up on TradeX in under 60 seconds with your email, mobile number, or Google auth.',
+                statusText: 'Step 1',
+                statusIntent: UiIntent.primary,
+              ),
+              const Divider(height: 20),
+              _AffiliateStepTile(
+                stepNumber: '2',
+                title: 'Apply Partner Code: $referralCode',
+                description:
+                    'Instantly lock in your 20% lifetime membership discount on Pro and Team tier plans.',
+                statusText: '20% Off',
+                statusIntent: UiIntent.success,
+              ),
+              const Divider(height: 20),
+              const _AffiliateStepTile(
+                stepNumber: '3',
+                title: 'Unlock Verified Playbooks & Setups',
+                description:
+                    'Gain instant access to the creator’s verified chart templates, ORB strategies, and trade journal.',
+                statusText: 'Free Access',
+                statusIntent: UiIntent.warning,
+              ),
+              const Divider(height: 20),
+              const _AffiliateStepTile(
+                stepNumber: '4',
+                title: 'Trade with Active Community Support',
+                description:
+                    'Participate in weekly market preparation sessions, live execution reviews, and peer discussions.',
+                statusText: 'VIP Community',
+                statusIntent: UiIntent.primary,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AffiliateStepTile extends StatelessWidget {
+  const _AffiliateStepTile({
+    required this.stepNumber,
+    required this.title,
+    required this.description,
+    required this.statusText,
+    required this.statusIntent,
+  });
+
+  final String stepNumber;
+  final String title;
+  final String description;
+  final String statusText;
+  final UiIntent statusIntent;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: theme.colors.warning.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+            border: Border.all(color: theme.colors.warning, width: 1.2),
+          ),
+          child: Center(
+            child: Text(
+              stepNumber,
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.warning,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: context.uiText.bodyStrong.copyWith(
+                        fontSize: context.fs(14),
+                      ),
+                    ),
+                  ),
+                  UiBadge(
+                    label: statusText,
+                    intent: statusIntent,
+                    size: UiSize.xs,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                description,
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 7. Affiliate Community Overview Preview
+// ---------------------------------------------------------------------------
+
+class _AffiliateCommunityOverviewPreview extends StatelessWidget {
+  const _AffiliateCommunityOverviewPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        UiCardGrid(
+          mobileColumns: 2,
+          tabletColumns: 2,
+          desktopColumns: 2,
+          largeColumns: 4,
+          childAspectRatio: context.uiRes.pick<double>(
+            mobile: 1.25,
+            tablet: 1.45,
+            desktop: 1.55,
+          ),
+          children: <Widget>[
+            UiMetricCard(
+              label: 'Active community',
+              value: '148 traders',
+              delta: 14.5,
+              icon: Icons.groups_outlined,
+              chart: UiSparkChart(
+                values: const <double>[80, 95, 110, 122, 134, 148],
+                color: theme.colors.primary,
+              ),
+            ),
+            UiMetricCard(
+              label: 'Member satisfaction',
+              value: '98.4%',
+              delta: 2.1,
+              icon: Icons.thumb_up_outlined,
+              chart: UiSparkChart(
+                values: const <double>[94, 95, 96, 97, 98, 98.4],
+                color: theme.colors.bullish,
+              ),
+            ),
+            UiMetricCard(
+              label: 'Playbooks shared',
+              value: '24 guides',
+              icon: Icons.menu_book_outlined,
+              chart: UiSparkChart(
+                values: const <double>[12, 15, 18, 20, 22, 24],
+                color: theme.colors.warning,
+              ),
+            ),
+            UiMetricCard(
+              label: 'Avg student win-rate',
+              value: '64.8%',
+              delta: 3.2,
+              icon: Icons.military_tech_outlined,
+              chart: UiSparkChart(
+                values: const <double>[58, 60, 61, 63, 64, 64.8],
+                color: theme.colors.bullish,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+
+        // Community Growth Trajectory Chart Card
+        UiCard(
+          title: 'Mentorship Growth & Community Activity',
+          subtitle:
+              'Active traders executing this educator’s verified strategy playbooks',
+          trailing: UiBadge(
+            label: '+148 Active Traders',
+            intent: UiIntent.primary,
+            variant: UiBadgeVariant.soft,
+            size: UiSize.xs,
+          ),
+          child: UiAreaChart(
+            height: 200,
+            data: const <UiChartPoint>[
+              UiChartPoint(label: 'Mar', values: <double>[24]),
+              UiChartPoint(label: 'Apr', values: <double>[48]),
+              UiChartPoint(label: 'May', values: <double>[72]),
+              UiChartPoint(label: 'Jun', values: <double>[96]),
+              UiChartPoint(label: 'Jul', values: <double>[120]),
+              UiChartPoint(label: 'Aug', values: <double>[148]),
+            ],
+            series: <UiChartSeries>[
+              UiChartSeries(
+                name: 'Mentored Members',
+                color: theme.colors.warning,
+                type: UiChartSeriesType.area,
+              ),
+            ],
+            valueFormatter: (num v) => '${v.toInt()} Traders',
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+
+        UiCard(
+          title: 'Primary Trading Frameworks & Setups',
+          subtitle:
+              'Strategy curriculum and execution models taught by this partner',
+          child: Column(
+            children: <Widget>[
+              _SectorBar(
+                label: 'Opening Range Breakouts (ORB)',
+                pct: 0.55,
+                amount: '18 Setups · 68.4% Win Rate',
+                color: theme.colors.primary,
+              ),
+              const SizedBox(height: 10),
+              _SectorBar(
+                label: 'Trend Following & Moving Average Pullbacks',
+                pct: 0.30,
+                amount: '12 Setups · 62.1% Win Rate',
+                color: theme.colors.bullish,
+              ),
+              const SizedBox(height: 10),
+              _SectorBar(
+                label: 'Options Volatility & Delta Neutral',
+                pct: 0.15,
+                amount: '6 Setups · 71.0% Win Rate',
+                color: theme.colors.warning,
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        UiCard(
+          title: 'Recent Verified Community Reviews',
+          subtitle: 'Feedback from traders executing this partner’s playbooks',
+          child: Column(
+            children: <Widget>[
+              _ReviewTile(
+                author: 'Rohan M.',
+                handle: '@rohan_trades',
+                timeAgo: 'Yesterday',
+                rating: 5,
+                comment:
+                    'The ORB blueprint and 15-minute risk checklist completely transformed my execution discipline. Profit factor is up from 1.2 to 2.4R this month!',
+              ),
+              const Divider(height: 24),
+              _ReviewTile(
+                author: 'Priya S.',
+                handle: '@priya_fno',
+                timeAgo: '3 days ago',
+                rating: 5,
+                comment:
+                    'Clear, zero-noise technical analysis. The private weekend workshops and TradeX orderflow charts give immense clarity before market open.',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReviewTile extends StatelessWidget {
+  const _ReviewTile({
+    required this.author,
+    required this.handle,
+    required this.timeAgo,
+    required this.rating,
+    required this.comment,
+  });
+
+  final String author;
+  final String handle;
+  final String timeAgo;
+  final int rating;
+  final String comment;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            UiAvatar(name: author, size: UiSize.xs),
+            const SizedBox(width: 8),
+            Text(
+              author,
+              style: context.uiText.bodyStrong.copyWith(
+                fontSize: context.fs(13),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '$handle · $timeAgo',
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
+            ),
+            const Spacer(),
+            Row(
+              children: List.generate(
+                rating,
+                (int i) => Icon(
+                  Icons.star_rounded,
+                  size: 15,
+                  color: theme.colors.warning,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          comment,
+          style: context.uiText.body.copyWith(
+            fontSize: context.fs(13),
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 8. Admin Command Center Preview (Root Level Privileges)
+// ---------------------------------------------------------------------------
+
+class _AdminCommandCenterPreview extends StatelessWidget {
+  const _AdminCommandCenterPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        UiCardGrid(
+          mobileColumns: 2,
+          tabletColumns: 2,
+          desktopColumns: 2,
+          largeColumns: 4,
+          childAspectRatio: context.uiRes.pick<double>(
+            mobile: 1.25,
+            tablet: 1.45,
+            desktop: 1.55,
+          ),
+          children: <Widget>[
+            UiMetricCard(
+              label: 'Firm killswitch',
+              value: 'Armed / Ready',
+              icon: Icons.crisis_alert_rounded,
+              chart: UiSparkChart(
+                values: const <double>[1, 1, 1, 1, 1, 1, 1, 1],
+                color: theme.colors.destructive,
+              ),
+            ),
+            UiMetricCard(
+              label: 'Matching latency',
+              value: '1.2 ms',
+              delta: -14.2,
+              icon: Icons.speed_rounded,
+              chart: UiSparkChart(
+                values: const <double>[2.1, 1.9, 1.8, 1.6, 1.4, 1.3, 1.2],
+                color: theme.colors.bullish,
+              ),
+            ),
+            UiMetricCard(
+              label: 'Active terminals',
+              value: '12,480',
+              delta: 8.5,
+              icon: Icons.devices_other_rounded,
+              chart: UiSparkChart(
+                values: const <double>[9800, 10200, 11100, 11800, 12200, 12480],
+                color: theme.colors.primary,
+              ),
+            ),
+            UiMetricCard(
+              label: 'Order throughput',
+              value: '48.2K msg/s',
+              delta: 12.0,
+              icon: Icons.swap_vert_rounded,
+              chart: UiSparkChart(
+                values: const <double>[32, 36, 40, 42, 45, 48.2],
+                color: theme.colors.warning,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+
+        // Root Authority Actions Card
+        UiCard(
+          accentColor: theme.colors.destructive,
+          title: 'Root Authority Command Actions',
+          subtitle:
+              'Unrestricted high-clearance controls over platform state, risk engines, and order routing',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Wrap(
+                spacing: context.sp(theme.spacing.sm),
+                runSpacing: context.sp(theme.spacing.sm),
+                children: <Widget>[
+                  UiButton(
+                    label: 'Emergency Freeze Trading',
+                    leadingIcon: Icons.pause_circle_filled_rounded,
+                    intent: UiIntent.danger,
+                    variant: UiVariant.primary,
+                    size: UiSize.sm,
+                    onPressed: () {
+                      UiToast.show(
+                        context,
+                        title: 'Emergency Trading Pause',
+                        message:
+                            'Global trade matching halted for risk assessment.',
+                        intent: UiIntent.danger,
+                      );
+                    },
+                  ),
+                  UiButton(
+                    label: 'Recalibrate Risk Engine',
+                    leadingIcon: Icons.refresh_rounded,
+                    intent: UiIntent.warning,
+                    variant: UiVariant.soft,
+                    size: UiSize.sm,
+                    onPressed: () {
+                      UiToast.show(
+                        context,
+                        title: 'Risk Recalibration',
+                        message:
+                            'Recalibrating VaR margin buffers across 12,480 accounts.',
+                        intent: UiIntent.warning,
+                      );
+                    },
+                  ),
+                  UiButton(
+                    label: 'Broadcast System Alert',
+                    leadingIcon: Icons.campaign_rounded,
+                    intent: UiIntent.primary,
+                    variant: UiVariant.soft,
+                    size: UiSize.sm,
+                    onPressed: () {
+                      UiToast.show(
+                        context,
+                        title: 'Terminal Broadcast',
+                        message:
+                            'Urgent platform notification pushed to all active sessions.',
+                        intent: UiIntent.info,
+                      );
+                    },
+                  ),
+                  UiButton(
+                    label: 'Export Compliance Audit Dump',
+                    leadingIcon: Icons.download_rounded,
+                    variant: UiVariant.outline,
+                    size: UiSize.sm,
+                    onPressed: () {
+                      UiToast.show(
+                        context,
+                        title: 'Audit Dump Generated',
+                        message:
+                            'Cryptographic trade ledger exported for regulatory inspection.',
+                        intent: UiIntent.success,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+
+        // Orderflow & Gateways Status
+        UiCard(
+          title: 'Infrastructure Node & Broker Feeds Telemetry',
+          subtitle: 'Live connection health across institutional gateways',
+          child: Column(
+            children: <Widget>[
+              _SectorBar(
+                label: 'NSE & BSE Direct Colocation Feed (0.8ms)',
+                pct: 0.99,
+                amount: '100% Operational',
+                color: theme.colors.bullish,
+              ),
+              const SizedBox(height: 10),
+              _SectorBar(
+                label: 'Institutional Order Routing Engine (1.2ms)',
+                pct: 0.98,
+                amount: 'Optimal Throughput',
+                color: theme.colors.primary,
+              ),
+              const SizedBox(height: 10),
+              _SectorBar(
+                label: 'Real-Time VaR Risk Gateway (2.1ms)',
+                pct: 0.95,
+                amount: 'Zero Bottlenecks',
+                color: theme.colors.warning,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 9. Admin Risk & Audit Stream Preview
+// ---------------------------------------------------------------------------
+
+class _AdminRiskAuditPreview extends StatelessWidget {
+  const _AdminRiskAuditPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        UiCard(
+          title: 'Real-Time Institutional Audit Stream',
+          subtitle:
+              'Immutable cryptographically hashed security and risk events',
+          child: Column(
+            children: <Widget>[
+              _AdminAuditTile(
+                icon: Icons.shield_rounded,
+                iconColor: theme.colors.bullish,
+                title: 'System Security & KYC Sanction Check Passed',
+                subtitle:
+                    'Automated screening against SEBI & global FATF watchlists verified 12,480 accounts clean.',
+                timestamp: '1 min ago',
+                badgeLabel: 'VERIFIED',
+                badgeIntent: UiIntent.success,
+              ),
+              const Divider(height: 20),
+              _AdminAuditTile(
+                icon: Icons.warning_amber_rounded,
+                iconColor: theme.colors.warning,
+                title: 'Margin Threshold Alert Intercepted',
+                subtitle:
+                    'Account #TRX-8821 reached 82% margin capacity on NIFTY weekly straddles. Automated liquidation buffer armed.',
+                timestamp: '8 mins ago',
+                badgeLabel: 'INTERCEPTED',
+                badgeIntent: UiIntent.warning,
+              ),
+              const Divider(height: 20),
+              _AdminAuditTile(
+                icon: Icons.bolt_rounded,
+                iconColor: theme.colors.primary,
+                title: 'High-Frequency Order Throttle Engaged',
+                subtitle:
+                    'Automated algorithmic flow on Desk #3 capped at 100 orders/second to maintain matching integrity.',
+                timestamp: '24 mins ago',
+                badgeLabel: 'THROTTLED',
+                badgeIntent: UiIntent.primary,
+              ),
+              const Divider(height: 20),
+              _AdminAuditTile(
+                icon: Icons.key_rounded,
+                iconColor: theme.colors.destructive,
+                title: 'Revoked Stale API Key for Inactive Broker Connector',
+                subtitle:
+                    'Root admin security daemon terminated dormant OAuth token for Broker Gateway #5.',
+                timestamp: '1 hour ago',
+                badgeLabel: 'SECURITY ACTION',
+                badgeIntent: UiIntent.danger,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdminAuditTile extends StatelessWidget {
+  const _AdminAuditTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.timestamp,
+    required this.badgeLabel,
+    required this.badgeIntent,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final String timestamp;
+  final String badgeLabel;
+  final UiIntent badgeIntent;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: iconColor, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: context.uiText.bodyStrong.copyWith(
+                        fontSize: context.fs(14),
+                      ),
+                    ),
+                  ),
+                  UiBadge(
+                    label: badgeLabel,
+                    intent: badgeIntent,
+                    size: UiSize.xs,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: context.uiText.body.copyWith(
+                  color: theme.colors.foregroundMuted,
+                  fontSize: context.fs(13),
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                timestamp,
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 10. Admin Desk Governance Preview
+// ---------------------------------------------------------------------------
+
+class _AdminDeskGovernancePreview extends StatelessWidget {
+  const _AdminDeskGovernancePreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        UiCard(
+          title: 'Trading Desk Division Allocation Matrix',
+          subtitle:
+              'Institutional capital distribution and leverage ceilings by desk unit',
+          child: Column(
+            children: <Widget>[
+              _SectorBar(
+                label: 'Index Futures & Options Desk (3x Leverage)',
+                pct: 0.40,
+                amount: '₹60.0 Cr Supervised',
+                color: theme.colors.primary,
+              ),
+              const SizedBox(height: 10),
+              _SectorBar(
+                label: 'High-Beta Equities Proprietary Desk (5x Leverage)',
+                pct: 0.30,
+                amount: '₹45.0 Cr Supervised',
+                color: theme.colors.bullish,
+              ),
+              const SizedBox(height: 10),
+              _SectorBar(
+                label: 'Quantitative Algo & Market Making Desk (10x Max)',
+                pct: 0.20,
+                amount: '₹30.0 Cr Supervised',
+                color: theme.colors.warning,
+              ),
+              const SizedBox(height: 10),
+              _SectorBar(
+                label: 'Commodities & FX Risk Desk (4x Leverage)',
+                pct: 0.10,
+                amount: '₹13.2 Cr Supervised',
+                color: theme.colors.destructive,
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        UiCard(
+          title: 'Global Firm Risk Rules & Mandates',
+          subtitle: 'Enforced automatically at the order matching gateway',
+          child: Column(
+            children: const <Widget>[
+              _GovernancePolicyTile(
+                title: 'Max Firm-Wide Daily Loss Ceiling',
+                value: '3.5% Net AUM',
+                status: 'Enforced',
+              ),
+              Divider(height: 16),
+              _GovernancePolicyTile(
+                title: 'Automated Account Liquidation Margin',
+                value: '85% Margin Utilized',
+                status: 'Armed',
+              ),
+              Divider(height: 16),
+              _GovernancePolicyTile(
+                title: 'Pre-Trade Sub-Millisecond Credit Checks',
+                value: '< 0.4ms Latency',
+                status: 'Active',
+              ),
+              Divider(height: 16),
+              _GovernancePolicyTile(
+                title: 'Regulatory Audit Package Cryptographic Hash',
+                value: 'SHA-256 Verified',
+                status: 'Compliant',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GovernancePolicyTile extends StatelessWidget {
+  const _GovernancePolicyTile({
+    required this.title,
+    required this.value,
+    required this.status,
+  });
+
+  final String title;
+  final String value;
+  final String status;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: <Widget>[
+      Expanded(
+        child: Text(
+          title,
+          style: context.uiText.bodyStrong.copyWith(fontSize: context.fs(13)),
+        ),
+      ),
+      Text(
+        value,
+        style: context.uiText.body.copyWith(
+          color: context.ui.colors.primary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      const SizedBox(width: 12),
+      UiBadge(label: status, intent: UiIntent.success, size: UiSize.xs),
+    ],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 11. Admin Analytics Preview
+// ---------------------------------------------------------------------------
+
+class _AdminAnalyticsPreview extends StatelessWidget {
+  const _AdminAnalyticsPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        UiCardGrid(
+          mobileColumns: 2,
+          tabletColumns: 2,
+          desktopColumns: 2,
+          largeColumns: 4,
+          childAspectRatio: context.uiRes.pick<double>(
+            mobile: 1.25,
+            tablet: 1.45,
+            desktop: 1.55,
+          ),
+          children: <Widget>[
+            UiMetricCard(
+              label: 'Firm-wide daily volume',
+              value: '₹148.2 Cr',
+              delta: 18.4,
+              icon: Icons.account_balance_wallet_outlined,
+              chart: UiSparkChart(
+                values: const <double>[110, 118, 125, 134, 140, 148.2],
+                color: theme.colors.primary,
+              ),
+            ),
+            UiMetricCard(
+              label: 'Matching gateway latency',
+              value: '1.2 ms',
+              delta: -12.5,
+              icon: Icons.speed_rounded,
+              chart: UiSparkChart(
+                values: const <double>[1.8, 1.6, 1.5, 1.4, 1.3, 1.2],
+                color: theme.colors.bullish,
+              ),
+            ),
+            UiMetricCard(
+              label: 'Order match execution rate',
+              value: '99.98%',
+              icon: Icons.check_circle_outline_rounded,
+              chart: UiSparkChart(
+                values: const <double>[99.92, 99.95, 99.96, 99.98],
+                color: theme.colors.bullish,
+              ),
+            ),
+            UiMetricCard(
+              label: 'Server infrastructure load',
+              value: '18.4%',
+              icon: Icons.memory_rounded,
+              chart: UiSparkChart(
+                values: const <double>[12, 14, 15, 16, 17, 18.4],
+                color: theme.colors.warning,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+
+        // Firm Cumulative Performance Curve
+        UiCard(
+          title: 'Firm Realized PnL & Volatility Trajectory',
+          subtitle:
+              'Aggregated return across all 8 proprietary and client desks',
+          trailing: UiBadge(
+            label: '+24.8% Realized Alpha',
+            intent: UiIntent.success,
+            variant: UiBadgeVariant.soft,
+            size: UiSize.xs,
+          ),
+          child: UiAreaChart(
+            height: 200,
+            data: const <UiChartPoint>[
+              UiChartPoint(label: 'Day 1', values: <double>[0.0]),
+              UiChartPoint(label: 'Day 5', values: <double>[4.2]),
+              UiChartPoint(label: 'Day 10', values: <double>[8.6]),
+              UiChartPoint(label: 'Day 15', values: <double>[12.8]),
+              UiChartPoint(label: 'Day 20', values: <double>[16.4]),
+              UiChartPoint(label: 'Day 25', values: <double>[20.2]),
+              UiChartPoint(label: 'Day 30', values: <double>[24.8]),
+            ],
+            series: <UiChartSeries>[
+              UiChartSeries(
+                name: 'Firm Net PnL',
+                color: theme.colors.bullish,
+                type: UiChartSeriesType.area,
+              ),
+            ],
+            valueFormatter: (num v) => '+${v.toStringAsFixed(1)}%',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Decorative Custom Painter for Header Banner Grid
+// ---------------------------------------------------------------------------
+
+class _GridPatternPainter extends CustomPainter {
+  const _GridPatternPainter({required this.gridColor});
+
+  final Color gridColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1.0;
+
+    const double step = 24.0;
+    for (double x = 0; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (double y = 0; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GridPatternPainter oldDelegate) =>
+      oldDelegate.gridColor != gridColor;
+}

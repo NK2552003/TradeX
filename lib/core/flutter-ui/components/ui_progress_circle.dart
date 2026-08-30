@@ -42,8 +42,9 @@ class UiProgressCircle extends StatelessWidget {
           center ??
               Text(
                 '${(value.clamp(0, 1) * 100).toStringAsFixed(0)}%',
-                style: context.uiText.bodyStrong
-                    .copyWith(color: theme.colors.foreground),
+                style: context.uiText.bodyStrong.copyWith(
+                  color: theme.colors.foreground,
+                ),
               ),
         ],
       ),
@@ -66,7 +67,8 @@ class _RingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Rect rect = Offset(thickness / 2, thickness / 2) &
+    final Rect rect =
+        Offset(thickness / 2, thickness / 2) &
         Size(size.width - thickness, size.height - thickness);
     final Paint track = Paint()
       ..color = trackColor

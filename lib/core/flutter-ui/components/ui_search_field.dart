@@ -55,8 +55,9 @@ class UiSearchField extends StatefulWidget {
 }
 
 class _UiSearchFieldState extends State<UiSearchField> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.value ?? '');
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.value ?? '',
+  );
   bool _focused = false;
 
   @override
@@ -68,8 +69,7 @@ class _UiSearchFieldState extends State<UiSearchField> {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final bool showSuggestions =
-        _focused && widget.suggestions.isNotEmpty;
+    final bool showSuggestions = _focused && widget.suggestions.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -89,8 +89,7 @@ class _UiSearchFieldState extends State<UiSearchField> {
               widget.onChanged?.call(v);
             },
             onSubmitted: widget.onSubmitted,
-            trailingIcon:
-                _controller.text.isEmpty ? null : Icons.close_rounded,
+            trailingIcon: _controller.text.isEmpty ? null : Icons.close_rounded,
             onTrailingTap: () {
               _controller.clear();
               widget.onChanged?.call('');
@@ -127,50 +126,50 @@ class _UiSearchFieldState extends State<UiSearchField> {
                     onTap: () => widget.onSuggestionTap?.call(s),
                     builder: (BuildContext ctx, UiInteractiveState st) =>
                         Container(
-                      color: st.hovered
-                          ? theme.colors.surfaceHover
-                          : Colors.transparent,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: ctx.sp(theme.spacing.md),
-                        vertical: ctx.sp(theme.spacing.sm),
-                      ),
-                      child: Row(
-                        children: <Widget>[
-                          Icon(
-                            s.icon ?? Icons.search,
-                            size: ctx.sz(theme.sizes.iconMd),
-                            color: theme.colors.foregroundMuted,
+                          color: st.hovered
+                              ? theme.colors.surfaceHover
+                              : Colors.transparent,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: ctx.sp(theme.spacing.md),
+                            vertical: ctx.sp(theme.spacing.sm),
                           ),
-                          SizedBox(width: ctx.sp(theme.spacing.sm)),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                Text(s.label, style: ctx.uiText.bodyStrong),
-                                if (s.subtitle != null)
-                                  Text(
-                                    s.subtitle!,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: ctx.uiText.caption.copyWith(
-                                      color: theme.colors.foregroundMuted,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (s.trailing != null)
-                            Text(
-                              s.trailing!,
-                              style: ctx.uiText.numeric.copyWith(
-                                fontSize: ctx.uiText.caption.fontSize,
+                          child: Row(
+                            children: <Widget>[
+                              Icon(
+                                s.icon ?? Icons.search,
+                                size: ctx.sz(theme.sizes.iconMd),
                                 color: theme.colors.foregroundMuted,
                               ),
-                            ),
-                        ],
-                      ),
-                    ),
+                              SizedBox(width: ctx.sp(theme.spacing.sm)),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Text(s.label, style: ctx.uiText.bodyStrong),
+                                    if (s.subtitle != null)
+                                      Text(
+                                        s.subtitle!,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: ctx.uiText.caption.copyWith(
+                                          color: theme.colors.foregroundMuted,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (s.trailing != null)
+                                Text(
+                                  s.trailing!,
+                                  style: ctx.uiText.numeric.copyWith(
+                                    fontSize: ctx.uiText.caption.fontSize,
+                                    color: theme.colors.foregroundMuted,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                   ),
               ],
             ),

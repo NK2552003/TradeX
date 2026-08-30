@@ -42,8 +42,7 @@ class AppProfileHeaderBlock extends StatelessWidget {
         else ...<Widget>[
           UiButton(
             label: trader.isFollowing ? 'Following' : 'Follow',
-            variant:
-                trader.isFollowing ? UiVariant.outline : UiVariant.primary,
+            variant: trader.isFollowing ? UiVariant.outline : UiVariant.primary,
             size: UiSize.sm,
             expandOnMobile: false,
             onPressed: onFollow,
@@ -85,8 +84,9 @@ class AppProfileHeaderBlock extends StatelessWidget {
                     ),
                     Text(
                       '@${trader.handle}',
-                      style: context.uiText.caption
-                          .copyWith(color: theme.colors.foregroundMuted),
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.foregroundMuted,
+                      ),
                     ),
                     SizedBox(height: context.sp(theme.spacing.xs)),
                     UiBadge(
@@ -108,10 +108,28 @@ class AppProfileHeaderBlock extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.md)),
           Row(
             children: <Widget>[
-              Flexible(child: _stat(context, uiCompactNumber(trader.followers), 'Followers')),
-              Flexible(child: _stat(context, uiCompactNumber(trader.following), 'Following')),
+              Flexible(
+                child: _stat(
+                  context,
+                  uiCompactNumber(trader.followers),
+                  'Followers',
+                ),
+              ),
+              Flexible(
+                child: _stat(
+                  context,
+                  uiCompactNumber(trader.following),
+                  'Following',
+                ),
+              ),
               if (trader.winRate != null)
-                Flexible(child: _stat(context, '${trader.winRate!.toStringAsFixed(0)}%', 'Win rate')),
+                Flexible(
+                  child: _stat(
+                    context,
+                    '${trader.winRate!.toStringAsFixed(0)}%',
+                    'Win rate',
+                  ),
+                ),
             ],
           ),
           if (context.uiRes.isMobile) ...<Widget>[
@@ -133,8 +151,9 @@ class AppProfileHeaderBlock extends StatelessWidget {
           Text(value, style: context.uiText.subheading),
           Text(
             label,
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
         ],
       ),
@@ -163,35 +182,94 @@ class AppPricingBlock extends StatelessWidget {
       children: <Widget>[
         Text(title, style: context.uiText.heading, textAlign: TextAlign.center),
         SizedBox(height: context.sp(theme.spacing.xl)),
-        if (context.uiRes.isMobile)
-          for (final AppPlan p in plans)
-            Padding(
-              padding: EdgeInsets.only(bottom: context.sp(theme.spacing.md)),
-              child: AppPlanCard(
-                plan: p,
-                onSelect: onSelect == null ? null : () => onSelect!(p),
-              ),
-            )
-        else
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (int i = 0; i < plans.length; i++) ...<Widget>[
-                  Expanded(
-                    child: AppPlanCard(
-                      plan: plans[i],
-                      onSelect: onSelect == null
-                          ? null
-                          : () => onSelect!(plans[i]),
+        LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final double w = constraints.maxWidth;
+            final double gap = context.sp(theme.spacing.md);
+
+            if (w >= 780 && plans.length >= 3) {
+              // 3-column desktop layout with equal height cards
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    for (int i = 0; i < plans.length; i++) ...<Widget>[
+                      Expanded(
+                        child: AppPlanCard(
+                          plan: plans[i],
+                          fillHeight: true,
+                          onSelect: onSelect == null
+                              ? null
+                              : () => onSelect!(plans[i]),
+                        ),
+                      ),
+                      if (i != plans.length - 1)
+                        SizedBox(width: gap),
+                    ],
+                  ],
+                ),
+              );
+            } else if (w >= 560 && plans.length == 2) {
+              // 2-column layout with equal height cards
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    for (int i = 0; i < plans.length; i++) ...<Widget>[
+                      Expanded(
+                        child: AppPlanCard(
+                          plan: plans[i],
+                          fillHeight: true,
+                          onSelect: onSelect == null
+                              ? null
+                              : () => onSelect!(plans[i]),
+                        ),
+                      ),
+                      if (i != plans.length - 1)
+                        SizedBox(width: gap),
+                    ],
+                  ],
+                ),
+              );
+            } else if (w >= 600 && plans.length == 3) {
+              // 2-column auto-grid for 3 plans (top 2 + bottom 1 full width)
+              final double cardWidth = (w - gap) / 2;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: <Widget>[
+                  for (final AppPlan p in plans)
+                    SizedBox(
+                      width: p == plans.last ? w : cardWidth,
+                      child: AppPlanCard(
+                        plan: p,
+                        onSelect: onSelect == null ? null : () => onSelect!(p),
+                      ),
                     ),
-                  ),
-                  if (i != plans.length - 1)
-                    SizedBox(width: context.sp(theme.spacing.lg)),
                 ],
-              ],
-            ),
-          ),
+              );
+            } else {
+              // 1-column mobile / compact drawer layout
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  for (int i = 0; i < plans.length; i++)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: i == plans.length - 1 ? 0 : gap,
+                      ),
+                      child: AppPlanCard(
+                        plan: plans[i],
+                        onSelect: onSelect == null
+                            ? null
+                            : () => onSelect!(plans[i]),
+                      ),
+                    ),
+                ],
+              );
+            }
+          },
+        ),
       ],
     );
   }
@@ -230,8 +308,9 @@ class AppBillingBlock extends StatelessWidget {
         children: <Widget>[
           Text(
             renewalLabel,
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
           if (usage.isNotEmpty) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.md)),
@@ -287,8 +366,9 @@ class AppSettingsSectionBlock extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.xxs)),
           Text(
             description!,
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
         ],
         SizedBox(height: context.sp(theme.spacing.md)),
@@ -316,8 +396,12 @@ class AppAchievementsBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final int cols =
-        context.uiRes.columns(mobile: 2, tablet: 3, desktop: 4, large: 5);
+    final int cols = context.uiRes.columns(
+      mobile: 2,
+      tablet: 3,
+      desktop: 4,
+      large: 5,
+    );
     return UiCard(
       title: title,
       child: GridView.builder(
@@ -383,10 +467,7 @@ class AppAuthBlock extends StatelessWidget {
             ),
             SizedBox(height: context.sp(theme.spacing.lg)),
             if (error != null) ...<Widget>[
-              UiCallout(
-                title: error!,
-                intent: UiIntent.bearish,
-              ),
+              UiCallout(title: error!, intent: UiIntent.bearish),
               SizedBox(height: context.sp(theme.spacing.md)),
             ],
             UiField(
@@ -487,14 +568,14 @@ class AppOnboardingBlock extends StatelessWidget {
                     steps[i].done
                         ? Icons.check_circle
                         : (i == currentStep
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked),
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked),
                     size: context.sz(theme.sizes.iconSm),
                     color: steps[i].done
                         ? theme.colors.bullish
                         : (i == currentStep
-                            ? theme.colors.primary
-                            : theme.colors.foregroundSubtle),
+                              ? theme.colors.primary
+                              : theme.colors.foregroundSubtle),
                   ),
                   SizedBox(width: context.sp(theme.spacing.sm)),
                   Expanded(

@@ -9,9 +9,6 @@ enum OtpPurpose {
 
   /// Password-reset flow, shown after "Send Reset Code".
   passwordReset,
-
-  /// Reserved for a future login two-factor step.
-  login,
 }
 
 extension OtpPurposeCopy on OtpPurpose {
@@ -21,8 +18,6 @@ extension OtpPurposeCopy on OtpPurpose {
         return 'Verify your email';
       case OtpPurpose.passwordReset:
         return 'Enter verification code';
-      case OtpPurpose.login:
-        return 'Two-step verification';
     }
   }
 
@@ -32,8 +27,6 @@ extension OtpPurposeCopy on OtpPurpose {
         return "We've sent a 6-digit confirmation code to";
       case OtpPurpose.passwordReset:
         return 'We sent a 6-digit code to';
-      case OtpPurpose.login:
-        return 'Enter the 6-digit code sent to';
     }
   }
 
@@ -42,7 +35,6 @@ extension OtpPurposeCopy on OtpPurpose {
       case OtpPurpose.signupVerification:
         return 'Back to Sign up';
       case OtpPurpose.passwordReset:
-      case OtpPurpose.login:
         return 'Back to Sign in';
     }
   }
@@ -55,8 +47,6 @@ extension OtpPurposeCopy on OtpPurpose {
         return 'signup';
       case OtpPurpose.passwordReset:
         return 'reset';
-      case OtpPurpose.login:
-        return 'login';
     }
   }
 }

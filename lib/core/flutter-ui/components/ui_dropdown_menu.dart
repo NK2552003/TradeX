@@ -18,37 +18,37 @@ class UiMenuItem {
     VoidCallback? onTap,
     VoidCallback? onSelected,
     this.children = const <UiMenuItem>[],
-  })  : intent = intent ?? (destructive ? UiIntent.danger : null),
-        onTap = onTap ?? onSelected,
-        isDivider = false,
-        isSection = false;
+  }) : intent = intent ?? (destructive ? UiIntent.danger : null),
+       onTap = onTap ?? onSelected,
+       isDivider = false,
+       isSection = false;
 
   const UiMenuItem.divider()
-      : label = '',
-        icon = null,
-        trailingIcon = null,
-        shortcut = null,
-        description = null,
-        intent = null,
-        enabled = true,
-        selected = false,
-        onTap = null,
-        children = const <UiMenuItem>[],
-        isDivider = true,
-        isSection = false;
+    : label = '',
+      icon = null,
+      trailingIcon = null,
+      shortcut = null,
+      description = null,
+      intent = null,
+      enabled = true,
+      selected = false,
+      onTap = null,
+      children = const <UiMenuItem>[],
+      isDivider = true,
+      isSection = false;
 
   const UiMenuItem.section(this.label)
-      : icon = null,
-        trailingIcon = null,
-        shortcut = null,
-        description = null,
-        intent = null,
-        enabled = true,
-        selected = false,
-        onTap = null,
-        children = const <UiMenuItem>[],
-        isDivider = false,
-        isSection = true;
+    : icon = null,
+      trailingIcon = null,
+      shortcut = null,
+      description = null,
+      intent = null,
+      enabled = true,
+      selected = false,
+      onTap = null,
+      children = const <UiMenuItem>[],
+      isDivider = false,
+      isSection = true;
 
   final String label;
   final IconData? icon;
@@ -90,7 +90,7 @@ class UiDropdownMenu extends StatefulWidget {
     this.maxHeight = 360,
     this.closeOnSelect = true,
     this.semanticLabel,
-  })  : items = items ?? actions ?? const <UiMenuItem>[];
+  }) : items = items ?? actions ?? const <UiMenuItem>[];
 
   final List<UiMenuItem> items;
 
@@ -139,7 +139,8 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
     final RenderBox? box =
         _triggerKey.currentContext?.findRenderObject() as RenderBox?;
     final double triggerWidth = box?.size.width ?? 160;
-    final double width = widget.width ?? (triggerWidth < 150 ? 150 : triggerWidth);
+    final double width =
+        widget.width ?? (triggerWidth < 150 ? 150 : triggerWidth);
 
     _entry = OverlayEntry(
       builder: (BuildContext ctx) => Stack(
@@ -156,10 +157,12 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
           CompositedTransformFollower(
             link: _link,
             showWhenUnlinked: false,
-            targetAnchor:
-                widget.alignRight ? Alignment.bottomRight : Alignment.bottomLeft,
-            followerAnchor:
-                widget.alignRight ? Alignment.topRight : Alignment.topLeft,
+            targetAnchor: widget.alignRight
+                ? Alignment.bottomRight
+                : Alignment.bottomLeft,
+            followerAnchor: widget.alignRight
+                ? Alignment.topRight
+                : Alignment.topLeft,
             offset: Offset(0, context.sz(widget.offset)),
             child: _MenuSurface(
               width: width,
@@ -238,8 +241,7 @@ class _MenuSurface extends StatelessWidget {
         decoration: BoxDecoration(
           color: c.surface,
           borderRadius: context.radius(theme.radii.md),
-          border:
-              Border.all(color: c.border, width: theme.borders.hairline),
+          border: Border.all(color: c.border, width: theme.borders.hairline),
           boxShadow: theme.shadows.lg,
         ),
         clipBehavior: Clip.antiAlias,
@@ -256,11 +258,11 @@ class _MenuSurface extends StatelessWidget {
             ],
             Flexible(
               child: ConstrainedBox(
-                constraints:
-                    BoxConstraints(maxHeight: context.sz(maxHeight)),
+                constraints: BoxConstraints(maxHeight: context.sz(maxHeight)),
                 child: SingleChildScrollView(
-                  padding:
-                      EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xxs)),
+                  padding: EdgeInsets.symmetric(
+                    vertical: context.sp(theme.spacing.xxs),
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -288,34 +290,45 @@ class _MenuSurface extends StatelessWidget {
     final List<Widget> out = <Widget>[];
     for (final UiMenuItem item in list) {
       if (item.isDivider) {
-        out.add(Padding(
-          padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xxs)),
-          child: Container(height: theme.borders.hairline, color: c.border),
-        ));
+        out.add(
+          Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.xxs),
+            ),
+            child: Container(height: theme.borders.hairline, color: c.border),
+          ),
+        );
         continue;
       }
       if (item.isSection) {
-        out.add(Padding(
-          padding: EdgeInsets.fromLTRB(
-            context.sp(theme.spacing.sm),
-            context.sp(theme.spacing.xs),
-            context.sp(theme.spacing.sm),
-            context.sp(theme.spacing.xxs),
+        out.add(
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              context.sp(theme.spacing.sm),
+              context.sp(theme.spacing.xs),
+              context.sp(theme.spacing.sm),
+              context.sp(theme.spacing.xxs),
+            ),
+            child: Text(
+              item.label.toUpperCase(),
+              style: context.uiText.caption.copyWith(
+                color: c.foregroundSubtle,
+                fontSize: context.fs(10),
+              ),
+            ),
           ),
-          child: Text(
-            item.label.toUpperCase(),
-            style: context.uiText.caption.copyWith(color: c.foregroundSubtle, fontSize: 10),
-          ),
-        ));
+        );
         continue;
       }
-      out.add(_MenuRow(
-        item: item,
-        depth: depth,
-        size: size,
-        density: density,
-        onTap: () => onSelected(item),
-      ));
+      out.add(
+        _MenuRow(
+          item: item,
+          depth: depth,
+          size: size,
+          density: density,
+          onTap: () => onSelected(item),
+        ),
+      );
       if (item.children.isNotEmpty) {
         out.addAll(_rows(context, item.children, depth + 1));
       }
@@ -354,8 +367,7 @@ class _MenuRow extends StatelessWidget {
       builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
         duration: theme.motion.fast,
         padding: EdgeInsets.only(
-          left: ctx.sp(theme.spacing.sm) +
-              depth * ctx.sp(theme.spacing.md),
+          left: ctx.sp(theme.spacing.sm) + depth * ctx.sp(theme.spacing.md),
           right: ctx.sp(theme.spacing.sm),
           top: ctx.sp(theme.spacing.xs) * density.factor,
           bottom: ctx.sp(theme.spacing.xs) * density.factor,
@@ -363,10 +375,10 @@ class _MenuRow extends StatelessWidget {
         color: !enabled
             ? const Color(0x00000000)
             : s.hovered
-                ? (item.intent == null
-                    ? c.surfaceHover
-                    : accent.withValues(alpha: 0.10))
-                : (item.selected ? c.surfaceMuted : const Color(0x00000000)),
+            ? (item.intent == null
+                  ? c.surfaceHover
+                  : accent.withValues(alpha: 0.10))
+            : (item.selected ? c.surfaceMuted : const Color(0x00000000)),
         child: Row(
           children: <Widget>[
             if (item.icon != null) ...<Widget>[
@@ -386,18 +398,25 @@ class _MenuRow extends StatelessWidget {
                   Text(
                     item.label,
                     overflow: TextOverflow.ellipsis,
-                    style: size.textStyle(ctx).copyWith(
-                          fontSize: size == UiSize.sm ? 13.0 : (size == UiSize.xs ? 11.5 : null),
+                    style: size
+                        .textStyle(ctx)
+                        .copyWith(
+                          fontSize: size == UiSize.sm
+                              ? ctx.fs(13.0)
+                              : (size == UiSize.xs ? ctx.fs(11.5) : null),
                           color: enabled ? accent : c.disabledForeground,
-                          fontWeight:
-                              item.selected ? FontWeight.w600 : FontWeight.w500,
+                          fontWeight: item.selected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
                         ),
                   ),
                   if (item.description != null)
                     Text(
                       item.description!,
-                      style: ctx.uiText.caption
-                          .copyWith(color: c.foregroundSubtle, fontSize: 11.0),
+                      style: ctx.uiText.caption.copyWith(
+                        color: c.foregroundSubtle,
+                        fontSize: ctx.fs(11.0),
+                      ),
                     ),
                 ],
               ),
@@ -406,7 +425,10 @@ class _MenuRow extends StatelessWidget {
               SizedBox(width: ctx.sp(theme.spacing.xs)),
               Text(
                 item.shortcut!,
-                style: ctx.uiText.caption.copyWith(color: c.foregroundSubtle, fontSize: 11.0),
+                style: ctx.uiText.caption.copyWith(
+                  color: c.foregroundSubtle,
+                  fontSize: ctx.fs(11.0),
+                ),
               ),
             ],
             if (item.selected) ...<Widget>[

@@ -15,39 +15,70 @@ class EnvConfig {
       debugPrint('[EnvConfig] Environment file (.env) successfully loaded.');
     } catch (e) {
       _isLoaded = false;
-      debugPrint('[EnvConfig] Could not load .env file: $e. Falling back to compile-time env variables.');
+      debugPrint(
+        '[EnvConfig] Could not load .env file: $e. Falling back to compile-time env variables.',
+      );
     }
   }
 
   /// Helper getter to retrieve key with priority:
-  /// 1. flutter_dotenv (.env asset)
-  /// 2. --dart-define (String.fromEnvironment)
-  /// 3. Fallback default value
+  /// 1. Direct match in dotenv (.env)
+  /// 2. NEXT_PUBLIC_ / VITE_ / REACT_APP_ prefixed key in dotenv
+  /// 3. --dart-define (String.fromEnvironment)
+  /// 4. Fallback default value
   static String _get(String key, {String defaultValue = ''}) {
-    if (_isLoaded && dotenv.env.containsKey(key)) {
-      final value = dotenv.env[key]?.trim() ?? '';
-      if (value.isNotEmpty) return value;
+    if (_isLoaded) {
+      // 1. Exact key match
+      if (dotenv.env.containsKey(key)) {
+        final val = dotenv.env[key]?.trim() ?? '';
+        if (val.isNotEmpty) return val;
+      }
+      // 2. NEXT_PUBLIC_ prefix match
+      final nextPublicKey = 'NEXT_PUBLIC_$key';
+      if (dotenv.env.containsKey(nextPublicKey)) {
+        final val = dotenv.env[nextPublicKey]?.trim() ?? '';
+        if (val.isNotEmpty) return val;
+      }
+      // 3. VITE_ prefix match
+      final viteKey = 'VITE_$key';
+      if (dotenv.env.containsKey(viteKey)) {
+        final val = dotenv.env[viteKey]?.trim() ?? '';
+        if (val.isNotEmpty) return val;
+      }
+      // 4. REACT_APP_ prefix match
+      final reactKey = 'REACT_APP_$key';
+      if (dotenv.env.containsKey(reactKey)) {
+        final val = dotenv.env[reactKey]?.trim() ?? '';
+        if (val.isNotEmpty) return val;
+      }
     }
-    return String.fromEnvironment(key, defaultValue: defaultValue);
+
+    // 5. Dart environment compile-time variables
+    final envVal = String.fromEnvironment(key);
+    if (envVal.isNotEmpty) return envVal;
+
+    final nextPublicEnv = String.fromEnvironment('NEXT_PUBLIC_$key');
+    if (nextPublicEnv.isNotEmpty) return nextPublicEnv;
+
+    return defaultValue;
   }
 
   // --- Supabase Config ---
-  static String get supabaseUrl => _get(
-        'SUPABASE_URL',
-        defaultValue: 'https://placeholder.supabase.co',
-      );
+  static String get supabaseUrl =>
+      _get('SUPABASE_URL', defaultValue: 'https://placeholder.supabase.co');
 
   static String get supabaseAnonKey => _get(
-        'SUPABASE_ANON_KEY',
-        defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder',
-      );
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder',
+  );
 
   // --- AI API Keys ---
   static String get geminiApiKey => _get('GEMINI_API_KEY');
   static String get openaiApiKey => _get('OPENAI_API_KEY');
 
   // --- App Environment ---
-  static String get environment => _get('ENVIRONMENT', defaultValue: 'development');
+  static String get environment =>
+      _get('ENVIRONMENT', defaultValue: 'development');
   static bool get isProduction => environment.toLowerCase() == 'production';
   static bool get isDevelopment => !isProduction;
 }

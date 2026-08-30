@@ -36,27 +36,27 @@ class UiBarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => UiChart(
-        data: data,
-        series: series
-            .map(
-              (UiChartSeries s) => UiChartSeries(
-                name: s.name,
-                color: s.color,
-                type: UiChartSeriesType.bar,
-                axis: s.axis,
-              ),
-            )
-            .toList(),
-        height: height,
-        showGrid: showGrid,
-        showAxisLabels: showAxisLabels,
-        showLegend: showLegend,
-        valueFormatter: valueFormatter,
-        curved: false,
-        interactive: interactive,
-        toggleableLegend: toggleableLegend,
-        stacked: stacked,
-        glow: glow,
-        thresholds: thresholds,
-      );
+    data: data,
+    series: series
+        .map(
+          (UiChartSeries s) => UiChartSeries(
+            name: s.name,
+            color: s.color,
+            type: UiChartSeriesType.bar,
+            axis: s.axis,
+          ),
+        )
+        .toList(),
+    height: height,
+    showGrid: showGrid,
+    showAxisLabels: showAxisLabels,
+    showLegend: showLegend,
+    valueFormatter: valueFormatter,
+    curved: false,
+    interactive: interactive,
+    toggleableLegend: toggleableLegend,
+    stacked: stacked,
+    glow: glow,
+    thresholds: thresholds,
+  );
 }

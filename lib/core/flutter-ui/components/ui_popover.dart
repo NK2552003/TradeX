@@ -15,6 +15,7 @@ class UiPopover extends StatelessWidget {
 
   final Widget trigger;
   final WidgetBuilder content;
+  /// Panel width in logical points (scaled internally).
   final double? width;
 
   @override
@@ -49,7 +50,7 @@ class UiPopover extends StatelessWidget {
                 enabled: false,
                 padding: EdgeInsets.zero,
                 child: SizedBox(
-                  width: width ?? context.sz(300),
+                  width: context.sz(width ?? 300),
                   child: Padding(
                     padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
                     child: content(context),

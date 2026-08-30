@@ -23,10 +23,20 @@ class _AppUiExampleAppState extends State<AppUiExampleApp> {
     openedAt: DateTime.now().subtract(const Duration(days: 2)),
   );
 
-  final AppPlan _samplePlan = const AppPlan(
+  // Sample values, not product data: this gallery renders the design system on
+  // its own and deliberately does not depend on the app's data layer. The label
+  // is formatted from the amount rather than written beside it, so the two can
+  // never drift apart, and the currency matches the product so the reference does
+  // not read as a different app.
+  final AppPlan _samplePlan = AppPlan(
     tier: AppTier.premium,
-    priceLabel: '\$29',
-    features: <String>['Unlimited trades', 'AI insights', 'Custom webhooks'],
+    amount: 2499,
+    priceLabel: AppTokens.price(2499),
+    features: const <String>[
+      'Unlimited trades',
+      'AI insights',
+      'Custom webhooks',
+    ],
     highlighted: true,
   );
 
@@ -102,7 +112,8 @@ class _AppUiExampleAppState extends State<AppUiExampleApp> {
                     insight: AppAiInsight(
                       id: 'ai1',
                       title: 'Risk Warning',
-                      body: 'FOMC announcement expected at 2PM EST. Recommend lowering position leverage.',
+                      body:
+                          'FOMC announcement expected at 2PM EST. Recommend lowering position leverage.',
                     ),
                   ),
                 ],
@@ -119,7 +130,9 @@ class _AppUiExampleAppState extends State<AppUiExampleApp> {
                     color: theme.colors.surfaceMuted,
                     borderRadius: context.radius(theme.radii.lg),
                   ),
-                  child: const Text('AppFadeIn: Smooth entrance animation applied.'),
+                  child: const Text(
+                    'AppFadeIn: Smooth entrance animation applied.',
+                  ),
                 ),
               ),
             ),
@@ -131,8 +144,16 @@ class _AppUiExampleAppState extends State<AppUiExampleApp> {
                 children: <Widget>[
                   AppStatGridBlock(
                     stats: <AppStat>[
-                      AppStat(label: 'Total P/L', value: 14250, formatter: (v) => '+\$$v'),
-                      AppStat(label: 'Win Rate', value: 68.5, formatter: (v) => '$v%'),
+                      AppStat(
+                        label: 'Total P/L',
+                        value: 14250,
+                        formatter: (v) => '+\$$v',
+                      ),
+                      AppStat(
+                        label: 'Win Rate',
+                        value: 68.5,
+                        formatter: (v) => '$v%',
+                      ),
                       const AppStat(label: 'Total Trades', value: 142),
                       const AppStat(label: 'Profit Factor', value: 2.14),
                     ],
@@ -149,8 +170,16 @@ class _AppUiExampleAppState extends State<AppUiExampleApp> {
                   SizedBox(height: context.sp(theme.spacing.md)),
                   const AppUsageBlock(
                     metrics: <AppUsageMetric>[
-                      AppUsageMetric(label: 'Trades Logged', used: 142, limit: 500),
-                      AppUsageMetric(label: 'AI Prompts Used', used: 45, limit: 100),
+                      AppUsageMetric(
+                        label: 'Trades Logged',
+                        used: 142,
+                        limit: 500,
+                      ),
+                      AppUsageMetric(
+                        label: 'AI Prompts Used',
+                        used: 45,
+                        limit: 100,
+                      ),
                     ],
                   ),
                 ],
@@ -162,7 +191,11 @@ class _AppUiExampleAppState extends State<AppUiExampleApp> {
     );
   }
 
-  Widget _buildSection(BuildContext context, {required String title, required Widget child}) {
+  Widget _buildSection(
+    BuildContext context, {
+    required String title,
+    required Widget child,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[

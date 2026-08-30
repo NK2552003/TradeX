@@ -6,9 +6,8 @@ import 'package:tradex/features/auth/models/otp_purpose.dart';
 import 'package:tradex/features/auth/widgets/auth_step_icon.dart';
 
 /// Standalone OTP / verification-code screen shared by every auth flow that
-/// needs a one-time code confirmed before continuing — used today for
-/// signup e-mail verification, and reusable as-is for a future login 2FA
-/// step (see [OtpPurpose]).
+/// needs a one-time code confirmed before continuing — used for
+/// signup e-mail verification and password resets (see [OtpPurpose]).
 ///
 /// Deliberately mirrors [ForgotPasswordPage]'s single-column, no-marketing
 /// -panel layout: this is a security-sensitive step, so the only job of the
@@ -89,7 +88,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   Future<void> _handleVerify([String? autoSubmittedCode]) async {
     final String code = autoSubmittedCode ?? _codeController.value;
     if (code.length < widget.codeLength) {
-      setState(() => _errorText = 'Enter the full ${widget.codeLength}-digit code');
+      setState(
+        () => _errorText = 'Enter the full ${widget.codeLength}-digit code',
+      );
       return;
     }
 
@@ -108,7 +109,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     setState(() => _isVerifying = false);
 
     if (!result.success) {
-      setState(() => _errorText = result.errorMessage ?? 'Invalid or expired code.');
+      setState(
+        () => _errorText = result.errorMessage ?? 'Invalid or expired code.',
+      );
       _codeController.clear();
       return;
     }
@@ -120,7 +123,10 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     if (_timerSeconds > 0 || _isResending) return;
 
     setState(() => _isResending = true);
-    await _repository.resendOtp(identifier: widget.identifier, purpose: widget.purpose);
+    await _repository.resendOtp(
+      identifier: widget.identifier,
+      purpose: widget.purpose,
+    );
     if (!mounted) return;
 
     setState(() {
@@ -142,69 +148,80 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final colors = theme.colors;
+    final responsive = context.uiRes;
 
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.lg),
-              vertical: context.sp(theme.spacing.xl),
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: context.sz(460)),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  // Compact brand row above the card.
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      const AppLogoMark(size: 16),
-                      SizedBox(width: context.sp(theme.spacing.xs)),
-                      Text(
-                        'TradeX',
-                        style: context.uiText.bodyStrong.copyWith(
-                          fontSize: 15,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.xl)),
-
-                  // Back button header
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: UiButton(
-                      label: widget.purpose.backLabel,
-                      leadingIcon: Icons.arrow_back_rounded,
-                      variant: UiVariant.ghost,
-                      intent: UiIntent.neutral,
-                      onPressed: widget.onBack,
-                    ),
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.lg)),
-
-                  UiCard(
-                    variant: UiCardVariant.surface,
-                    child: Padding(
-                      padding: EdgeInsets.all(context.sp(
-                        context.uiRes.isMobile ? theme.spacing.lg : theme.spacing.xl,
-                      )),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          if (_errorText != null) ...<Widget>[
-                            UiCallout(
-                              title: 'Error',
-                              message: _errorText!,
-                              intent: UiIntent.danger,
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints viewportConstraints) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(
+                  responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
+                ),
+                vertical: context.sp(theme.spacing.xl),
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: (viewportConstraints.maxHeight -
+                          context.sp(theme.spacing.xl) * 2)
+                      .clamp(0.0, double.infinity),
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: context.sz(460)),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        UiCard(
+                          variant: UiCardVariant.surface,
+                          child: Padding(
+                            padding: EdgeInsets.all(
+                              context.sp(
+                                responsive.isMobile
+                                    ? theme.spacing.lg
+                                    : theme.spacing.xl,
+                              ),
                             ),
-                            SizedBox(height: context.sp(theme.spacing.md)),
-                          ],
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                // Unified Header inside Card: Back Button, Logo & TradeX
+                                Row(
+                                  children: <Widget>[
+                                    UiIconButton(
+                                      icon: Icons.arrow_back_rounded,
+                                      size: UiSize.sm,
+                                      tooltip: widget.purpose.backLabel,
+                                      onPressed: widget.onBack,
+                                    ),
+                                    SizedBox(
+                                      width: context.sp(theme.spacing.xs),
+                                    ),
+                                    const AppLogoMark(size: 20),
+                                    SizedBox(
+                                      width: context.sp(theme.spacing.xs),
+                                    ),
+                                    Text(
+                                      'TradeX',
+                                      style: context.uiText.bodyStrong.copyWith(
+                                        fontSize: 16,
+                                        letterSpacing: -0.2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (_errorText != null) ...<Widget>[
+                                  UiCallout(
+                                    title: 'Error',
+                                    message: _errorText!,
+                                    intent: UiIntent.danger,
+                                  ),
+                                  SizedBox(height: context.sp(theme.spacing.md)),
+                                ],
 
                           const AuthStepIcon(
                             icon: Icons.mark_email_read_outlined,
@@ -215,7 +232,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                             widget.purpose.title,
                             textAlign: TextAlign.center,
                             style: context.uiText.display.copyWith(
-                              fontSize: 26,
+                              fontSize: 28.0,
                               fontWeight: FontWeight.w400,
                               letterSpacing: -0.5,
                             ),
@@ -226,7 +243,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                             textAlign: TextAlign.center,
                             style: context.uiText.body.copyWith(
                               color: colors.foregroundMuted,
-                              fontSize: 13,
+                              fontSize: 13.5,
                             ),
                           ),
                           SizedBox(height: context.sp(theme.spacing.xl)),
@@ -279,11 +296,15 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                           SizedBox(height: context.sp(theme.spacing.lg)),
 
                           UiButton(
-                            label: _isVerifying ? 'Verifying…' : 'Verify & Continue',
+                            label: _isVerifying
+                                ? 'Verifying…'
+                                : 'Verify & Continue',
                             variant: UiVariant.primary,
                             intent: UiIntent.primary,
                             size: UiSize.lg,
-                            onPressed: _isVerifying ? null : () => _handleVerify(),
+                            onPressed: _isVerifying
+                                ? null
+                                : () => _handleVerify(),
                           ),
                         ],
                       ),
@@ -295,6 +316,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                   // the security-sensitive auth flows.
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       Icon(
                         Icons.verified_user_outlined,
@@ -302,21 +324,27 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                         color: colors.foregroundSubtle,
                       ),
                       SizedBox(width: context.sp(theme.spacing.xs)),
-                      Text(
-                        'Your data is encrypted end-to-end',
-                        style: context.uiText.caption.copyWith(
-                          color: colors.foregroundSubtle,
-                          fontSize: 11.5,
+                      Flexible(
+                        child: Text(
+                          'Your data is encrypted end-to-end',
+                          overflow: TextOverflow.ellipsis,
+                          style: context.uiText.caption.copyWith(
+                            color: colors.foregroundSubtle,
+                            fontSize: 11.5,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+              ],
             ),
           ),
         ),
       ),
     );
+  },
+),
+),
+);
   }
 }

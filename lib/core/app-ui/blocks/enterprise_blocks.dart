@@ -5,20 +5,20 @@ import '../models/app_models_extra.dart';
 import '../theme/app_tokens.dart';
 
 String appTeamRoleLabel(AppTeamRole role) => switch (role) {
-      AppTeamRole.owner => 'Owner',
-      AppTeamRole.admin => 'Admin',
-      AppTeamRole.analyst => 'Analyst',
-      AppTeamRole.member => 'Member',
-      AppTeamRole.viewer => 'Viewer',
-    };
+  AppTeamRole.owner => 'Owner',
+  AppTeamRole.admin => 'Admin',
+  AppTeamRole.analyst => 'Analyst',
+  AppTeamRole.member => 'Member',
+  AppTeamRole.viewer => 'Viewer',
+};
 
 UiIntent appTeamRoleIntent(AppTeamRole role) => switch (role) {
-      AppTeamRole.owner => UiIntent.primary,
-      AppTeamRole.admin => UiIntent.info,
-      AppTeamRole.analyst => UiIntent.bullish,
-      AppTeamRole.member => UiIntent.neutral,
-      AppTeamRole.viewer => UiIntent.neutral,
-    };
+  AppTeamRole.owner => UiIntent.primary,
+  AppTeamRole.admin => UiIntent.info,
+  AppTeamRole.analyst => UiIntent.bullish,
+  AppTeamRole.member => UiIntent.neutral,
+  AppTeamRole.viewer => UiIntent.neutral,
+};
 
 /// Team roster with roles, status and per-member actions.
 class AppTeamMembersBlock extends StatelessWidget {
@@ -68,7 +68,11 @@ class AppTeamMembersBlock extends StatelessWidget {
               flex: 2,
               cell: (BuildContext c, AppTeamMember m) => Row(
                 children: <Widget>[
-                  UiAvatar(imageUrl: m.avatarUrl, name: m.name, size: UiSize.sm),
+                  UiAvatar(
+                    imageUrl: m.avatarUrl,
+                    name: m.name,
+                    size: UiSize.sm,
+                  ),
                   SizedBox(width: ctx.sp(theme.spacing.sm)),
                   Expanded(
                     child: Column(
@@ -94,8 +98,7 @@ class AppTeamMembersBlock extends StatelessWidget {
               cell: (BuildContext c, AppTeamMember m) => UiBadge(
                 label: appTeamRoleLabel(m.role),
                 intent: appTeamRoleIntent(m.role),
-                onTap:
-                    onChangeRole == null ? null : () => onChangeRole!(m),
+                onTap: onChangeRole == null ? null : () => onChangeRole!(m),
               ),
             ),
             UiTableColumn<AppTeamMember>(
@@ -121,8 +124,9 @@ class AppTeamMembersBlock extends StatelessWidget {
                 m.lastActiveAt == null
                     ? '—'
                     : AppTokens.relativeTime(m.lastActiveAt!),
-                style: ctx.uiText.caption
-                    .copyWith(color: theme.colors.foregroundMuted),
+                style: ctx.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
               ),
             ),
             UiTableColumn<AppTeamMember>(
@@ -178,9 +182,10 @@ class AppAuditLogBlock extends StatelessWidget {
             for (final AppAuditEntry e in entries)
               UiTimelineEntry(
                 title: '${e.actor} · ${e.action}',
-                subtitle: <String?>[e.target, e.ip]
-                    .whereType<String>()
-                    .join(' · '),
+                subtitle: <String?>[
+                  e.target,
+                  e.ip,
+                ].whereType<String>().join(' · '),
                 timestamp: AppTokens.relativeTime(e.at),
                 icon: Icons.shield_outlined,
                 intent: UiIntent.info,
@@ -243,9 +248,11 @@ class AppApiKeysBlock extends StatelessWidget {
                           Row(
                             children: <Widget>[
                               Flexible(
-                                child: Text(k.label,
-                                    style: ctx.uiText.bodyStrong,
-                                    overflow: TextOverflow.ellipsis),
+                                child: Text(
+                                  k.label,
+                                  style: ctx.uiText.bodyStrong,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                               SizedBox(width: ctx.sp(theme.spacing.xs)),
                               if (k.revoked)

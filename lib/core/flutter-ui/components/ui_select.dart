@@ -28,6 +28,9 @@ class UiSelect<T> extends StatelessWidget {
     this.onValuesChanged,
     this.leadingIcon,
     this.searchable = false,
+    this.width,
+    this.minWidth,
+    this.maxWidth,
   });
 
   final List<UiOption<T>> options;
@@ -49,6 +52,13 @@ class UiSelect<T> extends StatelessWidget {
   final ValueChanged<List<T>>? onValuesChanged;
   final IconData? leadingIcon;
   final bool searchable;
+  /// Fixed width in logical points (scaled internally). Overrides
+  /// [minWidth]/[maxWidth] when set.
+  final double? width;
+
+  /// Width bounds in logical points (scaled internally).
+  final double? minWidth;
+  final double? maxWidth;
 
   UiOption<T>? get _selected {
     for (final UiOption<T> o in options) {
@@ -86,8 +96,9 @@ class UiSelect<T> extends StatelessWidget {
               if (label != null) ...<Widget>[
                 Text(
                   label!,
-                  style: ctx.uiText.heading
-                      .copyWith(color: theme.colors.foreground),
+                  style: ctx.uiText.heading.copyWith(
+                    color: theme.colors.foreground,
+                  ),
                 ),
                 SizedBox(height: ctx.sp(theme.spacing.md)),
               ],
@@ -156,6 +167,13 @@ class UiSelect<T> extends StatelessWidget {
       builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
         duration: theme.motion.fast,
         height: size.height(ctx),
+        width: width == null ? null : ctx.sz(width!),
+        constraints: width != null
+            ? null
+            : BoxConstraints(
+                minWidth: ctx.sz(minWidth ?? 120),
+                maxWidth: maxWidth == null ? double.infinity : ctx.sz(maxWidth!),
+              ),
         padding: EdgeInsets.symmetric(horizontal: ctx.sp(theme.spacing.md)),
         decoration: BoxDecoration(
           color: enabled ? c.surface : c.disabledBackground,
@@ -164,12 +182,13 @@ class UiSelect<T> extends StatelessWidget {
             color: error
                 ? c.destructive
                 : s.hovered
-                    ? c.borderStrong
-                    : c.border,
+                ? c.borderStrong
+                : c.border,
             width: theme.borders.hairline,
           ),
         ),
         child: Row(
+          mainAxisSize: width == null && maxWidth == null ? MainAxisSize.min : MainAxisSize.max,
           children: <Widget>[
             if (leadingIcon != null || sel?.icon != null) ...<Widget>[
               Icon(
@@ -179,7 +198,7 @@ class UiSelect<T> extends StatelessWidget {
               ),
               SizedBox(width: ctx.sp(theme.spacing.sm)),
             ],
-            Expanded(
+            Flexible(
               child: Text(
                 sel?.label ?? hintText,
                 overflow: TextOverflow.ellipsis,
@@ -187,11 +206,12 @@ class UiSelect<T> extends StatelessWidget {
                   color: sel == null
                       ? c.foregroundSubtle
                       : enabled
-                          ? c.foreground
-                          : c.disabledForeground,
+                      ? c.foreground
+                      : c.disabledForeground,
                 ),
               ),
             ),
+            SizedBox(width: ctx.sp(theme.spacing.xs)),
             Icon(
               Icons.keyboard_arrow_down,
               size: size.icon(ctx),
@@ -205,7 +225,11 @@ class UiSelect<T> extends StatelessWidget {
 }
 
 class _UiSelectRow<T> extends StatelessWidget {
-  const _UiSelectRow({required this.option, required this.selected, this.onTap});
+  const _UiSelectRow({
+    required this.option,
+    required this.selected,
+    this.onTap,
+  });
 
   final UiOption<T> option;
   final bool selected;
@@ -249,8 +273,9 @@ class _UiSelectRow<T> extends StatelessWidget {
                   if (option.description != null)
                     Text(
                       option.description!,
-                      style: ctx.uiText.caption
-                          .copyWith(color: c.foregroundMuted),
+                      style: ctx.uiText.caption.copyWith(
+                        color: c.foregroundMuted,
+                      ),
                     ),
                 ],
               ),

@@ -78,6 +78,9 @@ class UiCard extends StatefulWidget {
   final bool selected;
   final bool enabled;
   final bool loading;
+  /// Height of the loading placeholder in logical points (scaled internally).
+  /// Set it to the height of the real content so the card does not resize when
+  /// the data arrives.
   final double? loadingHeight;
   final bool collapsible;
   final bool initiallyExpanded;
@@ -97,7 +100,8 @@ class _UiCardState extends State<UiCard> {
   late bool _expanded = widget.initiallyExpanded;
 
   UiCardVariant get _variant =>
-      widget.variant ?? (widget.elevated ? UiCardVariant.elevated : UiCardVariant.surface);
+      widget.variant ??
+      (widget.elevated ? UiCardVariant.elevated : UiCardVariant.surface);
 
   void _toggle() {
     setState(() => _expanded = !_expanded);
@@ -110,10 +114,10 @@ class _UiCardState extends State<UiCard> {
     final r = context.uiRes;
     final c = theme.colors;
     final Color tint = widget.intent?.color(context) ?? c.primary;
-    final BorderRadius radius =
-        context.radius(widget.radius ?? theme.radii.xl);
+    final BorderRadius radius = context.radius(widget.radius ?? theme.radii.xl);
     final double f = widget.density.factor;
-    final EdgeInsetsGeometry pad = widget.padding ??
+    final EdgeInsetsGeometry pad =
+        widget.padding ??
         EdgeInsets.all(
           context.sp(r.isMobile ? theme.spacing.lg : theme.spacing.xl) * f,
         );
@@ -125,8 +129,7 @@ class _UiCardState extends State<UiCard> {
       onLongPress: widget.onLongPress,
       selected: widget.selected,
       semanticLabel: widget.semanticLabel ?? widget.title,
-      cursor:
-          tappable ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      cursor: tappable ? SystemMouseCursors.click : SystemMouseCursors.basic,
       builder: (BuildContext ctx, UiInteractiveState s) {
         final bool active = tappable && s.active;
         final _CardSkin skin = _skin(ctx, active, tint);
@@ -153,14 +156,14 @@ class _UiCardState extends State<UiCard> {
                   ),
             boxShadow: skin.shadow,
           ),
-          foregroundDecoration:
-              s.focused ? uiFocusRing(ctx, radius) : null,
+          foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
           clipBehavior: Clip.antiAlias,
           child: Opacity(
             opacity: widget.enabled ? 1 : 0.55,
             child: widget.accentColor == null && widget.intent == null
                 ? _body(ctx, pad, f)
                 : Stack(
+                    fit: StackFit.passthrough,
                     children: <Widget>[
                       Padding(
                         padding: EdgeInsets.only(left: ctx.sz(3)),
@@ -171,9 +174,7 @@ class _UiCardState extends State<UiCard> {
                         top: 0,
                         bottom: 0,
                         width: ctx.sz(3),
-                        child: Container(
-                          color: widget.accentColor ?? tint,
-                        ),
+                        child: Container(color: widget.accentColor ?? tint),
                       ),
                     ],
                   ),
@@ -185,80 +186,89 @@ class _UiCardState extends State<UiCard> {
 
   Widget _body(BuildContext ctx, EdgeInsetsGeometry pad, double f) {
     final theme = ctx.ui;
-    final bool hasHeader = widget.title != null ||
+    final bool hasHeader =
+        widget.title != null ||
         widget.titleWidget != null ||
         widget.trailing != null ||
         widget.leading != null ||
         widget.collapsible;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        if (widget.media != null) widget.media!,
-        Padding(
-          padding: pad,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              if (hasHeader)
-                _UiCardHeader(
-                  title: widget.title,
-                  titleWidget: widget.titleWidget,
-                  subtitle: widget.subtitle,
-                  leading: widget.leading,
-                  trailing: widget.trailing,
-                  collapsible: widget.collapsible,
-                  expanded: _expanded,
-                  onToggle: _toggle,
-                ),
-              if (hasHeader && widget.headerDivider) ...<Widget>[
-                SizedBox(height: ctx.sp(theme.spacing.md) * f),
-                Divider(
-                  height: theme.borders.hairline,
-                  color: theme.colors.border,
-                ),
-              ],
-              if (hasHeader)
-                SizedBox(height: ctx.sp(theme.spacing.md) * f),
-              AnimatedCrossFade(
-                duration: theme.motion.normal,
-                sizeCurve: theme.motion.curve,
-                crossFadeState: _expanded
-                    ? CrossFadeState.showFirst
-                    : CrossFadeState.showSecond,
-                firstChild: SizedBox(
-                  width: double.infinity,
-                  child: widget.loading
-                      ? _LoadingBody(height: widget.loadingHeight)
-                      : widget.child,
-                ),
-                secondChild: const SizedBox(width: double.infinity),
+    final Widget content = widget.collapsible || widget.loading
+        ? AnimatedCrossFade(
+            duration: theme.motion.normal,
+            sizeCurve: theme.motion.curve,
+            crossFadeState: _expanded
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
+            firstChild: SizedBox(
+              width: double.infinity,
+              child: widget.loading
+                  ? _LoadingBody(height: widget.loadingHeight)
+                  : widget.child,
+            ),
+            secondChild: const SizedBox(width: double.infinity),
+          )
+        : widget.child;
+
+    if (!hasHeader &&
+        widget.media == null &&
+        (widget.actions == null || widget.actions!.isEmpty) &&
+        widget.footer == null) {
+      return Padding(
+        padding: pad,
+        child: content,
+      );
+    }
+
+    return Padding(
+      padding: pad,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (widget.media != null) widget.media!,
+          if (hasHeader) ...<Widget>[
+            _UiCardHeader(
+              title: widget.title,
+              titleWidget: widget.titleWidget,
+              subtitle: widget.subtitle,
+              leading: widget.leading,
+              trailing: widget.trailing,
+              collapsible: widget.collapsible,
+              expanded: _expanded,
+              onToggle: _toggle,
+            ),
+            if (widget.headerDivider) ...<Widget>[
+              SizedBox(height: ctx.sp(theme.spacing.md) * f),
+              Divider(
+                height: theme.borders.hairline,
+                color: theme.colors.border,
               ),
-              if (_expanded &&
-                  widget.actions != null &&
-                  widget.actions!.isNotEmpty) ...<Widget>[
-                SizedBox(height: ctx.sp(theme.spacing.md) * f),
-                Wrap(
-                  spacing: ctx.sp(theme.spacing.sm),
-                  runSpacing: ctx.sp(theme.spacing.sm),
-                  children: widget.actions!,
-                ),
-              ],
-              if (_expanded && widget.footer != null) ...<Widget>[
-                SizedBox(height: ctx.sp(theme.spacing.md) * f),
-                Divider(
-                  height: theme.borders.hairline,
-                  color: theme.colors.border,
-                ),
-                SizedBox(height: ctx.sp(theme.spacing.md) * f),
-                widget.footer!,
-              ],
             ],
-          ),
-        ),
-      ],
+            SizedBox(height: ctx.sp(theme.spacing.md) * f),
+          ],
+          content,
+          if (_expanded &&
+              widget.actions != null &&
+              widget.actions!.isNotEmpty) ...<Widget>[
+            SizedBox(height: ctx.sp(theme.spacing.md) * f),
+            Wrap(
+              spacing: ctx.sp(theme.spacing.sm),
+              runSpacing: ctx.sp(theme.spacing.sm),
+              children: widget.actions!,
+            ),
+          ],
+          if (_expanded && widget.footer != null) ...<Widget>[
+            SizedBox(height: ctx.sp(theme.spacing.md) * f),
+            Divider(
+              height: theme.borders.hairline,
+              color: theme.colors.border,
+            ),
+            SizedBox(height: ctx.sp(theme.spacing.md) * f),
+            widget.footer!,
+          ],
+        ],
+      ),
     );
   }
 
@@ -333,7 +343,10 @@ class _LoadingBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    final double h = height ?? context.sz(72);
+    // Scaled here so a caller can hand over a plain logical height, matching
+    // UiSkeleton and the charts: the placeholder has to be the same height as
+    // the content it stands in for, or the card resizes when the data lands.
+    final double h = context.sz(height ?? 72);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -380,7 +393,8 @@ class _UiCardHeader extends StatelessWidget {
     final theme = context.ui;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool isNarrow = constraints.maxWidth < 340 || context.uiRes.isMobile;
+        final bool isNarrow =
+            constraints.maxWidth < 340 || context.uiRes.isMobile;
         final Widget titleColumn = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -391,8 +405,9 @@ class _UiCardHeader extends StatelessWidget {
                 title!,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: context.uiText.heading
-                    .copyWith(color: theme.colors.foreground),
+                style: context.uiText.heading.copyWith(
+                  color: theme.colors.foreground,
+                ),
               ),
             if (subtitle != null) ...<Widget>[
               SizedBox(height: context.sp(theme.spacing.xxs)),
@@ -400,8 +415,9 @@ class _UiCardHeader extends StatelessWidget {
                 subtitle!,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
               ),
             ],
           ],

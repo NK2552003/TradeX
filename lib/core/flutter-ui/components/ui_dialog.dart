@@ -44,7 +44,7 @@ class UiDialog extends StatelessWidget {
         builder: (BuildContext ctx) => SafeArea(
           child: Padding(
             padding: EdgeInsets.all(ctx.sp(theme.spacing.lg)),
-            child: child,
+            child: _UiDialogHost(child: child),
           ),
         ),
       );
@@ -61,7 +61,7 @@ class UiDialog extends StatelessWidget {
             borderRadius: ctx.radius(theme.radii.xl),
             child: Padding(
               padding: EdgeInsets.all(ctx.sp(theme.spacing.xl)),
-              child: child,
+              child: _UiDialogHost(child: child),
             ),
           ),
         ),
@@ -107,7 +107,7 @@ class UiDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    return Column(
+    final Widget dialogBody = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -132,8 +132,9 @@ class UiDialog extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: context.uiText.heading
-                    .copyWith(color: theme.colors.foreground),
+                style: context.uiText.heading.copyWith(
+                  color: theme.colors.foreground,
+                ),
               ),
             ),
             GestureDetector(
@@ -150,8 +151,9 @@ class UiDialog extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.sm)),
           Text(
             description!,
-            style: context.uiText.body
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.body.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
         ],
         if (content != null) ...<Widget>[
@@ -169,5 +171,43 @@ class UiDialog extends StatelessWidget {
         ],
       ],
     );
+
+    if (_UiDialogHost.maybeOf(context)) return dialogBody;
+
+    return Dialog(
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.all(
+        context.sp(
+          context.uiRes.isMobile ? theme.spacing.md : theme.spacing.xl,
+        ),
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: context.sz(560),
+          maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+        ),
+        child: Material(
+          key: const ValueKey<String>('ui-dialog-surface'),
+          color: theme.colors.surface,
+          borderRadius: context.radius(theme.radii.xl),
+          clipBehavior: Clip.antiAlias,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
+            child: _UiDialogHost(child: dialogBody),
+          ),
+        ),
+      ),
+    );
   }
+}
+
+class _UiDialogHost extends InheritedWidget {
+  const _UiDialogHost({required super.child});
+
+  static bool maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_UiDialogHost>() != null;
+
+  @override
+  bool updateShouldNotify(_UiDialogHost oldWidget) => false;
 }

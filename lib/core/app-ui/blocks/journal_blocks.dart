@@ -38,11 +38,20 @@ class AppJournalFilterBlock extends StatelessWidget {
       options: <UiToggleOption<AppOutcome?>>[
         const UiToggleOption<AppOutcome?>(value: null, label: 'All'),
         const UiToggleOption<AppOutcome?>(
-            value: AppOutcome.win, label: 'Wins', intent: UiIntent.bullish),
+          value: AppOutcome.win,
+          label: 'Wins',
+          intent: UiIntent.bullish,
+        ),
         const UiToggleOption<AppOutcome?>(
-            value: AppOutcome.loss, label: 'Losses', intent: UiIntent.bearish),
+          value: AppOutcome.loss,
+          label: 'Losses',
+          intent: UiIntent.bearish,
+        ),
         const UiToggleOption<AppOutcome?>(
-            value: AppOutcome.open, label: 'Open', intent: UiIntent.info),
+          value: AppOutcome.open,
+          label: 'Open',
+          intent: UiIntent.info,
+        ),
       ],
     );
 
@@ -60,7 +69,7 @@ class AppJournalFilterBlock extends StatelessWidget {
       children: <Widget>[
         Expanded(child: search),
         SizedBox(width: context.sp(theme.spacing.md)),
-        Flexible(child: filters),
+        filters,
         if (onOpenFilters != null) ...<Widget>[
           SizedBox(width: context.sp(theme.spacing.sm)),
           UiIconButton(
@@ -122,8 +131,9 @@ class AppTradeListBlock extends StatelessWidget {
                 delay: Duration(milliseconds: 40 * i),
                 child: AppTradeCard(
                   trade: trades[i],
-                  onTap:
-                      onTradeTap == null ? null : () => onTradeTap!(trades[i]),
+                  onTap: onTradeTap == null
+                      ? null
+                      : () => onTradeTap!(trades[i]),
                 ),
               ),
             ),
@@ -137,7 +147,8 @@ class AppTradeListBlock extends StatelessWidget {
       columns: <UiTableColumn<AppTrade>>[
         UiTableColumn<AppTrade>(
           header: 'Ticker',
-          cell: (BuildContext context, AppTrade t) => Text(t.ticker, style: context.uiText.bodyStrong),
+          cell: (BuildContext context, AppTrade t) =>
+              Text(t.ticker, style: context.uiText.bodyStrong),
           compare: (AppTrade a, AppTrade b) => a.ticker.compareTo(b.ticker),
         ),
         UiTableColumn<AppTrade>(
@@ -151,7 +162,8 @@ class AppTradeListBlock extends StatelessWidget {
           header: 'Entry',
           numeric: true,
           hideBelow: UiTableVisibility.tabletUp,
-          cell: (BuildContext context, AppTrade t) => Text(AppTokens.money(t.entry)),
+          cell: (BuildContext context, AppTrade t) =>
+              Text(AppTokens.money(t.entry)),
         ),
         UiTableColumn<AppTrade>(
           header: 'Exit',
@@ -173,16 +185,17 @@ class AppTradeListBlock extends StatelessWidget {
           compare: (AppTrade a, AppTrade b) => a.pnl.compareTo(b.pnl),
           cell: (BuildContext context, AppTrade t) => Text(
             AppTokens.signedMoney(t.pnl),
-            style: context.uiText.numeric
-                .copyWith(color: AppTokens.pl(context, t.pnl)),
+            style: context.uiText.numeric.copyWith(
+              color: AppTokens.pl(context, t.pnl),
+            ),
           ),
         ),
         UiTableColumn<AppTrade>(
           header: 'Date',
           hideBelow: UiTableVisibility.desktopUp,
-          compare: (AppTrade a, AppTrade b) =>
-              a.openedAt.compareTo(b.openedAt),
-          cell: (BuildContext context, AppTrade t) => Text(AppTokens.shortDate(t.openedAt)),
+          compare: (AppTrade a, AppTrade b) => a.openedAt.compareTo(b.openedAt),
+          cell: (BuildContext context, AppTrade t) =>
+              Text(AppTokens.shortDate(t.openedAt)),
         ),
       ],
     );
@@ -212,12 +225,21 @@ class AppTradeDetailBlock extends StatelessWidget {
       child: Column(
         children: <Widget>[
           _row(context, 'Entry', AppTokens.money(trade.entry)),
-          _row(context, 'Stop',
-              trade.stopLoss == null ? '—' : AppTokens.money(trade.stopLoss!)),
-          _row(context, 'Target',
-              trade.target == null ? '—' : AppTokens.money(trade.target!)),
-          _row(context, 'Exit',
-              trade.exit == null ? 'Open' : AppTokens.money(trade.exit!)),
+          _row(
+            context,
+            'Stop',
+            trade.stopLoss == null ? '—' : AppTokens.money(trade.stopLoss!),
+          ),
+          _row(
+            context,
+            'Target',
+            trade.target == null ? '—' : AppTokens.money(trade.target!),
+          ),
+          _row(
+            context,
+            'Exit',
+            trade.exit == null ? 'Open' : AppTokens.money(trade.exit!),
+          ),
           _row(context, 'Size', trade.size.toStringAsFixed(2)),
         ],
       ),
@@ -232,8 +254,9 @@ class AppTradeDetailBlock extends StatelessWidget {
           AppCountUp(
             value: trade.pnl,
             formatter: (num v) => AppTokens.signedMoney(v),
-            style: context.uiText.display
-                .copyWith(color: AppTokens.pl(context, trade.pnl)),
+            style: context.uiText.display.copyWith(
+              color: AppTokens.pl(context, trade.pnl),
+            ),
           ),
           SizedBox(height: context.sp(theme.spacing.xs)),
           Wrap(
@@ -257,7 +280,10 @@ class AppTradeDetailBlock extends StatelessWidget {
       trailing: onEdit == null
           ? null
           : UiIconButton(
-              icon: Icons.edit_outlined, size: UiSize.sm, onPressed: onEdit),
+              icon: Icons.edit_outlined,
+              size: UiSize.sm,
+              onPressed: onEdit,
+            ),
       child: Text(
         trade.notes?.isNotEmpty == true
             ? trade.notes!
@@ -280,7 +306,10 @@ class AppTradeDetailBlock extends StatelessWidget {
             borderRadius: context.radius(theme.radii.lg),
             child: AspectRatio(
               aspectRatio: 16 / 9,
-              child: Image.network(trade.screenshotUrl!, fit: BoxFit.cover),
+              child: UiRemoteImage(
+                url: trade.screenshotUrl,
+                semanticLabel: 'Chart screenshot for ${trade.ticker}',
+              ),
             ),
           ),
         ),
@@ -296,9 +325,7 @@ class AppTradeDetailBlock extends StatelessWidget {
           child: Wrap(
             spacing: context.sp(theme.spacing.xs),
             runSpacing: context.sp(theme.spacing.xs),
-            children: trade.tags
-                .map((String t) => UiBadge(label: t))
-                .toList(),
+            children: trade.tags.map((String t) => UiBadge(label: t)).toList(),
           ),
         ),
       if (onDelete != null)
@@ -311,14 +338,14 @@ class AppTradeDetailBlock extends StatelessWidget {
     ];
 
     Widget stack(List<Widget> w) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            for (int i = 0; i < w.length; i++) ...<Widget>[
-              w[i],
-              if (i != w.length - 1) SizedBox(height: gap),
-            ],
-          ],
-        );
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        for (int i = 0; i < w.length; i++) ...<Widget>[
+          w[i],
+          if (i != w.length - 1) SizedBox(height: gap),
+        ],
+      ],
+    );
 
     if (!context.uiRes.isDesktop) return stack(<Widget>[...left, ...right]);
     return Row(
@@ -340,11 +367,24 @@ class AppTradeDetailBlock extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: context.uiText.caption
-                  .copyWith(color: theme.colors.foregroundMuted),
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             ),
           ),
-          Text(value, style: context.uiText.numeric),
+          SizedBox(width: context.sp(theme.spacing.sm)),
+          // Loose, so the figure takes only the width it needs and the label keeps
+          // the rest — but it can still be squeezed rather than run past the edge
+          // of the card on a narrow phone.
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: context.uiText.numeric,
+            ),
+          ),
         ],
       ),
     );
@@ -448,8 +488,9 @@ class AppStrategyLibraryBlock extends StatelessWidget {
             child: AppStrategyCard(
               strategy: strategies[i],
               onTap: onOpen == null ? null : () => onOpen!(strategies[i]),
-              onFavorite:
-                  onFavorite == null ? null : () => onFavorite!(strategies[i]),
+              onFavorite: onFavorite == null
+                  ? null
+                  : () => onFavorite!(strategies[i]),
             ),
           ),
       ],
@@ -479,8 +520,9 @@ class AppVersionHistoryBlock extends StatelessWidget {
             padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
             child: AppVersionCard(
               version: versions[i],
-              onRestore:
-                  onRestore == null ? null : () => onRestore!(versions[i]),
+              onRestore: onRestore == null
+                  ? null
+                  : () => onRestore!(versions[i]),
             ),
           ),
       ],

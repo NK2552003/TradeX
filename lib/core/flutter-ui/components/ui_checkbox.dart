@@ -54,7 +54,8 @@ class UiCheckbox extends StatelessWidget {
     final theme = context.ui;
     final c = theme.colors;
     final double f = density.factor;
-    final double dim = size.icon(context) *
+    final double dim =
+        size.icon(context) *
         (context.sz(theme.sizes.checkbox) / context.sz(theme.sizes.iconMd));
     final bool active = value || indeterminate;
     final Color accent = error ? c.destructive : intent.color(context);
@@ -75,23 +76,24 @@ class UiCheckbox extends StatelessWidget {
             color: !enabled
                 ? c.disabledBackground
                 : active
-                    ? accent
-                    : c.surface,
+                ? accent
+                : c.surface,
             borderRadius: ctx.radius(theme.radii.sm),
             border: Border.all(
               color: !enabled
                   ? c.border
                   : active
-                      ? accent
-                      : error
-                          ? c.destructive
-                          : (s.hovered ? c.borderStrong : c.border),
+                  ? accent
+                  : error
+                  ? c.destructive
+                  : (s.hovered ? c.borderStrong : c.border),
               width: theme.borders.thick,
             ),
             boxShadow: active && s.hovered ? uiGlow(ctx, accent) : null,
           ),
-          foregroundDecoration:
-              s.focused ? uiFocusRing(ctx, ctx.radius(theme.radii.sm)) : null,
+          foregroundDecoration: s.focused
+              ? uiFocusRing(ctx, ctx.radius(theme.radii.sm))
+              : null,
           child: AnimatedSwitcher(
             duration: theme.motion.fast,
             child: active
@@ -99,9 +101,7 @@ class UiCheckbox extends StatelessWidget {
                     indeterminate ? Icons.remove : Icons.check,
                     key: ValueKey<bool>(indeterminate),
                     size: dim * 0.8,
-                    color: enabled
-                        ? intent.onColor(ctx)
-                        : c.disabledForeground,
+                    color: enabled ? intent.onColor(ctx) : c.disabledForeground,
                   )
                 : const SizedBox.shrink(),
           ),
@@ -140,7 +140,9 @@ class UiCheckbox extends StatelessWidget {
 
         final List<Widget> row = <Widget>[
           box,
-          if (label != null || labelWidget != null || description != null) ...<Widget>[
+          if (label != null ||
+              labelWidget != null ||
+              description != null) ...<Widget>[
             SizedBox(width: ctx.sp(theme.spacing.sm) * f),
             Expanded(child: text),
           ],

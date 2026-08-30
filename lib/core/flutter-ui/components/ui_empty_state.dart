@@ -41,16 +41,18 @@ class UiEmptyState extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: context.uiText.subheading
-                .copyWith(color: theme.colors.foreground),
+            style: context.uiText.subheading.copyWith(
+              color: theme.colors.foreground,
+            ),
           ),
           if (message != null) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.xs)),
             Text(
               message!,
               textAlign: TextAlign.center,
-              style: context.uiText.body
-                  .copyWith(color: theme.colors.foregroundMuted),
+              style: context.uiText.body.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             ),
           ],
           if (action != null) ...<Widget>[

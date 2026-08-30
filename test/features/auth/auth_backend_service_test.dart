@@ -35,45 +35,48 @@ void main() {
       expect(signInResult.profile?.email, equals('joe@tradex.ai'));
     });
 
-    test('Affiliate Partner Signup & Referral Schema Test', () async {
-      final result = await authService.signUp(
-        role: UserRole.affiliate,
-        handle: '@partner_pro',
-        email: 'partner@tradex.ai',
-        password: 'password123',
-        referralCode: 'REF-TRADEX-2026',
-      );
+    test(
+      'Affiliate signup creates a customer account pending application',
+      () async {
+        final result = await authService.signUp(
+          role: UserRole.affiliate,
+          handle: '@partner_pro',
+          email: 'partner@tradex.ai',
+          password: 'password123',
+          referralCode: 'REF-TRADEX-2026',
+        );
 
-      expect(result.isSuccess, isTrue);
-      expect(result.profile?.role, equals(UserRole.affiliate));
-      expect(result.affiliateProfile, isNotNull);
-      expect(result.affiliateProfile?.commissionRate, equals(0.15));
-      expect(result.affiliateProfile?.totalReferrals, equals(1));
-      expect(result.affiliateProfile?.unpaidBalance, equals(50.00));
-    });
+        expect(result.isSuccess, isTrue);
+        expect(result.profile?.role, equals(UserRole.customer));
+        expect(result.affiliateProfile, isNull);
+        expect(result.message, contains('Complete the affiliate application'));
+      },
+    );
 
-    test('User Admin Signup Requirement & Verification Test', () async {
-      // 1. Without Master Admin Key (Expect Failure)
-      final failResult = await authService.signUp(
-        role: UserRole.userAdmin,
-        handle: '@admin_sec',
-        email: 'admin@tradex.ai',
-        password: 'password123',
-      );
-      expect(failResult.isSuccess, isFalse);
+    test(
+      'User Admin public signup is disabled with or without a key',
+      () async {
+        final failResult = await authService.signUp(
+          role: UserRole.userAdmin,
+          handle: '@admin_sec',
+          email: 'admin@tradex.ai',
+          password: 'password123',
+        );
+        expect(failResult.isSuccess, isFalse);
 
-      // 2. With Master Admin Key (Expect Success)
-      final successResult = await authService.signUp(
-        role: UserRole.userAdmin,
-        handle: '@admin_sec',
-        email: 'admin@tradex.ai',
-        password: 'password123',
-        adminKey: 'LIC-ADMIN-2026-KEY',
-      );
+        // A leaked or manually submitted key must not reopen registration.
+        final successResult = await authService.signUp(
+          role: UserRole.userAdmin,
+          handle: '@admin_sec',
+          email: 'admin@tradex.ai',
+          password: 'password123',
+          adminKey: 'LIC-ADMIN-2026-KEY',
+        );
 
-      expect(successResult.isSuccess, isTrue);
-      expect(successResult.profile?.role, equals(UserRole.userAdmin));
-      expect(successResult.profile?.subscriptionTier, equals('enterprise'));
-    });
+        expect(successResult.isSuccess, isFalse);
+        expect(successResult.errorCode, equals('admin_signup_disabled'));
+        expect(successResult.message, contains('provisioned privately'));
+      },
+    );
   });
 }

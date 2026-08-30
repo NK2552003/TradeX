@@ -1,216 +1,545 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
-import 'package:tradex/core/showcase/numbered_component_showcase_page.dart';
+import 'package:tradex/core/data/app_session.dart';
+import 'package:tradex/core/data/session_trader.dart';
+// Required unified primitive import for application layouts.
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/navigation/role_navigation_config.dart';
+import 'package:tradex/features/affiliate_program/affiliate_program.dart';
+import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_marketing_page.dart';
+import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_overview_page.dart';
+import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_payouts_page.dart';
+import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/community/presentation/pages/community_page.dart';
-import 'package:tradex/features/enterprise/presentation/pages/enterprise_page.dart';
-import 'package:tradex/features/insights/presentation/pages/insights_page.dart';
-import 'package:tradex/features/journal/presentation/pages/journal_page.dart';
-import 'package:tradex/features/messages/presentation/pages/messages_page.dart';
-import 'package:tradex/features/notifications/presentation/pages/notifications_page.dart';
-import 'package:tradex/features/portfolio/presentation/pages/portfolio_page.dart';
-import 'package:tradex/features/strategies/presentation/pages/strategies_page.dart';
-import 'package:tradex/features/subscriptions/presentation/pages/subscriptions_page.dart';
-import 'package:tradex/features/watchlists/presentation/pages/watchlists_page.dart';
+import 'package:tradex/features/auth/models/user_profile_model.dart';
+import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
 
+/// The signed-in application shell: chrome, navigation and the active page.
+///
+/// Everything role-specific is a lookup rather than a branch — the sidebar comes
+/// from [RoleNavigationConfig], the plan from [AppSession] and the identity from
+/// the profile repository — so adding a destination never means editing three
+/// places that can disagree.
 class AppScaffold extends StatefulWidget {
   const AppScaffold({
     super.key,
     this.userRole = UserRole.customer,
-    this.userEmail = 'nitish@tradex.ai',
+    this.userEmail = '',
     this.onLogout,
     this.onRoleChanged,
     this.onReturnToAuth,
+    this.showDevelopmentRoleSwitcher = false,
+    this.subscriptionTier = AppTier.free,
+    this.userId = '',
+    this.userDisplayName = '',
   });
 
   final UserRole userRole;
+
+  /// Identity handed down by the auth layer. All three default to empty rather
+  /// than to a stand-in name: the chrome falls back to the profile repository,
+  /// so an unset value shows the seeded demo identity instead of a fictional
+  /// person baked into the shell.
   final String userEmail;
   final VoidCallback? onLogout;
   final ValueChanged<UserRole>? onRoleChanged;
   final VoidCallback? onReturnToAuth;
+  final bool showDevelopmentRoleSwitcher;
+  final AppTier subscriptionTier;
+  final String userId;
+  final String userDisplayName;
 
   @override
   State<AppScaffold> createState() => _AppScaffoldState();
 }
 
 class _AppScaffoldState extends State<AppScaffold> {
-  String _selectedId = 'journal';
+  /// Surfaces the shell owns rather than the sidebar. They are reached from the
+  /// top bar, so no role lists them and [RoleNavigationConfig.allows] would
+  /// refuse them — which is exactly the bug this set exists to prevent.
+  static const Map<String, String> _shellDestinations = <String, String>{
+    'notifications': 'Notifications',
+    'search': 'Search',
+  };
 
-  static const List<AppNavSection> _navSections = <AppNavSection>[
-    AppNavSection(
-      title: 'Trading Platform',
-      items: <AppNavItem>[
-        AppNavItem(
-          id: 'journal',
-          label: 'Trade Journal',
-          icon: Icons.receipt_long_outlined,
-          selectedIcon: Icons.receipt_long,
-          subItems: <AppNavItem>[
-            AppNavItem(id: 'journal_overview', label: 'Overview', icon: Icons.grid_view_outlined),
-            AppNavItem(id: 'journal_analytics', label: 'Analytics', icon: Icons.analytics_outlined),
-          ],
-        ),
-        AppNavItem(
-          id: 'watchlists',
-          label: 'Watchlists',
-          icon: Icons.visibility_outlined,
-          selectedIcon: Icons.visibility,
-        ),
-        AppNavItem(
-          id: 'portfolio',
-          label: 'Portfolio Dashboard',
-          icon: Icons.pie_chart_outline,
-          selectedIcon: Icons.pie_chart,
-        ),
-        AppNavItem(
-          id: 'scanner',
-          label: 'Market Scanner',
-          icon: Icons.candlestick_chart_outlined,
-          selectedIcon: Icons.candlestick_chart,
-        ),
-      ],
-    ),
-    AppNavSection(
-      title: 'Strategies & AI',
-      items: <AppNavItem>[
-        AppNavItem(
-          id: 'strategies',
-          label: 'Strategy Playbooks',
-          icon: Icons.auto_stories_outlined,
-          selectedIcon: Icons.auto_stories,
-          subItems: <AppNavItem>[
-            AppNavItem(id: 'strategies_list', label: 'Playbook List', icon: Icons.format_list_bulleted_outlined),
-            AppNavItem(id: 'strategies_analyzer', label: 'Strategy Analyzer', icon: Icons.insights_outlined),
-            AppNavItem(id: 'strategies_graph', label: 'Graph View', icon: Icons.hub_outlined),
-          ],
-        ),
-        AppNavItem(
-          id: 'ai_assistant',
-          label: 'AI Trading Assistant',
-          icon: Icons.auto_awesome_outlined,
-          selectedIcon: Icons.auto_awesome,
-          subItems: <AppNavItem>[
-            AppNavItem(id: 'ai_digest', label: 'Daily Digest', icon: Icons.article_outlined),
-            AppNavItem(id: 'ai_review', label: 'Performance Review', icon: Icons.rate_review_outlined),
-          ],
-        ),
-      ],
-    ),
-    AppNavSection(
-      title: 'Community & Messages',
-      items: <AppNavItem>[
-        AppNavItem(
-          id: 'community',
-          label: 'Community Feed',
-          icon: Icons.forum_outlined,
-          selectedIcon: Icons.forum,
-        ),
-        AppNavItem(
-          id: 'messages',
-          label: 'Direct Messages',
-          icon: Icons.mark_chat_read_outlined,
-          selectedIcon: Icons.mark_chat_read,
-          badgeCount: 2,
-        ),
-      ],
-    ),
-    AppNavSection(
-      title: 'System & Showcase',
-      items: <AppNavItem>[
-        AppNavItem(
-          id: 'showcase',
-          label: 'UI Showcase (133)',
-          icon: Icons.grid_view_rounded,
-          selectedIcon: Icons.grid_view_rounded,
-          subItems: <AppNavItem>[
-            AppNavItem(id: 'showcase_foundation', label: 'Foundation Actions', icon: Icons.widgets_outlined),
-            AppNavItem(id: 'showcase_inputs', label: 'Form Inputs', icon: Icons.input_outlined),
-            AppNavItem(id: 'showcase_selection', label: 'Selection & Nav', icon: Icons.check_box_outlined),
-            AppNavItem(id: 'showcase_charts', label: 'Charts & Data', icon: Icons.bar_chart_outlined),
-            AppNavItem(id: 'showcase_layout', label: 'Layout Primitives', icon: Icons.dashboard_customize_outlined),
-            AppNavItem(id: 'showcase_overlays', label: 'Overlays & Feedback', icon: Icons.layers_outlined),
-            AppNavItem(id: 'showcase_cards', label: 'Domain Cards', icon: Icons.subtitles_outlined),
-            AppNavItem(id: 'showcase_blocks', label: 'Screen Blocks', icon: Icons.view_quilt_outlined),
-          ],
-        ),
-      ],
-    ),
-    AppNavSection(
-      title: 'Enterprise & Admin',
-      items: <AppNavItem>[
-        AppNavItem(
-          id: 'org_team',
-          label: 'Team & Risk',
-          icon: Icons.corporate_fare_outlined,
-        ),
-        AppNavItem(
-          id: 'org_audit',
-          label: 'Audit & Compliance',
-          icon: Icons.shield_outlined,
-        ),
-      ],
-    ),
-  ];
+  final AppSession _session = AppSession.instance;
+  final ProfileSettingsRepository _profiles = ProfileSettingsRepositoryImpl();
 
-  Widget _buildActivePage() {
-    switch (_selectedId) {
-      case 'watchlists':
-      case 'scanner':
-        return const WatchlistsPage();
-      case 'portfolio':
-        return const PortfolioPage();
-      case 'strategies':
-      case 'strategies_list':
-      case 'strategies_analyzer':
-      case 'strategies_graph':
-        return const StrategiesPage();
-      case 'ai_assistant':
-      case 'ai_digest':
-      case 'ai_review':
-        return const InsightsPage();
-      case 'community':
-        return const CommunityPage();
-      case 'messages':
-        return const MessagesPage();
-      case 'org_team':
-      case 'org_audit':
-        return const EnterprisePage();
-      case 'subscriptions':
-      case 'billing':
-        return const SubscriptionsPage();
-      case 'notifications':
-        return const NotificationsPage();
-      case 'showcase':
-      case 'showcase_foundation':
-      case 'showcase_inputs':
-      case 'showcase_selection':
-      case 'showcase_charts':
-      case 'showcase_layout':
-      case 'showcase_overlays':
-      case 'showcase_cards':
-      case 'showcase_blocks':
-        return NumberedComponentShowcasePage(selectedId: _selectedId);
-      case 'journal':
-      case 'journal_overview':
-      case 'journal_analytics':
-      default:
-        return const JournalPage();
+  String _selectedId = 'overview';
+  AppTrader? _identity;
+  int _unread = 0;
+  bool _showAffiliateApplication = false;
+  AffiliateApplicationStatus? _affiliateApplicationStatus;
+
+  RoleNavigationConfig get _navigation =>
+      RoleNavigationConfig.forRole(widget.userRole);
+
+  @override
+  void initState() {
+    super.initState();
+    // The plan arrives with the profile but every gate in the app reads it from
+    // the session, so the session adopts it here. That makes entitlement
+    // single-owner: upgrading in billing unlocks DMs and copilot credits in the
+    // same frame instead of leaving each surface with its own stale copy.
+    _session.changeTier(widget.subscriptionTier);
+    // Painted from the cached profile on the first frame so the avatar, handle
+    // and sidebar footer are never blank, then refreshed from the repository.
+    _identity = appTraderFromProfile(_profiles.cachedProfile);
+    _loadIdentity();
+    _loadUnread();
+    _loadAffiliateApplicationStatus();
+  }
+
+  @override
+  void didUpdateWidget(AppScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userRole != widget.userRole) {
+      _resetToOverview();
+      _loadAffiliateApplicationStatus();
+    }
+    if (oldWidget.subscriptionTier != widget.subscriptionTier) {
+      _session.changeTier(widget.subscriptionTier);
+    }
+    if (oldWidget.userId != widget.userId ||
+        oldWidget.userEmail != widget.userEmail) {
+      _loadIdentity();
     }
   }
 
+  Future<void> _loadIdentity() async {
+    final UserProfileModel profile = await _profiles.getProfile();
+    if (!mounted) return;
+    setState(() => _identity = appTraderFromProfile(profile));
+  }
+
+  Future<void> _loadUnread() async {
+    if (!mounted) return;
+    setState(() => _unread = 0);
+  }
+
+  Future<void> _loadAffiliateApplicationStatus() async {
+    final AffiliateApplicationModel? application =
+        await AffiliateApplicationRepositoryImpl.instance.getForUser(
+          widget.userId,
+        );
+    if (!mounted) return;
+    setState(() => _affiliateApplicationStatus = application?.status);
+  }
+
+  /// Identity for the chrome: who from the profile, which plan from the session.
+  /// Until the profile lands the fields fall back to the values the shell was
+  /// handed, so the avatar and menu never show someone who does not exist.
+  /// Identity for the chrome. The profile the repository returned wins, then
+  /// whatever the auth layer handed down, so a field the backend has not filled
+  /// in yet still shows something true rather than a blank. The tier always
+  /// comes from the session — the profile copy of it is advisory.
+  AppTrader get _chromeIdentity {
+    final AppTrader? profile = _identity;
+    String pick(String? fromProfile, String fromWidget) {
+      final String owned = (fromProfile ?? '').trim();
+      if (owned.isNotEmpty) return owned;
+      return fromWidget.trim();
+    }
+
+    return AppTrader(
+      id: pick(profile?.id, widget.userId),
+      handle: pick(profile?.handle, widget.userEmail),
+      displayName: pick(profile?.displayName, widget.userDisplayName),
+      avatarUrl: profile?.avatarUrl,
+      bio: profile?.bio,
+      tier: _session.tier.value,
+      followers: profile?.followers ?? 0,
+      following: profile?.following ?? 0,
+      winRate: profile?.winRate,
+      verified: profile?.verified ?? false,
+      tradingStyle: profile?.tradingStyle,
+    );
+  }
+
+  String? _activeSettingsSubpageTitle;
+  IconData? _activeSettingsSubpageIcon;
+  VoidCallback? _activeSettingsSubpageOnBack;
+
+  void _onSettingsSubpageChanged(
+    String? title,
+    IconData? icon,
+    VoidCallback? onBack,
+  ) {
+    if (!mounted) return;
+    setState(() {
+      _activeSettingsSubpageTitle = title;
+      _activeSettingsSubpageIcon = icon;
+      _activeSettingsSubpageOnBack = onBack;
+    });
+  }
+
+  /// Sends the reader home and forgets every pending deep link. Written without
+  /// [setState] because the only caller is [didUpdateWidget], where a rebuild is
+  /// already on the way.
+  void _resetToOverview() {
+    _selectedId = 'overview';
+    _showAffiliateApplication = false;
+    _activeSettingsSubpageTitle = null;
+    _activeSettingsSubpageIcon = null;
+    _activeSettingsSubpageOnBack = null;
+  }
+
+  bool _canReach(String id) =>
+      _shellDestinations.containsKey(id) || _navigation.allows(id);
+
+  /// The one way a destination changes.
+  void _go(String id) {
+    if (!_canReach(id)) return;
+    setState(() {
+      _selectedId = id;
+      _showAffiliateApplication = false;
+      _activeSettingsSubpageTitle = null;
+      _activeSettingsSubpageIcon = null;
+      _activeSettingsSubpageOnBack = null;
+    });
+  }
+
+  /// A handler for a destination, or null when this role cannot reach it — so a
+  /// cross-link renders as absent rather than as a button that does nothing.
+  VoidCallback? _jump(String id) => _canReach(id) ? () => _go(id) : null;
+
+  /// Breadcrumb leaf when the active surface has no sidebar entry to name it.
+  String? get _pageTitleOverride => _showAffiliateApplication
+      ? 'Affiliate application'
+      : _activeSettingsSubpageTitle ?? _shellDestinations[_selectedId];
+
+  IconData? get _pageIconOverride => _showAffiliateApplication
+      ? Icons.handshake_outlined
+      : _activeSettingsSubpageIcon;
+
+  VoidCallback? get _pageBackOverride => _showAffiliateApplication
+      ? () => setState(() => _showAffiliateApplication = false)
+      : _activeSettingsSubpageOnBack;
+
+  Widget _buildActivePage() {
+    if (_showAffiliateApplication) return _affiliateApplicationPage();
+    if (_selectedId == 'search') return _searchPage();
+    if (_selectedId == 'notifications') return _notificationsPage();
+    if (_selectedId.startsWith('settings')) return _settingsPage();
+
+    return switch (widget.userRole) {
+      UserRole.customer => _traderPage(),
+      UserRole.affiliate => _affiliatePage(),
+      UserRole.userAdmin => _adminPage(),
+    };
+  }
+
+  Widget _affiliateApplicationPage() => AffiliateApplicationPage(
+    userId: widget.userId,
+    email: widget.userEmail,
+    displayName: widget.userDisplayName,
+    isExistingCustomer: true,
+    onSubmitted: (AffiliateApplicationModel application) =>
+        setState(() => _affiliateApplicationStatus = application.status),
+    onCancel: () => setState(() => _showAffiliateApplication = false),
+    onDone: () {
+      setState(() => _showAffiliateApplication = false);
+      _go('settings_profile');
+    },
+  );
+
+  Widget _placeholderPage(String title, String description, IconData icon) =>
+      AppPageBlock(
+        title: title,
+        subtitle: '$title Surface',
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: UiEmptyState(icon: icon, title: title, message: description),
+          ),
+        ),
+      );
+
+  Widget _searchPage() => UiSkeleton.search();
+
+  Widget _notificationsPage() => UiSkeleton.notifications();
+
+  /// Loading shape for a destination the reader has not arrived at yet.
+  ///
+  /// The phone shell shows this in the dock slots either side of the live one,
+  /// so a swipe reveals the next screen taking shape instead of a second copy of
+  /// the one being dragged away.
+  Widget _destinationSkeleton(String id) {
+    // Settings is two different shapes: the bare `settings` slot is the grouped
+    // drill-in list, while `settings_<section>` lands straight on a detail form.
+    // Showing the overview shape for a section would rearrange itself the moment
+    // the real page arrived.
+    if (id == 'settings') return UiSkeleton.settings();
+    if (id.startsWith('settings_')) {
+      final String section = id.replaceFirst('settings_', '');
+      return switch (section) {
+        'profile' => UiSkeleton.settingsDetail(showIdentity: true, sections: 3),
+        'organization' => UiSkeleton.settingsDetail(
+          showIdentity: true,
+          sections: 2,
+        ),
+        'billing' => UiSkeleton.settingsList(
+          showSummary: true,
+          showHeader: false,
+          rows: 3,
+        ),
+        _ => UiSkeleton.settingsDetail(sections: 3),
+      };
+    }
+    return switch (id) {
+      'overview' => UiSkeleton.dashboard(),
+      'journal' => UiSkeleton.journal(),
+      'strategies' => UiSkeleton.strategies(),
+      'watchlists' => UiSkeleton.watchlists(),
+      'portfolio' => UiSkeleton.portfolio(),
+      'community' => UiSkeleton.community(),
+      'messages' => UiSkeleton.messages(),
+      'ai_copilot' => UiSkeleton.ai(),
+      'notifications' => UiSkeleton.notifications(),
+      'search' => UiSkeleton.search(),
+      'referrals' || 'payouts' || 'marketing' => UiSkeleton.dashboard(),
+      _ => UiSkeleton.page(),
+    };
+  }
+
+  Widget _settingsPage() {
+    final String sectionId = _selectedId == 'settings'
+        ? 'profile'
+        : _selectedId.replaceFirst('settings_', '');
+    return SettingsRootPage(
+      key: ValueKey<String>('settings_${widget.userRole.id}_$sectionId'),
+      userRole: widget.userRole,
+      initialSectionId: sectionId,
+      showNavigationPane: context.uiRes.isMobile && _selectedId == 'settings',
+      onLogout: widget.onLogout,
+      subscriptionTier: _session.tier.value,
+      // Straight into the session: billing is not allowed a private copy of the
+      // plan, or the gates elsewhere would stay shut after an upgrade.
+      onSubscriptionTierChanged: _session.changeTier,
+      onApplyForAffiliate: () =>
+          setState(() => _showAffiliateApplication = true),
+      onSubpageChanged: _onSettingsSubpageChanged,
+    );
+  }
+
+  Widget _traderPage() => switch (_selectedId) {
+    'overview' => UiSkeleton.dashboard(),
+    'journal' => UiSkeleton.journal(),
+    'strategies' => UiSkeleton.strategies(),
+    'watchlists' => UiSkeleton.watchlists(),
+    'portfolio' => UiSkeleton.portfolio(),
+    'community' => UiSkeleton.community(),
+    'messages' => UiSkeleton.messages(),
+    'ai_copilot' => UiSkeleton.ai(),
+    _ => _unknownPage(),
+  };
+
+  Widget _affiliatePage() => switch (_selectedId) {
+    'overview' => AffiliateOverviewPage(
+      onOpenReferrals: _jump('referrals'),
+      onOpenPayouts: _jump('payouts'),
+      onOpenMarketing: _jump('marketing'),
+    ),
+    'referrals' => AffiliateReferralsPage(
+      onOpenPayouts: _jump('payouts'),
+      onOpenMarketing: _jump('marketing'),
+    ),
+    'marketing' => AffiliateMarketingPage(
+      onOpenReferrals: _jump('referrals'),
+      onOpenPayouts: _jump('payouts'),
+    ),
+    'payouts' => AffiliatePayoutsPage(
+      onOpenReferrals: _jump('referrals'),
+      onOpenSettings: _jump('settings_affiliate'),
+    ),
+    'community' => _placeholderPage(
+      'Community',
+      'This screen will feature affiliate partner forums and leaderboards.',
+      Icons.groups_outlined,
+    ),
+    'messages' => _placeholderPage(
+      'Messages',
+      'This screen will provide direct communication channels with your affiliate manager.',
+      Icons.chat_bubble_outline_rounded,
+    ),
+    'ai_copilot' => _placeholderPage(
+      'AI Assistant',
+      'This screen will provide AI-powered marketing copy generation and conversion tips.',
+      Icons.auto_awesome_outlined,
+    ),
+    _ => _unknownPage(),
+  };
+
+  Widget _adminPage() => switch (_selectedId) {
+    'overview' => _placeholderPage(
+      'Desk Overview',
+      'This screen will display the trading firm executive summary and risk metrics.',
+      Icons.business_outlined,
+    ),
+    'org_team' => _placeholderPage(
+      'Team & Seats',
+      'This screen will manage trader seats, account provisioning, and role assignments.',
+      Icons.badge_outlined,
+    ),
+    'org_risk' => _placeholderPage(
+      'Risk Management',
+      'This screen will enforce margin rules, daily loss caps, and max position limits.',
+      Icons.shield_outlined,
+    ),
+    'org_audit' => _placeholderPage(
+      'Audit Log',
+      'This screen will track compliance logs, trade modifications, and login events.',
+      Icons.history_rounded,
+    ),
+    'org_analytics' => _placeholderPage(
+      'Analytics',
+      'This screen will aggregate firm-wide P&L, Sharpe ratios, and trader scorecards.',
+      Icons.analytics_outlined,
+    ),
+    'affiliate_reviews' => const AffiliateApprovalsPage(),
+    'ai_copilot' => _placeholderPage(
+      'AI Assistant',
+      'This screen will analyze organizational risk patterns and trader compliance.',
+      Icons.auto_awesome_outlined,
+    ),
+    _ => _unknownPage(),
+  };
+
+  /// Reached only if a destination is added to the sidebar before it has a page.
+  /// Saying so beats a blank pane that looks like a loading failure.
+  Widget _unknownPage() => AppPageBlock(
+    title: _navigation.labelFor(_selectedId) ?? 'Not available',
+    subtitle:
+        'This surface is not part of the ${widget.userRole.label} '
+        'workspace yet',
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: UiEmptyState(
+          icon: Icons.construction_rounded,
+          title: 'Nothing here yet',
+          message:
+              'The navigation lists this destination but no page answers it. Pick '
+              'another item from the sidebar.',
+          action: UiButton(
+            label: 'Back to ${_navigation.labelFor('overview') ?? 'the start'}',
+            leadingIcon: Icons.arrow_back_rounded,
+            variant: UiVariant.outline,
+            onPressed: _jump('overview'),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  // -------------------------------------------------------------------------
+  // Prototype chrome
+  // -------------------------------------------------------------------------
+
+  Widget _buildDesktopPreviewControls() {
+    final bool isAffiliate = widget.userRole == UserRole.affiliate;
+    final bool isPending =
+        _affiliateApplicationStatus == AffiliateApplicationStatus.pending;
+    final bool isApproved =
+        _affiliateApplicationStatus == AffiliateApplicationStatus.approved;
+    return UiCard(
+      padding: EdgeInsets.all(context.sp(context.ui.spacing.xs)),
+      variant: UiCardVariant.outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            'DESIGN PREVIEW',
+            style: context.uiText.caption.copyWith(
+              color: context.ui.colors.foregroundSubtle,
+              fontSize: context.fs(9),
+              letterSpacing: 0.8,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: context.sp(context.ui.spacing.xxs)),
+          if (widget.userRole != UserRole.userAdmin)
+            UiButton(
+              label: isAffiliate
+                  ? 'Switch to Trader'
+                  : isPending
+                  ? 'Review in progress'
+                  : isApproved
+                  ? 'Switch to Affiliate'
+                  : 'Apply for Affiliate',
+              leadingIcon: isPending
+                  ? Icons.hourglass_top_rounded
+                  : isAffiliate
+                  ? Icons.candlestick_chart_rounded
+                  : Icons.handshake_outlined,
+              variant: isAffiliate || isApproved
+                  ? UiVariant.soft
+                  : UiVariant.outline,
+              intent: UiIntent.warning,
+              size: UiSize.xs,
+              onPressed: isPending
+                  ? null
+                  : () {
+                      if (isAffiliate) {
+                        widget.onRoleChanged?.call(UserRole.customer);
+                      } else if (isApproved) {
+                        widget.onRoleChanged?.call(UserRole.affiliate);
+                      } else {
+                        setState(() => _showAffiliateApplication = true);
+                      }
+                    },
+            ),
+          if (widget.userRole != UserRole.userAdmin)
+            SizedBox(height: context.sp(context.ui.spacing.xxs)),
+          if (!isAffiliate) ...<Widget>[
+            UiButton(
+              label: 'Preview Affiliate',
+              leadingIcon: Icons.visibility_outlined,
+              variant: UiVariant.outline,
+              intent: UiIntent.warning,
+              size: UiSize.xs,
+              onPressed: () => widget.onRoleChanged?.call(UserRole.affiliate),
+            ),
+            SizedBox(height: context.sp(context.ui.spacing.xxs)),
+          ],
+          UiButton(
+            label: widget.userRole == UserRole.userAdmin
+                ? 'Exit Admin'
+                : 'Admin',
+            leadingIcon: Icons.admin_panel_settings_outlined,
+            variant: widget.userRole == UserRole.userAdmin
+                ? UiVariant.soft
+                : UiVariant.outline,
+            intent: UiIntent.danger,
+            size: UiSize.xs,
+            onPressed: () => widget.onRoleChanged?.call(
+              widget.userRole == UserRole.userAdmin
+                  ? UserRole.customer
+                  : UserRole.userAdmin,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showRoleSwitcherDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (ctx) => UiDialog(
+      builder: (BuildContext ctx) => UiDialog(
         title: 'Switch User Role',
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: UserRole.values.map((role) {
-            final isSelected = widget.userRole == role;
+          children: UserRole.values.map((UserRole role) {
+            final bool isSelected = widget.userRole == role;
             return Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
+              padding: EdgeInsets.only(
+                bottom: context.sp(context.ui.spacing.sm),
+              ),
               child: UiInteractive(
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -218,59 +547,62 @@ class _AppScaffoldState extends State<AppScaffold> {
                   UiToast.show(
                     context,
                     title: 'Role Switch',
-                    message: 'Switched role to ${role.label}',
+                    message: 'Switched session to ${role.label} mode.',
                     intent: UiIntent.info,
                   );
                 },
-                builder: (context, state) => Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? context.ui.colors.primary.withValues(alpha: 0.12)
-                        : (state.hovered
-                            ? context.ui.colors.surfaceHover
-                            : Colors.transparent),
-                    borderRadius: context.radius(context.ui.radii.md),
-                    border: Border.all(
-                      color: isSelected
-                          ? context.ui.colors.primary
-                          : context.ui.colors.border,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(role.icon, color: context.ui.colors.primary),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              role.label,
-                              style: context.uiText.bodyStrong,
-                            ),
-                            Text(
-                              role.subtitle,
-                              style: context.uiText.caption.copyWith(
-                                color: context.ui.colors.foregroundMuted,
-                              ),
-                            ),
-                          ],
+                builder: (BuildContext context, UiInteractiveState state) =>
+                    Container(
+                      padding: EdgeInsets.all(
+                        context.sp(context.ui.spacing.md),
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? context.ui.colors.primary.withValues(alpha: 0.12)
+                            : (state.hovered
+                                  ? context.ui.colors.surfaceHover
+                                  : Colors.transparent),
+                        borderRadius: context.radius(context.ui.radii.md),
+                        border: Border.all(
+                          color: isSelected
+                              ? context.ui.colors.primary
+                              : context.ui.colors.border,
                         ),
                       ),
-                      UiBadge(
-                        label: role.shortTitle,
-                        intent: role.badgeIntent,
-                        size: UiSize.xs,
+                      child: Row(
+                        children: <Widget>[
+                          Icon(role.icon, color: context.ui.colors.primary),
+                          UiGap.h(context.ui.spacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  role.label,
+                                  style: context.uiText.bodyStrong,
+                                ),
+                                Text(
+                                  role.subtitle,
+                                  style: context.uiText.caption.copyWith(
+                                    color: context.ui.colors.foregroundMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          UiBadge(
+                            label: role.shortTitle,
+                            intent: role.badgeIntent,
+                            size: UiSize.xs,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
               ),
             );
           }).toList(),
         ),
-        actions: [
+        actions: <Widget>[
           UiButton(
             label: 'Close',
             variant: UiVariant.outline,
@@ -282,94 +614,166 @@ class _AppScaffoldState extends State<AppScaffold> {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Build
+  // -------------------------------------------------------------------------
+
+  /// Listens to the session plan so a change in billing repaints the workspace
+  /// name, the tier chip and every gate below in the same frame.
   @override
-  Widget build(BuildContext context) {
-    final theme = context.ui;
-    final colors = theme.colors;
+  Widget build(BuildContext context) => ValueListenableBuilder<AppTier>(
+    valueListenable: _session.tier,
+    builder: (BuildContext context, AppTier tier, Widget? _) =>
+        _buildWorkspace(tier),
+  );
 
-    return Column(
-      children: [
-        // Role Notification Top Banner for Affiliate / Admin roles
-        if (widget.userRole != UserRole.customer)
-          Container(
-            color: widget.userRole == UserRole.userAdmin
-                ? colors.bearish.withValues(alpha: 0.15)
-                : colors.warning.withValues(alpha: 0.15),
-            padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.md),
-              vertical: context.sp(theme.spacing.xxs),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  widget.userRole.icon,
-                  size: context.sz(14),
-                  color: widget.userRole == UserRole.userAdmin
-                      ? colors.bearish
-                      : colors.warning,
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Expanded(
-                  child: Text(
-                    'Active Session: ${widget.userRole.label} Mode (${widget.userRole.subtitle})',
-                    style: context.uiText.caption.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: colors.foreground,
-                      fontSize: 11.5,
-                    ),
-                  ),
-                ),
-                UiButton(
-                  label: 'Switch Role',
-                  variant: UiVariant.ghost,
-                  intent: UiIntent.primary,
-                  size: UiSize.xs,
-                  onPressed: _showRoleSwitcherDialog,
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                UiButton(
-                  label: 'Logout',
-                  variant: UiVariant.soft,
-                  intent: UiIntent.danger,
-                  size: UiSize.xs,
-                  onPressed: widget.onLogout,
-                ),
-              ],
-            ),
-          ),
-
-        // Main App Shell
+  Widget _buildWorkspace(AppTier tier) {
+    final RoleNavigationConfig navigation = _navigation;
+    final Widget scaffoldContent = Column(
+      children: <Widget>[
+        if (widget.showDevelopmentRoleSwitcher) _buildSessionBanner(),
         Expanded(
           child: AppShell(
-            key: ValueKey<String>('${AppConstants.appName}_${widget.userRole.id}'),
-            sections: _navSections,
-            selectedId: _selectedId,
-            onSelect: (id) => setState(() => _selectedId = id),
-            trader: AppTrader(
-              id: 'u1',
-              handle: widget.userEmail,
-              displayName: 'Nitish Kumar (${widget.userRole.shortTitle})',
-              tier: widget.userRole == UserRole.userAdmin
-                  ? AppTier.enterprise
-                  : (widget.userRole == UserRole.affiliate
-                      ? AppTier.premium
-                      : AppTier.free),
+            key: ValueKey<String>(
+              '${AppConstants.appName}_${widget.userRole.id}',
             ),
-            unreadNotifications: 4,
-            primaryAction: widget.onReturnToAuth != null
-                ? UiButton(
-                    label: 'Auth Demo Flow',
-                    leadingIcon: Icons.lock_reset_rounded,
-                    variant: UiVariant.soft,
-                    intent: UiIntent.primary,
-                    size: UiSize.sm,
-                    onPressed: widget.onReturnToAuth,
-                  )
-                : null,
+            sections: navigation.sections,
+            mobilePrimaryItems: navigation.mobilePrimaryItems,
+            mobileMoreItems: navigation.mobileMoreItems,
+            userMenuItems: navigation.userMenuItems,
+            selectedId: _selectedId,
+            onSelect: _go,
+            onSearch: () => _go('search'),
+            onSettings: () => _go('settings_profile'),
+            onAi: () => _go('ai_copilot'),
+            onNotifications: () => _go('notifications'),
+            onLogout: widget.onLogout,
+            trader: _chromeIdentity,
+            tier: tier,
+            workspaceName: widget.userRole == UserRole.customer
+                ? switch (tier) {
+                    AppTier.free => 'TradeX Basic',
+                    AppTier.premium => 'TradeX Pro',
+                    AppTier.enterprise => 'TradeX Enterprise',
+                  }
+                : navigation.workspaceName,
+            tierLabel: widget.userRole == UserRole.customer
+                ? switch (tier) {
+                    AppTier.free => 'Basic Plan',
+                    AppTier.premium => 'Pro Plan',
+                    AppTier.enterprise => 'Enterprise Plan',
+                  }
+                : navigation.workspaceLabel,
+            unreadNotifications: _unread,
+            pageTitle: _pageTitleOverride,
+            pageIcon: _pageIconOverride,
+            onBack: _pageBackOverride,
+            pagePlaceholderBuilder: (BuildContext context, AppNavItem item) =>
+                _destinationSkeleton(item.id),
+            primaryAction: widget.onRoleChanged == null
+                ? null
+                : _buildDesktopPreviewControls(),
             child: _buildActivePage(),
           ),
         ),
       ],
+    );
+
+    return scaffoldContent;
+  }
+
+  /// Prototype-only strip that names the previewed session and offers a way out
+  /// of it. Never shown when the shell is driven by a real signed-in account.
+  Widget _buildSessionBanner() {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final bool isAdmin = widget.userRole == UserRole.userAdmin;
+    final Color accent = isAdmin ? colors.bearish : colors.warning;
+    return Container(
+      height: context.sz(36),
+      padding: EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.sm)),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        border: Border(
+          bottom: BorderSide(
+            color: accent.withValues(alpha: 0.22),
+            width: theme.borders.hairline,
+          ),
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          // The pill shares this row with two buttons and the subtitle, and it
+          // is the only member sized by its own text — an uppercase role at a
+          // large text scale pushed the whole banner past the screen edge.
+          Flexible(
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(theme.spacing.xs),
+                vertical: context.sp(theme.spacing.xxs),
+              ),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.16),
+                borderRadius: context.radius(theme.radii.sm),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    widget.userRole.icon,
+                    size: context.sz(theme.sizes.iconSm - 2),
+                    color: accent,
+                  ),
+                  UiGap.h(theme.spacing.xxs),
+                  Flexible(
+                    child: Text(
+                      widget.userRole.label.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.uiText.caption.copyWith(
+                        fontSize: context.fs(10),
+                        fontWeight: FontWeight.w700,
+                        color: accent,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          UiGap.h(theme.spacing.xs),
+          Expanded(
+            child: Text(
+              widget.userRole.subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.uiText.caption.copyWith(
+                fontWeight: FontWeight.w500,
+                color: colors.foregroundMuted,
+              ),
+            ),
+          ),
+          UiButton(
+            label: 'Switch Role',
+            leadingIcon: Icons.swap_horiz_rounded,
+            variant: UiVariant.ghost,
+            intent: UiIntent.primary,
+            size: UiSize.xs,
+            hideLabelOnMobile: true,
+            onPressed: _showRoleSwitcherDialog,
+          ),
+          UiGap.h(theme.spacing.xs),
+          UiButton(
+            label: 'Logout',
+            leadingIcon: Icons.logout_rounded,
+            variant: UiVariant.soft,
+            intent: UiIntent.danger,
+            size: UiSize.xs,
+            hideLabelOnMobile: true,
+            onPressed: widget.onLogout,
+          ),
+        ],
+      ),
     );
   }
 }

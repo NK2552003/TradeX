@@ -27,8 +27,9 @@ class UiLightbox extends StatefulWidget {
 }
 
 class _UiLightboxState extends State<UiLightbox> {
-  late final PageController _pages =
-      PageController(initialPage: widget.initialIndex);
+  late final PageController _pages = PageController(
+    initialPage: widget.initialIndex,
+  );
   late int _index = widget.initialIndex;
 
   @override
@@ -72,7 +73,9 @@ class _UiLightboxState extends State<UiLightbox> {
             ),
           ),
           Positioned(
-            top: MediaQuery.of(context).padding.top + context.sp(theme.spacing.sm),
+            top:
+                MediaQuery.of(context).padding.top +
+                context.sp(theme.spacing.sm),
             left: context.sp(theme.spacing.md),
             right: context.sp(theme.spacing.md),
             child: Row(
@@ -105,7 +108,8 @@ class _UiLightboxState extends State<UiLightbox> {
             Positioned(
               left: 0,
               right: 0,
-              bottom: MediaQuery.of(context).padding.bottom +
+              bottom:
+                  MediaQuery.of(context).padding.bottom +
                   context.sp(theme.spacing.lg),
               child: Column(
                 children: <Widget>[
@@ -117,8 +121,9 @@ class _UiLightboxState extends State<UiLightbox> {
                       child: Text(
                         widget.caption!,
                         textAlign: TextAlign.center,
-                        style: context.uiText.caption
-                            .copyWith(color: theme.colors.onPrimary),
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.onPrimary,
+                        ),
                       ),
                     ),
                   if (widget.imageUrls.length > 1) ...<Widget>[
@@ -137,8 +142,9 @@ class _UiLightboxState extends State<UiLightbox> {
                               shape: BoxShape.circle,
                               color: i == _index
                                   ? theme.colors.onPrimary
-                                  : theme.colors.onPrimary
-                                      .withValues(alpha: 0.4),
+                                  : theme.colors.onPrimary.withValues(
+                                      alpha: 0.4,
+                                    ),
                             ),
                           ),
                       ],
@@ -161,19 +167,18 @@ Future<void> showUiLightbox(
   String? caption,
   VoidCallback? onDownload,
   VoidCallback? onShare,
-}) =>
-    Navigator.of(context).push<void>(
-      PageRouteBuilder<void>(
-        opaque: false,
-        barrierColor: Colors.transparent,
-        pageBuilder: (_, _, _) => UiLightbox(
-          imageUrls: imageUrls,
-          initialIndex: initialIndex,
-          caption: caption,
-          onDownload: onDownload,
-          onShare: onShare,
-        ),
-        transitionsBuilder: (_, Animation<double> a, _, Widget child) =>
-            FadeTransition(opacity: a, child: child),
-      ),
-    );
+}) => Navigator.of(context).push<void>(
+  PageRouteBuilder<void>(
+    opaque: false,
+    barrierColor: Colors.transparent,
+    pageBuilder: (_, _, _) => UiLightbox(
+      imageUrls: imageUrls,
+      initialIndex: initialIndex,
+      caption: caption,
+      onDownload: onDownload,
+      onShare: onShare,
+    ),
+    transitionsBuilder: (_, Animation<double> a, _, Widget child) =>
+        FadeTransition(opacity: a, child: child),
+  ),
+);

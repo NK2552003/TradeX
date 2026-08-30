@@ -188,30 +188,34 @@ class AppLogo extends StatelessWidget {
     this.size,
     this.stacked = false,
     this.tagline,
+    this.markRounded = true,
   });
 
   final bool compact;
   final double? size;
   final bool stacked;
   final String? tagline;
+  final bool markRounded;
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final Widget mark = AppLogoMark(size: size);
+    final Widget mark = AppLogoMark(size: size, rounded: markRounded);
     if (compact) return mark;
 
     final Widget text = Column(
-      crossAxisAlignment:
-          stacked ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      crossAxisAlignment: stacked
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         AppWordmark(fontSize: size == null ? null : context.sz(size! * 0.7)),
         if (tagline != null)
           Text(
             tagline!,
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
       ],
     );
@@ -268,10 +272,12 @@ class _AppSplashMarkState extends State<AppSplashMark>
     return AnimatedBuilder(
       animation: _controller,
       builder: (BuildContext context, Widget? _) {
-        final double draw =
-            Curves.easeInOutCubic.transform((_controller.value / 0.7).clamp(0, 1));
-        final double textIn =
-            Curves.easeOutCubic.transform(((_controller.value - 0.55) / 0.45).clamp(0, 1));
+        final double draw = Curves.easeInOutCubic.transform(
+          (_controller.value / 0.7).clamp(0, 1),
+        );
+        final double textIn = Curves.easeOutCubic.transform(
+          ((_controller.value - 0.55) / 0.45).clamp(0, 1),
+        );
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
@@ -289,8 +295,9 @@ class _AppSplashMarkState extends State<AppSplashMark>
                       SizedBox(height: context.sp(theme.spacing.xs)),
                       Text(
                         widget.tagline!,
-                        style: context.uiText.caption
-                            .copyWith(color: theme.colors.foregroundMuted),
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ),
                       ),
                     ],
                   ],

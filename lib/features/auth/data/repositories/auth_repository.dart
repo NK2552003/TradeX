@@ -32,11 +32,7 @@ class AuthResult {
   }
 
   factory AuthResult.failure(String message, {String? errorCode}) {
-    return AuthResult(
-      isSuccess: false,
-      message: message,
-      errorCode: errorCode,
-    );
+    return AuthResult(isSuccess: false, message: message, errorCode: errorCode);
   }
 }
 

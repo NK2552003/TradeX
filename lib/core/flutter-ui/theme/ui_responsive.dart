@@ -121,49 +121,60 @@ class UiResponsive {
   }
 
   /// Responsive grid column count helper used by grids/lists.
-  int columns({int mobile = 1, int tablet = 2, int desktop = 3, int large = 4}) =>
-      pick(
-        mobile: mobile,
-        tablet: tablet,
-        desktop: desktop,
-        largeDesktop: large,
-      );
+  int columns({
+    int mobile = 1,
+    int tablet = 2,
+    int desktop = 3,
+    int large = 4,
+  }) => pick(
+    mobile: mobile,
+    tablet: tablet,
+    desktop: desktop,
+    largeDesktop: large,
+  );
 
   static UiResponsive of(
     BuildContext context, {
     UiBreakpoints breakpoints = const UiBreakpoints(),
     UiScaleConfig scaleConfig = const UiScaleConfig(),
   }) {
-    final MediaQueryData mq = MediaQuery.of(context);
-    final double width = mq.size.width;
+    // Depend on *size* and *text scale* only. `MediaQuery.of` would subscribe
+    // every token reader to unrelated aspects — most damagingly `viewInsets`,
+    // which changes on every keyboard animation frame and would otherwise
+    // rebuild every widget that calls `context.sp()`.
+    final Size? size = MediaQuery.maybeSizeOf(context);
+    final TextScaler? scaler = MediaQuery.maybeTextScalerOf(context);
+    final double width = size?.width ?? 1280.0;
+    final double height = size?.height ?? 800.0;
     final UiDeviceType type = breakpoints.typeForWidth(width);
-    final double raw = mq.textScaler.scale(1);
+    final double raw = scaler?.scale(1) ?? 1.0;
     return UiResponsive(
       width: width,
-      height: mq.size.height,
+      height: height,
       deviceType: type,
       scale: scaleConfig.forType(type),
-      orientation: mq.orientation,
-      textScaleFactor:
-          raw.clamp(scaleConfig.minTextScale, scaleConfig.maxTextScale),
+      orientation: width >= height
+          ? Orientation.landscape
+          : Orientation.portrait,
+      textScaleFactor: raw.clamp(
+        scaleConfig.minTextScale,
+        scaleConfig.maxTextScale,
+      ),
     );
   }
 }
 
 /// Renders a different subtree per device class without duplicating logic.
 class UiResponsiveBuilder extends StatelessWidget {
-  const UiResponsiveBuilder({
-    super.key,
-    required this.builder,
-  });
+  const UiResponsiveBuilder({super.key, required this.builder});
 
   final Widget Function(BuildContext context, UiResponsive r) builder;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (BuildContext ctx, BoxConstraints _) =>
-            builder(ctx, UiResponsive.of(ctx)),
-      );
+    builder: (BuildContext ctx, BoxConstraints _) =>
+        builder(ctx, UiResponsive.of(ctx)),
+  );
 }
 
 /// Responsive layout switch.
@@ -183,11 +194,11 @@ class UiResponsiveLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => UiResponsiveBuilder(
-        builder: (BuildContext ctx, UiResponsive r) => r.pick<WidgetBuilder>(
-          mobile: mobile,
-          tablet: tablet,
-          desktop: desktop,
-          largeDesktop: largeDesktop,
-        )(ctx),
-      );
+    builder: (BuildContext ctx, UiResponsive r) => r.pick<WidgetBuilder>(
+      mobile: mobile,
+      tablet: tablet,
+      desktop: desktop,
+      largeDesktop: largeDesktop,
+    )(ctx),
+  );
 }

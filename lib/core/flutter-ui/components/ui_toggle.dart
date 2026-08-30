@@ -76,8 +76,9 @@ class UiToggle extends StatelessWidget {
     final Color active = activeIntent.color(context);
     final Color idle = inactiveIntent.color(context);
     final bool interactive = enabled && !loading && onChanged != null;
-    final String? text =
-        showLabel ? (value ? (activeLabel ?? label) : label) : null;
+    final String? text = showLabel
+        ? (value ? (activeLabel ?? label) : label)
+        : null;
     final BorderRadius radius = context.radius(
       variant == UiToggleVariant.pill ? theme.radii.pill : size.radius(context),
     );
@@ -96,24 +97,24 @@ class UiToggle extends StatelessWidget {
         final Color fg = !enabled
             ? c.disabledForeground
             : value
-                ? (variant == UiToggleVariant.solid
-                    ? activeIntent.onColor(ctx)
-                    : active)
-                : (s.hovered ? c.foreground : idle);
+            ? (variant == UiToggleVariant.solid
+                  ? activeIntent.onColor(ctx)
+                  : active)
+            : (s.hovered ? c.foreground : idle);
         final Color bg = !enabled
             ? (variant == UiToggleVariant.ghost
-                ? const Color(0x00000000)
-                : c.disabledBackground)
+                  ? const Color(0x00000000)
+                  : c.disabledBackground)
             : value
-                ? switch (variant) {
-                    UiToggleVariant.solid => active,
-                    UiToggleVariant.outline => const Color(0x00000000),
-                    UiToggleVariant.ghost => active.withValues(alpha: 0.08),
-                    _ => active.withValues(alpha: 0.12),
-                  }
-                : (s.hovered && variant != UiToggleVariant.ghost
-                    ? c.surfaceHover
-                    : const Color(0x00000000));
+            ? switch (variant) {
+                UiToggleVariant.solid => active,
+                UiToggleVariant.outline => const Color(0x00000000),
+                UiToggleVariant.ghost => active.withValues(alpha: 0.08),
+                _ => active.withValues(alpha: 0.12),
+              }
+            : (s.hovered && variant != UiToggleVariant.ghost
+                  ? c.surfaceHover
+                  : const Color(0x00000000));
 
         return AnimatedScale(
           scale: s.pressed ? 0.96 : 1,
@@ -127,7 +128,9 @@ class UiToggle extends StatelessWidget {
               minWidth: size.height(ctx),
             ),
             padding: EdgeInsets.symmetric(
-              horizontal: ctx.sp(text == null ? theme.spacing.xs : theme.spacing.md) * f,
+              horizontal:
+                  ctx.sp(text == null ? theme.spacing.xs : theme.spacing.md) *
+                  f,
               vertical: ctx.sp(theme.spacing.xs) * f,
             ),
             decoration: BoxDecoration(
@@ -136,11 +139,14 @@ class UiToggle extends StatelessWidget {
               border: variant == UiToggleVariant.outline
                   ? Border.all(
                       color: value ? active : c.border,
-                      width: value ? theme.borders.thick : theme.borders.hairline,
+                      width: value
+                          ? theme.borders.thick
+                          : theme.borders.hairline,
                     )
                   : null,
-              boxShadow:
-                  value && variant == UiToggleVariant.solid ? uiGlow(ctx, active) : null,
+              boxShadow: value && variant == UiToggleVariant.solid
+                  ? uiGlow(ctx, active)
+                  : null,
             ),
             foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
             child: Row(
@@ -193,10 +199,12 @@ class UiToggle extends StatelessWidget {
   }
 
   Widget _label(BuildContext ctx, String text, Color fg) => Text(
-        text,
-        style: size.textStyle(ctx).copyWith(
-              color: fg,
-              fontWeight: value ? FontWeight.w600 : FontWeight.w500,
-            ),
-      );
+    text,
+    style: size
+        .textStyle(ctx)
+        .copyWith(
+          color: fg,
+          fontWeight: value ? FontWeight.w600 : FontWeight.w500,
+        ),
+  );
 }

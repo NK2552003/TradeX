@@ -54,7 +54,8 @@ class _UiPasswordFieldState extends State<UiPasswordField> {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final UiPasswordStrength strength = uiPasswordStrength(_value);
-    final int filled = <UiPasswordStrength, int>{
+    final int filled =
+        <UiPasswordStrength, int>{
           UiPasswordStrength.empty: 0,
           UiPasswordStrength.weak: 1,
           UiPasswordStrength.fair: 2,
@@ -85,7 +86,9 @@ class _UiPasswordFieldState extends State<UiPasswordField> {
           controller: widget.controller,
           hintText: widget.hintText,
           leadingIcon: Icons.lock_outline,
-          trailingIcon: _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+          trailingIcon: _obscure
+              ? Icons.visibility_off_outlined
+              : Icons.visibility_outlined,
           onTrailingTap: () => setState(() => _obscure = !_obscure),
           obscure: _obscure,
           error: widget.error != null,
@@ -99,34 +102,53 @@ class _UiPasswordFieldState extends State<UiPasswordField> {
           SizedBox(height: context.sp(theme.spacing.xs)),
           Text(
             widget.error!,
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.destructive),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.destructive,
+            ),
           ),
         ],
-        if (widget.showStrength && strength != UiPasswordStrength.empty) ...<Widget>[
+        if (widget.showStrength &&
+            strength != UiPasswordStrength.empty) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.sm)),
           Row(
             children: <Widget>[
-              for (int i = 0; i < 4; i++)
-                Expanded(
-                  child: Container(
-                    height: context.sz(4),
-                    margin: EdgeInsets.only(
-                      right: i == 3 ? 0 : context.sp(theme.spacing.xxs),
-                    ),
-                    decoration: BoxDecoration(
-                      color: i < filled
-                          ? intent.color(context)
-                          : theme.colors.surfaceMuted,
-                      borderRadius: context.radius(theme.radii.pill),
-                    ),
+              // The meter keeps two thirds of the row and the word one third.
+              // Letting the four bars flex against a fixed-width label meant a
+              // large text scale could squeeze them to nothing, leaving a strength
+              // reading with no strength bar under it.
+              Expanded(
+                flex: 2,
+                child: Row(
+                  children: <Widget>[
+                    for (int i = 0; i < 4; i++)
+                      Expanded(
+                        child: Container(
+                          height: context.sz(4),
+                          margin: EdgeInsets.only(
+                            right: i == 3 ? 0 : context.sp(theme.spacing.xxs),
+                          ),
+                          decoration: BoxDecoration(
+                            color: i < filled
+                                ? intent.color(context)
+                                : theme.colors.surfaceMuted,
+                            borderRadius: context.radius(theme.radii.pill),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.sm)),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: context.uiText.caption.copyWith(
+                    color: intent.color(context),
                   ),
                 ),
-              SizedBox(width: context.sp(theme.spacing.sm)),
-              Text(
-                label,
-                style: context.uiText.caption
-                    .copyWith(color: intent.color(context)),
               ),
             ],
           ),

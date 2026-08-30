@@ -60,6 +60,7 @@ class UiGraphCanvas extends StatefulWidget {
   final List<UiGraphEdge> edges;
   final String? selectedId;
   final ValueChanged<UiGraphNode?>? onSelect;
+  /// Canvas height in logical points (scaled internally).
   final double? height;
   final int iterations;
 
@@ -160,7 +161,9 @@ class _UiGraphCanvasState extends State<UiGraphCanvas> {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final double height = widget.height ?? context.sz(360);
+    // Scaled here rather than by the caller, matching UiChartBase: a logical
+    // height in, a device-scaled height out.
+    final double height = context.sz(widget.height ?? 360);
 
     return SizedBox(
       height: height,
@@ -202,8 +205,9 @@ class _UiGraphCanvasState extends State<UiGraphCanvas> {
                       positions: _positions,
                       colors: theme.colors,
                       selectedId: widget.selectedId,
-                      labelStyle: ctx.uiText.caption
-                          .copyWith(color: theme.colors.foreground),
+                      labelStyle: ctx.uiText.caption.copyWith(
+                        color: theme.colors.foreground,
+                      ),
                       radiusOf: (UiGraphNode n) => _nodeRadius(ctx, n),
                     ),
                   ),
@@ -272,8 +276,8 @@ class _UiGraphPainter extends CustomPainter {
         b,
         active
             ? (Paint()
-              ..color = colors.primary
-              ..strokeWidth = 2)
+                ..color = colors.primary
+                ..strokeWidth = 2)
             : edgePaint,
       );
     }
@@ -343,10 +347,18 @@ class UiGraphLegend extends StatelessWidget {
                 ),
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
-              Text(
-                e.key,
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.foregroundMuted),
+              // Legend keys are caller-supplied node categories, so they truncate
+              // inside their own entry rather than overrunning the row.
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: context.sz(160)),
+                child: Text(
+                  e.key,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
+                ),
               ),
             ],
           ),

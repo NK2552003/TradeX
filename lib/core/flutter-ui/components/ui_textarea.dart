@@ -109,7 +109,9 @@ class _UiTextareaState extends State<UiTextarea> {
       enabled: widget.enabled,
       density: widget.density,
       counter: widget.showCounter
-          ? (widget.maxLength == null ? '$length' : '$length/${widget.maxLength}')
+          ? (widget.maxLength == null
+                ? '$length'
+                : '$length/${widget.maxLength}')
           : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,7 +133,9 @@ class _UiTextareaState extends State<UiTextarea> {
             density: widget.density,
             size: widget.size,
             minLines: widget.rows,
-            maxLines: widget.maxRows < widget.rows ? widget.rows : widget.maxRows,
+            maxLines: widget.maxRows < widget.rows
+                ? widget.rows
+                : widget.maxRows,
             maxLength: widget.maxLength,
             autofocus: widget.autofocus,
             focusNode: widget.focusNode,

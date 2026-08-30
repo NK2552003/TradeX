@@ -26,10 +26,14 @@ class _SupabaseConfigModalState extends State<SupabaseConfigModal> {
   void initState() {
     super.initState();
     _urlController = TextEditingController(
-      text: SupabaseConfig.supabaseUrl.contains('placeholder') ? '' : SupabaseConfig.supabaseUrl,
+      text: SupabaseConfig.supabaseUrl.contains('placeholder')
+          ? ''
+          : SupabaseConfig.supabaseUrl,
     );
     _keyController = TextEditingController(
-      text: SupabaseConfig.supabaseAnonKey.contains('placeholder') ? '' : SupabaseConfig.supabaseAnonKey,
+      text: SupabaseConfig.supabaseAnonKey.contains('placeholder')
+          ? ''
+          : SupabaseConfig.supabaseAnonKey,
     );
   }
 
@@ -48,7 +52,8 @@ class _SupabaseConfigModalState extends State<SupabaseConfigModal> {
       UiToast.show(
         context,
         title: 'Invalid URL',
-        message: 'Please enter a valid Supabase project URL (https://xxxx.supabase.co)',
+        message:
+            'Please enter a valid Supabase project URL (https://xxxx.supabase.co)',
         intent: UiIntent.danger,
       );
       return;
@@ -90,7 +95,9 @@ class _SupabaseConfigModalState extends State<SupabaseConfigModal> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             UiCallout(
-              title: isConnected ? 'Supabase Connected' : 'Local Mock Backend Mode Active',
+              title: isConnected
+                  ? 'Supabase Connected'
+                  : 'Local Mock Backend Mode Active',
               message: isConnected
                   ? 'TradeX is connected to live Supabase backend instance.'
                   : 'Currently operating in local mock mode. Enter your Supabase Project URL & Anon Key below to connect live authentication.',

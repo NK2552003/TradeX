@@ -4,11 +4,7 @@ import '../theme/ui_theme.dart';
 
 /// Themed tooltip wrapper (disabled on touch layouts where hover is absent).
 class UiTooltip extends StatelessWidget {
-  const UiTooltip({
-    super.key,
-    required this.message,
-    required this.child,
-  });
+  const UiTooltip({super.key, required this.message, required this.child});
 
   final String message;
   final Widget child;

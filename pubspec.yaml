@@ -38,6 +38,8 @@ dependencies:
   flutter_animate: ^4.5.2
   supabase_flutter: ^2.8.3
   flutter_dotenv: ^5.2.1
+  quiet_dock: ^0.1.0
+  animations: ^3.0.0
 
 dev_dependencies:
   flutter_test:

@@ -120,8 +120,9 @@ class _UiNavEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    final Color fg =
-        selected ? theme.colors.primary : theme.colors.foregroundMuted;
+    final Color fg = selected
+        ? theme.colors.primary
+        : theme.colors.foregroundMuted;
     final Widget icon = Icon(
       item.icon ?? Icons.circle,
       size: context.sz(theme.sizes.iconMd),

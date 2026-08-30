@@ -36,9 +36,7 @@ class AppTradeCard extends StatelessWidget {
         onTap: onTap,
         selected: selected,
         accentColor: plColor,
-        padding: dense
-            ? EdgeInsets.all(context.sp(theme.spacing.md))
-            : null,
+        padding: dense ? EdgeInsets.all(context.sp(theme.spacing.md)) : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -51,8 +49,9 @@ class AppTradeCard extends StatelessWidget {
                         child: Text(
                           trade.ticker,
                           overflow: TextOverflow.ellipsis,
-                          style: context.uiText.subheading
-                              .copyWith(color: theme.colors.foreground),
+                          style: context.uiText.subheading.copyWith(
+                            color: theme.colors.foreground,
+                          ),
                         ),
                       ),
                       SizedBox(width: context.sp(theme.spacing.sm)),
@@ -117,16 +116,29 @@ class AppTradeCard extends StatelessWidget {
   }
 
   Widget _meta(BuildContext context, String label, String value) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text(
-            '$label ',
-            style: context.uiText.caption
-                .copyWith(color: context.uiColors.foregroundSubtle),
-          ),
-          Text(value, style: context.uiText.numeric),
-        ],
-      );
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      Text(
+        label,
+        maxLines: 1,
+        style: context.uiText.caption.copyWith(
+          color: context.uiColors.foregroundSubtle,
+        ),
+      ),
+      SizedBox(width: context.sp(context.uiSpace.xxs)),
+      // A Wrap hands its children the full row width, so a long figure
+      // ("Entry ₹12,34,567.89") overruns the pair rather than moving to the
+      // next line. Flexible lets the figure truncate inside its own pair.
+      Flexible(
+        child: Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.uiText.numeric,
+        ),
+      ),
+    ],
+  );
 }
 
 /// Compact P/L summary for a group of trades (day, week, ticker).
@@ -226,8 +238,9 @@ class AppLessonCard extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.sm)),
           Text(
             body,
-            style: context.uiText.body
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.body.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
           if (tags.isNotEmpty) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.md)),
@@ -297,8 +310,9 @@ class AppScreenshotImportCard extends StatelessWidget {
                         SizedBox(height: context.sp(theme.spacing.sm)),
                         Text(
                           'Attach a chart screenshot',
-                          style: context.uiText.label
-                              .copyWith(color: theme.colors.foregroundMuted),
+                          style: context.uiText.label.copyWith(
+                            color: theme.colors.foregroundMuted,
+                          ),
                         ),
                       ],
                     ),
@@ -317,7 +331,14 @@ class AppScreenshotImportCard extends StatelessWidget {
                   ),
                 ),
                 SizedBox(width: context.sp(theme.spacing.sm)),
-                Text('Reading your chart…', style: context.uiText.label),
+                Expanded(
+                  child: Text(
+                    'Reading your chart…',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.label,
+                  ),
+                ),
               ],
             )
           else if (parsedSummary != null)
@@ -373,8 +394,9 @@ class AppChecklistCard extends StatelessWidget {
             items
                 .map(
                   (AppChecklistItem item) => Padding(
-                    padding:
-                        EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+                    padding: EdgeInsets.only(
+                      bottom: context.sp(theme.spacing.sm),
+                    ),
                     child: UiCheckbox(
                       value: item.done,
                       label: item.label,
@@ -440,8 +462,9 @@ class AppPsychologyCard extends StatelessWidget {
             SizedBox(height: context.sp(theme.spacing.md)),
             Text(
               note!,
-              style: context.uiText.body
-                  .copyWith(color: theme.colors.foregroundMuted),
+              style: context.uiText.body.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             ),
           ],
         ],

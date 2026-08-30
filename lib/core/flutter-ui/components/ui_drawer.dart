@@ -46,17 +46,21 @@ class UiDrawer extends StatelessWidget {
           ),
         ),
       ),
-      transitionBuilder: (BuildContext ctx, Animation<double> anim, _,
-              Widget child) =>
-          SlideTransition(
-        position: Tween<Offset>(
-          begin: mobile
-              ? const Offset(0, 1)
-              : Offset(fromRight ? 1 : -1, 0),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(parent: anim, curve: theme.motion.curve)),
-        child: child,
-      ),
+      transitionBuilder:
+          (
+            BuildContext ctx,
+            Animation<double> anim,
+            _,
+            Widget child,
+          ) => SlideTransition(
+            position: Tween<Offset>(
+              begin: mobile
+                  ? const Offset(0, 1)
+                  : Offset(fromRight ? 1 : -1, 0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: anim, curve: theme.motion.curve)),
+            child: child,
+          ),
     );
   }
 
@@ -72,8 +76,9 @@ class UiDrawer extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: context.uiText.heading
-                      .copyWith(color: theme.colors.foreground),
+                  style: context.uiText.heading.copyWith(
+                    color: theme.colors.foreground,
+                  ),
                 ),
               ),
               UiIconButton(

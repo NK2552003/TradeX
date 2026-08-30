@@ -53,14 +53,19 @@ class UiRadioGroup<T> extends StatelessWidget {
   final bool dividers;
 
   /// Replaces the default tile rendering.
-  final Widget Function(BuildContext context, UiOption<T> option, bool selected)?
-      optionBuilder;
+  final Widget Function(
+    BuildContext context,
+    UiOption<T> option,
+    bool selected,
+  )?
+  optionBuilder;
   final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    final bool horizontal = orientation == UiOrientation.horizontal ||
+    final bool horizontal =
+        orientation == UiOrientation.horizontal ||
         (horizontalFromTablet && !context.uiRes.isMobile);
     final bool invalid = errorText != null;
     final double gap = context.sp(theme.spacing.md) * density.factor;
@@ -149,8 +154,13 @@ class _UiRadioTile<T> extends StatelessWidget {
     final theme = context.ui;
     final c = theme.colors;
     final Color accent = intent.color(context);
-    final double dim = context.sz(theme.sizes.radio) *
-        (size == UiSize.lg || size == UiSize.xl ? 1.25 : size == UiSize.xs ? 0.8 : 1);
+    final double dim =
+        context.sz(theme.sizes.radio) *
+        (size == UiSize.lg || size == UiSize.xl
+            ? 1.25
+            : size == UiSize.xs
+            ? 0.8
+            : 1);
 
     return UiInteractive(
       enabled: enabled,
@@ -171,8 +181,8 @@ class _UiRadioTile<T> extends StatelessWidget {
               color: !enabled
                   ? c.border
                   : selected
-                      ? accent
-                      : (s.hovered ? c.borderStrong : c.border),
+                  ? accent
+                  : (s.hovered ? c.borderStrong : c.border),
               width: theme.borders.thick,
             ),
             boxShadow: selected && s.hovered ? uiGlow(ctx, accent) : null,
@@ -220,7 +230,9 @@ class _UiRadioTile<T> extends StatelessWidget {
                 Flexible(
                   child: Text(
                     option.label,
-                    style: size.textStyle(ctx).copyWith(
+                    style: size
+                        .textStyle(ctx)
+                        .copyWith(
                           color: enabled ? c.foreground : c.disabledForeground,
                           fontWeight: selected ? FontWeight.w600 : null,
                         ),

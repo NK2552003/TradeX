@@ -44,20 +44,19 @@ class UiTheme extends ThemeExtension<UiTheme> {
     UiSizes sizes = const UiSizes(),
     UiBreakpoints breakpoints = const UiBreakpoints(),
     UiScaleConfig scaleConfig = const UiScaleConfig(),
-  }) =>
-      UiTheme(
-        colors: colors ?? UiColors.light(),
-        typography: typography ?? UiTypography.standard(),
-        spacing: spacing,
-        radii: radii,
-        borders: borders,
-        shadows: shadows ?? UiShadows.light(),
-        motion: motion,
-        sizes: sizes,
-        breakpoints: breakpoints,
-        scaleConfig: scaleConfig,
-        brightness: Brightness.light,
-      );
+  }) => UiTheme(
+    colors: colors ?? UiColors.light(),
+    typography: typography ?? UiTypography.standard(),
+    spacing: spacing,
+    radii: radii,
+    borders: borders,
+    shadows: shadows ?? UiShadows.light(),
+    motion: motion,
+    sizes: sizes,
+    breakpoints: breakpoints,
+    scaleConfig: scaleConfig,
+    brightness: Brightness.light,
+  );
 
   static UiTheme dark({
     UiColors? colors,
@@ -70,20 +69,19 @@ class UiTheme extends ThemeExtension<UiTheme> {
     UiSizes sizes = const UiSizes(),
     UiBreakpoints breakpoints = const UiBreakpoints(),
     UiScaleConfig scaleConfig = const UiScaleConfig(),
-  }) =>
-      UiTheme(
-        colors: colors ?? UiColors.dark(),
-        typography: typography ?? UiTypography.standard(),
-        spacing: spacing,
-        radii: radii,
-        borders: borders,
-        shadows: shadows ?? UiShadows.dark(),
-        motion: motion,
-        sizes: sizes,
-        breakpoints: breakpoints,
-        scaleConfig: scaleConfig,
-        brightness: Brightness.dark,
-      );
+  }) => UiTheme(
+    colors: colors ?? UiColors.dark(),
+    typography: typography ?? UiTypography.standard(),
+    spacing: spacing,
+    radii: radii,
+    borders: borders,
+    shadows: shadows ?? UiShadows.dark(),
+    motion: motion,
+    sizes: sizes,
+    breakpoints: breakpoints,
+    scaleConfig: scaleConfig,
+    brightness: Brightness.dark,
+  );
 
   /// Builds a Material [ThemeData] that carries this design system, so plain
   /// Material widgets match the custom components.
@@ -123,6 +121,36 @@ class UiTheme extends ThemeExtension<UiTheme> {
         bodySmall: typography.caption.copyWith(color: colors.foregroundMuted),
       ),
 
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.resolveWith<Color>((
+          Set<WidgetState> states,
+        ) {
+          if (states.contains(WidgetState.dragged)) {
+            return colors.foregroundMuted.withValues(alpha: 0.85);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return colors.foregroundMuted.withValues(alpha: 0.65);
+          }
+          return colors.border.withValues(alpha: 0.65);
+        }),
+        trackColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
+        trackBorderColor: const WidgetStatePropertyAll<Color>(
+          Colors.transparent,
+        ),
+        thickness: WidgetStateProperty.resolveWith<double>((
+          Set<WidgetState> states,
+        ) {
+          if (states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.dragged)) {
+            return 6.0;
+          }
+          return 4.0;
+        }),
+        radius: const Radius.circular(8.0),
+        crossAxisMargin: 2.0,
+        mainAxisMargin: 2.0,
+        interactive: true,
+      ),
       extensions: <ThemeExtension<dynamic>>[this],
     );
   }
@@ -140,20 +168,19 @@ class UiTheme extends ThemeExtension<UiTheme> {
     UiBreakpoints? breakpoints,
     UiScaleConfig? scaleConfig,
     Brightness? brightness,
-  }) =>
-      UiTheme(
-        colors: colors ?? this.colors,
-        typography: typography ?? this.typography,
-        spacing: spacing ?? this.spacing,
-        radii: radii ?? this.radii,
-        borders: borders ?? this.borders,
-        shadows: shadows ?? this.shadows,
-        motion: motion ?? this.motion,
-        sizes: sizes ?? this.sizes,
-        breakpoints: breakpoints ?? this.breakpoints,
-        scaleConfig: scaleConfig ?? this.scaleConfig,
-        brightness: brightness ?? this.brightness,
-      );
+  }) => UiTheme(
+    colors: colors ?? this.colors,
+    typography: typography ?? this.typography,
+    spacing: spacing ?? this.spacing,
+    radii: radii ?? this.radii,
+    borders: borders ?? this.borders,
+    shadows: shadows ?? this.shadows,
+    motion: motion ?? this.motion,
+    sizes: sizes ?? this.sizes,
+    breakpoints: breakpoints ?? this.breakpoints,
+    scaleConfig: scaleConfig ?? this.scaleConfig,
+    brightness: brightness ?? this.brightness,
+  );
 
   @override
   UiTheme lerp(ThemeExtension<UiTheme>? other, double t) {
@@ -172,8 +199,8 @@ class UiThemeScope extends InheritedWidget {
   final UiTheme theme;
 
   static UiTheme of(BuildContext context) {
-    final UiThemeScope? scope =
-        context.dependOnInheritedWidgetOfExactType<UiThemeScope>();
+    final UiThemeScope? scope = context
+        .dependOnInheritedWidgetOfExactType<UiThemeScope>();
     if (scope != null) return scope.theme;
     final UiTheme? ext = Theme.of(context).extension<UiTheme>();
     if (ext != null) return ext;
@@ -188,25 +215,23 @@ class UiThemeScope extends InheritedWidget {
 
 /// One-stop app wrapper: theme + responsive metrics + Material theme sync.
 class UiApp extends StatelessWidget {
-  const UiApp({
-    super.key,
-    required this.theme,
-    required this.builder,
-  });
+  const UiApp({super.key, required this.theme, required this.builder});
 
   final UiTheme theme;
   final WidgetBuilder builder;
 
   @override
   Widget build(BuildContext context) => UiThemeScope(
-        theme: theme,
-        child: Theme(data: theme.toThemeData(), child: Builder(builder: builder)),
-      );
+    theme: theme,
+    child: Theme(
+      data: theme.toThemeData(),
+      child: Builder(builder: builder),
+    ),
+  );
 }
 
 /// Ergonomic access to tokens + responsive helpers from any widget.
-extension UiThemeContext on BuildContext {
-  UiTheme get ui => UiThemeScope.of(this);
+extension UiThemeContext on BuildContext {  UiTheme get ui => UiThemeScope.of(this);
   UiColors get uiColors => ui.colors;
   UiSpacing get uiSpace => ui.spacing;
   UiRadii get uiRadii => ui.radii;
@@ -215,17 +240,94 @@ extension UiThemeContext on BuildContext {
   UiShadows get uiShadows => ui.shadows;
 
   UiResponsive get uiRes => UiResponsive.of(
-        this,
-        breakpoints: ui.breakpoints,
-        scaleConfig: ui.scaleConfig,
-      );
+    this,
+    breakpoints: ui.breakpoints,
+    scaleConfig: ui.scaleConfig,
+  );
 
   /// Device-scaled typography.
-  UiTypography get uiText => ui.typography.scaled(
-        uiRes.scale.text * uiRes.textScaleFactor,
-      );
+  ///
+  /// Memoized: `scaled()` rebuilds nine [TextStyle]s, and a single page build
+  /// reads `uiText` hundreds of times. The cache is keyed by the base
+  /// typography identity plus the resolved factor, so a theme or text-size
+  /// change still produces fresh styles.
+  UiTypography get uiText {
+    final UiTheme theme = ui;
+    final UiResponsive r = UiResponsive.of(
+      this,
+      breakpoints: theme.breakpoints,
+      scaleConfig: theme.scaleConfig,
+    );
+    return _uiScaledTypography(
+      theme.typography,
+      r.scale.text * r.textScaleFactor,
+    );
+  }
 
   double sp(double v) => uiRes.sp(v);
   double sz(double v) => uiRes.sz(v);
+
+  /// Device- and accessibility-scaled font size, for the rare literal that has
+  /// no token behind it (a 10pt uppercase eyebrow, a badge overline). Every raw
+  /// `fontSize:` should go through this, or that one piece of text stays put
+  /// while the rest of the screen grows with the reader's chosen text size.
+  double fs(double v) => uiRes.fs(v);
+
   BorderRadius radius(double v) => BorderRadius.circular(sz(v));
+
+  /// Bottom padding a scrollable page should reserve so its last control clears
+  /// whatever the shell floats over the content (a bottom dock, a home
+  /// indicator, a rail shadow).
+  ///
+  /// The shell publishes that footprint as a [MediaQuery] bottom padding, so a
+  /// page never has to know the dock's height — read this instead of hardcoding
+  /// a magic number, or the page breaks the moment the dock changes size.
+  double get uiDockInset =>
+      MediaQuery.paddingOf(this).bottom + sp(uiSpace.lg);
+
+  /// [uiDockInset], or room for the keyboard when it is open.
+  double get uiPageBottomInset {
+    final double keyboard = MediaQuery.viewInsetsOf(this).bottom;
+    if (keyboard > 0) return keyboard + sp(uiSpace.xl);
+    return uiDockInset;
+  }
+}
+
+/// Small identity+factor keyed cache backing [UiThemeContext.uiText].
+///
+/// An app realistically uses one base typography and a handful of scale
+/// factors (one per device class × the reader's text-size setting), so a tiny
+/// bounded map removes essentially all of the repeated [TextStyle] allocation
+/// without ever going stale.
+class _UiTypographyKey {
+  const _UiTypographyKey(this.typographyId, this.factor);
+
+  final int typographyId;
+  final int factor;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _UiTypographyKey &&
+      other.typographyId == typographyId &&
+      other.factor == factor;
+
+  @override
+  int get hashCode => Object.hash(typographyId, factor);
+}
+
+final Map<_UiTypographyKey, UiTypography> _uiTypographyCache =
+    <_UiTypographyKey, UiTypography>{};
+
+UiTypography _uiScaledTypography(UiTypography base, double factor) {
+  // Quantise to 1/1000 so float noise cannot fragment the cache.
+  final _UiTypographyKey key = _UiTypographyKey(
+    identityHashCode(base),
+    (factor * 1000).round(),
+  );
+  final UiTypography? hit = _uiTypographyCache[key];
+  if (hit != null) return hit;
+  if (_uiTypographyCache.length > 32) _uiTypographyCache.clear();
+  final UiTypography scaled = base.scaled(factor);
+  _uiTypographyCache[key] = scaled;
+  return scaled;
 }

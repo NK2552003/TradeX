@@ -52,7 +52,10 @@ class UiSwitch extends StatelessWidget {
   final String? semanticLabel;
 
   double _scale(BuildContext context) {
-    switch (size) {
+    final UiSize effectiveSize = context.uiRes.isMobile && size == UiSize.md
+        ? UiSize.sm
+        : size;
+    switch (effectiveSize) {
       case UiSize.xs:
         return 0.72;
       case UiSize.sm:
@@ -92,13 +95,14 @@ class UiSwitch extends StatelessWidget {
           color: !enabled
               ? c.disabledBackground
               : value
-                  ? onColor
-                  : (s.hovered ? c.borderStrong : c.border),
+              ? onColor
+              : (s.hovered ? c.borderStrong : c.border),
           borderRadius: ctx.radius(theme.radii.pill),
           boxShadow: value && s.hovered ? uiGlow(ctx, onColor) : null,
         ),
-        foregroundDecoration:
-            s.focused ? uiFocusRing(ctx, ctx.radius(theme.radii.pill)) : null,
+        foregroundDecoration: s.focused
+            ? uiFocusRing(ctx, ctx.radius(theme.radii.pill))
+            : null,
         child: Stack(
           children: <Widget>[
             if (onIcon != null || offIcon != null)
@@ -109,13 +113,16 @@ class UiSwitch extends StatelessWidget {
                     Icon(
                       onIcon,
                       size: knob * 0.6,
-                      color: intent.onColor(ctx).withValues(alpha: value ? 0.9 : 0),
+                      color: intent
+                          .onColor(ctx)
+                          .withValues(alpha: value ? 0.9 : 0),
                     ),
                     Icon(
                       offIcon,
                       size: knob * 0.6,
-                      color: c.foregroundSubtle
-                          .withValues(alpha: value ? 0 : 0.9),
+                      color: c.foregroundSubtle.withValues(
+                        alpha: value ? 0 : 0.9,
+                      ),
                     ),
                   ],
                 ),
@@ -183,7 +190,11 @@ class UiSwitch extends StatelessWidget {
 
     final Widget row = Row(
       children: labelPosition == UiAlign.end
-          ? <Widget>[track, SizedBox(width: context.sp(theme.spacing.md)), Expanded(child: text)]
+          ? <Widget>[
+              track,
+              SizedBox(width: context.sp(theme.spacing.md)),
+              Expanded(child: text),
+            ]
           : children,
     );
 

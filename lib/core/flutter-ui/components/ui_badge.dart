@@ -35,17 +35,16 @@ class UiBadge extends StatelessWidget {
     int decimals = 2,
     UiBadgeVariant variant = UiBadgeVariant.soft,
     bool showIcon = true,
-  }) =>
-      UiBadge(
-        key: key,
-        label: uiSignedPercent(percent, decimals: decimals),
-        intent: percent >= 0 ? UiIntent.bullish : UiIntent.bearish,
-        icon: showIcon
-            ? (percent >= 0 ? Icons.trending_up : Icons.trending_down)
-            : null,
-        variant: variant,
-        size: size,
-      );
+  }) => UiBadge(
+    key: key,
+    label: uiSignedPercent(percent, decimals: decimals),
+    intent: percent >= 0 ? UiIntent.bullish : UiIntent.bearish,
+    icon: showIcon
+        ? (percent >= 0 ? Icons.trending_up : Icons.trending_down)
+        : null,
+    variant: variant,
+    size: size,
+  );
 
   /// Compact numeric counter, e.g. unread notifications.
   factory UiBadge.count(
@@ -54,14 +53,13 @@ class UiBadge extends StatelessWidget {
     int max = 99,
     UiIntent intent = UiIntent.primary,
     UiSize size = UiSize.xs,
-  }) =>
-      UiBadge(
-        key: key,
-        label: count > max ? '$max+' : '$count',
-        intent: intent,
-        size: size,
-        variant: UiBadgeVariant.solid,
-      );
+  }) => UiBadge(
+    key: key,
+    label: count > max ? '$max+' : '$count',
+    intent: intent,
+    size: size,
+    variant: UiBadgeVariant.solid,
+  );
 
   /// Live status pill with a leading dot.
   factory UiBadge.status(
@@ -70,15 +68,14 @@ class UiBadge extends StatelessWidget {
     UiIntent intent = UiIntent.bullish,
     UiSize size = UiSize.sm,
     bool pulse = true,
-  }) =>
-      UiBadge(
-        key: key,
-        label: label,
-        intent: intent,
-        size: size,
-        showDot: true,
-        pulse: pulse,
-      );
+  }) => UiBadge(
+    key: key,
+    label: label,
+    intent: intent,
+    size: size,
+    showDot: true,
+    pulse: pulse,
+  );
 
   final String label;
   final UiIntent intent;
@@ -102,24 +99,49 @@ class UiBadge extends StatelessWidget {
   /// Renders a trailing close affordance (filter chips).
   final VoidCallback? onRemove;
 
-  UiBadgeVariant get _variant =>
-      filled ? UiBadgeVariant.solid : variant;
+  UiBadgeVariant get _variant => filled ? UiBadgeVariant.solid : variant;
+
+  /// One step smaller on a phone.
+  ///
+  /// A badge annotates something else — a tag under a title, a delta beside a
+  /// price — so it should read as secondary to it. The device scale multipliers
+  /// grow type and spacing together, which is right for controls and wrong here:
+  /// at phone widths a row of default-size tags ends up looking like a row of
+  /// buttons. Stepping the size down centrally fixes every tag in the app at
+  /// once instead of asking each call site to remember `UiSize.xs`.
+  UiSize get _step => switch (size) {
+    UiSize.xl => UiSize.lg,
+    UiSize.lg => UiSize.md,
+    UiSize.md => UiSize.sm,
+    UiSize.sm => UiSize.xs,
+    UiSize.xs => UiSize.xs,
+  };
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
+    final bool mobile = context.uiRes.isMobile;
+    final UiSize effective = mobile ? _step : size;
     final Color base = intent.color(context);
     final BorderRadius radius = context.radius(theme.radii.pill);
     final bool solid = _variant == UiBadgeVariant.solid;
 
     final Color fg = solid ? intent.onColor(context) : base;
-    final TextStyle textStyle = (size == UiSize.xs || size == UiSize.sm
-            ? context.uiText.caption
-            : context.uiText.label)
-        .copyWith(
+    final TextStyle baseStyle =
+        effective == UiSize.xs || effective == UiSize.sm
+        ? context.uiText.caption
+        : context.uiText.label;
+    final TextStyle textStyle = baseStyle.copyWith(
       color: fg,
       fontWeight: FontWeight.w600,
       letterSpacing: uppercase ? 0.6 : null,
+      // Caption is already the smallest token, so a phone gets an explicit
+      // scaled size rather than another token below it. Still routed through
+      // `fs()`, so a reader who raises their text size keeps the increase.
+      fontSize: mobile
+          ? context.fs(effective == UiSize.xs ? 10.5 : 11.5)
+          : baseStyle.fontSize,
+      height: mobile ? 1.15 : baseStyle.height,
     );
 
     Color background;
@@ -144,17 +166,23 @@ class UiBadge extends StatelessWidget {
         break;
     }
 
-    final double iconSize = size.icon(context) * 0.85;
+    final double iconSize = effective.icon(context) * (mobile ? 0.78 : 0.85);
+    final double innerGap = context.sp(
+      mobile ? theme.spacing.xxs : theme.spacing.xs,
+    );
     final Widget chip = AnimatedContainer(
       duration: theme.motion.fast,
       curve: theme.motion.curve,
-      constraints:
-          maxWidth == null ? null : BoxConstraints(maxWidth: maxWidth!),
+      constraints: maxWidth == null
+          ? null
+          : BoxConstraints(maxWidth: maxWidth!),
       padding: EdgeInsets.symmetric(
         horizontal: context.sp(
-          _variant == UiBadgeVariant.dot ? theme.spacing.xxs : theme.spacing.sm,
+          _variant == UiBadgeVariant.dot
+              ? theme.spacing.xxs
+              : (mobile ? theme.spacing.xs + 2 : theme.spacing.sm),
         ),
-        vertical: context.sp(theme.spacing.xxs),
+        vertical: context.sp(theme.spacing.xxs) * (mobile ? 0.75 : 1),
       ),
       decoration: BoxDecoration(
         color: background,
@@ -166,7 +194,7 @@ class UiBadge extends StatelessWidget {
         children: <Widget>[
           if (showDot || _variant == UiBadgeVariant.dot) ...<Widget>[
             _Dot(color: solid ? fg : base, pulse: pulse, size: iconSize * 0.5),
-            SizedBox(width: context.sp(theme.spacing.xs)),
+            SizedBox(width: innerGap),
           ],
           if (icon != null) ...<Widget>[
             Icon(icon, size: iconSize, color: fg),
@@ -200,10 +228,8 @@ class UiBadge extends StatelessWidget {
       result = UiInteractive(
         onTap: onTap,
         semanticLabel: label,
-        builder: (_, UiInteractiveState s) => Opacity(
-          opacity: s.active ? 0.85 : 1,
-          child: chip,
-        ),
+        builder: (_, UiInteractiveState s) =>
+            Opacity(opacity: s.active ? 0.85 : 1, child: chip),
       );
     }
     if (tooltip != null) result = Tooltip(message: tooltip!, child: result);

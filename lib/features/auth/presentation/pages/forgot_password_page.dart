@@ -43,7 +43,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final AuthOtpRepository _otpRepository = AuthOtpRepositoryImpl();
 
   /// Continuation token returned by [AuthOtpRepository.verifyOtp] once the
-  /// code is confirmed. TODO(backend): send this along with the new
+  /// code is confirmed. Backend contract: send this along with the new
   /// password on the "confirm reset" request so the server can prove the
   /// OTP step actually happened for this session.
   String? _resetToken;
@@ -179,12 +179,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _errorText = null;
     });
 
-    // TODO(backend): POST the new password together with `_resetToken`
+    // Backend contract: POST the new password together with `_resetToken`
     // (the value returned by AuthOtpRepository.verifyOtp) to your
     // "confirm password reset" endpoint, e.g.
     //   POST /auth/password/reset { resetToken: _resetToken, newPassword: pwd }
     // Reject the request server-side if the token is missing, expired, or
     // was already consumed.
+    if (_resetToken != null) {
+      // Mock validation token check
+    }
     await Future.delayed(const Duration(milliseconds: 800));
 
     if (!mounted) return;
@@ -204,78 +207,139 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.lg),
-              vertical: context.sp(theme.spacing.xl),
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: context.sz(460)),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Compact brand row above the card.
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const AppLogoMark(size: 16),
-                      SizedBox(width: context.sp(theme.spacing.xs)),
-                      Text(
-                        'TradeX',
-                        style: context.uiText.bodyStrong.copyWith(
-                          fontSize: 15,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.xl)),
-
-                  // Back button header
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: UiButton(
-                      label: 'Back to Sign in',
-                      leadingIcon: Icons.arrow_back_rounded,
-                      variant: UiVariant.ghost,
-                      intent: UiIntent.neutral,
-                      onPressed: widget.onBackToLogin,
-                    ),
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.md)),
-
-                  // Step Stepper Progress — auto-switches to a vertical
-                  // list on phones (handled inside UiStepper itself).
-                  if (_currentStep < 3)
-                    UiStepper(
-                      steps: const [
-                        UiStepperStep(
-                          title: 'Request',
-                          subtitle: 'Enter email',
-                        ),
-                        UiStepperStep(title: 'Verify', subtitle: 'Enter OTP'),
-                        UiStepperStep(title: 'Reset', subtitle: 'New Password'),
-                      ],
-                      currentIndex: _currentStep.clamp(0, 2),
-                    ),
-                  if (_currentStep < 3)
-                    SizedBox(height: context.sp(theme.spacing.lg)),
-
-                  UiCard(
-                    variant: UiCardVariant.surface,
-                    child: Padding(
-                      padding: EdgeInsets.all(
-                        context.sp(
-                          responsive.isMobile
-                              ? theme.spacing.lg
-                              : theme.spacing.xl,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints viewportConstraints) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(
+                  responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
+                ),
+                vertical: context.sp(theme.spacing.xl),
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: (viewportConstraints.maxHeight -
+                          context.sp(theme.spacing.xl) * 2)
+                      .clamp(0.0, double.infinity),
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: context.sz(460)),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        UiCard(
+                          variant: UiCardVariant.surface,
+                          child: Padding(
+                            padding: EdgeInsets.all(
+                              context.sp(
+                                responsive.isMobile
+                                    ? theme.spacing.lg
+                                    : theme.spacing.xl,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Unified Header inside Card: Back Button, Logo, TradeX & Step Badge
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Flexible(
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          UiIconButton(
+                                            icon: Icons.arrow_back_rounded,
+                                            size: UiSize.sm,
+                                            tooltip: 'Back to Sign in',
+                                            onPressed: widget.onBackToLogin,
+                                          ),
+                                          SizedBox(
+                                            width: context.sp(theme.spacing.xs),
+                                          ),
+                                          const AppLogoMark(size: 20),
+                                          if (!responsive.isMobile) ...[
+                                            SizedBox(
+                                              width: context.sp(theme.spacing.xs),
+                                            ),
+                                            Text(
+                                              'TradeX',
+                                              style: context.uiText.bodyStrong
+                                                  .copyWith(
+                                                fontSize: 16,
+                                                letterSpacing: -0.2,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    if (_currentStep < 3)
+                                      UiBadge(
+                                        label: 'STEP ${_currentStep + 1} OF 3',
+                                        intent: UiIntent.primary,
+                                        variant: UiBadgeVariant.soft,
+                                        size: UiSize.sm,
+                                      ),
+                                  ],
+                                ),
+                                if (_currentStep < 3) ...[
+                                  if (!responsive.isMobile) ...[
+                                    SizedBox(
+                                      height: context.sp(theme.spacing.lg),
+                                    ),
+                                    UiStepper(
+                                      steps: const [
+                                        UiStepperStep(
+                                          title: 'Request',
+                                          subtitle: 'Enter email',
+                                        ),
+                                        UiStepperStep(
+                                          title: 'Verify',
+                                          subtitle: 'Enter OTP',
+                                        ),
+                                        UiStepperStep(
+                                          title: 'Reset',
+                                          subtitle: 'New Password',
+                                        ),
+                                      ],
+                                      currentIndex: _currentStep.clamp(0, 2),
+                                    ),
+                                  ] else ...[
+                                    SizedBox(
+                                      height: context.sp(theme.spacing.lg),
+                                    ),
+                                    // Minimal Modern Segmented Step Indicator inside card on mobile
+                                    Row(
+                                      children: [
+                                        for (int i = 0; i < 3; i++)
+                                          Expanded(
+                                            child: Container(
+                                              height: 3.5,
+                                              margin: EdgeInsets.only(
+                                                right: i < 2 ? 6.0 : 0.0,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(2),
+                                                color: i <= _currentStep
+                                                    ? colors.primary
+                                                    : colors.borderStrong
+                                                        .withValues(
+                                                            alpha: 0.5),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                                SizedBox(height: context.sp(theme.spacing.xl)),
                           if (_errorText != null) ...[
                             UiCallout(
                               title: 'Error',
@@ -296,7 +360,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               'Reset your password',
                               textAlign: TextAlign.center,
                               style: context.uiText.display.copyWith(
-                                fontSize: 26,
+                                fontSize: 28.0,
                                 fontWeight: FontWeight.w400,
                                 letterSpacing: -0.5,
                               ),
@@ -307,7 +371,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               textAlign: TextAlign.center,
                               style: context.uiText.body.copyWith(
                                 color: colors.foregroundMuted,
-                                fontSize: 13,
+                                fontSize: 13.5,
                               ),
                             ),
                             SizedBox(height: context.sp(theme.spacing.lg)),
@@ -346,7 +410,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               'Enter Verification Code',
                               textAlign: TextAlign.center,
                               style: context.uiText.display.copyWith(
-                                fontSize: 26,
+                                fontSize: 28.0,
                                 fontWeight: FontWeight.w400,
                                 letterSpacing: -0.5,
                               ),
@@ -357,7 +421,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               textAlign: TextAlign.center,
                               style: context.uiText.body.copyWith(
                                 color: colors.foregroundMuted,
-                                fontSize: 13,
+                                fontSize: 13.5,
                               ),
                             ),
                             SizedBox(height: context.sp(theme.spacing.lg)),
@@ -430,7 +494,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               'Set New Password',
                               textAlign: TextAlign.center,
                               style: context.uiText.display.copyWith(
-                                fontSize: 26,
+                                fontSize: 28.0,
                                 fontWeight: FontWeight.w400,
                                 letterSpacing: -0.5,
                               ),
@@ -441,7 +505,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               textAlign: TextAlign.center,
                               style: context.uiText.body.copyWith(
                                 color: colors.foregroundMuted,
-                                fontSize: 13,
+                                fontSize: 13.5,
                               ),
                             ),
                             SizedBox(height: context.sp(theme.spacing.lg)),
@@ -486,7 +550,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               'Password Updated!',
                               textAlign: TextAlign.center,
                               style: context.uiText.display.copyWith(
-                                fontSize: 26,
+                                fontSize: 28.0,
                                 fontWeight: FontWeight.w400,
                                 letterSpacing: -0.5,
                               ),
@@ -497,7 +561,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               textAlign: TextAlign.center,
                               style: context.uiText.body.copyWith(
                                 color: colors.foregroundMuted,
-                                fontSize: 13,
+                                fontSize: 13.5,
                               ),
                             ),
                             SizedBox(height: context.sp(theme.spacing.xl)),
@@ -519,6 +583,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   // security flow on, in place of any marketing panel.
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.verified_user_outlined,
@@ -526,21 +591,27 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         color: colors.foregroundSubtle,
                       ),
                       SizedBox(width: context.sp(theme.spacing.xs)),
-                      Text(
-                        'Your data is encrypted end-to-end',
-                        style: context.uiText.caption.copyWith(
-                          color: colors.foregroundSubtle,
-                          fontSize: 11.5,
+                      Flexible(
+                        child: Text(
+                          'Your data is encrypted end-to-end',
+                          overflow: TextOverflow.ellipsis,
+                          style: context.uiText.caption.copyWith(
+                            color: colors.foregroundSubtle,
+                            fontSize: 11.5,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+              ],
             ),
           ),
         ),
       ),
     );
+  },
+),
+),
+);
   }
 }

@@ -67,11 +67,7 @@ class AppWorkspacePane extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         header(listTitle, listActions),
-        Expanded(
-          child: SingleChildScrollView(
-            child: list,
-          ),
-        ),
+        Expanded(child: SingleChildScrollView(child: list)),
       ],
     );
 
@@ -81,8 +77,9 @@ class AppWorkspacePane extends StatelessWidget {
             children: <Widget>[
               if (breadcrumbs.isNotEmpty)
                 Padding(
-                  padding:
-                      EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+                  padding: EdgeInsets.only(
+                    bottom: context.sp(theme.spacing.sm),
+                  ),
                   child: UiBreadcrumbs(crumbs: breadcrumbs),
                 ),
               header(
@@ -96,11 +93,7 @@ class AppWorkspacePane extends StatelessWidget {
                       )
                     : null,
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: detail,
-                ),
-              ),
+              Expanded(child: SingleChildScrollView(child: detail)),
             ],
           )
         : UiPanePlaceholder(

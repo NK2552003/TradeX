@@ -10,7 +10,11 @@ import '../theme/app_tokens.dart';
 
 /// Responsive grid of KPI tiles — 1 col phone, 2 tablet, 4 desktop.
 class AppStatGridBlock extends StatelessWidget {
-  const AppStatGridBlock({super.key, required this.stats, this.loading = false});
+  const AppStatGridBlock({
+    super.key,
+    required this.stats,
+    this.loading = false,
+  });
 
   final List<AppStat> stats;
   final bool loading;
@@ -44,8 +48,10 @@ class AppStatGridBlock extends StatelessWidget {
       largeColumns: 4,
       children: <Widget>[
         for (int i = 0; i < stats.length; i++)
-          AppFadeIn(delay: Duration(milliseconds: 60 * i),
-              child: AppStatCard(stat: stats[i])),
+          AppFadeIn(
+            delay: Duration(milliseconds: 60 * i),
+            child: AppStatCard(stat: stats[i]),
+          ),
       ],
     );
   }
@@ -75,10 +81,8 @@ class _AppEquityCurveBlockState extends State<AppEquityCurveBlock> {
 
   @override
   Widget build(BuildContext context) {
-    final double last =
-        widget.series.isEmpty ? 0 : widget.series.last.value;
-    final double first =
-        widget.series.isEmpty ? 0 : widget.series.first.value;
+    final double last = widget.series.isEmpty ? 0 : widget.series.last.value;
+    final double first = widget.series.isEmpty ? 0 : widget.series.first.value;
     final double change = last - first;
 
     return UiCard(
@@ -136,9 +140,13 @@ class AppPnlCalendarBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final double maxAbs = days.fold<double>(
-        0, (double m, AppDayPnl d) => d.pnl.abs() > m ? d.pnl.abs() : m);
-    final double total =
-        days.fold<double>(0, (double s, AppDayPnl d) => s + d.pnl);
+      0,
+      (double m, AppDayPnl d) => d.pnl.abs() > m ? d.pnl.abs() : m,
+    );
+    final double total = days.fold<double>(
+      0,
+      (double s, AppDayPnl d) => s + d.pnl,
+    );
 
     return UiCard(
       title: title,
@@ -153,14 +161,21 @@ class AppPnlCalendarBlock extends StatelessWidget {
           Row(
             children: <Widget>[
               for (final String d in const <String>[
-                'M', 'T', 'W', 'T', 'F', 'S', 'S'
+                'M',
+                'T',
+                'W',
+                'T',
+                'F',
+                'S',
+                'S',
               ])
                 Expanded(
                   child: Center(
                     child: Text(
                       d,
-                      style: context.uiText.caption
-                          .copyWith(color: theme.colors.foregroundSubtle),
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.foregroundSubtle,
+                      ),
                     ),
                   ),
                 ),
@@ -276,7 +291,9 @@ class AppMoversRailBlock extends StatelessWidget {
                 SizedBox(width: context.sp(theme.spacing.md)),
             itemBuilder: (BuildContext _, int i) => AppMoverCard(
               ticker: tickers[i],
-              onTap: onTickerTap == null ? null : () => onTickerTap!(tickers[i]),
+              onTap: onTickerTap == null
+                  ? null
+                  : () => onTickerTap!(tickers[i]),
             ),
           ),
         ),
@@ -312,8 +329,9 @@ class AppAllocationBlock extends StatelessWidget {
                   Text(totalLabel!, style: context.uiText.subheading),
                   Text(
                     'total',
-                    style: context.uiText.caption
-                        .copyWith(color: context.uiColors.foregroundMuted),
+                    style: context.uiText.caption.copyWith(
+                      color: context.uiColors.foregroundMuted,
+                    ),
                   ),
                 ],
               ),
@@ -335,14 +353,14 @@ class AppBreakdownBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => UiCard(
-        title: title,
-        child: items.isEmpty
-            ? const UiEmptyState(title: 'Not enough data yet')
-            : UiBarList(
-                items: items,
-                valueFormatter: (num v) => AppTokens.compactMoney(v),
-              ),
-      );
+    title: title,
+    child: items.isEmpty
+        ? const UiEmptyState(title: 'Not enough data yet')
+        : UiBarList(
+            items: items,
+            valueFormatter: (num v) => AppTokens.compactMoney(v),
+          ),
+  );
 }
 
 /// Two-column responsive dashboard body: main column + side column.
@@ -361,14 +379,14 @@ class AppDashboardLayoutBlock extends StatelessWidget {
     final UiTheme theme = context.ui;
     final double gap = context.sp(theme.spacing.lg);
     Widget stack(List<Widget> items) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            for (int i = 0; i < items.length; i++) ...<Widget>[
-              items[i],
-              if (i != items.length - 1) SizedBox(height: gap),
-            ],
-          ],
-        );
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        for (int i = 0; i < items.length; i++) ...<Widget>[
+          items[i],
+          if (i != items.length - 1) SizedBox(height: gap),
+        ],
+      ],
+    );
 
     if (!context.uiRes.isDesktop) {
       return stack(<Widget>[...main, ...side]);

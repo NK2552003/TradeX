@@ -1,5 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:tradex/core/data/session_trader.dart';
+// ignore: unused_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
+import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_application_page.dart';
 import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/features/auth/models/auth_state.dart';
@@ -35,10 +40,31 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    _authRepository = widget.authRepository ?? SupabaseAuthBackendService.instance;
+    _authRepository =
+        widget.authRepository ?? SupabaseAuthBackendService.instance;
+    final String? preview = kDebugMode
+        ? Uri.base.queryParameters['preview']
+        : null;
+    final AuthStage initialStage = switch (preview) {
+      'application' => AuthStage.affiliateApplication,
+      'customer' || 'affiliate' || 'admin' => AuthStage.authenticated,
+      _ => widget.initialStage,
+    };
+    final UserRole initialRole = switch (preview) {
+      'affiliate' => UserRole.affiliate,
+      'admin' => UserRole.userAdmin,
+      'application' => UserRole.affiliate,
+      _ => UserRole.customer,
+    };
+    // Identity is empty until the backend resolves a profile. The only literals
+    // here belong to the debug `?preview=` deep link, which has no account to
+    // read from and must still key an affiliate application consistently.
     _sessionState = AuthSessionState(
-      stage: widget.initialStage,
-      role: UserRole.customer,
+      stage: initialStage,
+      role: initialRole,
+      email: preview == null ? '' : 'design.preview@tradex.local',
+      userId: preview == null ? '' : 'usr_design_preview',
+      displayName: preview == null ? '' : 'Design Preview',
     );
   }
 
@@ -58,28 +84,32 @@ class _AuthWrapperState extends State<AuthWrapper> {
   void _handleLogout() async {
     await _authRepository.signOut();
     setState(() {
-      _sessionState = _sessionState.copyWith(
-        stage: AuthStage.login,
-      );
+      _sessionState = _sessionState.copyWith(stage: AuthStage.login);
     });
   }
 
   void _handleSwitchRole(UserRole newRole) {
     setState(() {
-      _sessionState = _sessionState.copyWith(
-        role: newRole,
-      );
+      _sessionState = _sessionState.copyWith(role: newRole);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     if (_sessionState.stage == AuthStage.authenticated) {
-      final activeProfile = _sessionState.profile ?? SupabaseAuthBackendService.instance.currentUserProfile;
+      final activeProfile =
+          _sessionState.profile ??
+          SupabaseAuthBackendService.instance.currentUserProfile;
+      // The profile the backend returned is the only source for identity and
+      // entitlement; the session state is the fallback while it is still in
+      // flight, and neither is allowed a hardcoded stand-in.
       return AppScaffold(
         userRole: _sessionState.role,
-        userEmail: activeProfile?.email ??
-            (_sessionState.email.isNotEmpty ? _sessionState.email : 'nitish@tradex.ai'),
+        userId: activeProfile?.id ?? _sessionState.userId,
+        userDisplayName:
+            activeProfile?.displayName ?? _sessionState.displayName,
+        subscriptionTier: appTierFromId(activeProfile?.subscriptionTier ?? ''),
+        userEmail: activeProfile?.email ?? _sessionState.email,
         onLogout: _handleLogout,
         onRoleChanged: _handleSwitchRole,
         onReturnToAuth: () => _navigateToStage(AuthStage.login),
@@ -106,8 +136,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
               initialRole: _sessionState.role,
               authRepository: _authRepository,
               onLoginSuccess: (role, email) {
-                _navigateToStage(AuthStage.authenticated,
-                    role: role, email: email);
+                _navigateToStage(
+                  AuthStage.authenticated,
+                  role: role,
+                  email: email,
+                );
               },
               onNavigateToSignup: (role) {
                 _navigateToStage(AuthStage.signup, role: role);
@@ -125,8 +158,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
               onSignupSuccess: (role, email) {
                 // Account is created but not yet verified — route through
                 // the OTP screen before granting access.
-                _navigateToStage(AuthStage.signupVerification,
-                    role: role, email: email);
+                _navigateToStage(
+                  AuthStage.signupVerification,
+                  role: role,
+                  email: email,
+                );
               },
               onNavigateToLogin: (role) {
                 _navigateToStage(AuthStage.login, role: role);
@@ -139,13 +175,37 @@ class _AuthWrapperState extends State<AuthWrapper> {
               identifier: _sessionState.email,
               purpose: OtpPurpose.signupVerification,
               onVerified: (token) {
-                // TODO(backend): persist/exchange `token` if the API issues
+                // Backend contract: persist/exchange `token` if the API issues
                 // a session token here instead of a separate login step.
-                _navigateToStage(AuthStage.authenticated,
-                    role: _sessionState.role, email: _sessionState.email);
+                _navigateToStage(
+                  _sessionState.role == UserRole.affiliate
+                      ? AuthStage.affiliateApplication
+                      : AuthStage.authenticated,
+                  role: _sessionState.role,
+                  email: _sessionState.email,
+                );
               },
               onBack: () =>
                   _navigateToStage(AuthStage.signup, role: _sessionState.role),
+            );
+
+          case AuthStage.affiliateApplication:
+            final activeProfile =
+                _sessionState.profile ??
+                SupabaseAuthBackendService.instance.currentUserProfile;
+            return AffiliateApplicationPage(
+              userId: activeProfile?.id ?? _sessionState.userId,
+              email: activeProfile?.email ?? _sessionState.email,
+              displayName:
+                  activeProfile?.displayName ?? _sessionState.displayName,
+              onCancel: () => _navigateToStage(
+                AuthStage.authenticated,
+                role: UserRole.customer,
+              ),
+              onDone: () => _navigateToStage(
+                AuthStage.authenticated,
+                role: UserRole.customer,
+              ),
             );
 
           case AuthStage.forgotPassword:
@@ -161,4 +221,3 @@ class _AuthWrapperState extends State<AuthWrapper> {
     );
   }
 }
-

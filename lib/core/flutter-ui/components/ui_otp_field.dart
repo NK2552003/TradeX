@@ -73,6 +73,8 @@ class UiOtpField extends StatefulWidget {
 
   /// Controls box size; [UiSize.lg] matches the default auth-flow inputs.
   final UiSize size;
+  /// Space between boxes in logical points (scaled internally). Defaults to the
+  /// `sm` spacing token.
   final double? gap;
   final String semanticLabel;
 
@@ -165,94 +167,121 @@ class _UiOtpFieldState extends State<UiOtpField> {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final UiColors c = theme.colors;
-    final double boxSize = widget.size.height(context);
-    final double spacing = widget.gap ?? context.sp(theme.spacing.sm);
+    final double defaultBoxSize = widget.size.height(context);
+    final double defaultSpacing = context.sp(widget.gap ?? theme.spacing.sm);
     final Color accent = _accent(context);
     final String value = _ctrl.value;
     final bool showRing = _validation != UiValidationState.none;
 
-    final List<Widget> boxes = List<Widget>.generate(widget.length, (int i) {
-      final bool filled = i < value.length;
-      final bool isCursor = _focused && widget.enabled && i == value.length;
-      final Color borderColor = (isCursor || showRing)
-          ? accent
-          : (filled ? c.borderStrong : c.border);
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double maxW = constraints.maxWidth;
+        final double naturalTotalWidth =
+            (defaultBoxSize * widget.length) +
+            (defaultSpacing * (widget.length - 1));
 
-      return AnimatedContainer(
-        duration: theme.motion.fast,
-        curve: theme.motion.curve,
-        width: boxSize,
-        height: boxSize,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: widget.enabled ? c.surface : c.disabledBackground,
-          borderRadius: context.radius(theme.radii.lg),
-          border: Border.all(
-            color: borderColor,
-            width: isCursor ? theme.borders.thick : theme.borders.hairline,
-          ),
-          boxShadow: isCursor ? uiGlow(context, accent, alpha: 0.18) : null,
-        ),
-        child: Text(
-          filled ? (widget.obscure ? '•' : value[i]) : '',
-          style: context.uiText.display.copyWith(
-            fontSize: boxSize * 0.4,
-            fontWeight: FontWeight.w600,
-            color: widget.enabled ? c.foreground : c.disabledForeground,
-          ),
-        ),
-      );
-    });
+        double boxSize = defaultBoxSize;
+        double spacing = defaultSpacing;
 
-    return Semantics(
-      textField: true,
-      label: widget.semanticLabel,
-      child: SizedBox(
-        height: boxSize,
-        child: Stack(
-          fit: StackFit.passthrough,
-          alignment: Alignment.center,
-          children: <Widget>[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                for (int i = 0; i < boxes.length; i++) ...<Widget>[
-                  if (i > 0) SizedBox(width: spacing),
-                  boxes[i],
-                ],
-              ],
+        // Auto-scale boxSize and gap if parent bounds are constrained
+        if (maxW.isFinite && maxW > 0 && naturalTotalWidth > maxW) {
+          final double scale = maxW / naturalTotalWidth;
+          spacing = (defaultSpacing * scale).clamp(2.0, defaultSpacing);
+          boxSize = (maxW - (widget.length - 1) * spacing) / widget.length;
+        }
+
+        final double totalWidth =
+            (boxSize * widget.length) + (spacing * (widget.length - 1));
+
+        final List<Widget> boxes =
+            List<Widget>.generate(widget.length, (int i) {
+          final bool filled = i < value.length;
+          final bool isCursor = _focused && widget.enabled && i == value.length;
+          final Color borderColor = (isCursor || showRing)
+              ? accent
+              : (filled ? c.borderStrong : c.border);
+
+          return AnimatedContainer(
+            duration: theme.motion.fast,
+            curve: theme.motion.curve,
+            width: boxSize,
+            height: boxSize,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: widget.enabled ? c.surface : c.disabledBackground,
+              borderRadius: context.radius(
+                boxSize < 38 ? theme.radii.md : theme.radii.lg,
+              ),
+              border: Border.all(
+                color: borderColor,
+                width: isCursor ? theme.borders.thick : theme.borders.hairline,
+              ),
+              boxShadow: isCursor ? uiGlow(context, accent, alpha: 0.18) : null,
             ),
-            // Invisible field capturing keyboard / paste / OS one-time-code
-            // autofill. Visually transparent — the boxes above are what the
-            // user sees; this only exists to own focus and text input.
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0,
-                child: TextField(
-                  controller: _text,
-                  focusNode: _focus,
-                  enabled: widget.enabled,
-                  autofocus: widget.autofocus,
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.done,
-                  inputFormatters: <TextInputFormatter>[
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
-                  maxLength: widget.length,
-                  autofillHints: const <String>[AutofillHints.oneTimeCode],
-                  onChanged: _handleChanged,
-                  showCursor: false,
-                  decoration: const InputDecoration(
-                    counterText: '',
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
+            child: Text(
+              filled ? (widget.obscure ? '•' : value[i]) : '',
+              style: context.uiText.display.copyWith(
+                fontSize: boxSize * 0.45,
+                fontWeight: FontWeight.w600,
+                color: widget.enabled ? c.foreground : c.disabledForeground,
               ),
             ),
-          ],
-        ),
-      ),
+          );
+        });
+
+        return Semantics(
+          textField: true,
+          label: widget.semanticLabel,
+          child: SizedBox(
+            width: totalWidth,
+            height: boxSize,
+            child: Stack(
+              fit: StackFit.passthrough,
+              alignment: Alignment.center,
+              children: <Widget>[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    for (int i = 0; i < boxes.length; i++) ...<Widget>[
+                      if (i > 0) SizedBox(width: spacing),
+                      boxes[i],
+                    ],
+                  ],
+                ),
+                // Invisible field capturing keyboard / paste / OS one-time-code
+                // autofill. Visually transparent — the boxes above are what the
+                // user sees; this only exists to own focus and text input.
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: 0,
+                    child: TextField(
+                      controller: _text,
+                      focusNode: _focus,
+                      enabled: widget.enabled,
+                      autofocus: widget.autofocus,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.done,
+                      inputFormatters: <TextInputFormatter>[
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      maxLength: widget.length,
+                      autofillHints: const <String>[AutofillHints.oneTimeCode],
+                      onChanged: _handleChanged,
+                      showCursor: false,
+                      decoration: const InputDecoration(
+                        counterText: '',
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

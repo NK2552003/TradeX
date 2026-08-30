@@ -102,14 +102,23 @@ class AppSearchResult {
     required this.id,
     required this.title,
     required this.kind,
+    this.entityId,
     this.subtitle,
     this.meta,
     this.avatarUrl,
   });
 
+  /// Identity of the row inside the index. Unique across kinds, so two kinds
+  /// can point at the same record without colliding.
   final String id;
   final String title;
   final AppSearchKind kind;
+
+  /// The record this row opens — a trade id, strategy id, symbol or handle.
+  /// Kept separate from [id] so a tap can reach the real thing instead of
+  /// re-parsing a display string.
+  final String? entityId;
+
   final String? subtitle;
   final String? meta;
   final String? avatarUrl;

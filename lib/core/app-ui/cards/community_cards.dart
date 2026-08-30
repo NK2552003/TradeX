@@ -41,8 +41,11 @@ class AppPostCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          AppTraderRow(trader: post.author, onTap: onAuthorTap,
-              trailingLabel: AppTokens.relativeTime(post.createdAt)),
+          AppTraderRow(
+            trader: post.author,
+            onTap: onAuthorTap,
+            trailingLabel: AppTokens.relativeTime(post.createdAt),
+          ),
           SizedBox(height: context.sp(theme.spacing.md)),
           Text(post.body, style: context.uiText.body),
           if (post.tickers.isNotEmpty) ...<Widget>[
@@ -67,18 +70,25 @@ class AppPostCard extends StatelessWidget {
               borderRadius: context.radius(theme.radii.lg),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
-                child: Image.network(post.imageUrl!, fit: BoxFit.cover),
+                child: UiRemoteImage(
+                  url: post.imageUrl,
+                  semanticLabel: 'Image attached by @${post.author.handle}',
+                ),
               ),
             ),
           ],
-          for (final AppPostAttachment attachment in post.attachments) ...<Widget>[
+          for (final AppPostAttachment attachment
+              in post.attachments) ...<Widget>[
             if (attachment is AppPostImageAttachment) ...<Widget>[
               SizedBox(height: context.sp(theme.spacing.md)),
               ClipRRect(
                 borderRadius: context.radius(theme.radii.lg),
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: Image.network(attachment.url, fit: BoxFit.cover),
+                  child: UiRemoteImage(
+                    url: attachment.url,
+                    semanticLabel: 'Image attached by @${post.author.handle}',
+                  ),
                 ),
               ),
             ] else if (attachment is AppPostChartAttachment) ...<Widget>[
@@ -86,8 +96,11 @@ class AppPostCard extends StatelessWidget {
               UiCard(
                 padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
                 child: UiCandleChart(
-                  candles: (attachment.candles as List<dynamic>).cast<UiCandle>(),
-                  height: 140,
+                  candles: (attachment.candles as List<dynamic>)
+                      .cast<UiCandle>(),
+                  // Taller on a wide screen, where the post column is wide enough
+                  // that a 140pt strip would read as a sliver rather than a chart.
+                  height: context.uiRes.isMobile ? 140 : 180,
                   showVolume: false,
                   showGrid: false,
                   interactive: false,
@@ -104,7 +117,11 @@ class AppPostCard extends StatelessWidget {
                 ),
                 child: Row(
                   children: <Widget>[
-                    Icon(Icons.auto_graph_rounded, color: theme.colors.primary, size: context.sz(theme.sizes.iconMd)),
+                    Icon(
+                      Icons.auto_graph_rounded,
+                      color: theme.colors.primary,
+                      size: context.sz(theme.sizes.iconMd),
+                    ),
                     SizedBox(width: context.sp(theme.spacing.sm)),
                     Expanded(
                       child: Text(
@@ -113,10 +130,18 @@ class AppPostCard extends StatelessWidget {
                       ),
                     ),
                     if (attachment.locked) ...[
-                      Icon(Icons.lock_outline_rounded, color: theme.colors.warning, size: context.sz(theme.sizes.iconSm)),
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        color: theme.colors.warning,
+                        size: context.sz(theme.sizes.iconSm),
+                      ),
                       SizedBox(width: context.sp(theme.spacing.sm)),
                     ],
-                    Icon(Icons.chevron_right_rounded, color: theme.colors.borderStrong, size: context.sz(theme.sizes.iconSm)),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: theme.colors.borderStrong,
+                      size: context.sz(theme.sizes.iconSm),
+                    ),
                   ],
                 ),
               ),
@@ -130,14 +155,16 @@ class AppPostCard extends StatelessWidget {
               _action(
                 context,
                 icon: post.liked ? Icons.favorite : Icons.favorite_border,
-                label: '${post.likes}',
+                label: AppTokens.count(post.likes),
+                tooltip: post.liked ? 'Unlike' : 'Like',
                 active: post.liked,
                 onTap: onLike,
               ),
               _action(
                 context,
                 icon: Icons.mode_comment_outlined,
-                label: '${post.comments}',
+                label: AppTokens.count(post.comments),
+                tooltip: 'Reply',
                 onTap: onComment,
               ),
               const Spacer(),
@@ -164,26 +191,46 @@ class AppPostCard extends StatelessWidget {
     BuildContext context, {
     required IconData icon,
     required String label,
+    required String tooltip,
     VoidCallback? onTap,
     bool active = false,
   }) {
     final UiTheme theme = context.ui;
-    final Color color =
-        active ? theme.colors.bearish : theme.colors.foregroundMuted;
+    final Color color = active
+        ? theme.colors.bearish
+        : theme.colors.foregroundMuted;
     return UiInteractive(
       onTap: onTap,
-      builder: (BuildContext ctx, UiInteractiveState s) => Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: ctx.sp(theme.spacing.sm),
-          vertical: ctx.sp(theme.spacing.xs),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(icon, size: ctx.sz(theme.sizes.iconSm), color: color),
-            SizedBox(width: ctx.sp(theme.spacing.xs)),
-            Text(label, style: ctx.uiText.caption.copyWith(color: color)),
-          ],
+      builder: (BuildContext ctx, UiInteractiveState s) => Tooltip(
+        message: tooltip,
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: ctx.sp(theme.spacing.sm),
+            vertical: ctx.sp(theme.spacing.xs),
+          ),
+          // Padding alone left these at roughly 26pt tall — the two most-tapped
+          // controls on the feed, both under the 44pt a thumb needs. The floor
+          // only applies on touch so the desktop row stays tight.
+          constraints: ctx.uiRes.isMobile
+              ? BoxConstraints(
+                  minWidth: ctx.sz(theme.sizes.minTapTarget),
+                  minHeight: ctx.sz(theme.sizes.minTapTarget),
+                )
+              : const BoxConstraints(),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(icon, size: ctx.sz(theme.sizes.iconSm), color: color),
+              SizedBox(width: ctx.sp(theme.spacing.xs)),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: ctx.uiText.caption.copyWith(color: color),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -249,8 +296,9 @@ class AppTraderRow extends StatelessWidget {
                 '${trailingLabel == null ? '' : ' · $trailingLabel'}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
               ),
             ],
           ),
@@ -315,8 +363,9 @@ class AppTraderCard extends StatelessWidget {
                 trader.bio!,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
               ),
             ],
             SizedBox(height: context.sp(theme.spacing.md)),
@@ -325,8 +374,11 @@ class AppTraderCard extends StatelessWidget {
                 _stat(context, 'Followers', uiCompactNumber(trader.followers)),
                 _stat(context, 'Following', uiCompactNumber(trader.following)),
                 if (trader.winRate != null)
-                  _stat(context, 'Win rate',
-                      '${trader.winRate!.toStringAsFixed(0)}%'),
+                  _stat(
+                    context,
+                    'Win rate',
+                    '${trader.winRate!.toStringAsFixed(0)}%',
+                  ),
                 if (onMessage != null)
                   UiIconButton(
                     icon: Icons.chat_bubble_outline,
@@ -352,8 +404,9 @@ class AppTraderCard extends StatelessWidget {
           Text(value, style: context.uiText.bodyStrong),
           Text(
             label,
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
         ],
       ),
@@ -400,11 +453,20 @@ class AppLeaderboardCard extends StatelessWidget {
             ),
           ),
           SizedBox(width: context.sp(theme.spacing.sm)),
-          Expanded(child: AppTraderRow(trader: trader, size: UiSize.sm)),
-          Text(
-            valueLabel ?? AppTokens.signedPercent(value, decimals: 1),
-            style: context.uiText.numeric
-                .copyWith(color: AppTokens.pl(context, value)),
+          Expanded(
+            child: AppTraderRow(trader: trader, size: UiSize.sm),
+          ),
+          SizedBox(width: context.sp(theme.spacing.sm)),
+          Flexible(
+            child: Text(
+              valueLabel ?? AppTokens.signedPercent(value, decimals: 1),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: context.uiText.numeric.copyWith(
+                color: AppTokens.pl(context, value),
+              ),
+            ),
           ),
         ],
       ),
@@ -430,8 +492,12 @@ class AppCommentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    // A thread can nest arbitrarily deep, but the indent cannot: past a few levels
+    // every reply would be a one-word column down the right of a phone screen.
+    // Beyond the cap, replies keep their nesting in the data and stack visually.
+    final int steps = indent.clamp(0, context.uiRes.isMobile ? 2 : 4);
     return Padding(
-      padding: EdgeInsets.only(left: context.sp(theme.spacing.lg) * indent),
+      padding: EdgeInsets.only(left: context.sp(theme.spacing.lg) * steps),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -457,8 +523,9 @@ class AppCommentCard extends StatelessWidget {
                     children: <Widget>[
                       Text(
                         '@${comment.author.handle}',
-                        style: context.uiText.caption
-                            .copyWith(color: theme.colors.foregroundMuted),
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ),
                       ),
                       SizedBox(height: context.sp(theme.spacing.xxs)),
                       Text(comment.body, style: context.uiText.body),
@@ -468,14 +535,19 @@ class AppCommentCard extends StatelessWidget {
                 SizedBox(height: context.sp(theme.spacing.xs)),
                 Row(
                   children: <Widget>[
-                    Text(
-                      AppTokens.relativeTime(comment.createdAt),
-                      style: context.uiText.caption
-                          .copyWith(color: theme.colors.foregroundSubtle),
+                    Flexible(
+                      child: Text(
+                        AppTokens.relativeTime(comment.createdAt),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundSubtle,
+                        ),
+                      ),
                     ),
                     SizedBox(width: context.sp(theme.spacing.md)),
                     UiButton(
-                      label: '${comment.likes} likes',
+                      label: '${AppTokens.count(comment.likes)} likes',
                       variant: UiVariant.ghost,
                       size: UiSize.sm,
                       expandOnMobile: false,
@@ -501,7 +573,11 @@ class AppCommentCard extends StatelessWidget {
 
 /// Direct-message conversation row with unread count.
 class AppConversationCard extends StatelessWidget {
-  const AppConversationCard({super.key, required this.conversation, this.onTap});
+  const AppConversationCard({
+    super.key,
+    required this.conversation,
+    this.onTap,
+  });
 
   final AppConversation conversation;
   final VoidCallback? onTap;
@@ -525,7 +601,8 @@ class AppConversationCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  conversation.peer.displayName ?? '@${conversation.peer.handle}',
+                  conversation.peer.displayName ??
+                      '@${conversation.peer.handle}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: context.uiText.bodyStrong,
@@ -534,28 +611,39 @@ class AppConversationCard extends StatelessWidget {
                   conversation.lastMessage,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: context.uiText.caption
-                      .copyWith(color: theme.colors.foregroundMuted),
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
                 ),
               ],
             ),
           ),
           SizedBox(width: context.sp(theme.spacing.sm)),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              Text(
-                AppTokens.relativeTime(conversation.lastMessageAt),
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.foregroundSubtle),
-              ),
-              SizedBox(height: context.sp(theme.spacing.xxs)),
-              if (conversation.unread > 0)
-                UiBadge(
-                  label: '${conversation.unread}',
-                  intent: UiIntent.primary,
+          // The timestamp column has no flex of its own, so it claimed its
+          // intrinsic width before the message preview got any — "yesterday" at
+          // a large text scale left the preview a few characters wide.
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                Text(
+                  AppTokens.relativeTime(conversation.lastMessageAt),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundSubtle,
+                  ),
                 ),
-            ],
+                SizedBox(height: context.sp(theme.spacing.xxs)),
+                if (conversation.unread > 0)
+                  UiBadge(
+                    // Abbreviated: an inbox left alone for a week must not widen
+                    // the row until the message preview beside it disappears.
+                    label: AppTokens.count(conversation.unread),
+                    intent: UiIntent.primary,
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -594,8 +682,9 @@ class AppMessageBubble extends StatelessWidget {
             borderRadius: context.radius(theme.radii.lg),
           ),
           child: Column(
-            crossAxisAlignment:
-                mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            crossAxisAlignment: mine
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
             children: <Widget>[
               Text(
                 message.body,
@@ -611,10 +700,11 @@ class AppMessageBubble extends StatelessWidget {
                     ? 'Sending…'
                     : AppTokens.relativeTime(message.sentAt),
                 style: context.uiText.caption.copyWith(
-                  color: (mine
-                          ? theme.colors.onPrimary
-                          : theme.colors.foregroundMuted)
-                      .withValues(alpha: 0.7),
+                  color:
+                      (mine
+                              ? theme.colors.onPrimary
+                              : theme.colors.foregroundMuted)
+                          .withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -653,26 +743,19 @@ class AppAiInsightCard extends StatelessWidget {
         children: <Widget>[
           Text(
             insight.body,
-            style: context.uiText.body
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.body.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
           if (insight.confidence != null) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.md)),
-            Row(
-              children: <Widget>[
-                Text(
-                  'Confidence',
-                  style: context.uiText.caption
-                      .copyWith(color: theme.colors.foregroundMuted),
-                ),
-                SizedBox(width: context.sp(theme.spacing.sm)),
-                Expanded(
-                  child: UiProgressBar(
-                    value: insight.confidence!.clamp(0, 1),
-                    intent: UiIntent.primary,
-                  ),
-                ),
-              ],
+            // The label belongs to the bar rather than sitting beside it: the bar
+            // renders its own percentage above the track, so a sibling label
+            // ended up vertically adrift of the figure it described.
+            UiProgressBar(
+              label: 'Confidence',
+              value: insight.confidence!.clamp(0, 1),
+              intent: UiIntent.primary,
             ),
           ],
           if (insight.tickers.isNotEmpty) ...<Widget>[
@@ -719,19 +802,27 @@ class AppNewsCard extends StatelessWidget {
               item.summary!,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: context.uiText.caption
-                  .copyWith(color: theme.colors.foregroundMuted),
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             ),
           ],
           SizedBox(height: context.sp(theme.spacing.sm)),
           Row(
             children: <Widget>[
-              Text(
-                '${item.source} · ${AppTokens.relativeTime(item.publishedAt)}',
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.foregroundSubtle),
+              // Publication names run long ("Business Standard Markets"), so the
+              // byline yields to the sentiment badge rather than pushing it off.
+              Expanded(
+                child: Text(
+                  '${item.source} · ${AppTokens.relativeTime(item.publishedAt)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundSubtle,
+                  ),
+                ),
               ),
-              const Spacer(),
+              SizedBox(width: context.sp(theme.spacing.sm)),
               UiBadge(
                 label: AppTokens.sentimentLabel(item.sentimentScore),
                 intent: AppTokens.plIntent(item.sentimentScore),
@@ -791,14 +882,16 @@ class AppNotificationCard extends StatelessWidget {
                 if (notification.body != null)
                   Text(
                     notification.body!,
-                    style: context.uiText.caption
-                        .copyWith(color: theme.colors.foregroundMuted),
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
                   ),
                 SizedBox(height: context.sp(theme.spacing.xxs)),
                 Text(
                   AppTokens.relativeTime(notification.createdAt),
-                  style: context.uiText.caption
-                      .copyWith(color: theme.colors.foregroundSubtle),
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundSubtle,
+                  ),
                 ),
               ],
             ),

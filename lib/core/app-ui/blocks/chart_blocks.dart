@@ -9,13 +9,13 @@ import '../theme/app_tokens.dart';
 enum AppTimeframe { m5, m15, h1, h4, d1, w1 }
 
 String appTimeframeLabel(AppTimeframe tf) => switch (tf) {
-      AppTimeframe.m5 => '5m',
-      AppTimeframe.m15 => '15m',
-      AppTimeframe.h1 => '1H',
-      AppTimeframe.h4 => '4H',
-      AppTimeframe.d1 => '1D',
-      AppTimeframe.w1 => '1W',
-    };
+  AppTimeframe.m5 => '5m',
+  AppTimeframe.m15 => '15m',
+  AppTimeframe.h1 => '1H',
+  AppTimeframe.h4 => '4H',
+  AppTimeframe.d1 => '1D',
+  AppTimeframe.w1 => '1W',
+};
 
 /// Ticker price chart: header quote, timeframe switcher, chart-type toggle
 /// and the candle chart itself with entry/stop/target lines.
@@ -92,32 +92,51 @@ class AppPriceChartBlock extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Text(ticker!.symbol, style: context.uiText.heading),
+                      Text(
+                        ticker!.symbol,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.heading,
+                      ),
                       Text(
                         ticker!.name,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: context.uiText.caption
-                            .copyWith(color: theme.colors.foregroundMuted),
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(
-                      AppTokens.money(ticker!.price,
-                          symbol: ticker!.currencySymbol),
-                      style: context.uiText.title,
-                    ),
-                    Text(
-                      AppTokens.signedPercent(ticker!.changePercent),
-                      style: context.uiText.bodyStrong.copyWith(
-                        color: AppTokens.pl(context, ticker!.changePercent),
+                SizedBox(width: context.sp(theme.spacing.sm)),
+                // The quote yields last: on a narrow phone a long company name
+                // gives up room before the price does, but the price still has to
+                // be able to shrink rather than push itself off the card.
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        AppTokens.money(
+                          ticker!.price,
+                          symbol: ticker!.currencySymbol,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.title,
                       ),
-                    ),
-                  ],
+                      Text(
+                        AppTokens.signedPercent(ticker!.changePercent),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.bodyStrong.copyWith(
+                          color: AppTokens.pl(context, ticker!.changePercent),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -151,10 +170,10 @@ class AppPriceChartBlock extends StatelessWidget {
                 onPressed: onChartTypeChanged == null
                     ? null
                     : () => onChartTypeChanged!(
-                          chartType == UiPriceChartType.candles
-                              ? UiPriceChartType.line
-                              : UiPriceChartType.candles,
-                        ),
+                        chartType == UiPriceChartType.candles
+                            ? UiPriceChartType.line
+                            : UiPriceChartType.candles,
+                      ),
               ),
             ],
           ),
@@ -165,8 +184,12 @@ class AppPriceChartBlock extends StatelessWidget {
             emptyTitle: 'No price data',
             emptyMessage: 'Price history is unavailable for this symbol.',
             emptyIcon: Icons.show_chart,
+            // Matched to the chart it stands in for, and left unscaled: both
+            // UiSkeleton and UiCandleChart scale a logical height themselves,
+            // so scaling here would make the placeholder taller than the chart
+            // that replaces it and jump the page on load.
             loadingBuilder: (BuildContext ctx) =>
-                UiSkeleton(height: height ?? ctx.sz(280)),
+                UiSkeleton(height: height ?? theme.sizes.chartHeight),
             builder: (BuildContext ctx) => UiCandleChart(
               height: height,
               type: chartType,
@@ -235,16 +258,28 @@ class AppBacktestResultBlock extends StatelessWidget {
             spacing: context.sp(theme.spacing.lg),
             runSpacing: context.sp(theme.spacing.md),
             children: <Widget>[
-              _metric(context, 'Net P/L',
-                  AppTokens.signedMoney(result.netPnl),
-                  color: AppTokens.pl(context, result.netPnl)),
-              _metric(context, 'Win rate',
-                  AppTokens.percent(result.winRate * 100)),
+              _metric(
+                context,
+                'Net P/L',
+                AppTokens.signedMoney(result.netPnl),
+                color: AppTokens.pl(context, result.netPnl),
+              ),
+              _metric(
+                context,
+                'Win rate',
+                AppTokens.percent(result.winRate * 100),
+              ),
               _metric(context, 'Trades', '${result.trades}'),
-              _metric(context, 'Profit factor',
-                  result.profitFactor?.toStringAsFixed(2) ?? 'N/A'),
-              _metric(context, 'Max DD',
-                  AppTokens.percent(result.maxDrawdown * 100)),
+              _metric(
+                context,
+                'Profit factor',
+                result.profitFactor?.toStringAsFixed(2) ?? 'N/A',
+              ),
+              _metric(
+                context,
+                'Max DD',
+                AppTokens.percent(result.maxDrawdown * 100),
+              ),
             ],
           ),
           SizedBox(height: context.sp(theme.spacing.lg)),
@@ -258,21 +293,23 @@ class AppBacktestResultBlock extends StatelessWidget {
     );
   }
 
-  Widget _metric(BuildContext context, String label, String value,
-      {Color? color}) {
+  Widget _metric(
+    BuildContext context,
+    String label,
+    String value, {
+    Color? color,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Text(
           label,
-          style: context.uiText.caption
-              .copyWith(color: context.uiColors.foregroundMuted),
+          style: context.uiText.caption.copyWith(
+            color: context.uiColors.foregroundMuted,
+          ),
         ),
-        Text(
-          value,
-          style: context.uiText.numeric.copyWith(color: color),
-        ),
+        Text(value, style: context.uiText.numeric.copyWith(color: color)),
       ],
     );
   }

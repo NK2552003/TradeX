@@ -7,11 +7,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 /// a faint, gently pulsating grid, tinted from the live theme so it always
 /// matches dark/light mode and the app's primary/bullish accent colors.
 class AuthBackground extends StatefulWidget {
-  const AuthBackground({
-    super.key,
-    required this.child,
-    this.showGrid = true,
-  });
+  const AuthBackground({super.key, required this.child, this.showGrid = true});
 
   final Widget child;
   final bool showGrid;

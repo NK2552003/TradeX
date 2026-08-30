@@ -33,8 +33,9 @@ class AppAiMessageBubble extends StatelessWidget {
           child: Text(
             message.body,
             textAlign: TextAlign.center,
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundSubtle),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundSubtle,
+            ),
           ),
         ),
       );
@@ -94,8 +95,9 @@ class AppAiMessageBubble extends StatelessWidget {
             SizedBox(height: context.sp(theme.spacing.sm)),
             Text(
               message.error!,
-              style: context.uiText.caption
-                  .copyWith(color: theme.colors.destructive),
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.destructive,
+              ),
             ),
           ],
         ],
@@ -105,8 +107,9 @@ class AppAiMessageBubble extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(bottom: context.sp(theme.spacing.md)),
       child: Column(
-        crossAxisAlignment:
-            mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: mine
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: <Widget>[
           bubble,
           if (!mine && !message.pending)
@@ -130,8 +133,9 @@ class AppAiMessageBubble extends StatelessWidget {
                   if (message.sentAt != null)
                     Text(
                       AppTokens.relativeTime(message.sentAt!),
-                      style: context.uiText.caption
-                          .copyWith(color: theme.colors.foregroundSubtle),
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.foregroundSubtle,
+                      ),
                     ),
                 ],
               ),
@@ -210,7 +214,9 @@ class AppAiAnalysisCard extends StatelessWidget {
                   SizedBox(height: context.sp(theme.spacing.md)),
                   for (final String o in observations)
                     Padding(
-                      padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+                      padding: EdgeInsets.only(
+                        bottom: context.sp(theme.spacing.xs),
+                      ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
@@ -230,25 +236,29 @@ class AppAiAnalysisCard extends StatelessWidget {
                   Row(
                     children: <Widget>[
                       UiBadge(
-                        label: AppTokens.sentimentLabel(insight.sentimentScore!),
+                        label: AppTokens.sentimentLabel(
+                          insight.sentimentScore!,
+                        ),
                         filled: true,
                         intent: insight.sentimentScore! > 0
                             ? UiIntent.bullish
                             : (insight.sentimentScore! < 0
-                                ? UiIntent.bearish
-                                : UiIntent.neutral),
+                                  ? UiIntent.bearish
+                                  : UiIntent.neutral),
                       ),
                       if (insight.tickers.isNotEmpty) ...<Widget>[
                         SizedBox(width: context.sp(theme.spacing.xs)),
                         for (final String t in insight.tickers)
                           Padding(
-                            padding:
-                                EdgeInsets.only(right: context.sp(theme.spacing.xs)),
+                            padding: EdgeInsets.only(
+                              right: context.sp(theme.spacing.xs),
+                            ),
                             child: UiBadge(
                               label: '\$$t',
                               intent: UiIntent.primary,
-                              onTap:
-                                  onTickerTap == null ? null : () => onTickerTap!(t),
+                              onTap: onTickerTap == null
+                                  ? null
+                                  : () => onTickerTap!(t),
                             ),
                           ),
                       ],
@@ -262,7 +272,9 @@ class AppAiAnalysisCard extends StatelessWidget {
                     label: 'Confidence',
                     intent: confidence >= 0.66
                         ? UiIntent.bullish
-                        : (confidence >= 0.33 ? UiIntent.warning : UiIntent.bearish),
+                        : (confidence >= 0.33
+                              ? UiIntent.warning
+                              : UiIntent.bearish),
                     valueFormatter: (num v) => AppTokens.percent(v * 100),
                   ),
                 ],

@@ -37,8 +37,10 @@ class UiDonutChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final double dim = context.sz(size ?? 180);
-    final double total =
-        slices.fold<double>(0, (double a, UiDonutSlice s) => a + s.value);
+    final double total = slices.fold<double>(
+      0,
+      (double a, UiDonutSlice s) => a + s.value,
+    );
     final List<Color> colors = <Color>[
       for (int i = 0; i < slices.length; i++)
         slices[i].color ?? theme.colors.series[i % theme.colors.series.length],
@@ -91,17 +93,24 @@ class UiDonutChart extends StatelessWidget {
                     slices[i].label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: context.uiText.caption
-                        .copyWith(color: theme.colors.foregroundMuted),
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
                   ),
                 ),
                 SizedBox(width: context.sp(theme.spacing.xs)),
-                Text(
-                  total == 0
-                      ? '0%'
-                      : '${(slices[i].value / total * 100).toStringAsFixed(1)}%',
-                  style: context.uiText.numeric
-                      .copyWith(color: theme.colors.foreground),
+                Flexible(
+                  child: Text(
+                    total == 0
+                        ? '0%'
+                        : '${(slices[i].value / total * 100).toStringAsFixed(1)}%',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: context.uiText.numeric.copyWith(
+                      color: theme.colors.foreground,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -153,7 +162,8 @@ class _DonutPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Rect rect = Offset(thickness / 2, thickness / 2) &
+    final Rect rect =
+        Offset(thickness / 2, thickness / 2) &
         Size(size.width - thickness, size.height - thickness);
     final double total = values.fold<double>(0, (double a, double b) => a + b);
     canvas.drawArc(

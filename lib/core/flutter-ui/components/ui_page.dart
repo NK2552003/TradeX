@@ -15,6 +15,7 @@ class UiPage extends StatelessWidget {
   final Widget child;
   final Widget? header;
   final bool scrollable;
+  /// Content column cap in logical points (scaled internally).
   final double? maxWidth;
 
   @override
@@ -34,7 +35,7 @@ class UiPage extends StatelessWidget {
 
     Widget body = ConstrainedBox(
       constraints: BoxConstraints(
-        maxWidth: maxWidth ?? context.sz(theme.sizes.maxContentWidth),
+        maxWidth: context.sz(maxWidth ?? theme.sizes.maxContentWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -43,17 +44,29 @@ class UiPage extends StatelessWidget {
             header!,
             SizedBox(height: context.sp(theme.spacing.lg)),
           ],
-          child,
+          if (scrollable) child else Expanded(child: child),
         ],
       ),
     );
 
-    body = Padding(padding: pad, child: Center(child: body));
-    return ColoredBox(
-      color: theme.colors.background,
-      child: SafeArea(
-        child: scrollable ? SingleChildScrollView(child: body) : body,
+    body = Padding(
+      padding: pad,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: body,
       ),
+    );
+    // No background of its own. A page always sits inside something that has
+    // already painted one — the app shell's content surface, a dialog, a sheet —
+    // and an opaque fill here covered that surface's rounded corners and border
+    // on desktop. Transparent lets whatever hosts the page own the colour.
+    return SafeArea(
+      child: scrollable
+          ? SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: body,
+            )
+          : SizedBox.expand(child: body),
     );
   }
 }
@@ -76,7 +89,8 @@ class UiHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    return Row(
+    final Widget identity = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         if (leading != null) ...<Widget>[
           leading!,
@@ -92,7 +106,7 @@ class UiHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: context.uiText.subheading.copyWith(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: context.fs(14),
                   color: theme.colors.foreground,
                 ),
               ),
@@ -103,7 +117,7 @@ class UiHeader extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: context.uiText.caption.copyWith(
-                    fontSize: 11,
+                    fontSize: context.fs(11),
                     color: theme.colors.foregroundMuted,
                   ),
                 ),
@@ -111,14 +125,36 @@ class UiHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (actions.isNotEmpty) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.sm)),
-          Wrap(
-            spacing: context.sp(theme.spacing.xs),
-            children: actions,
-          ),
-        ],
       ],
+    );
+
+    if (actions.isEmpty) return identity;
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final Widget actionRow = Wrap(
+          spacing: context.sp(theme.spacing.xs),
+          runSpacing: context.sp(theme.spacing.xs),
+          alignment: WrapAlignment.end,
+          children: actions,
+        );
+        if (constraints.maxWidth < context.sz(520)) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              identity,
+              SizedBox(height: context.sp(theme.spacing.md)),
+              actionRow,
+            ],
+          );
+        }
+        return Row(
+          children: <Widget>[
+            Expanded(child: identity),
+            SizedBox(width: context.sp(theme.spacing.md)),
+            Flexible(child: actionRow),
+          ],
+        );
+      },
     );
   }
 }

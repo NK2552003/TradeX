@@ -54,16 +54,28 @@ class UiRadioCardGroup<T> extends StatelessWidget {
   final int desktopColumns;
 
   /// Optional visual above the title (icon tile, sparkline, logo).
-  final Widget Function(BuildContext context, UiOption<T> option, bool selected)?
-      mediaBuilder;
+  final Widget Function(
+    BuildContext context,
+    UiOption<T> option,
+    bool selected,
+  )?
+  mediaBuilder;
 
   /// Optional footer inside the card (price, metrics, badges).
-  final Widget Function(BuildContext context, UiOption<T> option, bool selected)?
-      footerBuilder;
+  final Widget Function(
+    BuildContext context,
+    UiOption<T> option,
+    bool selected,
+  )?
+  footerBuilder;
 
   /// Replaces the whole card.
-  final Widget Function(BuildContext context, UiOption<T> option, bool selected)?
-      cardBuilder;
+  final Widget Function(
+    BuildContext context,
+    UiOption<T> option,
+    bool selected,
+  )?
+  cardBuilder;
 
   final String? semanticLabel;
 
@@ -115,8 +127,11 @@ class UiRadioCardGroup<T> extends StatelessWidget {
       },
     );
 
-    final Widget group =
-        Semantics(label: semanticLabel ?? label, enabled: enabled, child: grid);
+    final Widget group = Semantics(
+      label: semanticLabel ?? label,
+      enabled: enabled,
+      child: grid,
+    );
 
     if (label == null && helperText == null && errorText == null) return group;
     return UiField(
@@ -181,23 +196,22 @@ class _UiRadioCard<T> extends StatelessWidget {
           color: !enabled
               ? c.disabledBackground
               : selected
-                  ? Color.alphaBlend(accent.withValues(alpha: 0.08), c.surface)
-                  : (s.hovered ? c.surfaceHover : c.surface),
+              ? Color.alphaBlend(accent.withValues(alpha: 0.08), c.surface)
+              : (s.hovered ? c.surfaceHover : c.surface),
           borderRadius: radius,
           border: Border.all(
             color: !enabled
                 ? c.border
                 : selected
-                    ? accent
-                    : (s.hovered ? c.borderStrong : c.border),
+                ? accent
+                : (s.hovered ? c.borderStrong : c.border),
             width: selected ? theme.borders.thick : theme.borders.hairline,
           ),
           boxShadow: selected
               ? uiGlow(ctx, accent, alpha: 0.16)
               : (s.hovered && enabled ? theme.shadows.md : null),
         ),
-        foregroundDecoration:
-            s.focused ? uiFocusRing(ctx, radius) : null,
+        foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -220,9 +234,10 @@ class _UiRadioCard<T> extends StatelessWidget {
                   child: Text(
                     option.label,
                     overflow: TextOverflow.ellipsis,
-                    style: size.textStyle(ctx).copyWith(
-                          color:
-                              enabled ? c.foreground : c.disabledForeground,
+                    style: size
+                        .textStyle(ctx)
+                        .copyWith(
+                          color: enabled ? c.foreground : c.disabledForeground,
                           fontWeight: FontWeight.w600,
                         ),
                   ),

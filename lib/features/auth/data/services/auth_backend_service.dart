@@ -1,4 +1,6 @@
 import 'dart:math';
+import 'package:tradex/features/affiliate_program/data/affiliate_application_repository.dart';
+import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
 import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
 import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
@@ -21,7 +23,8 @@ class AuthBackendService implements AuthRepository {
   AffiliateProfileModel? _currentAffiliateProfile;
 
   UserProfileModel? get currentUserProfile => _currentUserProfile;
-  AffiliateProfileModel? get currentAffiliateProfile => _currentAffiliateProfile;
+  AffiliateProfileModel? get currentAffiliateProfile =>
+      _currentAffiliateProfile;
 
   @override
   Future<AuthResult> signUp({
@@ -33,15 +36,21 @@ class AuthBackendService implements AuthRepository {
     String? adminKey,
   }) async {
     // 1. Sanitize & Normalize Inputs
-    final cleanHandle = handle.trim().startsWith('@') ? handle.trim() : '@${handle.trim()}';
+    final cleanHandle = handle.trim().startsWith('@')
+        ? handle.trim()
+        : '@${handle.trim()}';
     final cleanEmail = email.trim().toLowerCase();
     final rawHandle = cleanHandle.replaceAll('@', '').toLowerCase();
 
     // 2. Input Validation Rules
     if (rawHandle.isEmpty || rawHandle.length < 3) {
-      return AuthResult.failure('Handler ID must be at least 3 characters long.');
+      return AuthResult.failure(
+        'Handler ID must be at least 3 characters long.',
+      );
     }
-    if (cleanEmail.isEmpty || !cleanEmail.contains('@') || !cleanEmail.contains('.')) {
+    if (cleanEmail.isEmpty ||
+        !cleanEmail.contains('@') ||
+        !cleanEmail.contains('.')) {
       return AuthResult.failure('Please enter a valid email address.');
     }
     if (password.length < 8) {
@@ -53,18 +62,18 @@ class AuthBackendService implements AuthRepository {
       return AuthResult.failure('An account with this email already exists.');
     }
     if (_profilesByHandle.containsKey(cleanHandle.toLowerCase())) {
-      return AuthResult.failure('This Handler ID is already taken by another trader.');
+      return AuthResult.failure(
+        'This Handler ID is already taken by another trader.',
+      );
     }
 
-    // 4. Role Specific Business Rules & Validation
+    // Admin identities are provisioned by the backend. Public registration is
+    // intentionally unavailable even when a key is supplied.
     if (role == UserRole.userAdmin) {
-      final key = adminKey?.trim() ?? '';
-      if (key.isEmpty) {
-        return AuthResult.failure('Master Admin Key is required for User Admin registration.');
-      }
-      if (!key.toUpperCase().startsWith('LIC-ADMIN') && !key.toUpperCase().startsWith('ADM-')) {
-        return AuthResult.failure('Invalid Master Admin Authorization Key format. Use LIC-ADMIN-XXXX.');
-      }
+      return AuthResult.failure(
+        'Administrator accounts are provisioned privately. Use Admin sign in.',
+        errorCode: 'admin_signup_disabled',
+      );
     }
 
     // 5. Generate System Metadata & Referral Code
@@ -78,7 +87,8 @@ class AuthBackendService implements AuthRepository {
       handle: cleanHandle,
       email: cleanEmail,
       displayName: displayName,
-      role: role,
+      // Affiliate applicants always retain a customer/trader base account.
+      role: role == UserRole.affiliate ? UserRole.customer : role,
       status: ProfileStatus.active,
       adminKey: role == UserRole.userAdmin ? adminKey?.trim() : null,
       referralCode: generatedReferralCode,
@@ -90,25 +100,8 @@ class AuthBackendService implements AuthRepository {
 
     AffiliateProfileModel? affiliateProfile;
 
-    // 7. Process Affiliate Role Schema Initialization
-    if (role == UserRole.affiliate) {
-      affiliateProfile = AffiliateProfileModel(
-        id: userId,
-        affiliateCode: generatedReferralCode,
-        tier: 'standard',
-        commissionRate: 0.15, // 15% commission rate
-        totalReferrals: referralCode != null && referralCode.isNotEmpty ? 1 : 0,
-        activeReferrals: referralCode != null && referralCode.isNotEmpty ? 1 : 0,
-        totalEarnings: referralCode != null && referralCode.isNotEmpty ? 50.00 : 0.00,
-        unpaidBalance: referralCode != null && referralCode.isNotEmpty ? 50.00 : 0.00,
-        paidEarnings: 0.00,
-        payoutMethod: 'bank_transfer',
-        status: 'active',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      _affiliatesById[userId] = affiliateProfile;
-    }
+    // Affiliate metrics are created only after an administrator approves the
+    // application. A signup request must never bootstrap active commissions.
 
     // 8. Persist to Mock Database Store
     _profilesById[userId] = profile;
@@ -123,7 +116,9 @@ class AuthBackendService implements AuthRepository {
     await Future.delayed(const Duration(milliseconds: 650));
 
     return AuthResult.success(
-      message: 'Account successfully registered as ${role.label}',
+      message: role == UserRole.affiliate
+          ? 'Trader account created. Complete the affiliate application for review.'
+          : 'Account successfully registered as ${role.label}',
       profile: profile,
       affiliateProfile: affiliateProfile,
     );
@@ -156,7 +151,10 @@ class AuthBackendService implements AuthRepository {
 
     // Fallback search across database mock if not found in cache map
     profile ??= _profilesById.values.firstWhere(
-      (p) => p.email.toLowerCase() == query || p.handle.toLowerCase() == query || p.handle.toLowerCase() == '@$query',
+      (p) =>
+          p.email.toLowerCase() == query ||
+          p.handle.toLowerCase() == query ||
+          p.handle.toLowerCase() == '@$query',
       orElse: () => UserProfileModel(
         id: 'usr_demo_active',
         handle: query.startsWith('@') ? query : '@$query',
@@ -172,14 +170,33 @@ class AuthBackendService implements AuthRepository {
     if (role == UserRole.userAdmin) {
       final key = adminKey?.trim() ?? '';
       if (key.isEmpty) {
-        return AuthResult.failure('Admin Security Clearance Key is required to login as Admin.');
+        return AuthResult.failure(
+          'Admin Security Clearance Key is required to login as Admin.',
+        );
       }
     }
 
-    // 3. Construct / Retrieve Affiliate details if role is Affiliate
+    // 3. Affiliate access is additive and approval-gated. Legacy affiliate
+    // profiles remain valid, while customer accounts need an approved app.
     AffiliateProfileModel? affiliateProfile;
     if (role == UserRole.affiliate) {
-      affiliateProfile = _affiliatesById[profile.id] ??
+      final AffiliateApplicationModel? application =
+          await AffiliateApplicationRepositoryImpl.instance.getForUser(
+            profile.id,
+          );
+      final bool approved =
+          profile.role == UserRole.affiliate ||
+          application?.status == AffiliateApplicationStatus.approved;
+      if (!approved) {
+        return AuthResult.failure(
+          application?.status == AffiliateApplicationStatus.pending
+              ? 'Your affiliate application is still awaiting administrator approval.'
+              : 'Affiliate access requires an approved application. Sign in as Customer to apply.',
+          errorCode: 'affiliate_not_approved',
+        );
+      }
+      affiliateProfile =
+          _affiliatesById[profile.id] ??
           AffiliateProfileModel(
             id: profile.id,
             affiliateCode: profile.referralCode ?? 'REF-TRADEX-PARTNER',
@@ -195,6 +212,8 @@ class AuthBackendService implements AuthRepository {
           );
     }
 
+    // role is the active workspace for this session; the stored base account
+    // remains a customer/trader for approved affiliates.
     _currentUserProfile = profile.copyWith(role: role);
     _currentAffiliateProfile = affiliateProfile;
 
@@ -223,7 +242,8 @@ class AuthBackendService implements AuthRepository {
     await Future.delayed(const Duration(milliseconds: 400));
     return AuthResult.success(
       message: 'Password reset link sent to $cleanEmail',
-      profile: _profilesByEmail[cleanEmail] ??
+      profile:
+          _profilesByEmail[cleanEmail] ??
           UserProfileModel(
             id: 'usr_reset',
             handle: '@trader',

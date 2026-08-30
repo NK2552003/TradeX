@@ -37,8 +37,9 @@ class UiBarList extends StatelessWidget {
     final theme = context.ui;
     final num max = items.isEmpty
         ? 1
-        : items.map((UiBarListItem e) => e.value.abs()).reduce(
-            (num a, num b) => a > b ? a : b);
+        : items
+              .map((UiBarListItem e) => e.value.abs())
+              .reduce((num a, num b) => a > b ? a : b);
     final UiValueFormatter fmt = valueFormatter ?? uiCompactNumber;
 
     return Column(
@@ -54,13 +55,15 @@ class UiBarList extends StatelessWidget {
               builder: (BuildContext ctx, UiInteractiveState s) => Stack(
                 children: <Widget>[
                   FractionallySizedBox(
-                    widthFactor:
-                        max == 0 ? 0 : (items[i].value.abs() / max).clamp(0, 1),
+                    widthFactor: max == 0
+                        ? 0
+                        : (items[i].value.abs() / max).clamp(0, 1),
                     child: Container(
                       height: ctx.sz(theme.sizes.controlHeightSm),
                       decoration: BoxDecoration(
-                        color: (items[i].color ?? intent.color(ctx))
-                            .withValues(alpha: s.hovered ? 0.28 : 0.18),
+                        color: (items[i].color ?? intent.color(ctx)).withValues(
+                          alpha: s.hovered ? 0.28 : 0.18,
+                        ),
                         borderRadius: ctx.radius(theme.radii.md),
                       ),
                     ),
@@ -83,15 +86,30 @@ class UiBarList extends StatelessWidget {
                         Expanded(
                           child: Text(
                             items[i].label,
+                            // The bar is a fixed height, so a label allowed to
+                            // wrap to a second line would be clipped vertically
+                            // rather than ellipsised.
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: ctx.uiText.label
-                                .copyWith(color: theme.colors.foreground),
+                            style: ctx.uiText.label.copyWith(
+                              color: theme.colors.foreground,
+                            ),
                           ),
                         ),
-                        Text(
-                          fmt(items[i].value),
-                          style: ctx.uiText.numeric
-                              .copyWith(color: theme.colors.foregroundMuted),
+                        SizedBox(width: ctx.sp(theme.spacing.sm)),
+                        // The formatter is caller-supplied, so the figure is
+                        // bounded too: it takes only what it needs, and gives
+                        // way rather than pushing itself off the row.
+                        Flexible(
+                          child: Text(
+                            fmt(items[i].value),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: ctx.uiText.numeric.copyWith(
+                              color: theme.colors.foregroundMuted,
+                            ),
+                          ),
                         ),
                       ],
                     ),

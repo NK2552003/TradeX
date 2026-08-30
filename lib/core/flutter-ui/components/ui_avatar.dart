@@ -12,6 +12,7 @@ class UiAvatar extends StatelessWidget {
     this.size = UiSize.md,
     this.online = false,
     this.verified = false,
+    this.verifiedColor,
     this.onTap,
   });
 
@@ -20,13 +21,17 @@ class UiAvatar extends StatelessWidget {
   final UiSize size;
   final bool online;
   final bool verified;
+  final Color? verifiedColor;
   final VoidCallback? onTap;
 
   double _dim(BuildContext context) => size.avatar(context);
 
   String get _initials {
-    final List<String> parts =
-        name.trim().split(RegExp(r'\s+')).where((String p) => p.isNotEmpty).toList();
+    final List<String> parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((String p) => p.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return '?';
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
     return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
@@ -59,8 +64,9 @@ class UiAvatar extends StatelessWidget {
       child: imageUrl == null
           ? Text(
               _initials,
-              style: context.uiText.label
-                  .copyWith(color: theme.colors.foregroundMuted),
+              style: context.uiText.label.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             )
           : null,
     );
@@ -78,7 +84,9 @@ class UiAvatar extends StatelessWidget {
               height: dim * 0.3,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: online ? theme.colors.bullish : theme.colors.primary,
+                color: online
+                    ? theme.colors.bullish
+                    : (verifiedColor ?? theme.colors.primary),
                 border: Border.all(
                   color: theme.colors.surface,
                   width: theme.borders.thick,
@@ -160,8 +168,9 @@ class UiAvatarGroup extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(
                   '+$overflow',
-                  style: context.uiText.caption
-                      .copyWith(color: theme.colors.foregroundMuted),
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
                 ),
               ),
             ),

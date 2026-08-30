@@ -4,12 +4,7 @@ import '../theme/ui_theme.dart';
 
 /// Horizontal / vertical separator, optionally with centered content.
 class UiDivider extends StatelessWidget {
-  const UiDivider({
-    super.key,
-    this.label,
-    this.vertical = false,
-    this.spacing,
-  });
+  const UiDivider({super.key, this.label, this.vertical = false, this.spacing});
 
   final String? label;
   final bool vertical;
@@ -45,12 +40,14 @@ class UiDivider extends StatelessWidget {
               children: <Widget>[
                 line,
                 Padding(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.md)),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(theme.spacing.md),
+                  ),
                   child: Text(
                     label!,
-                    style: context.uiText.caption
-                        .copyWith(color: theme.colors.foregroundSubtle),
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundSubtle,
+                    ),
                   ),
                 ),
                 line,

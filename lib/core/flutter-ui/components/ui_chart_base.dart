@@ -91,15 +91,15 @@ class UiChart extends StatefulWidget {
     this.height,
     this.valueFormatter,
     this.curved = true,
-  })  : showGrid = false,
-        showAxisLabels = false,
-        showLegend = false,
-        minimal = true,
-        interactive = false,
-        toggleableLegend = false,
-        stacked = false,
-        glow = false,
-        thresholds = const <UiChartThreshold>[];
+  }) : showGrid = false,
+       showAxisLabels = false,
+       showLegend = false,
+       minimal = true,
+       interactive = false,
+       toggleableLegend = false,
+       stacked = false,
+       glow = false,
+       thresholds = const <UiChartThreshold>[];
 
   final List<UiChartPoint> data;
   final List<UiChartSeries> series;
@@ -141,9 +141,9 @@ class _UiChartState extends State<UiChart> {
   }
 
   List<int> get _visibleIdx => <int>[
-        for (int i = 0; i < widget.series.length; i++)
-          if (!_hidden.contains(i)) i,
-      ];
+    for (int i = 0; i < widget.series.length; i++)
+      if (!_hidden.contains(i)) i,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -169,15 +169,109 @@ class _UiChartState extends State<UiChart> {
     final List<int> shown = _visibleIdx;
     final bool axes = widget.showAxisLabels && !widget.minimal;
     final EdgeInsets pad = EdgeInsets.only(
-      left: axes ? context.sz(40) : 0,
+      left: axes ? context.sz(56) : 0,
       bottom: axes ? context.sz(22) : 0,
-      top: context.sz(4),
-      right: context.sz(4),
+      top: context.sz(6),
+      right: context.sz(6),
     );
     final UiValueFormatter fmt = widget.valueFormatter ?? uiCompactNumber;
 
+    final Widget chartBody = LayoutBuilder(
+      builder: (BuildContext ctx, BoxConstraints c) {
+        final double w = c.maxWidth;
+        final double plotH = c.hasBoundedHeight ? c.maxHeight : h;
+        void track(Offset local) {
+          if (!widget.interactive || widget.data.isEmpty) return;
+          final double plotW = w - pad.left - pad.right;
+          final double t =
+              ((local.dx - pad.left) / (plotW <= 0 ? 1 : plotW)).clamp(
+                0.0,
+                1.0,
+              );
+          final int i = (t * (widget.data.length - 1)).round().clamp(
+            0,
+            widget.data.length - 1,
+          );
+          if (i != _active) setState(() => _active = i);
+        }
+
+        final Widget paint = CustomPaint(
+          size: Size(w, plotH),
+          painter: _ChartPainter(
+            data: widget.data,
+            series: <UiChartSeries>[
+              for (final int i in shown) widget.series[i],
+            ],
+            seriesIndices: shown,
+            colors: <Color>[for (final int i in shown) colors[i]],
+            gridColor: theme.colors.border,
+            axisTextColor: theme.colors.foregroundSubtle,
+            axisTextStyle: ctx.uiText.caption,
+            showGrid: widget.showGrid && !widget.minimal,
+            showAxisLabels: axes,
+            curved: widget.curved,
+            formatter: fmt,
+            // Label density adapts to available width.
+            maxXLabels: ctx.uiRes.pick<int>(
+              mobile: 4,
+              tablet: 6,
+              desktop: 8,
+            ),
+            padding: pad,
+            strokeWidth: ctx.sz(2),
+            activeIndex: widget.interactive ? _active : null,
+            crosshairColor: theme.colors.borderStrong,
+            surfaceColor: theme.colors.surface,
+            stacked: widget.stacked,
+            glow: widget.glow,
+            thresholds: widget.thresholds,
+            thresholdColor: theme.colors.warning,
+          ),
+        );
+
+        if (!widget.interactive) return paint;
+
+        return MouseRegion(
+          onHover: (e) => track(e.localPosition),
+          onExit: (_) => setState(() => _active = null),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (TapDownDetails d) => track(d.localPosition),
+            onHorizontalDragUpdate: (DragUpdateDetails d) =>
+                track(d.localPosition),
+            onHorizontalDragEnd: (_) => setState(() => _active = null),
+            child: Stack(
+              children: <Widget>[
+                Positioned.fill(child: paint),
+                if (_active != null && shown.isNotEmpty)
+                  _Tooltip(
+                    point: widget.data[_active!],
+                    seriesIndices: shown,
+                    series: widget.series,
+                    colors: colors,
+                    formatter: fmt,
+                    alignRight:
+                        (_active! /
+                            (widget.data.length - 1).clamp(1, 1 << 30)) >
+                        0.6,
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (widget.minimal) {
+      if (widget.height != null) {
+        return SizedBox(height: h, child: chartBody);
+      }
+      return chartBody;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         if (widget.showLegend && widget.series.length > 1) ...<Widget>[
           Wrap(
@@ -189,13 +283,13 @@ class _UiChartState extends State<UiChart> {
                   enabled: widget.toggleableLegend,
                   onTap: widget.toggleableLegend
                       ? () => setState(() {
-                            if (_hidden.contains(i)) {
-                              _hidden.remove(i);
-                            } else if (_hidden.length <
-                                widget.series.length - 1) {
-                              _hidden.add(i);
-                            }
-                          })
+                          if (_hidden.contains(i)) {
+                            _hidden.remove(i);
+                          } else if (_hidden.length <
+                              widget.series.length - 1) {
+                            _hidden.add(i);
+                          }
+                        })
                       : null,
                   builder: (BuildContext ctx, UiInteractiveState s) {
                     final bool off = _hidden.contains(i);
@@ -211,14 +305,23 @@ class _UiChartState extends State<UiChart> {
                           ),
                         ),
                         SizedBox(width: ctx.sp(theme.spacing.xs)),
-                        Text(
-                          widget.series[i].name,
-                          style: ctx.uiText.caption.copyWith(
-                            color: off
-                                ? theme.colors.foregroundSubtle
-                                : theme.colors.foregroundMuted,
-                            decoration:
-                                off ? TextDecoration.lineThrough : null,
+                        // Series names come from the caller. A long one truncates
+                        // inside its own chip instead of running past the edge of
+                        // the chart it labels.
+                        ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: ctx.sz(160)),
+                          child: Text(
+                            widget.series[i].name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: ctx.uiText.caption.copyWith(
+                              color: off
+                                  ? theme.colors.foregroundSubtle
+                                  : theme.colors.foregroundMuted,
+                              decoration: off
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
                           ),
                         ),
                       ],
@@ -231,85 +334,7 @@ class _UiChartState extends State<UiChart> {
         ],
         SizedBox(
           height: h,
-          child: LayoutBuilder(
-            builder: (BuildContext ctx, BoxConstraints c) {
-              final double w = c.maxWidth;
-              void track(Offset local) {
-                if (!widget.interactive || widget.data.isEmpty) return;
-                final double plotW = w - pad.left - pad.right;
-                final double t =
-                    ((local.dx - pad.left) / (plotW <= 0 ? 1 : plotW))
-                        .clamp(0.0, 1.0);
-                final int i =
-                    (t * (widget.data.length - 1)).round().clamp(
-                          0,
-                          widget.data.length - 1,
-                        );
-                if (i != _active) setState(() => _active = i);
-              }
-
-              final Widget paint = CustomPaint(
-                size: Size(w, h),
-                painter: _ChartPainter(
-                  data: widget.data,
-                  series: <UiChartSeries>[
-                    for (final int i in shown) widget.series[i],
-                  ],
-                  seriesIndices: shown,
-                  colors: <Color>[for (final int i in shown) colors[i]],
-                  gridColor: theme.colors.border,
-                  axisTextColor: theme.colors.foregroundSubtle,
-                  axisTextStyle: ctx.uiText.caption,
-                  showGrid: widget.showGrid && !widget.minimal,
-                  showAxisLabels: axes,
-                  curved: widget.curved,
-                  formatter: fmt,
-                  // Label density adapts to available width.
-                  maxXLabels:
-                      ctx.uiRes.pick<int>(mobile: 4, tablet: 6, desktop: 8),
-                  padding: pad,
-                  strokeWidth: ctx.sz(2),
-                  activeIndex: widget.interactive ? _active : null,
-                  crosshairColor: theme.colors.borderStrong,
-                  surfaceColor: theme.colors.surface,
-                  stacked: widget.stacked,
-                  glow: widget.glow,
-                  thresholds: widget.thresholds,
-                  thresholdColor: theme.colors.warning,
-                ),
-              );
-
-              if (!widget.interactive) return paint;
-
-              return MouseRegion(
-                onHover: (e) => track(e.localPosition),
-                onExit: (_) => setState(() => _active = null),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTapDown: (TapDownDetails d) => track(d.localPosition),
-                  onHorizontalDragUpdate: (DragUpdateDetails d) =>
-                      track(d.localPosition),
-                  onHorizontalDragEnd: (_) => setState(() => _active = null),
-                  child: Stack(
-                    children: <Widget>[
-                      Positioned.fill(child: paint),
-                      if (_active != null && shown.isNotEmpty)
-                        _Tooltip(
-                          point: widget.data[_active!],
-                          seriesIndices: shown,
-                          series: widget.series,
-                          colors: colors,
-                          formatter: fmt,
-                          alignRight: (_active! / (widget.data.length - 1)
-                                  .clamp(1, 1 << 30)) >
-                              0.6,
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+          child: chartBody,
         ),
       ],
     );
@@ -345,6 +370,9 @@ class _Tooltip extends StatelessWidget {
           horizontal: context.sp(theme.spacing.md),
           vertical: context.sp(theme.spacing.xs),
         ),
+        // A crosshair card floats over the plot, so it has the whole chart width
+        // to grow into and would happily cover the data it is describing. Cap it.
+        constraints: BoxConstraints(maxWidth: context.sz(240)),
         decoration: BoxDecoration(
           color: theme.colors.surface,
           borderRadius: context.radius(theme.radii.md),
@@ -361,8 +389,11 @@ class _Tooltip extends StatelessWidget {
             if (point.label.isNotEmpty)
               Text(
                 point.label,
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.foregroundMuted),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
               ),
             for (final int i in seriesIndices)
               Row(
@@ -377,17 +408,32 @@ class _Tooltip extends StatelessWidget {
                     ),
                   ),
                   SizedBox(width: context.sp(theme.spacing.xs)),
-                  Text(
-                    series[i].name.isEmpty ? '' : '${series[i].name}  ',
-                    style: context.uiText.caption
-                        .copyWith(color: theme.colors.foregroundMuted),
-                  ),
-                  Text(
-                    formatter(
-                      i < point.values.length ? point.values[i] : 0,
+                  // The name yields width to the number: a reader can infer the
+                  // series from its dot colour, but a clipped figure is useless.
+                  if (series[i].name.isNotEmpty)
+                    Flexible(
+                      child: Text(
+                        series[i].name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ),
+                      ),
                     ),
-                    style: context.uiText.numeric
-                        .copyWith(color: theme.colors.foreground),
+                  SizedBox(width: context.sp(theme.spacing.sm)),
+                  // Bounded as well as the name: the formatter is the caller's,
+                  // so a tooltip row can be wider than the tooltip it sits in.
+                  Flexible(
+                    child: Text(
+                      formatter(i < point.values.length ? point.values[i] : 0),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: context.uiText.numeric.copyWith(
+                        color: theme.colors.foreground,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -495,8 +541,13 @@ class _ChartPainter extends CustomPainter {
       for (int i = 0; i <= 4; i++) {
         final double y = plot.bottom - plot.height * i / 4;
         final double value = minY + (maxY - minY) * i / 4;
-        _text(canvas, formatter(value), Offset(0, y - 6), plot.left - 4,
-            TextAlign.right);
+        _text(
+          canvas,
+          formatter(value),
+          Offset(0, y - 6),
+          plot.left - 4,
+          TextAlign.right,
+        );
       }
       final int step = math.max(1, (data.length / maxXLabels).ceil());
       for (int i = 0; i < data.length; i += step) {
@@ -579,13 +630,21 @@ class _ChartPainter extends CustomPainter {
         const double dash = 5;
         for (double x = plot.left; x < plot.right; x += dash * 2) {
           canvas.drawLine(
-              Offset(x, ty), Offset(math.min(x + dash, plot.right), ty), tp);
+            Offset(x, ty),
+            Offset(math.min(x + dash, plot.right), ty),
+            tp,
+          );
         }
       } else {
         canvas.drawLine(Offset(plot.left, ty), Offset(plot.right, ty), tp);
       }
-      _text(canvas, t.label, Offset(plot.right - 60, ty - 14), 60,
-          TextAlign.right);
+      _text(
+        canvas,
+        t.label,
+        Offset(plot.right - 60, ty - 14),
+        60,
+        TextAlign.right,
+      );
     }
 
     final List<double> areaBase = List<double>.filled(data.length, 0);
@@ -593,7 +652,8 @@ class _ChartPainter extends CustomPainter {
       if (series[s].type == UiChartSeriesType.bar) continue;
       final bool isArea = series[s].type == UiChartSeriesType.area;
       final bool doStack = stacked && isArea;
-      double topOf(int i) => doStack ? areaBase[i] + _value(i, s) : _value(i, s);
+      double topOf(int i) =>
+          doStack ? areaBase[i] + _value(i, s) : _value(i, s);
 
       final Path path = Path();
       for (int i = 0; i < data.length; i++) {
@@ -676,7 +736,8 @@ class _ChartPainter extends CustomPainter {
 
   double _value(int pointIndex, int seriesIndex) {
     final List<double> vals = data[pointIndex].values;
-    final int col = seriesIndices == null || seriesIndex >= seriesIndices!.length
+    final int col =
+        seriesIndices == null || seriesIndex >= seriesIndices!.length
         ? seriesIndex
         : seriesIndices![seriesIndex];
     return col < vals.length ? vals[col] : 0;
@@ -685,7 +746,9 @@ class _ChartPainter extends CustomPainter {
   /// Vertical crosshair + markers for the hovered point.
   void _drawCrosshair(Canvas canvas, Rect plot, double minY, double maxY) {
     final int? i = activeIndex;
-    if (i == null || i < 0 || i >= data.length || crosshairColor == null) return;
+    if (i == null || i < 0 || i >= data.length || crosshairColor == null) {
+      return;
+    }
     final double dx = data.length == 1
         ? plot.center.dx
         : plot.left + plot.width * (i / (data.length - 1));

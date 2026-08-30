@@ -7,90 +7,146 @@ import '../theme/app_tokens.dart';
 
 /// Subscription plan card used on the pricing / upgrade screens.
 class AppPlanCard extends StatelessWidget {
-  const AppPlanCard({super.key, required this.plan, this.onSelect});
+  const AppPlanCard({
+    super.key,
+    required this.plan,
+    this.onSelect,
+    this.fillHeight = false,
+  });
 
   final AppPlan plan;
   final VoidCallback? onSelect;
+  final bool fillHeight;
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final Color tint = AppTokens.tierColor(context, plan.tier);
+
+    final Widget detailsColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Icon(
+              AppTokens.tierIcon(plan.tier),
+              color: tint,
+              size: context.sz(theme.sizes.iconMd),
+            ),
+            SizedBox(width: context.sp(theme.spacing.sm)),
+            Expanded(
+              child: Text(
+                AppTokens.tierLabel(plan.tier),
+                style: context.uiText.subheading.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (plan.current)
+              const UiBadge(
+                label: 'Current',
+                intent: UiIntent.bullish,
+                size: UiSize.xs,
+              )
+            else if (plan.highlighted)
+              const UiBadge(
+                label: 'Popular',
+                intent: UiIntent.warning,
+                size: UiSize.xs,
+              ),
+          ],
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: <Widget>[
+            Text(
+              plan.priceLabel,
+              style: context.uiText.heading.copyWith(
+                fontSize: context.fs(26),
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
+            ),
+            SizedBox(width: context.sp(theme.spacing.xxs)),
+            Text(
+              plan.period,
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        if (plan.description != null) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.xs)),
+          Text(
+            plan.description!,
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
+          ),
+        ],
+        SizedBox(height: context.sp(theme.spacing.lg)),
+        for (final String f in plan.features)
+          Padding(
+            padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Icon(
+                  Icons.check_circle_outline,
+                  size: context.sz(theme.sizes.iconSm),
+                  color: tint,
+                ),
+                SizedBox(width: context.sp(theme.spacing.sm)),
+                Expanded(child: Text(f, style: context.uiText.body)),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    final Widget actionButton = UiButton(
+      label: plan.current
+          ? 'Your plan'
+          : 'Choose ${AppTokens.tierLabel(plan.tier)}',
+      expand: true,
+      variant: plan.highlighted ? UiVariant.primary : UiVariant.outline,
+      onPressed: plan.current ? null : onSelect,
+    );
+
+    final Widget cardBody = fillHeight
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              detailsColumn,
+              Padding(
+                padding: EdgeInsets.only(top: context.sp(theme.spacing.md)),
+                child: actionButton,
+              ),
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              detailsColumn,
+              SizedBox(height: context.sp(theme.spacing.md)),
+              actionButton,
+            ],
+          );
+
     return AppHoverLift(
       child: UiCard(
         elevated: plan.highlighted,
         accentColor: plan.highlighted ? tint : null,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Icon(
-                  AppTokens.tierIcon(plan.tier),
-                  color: tint,
-                  size: context.sz(theme.sizes.iconMd),
-                ),
-                SizedBox(width: context.sp(theme.spacing.sm)),
-                Expanded(
-                  child: Text(
-                    AppTokens.tierLabel(plan.tier),
-                    style: context.uiText.subheading,
-                  ),
-                ),
-                if (plan.current)
-                  const UiBadge(label: 'Current', intent: UiIntent.bullish)
-                else if (plan.highlighted)
-                  const UiBadge(label: 'Popular', intent: UiIntent.warning),
-              ],
-            ),
-            SizedBox(height: context.sp(theme.spacing.md)),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: <Widget>[
-                Text(plan.priceLabel, style: context.uiText.display),
-                SizedBox(width: context.sp(theme.spacing.xxs)),
-                Text(
-                  plan.period,
-                  style: context.uiText.caption
-                      .copyWith(color: theme.colors.foregroundMuted),
-                ),
-              ],
-            ),
-            if (plan.description != null) ...<Widget>[
-              SizedBox(height: context.sp(theme.spacing.xs)),
-              Text(
-                plan.description!,
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.foregroundMuted),
-              ),
-            ],
-            SizedBox(height: context.sp(theme.spacing.lg)),
-            for (final String f in plan.features)
-              Padding(
-                padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Icon(
-                      Icons.check_circle_outline,
-                      size: context.sz(theme.sizes.iconSm),
-                      color: tint,
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.sm)),
-                    Expanded(child: Text(f, style: context.uiText.body)),
-                  ],
-                ),
-              ),
-            SizedBox(height: context.sp(theme.spacing.md)),
-            UiButton(
-              label: plan.current ? 'Your plan' : 'Choose ${AppTokens.tierLabel(plan.tier)}',
-              expand: true,
-              variant: plan.highlighted ? UiVariant.primary : UiVariant.outline,
-              onPressed: plan.current ? null : onSelect,
-            ),
-          ],
-        ),
+        child: cardBody,
       ),
     );
   }
@@ -128,13 +184,33 @@ class AppUsageCard extends StatelessWidget {
           Row(
             children: <Widget>[
               if (icon != null) ...<Widget>[
-                Icon(icon,
-                    size: context.sz(theme.sizes.iconSm),
-                    color: theme.colors.foregroundMuted),
+                Icon(
+                  icon,
+                  size: context.sz(theme.sizes.iconSm),
+                  color: theme.colors.foregroundMuted,
+                ),
                 SizedBox(width: context.sp(theme.spacing.xs)),
               ],
-              Expanded(child: Text(label, style: context.uiText.bodyStrong)),
-              Text('$used / $limit', style: context.uiText.numeric),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.bodyStrong,
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.sm)),
+              // Quotas run to five and six figures, so the tally is abbreviated
+              // and bounded rather than printed raw beside the label.
+              Flexible(
+                child: Text(
+                  '${AppTokens.count(used)} / ${AppTokens.count(limit)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: context.uiText.numeric,
+                ),
+              ),
             ],
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
@@ -181,8 +257,11 @@ class AppTierGateCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(Icons.lock_outline,
-                  color: tint, size: context.sz(theme.sizes.iconMd)),
+              Icon(
+                Icons.lock_outline,
+                color: tint,
+                size: context.sz(theme.sizes.iconMd),
+              ),
               SizedBox(width: context.sp(theme.spacing.sm)),
               Expanded(child: Text(title, style: context.uiText.subheading)),
               UiBadge(
@@ -196,8 +275,9 @@ class AppTierGateCard extends StatelessWidget {
             SizedBox(height: context.sp(theme.spacing.sm)),
             Text(
               message!,
-              style: context.uiText.body
-                  .copyWith(color: theme.colors.foregroundMuted),
+              style: context.uiText.body.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             ),
           ],
           SizedBox(height: context.sp(theme.spacing.lg)),
@@ -219,8 +299,9 @@ class AppAchievementCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final bool on = achievement.unlocked;
-    final Color tint =
-        on ? theme.colors.warning : theme.colors.foregroundSubtle;
+    final Color tint = on
+        ? theme.colors.warning
+        : theme.colors.foregroundSubtle;
     return UiCard(
       onTap: onTap,
       padding: EdgeInsets.all(context.sp(theme.spacing.md)),
@@ -233,8 +314,11 @@ class AppAchievementCard extends StatelessWidget {
               color: tint.withValues(alpha: on ? 0.16 : 0.08),
               borderRadius: context.radius(theme.radii.md),
             ),
-            child: Icon(achievement.icon,
-                color: tint, size: context.sz(theme.sizes.iconMd)),
+            child: Icon(
+              achievement.icon,
+              color: tint,
+              size: context.sz(theme.sizes.iconMd),
+            ),
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
           Text(
@@ -248,8 +332,9 @@ class AppAchievementCard extends StatelessWidget {
               achievement.description!,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: context.uiText.caption
-                  .copyWith(color: theme.colors.foregroundMuted),
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             ),
           if (!on && achievement.progress != null) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.sm)),
@@ -283,34 +368,109 @@ class AppSettingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    return UiCard(
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-      child: Row(
-        children: <Widget>[
-          if (icon != null) ...<Widget>[
-            Icon(icon,
-                size: context.sz(theme.sizes.iconSm),
-                color: theme.colors.foregroundMuted),
-            SizedBox(width: context.sp(theme.spacing.md)),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(title, style: context.uiText.bodyStrong),
-                if (description != null)
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool stack = constraints.maxWidth < context.sz(520);
+        final bool mobile = context.uiRes.isMobile;
+        final bool trailingSwitch = mobile && control is UiSwitch;
+        final Widget copy = Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            if (icon != null) ...<Widget>[
+              Container(
+                padding: EdgeInsets.all(context.sp(theme.spacing.xs + 2)),
+                decoration: BoxDecoration(
+                  color: theme.colors.primary.withValues(alpha: 0.08),
+                  borderRadius: context.radius(theme.radii.md),
+                ),
+                child: Icon(
+                  icon,
+                  size: context.sz(theme.sizes.iconSm),
+                  color: theme.colors.primary,
+                ),
+              ),
+              SizedBox(
+                width: context.sp(theme.spacing.md),
+              ),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
                   Text(
-                    description!,
-                    style: context.uiText.caption
-                        .copyWith(color: theme.colors.foregroundMuted),
+                    title,
+                    maxLines: mobile ? 2 : null,
+                    overflow: mobile ? TextOverflow.ellipsis : null,
+                    style: mobile
+                        ? context.uiText.label.copyWith(
+                            color: theme.colors.foreground,
+                          )
+                        : context.uiText.bodyStrong,
                   ),
-              ],
+                  if (description != null) ...<Widget>[
+                    SizedBox(height: context.sp(theme.spacing.xxs)),
+                    Text(
+                      description!,
+                      maxLines: mobile ? 3 : null,
+                      overflow: mobile ? TextOverflow.ellipsis : null,
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.foregroundMuted,
+                        fontSize: mobile ? context.fs(11.5) : null,
+                        height: mobile ? 1.35 : null,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ),
-          SizedBox(width: context.sp(theme.spacing.md)),
-          control,
-        ],
-      ),
+          ],
+        );
+
+        return UiCard(
+          radius: theme.radii.lg,
+          padding: mobile
+              ? EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.md),
+                  vertical: context.sp(theme.spacing.sm + 2),
+                )
+              : EdgeInsets.all(context.sp(theme.spacing.md)),
+          child: trailingSwitch
+              ? Row(
+                  children: <Widget>[
+                    Expanded(child: copy),
+                    SizedBox(width: context.sp(theme.spacing.sm)),
+                    control,
+                  ],
+                )
+              : stack
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    copy,
+                    SizedBox(
+                      height: context.sp(
+                        mobile ? theme.spacing.sm : theme.spacing.md,
+                      ),
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: control,
+                    ),
+                  ],
+                )
+              : Row(
+                  children: <Widget>[
+                    Expanded(child: copy),
+                    SizedBox(width: context.sp(theme.spacing.md)),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: context.sz(320)),
+                      child: control,
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 }

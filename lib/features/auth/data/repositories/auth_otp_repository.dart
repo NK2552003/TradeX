@@ -2,11 +2,7 @@ import 'package:tradex/features/auth/models/otp_purpose.dart';
 
 /// Result of an OTP verify attempt.
 class OtpVerifyResult {
-  const OtpVerifyResult({
-    required this.success,
-    this.errorMessage,
-    this.token,
-  });
+  const OtpVerifyResult({required this.success, this.errorMessage, this.token});
 
   final bool success;
 
@@ -32,20 +28,20 @@ class OtpVerifyResult {
 /// Suggested REST contract (adjust to match your actual API/Supabase/
 /// Firebase setup):
 ///
-///   POST /auth/otp/send
-///     body   { "identifier": "<email|phone>", "purpose": "signup|reset|login" }
-///     200    { "expiresInSeconds": 60 }
-///     4xx    { "message": "..." }
+///   `POST /auth/otp/send`
+///     `body   { "identifier": "email|phone", "purpose": "signup|reset|login" }`
+///     `200    { "expiresInSeconds": 60 }`
+///     `4xx    { "message": "..." }`
 ///
-///   POST /auth/otp/verify
-///     body   { "identifier": "<email|phone>", "purpose": "signup|reset|login", "code": "123456" }
-///     200    { "token": "<continuation or session token>" }
-///     4xx    { "message": "Invalid or expired code" }
+///   `POST /auth/otp/verify`
+///     `body   { "identifier": "email|phone", "purpose": "signup|reset|login", "code": "123456" }`
+///     `200    { "token": "continuation or session token" }`
+///     `4xx    { "message": "Invalid or expired code" }`
 ///
-///   POST /auth/otp/resend
-///     body   { "identifier": "<email|phone>", "purpose": "signup|reset|login" }
-///     200    { "expiresInSeconds": 60 }
-///     429    { "message": "Please wait before requesting another code" }
+///   `POST /auth/otp/resend`
+///     `body   { "identifier": "email|phone", "purpose": "signup|reset|login" }`
+///     `200    { "expiresInSeconds": 60 }`
+///     `429    { "message": "Please wait before requesting another code" }`
 ///
 /// Notes for the backend implementation:
 /// - Codes should be single-use and expire (5–10 minutes is typical).
@@ -89,7 +85,7 @@ class AuthOtpRepositoryImpl implements AuthOtpRepository {
     required String identifier,
     required OtpPurpose purpose,
   }) async {
-    // TODO(backend): POST /auth/otp/send { identifier, purpose: purpose.apiValue }
+    // Backend contract: POST /auth/otp/send { identifier, purpose: purpose.apiValue }
     await Future.delayed(const Duration(milliseconds: 700));
   }
 
@@ -99,7 +95,7 @@ class AuthOtpRepositoryImpl implements AuthOtpRepository {
     required OtpPurpose purpose,
     required String code,
   }) async {
-    // TODO(backend): POST /auth/otp/verify { identifier, purpose: purpose.apiValue, code }
+    // Backend contract: POST /auth/otp/verify { identifier, purpose: purpose.apiValue, code }
     await Future.delayed(const Duration(milliseconds: 600));
     if (code == '000000') {
       return const OtpVerifyResult(
@@ -115,7 +111,7 @@ class AuthOtpRepositoryImpl implements AuthOtpRepository {
     required String identifier,
     required OtpPurpose purpose,
   }) {
-    // TODO(backend): POST /auth/otp/resend { identifier, purpose: purpose.apiValue }
+    // Backend contract: POST /auth/otp/resend { identifier, purpose: purpose.apiValue }
     return sendOtp(identifier: identifier, purpose: purpose);
   }
 }

@@ -53,8 +53,9 @@ class AppStatCard extends StatelessWidget {
                   child: Text(
                     stat.label,
                     overflow: TextOverflow.ellipsis,
-                    style: context.uiText.label
-                        .copyWith(color: theme.colors.foregroundMuted),
+                    style: context.uiText.label.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
                   ),
                 ),
               ],
@@ -66,8 +67,7 @@ class AppStatCard extends StatelessWidget {
                 Expanded(
                   child: AppCountUp(
                     value: stat.value,
-                    formatter: (num v) =>
-                        '${fmt(v)}${stat.suffix ?? ''}',
+                    formatter: (num v) => '${fmt(v)}${stat.suffix ?? ''}',
                     style: context.uiText.title,
                   ),
                 ),
@@ -86,8 +86,9 @@ class AppStatCard extends StatelessWidget {
                           child: Text(
                             AppTokens.signedPercent(stat.delta!, decimals: 1),
                             overflow: TextOverflow.ellipsis,
-                            style: context.uiText.caption
-                                .copyWith(color: deltaColor),
+                            style: context.uiText.caption.copyWith(
+                              color: deltaColor,
+                            ),
                           ),
                         ),
                       ],
@@ -99,9 +100,7 @@ class AppStatCard extends StatelessWidget {
               SizedBox(height: context.sp(theme.spacing.md)),
               UiSparkChart(
                 values: stat.spark,
-                color: stat.delta == null
-                    ? theme.colors.primary
-                    : deltaColor,
+                color: stat.delta == null ? theme.colors.primary : deltaColor,
                 filled: true,
                 height: dense ? 28 : null,
               ),
@@ -151,8 +150,9 @@ class AppWinRateCard extends StatelessWidget {
                   ),
                   Text(
                     'win',
-                    style: context.uiText.caption
-                        .copyWith(color: theme.colors.foregroundMuted),
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
                   ),
                 ],
               ),
@@ -192,11 +192,23 @@ class AppWinRateCard extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: context.uiText.caption
-                  .copyWith(color: theme.colors.foregroundMuted),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             ),
           ),
-          Text('$value', style: context.uiText.numeric),
+          SizedBox(width: context.sp(theme.spacing.sm)),
+          Flexible(
+            child: Text(
+              AppTokens.count(value),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: context.uiText.numeric,
+            ),
+          ),
         ],
       ),
     );
@@ -219,8 +231,7 @@ class AppExtremeTradeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final Color color =
-        best ? theme.colors.bullish : theme.colors.bearish;
+    final Color color = best ? theme.colors.bullish : theme.colors.bearish;
     return UiCard(
       onTap: onTap,
       accentColor: color,
@@ -241,8 +252,9 @@ class AppExtremeTradeCard extends StatelessWidget {
             '${AppTokens.sideLabel(trade.side)} · '
             '${AppTokens.shortDate(trade.openedAt)}'
             '${trade.rMultiple == null ? '' : ' · ${AppTokens.rr(trade.rMultiple!)}'}',
-            style: context.uiText.caption
-                .copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
         ],
       ),
@@ -400,7 +412,8 @@ class AppCalendarDayCard extends StatelessWidget {
         : (day.pnl.abs() / maxAbsPnl).clamp(0.06, 0.9).toDouble();
 
     return UiTooltip(
-      message: '${AppTokens.shortDate(day.date)} · '
+      message:
+          '${AppTokens.shortDate(day.date)} · '
           '${AppTokens.signedMoney(day.pnl)} · ${day.trades} trades',
       child: UiInteractive(
         enabled: onTap != null,
@@ -410,10 +423,14 @@ class AppCalendarDayCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: day.trades == 0
                 ? theme.colors.surfaceMuted
-                : base.withValues(alpha: s.hovered ? intensity + 0.12 : intensity),
+                : base.withValues(
+                    alpha: s.hovered ? intensity + 0.12 : intensity,
+                  ),
             borderRadius: ctx.radius(theme.radii.sm),
             border: Border.all(
-              color: s.hovered ? theme.colors.borderStrong : theme.colors.border,
+              color: s.hovered
+                  ? theme.colors.borderStrong
+                  : theme.colors.border,
               width: theme.borders.hairline,
             ),
           ),

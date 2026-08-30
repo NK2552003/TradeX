@@ -34,8 +34,10 @@ class UiCategoryBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    final double total =
-        segments.fold<double>(0, (double a, UiCategorySegment s) => a + s.value);
+    final double total = segments.fold<double>(
+      0,
+      (double a, UiCategorySegment s) => a + s.value,
+    );
     final double h = context.sz(thickness ?? theme.sizes.trackThickness);
 
     return Column(
@@ -54,10 +56,15 @@ class UiCategoryBar extends StatelessWidget {
                       Expanded(
                         flex: total == 0
                             ? 1
-                            : (segments[i].value / total * 1000).round().clamp(1, 1000),
+                            : (segments[i].value / total * 1000).round().clamp(
+                                1,
+                                1000,
+                              ),
                         child: ColoredBox(
-                          color: segments[i].color ??
-                              theme.colors.series[i % theme.colors.series.length],
+                          color:
+                              segments[i].color ??
+                              theme.colors.series[i %
+                                  theme.colors.series.length],
                         ),
                       ),
                   ],
@@ -99,15 +106,24 @@ class UiCategoryBar extends StatelessWidget {
                       height: context.sz(8),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: segments[i].color ??
+                        color:
+                            segments[i].color ??
                             theme.colors.series[i % theme.colors.series.length],
                       ),
                     ),
                     SizedBox(width: context.sp(theme.spacing.xs)),
-                    Text(
-                      segments[i].label,
-                      style: context.uiText.caption
-                          .copyWith(color: theme.colors.foregroundMuted),
+                    // Segment labels are caller-supplied category names, so they
+                    // truncate rather than run past the bar they describe.
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: context.sz(150)),
+                      child: Text(
+                        segments[i].label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ),
+                      ),
                     ),
                   ],
                 ),

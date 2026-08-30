@@ -32,6 +32,9 @@ class UiTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    // On a phone the row has no width to spare for a right-aligned stamp beside
+    // the title, so the stamp drops under the entry instead of crushing it.
+    final bool stackStamp = context.uiRes.isMobile;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -78,8 +81,10 @@ class UiTimeline extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
-                              Text(entries[i].title,
-                                  style: ctx.uiText.bodyStrong),
+                              Text(
+                                entries[i].title,
+                                style: ctx.uiText.bodyStrong,
+                              ),
                               if (entries[i].subtitle != null)
                                 Text(
                                   entries[i].subtitle!,
@@ -87,16 +92,35 @@ class UiTimeline extends StatelessWidget {
                                     color: theme.colors.foregroundMuted,
                                   ),
                                 ),
+                              if (stackStamp && entries[i].timestamp != null)
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    top: ctx.sp(theme.spacing.xxs),
+                                  ),
+                                  child: Text(
+                                    entries[i].timestamp!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: ctx.uiText.caption.copyWith(
+                                      color: theme.colors.foregroundSubtle,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
-                        if (entries[i].timestamp != null)
+                        if (!stackStamp &&
+                            entries[i].timestamp != null) ...<Widget>[
+                          SizedBox(width: ctx.sp(theme.spacing.sm)),
                           Text(
                             entries[i].timestamp!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: ctx.uiText.caption.copyWith(
                               color: theme.colors.foregroundSubtle,
                             ),
                           ),
+                        ],
                         if (entries[i].trailing != null) ...<Widget>[
                           SizedBox(width: ctx.sp(theme.spacing.sm)),
                           entries[i].trailing!,

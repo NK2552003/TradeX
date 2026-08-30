@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-
-import 'package:tradex/core/config/mock_data.dart';
+import 'package:tradex/core/data/demo_data_source.dart';
 
 class AuthCarouselPanel extends StatefulWidget {
   const AuthCarouselPanel({super.key});
@@ -17,25 +16,41 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
   bool _carouselForward = true;
   Timer? _carouselTimer;
 
+  /// The sign-in preview renders the same records the signed-in app renders, so
+  /// the shop window cannot advertise a post, strategy or headline that does not
+  /// exist once the reader is inside.
+  final DemoDataSource _demo = DemoDataSource.instance;
+  late final AppPost _post = _demo.posts(limit: 1).first;
+  late final List<AppStrategy> _strategies = _demo
+      .strategies()
+      .take(2)
+      .toList();
+  late final List<AppNewsItem> _news = _demo.news(limit: 2);
+  late final AppAiInsight _insight = _demo.insights(limit: 1).first;
+
   static const List<Map<String, String>> _features = [
     {
       'title': 'Institutional Community',
-      'desc': 'Join a curated social feed where verified traders share high-signal ideas. Follow leading strategies, engage in direct messaging, and climb the leaderboard.',
+      'desc':
+          'Join a curated social feed where verified traders share high-signal ideas. Follow leading strategies, engage in direct messaging, and climb the leaderboard.',
       'icon': 'forum',
     },
     {
       'title': 'Quantitative Journaling',
-      'desc': 'Move beyond simple notes. Track precise execution data, visualize your equity curve, and utilize smart auto-fill that automatically pulls screenshot charts.',
+      'desc':
+          'Move beyond simple notes. Track precise execution data, visualize your equity curve, and utilize smart auto-fill that automatically pulls screenshot charts.',
       'icon': 'book',
     },
     {
       'title': 'Live Market News',
-      'desc': 'Stay ahead of the curve with real-time news alerts. Get instant notifications on macroeconomic events, earnings reports, and breaking sector updates.',
+      'desc':
+          'Stay ahead of the curve with real-time news alerts. Get instant notifications on macroeconomic events, earnings reports, and breaking sector updates.',
       'icon': 'donut',
     },
     {
       'title': 'AI Trading Assistant',
-      'desc': 'Leverage cutting-edge LLMs to analyze your market setups in real-time. Upload charts, instantly receive risk/reward insights, and decode complex market structure.',
+      'desc':
+          'Leverage cutting-edge LLMs to analyze your market setups in real-time. Upload charts, instantly receive risk/reward insights, and decode complex market structure.',
       'icon': 'memory',
     },
   ];
@@ -49,20 +64,33 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
   void _startCarouselTimer() {
     _carouselTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (!mounted) return;
-      if (_pageController.hasClients && _pageController.position.hasContentDimensions) {
+      if (_pageController.hasClients &&
+          _pageController.position.hasContentDimensions) {
         if (_carouselForward) {
           if (_currentFeatureIndex < _features.length - 1) {
-            _pageController.nextPage(duration: const Duration(milliseconds: 600), curve: Curves.easeInOut);
+            _pageController.nextPage(
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeInOut,
+            );
           } else {
             _carouselForward = false;
-            _pageController.previousPage(duration: const Duration(milliseconds: 600), curve: Curves.easeInOut);
+            _pageController.previousPage(
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeInOut,
+            );
           }
         } else {
           if (_currentFeatureIndex > 0) {
-            _pageController.previousPage(duration: const Duration(milliseconds: 600), curve: Curves.easeInOut);
+            _pageController.previousPage(
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeInOut,
+            );
           } else {
             _carouselForward = true;
-            _pageController.nextPage(duration: const Duration(milliseconds: 600), curve: Curves.easeInOut);
+            _pageController.nextPage(
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeInOut,
+            );
           }
         }
       }
@@ -82,32 +110,26 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
     final colors = theme.colors;
 
     final List<Widget> carouselCards = [
-      AppPostCard(post: mockPost),
+      AppPostCard(post: _post),
       Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AppStrategyPerformanceCard(strategy: mockStrategy),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-          AppStrategyPerformanceCard(strategy: mockStrategy2),
+          for (int i = 0; i < _strategies.length; i++) ...[
+            if (i > 0) SizedBox(height: context.sp(theme.spacing.lg)),
+            AppStrategyPerformanceCard(strategy: _strategies[i]),
+          ],
         ],
       ),
       Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AppNewsCard(item: mockNews),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-          AppNewsCard(item: AppNewsItem(
-            id: 'n2',
-            headline: 'Tech sector sees massive inflows as AI rally continues.',
-            source: 'Reuters',
-            publishedAt: DateTime.now().subtract(const Duration(minutes: 90)),
-            sentimentScore: 0.85,
-            tickers: const ['NVDA', 'MSFT'],
-            summary: 'Institutional investors are piling into semiconductors and cloud infrastructure...',
-          )),
+          for (int i = 0; i < _news.length; i++) ...[
+            if (i > 0) SizedBox(height: context.sp(theme.spacing.lg)),
+            AppNewsCard(item: _news[i]),
+          ],
         ],
       ),
-      AppAiInsightCard(insight: mockInsight),
+      AppAiInsightCard(insight: _insight),
     ];
 
     return Column(
@@ -124,9 +146,11 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
             itemCount: _features.length,
             itemBuilder: (context, idx) {
               final card = carouselCards[idx % carouselCards.length];
-              
+
               return Padding(
-                padding: EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.sm)),
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.sm),
+                ),
                 child: Center(
                   child: SizedBox(
                     height: 480,
@@ -134,10 +158,7 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.center,
-                      child: SizedBox(
-                        width: 440,
-                        child: card,
-                      ),
+                      child: SizedBox(width: 440, child: card),
                     ),
                   ),
                 ),
@@ -145,7 +166,7 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
             },
           ),
         ),
-        
+
         // Text & Dots Area
         Padding(
           padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
@@ -161,11 +182,14 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
               SizedBox(height: context.sp(theme.spacing.xs)),
               Text(
                 _features[_currentFeatureIndex]['desc']!,
-                style: context.uiText.body.copyWith(color: colors.foregroundMuted, height: 1.5),
+                style: context.uiText.body.copyWith(
+                  color: colors.foregroundMuted,
+                  height: 1.5,
+                ),
                 textAlign: TextAlign.left,
               ),
               SizedBox(height: context.sp(theme.spacing.lg)),
-              
+
               // Carousel Indicator Dots
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -173,7 +197,9 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
                   final isActive = index == _currentFeatureIndex;
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
-                    margin: EdgeInsets.only(right: context.sp(theme.spacing.sm)),
+                    margin: EdgeInsets.only(
+                      right: context.sp(theme.spacing.sm),
+                    ),
                     height: 8,
                     width: isActive ? 24 : 8,
                     decoration: BoxDecoration(

@@ -27,9 +27,12 @@ class UiCallout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
+    final responsive = context.uiRes;
     final Color base = intent.color(context);
     return Container(
-      padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+      padding: EdgeInsets.all(
+        context.sp(responsive.isMobile ? theme.spacing.md : theme.spacing.lg),
+      ),
       decoration: BoxDecoration(
         color: base.withValues(alpha: 0.08),
         borderRadius: context.radius(theme.radii.lg),
@@ -44,9 +47,15 @@ class UiCallout extends StatelessWidget {
           Icon(
             icon ?? _defaultIcon,
             color: base,
-            size: context.sz(theme.sizes.iconMd),
+            size: context.sz(
+              responsive.isMobile ? theme.sizes.iconSm : theme.sizes.iconMd,
+            ),
           ),
-          SizedBox(width: context.sp(theme.spacing.md)),
+          SizedBox(
+            width: context.sp(
+              responsive.isMobile ? theme.spacing.sm : theme.spacing.md,
+            ),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,12 +68,13 @@ class UiCallout extends StatelessWidget {
                   SizedBox(height: context.sp(theme.spacing.xs)),
                   Text(
                     message!,
-                    style: context.uiText.body
-                        .copyWith(color: theme.colors.foregroundMuted),
+                    style: context.uiText.body.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
                   ),
                 ],
                 if (action != null) ...<Widget>[
-                  SizedBox(height: context.sp(theme.spacing.md)),
+                  SizedBox(height: context.sp(theme.spacing.sm)),
                   action!,
                 ],
               ],
