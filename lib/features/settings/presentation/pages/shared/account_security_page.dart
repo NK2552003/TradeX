@@ -3,7 +3,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/models/connected_account_model.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/delete_account_page.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class AccountSecurityPage extends StatefulWidget {
   const AccountSecurityPage({super.key, this.repository});
@@ -278,16 +278,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
     final colors = theme.colors;
 
     if (_loading) {
-      return Padding(
-        padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-        child: Column(
-          children: const [
-            UiSkeleton(height: 140),
-            SizedBox(height: 16),
-            UiSkeleton(height: 200),
-          ],
-        ),
-      );
+      return UiSkeleton.settingsDetail(sections: 3, rowsPerSection: 3);
     }
 
     final bool hasGoogle = _connectedAccounts.any(
@@ -297,7 +288,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final bool isMobile = context.uiRes.isMobile;
     final double bottomInset = isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(
@@ -341,10 +332,10 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                                       children: [
                                         Text(
                                           'Primary Email',
-                                          style:
-                                              context.uiText.caption.copyWith(
-                                            color: colors.foregroundMuted,
-                                          ),
+                                          style: context.uiText.caption
+                                              .copyWith(
+                                                color: colors.foregroundMuted,
+                                              ),
                                         ),
                                         Text(
                                           _currentEmail,
@@ -558,12 +549,13 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                                 intent: UiIntent.danger,
                                 expand: true,
                                 onPressed: () {
-                                  showSettingsSideSheet(
+                                  openSettingsSubpage(
                                     context,
                                     title: 'Delete Trader Account',
                                     subtitle:
                                         'Permanent account deletion and data wiping',
-                                    child: DeleteAccountPage(repository: _repo),
+                                    icon: Icons.delete_forever_outlined,
+                                    page: DeleteAccountPage(repository: _repo),
                                   );
                                 },
                               ),
@@ -601,12 +593,13 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                                 intent: UiIntent.danger,
                                 size: UiSize.sm,
                                 onPressed: () {
-                                  showSettingsSideSheet(
+                                  openSettingsSubpage(
                                     context,
                                     title: 'Delete Trader Account',
                                     subtitle:
                                         'Permanent account deletion and data wiping',
-                                    child: DeleteAccountPage(repository: _repo),
+                                    icon: Icons.delete_forever_outlined,
+                                    page: DeleteAccountPage(repository: _repo),
                                   );
                                 },
                               ),

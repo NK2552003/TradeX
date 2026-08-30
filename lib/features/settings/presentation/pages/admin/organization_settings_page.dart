@@ -4,7 +4,7 @@ import 'package:tradex/features/settings/data/repositories/organization_settings
 import 'package:tradex/features/settings/models/org_models.dart';
 import 'package:tradex/features/settings/presentation/pages/admin/team_roles_page.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class OrganizationSettingsPage extends StatefulWidget {
   const OrganizationSettingsPage({super.key, this.repository});
@@ -92,21 +92,17 @@ class _OrganizationSettingsPageState extends State<OrganizationSettingsPage> {
     final colors = theme.colors;
     final isMobile = context.uiRes.isMobile;
 
+    // Same shape as the loaded page: the org identity card, then its sections.
     if (_loading) {
-      return Padding(
-        padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-        child: Column(
-          children: const [
-            UiSkeleton(height: 140),
-            SizedBox(height: 16),
-            UiSkeleton(height: 180),
-          ],
-        ),
+      return UiSkeleton.settingsDetail(
+        showIdentity: true,
+        sections: 2,
+        rowsPerSection: 3,
       );
     }
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double bottomInset = isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(
@@ -188,12 +184,13 @@ class _OrganizationSettingsPageState extends State<OrganizationSettingsPage> {
                     icon: Icons.group_outlined,
                     badgeLabel: '3 Seats',
                     onTap: () {
-                      showSettingsSideSheet(
+                      openSettingsSubpage(
                         context,
                         title: 'Team Directory & Roles',
                         subtitle:
                             'Manage trader seats, role privileges and invites',
-                        child: TeamRolesPage(repository: _repo),
+                        icon: Icons.groups_outlined,
+                        page: TeamRolesPage(repository: _repo),
                       );
                     },
                   ),

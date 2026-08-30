@@ -6,7 +6,7 @@ import 'package:tradex/features/settings/models/billing_models.dart';
 import 'package:tradex/features/settings/presentation/pages/trader/billing_history_page.dart';
 import 'package:tradex/features/settings/presentation/pages/trader/change_plan_page.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 /// The billing surface: what the account is on, what it costs, what it has used,
 /// the card on file, the invoices and the way out.
@@ -348,16 +348,12 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
     final UiTheme theme = context.ui;
     final UiColors colors = theme.colors;
 
+    // The plan summary card the page leads with, then its two setting sections.
     if (_loading) {
-      return Padding(
-        padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-        child: Column(
-          children: const <Widget>[
-            UiSkeleton(height: 180),
-            SizedBox(height: 16),
-            UiSkeleton(height: 140),
-          ],
-        ),
+      return UiSkeleton.settingsList(
+        showSummary: true,
+        showHeader: false,
+        rows: 3,
       );
     }
 
@@ -393,14 +389,15 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
             variant: UiVariant.outline,
             size: UiSize.sm,
             onPressed: () {
-              showSettingsSideSheet(
+              openSettingsSubpage(
                 context,
                 title: 'Choose a plan',
                 subtitle: 'Pick the tier that matches your volume',
+                icon: Icons.workspace_premium_outlined,
                 desktopWidthRatio: 0.86,
                 maxWidth: 1260.0,
                 minDesktopWidth: 900.0,
-                child: ChangePlanPage(
+                page: ChangePlanPage(
                   repository: _repo,
                   onPlanChanged: (AppTier tier) async {
                     widget.onSubscriptionTierChanged?.call(tier);
@@ -640,12 +637,13 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                           : 'Download itemised invoices and tax receipts',
                       icon: Icons.receipt_long_outlined,
                       onTap: () {
-                        showSettingsSideSheet(
+                        openSettingsSubpage(
                           context,
                           title: 'Invoices & receipts',
                           subtitle:
                               'Itemised transaction history for this account',
-                          child: BillingHistoryPage(repository: _repo),
+                          icon: Icons.receipt_long_outlined,
+                          page: BillingHistoryPage(repository: _repo),
                         );
                       },
                     ),

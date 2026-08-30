@@ -79,22 +79,13 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
     final isMobile = context.uiRes.isMobile;
 
     if (_loading) {
-      return Padding(
-        padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-        child: Column(
-          children: const [
-            UiSkeleton(height: 140),
-            SizedBox(height: 16),
-            UiSkeleton(height: 200),
-          ],
-        ),
-      );
+      return UiSkeleton.settingsDetail(sections: 2, rowsPerSection: 4);
     }
 
     final c = _config!;
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double bottomInset = isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(

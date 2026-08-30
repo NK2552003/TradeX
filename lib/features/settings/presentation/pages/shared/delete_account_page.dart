@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class DeleteAccountPage extends StatefulWidget {
   const DeleteAccountPage({super.key, this.repository});
@@ -100,7 +101,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                                 'Your account deletion request has been submitted (30-day grace period).',
                             intent: UiIntent.info,
                           );
-                          Navigator.of(context).pop();
+                          closeSettingsSubpage(context);
                         }
                       } catch (e) {
                         if (mounted) {
@@ -129,7 +130,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final bool isMobile = context.uiRes.isMobile;
     final double bottomInset = isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(
@@ -218,7 +219,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
               UiButton(
                 label: 'Keep My Account',
                 variant: UiVariant.outline,
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => closeSettingsSubpage(context),
               ),
               UiButton(
                 label: 'Proceed to Deletion',

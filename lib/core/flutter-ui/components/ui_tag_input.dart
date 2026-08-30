@@ -56,6 +56,7 @@ class _UiTagInputState extends State<UiTagInput> {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    final bool mobile = context.uiRes.isMobile;
     final List<String> unused = widget.suggestions
         .where((String s) => !widget.tags.contains(s))
         .toList();
@@ -76,18 +77,23 @@ class _UiTagInputState extends State<UiTagInput> {
                     onTap: () => _remove(tag),
                     builder: (BuildContext ctx, UiInteractiveState _) => Container(
                       padding: EdgeInsets.symmetric(
-                        horizontal: ctx.sp(theme.spacing.sm),
+                        horizontal: ctx.sp(
+                          mobile ? theme.spacing.xs + 2 : theme.spacing.sm,
+                        ),
                         vertical: ctx.sp(theme.spacing.xxs),
                       ),
                       // Tags are typed by the reader, so a chip needs both a
                       // width ceiling and a height floor: one keeps a long tag
                       // inside its pill, the other keeps the pill big enough
-                      // to hit with a thumb.
+                      // to hit with a thumb. The phone floor is the smallest
+                      // control height rather than a share of the tap target —
+                      // a row of tags is an annotation, and at the old floor it
+                      // read as a row of buttons.
                       constraints: BoxConstraints(
-                        maxWidth: ctx.sz(220),
+                        maxWidth: ctx.sz(mobile ? 180 : 220),
                         minHeight: ctx.sz(
-                          ctx.uiRes.isMobile
-                              ? theme.sizes.minTapTarget * 0.75
+                          mobile
+                              ? theme.sizes.controlHeightXs
                               : theme.sizes.controlHeightSm,
                         ),
                       ),
@@ -103,15 +109,26 @@ class _UiTagInputState extends State<UiTagInput> {
                               '${widget.prefix ?? ''}$tag',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: ctx.uiText.label.copyWith(
-                                color: widget.intent.color(ctx),
-                              ),
+                              style:
+                                  (mobile
+                                          ? ctx.uiText.caption
+                                          : ctx.uiText.label)
+                                      .copyWith(
+                                        color: widget.intent.color(ctx),
+                                        fontSize: mobile
+                                            ? ctx.fs(11.5)
+                                            : null,
+                                      ),
                             ),
                           ),
                           SizedBox(width: ctx.sp(theme.spacing.xxs)),
                           Icon(
                             Icons.close_rounded,
-                            size: ctx.sz(theme.sizes.iconSm),
+                            size: ctx.sz(
+                              mobile
+                                  ? theme.sizes.iconXs
+                                  : theme.sizes.iconSm,
+                            ),
                             color: widget.intent.color(ctx),
                           ),
                         ],

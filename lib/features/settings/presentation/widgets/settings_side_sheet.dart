@@ -30,17 +30,21 @@ Future<T?> showSettingsSideSheet<T>(
           final bool isMobile = ctx.uiRes.isMobile;
           final bool isTablet = ctx.uiRes.isTablet;
           final double screenWidth = MediaQuery.of(ctx).size.width;
-          final double effectiveMax = maxWidth ?? (screenWidth > 1400 ? 1200.0 : 960.0);
+          final double effectiveMax =
+              maxWidth ?? (screenWidth > 1400 ? 1200.0 : 960.0);
           final double effectiveMin = minDesktopWidth ?? 640.0;
           final double targetWidth = isMobile
               ? screenWidth
               : isTablet
               ? (screenWidth * 0.90).clamp(560.0, 840.0)
-              : (screenWidth * desktopWidthRatio).clamp(effectiveMin, effectiveMax);
+              : (screenWidth * desktopWidthRatio).clamp(
+                  effectiveMin,
+                  effectiveMax,
+                );
 
           final double floatingInset = isMobile ? 0 : ctx.sp(theme.spacing.sm);
           final double keyboardInset = MediaQuery.viewInsetsOf(ctx).bottom;
-          final double dockInset = isMobile ? 108.0 : 0.0;
+          final double dockInset = isMobile ? ctx.uiDockInset : 0.0;
           final double bottomInset = isMobile
               ? (keyboardInset > 0 ? keyboardInset + 24.0 : dockInset)
               : (floatingInset + keyboardInset);
@@ -59,10 +63,14 @@ Future<T?> showSettingsSideSheet<T>(
               bottomInset,
             ),
             child: Align(
-              alignment: isMobile ? Alignment.bottomCenter : Alignment.centerRight,
+              alignment: isMobile
+                  ? Alignment.bottomCenter
+                  : Alignment.centerRight,
               child: SlideTransition(
                 position: Tween<Offset>(
-                  begin: isMobile ? const Offset(0.0, 1.0) : const Offset(1.0, 0.0),
+                  begin: isMobile
+                      ? const Offset(0.0, 1.0)
+                      : const Offset(1.0, 0.0),
                   end: Offset.zero,
                 ).animate(curveAnim),
                 child: Material(
@@ -125,7 +133,8 @@ Future<T?> showSettingsSideSheet<T>(
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(

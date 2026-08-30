@@ -185,6 +185,12 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
     final theme = context.ui;
     final colors = theme.colors;
 
+    // The count-and-invite strip is part of the skeleton too, so the real strip
+    // does not pop in above a list that is still loading.
+    if (_loading) {
+      return UiSkeleton.settingsList(rows: 4);
+    }
+
     return Column(
       children: [
         Padding(
@@ -195,14 +201,18 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
             0,
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${_members.length} Active Desk Members',
-                style: context.uiText.bodyStrong.copyWith(
-                  color: colors.foregroundMuted,
+              Expanded(
+                child: Text(
+                  '${_members.length} Active Desk Members',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.bodyStrong.copyWith(
+                    color: colors.foregroundMuted,
+                  ),
                 ),
               ),
+              SizedBox(width: context.sp(theme.spacing.sm)),
               UiButton(
                 label: 'Invite Member',
                 leadingIcon: Icons.person_add_alt_1_rounded,
@@ -213,98 +223,100 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
           ),
         ),
         Expanded(
-          child: _loading
-              ? Padding(
-                  padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-                  child: Column(
-                    children: const [
-                      UiSkeleton(height: 70),
-                      SizedBox(height: 12),
-                      UiSkeleton(height: 70),
-                    ],
-                  ),
-                )
-              : ListView.separated(
-                  padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-                  itemCount: _members.length,
-                  separatorBuilder: (context, index) =>
-                      SizedBox(height: context.sp(theme.spacing.sm)),
-                  itemBuilder: (context, index) {
-                    final member = _members[index];
-                    final isOwner = member.role == 'owner';
+          child: ListView.separated(
+            // Clears the phone dock, which floats over the page.
+            padding: EdgeInsets.fromLTRB(
+              context.sp(theme.spacing.lg),
+              context.sp(theme.spacing.lg),
+              context.sp(theme.spacing.lg),
+              context.sp(theme.spacing.lg) +
+                  (context.uiRes.isMobile ? context.uiDockInset : 0),
+            ),
+            itemCount: _members.length,
+            separatorBuilder: (context, index) =>
+                SizedBox(height: context.sp(theme.spacing.sm)),
+            itemBuilder: (context, index) {
+              final member = _members[index];
+              final isOwner = member.role == 'owner';
 
-                    return UiCard(
-                      child: Row(
+              return UiCard(
+                child: Row(
+                  children: [
+                    UiAvatar(
+                      name: member.displayName,
+                      imageUrl: member.avatarUrl,
+                      size: UiSize.md,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.md)),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          UiAvatar(
-                            name: member.displayName,
-                            imageUrl: member.avatarUrl,
-                            size: UiSize.md,
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  member.displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: context.uiText.bodyStrong,
+                                ),
+                              ),
+                              SizedBox(width: context.sp(theme.spacing.xs)),
+                              UiBadge(
+                                label: member.role.toUpperCase(),
+                                intent: _getRoleBadgeIntent(member.role),
+                                size: UiSize.xs,
+                              ),
+                            ],
                           ),
-                          SizedBox(width: context.sp(theme.spacing.md)),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      member.displayName,
-                                      style: context.uiText.bodyStrong,
-                                    ),
-                                    SizedBox(
-                                      width: context.sp(theme.spacing.xs),
-                                    ),
-                                    UiBadge(
-                                      label: member.role.toUpperCase(),
-                                      intent: _getRoleBadgeIntent(member.role),
-                                      size: UiSize.xs,
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  '@${member.handle} · Joined ${member.joinedAt.year}-${member.joinedAt.month.toString().padLeft(2, '0')}-${member.joinedAt.day.toString().padLeft(2, '0')}',
-                                  style: context.uiText.caption.copyWith(
-                                    color: colors.foregroundMuted,
-                                  ),
-                                ),
-                              ],
+                          Text(
+                            '@${member.handle} · Joined ${member.joinedAt.year}-${member.joinedAt.month.toString().padLeft(2, '0')}-${member.joinedAt.day.toString().padLeft(2, '0')}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.uiText.caption.copyWith(
+                              color: colors.foregroundMuted,
                             ),
                           ),
-                          if (!isOwner) ...[
-                            UiSelect<String>(
-                              value: member.role,
-                              options: _roleOptions
-                                  .where((r) => r != 'owner')
-                                  .map(
-                                    (r) => UiOption<String>(
-                                      label: r.toUpperCase(),
-                                      value: r,
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (newRole) async {
-                                await _repo.updateMemberRole(
-                                  userId: member.userId,
-                                  role: newRole,
-                                );
-                                await _loadMembers();
-                              },
-                            ),
-                            SizedBox(width: context.sp(theme.spacing.xs)),
-                            UiIconButton(
-                              icon: Icons.delete_outline_rounded,
-                              size: UiSize.xs,
-                              variant: UiVariant.destructive,
-                              tooltip: 'Remove member',
-                              onPressed: () => _showRemoveMemberDialog(member),
-                            ),
-                          ],
                         ],
                       ),
-                    );
-                  },
+                    ),
+                    if (!isOwner) ...[
+                      UiSelect<String>(
+                        width: context.uiRes.isMobile ? 96.0 : 120.0,
+                        size: UiSize.sm,
+                        value: member.role,
+                        options: _roleOptions
+                            .where((r) => r != 'owner')
+                            .map(
+                              (r) => UiOption<String>(
+                                label: r.toUpperCase(),
+                                value: r,
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (newRole) async {
+                          await _repo.updateMemberRole(
+                            userId: member.userId,
+                            role: newRole,
+                          );
+                          await _loadMembers();
+                        },
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      UiIconButton(
+                        icon: Icons.delete_outline_rounded,
+                        size: UiSize.xs,
+                        variant: UiVariant.destructive,
+                        tooltip: 'Remove member',
+                        onPressed: () => _showRemoveMemberDialog(member),
+                      ),
+                    ],
+                  ],
                 ),
+              );
+            },
+          ),
         ),
       ],
     );

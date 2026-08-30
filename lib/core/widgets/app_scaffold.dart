@@ -246,24 +246,64 @@ class _AppScaffoldState extends State<AppScaffold> {
     },
   );
 
-  Widget _placeholderPage(String title, String description, IconData icon) => AppPageBlock(
-    title: title,
-    subtitle: '$title Surface',
-    child: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
-        child: UiEmptyState(
-          icon: icon,
-          title: title,
-          message: description,
+  Widget _placeholderPage(String title, String description, IconData icon) =>
+      AppPageBlock(
+        title: title,
+        subtitle: '$title Surface',
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: UiEmptyState(icon: icon, title: title, message: description),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 
   Widget _searchPage() => UiSkeleton.search();
 
   Widget _notificationsPage() => UiSkeleton.notifications();
+
+  /// Loading shape for a destination the reader has not arrived at yet.
+  ///
+  /// The phone shell shows this in the dock slots either side of the live one,
+  /// so a swipe reveals the next screen taking shape instead of a second copy of
+  /// the one being dragged away.
+  Widget _destinationSkeleton(String id) {
+    // Settings is two different shapes: the bare `settings` slot is the grouped
+    // drill-in list, while `settings_<section>` lands straight on a detail form.
+    // Showing the overview shape for a section would rearrange itself the moment
+    // the real page arrived.
+    if (id == 'settings') return UiSkeleton.settings();
+    if (id.startsWith('settings_')) {
+      final String section = id.replaceFirst('settings_', '');
+      return switch (section) {
+        'profile' => UiSkeleton.settingsDetail(showIdentity: true, sections: 3),
+        'organization' => UiSkeleton.settingsDetail(
+          showIdentity: true,
+          sections: 2,
+        ),
+        'billing' => UiSkeleton.settingsList(
+          showSummary: true,
+          showHeader: false,
+          rows: 3,
+        ),
+        _ => UiSkeleton.settingsDetail(sections: 3),
+      };
+    }
+    return switch (id) {
+      'overview' => UiSkeleton.dashboard(),
+      'journal' => UiSkeleton.journal(),
+      'strategies' => UiSkeleton.strategies(),
+      'watchlists' => UiSkeleton.watchlists(),
+      'portfolio' => UiSkeleton.portfolio(),
+      'community' => UiSkeleton.community(),
+      'messages' => UiSkeleton.messages(),
+      'ai_copilot' => UiSkeleton.ai(),
+      'notifications' => UiSkeleton.notifications(),
+      'search' => UiSkeleton.search(),
+      'referrals' || 'payouts' || 'marketing' => UiSkeleton.dashboard(),
+      _ => UiSkeleton.page(),
+    };
+  }
 
   Widget _settingsPage() {
     final String sectionId = _selectedId == 'settings'
@@ -628,6 +668,8 @@ class _AppScaffoldState extends State<AppScaffold> {
             pageTitle: _pageTitleOverride,
             pageIcon: _pageIconOverride,
             onBack: _pageBackOverride,
+            pagePlaceholderBuilder: (BuildContext context, AppNavItem item) =>
+                _destinationSkeleton(item.id),
             primaryAction: widget.onRoleChanged == null
                 ? null
                 : _buildDesktopPreviewControls(),

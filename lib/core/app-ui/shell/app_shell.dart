@@ -38,6 +38,7 @@ class AppShell extends StatefulWidget {
     this.pageSectionTitle,
     this.pageIcon,
     this.onBack,
+    this.pagePlaceholderBuilder,
   });
 
   final List<AppNavSection> sections;
@@ -70,6 +71,19 @@ class AppShell extends StatefulWidget {
   /// Breadcrumb root that goes with [pageTitle].
   final String? pageSectionTitle;
 
+  /// Loading stand-in for a phone destination that is not the live one.
+  ///
+  /// The phone shell lets the reader swipe between dock destinations, so the
+  /// [PageView] asks for pages either side of the current one. Handing it the
+  /// live page again would show a second copy of the screen being dragged away;
+  /// building the neighbour for real would defeat lazy loading. A skeleton
+  /// shaped like the destination answers both: the swipe reveals the next screen
+  /// arriving, and its widget tree is only built once the swipe commits.
+  ///
+  /// Defaults to a generic page skeleton.
+  final Widget Function(BuildContext context, AppNavItem item)?
+  pagePlaceholderBuilder;
+
   @override
   State<AppShell> createState() => _AppShellState();
 }
@@ -78,8 +92,48 @@ class _AppShellState extends State<AppShell> {
   bool _collapsed = false;
   bool _navigationForward = true;
 
+  /// The dock owns its own page index and reads `initialIndex` exactly once, so
+  /// the shell drives it through a controller instead. Without this, navigation
+  /// that starts anywhere but the dock — the top bar, the quick grid, a
+  /// cross-link between pages — would leave the dock on the previous
+  /// destination while a different page is on screen.
+  late final QuietDockController _dockController;
+
   List<AppNavItem> get _flatItems =>
       widget.sections.expand((AppNavSection s) => s.items).toList();
+
+  /// The (at most four) destinations the phone dock shows.
+  List<AppNavItem> get _dockItems =>
+      (widget.mobilePrimaryItems ?? _flatItems.take(4).toList())
+          .take(4)
+          .toList();
+
+  /// Dock slot that owns [id], or -1 when no slot does.
+  ///
+  /// Every settings surface answers to the single `settings` slot: the sidebar
+  /// lists them individually, the dock cannot.
+  int _dockIndexFor(String id) {
+    final List<AppNavItem> items = _dockItems;
+    final int direct = items.indexWhere((AppNavItem item) => item.id == id);
+    if (direct >= 0) return direct;
+    if (id.startsWith('settings')) {
+      return items.indexWhere((AppNavItem item) => item.id == 'settings');
+    }
+    return -1;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final int index = _dockIndexFor(widget.selectedId);
+    _dockController = QuietDockController(initialIndex: index < 0 ? 0 : index);
+  }
+
+  @override
+  void dispose() {
+    _dockController.dispose();
+    super.dispose();
+  }
 
   void _toggleDesktopSidebar() {
     setState(() => _collapsed = !_collapsed);
@@ -89,8 +143,7 @@ class _AppShellState extends State<AppShell> {
   void didUpdateWidget(covariant AppShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedId != widget.selectedId) {
-      final List<AppNavItem> items =
-          widget.mobilePrimaryItems ?? _flatItems.take(4).toList();
+      final List<AppNavItem> items = _dockItems;
       final int previous = items.indexWhere(
         (AppNavItem item) => item.id == oldWidget.selectedId,
       );
@@ -98,8 +151,28 @@ class _AppShellState extends State<AppShell> {
         (AppNavItem item) => item.id == widget.selectedId,
       );
       _navigationForward = previous < 0 || next < 0 || next >= previous;
+      _syncDock();
     }
   }
+
+  /// Slides the dock to whichever slot owns the new destination.
+  ///
+  /// Deferred to the end of the frame: the dock is a descendant, and moving it
+  /// from here would mark it dirty while this build is still running.
+  void _syncDock() {
+    final int index = _dockIndexFor(widget.selectedId);
+    if (index < 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((Duration _) {
+      if (!mounted) return;
+      if (_dockController.index != index) {
+        _dockController.goToIndex(index);
+      }
+    });
+  }
+
+  /// Loading stand-in for a dock slot that is not the live one.
+  Widget _pagePlaceholder(BuildContext context, AppNavItem item) =>
+      widget.pagePlaceholderBuilder?.call(context, item) ?? UiSkeleton.page();
 
   @override
   Widget build(BuildContext context) {
@@ -108,28 +181,13 @@ class _AppShellState extends State<AppShell> {
     final MediaQueryData mediaQuery = MediaQuery.of(context);
     final bool keyboardVisible = mediaQuery.viewInsets.bottom > 0;
 
-    final Widget contentSurface = Container(
-      key: const ValueKey<String>('app-content-surface'),
-      margin: r.isMobile
-          ? EdgeInsets.zero
-          : EdgeInsets.fromLTRB(
-              0,
-              0,
-              context.sp(theme.spacing.xs + 3),
-              context.sp(theme.spacing.xs + 3),
-            ),
-      decoration: r.isMobile
-          ? null
-          : BoxDecoration(
-              color: theme.colors.surface,
-              borderRadius: context.radius(theme.radii.xl),
-              border: Border.all(
-                color: theme.colors.border,
-                width: theme.borders.hairline,
-              ),
-            ),
-      clipBehavior: r.isMobile ? Clip.none : Clip.antiAlias,
-      child: PageTransitionSwitcher(
+    // One page slot: the chrome around a screen, plus the transition between
+    // whatever two things occupy it. On a phone every dock slot builds its own,
+    // so a slot can cross-fade its skeleton into the real screen independently
+    // of its neighbours.
+    Widget surface({required Widget child, required String childKey}) {
+      final BorderRadius borderRadius = context.radius(theme.radii.xl);
+      final Widget switcher = PageTransitionSwitcher(
         duration: const Duration(milliseconds: 250),
         reverse: !_navigationForward,
         layoutBuilder: (List<Widget> entries) => Stack(
@@ -146,22 +204,55 @@ class _AppShellState extends State<AppShell> {
               animation: primaryAnimation,
               secondaryAnimation: secondaryAnimation,
               transitionType: SharedAxisTransitionType.horizontal,
-              fillColor: theme.colors.background,
+              fillColor: Colors.transparent,
               child: child,
             );
           }
           return FadeThroughTransition(
             animation: primaryAnimation,
             secondaryAnimation: secondaryAnimation,
-            fillColor: theme.colors.background,
+            fillColor: Colors.transparent,
             child: child,
           );
         },
         child: KeyedSubtree(
-          key: ValueKey<String>('page_${widget.selectedId}'),
-          child: widget.child,
+          key: ValueKey<String>(childKey),
+          child: child,
         ),
-      ),
+      );
+
+      return Container(
+        key: const ValueKey<String>('app-content-surface'),
+        margin: r.isMobile
+            ? EdgeInsets.zero
+            : EdgeInsets.fromLTRB(
+                0,
+                0,
+                context.sp(theme.spacing.xs + 3),
+                context.sp(theme.spacing.xs + 3),
+              ),
+        decoration: r.isMobile
+            ? null
+            : BoxDecoration(
+                borderRadius: borderRadius,
+                border: Border.all(
+                  color: theme.colors.border,
+                  width: theme.borders.hairline,
+                ),
+              ),
+        child: r.isMobile
+            ? switcher
+            : ClipRRect(
+                borderRadius: borderRadius,
+                clipBehavior: Clip.antiAlias,
+                child: switcher,
+              ),
+      );
+    }
+
+    final Widget contentSurface = surface(
+      child: widget.child,
+      childKey: 'page_${widget.selectedId}',
     );
 
     final Widget topBar = AppTopBar(
@@ -213,26 +304,20 @@ class _AppShellState extends State<AppShell> {
       // Publish the clearance as a safe inset instead of shrinking the whole
       // workspace. SafeArea-aware pages keep their controls above the dock,
       // while their background still paints beneath the floating glass bar.
+      final MediaQueryData dockSafeMedia = mediaQuery.copyWith(
+        padding: mediaQuery.padding.copyWith(bottom: dockClearance),
+      );
       final Widget dockSafeContent = MediaQuery(
-        data: mediaQuery.copyWith(
-          padding: mediaQuery.padding.copyWith(bottom: dockClearance),
-        ),
+        data: dockSafeMedia,
         child: contentSurface,
       );
-
-      final List<AppNavItem> destinations =
-          (widget.mobilePrimaryItems ?? _flatItems.take(4).toList())
-              .take(4)
-              .toList();
-      int selectedIndex = destinations.indexWhere(
-        (AppNavItem item) => item.id == widget.selectedId,
-      );
-      if (selectedIndex < 0 && widget.selectedId.startsWith('settings')) {
-        selectedIndex = destinations.indexWhere(
-          (AppNavItem item) => item.id == 'settings',
-        );
-      }
-      final int initialIndex = selectedIndex < 0 ? 0 : selectedIndex;
+      final List<AppNavItem> destinations = _dockItems;
+      final int selectedIndex = _dockIndexFor(widget.selectedId);
+      // A destination reached from the quick grid or the top bar owns no dock
+      // slot, so the page the dock is already showing hosts it.
+      final int activeIndex = selectedIndex < 0
+          ? _dockController.index
+          : selectedIndex;
       AppNavItem? activeMoreItem;
       for (final AppNavItem item in widget.mobileMoreItems) {
         if (item.id == widget.selectedId) {
@@ -252,9 +337,11 @@ class _AppShellState extends State<AppShell> {
               ),
             )
             .toList(),
-        initialIndex: initialIndex,
+        initialIndex: activeIndex,
+        controller: _dockController,
         onDestinationSelected: (int index) {
           if (index >= 0 && index < destinations.length) {
+            _dockController.goToIndex(index);
             widget.onSelect(destinations[index].id);
           }
         },
@@ -281,7 +368,22 @@ class _AppShellState extends State<AppShell> {
         keepAlive: false,
         useRail: false,
         backgroundColor: theme.colors.background,
-        pageBuilder: (BuildContext context, int index) => dockSafeContent,
+        pageBuilder: (BuildContext context, int index) {
+          // Only the live destination gets the real page. Handing the same
+          // content to every slot is what made a swipe reveal a second copy of
+          // the screen being dragged away; a skeleton reads as the next screen
+          // arriving, and keeps the neighbour's widget tree unbuilt until the
+          // swipe actually commits.
+          if (index == activeIndex) return dockSafeContent;
+          final AppNavItem item = destinations[index];
+          return MediaQuery(
+            data: dockSafeMedia,
+            child: surface(
+              child: _pagePlaceholder(context, item),
+              childKey: 'placeholder_${item.id}',
+            ),
+          );
+        },
         theme: QuietDockTheme(
           background: keyboardVisible
               ? Colors.transparent
@@ -305,6 +407,7 @@ class _AppShellState extends State<AppShell> {
           iconSize: keyboardVisible ? 0 : 22,
           frosted: !keyboardVisible,
           showLabels: false,
+          pageDuration: const Duration(milliseconds: 200),
         ),
       );
       Widget dockLayer = dockScaffold;

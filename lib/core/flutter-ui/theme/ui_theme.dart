@@ -231,8 +231,7 @@ class UiApp extends StatelessWidget {
 }
 
 /// Ergonomic access to tokens + responsive helpers from any widget.
-extension UiThemeContext on BuildContext {
-  UiTheme get ui => UiThemeScope.of(this);
+extension UiThemeContext on BuildContext {  UiTheme get ui => UiThemeScope.of(this);
   UiColors get uiColors => ui.colors;
   UiSpacing get uiSpace => ui.spacing;
   UiRadii get uiRadii => ui.radii;
@@ -247,8 +246,23 @@ extension UiThemeContext on BuildContext {
   );
 
   /// Device-scaled typography.
-  UiTypography get uiText =>
-      ui.typography.scaled(uiRes.scale.text * uiRes.textScaleFactor);
+  ///
+  /// Memoized: `scaled()` rebuilds nine [TextStyle]s, and a single page build
+  /// reads `uiText` hundreds of times. The cache is keyed by the base
+  /// typography identity plus the resolved factor, so a theme or text-size
+  /// change still produces fresh styles.
+  UiTypography get uiText {
+    final UiTheme theme = ui;
+    final UiResponsive r = UiResponsive.of(
+      this,
+      breakpoints: theme.breakpoints,
+      scaleConfig: theme.scaleConfig,
+    );
+    return _uiScaledTypography(
+      theme.typography,
+      r.scale.text * r.textScaleFactor,
+    );
+  }
 
   double sp(double v) => uiRes.sp(v);
   double sz(double v) => uiRes.sz(v);
@@ -260,4 +274,60 @@ extension UiThemeContext on BuildContext {
   double fs(double v) => uiRes.fs(v);
 
   BorderRadius radius(double v) => BorderRadius.circular(sz(v));
+
+  /// Bottom padding a scrollable page should reserve so its last control clears
+  /// whatever the shell floats over the content (a bottom dock, a home
+  /// indicator, a rail shadow).
+  ///
+  /// The shell publishes that footprint as a [MediaQuery] bottom padding, so a
+  /// page never has to know the dock's height — read this instead of hardcoding
+  /// a magic number, or the page breaks the moment the dock changes size.
+  double get uiDockInset =>
+      MediaQuery.paddingOf(this).bottom + sp(uiSpace.lg);
+
+  /// [uiDockInset], or room for the keyboard when it is open.
+  double get uiPageBottomInset {
+    final double keyboard = MediaQuery.viewInsetsOf(this).bottom;
+    if (keyboard > 0) return keyboard + sp(uiSpace.xl);
+    return uiDockInset;
+  }
+}
+
+/// Small identity+factor keyed cache backing [UiThemeContext.uiText].
+///
+/// An app realistically uses one base typography and a handful of scale
+/// factors (one per device class × the reader's text-size setting), so a tiny
+/// bounded map removes essentially all of the repeated [TextStyle] allocation
+/// without ever going stale.
+class _UiTypographyKey {
+  const _UiTypographyKey(this.typographyId, this.factor);
+
+  final int typographyId;
+  final int factor;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _UiTypographyKey &&
+      other.typographyId == typographyId &&
+      other.factor == factor;
+
+  @override
+  int get hashCode => Object.hash(typographyId, factor);
+}
+
+final Map<_UiTypographyKey, UiTypography> _uiTypographyCache =
+    <_UiTypographyKey, UiTypography>{};
+
+UiTypography _uiScaledTypography(UiTypography base, double factor) {
+  // Quantise to 1/1000 so float noise cannot fragment the cache.
+  final _UiTypographyKey key = _UiTypographyKey(
+    identityHashCode(base),
+    (factor * 1000).round(),
+  );
+  final UiTypography? hit = _uiTypographyCache[key];
+  if (hit != null) return hit;
+  if (_uiTypographyCache.length > 32) _uiTypographyCache.clear();
+  final UiTypography scaled = base.scaled(factor);
+  _uiTypographyCache[key] = scaled;
+  return scaled;
 }

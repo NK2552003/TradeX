@@ -26,11 +26,16 @@ class UiMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
+    final r = context.uiRes;
     final Color deltaColor = delta == null
         ? theme.colors.foregroundMuted
         : (delta! >= 0 ? theme.colors.bullish : theme.colors.bearish);
     return UiCard(
       onTap: onTap,
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(r.isMobile ? theme.spacing.sm + 2 : theme.spacing.md),
+        vertical: context.sp(r.isMobile ? theme.spacing.sm : theme.spacing.md),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -58,33 +63,42 @@ class UiMetricCard extends StatelessWidget {
             ],
           ),
           SizedBox(height: context.sp(theme.spacing.xs)),
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.end,
-            spacing: 6,
-            runSpacing: 2,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: <Widget>[
-              Text(
-                value,
-                style: context.uiText.title.copyWith(
-                  color: theme.colors.foreground,
-                  fontWeight: FontWeight.w700,
-                  fontSize: context.fs(18),
+              Expanded(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.title.copyWith(
+                    color: theme.colors.foreground,
+                    fontWeight: FontWeight.w700,
+                    fontSize: context.fs(r.isMobile ? 16 : 18),
+                  ),
                 ),
               ),
-              if (delta != null)
+              if (delta != null) ...<Widget>[
+                const SizedBox(width: 4),
                 Text(
                   uiSignedPercent(delta!),
+                  maxLines: 1,
                   style: context.uiText.caption.copyWith(
                     color: deltaColor,
                     fontWeight: FontWeight.w700,
+                    fontSize: context.fs(r.isMobile ? 11 : 12),
                   ),
                 ),
+              ],
             ],
           ),
           if (chart != null) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.xs)),
-            SizedBox(height: context.sz(theme.sizes.sparkHeight), child: chart),
+            SizedBox(
+              height: context.sz(r.isMobile ? 20.0 : 24.0),
+              child: chart,
+            ),
           ],
         ],
       ),

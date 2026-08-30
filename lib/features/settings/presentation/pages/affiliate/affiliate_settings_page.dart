@@ -123,23 +123,14 @@ class _AffiliateSettingsPageState extends State<AffiliateSettingsPage> {
     final isMobile = context.uiRes.isMobile;
 
     if (_loading) {
-      return Padding(
-        padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-        child: Column(
-          children: const [
-            UiSkeleton(height: 160),
-            SizedBox(height: 16),
-            UiSkeleton(height: 200),
-          ],
-        ),
-      );
+      return UiSkeleton.settingsDetail(sections: 3, rowsPerSection: 3);
     }
 
     final s = _settings!;
     final fullReferralUrl = 'https://tradex.ai/r/${s.customSlug}';
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double bottomInset = isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(

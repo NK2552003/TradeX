@@ -299,36 +299,34 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
 
   Widget _buildLoading(BuildContext context) {
     final theme = context.ui;
-    final colors = theme.colors;
     final responsive = context.uiRes;
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double bottomInset = responsive.isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0
+              ? keyboardInset + 24.0
+              : (context.uiDockInset < 100.0 ? 100.0 : context.uiDockInset))
         : context.sp(theme.spacing.xl);
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        bottom: false,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: EdgeInsets.fromLTRB(
-            context.sp(
-              responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
-            ),
-            context.sp(theme.spacing.md),
-            context.sp(
-              responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
-            ),
-            bottomInset,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: context.sz(680)),
-              child: const _ApplicationPageSkeleton(),
-            ),
+    // No Scaffold and no background of its own: this page renders inside the
+    // app shell, which already owns both. Painting `colors.background` here
+    // covered the shell's rounded content surface on desktop, and a nested
+    // `resizeToAvoidBottomInset` re-applied a keyboard inset the shell has
+    // already zeroed for its subtree.
+    return SafeArea(
+      bottom: false,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.fromLTRB(
+          context.sp(responsive.isMobile ? theme.spacing.md : theme.spacing.lg),
+          context.sp(theme.spacing.md),
+          context.sp(responsive.isMobile ? theme.spacing.md : theme.spacing.lg),
+          bottomInset,
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: context.sz(680)),
+            child: const _ApplicationPageSkeleton(),
           ),
         ),
       ),
@@ -355,282 +353,271 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
 
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double bottomInset = responsive.isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0
+              ? keyboardInset + 24.0
+              : (context.uiDockInset < 100.0 ? 100.0 : context.uiDockInset))
         : context.sp(theme.spacing.xl);
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        bottom: false,
+    // The shell owns the page background and the keyboard inset (see
+    // `_buildLoading`), so this returns bare content.
+    return SafeArea(
+      bottom: false,
+      child: Material(
+        type: MaterialType.transparency,
         child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: EdgeInsets.fromLTRB(
-            context.sp(
-              responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
-            ),
-            context.sp(theme.spacing.md),
-            context.sp(
-              responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
-            ),
-            bottomInset,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: context.sz(680)),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  UiCard(
-                    variant: UiCardVariant.surface,
-                    child: Padding(
-                      padding: EdgeInsets.all(
-                        context.sp(
-                          responsive.isMobile
-                              ? theme.spacing.md
-                              : theme.spacing.xl,
-                        ),
+        physics: const AlwaysScrollableScrollPhysics(),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.fromLTRB(
+          context.sp(responsive.isMobile ? theme.spacing.md : theme.spacing.lg),
+          context.sp(theme.spacing.md),
+          context.sp(responsive.isMobile ? theme.spacing.md : theme.spacing.lg),
+          bottomInset,
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: context.sz(680)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                UiCard(
+                  variant: UiCardVariant.surface,
+                  child: Padding(
+                    padding: EdgeInsets.all(
+                      context.sp(
+                        responsive.isMobile
+                            ? theme.spacing.md
+                            : theme.spacing.xl,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Unified Header inside Card: Back Button, Logo, TradeX & Step Badge
-                          Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Flexible(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (widget.onCancel != null)
-                                      UiIconButton(
-                                        icon: Icons.arrow_back_rounded,
-                                        size: UiSize.sm,
-                                        tooltip: widget.isExistingCustomer
-                                            ? 'Back to Workspace'
-                                            : 'Back to Sign in',
-                                        onPressed: widget.onCancel,
-                                      ),
-                                    if (widget.onCancel != null)
-                                      SizedBox(
-                                        width: context.sp(theme.spacing.xs),
-                                      ),
-                                    const AppLogoMark(size: 20),
-                                    if (!responsive.isMobile) ...[
-                                      SizedBox(
-                                        width: context.sp(theme.spacing.xs),
-                                      ),
-                                      Text(
-                                        'TradeX',
-                                        style: context.uiText.bodyStrong
-                                            .copyWith(
-                                          fontSize: 16,
-                                          letterSpacing: -0.2,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              UiBadge(
-                                label: 'STEP ${_step + 1} OF 4',
-                                intent: UiIntent.primary,
-                                variant: UiBadgeVariant.soft,
-                                size: UiSize.sm,
-                              ),
-                            ],
-                          ),
-                          if (!responsive.isMobile) ...[
-                            SizedBox(
-                              height: context.sp(theme.spacing.lg),
-                            ),
-                            UiStepper(
-                              steps: const [
-                                UiStepperStep(
-                                  title: 'Personal',
-                                  subtitle: 'Basic info',
-                                ),
-                                UiStepperStep(
-                                  title: 'Presence',
-                                  subtitle: 'Channels',
-                                ),
-                                UiStepperStep(
-                                  title: 'Payout',
-                                  subtitle: 'Bank details',
-                                ),
-                                UiStepperStep(
-                                  title: 'Review',
-                                  subtitle: 'Confirm',
-                                ),
-                              ],
-                              currentIndex: _step.clamp(0, 3),
-                            ),
-                          ] else ...[
-                            SizedBox(
-                              height: context.sp(theme.spacing.md),
-                            ),
-                            // Minimal Modern Segmented Step Indicator inside card on mobile
-                            Row(
-                              children: [
-                                for (int i = 0; i < 4; i++)
-                                  Expanded(
-                                    child: Container(
-                                      height: 3.5,
-                                      margin: EdgeInsets.only(
-                                        right: i < 3 ? 6.0 : 0.0,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        borderRadius:
-                                            BorderRadius.circular(2),
-                                        color: i <= _step
-                                            ? colors.primary
-                                            : colors.borderStrong
-                                                .withValues(
-                                                    alpha: 0.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Unified Header inside Card: Back Button, Logo, TradeX & Step Badge
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Flexible(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (widget.onCancel != null)
+                                    UiIconButton(
+                                      icon: Icons.arrow_back_rounded,
+                                      size: UiSize.sm,
+                                      tooltip: widget.isExistingCustomer
+                                          ? 'Back to Workspace'
+                                          : 'Back to Sign in',
+                                      onPressed: widget.onCancel,
+                                    ),
+                                  if (widget.onCancel != null)
+                                    SizedBox(
+                                      width: context.sp(theme.spacing.xs),
+                                    ),
+                                  const AppLogoMark(size: 20),
+                                  if (!responsive.isMobile) ...[
+                                    SizedBox(
+                                      width: context.sp(theme.spacing.xs),
+                                    ),
+                                    Text(
+                                      'TradeX',
+                                      style: context.uiText.bodyStrong.copyWith(
+                                        fontSize: 16,
+                                        letterSpacing: -0.2,
                                       ),
                                     ),
-                                  ),
-                              ],
+                                  ],
+                                ],
+                              ),
+                            ),
+                            UiBadge(
+                              label: 'STEP ${_step + 1} OF 4',
+                              intent: UiIntent.primary,
+                              variant: UiBadgeVariant.soft,
+                              size: UiSize.sm,
                             ),
                           ],
+                        ),
+                        if (!responsive.isMobile) ...[
                           SizedBox(height: context.sp(theme.spacing.lg)),
-                          AuthStepIcon(
-                            icon: stepIcon,
-                            intent: stepIntent,
+                          UiStepper(
+                            steps: const [
+                              UiStepperStep(
+                                title: 'Personal',
+                                subtitle: 'Basic info',
+                              ),
+                              UiStepperStep(
+                                title: 'Presence',
+                                subtitle: 'Channels',
+                              ),
+                              UiStepperStep(
+                                title: 'Payout',
+                                subtitle: 'Bank details',
+                              ),
+                              UiStepperStep(
+                                title: 'Review',
+                                subtitle: 'Confirm',
+                              ),
+                            ],
+                            currentIndex: _step.clamp(0, 3),
                           ),
-                          SizedBox(height: context.sp(theme.spacing.sm)),
-                          Text(
-                            widget.isExistingCustomer
-                                ? 'Add Affiliate Access'
-                                : 'Complete Affiliate Application',
-                            textAlign: TextAlign.center,
-                            style: context.uiText.display.copyWith(
-                              fontSize: 28.0,
-                              fontWeight: FontWeight.w400,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.xxs)),
-                          Text(
-                            'Your trading account remains active while the TradeX team reviews this application.',
-                            textAlign: TextAlign.center,
-                            style: context.uiText.body.copyWith(
-                              color: colors.foregroundMuted,
-                              fontSize: 13.5,
-                            ),
-                          ),
+                        ] else ...[
                           SizedBox(height: context.sp(theme.spacing.md)),
-                          if (_error != null) ...[
-                            UiCallout(
-                              title: 'Check this step',
-                              message: _error!,
-                              intent: UiIntent.danger,
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.md)),
-                          ],
-                          AnimatedSwitcher(
-                            duration: theme.motion.normal,
-                            child: KeyedSubtree(
-                              key: ValueKey<int>(_step),
-                              child: switch (_step) {
-                                0 => _buildPersonal(context),
-                                1 => _buildPresence(context),
-                                2 => _buildPayout(context),
-                                _ => _buildReview(context),
-                              },
-                            ),
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.lg)),
+                          // Minimal Modern Segmented Step Indicator inside card on mobile
                           Row(
-                            children: <Widget>[
-                              if (_step > 0)
+                            children: [
+                              for (int i = 0; i < 4; i++)
                                 Expanded(
-                                  child: UiButton(
-                                    label: 'Back',
-                                    leadingIcon: Icons.arrow_back_rounded,
-                                    variant: UiVariant.outline,
-                                    intent: UiIntent.neutral,
-                                    size: responsive.isMobile
-                                        ? UiSize.md
-                                        : UiSize.lg,
-                                    onPressed: () => setState(() {
-                                      _error = null;
-                                      _step--;
-                                    }),
+                                  child: Container(
+                                    height: 3.5,
+                                    margin: EdgeInsets.only(
+                                      right: i < 3 ? 6.0 : 0.0,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(2),
+                                      color: i <= _step
+                                          ? colors.primary
+                                          : colors.borderStrong.withValues(
+                                              alpha: 0.5,
+                                            ),
+                                    ),
                                   ),
                                 ),
-                              if (_step > 0)
-                                SizedBox(width: context.sp(theme.spacing.sm)),
+                            ],
+                          ),
+                        ],
+                        SizedBox(height: context.sp(theme.spacing.lg)),
+                        AuthStepIcon(icon: stepIcon, intent: stepIntent),
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        Text(
+                          widget.isExistingCustomer
+                              ? 'Add Affiliate Access'
+                              : 'Complete Affiliate Application',
+                          textAlign: TextAlign.center,
+                          style: context.uiText.display.copyWith(
+                            fontSize: 28.0,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.xxs)),
+                        Text(
+                          'Your trading account remains active while the TradeX team reviews this application.',
+                          textAlign: TextAlign.center,
+                          style: context.uiText.body.copyWith(
+                            color: colors.foregroundMuted,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.md)),
+                        if (_error != null) ...[
+                          UiCallout(
+                            title: 'Check this step',
+                            message: _error!,
+                            intent: UiIntent.danger,
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.md)),
+                        ],
+                        AnimatedSwitcher(
+                          duration: theme.motion.normal,
+                          child: KeyedSubtree(
+                            key: ValueKey<int>(_step),
+                            child: switch (_step) {
+                              0 => _buildPersonal(context),
+                              1 => _buildPresence(context),
+                              2 => _buildPayout(context),
+                              _ => _buildReview(context),
+                            },
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.lg)),
+                        Row(
+                          children: <Widget>[
+                            if (_step > 0)
                               Expanded(
                                 child: UiButton(
-                                  label: _step == 3
-                                      ? (_submitting
-                                          ? 'Submitting…'
-                                          : 'Submit Application')
-                                      : 'Continue',
-                                  trailingIcon: _step == 3
-                                      ? null
-                                      : Icons.arrow_forward_rounded,
-                                  variant: UiVariant.primary,
-                                  intent: UiIntent.primary,
+                                  label: 'Back',
+                                  leadingIcon: Icons.arrow_back_rounded,
+                                  variant: UiVariant.outline,
+                                  intent: UiIntent.neutral,
                                   size: responsive.isMobile
                                       ? UiSize.md
                                       : UiSize.lg,
-                                  onPressed: _submitting
-                                      ? null
-                                      : (_step == 3 ? _submit : _next),
+                                  onPressed: () => setState(() {
+                                    _error = null;
+                                    _step--;
+                                  }),
                                 ),
                               ),
-                            ],
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.sm)),
-                          Text(
-                            'Approval adds affiliate tools to your existing account. Your trading workspace and customer access remain unchanged.',
-                            textAlign: TextAlign.center,
-                            style: context.uiText.caption.copyWith(
-                              color: theme.colors.foregroundSubtle,
-                              fontSize: 11.5,
+                            if (_step > 0)
+                              SizedBox(width: context.sp(theme.spacing.sm)),
+                            Expanded(
+                              child: UiButton(
+                                label: _step == 3
+                                    ? (_submitting
+                                          ? 'Submitting…'
+                                          : 'Submit Application')
+                                    : 'Continue',
+                                trailingIcon: _step == 3
+                                    ? null
+                                    : Icons.arrow_forward_rounded,
+                                variant: UiVariant.primary,
+                                intent: UiIntent.primary,
+                                size: responsive.isMobile
+                                    ? UiSize.md
+                                    : UiSize.lg,
+                                onPressed: _submitting
+                                    ? null
+                                    : (_step == 3 ? _submit : _next),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.md)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.verified_user_outlined,
-                        size: context.sz(14),
-                        color: colors.foregroundSubtle,
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.xs)),
-                      Flexible(
-                        child: Text(
-                          'Your data is encrypted end-to-end',
-                          overflow: TextOverflow.ellipsis,
+                          ],
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        Text(
+                          'Approval adds affiliate tools to your existing account. Your trading workspace and customer access remain unchanged.',
+                          textAlign: TextAlign.center,
                           style: context.uiText.caption.copyWith(
-                            color: colors.foregroundSubtle,
+                            color: theme.colors.foregroundSubtle,
                             fontSize: 11.5,
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                ),
+                SizedBox(height: context.sp(theme.spacing.md)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.verified_user_outlined,
+                      size: context.sz(14),
+                      color: colors.foregroundSubtle,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Flexible(
+                      child: Text(
+                        'Your data is encrypted end-to-end',
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.caption.copyWith(
+                          color: colors.foregroundSubtle,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPersonal(BuildContext context) {
     final UiTheme theme = context.ui;
@@ -692,9 +679,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                     ? Icons.verified_rounded
                     : Icons.sms_outlined,
                 size: UiSize.xs,
-                variant: _phoneVerified
-                    ? UiVariant.success
-                    : UiVariant.outline,
+                variant: _phoneVerified ? UiVariant.success : UiVariant.outline,
                 tooltip: _phoneVerified
                     ? 'Phone verified'
                     : 'Send verification code',
@@ -712,8 +697,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
               value: _dateOfBirth,
               firstDate: DateTime(1940),
               lastDate: DateTime.now(),
-              onChanged: (DateTime date) =>
-                  setState(() => _dateOfBirth = date),
+              onChanged: (DateTime date) => setState(() => _dateOfBirth = date),
             ),
           ),
         ),
@@ -986,8 +970,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                 UiOption<String>(value: 'Savings', label: 'Savings'),
                 UiOption<String>(value: 'Current', label: 'Current'),
               ],
-              onChanged: (String value) =>
-                  setState(() => _accountType = value),
+              onChanged: (String value) => setState(() => _accountType = value),
             ),
           ),
         ),
@@ -1094,12 +1077,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
       child: Column(
         children: [
           for (int i = 0; i < sections.length; i++) ...[
-            if (i > 0)
-              Divider(
-                height: 1,
-                thickness: 1,
-                color: colors.border,
-              ),
+            if (i > 0) Divider(height: 1, thickness: 1, color: colors.border),
             Padding(
               padding: EdgeInsets.all(context.sp(theme.spacing.md)),
               child: Column(
@@ -1112,8 +1090,9 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            padding:
-                                EdgeInsets.all(context.sp(theme.spacing.xxs)),
+                            padding: EdgeInsets.all(
+                              context.sp(theme.spacing.xxs),
+                            ),
                             decoration: BoxDecoration(
                               color: colors.primary.withValues(alpha: 0.12),
                               borderRadius: context.radius(theme.radii.sm),
@@ -1146,8 +1125,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                   ),
                   SizedBox(height: context.sp(theme.spacing.xs)),
                   Text(
-                    sections[i]
-                        .values
+                    sections[i].values
                         .where((v) => v.trim().isNotEmpty)
                         .join(' · '),
                     maxLines: 3,
@@ -1196,18 +1174,15 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
       () => setState(() => _step = 1),
     );
 
-    final Widget payoutCard = _reviewCard(
-      context,
-      'Payout',
-      Icons.account_balance_outlined,
-      <String>[
-        _accountHolder.text,
-        _bankName ?? '',
-        '•••• ${_accountNumber.text.length >= 4 ? _accountNumber.text.substring(_accountNumber.text.length - 4) : _accountNumber.text}',
-        '${_ifsc.text.toUpperCase()} · ${_accountType ?? ''}',
-      ],
-      () => setState(() => _step = 2),
-    );
+    final Widget
+    payoutCard = _reviewCard(context, 'Payout', Icons.account_balance_outlined, <
+      String
+    >[
+      _accountHolder.text,
+      _bankName ?? '',
+      '•••• ${_accountNumber.text.length >= 4 ? _accountNumber.text.substring(_accountNumber.text.length - 4) : _accountNumber.text}',
+      '${_ifsc.text.toUpperCase()} · ${_accountType ?? ''}',
+    ], () => setState(() => _step = 2));
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -1268,8 +1243,9 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
               ],
             ),
             SizedBox(height: context.sp(theme.spacing.xs)),
-            for (final String value
-                in values.where((String v) => v.trim().isNotEmpty))
+            for (final String value in values.where(
+              (String v) => v.trim().isNotEmpty,
+            ))
               Padding(
                 padding: const EdgeInsets.only(bottom: 3),
                 child: Text(
@@ -1297,138 +1273,129 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
     final responsive = context.uiRes;
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double bottomInset = responsive.isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.xl);
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        bottom: false,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: EdgeInsets.fromLTRB(
-            context.sp(
-              responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
-            ),
-            context.sp(theme.spacing.md),
-            context.sp(
-              responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
-            ),
-            bottomInset,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: context.sz(680)),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const AppLogoMark(size: 20),
-                      SizedBox(width: context.sp(theme.spacing.xs)),
-                      Text(
-                        'TradeX',
-                        style: context.uiText.bodyStrong.copyWith(
-                          fontSize: 16,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.lg)),
-                  UiCard(
-                    variant: UiCardVariant.surface,
-                    child: Padding(
-                      padding: EdgeInsets.all(
-                        context.sp(
-                          responsive.isMobile
-                              ? theme.spacing.md
-                              : theme.spacing.xl,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          const AuthStepIcon(
-                            icon: Icons.hourglass_top_rounded,
-                            intent: UiIntent.warning,
-                            large: true,
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.md)),
-                          Text(
-                            'Application Submitted!',
-                            textAlign: TextAlign.center,
-                            style: context.uiText.display.copyWith(
-                              fontSize: 28.0,
-                              fontWeight: FontWeight.w400,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.xxs)),
-                          Text(
-                            'Reference ${application.id}',
-                            textAlign: TextAlign.center,
-                            style: context.uiText.body.copyWith(
-                              color: colors.foregroundMuted,
-                              fontSize: 13.5,
-                            ),
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.md)),
-                          const UiCallout(
-                            title: 'Awaiting administrator review',
-                            message:
-                                'Most applications are reviewed within 48 hours. Partner links, payouts, and referral analytics remain locked until approval.',
-                            intent: UiIntent.warning,
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.md)),
-                          Text(
-                            'Your journal, portfolio, subscription, community profile, and all customer/trader tools remain available.',
-                            textAlign: TextAlign.center,
-                            style: context.uiText.body.copyWith(
-                              color: theme.colors.foregroundMuted,
-                              fontSize: 13.0,
-                            ),
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.lg)),
-                          UiButton(
-                            label: 'Continue to TradeX',
-                            trailingIcon: Icons.arrow_forward_rounded,
-                            variant: UiVariant.primary,
-                            intent: UiIntent.primary,
-                            size: responsive.isMobile
-                                ? UiSize.md
-                                : UiSize.lg,
-                            onPressed: widget.onDone ?? widget.onCancel,
-                          ),
-                        ],
+    // Shell-owned background and keyboard inset (see `_buildLoading`).
+    return SafeArea(
+      bottom: false,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.fromLTRB(
+          context.sp(responsive.isMobile ? theme.spacing.md : theme.spacing.lg),
+          context.sp(theme.spacing.md),
+          context.sp(responsive.isMobile ? theme.spacing.md : theme.spacing.lg),
+          bottomInset,
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: context.sz(680)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const AppLogoMark(size: 20),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Text(
+                      'TradeX',
+                      style: context.uiText.bodyStrong.copyWith(
+                        fontSize: 16,
+                        letterSpacing: -0.2,
                       ),
                     ),
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.md)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.verified_user_outlined,
-                        size: context.sz(14),
-                        color: colors.foregroundSubtle,
+                  ],
+                ),
+                SizedBox(height: context.sp(theme.spacing.lg)),
+                UiCard(
+                  variant: UiCardVariant.surface,
+                  child: Padding(
+                    padding: EdgeInsets.all(
+                      context.sp(
+                        responsive.isMobile
+                            ? theme.spacing.md
+                            : theme.spacing.xl,
                       ),
-                      SizedBox(width: context.sp(theme.spacing.xs)),
-                      Text(
-                        'Your data is encrypted end-to-end',
-                        style: context.uiText.caption.copyWith(
-                          color: colors.foregroundSubtle,
-                          fontSize: 11.5,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        const AuthStepIcon(
+                          icon: Icons.hourglass_top_rounded,
+                          intent: UiIntent.warning,
+                          large: true,
                         ),
-                      ),
-                    ],
+                        SizedBox(height: context.sp(theme.spacing.md)),
+                        Text(
+                          'Application Submitted!',
+                          textAlign: TextAlign.center,
+                          style: context.uiText.display.copyWith(
+                            fontSize: 28.0,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.xxs)),
+                        Text(
+                          'Reference ${application.id}',
+                          textAlign: TextAlign.center,
+                          style: context.uiText.body.copyWith(
+                            color: colors.foregroundMuted,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.md)),
+                        const UiCallout(
+                          title: 'Awaiting administrator review',
+                          message:
+                              'Most applications are reviewed within 48 hours. Partner links, payouts, and referral analytics remain locked until approval.',
+                          intent: UiIntent.warning,
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.md)),
+                        Text(
+                          'Your journal, portfolio, subscription, community profile, and all customer/trader tools remain available.',
+                          textAlign: TextAlign.center,
+                          style: context.uiText.body.copyWith(
+                            color: theme.colors.foregroundMuted,
+                            fontSize: 13.0,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.lg)),
+                        UiButton(
+                          label: 'Continue to TradeX',
+                          trailingIcon: Icons.arrow_forward_rounded,
+                          variant: UiVariant.primary,
+                          intent: UiIntent.primary,
+                          size: responsive.isMobile ? UiSize.md : UiSize.lg,
+                          onPressed: widget.onDone ?? widget.onCancel,
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                ),
+                SizedBox(height: context.sp(theme.spacing.md)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.verified_user_outlined,
+                      size: context.sz(14),
+                      color: colors.foregroundSubtle,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Text(
+                      'Your data is encrypted end-to-end',
+                      style: context.uiText.caption.copyWith(
+                        color: colors.foregroundSubtle,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),

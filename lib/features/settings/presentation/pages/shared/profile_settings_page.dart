@@ -6,7 +6,7 @@ import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class ProfileSettingsPage extends StatefulWidget {
   const ProfileSettingsPage({
@@ -157,19 +157,31 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
     _phoneController = TextEditingController(text: '+91 98765 43210');
     _channelHandleController = TextEditingController(text: '@designtrades');
-    _sampleLinkController = TextEditingController(text: 'https://youtube.com/@designtrades');
+    _sampleLinkController = TextEditingController(
+      text: 'https://youtube.com/@designtrades',
+    );
     _accountHolderController = TextEditingController();
     _bankNameController = TextEditingController(text: 'HDFC Bank');
     _accountNumberController = TextEditingController(text: '123456789012');
     _ifscController = TextEditingController(text: 'HDFC0001234');
     _panController = TextEditingController(text: 'ABCDE1234F');
     _upiController = TextEditingController(text: 'design@upi');
-    _referralCodeController = TextEditingController(text: 'TRADEX-PARTNER-2026');
+    _referralCodeController = TextEditingController(
+      text: 'TRADEX-PARTNER-2026',
+    );
 
-    _adminClearanceLevelController = TextEditingController(text: 'Level 5 Root Superadmin');
-    _adminDesignationController = TextEditingController(text: 'Chief Risk Officer & Managing Partner');
-    _adminSupervisedCapitalController = TextEditingController(text: '₹148.2 Cr');
-    _adminTerminalUrlController = TextEditingController(text: 'tradex.internal/root');
+    _adminClearanceLevelController = TextEditingController(
+      text: 'Level 5 Root Superadmin',
+    );
+    _adminDesignationController = TextEditingController(
+      text: 'Chief Risk Officer & Managing Partner',
+    );
+    _adminSupervisedCapitalController = TextEditingController(
+      text: '₹148.2 Cr',
+    );
+    _adminTerminalUrlController = TextEditingController(
+      text: 'tradex.internal/root',
+    );
 
     _applyProfile(_repo.cachedProfile);
     _loadProfile();
@@ -181,15 +193,30 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     _accountHolderController.text = profile.displayName;
     _bioController.text = profile.bio ?? '';
     _locationController.text = profile.location ?? 'Mumbai, Maharashtra';
-    _websiteController.text = profile.website ?? (widget.userRole == UserRole.affiliate ? 'https://youtube.com/@${profile.handle}' : (widget.userRole == UserRole.userAdmin ? 'tradex.internal/root' : 'tradex.io/@${profile.handle}'));
-    _riskMantraController.text = profile.riskMantra ?? (widget.userRole == UserRole.userAdmin ? 'Capital preservation & sub-millisecond VaR margin control' : 'Focus on risk management over FOMO');
-    _referralCodeController.text = profile.referralCode ?? 'TRADEX-PARTNER-2026';
+    _websiteController.text =
+        profile.website ??
+        (widget.userRole == UserRole.affiliate
+            ? 'https://youtube.com/@${profile.handle}'
+            : (widget.userRole == UserRole.userAdmin
+                  ? 'tradex.internal/root'
+                  : 'tradex.io/@${profile.handle}'));
+    _riskMantraController.text =
+        profile.riskMantra ??
+        (widget.userRole == UserRole.userAdmin
+            ? 'Capital preservation & sub-millisecond VaR margin control'
+            : 'Focus on risk management over FOMO');
+    _referralCodeController.text =
+        profile.referralCode ?? 'TRADEX-PARTNER-2026';
 
     _selectedExperience = profile.experienceLevel ?? _experienceOptions[3];
     _selectedStyle = profile.tradingStyle ?? _tradingStyles[2];
     _selectedMarket = profile.primaryMarket ?? _marketOptions[0];
     _selectedHoldDuration = profile.avgHoldDuration ?? _holdDurations[1];
-    _selectedTopStrategy = profile.topStrategy ?? (widget.userRole == UserRole.userAdmin ? 'Institutional VaR & Multi-Desk Risk' : _topStrategies[0]);
+    _selectedTopStrategy =
+        profile.topStrategy ??
+        (widget.userRole == UserRole.userAdmin
+            ? 'Institutional VaR & Multi-Desk Risk'
+            : _topStrategies[0]);
 
     _publicStatsEnabled = profile.publicJournals;
     _publicJournalsEnabled = profile.publicJournals;
@@ -257,8 +284,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         location: _locationController.text.trim(),
         website: _websiteController.text.trim(),
         avgHoldDuration: _selectedHoldDuration,
-        primaryMarket: widget.userRole == UserRole.affiliate ? _selectedNiche : _selectedMarket,
-        topStrategy: widget.userRole == UserRole.affiliate ? _selectedChannelSource : _selectedTopStrategy,
+        primaryMarket: widget.userRole == UserRole.affiliate
+            ? _selectedNiche
+            : _selectedMarket,
+        topStrategy: widget.userRole == UserRole.affiliate
+            ? _selectedChannelSource
+            : _selectedTopStrategy,
         riskMantra: _riskMantraController.text.trim(),
         experienceLevel: widget.userRole == UserRole.customer
             ? _selectedExperience
@@ -275,7 +306,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         });
         UiToast.show(
           context,
-          title: widget.userRole == UserRole.affiliate ? 'Partner Profile Updated' : 'Profile Updated',
+          title: widget.userRole == UserRole.affiliate
+              ? 'Partner Profile Updated'
+              : 'Profile Updated',
           message: 'Your profile changes have been saved successfully.',
           intent: UiIntent.success,
         );
@@ -386,7 +419,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   }
 
   void _showProfilePreview() {
-    showSettingsSideSheet<void>(
+    openSettingsSubpage(
       context,
       title: widget.userRole == UserRole.affiliate
           ? 'Affiliate Partner Portal Preview'
@@ -394,8 +427,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       subtitle: widget.userRole == UserRole.affiliate
           ? 'Preview how referred traders see your partner portal & campaigns'
           : 'Preview how other traders see your public presence',
+      icon: Icons.visibility_outlined,
       desktopWidthRatio: 0.60,
-      child: TraderProfilePreviewPage(
+      page: TraderProfilePreviewPage(
         displayName: _displayNameController.text.trim().isNotEmpty
             ? _displayNameController.text.trim()
             : (_profile?.displayName ?? ''),
@@ -434,25 +468,19 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     };
     final isMobile = context.uiRes.isMobile;
 
+    // Shaped like the loaded page — identity header, then the form sections —
+    // so nothing jumps when the data lands.
     if (_loading) {
-      return Padding(
-        padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: const [
-            UiSkeleton(height: 120),
-            SizedBox(height: 16),
-            UiSkeleton(height: 140),
-            SizedBox(height: 16),
-            UiSkeleton(height: 100),
-          ],
-        ),
+      return UiSkeleton.settingsDetail(
+        showIdentity: true,
+        sections: 3,
+        rowsPerSection: 3,
       );
     }
 
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double bottomInset = isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(
@@ -532,7 +560,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                                       ),
                                       if (_verified)
                                         UiTooltip(
-                                          message: widget.userRole == UserRole.affiliate
+                                          message:
+                                              widget.userRole ==
+                                                  UserRole.affiliate
                                               ? 'Verified Affiliate Partner'
                                               : 'Verified trader',
                                           child: Icon(
@@ -563,7 +593,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                                   SizedBox(
                                     width: context.sz(172),
                                     child: UiButton(
-                                      label: widget.userRole == UserRole.affiliate
+                                      label:
+                                          widget.userRole == UserRole.affiliate
                                           ? 'Preview Portal'
                                           : 'Preview Profile',
                                       leadingIcon: Icons.visibility_outlined,
@@ -636,32 +667,65 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                       ),
                     ),
                     SizedBox(height: context.sp(theme.spacing.sm)),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: UiField(
-                            label: 'Location / City',
-                            child: UiInput(
-                              value: _locationController.text,
-                              hintText: 'e.g. Mumbai, IN or New York, US',
-                              leadingIcon: Icons.location_on_outlined,
-                              onChanged: (v) => _locationController.text = v,
+                    LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final bool isNarrow = constraints.maxWidth < 600;
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiField(
+                                label: 'Location / City',
+                                child: UiInput(
+                                  value: _locationController.text,
+                                  hintText: 'e.g. Mumbai, IN or New York, US',
+                                  leadingIcon: Icons.location_on_outlined,
+                                  onChanged: (v) => _locationController.text = v,
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              UiField(
+                                label: 'Website / Profile Link',
+                                child: UiInput(
+                                  value: _websiteController.text,
+                                  hintText:
+                                      'e.g. tradex.io/@${_profile?.handle ?? "trader"}',
+                                  leadingIcon: Icons.link_rounded,
+                                  onChanged: (v) => _websiteController.text = v,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: UiField(
+                                label: 'Location / City',
+                                child: UiInput(
+                                  value: _locationController.text,
+                                  hintText: 'e.g. Mumbai, IN or New York, US',
+                                  leadingIcon: Icons.location_on_outlined,
+                                  onChanged: (v) => _locationController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: UiField(
-                            label: 'Website / Profile Link',
-                            child: UiInput(
-                              value: _websiteController.text,
-                              hintText: 'e.g. tradex.io/@${_profile?.handle ?? "trader"}',
-                              leadingIcon: Icons.link_rounded,
-                              onChanged: (v) => _websiteController.text = v,
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: UiField(
+                                label: 'Website / Profile Link',
+                                child: UiInput(
+                                  value: _websiteController.text,
+                                  hintText:
+                                      'e.g. tradex.io/@${_profile?.handle ?? "trader"}',
+                                  leadingIcon: Icons.link_rounded,
+                                  onChanged: (v) => _websiteController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                     SizedBox(height: context.sp(theme.spacing.sm)),
                     UiField(
@@ -670,7 +734,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                           'Displayed on your public profile, shared playbooks, and verified track record.',
                       child: UiTextarea(
                         value: _bioController.text,
-                        hintText: 'Share your background, markets traded, or strategy style...',
+                        hintText:
+                            'Share your background, markets traded, or strategy style...',
                         rows: 3,
                         onChanged: (v) => _bioController.text = v,
                       ),
@@ -683,93 +748,225 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   description:
                       'Configures your public preview statistics, strategy badges, and trade classifications.',
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: UiField(
-                            label: 'Experience Level',
-                            child: UiSelect<String>(
-                              value: _selectedExperience,
-                              options: _experienceOptions
-                                  .map((e) => UiOption<String>(label: e, value: e))
-                                  .toList(),
-                              onChanged: (v) => setState(() => _selectedExperience = v),
+                    LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final bool isNarrow = constraints.maxWidth < 600;
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiField(
+                                label: 'Experience Level',
+                                child: UiSelect<String>(
+                                  value: _selectedExperience,
+                                  options: _experienceOptions
+                                      .map(
+                                        (e) => UiOption<String>(label: e, value: e),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedExperience = v),
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              UiField(
+                                label: 'Primary Trading Style',
+                                child: UiSelect<String>(
+                                  value: _selectedStyle,
+                                  options: _tradingStyles
+                                      .map(
+                                        (s) => UiOption<String>(label: s, value: s),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedStyle = v),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: UiField(
+                                label: 'Experience Level',
+                                child: UiSelect<String>(
+                                  value: _selectedExperience,
+                                  options: _experienceOptions
+                                      .map(
+                                        (e) => UiOption<String>(label: e, value: e),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedExperience = v),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: UiField(
-                            label: 'Primary Trading Style',
-                            child: UiSelect<String>(
-                              value: _selectedStyle,
-                              options: _tradingStyles
-                                  .map((s) => UiOption<String>(label: s, value: s))
-                                  .toList(),
-                              onChanged: (v) => setState(() => _selectedStyle = v),
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: UiField(
+                                label: 'Primary Trading Style',
+                                child: UiSelect<String>(
+                                  value: _selectedStyle,
+                                  options: _tradingStyles
+                                      .map(
+                                        (s) => UiOption<String>(label: s, value: s),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedStyle = v),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                     SizedBox(height: context.sp(theme.spacing.sm)),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: UiField(
-                            label: 'Primary Traded Market',
-                            child: UiSelect<String>(
-                              value: _selectedMarket,
-                              options: _marketOptions
-                                  .map((m) => UiOption<String>(label: m, value: m))
-                                  .toList(),
-                              onChanged: (v) => setState(() => _selectedMarket = v),
+                    LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final bool isNarrow = constraints.maxWidth < 600;
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiField(
+                                label: 'Primary Traded Market',
+                                child: UiSelect<String>(
+                                  value: _selectedMarket,
+                                  options: _marketOptions
+                                      .map(
+                                        (m) => UiOption<String>(label: m, value: m),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedMarket = v),
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              UiField(
+                                label: 'Average Trade Hold Duration',
+                                child: UiSelect<String>(
+                                  value: _selectedHoldDuration,
+                                  options: _holdDurations
+                                      .map(
+                                        (h) => UiOption<String>(label: h, value: h),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedHoldDuration = v),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: UiField(
+                                label: 'Primary Traded Market',
+                                child: UiSelect<String>(
+                                  value: _selectedMarket,
+                                  options: _marketOptions
+                                      .map(
+                                        (m) => UiOption<String>(label: m, value: m),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedMarket = v),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: UiField(
-                            label: 'Average Trade Hold Duration',
-                            child: UiSelect<String>(
-                              value: _selectedHoldDuration,
-                              options: _holdDurations
-                                  .map((h) => UiOption<String>(label: h, value: h))
-                                  .toList(),
-                              onChanged: (v) => setState(() => _selectedHoldDuration = v),
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: UiField(
+                                label: 'Average Trade Hold Duration',
+                                child: UiSelect<String>(
+                                  value: _selectedHoldDuration,
+                                  options: _holdDurations
+                                      .map(
+                                        (h) => UiOption<String>(label: h, value: h),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedHoldDuration = v),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                     SizedBox(height: context.sp(theme.spacing.sm)),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: UiField(
-                            label: 'Top Strategy / Playbook Focus',
-                            child: UiSelect<String>(
-                              value: _selectedTopStrategy,
-                              options: _topStrategies
-                                  .map((t) => UiOption<String>(label: t, value: t))
-                                  .toList(),
-                              onChanged: (v) => setState(() => _selectedTopStrategy = v),
+                    LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final bool isNarrow = constraints.maxWidth < 600;
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiField(
+                                label: 'Top Strategy / Playbook Focus',
+                                child: UiSelect<String>(
+                                  value: _selectedTopStrategy,
+                                  options: _topStrategies
+                                      .map(
+                                        (t) => UiOption<String>(label: t, value: t),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedTopStrategy = v),
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              UiField(
+                                label: 'Risk Philosophy / Mantra',
+                                child: UiInput(
+                                  value: _riskMantraController.text,
+                                  hintText:
+                                      'e.g. Focus on risk management over FOMO',
+                                  leadingIcon: Icons.shield_outlined,
+                                  onChanged: (v) =>
+                                      _riskMantraController.text = v,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: UiField(
+                                label: 'Top Strategy / Playbook Focus',
+                                child: UiSelect<String>(
+                                  value: _selectedTopStrategy,
+                                  options: _topStrategies
+                                      .map(
+                                        (t) => UiOption<String>(label: t, value: t),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedTopStrategy = v),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: UiField(
-                            label: 'Risk Philosophy / Mantra',
-                            child: UiInput(
-                              value: _riskMantraController.text,
-                              hintText: 'e.g. Focus on risk management over FOMO',
-                              leadingIcon: Icons.shield_outlined,
-                              onChanged: (v) => _riskMantraController.text = v,
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: UiField(
+                                label: 'Risk Philosophy / Mantra',
+                                child: UiInput(
+                                  value: _riskMantraController.text,
+                                  hintText:
+                                      'e.g. Focus on risk management over FOMO',
+                                  leadingIcon: Icons.shield_outlined,
+                                  onChanged: (v) =>
+                                      _riskMantraController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -805,7 +1002,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   ],
                 ),
               ]
-
               // ===============================================================
               // 2. AFFILIATE PARTNER 4-STEP PROFILE EDIT ARCHITECTURE
               // ===============================================================
@@ -816,60 +1012,124 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   description:
                       'Official partner alias, verified contact information, and public promotional presence.',
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: UiField(
-                            label: 'Partner / Channel Name',
-                            child: UiInput(
-                              value: _displayNameController.text,
-                              hintText: 'e.g. Nitish Kumar or DesignTrades',
-                              leadingIcon: Icons.badge_outlined,
-                              onChanged: (v) => _displayNameController.text = v,
+                    LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final bool isNarrow = constraints.maxWidth < 600;
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiField(
+                                label: 'Partner / Channel Name',
+                                child: UiInput(
+                                  value: _displayNameController.text,
+                                  hintText: 'e.g. Nitish Kumar or DesignTrades',
+                                  leadingIcon: Icons.badge_outlined,
+                                  onChanged: (v) => _displayNameController.text = v,
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              UiField(
+                                label: 'Verified Phone Number',
+                                child: UiInput(
+                                  value: _phoneController.text,
+                                  hintText: '+91 98765 43210',
+                                  leadingIcon: Icons.phone_outlined,
+                                  onChanged: (v) => _phoneController.text = v,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: UiField(
+                                label: 'Partner / Channel Name',
+                                child: UiInput(
+                                  value: _displayNameController.text,
+                                  hintText: 'e.g. Nitish Kumar or DesignTrades',
+                                  leadingIcon: Icons.badge_outlined,
+                                  onChanged: (v) => _displayNameController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: UiField(
-                            label: 'Verified Phone Number',
-                            child: UiInput(
-                              value: _phoneController.text,
-                              hintText: '+91 98765 43210',
-                              leadingIcon: Icons.phone_outlined,
-                              onChanged: (v) => _phoneController.text = v,
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: UiField(
+                                label: 'Verified Phone Number',
+                                child: UiInput(
+                                  value: _phoneController.text,
+                                  hintText: '+91 98765 43210',
+                                  leadingIcon: Icons.phone_outlined,
+                                  onChanged: (v) => _phoneController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                     SizedBox(height: context.sp(theme.spacing.sm)),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: UiField(
-                            label: 'Location / State',
-                            child: UiInput(
-                              value: _locationController.text,
-                              hintText: 'e.g. Mumbai, Maharashtra',
-                              leadingIcon: Icons.location_on_outlined,
-                              onChanged: (v) => _locationController.text = v,
+                    LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final bool isNarrow = constraints.maxWidth < 600;
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiField(
+                                label: 'Location / State',
+                                child: UiInput(
+                                  value: _locationController.text,
+                                  hintText: 'e.g. Mumbai, Maharashtra',
+                                  leadingIcon: Icons.location_on_outlined,
+                                  onChanged: (v) => _locationController.text = v,
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              UiField(
+                                label: 'Primary Channel / Website URL',
+                                child: UiInput(
+                                  value: _websiteController.text,
+                                  hintText:
+                                      'e.g. https://youtube.com/@designtrades',
+                                  leadingIcon: Icons.link_rounded,
+                                  onChanged: (v) => _websiteController.text = v,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: UiField(
+                                label: 'Location / State',
+                                child: UiInput(
+                                  value: _locationController.text,
+                                  hintText: 'e.g. Mumbai, Maharashtra',
+                                  leadingIcon: Icons.location_on_outlined,
+                                  onChanged: (v) => _locationController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: UiField(
-                            label: 'Primary Channel / Website URL',
-                            child: UiInput(
-                              value: _websiteController.text,
-                              hintText: 'e.g. https://youtube.com/@designtrades',
-                              leadingIcon: Icons.link_rounded,
-                              onChanged: (v) => _websiteController.text = v,
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: UiField(
+                                label: 'Primary Channel / Website URL',
+                                child: UiInput(
+                                  value: _websiteController.text,
+                                  hintText:
+                                      'e.g. https://youtube.com/@designtrades',
+                                  leadingIcon: Icons.link_rounded,
+                                  onChanged: (v) => _websiteController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                     SizedBox(height: context.sp(theme.spacing.sm)),
                     UiField(
@@ -878,7 +1138,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                           'Displayed on your public partner landing page and referral campaigns.',
                       child: UiTextarea(
                         value: _bioController.text,
-                        hintText: 'Describe your audience, channels, and trading education focus...',
+                        hintText:
+                            'Describe your audience, channels, and trading education focus...',
                         rows: 3,
                         onChanged: (v) => _bioController.text = v,
                       ),
@@ -893,70 +1154,156 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   description:
                       'Primary distribution platforms where you share referral codes, setups, and webinars.',
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: UiField(
-                            label: 'Primary Promotion Channel',
-                            child: UiSelect<String>(
-                              value: _selectedChannelSource,
-                              options: _affiliateChannels
-                                  .map((c) => UiOption<String>(label: c, value: c))
-                                  .toList(),
-                              onChanged: (v) => setState(() => _selectedChannelSource = v),
+                    LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final bool isNarrow = constraints.maxWidth < 600;
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiField(
+                                label: 'Primary Promotion Channel',
+                                child: UiSelect<String>(
+                                  value: _selectedChannelSource,
+                                  options: _affiliateChannels
+                                      .map(
+                                        (c) => UiOption<String>(label: c, value: c),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedChannelSource = v),
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              UiField(
+                                label: 'Channel Handle / Username',
+                                child: UiInput(
+                                  value: _channelHandleController.text,
+                                  hintText: 'e.g. @designtrades',
+                                  leadingIcon: Icons.alternate_email_rounded,
+                                  onChanged: (v) =>
+                                      _channelHandleController.text = v,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: UiField(
+                                label: 'Primary Promotion Channel',
+                                child: UiSelect<String>(
+                                  value: _selectedChannelSource,
+                                  options: _affiliateChannels
+                                      .map(
+                                        (c) => UiOption<String>(label: c, value: c),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedChannelSource = v),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: UiField(
-                            label: 'Channel Handle / Username',
-                            child: UiInput(
-                              value: _channelHandleController.text,
-                              hintText: 'e.g. @designtrades',
-                              leadingIcon: Icons.alternate_email_rounded,
-                              onChanged: (v) => _channelHandleController.text = v,
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: UiField(
+                                label: 'Channel Handle / Username',
+                                child: UiInput(
+                                  value: _channelHandleController.text,
+                                  hintText: 'e.g. @designtrades',
+                                  leadingIcon: Icons.alternate_email_rounded,
+                                  onChanged: (v) =>
+                                      _channelHandleController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                     SizedBox(height: context.sp(theme.spacing.sm)),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: UiField(
-                            label: 'Estimated Audience Reach',
-                            child: UiSelect<String>(
-                              value: _selectedAudienceReach,
-                              options: _audienceReachOptions
-                                  .map((a) => UiOption<String>(label: a, value: a))
-                                  .toList(),
-                              onChanged: (v) => setState(() => _selectedAudienceReach = v),
+                    LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final bool isNarrow = constraints.maxWidth < 600;
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiField(
+                                label: 'Estimated Audience Reach',
+                                child: UiSelect<String>(
+                                  value: _selectedAudienceReach,
+                                  options: _audienceReachOptions
+                                      .map(
+                                        (a) => UiOption<String>(label: a, value: a),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedAudienceReach = v),
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              UiField(
+                                label: 'Primary Content Niche',
+                                child: UiSelect<String>(
+                                  value: _selectedNiche,
+                                  options: _nicheOptions
+                                      .map(
+                                        (n) => UiOption<String>(label: n, value: n),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedNiche = v),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: UiField(
+                                label: 'Estimated Audience Reach',
+                                child: UiSelect<String>(
+                                  value: _selectedAudienceReach,
+                                  options: _audienceReachOptions
+                                      .map(
+                                        (a) => UiOption<String>(label: a, value: a),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedAudienceReach = v),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: UiField(
-                            label: 'Primary Content Niche',
-                            child: UiSelect<String>(
-                              value: _selectedNiche,
-                              options: _nicheOptions
-                                  .map((n) => UiOption<String>(label: n, value: n))
-                                  .toList(),
-                              onChanged: (v) => setState(() => _selectedNiche = v),
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: UiField(
+                                label: 'Primary Content Niche',
+                                child: UiSelect<String>(
+                                  value: _selectedNiche,
+                                  options: _nicheOptions
+                                      .map(
+                                        (n) => UiOption<String>(label: n, value: n),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedNiche = v),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                     SizedBox(height: context.sp(theme.spacing.sm)),
                     UiField(
                       label: 'Sample Video / Content Portfolio Link',
                       child: UiInput(
                         value: _sampleLinkController.text,
-                        hintText: 'e.g. https://youtube.com/watch?v=sample_workshop',
+                        hintText:
+                            'e.g. https://youtube.com/watch?v=sample_workshop',
                         leadingIcon: Icons.smart_display_outlined,
                         onChanged: (v) => _sampleLinkController.text = v,
                       ),
@@ -971,101 +1318,215 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   description:
                       'Secure banking, UPI, and tax ID information for monthly automated commission disbursements.',
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: UiField(
-                            label: 'Preferred Payout Method',
-                            child: UiSelect<String>(
-                              value: _selectedPayoutMethod,
-                              options: _payoutMethods
-                                  .map((p) => UiOption<String>(label: p, value: p))
-                                  .toList(),
-                              onChanged: (v) => setState(() => _selectedPayoutMethod = v),
+                    LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final bool isNarrow = constraints.maxWidth < 600;
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiField(
+                                label: 'Preferred Payout Method',
+                                child: UiSelect<String>(
+                                  value: _selectedPayoutMethod,
+                                  options: _payoutMethods
+                                      .map(
+                                        (p) => UiOption<String>(label: p, value: p),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedPayoutMethod = v),
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              UiField(
+                                label: 'Account Holder Full Name',
+                                child: UiInput(
+                                  value: _accountHolderController.text,
+                                  hintText: 'Must match government ID',
+                                  leadingIcon: Icons.person_outline_rounded,
+                                  onChanged: (v) =>
+                                      _accountHolderController.text = v,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: UiField(
+                                label: 'Preferred Payout Method',
+                                child: UiSelect<String>(
+                                  value: _selectedPayoutMethod,
+                                  options: _payoutMethods
+                                      .map(
+                                        (p) => UiOption<String>(label: p, value: p),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedPayoutMethod = v),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: UiField(
-                            label: 'Account Holder Full Name',
-                            child: UiInput(
-                              value: _accountHolderController.text,
-                              hintText: 'Must match government ID',
-                              leadingIcon: Icons.person_outline_rounded,
-                              onChanged: (v) => _accountHolderController.text = v,
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: UiField(
+                                label: 'Account Holder Full Name',
+                                child: UiInput(
+                                  value: _accountHolderController.text,
+                                  hintText: 'Must match government ID',
+                                  leadingIcon: Icons.person_outline_rounded,
+                                  onChanged: (v) =>
+                                      _accountHolderController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                     SizedBox(height: context.sp(theme.spacing.sm)),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: UiField(
-                            label: 'Bank Name',
-                            child: UiInput(
-                              value: _bankNameController.text,
-                              hintText: 'e.g. HDFC Bank, ICICI Bank',
-                              leadingIcon: Icons.account_balance_outlined,
-                              onChanged: (v) => _bankNameController.text = v,
+                    LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final bool isNarrow = constraints.maxWidth < 600;
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiField(
+                                label: 'Bank Name',
+                                child: UiInput(
+                                  value: _bankNameController.text,
+                                  hintText: 'e.g. HDFC Bank, ICICI Bank',
+                                  leadingIcon: Icons.account_balance_outlined,
+                                  onChanged: (v) => _bankNameController.text = v,
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              UiField(
+                                label: 'Account Number',
+                                child: UiInput(
+                                  value: _accountNumberController.text,
+                                  hintText: '123456789012',
+                                  leadingIcon: Icons.numbers_rounded,
+                                  onChanged: (v) =>
+                                      _accountNumberController.text = v,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: UiField(
+                                label: 'Bank Name',
+                                child: UiInput(
+                                  value: _bankNameController.text,
+                                  hintText: 'e.g. HDFC Bank, ICICI Bank',
+                                  leadingIcon: Icons.account_balance_outlined,
+                                  onChanged: (v) => _bankNameController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: UiField(
-                            label: 'Account Number',
-                            child: UiInput(
-                              value: _accountNumberController.text,
-                              hintText: '123456789012',
-                              leadingIcon: Icons.numbers_rounded,
-                              onChanged: (v) => _accountNumberController.text = v,
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: UiField(
+                                label: 'Account Number',
+                                child: UiInput(
+                                  value: _accountNumberController.text,
+                                  hintText: '123456789012',
+                                  leadingIcon: Icons.numbers_rounded,
+                                  onChanged: (v) =>
+                                      _accountNumberController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                     SizedBox(height: context.sp(theme.spacing.sm)),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: UiField(
-                            label: 'IFSC Code',
-                            child: UiInput(
-                              value: _ifscController.text,
-                              hintText: 'e.g. HDFC0001234',
-                              leadingIcon: Icons.pin_outlined,
-                              onChanged: (v) => _ifscController.text = v,
+                    LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final bool isNarrow = constraints.maxWidth < 600;
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiField(
+                                label: 'IFSC Code',
+                                child: UiInput(
+                                  value: _ifscController.text,
+                                  hintText: 'e.g. HDFC0001234',
+                                  leadingIcon: Icons.pin_outlined,
+                                  onChanged: (v) => _ifscController.text = v,
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              UiField(
+                                label: 'PAN / Tax ID',
+                                child: UiInput(
+                                  value: _panController.text,
+                                  hintText: 'e.g. ABCDE1234F',
+                                  leadingIcon: Icons.credit_card_outlined,
+                                  onChanged: (v) => _panController.text = v,
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              UiField(
+                                label: 'UPI Virtual ID (VPA)',
+                                child: UiInput(
+                                  value: _upiController.text,
+                                  hintText: 'e.g. design@upi',
+                                  leadingIcon: Icons.qr_code_2_rounded,
+                                  onChanged: (v) => _upiController.text = v,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: UiField(
+                                label: 'IFSC Code',
+                                child: UiInput(
+                                  value: _ifscController.text,
+                                  hintText: 'e.g. HDFC0001234',
+                                  leadingIcon: Icons.pin_outlined,
+                                  onChanged: (v) => _ifscController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: UiField(
-                            label: 'PAN / Tax ID',
-                            child: UiInput(
-                              value: _panController.text,
-                              hintText: 'e.g. ABCDE1234F',
-                              leadingIcon: Icons.credit_card_outlined,
-                              onChanged: (v) => _panController.text = v,
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: UiField(
+                                label: 'PAN / Tax ID',
+                                child: UiInput(
+                                  value: _panController.text,
+                                  hintText: 'e.g. ABCDE1234F',
+                                  leadingIcon: Icons.credit_card_outlined,
+                                  onChanged: (v) => _panController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: UiField(
-                            label: 'UPI Virtual ID (VPA)',
-                            child: UiInput(
-                              value: _upiController.text,
-                              hintText: 'e.g. design@upi',
-                              leadingIcon: Icons.qr_code_2_rounded,
-                              onChanged: (v) => _upiController.text = v,
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: UiField(
+                                label: 'UPI Virtual ID (VPA)',
+                                child: UiInput(
+                                  value: _upiController.text,
+                                  hintText: 'e.g. design@upi',
+                                  leadingIcon: Icons.qr_code_2_rounded,
+                                  onChanged: (v) => _upiController.text = v,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -1077,49 +1538,121 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   description:
                       'Referral code branding, automated payouts, and public leaderboard badges.',
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: UiField(
-                            label: 'Custom Referral Code',
-                            helper: 'Used in your direct signup links (e.g. tradex.io/join/CODE)',
-                            child: UiInput(
-                              value: _referralCodeController.text,
-                              hintText: 'TRADEX-PARTNER-2026',
-                              leadingIcon: Icons.vpn_key_rounded,
-                              onChanged: (v) => _referralCodeController.text = v,
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.md)),
-                        Expanded(
-                          child: UiField(
-                            label: 'Commission Tier Status',
-                            helper: 'Gold Partner: 30% lifetime recurring commission',
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: context.sp(theme.spacing.md),
-                                vertical: context.sp(theme.spacing.sm),
+                    LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final bool isNarrow = constraints.maxWidth < 600;
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiField(
+                                label: 'Custom Referral Code',
+                                helper:
+                                    'Used in your direct signup links (e.g. tradex.io/join/CODE)',
+                                child: UiInput(
+                                  value: _referralCodeController.text,
+                                  hintText: 'TRADEX-PARTNER-2026',
+                                  leadingIcon: Icons.vpn_key_rounded,
+                                  onChanged: (v) =>
+                                      _referralCodeController.text = v,
+                                ),
                               ),
-                              decoration: BoxDecoration(
-                                color: colors.surfaceMuted,
-                                borderRadius: context.radius(theme.radii.md),
-                                border: Border.all(color: colors.border),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.workspace_premium_rounded, color: colors.warning, size: 20),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Tier 2 · Gold Partner (30%)',
-                                    style: context.uiText.bodyStrong.copyWith(color: colors.warning),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              UiField(
+                                label: 'Commission Tier Status',
+                                helper:
+                                    'Gold Partner: 30% lifetime recurring commission',
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: context.sp(theme.spacing.md),
+                                    vertical: context.sp(theme.spacing.sm),
                                   ),
-                                ],
+                                  decoration: BoxDecoration(
+                                    color: colors.surfaceMuted,
+                                    borderRadius: context.radius(theme.radii.md),
+                                    border: Border.all(color: colors.border),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.workspace_premium_rounded,
+                                        color: colors.warning,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Tier 2 · Gold Partner (30%)',
+                                          overflow: TextOverflow.ellipsis,
+                                          style: context.uiText.bodyStrong.copyWith(
+                                            color: colors.warning,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: UiField(
+                                label: 'Custom Referral Code',
+                                helper:
+                                    'Used in your direct signup links (e.g. tradex.io/join/CODE)',
+                                child: UiInput(
+                                  value: _referralCodeController.text,
+                                  hintText: 'TRADEX-PARTNER-2026',
+                                  leadingIcon: Icons.vpn_key_rounded,
+                                  onChanged: (v) =>
+                                      _referralCodeController.text = v,
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      ],
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: UiField(
+                                label: 'Commission Tier Status',
+                                helper:
+                                    'Gold Partner: 30% lifetime recurring commission',
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: context.sp(theme.spacing.md),
+                                    vertical: context.sp(theme.spacing.sm),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colors.surfaceMuted,
+                                    borderRadius: context.radius(theme.radii.md),
+                                    border: Border.all(color: colors.border),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.workspace_premium_rounded,
+                                        color: colors.warning,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Tier 2 · Gold Partner (30%)',
+                                          overflow: TextOverflow.ellipsis,
+                                          style: context.uiText.bodyStrong.copyWith(
+                                            color: colors.warning,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     SizedBox(height: context.sp(theme.spacing.sm)),
                     AppSettingCard(
@@ -1129,7 +1662,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                       icon: Icons.autorenew_rounded,
                       control: UiSwitch(
                         value: _autoPayoutEnabled,
-                        onChanged: (val) => setState(() => _autoPayoutEnabled = val),
+                        onChanged: (val) =>
+                            setState(() => _autoPayoutEnabled = val),
                       ),
                     ),
                     SizedBox(height: context.sp(theme.spacing.xs)),
@@ -1140,7 +1674,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                       icon: Icons.verified_rounded,
                       control: UiSwitch(
                         value: _publicStatsEnabled,
-                        onChanged: (val) => setState(() => _publicStatsEnabled = val),
+                        onChanged: (val) =>
+                            setState(() => _publicStatsEnabled = val),
                       ),
                     ),
                     SizedBox(height: context.sp(theme.spacing.xs)),
@@ -1151,20 +1686,21 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                       icon: Icons.insights_rounded,
                       control: UiSwitch(
                         value: _publicJournalsEnabled,
-                        onChanged: (val) => setState(() => _publicJournalsEnabled = val),
+                        onChanged: (val) =>
+                            setState(() => _publicJournalsEnabled = val),
                       ),
                     ),
                   ],
                 ),
               ]
-
               // ===============================================================
               // 3. ADMIN IDENTITY & ROOT GOVERNANCE SECTION
               // ===============================================================
               else if (widget.userRole == UserRole.userAdmin) ...[
                 AppSettingsSectionBlock(
                   title: 'Step 1: Root Authority & Institutional Clearance',
-                  description: 'Desk classification, clearance level, and capital supervision boundaries.',
+                  description:
+                      'Desk classification, clearance level, and capital supervision boundaries.',
                   children: [
                     LayoutBuilder(
                       builder: (BuildContext context, BoxConstraints constraints) {
@@ -1175,7 +1711,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                             children: <Widget>[
                               UiField(
                                 label: 'Clearance Level',
-                                helper: 'Unrestricted execution & risk engine override',
+                                helper:
+                                    'Unrestricted execution & risk engine override',
                                 child: UiInput(
                                   controller: _adminClearanceLevelController,
                                   leadingIcon: Icons.shield_rounded,
@@ -1184,7 +1721,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                               SizedBox(height: context.sp(theme.spacing.sm)),
                               UiField(
                                 label: 'Designated Firm Role',
-                                helper: 'Title displayed on compliance disclosures',
+                                helper:
+                                    'Title displayed on compliance disclosures',
                                 child: UiInput(
                                   controller: _adminDesignationController,
                                   leadingIcon: Icons.badge_outlined,
@@ -1199,7 +1737,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                             Expanded(
                               child: UiField(
                                 label: 'Clearance Level',
-                                helper: 'Unrestricted execution & risk engine override',
+                                helper:
+                                    'Unrestricted execution & risk engine override',
                                 child: UiInput(
                                   controller: _adminClearanceLevelController,
                                   leadingIcon: Icons.shield_rounded,
@@ -1210,7 +1749,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                             Expanded(
                               child: UiField(
                                 label: 'Designated Firm Role',
-                                helper: 'Title displayed on compliance disclosures',
+                                helper:
+                                    'Title displayed on compliance disclosures',
                                 child: UiInput(
                                   controller: _adminDesignationController,
                                   leadingIcon: Icons.badge_outlined,
@@ -1234,18 +1774,26 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                                 child: UiSelect<String>(
                                   value: _selectedDeskDivision,
                                   options: _deskDivisions
-                                      .map((d) => UiOption<String>(label: d, value: d))
+                                      .map(
+                                        (d) => UiOption<String>(
+                                          label: d,
+                                          value: d,
+                                        ),
+                                      )
                                       .toList(),
-                                  onChanged: (v) => setState(() => _selectedDeskDivision = v),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedDeskDivision = v),
                                 ),
                               ),
                               SizedBox(height: context.sp(theme.spacing.sm)),
                               UiField(
                                 label: 'Supervised Capital Allocation Pool',
-                                helper: 'Aggregate firm capital monitored across 8 desks',
+                                helper:
+                                    'Aggregate firm capital monitored across 8 desks',
                                 child: UiInput(
                                   controller: _adminSupervisedCapitalController,
-                                  leadingIcon: Icons.account_balance_wallet_outlined,
+                                  leadingIcon:
+                                      Icons.account_balance_wallet_outlined,
                                 ),
                               ),
                             ],
@@ -1260,9 +1808,15 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                                 child: UiSelect<String>(
                                   value: _selectedDeskDivision,
                                   options: _deskDivisions
-                                      .map((d) => UiOption<String>(label: d, value: d))
+                                      .map(
+                                        (d) => UiOption<String>(
+                                          label: d,
+                                          value: d,
+                                        ),
+                                      )
                                       .toList(),
-                                  onChanged: (v) => setState(() => _selectedDeskDivision = v),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedDeskDivision = v),
                                 ),
                               ),
                             ),
@@ -1270,10 +1824,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                             Expanded(
                               child: UiField(
                                 label: 'Supervised Capital Allocation Pool',
-                                helper: 'Aggregate firm capital monitored across 8 desks',
+                                helper:
+                                    'Aggregate firm capital monitored across 8 desks',
                                 child: UiInput(
                                   controller: _adminSupervisedCapitalController,
-                                  leadingIcon: Icons.account_balance_wallet_outlined,
+                                  leadingIcon:
+                                      Icons.account_balance_wallet_outlined,
                                 ),
                               ),
                             ),
@@ -1286,7 +1842,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 SizedBox(height: context.sp(theme.spacing.lg)),
                 AppSettingsSectionBlock(
                   title: 'Step 2: Platform Risk Safeguards & Audit Ledger',
-                  description: 'Emergency execution authority and cryptographic governance controls.',
+                  description:
+                      'Emergency execution authority and cryptographic governance controls.',
                   children: [
                     AppSettingCard(
                       title: 'One-Click Emergency Killswitch Authorization',
@@ -1347,7 +1904,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 child: SizedBox(
                   width: isMobile ? double.infinity : null,
                   child: UiButton(
-                    label: widget.userRole == UserRole.affiliate ? 'Save Partner Settings' : 'Save Changes',
+                    label: widget.userRole == UserRole.affiliate
+                        ? 'Save Partner Settings'
+                        : 'Save Changes',
                     intent: UiIntent.primary,
                     variant: UiVariant.primary,
                     loading: _saving,

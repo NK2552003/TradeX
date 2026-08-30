@@ -6,10 +6,19 @@ import 'ui_toaster.dart';
 /// Sonner-inspired modern toast component with clean typography, elevation,
 /// zero underlines, semantic intent badges, and action support.
 class UiToast extends StatelessWidget {
-  const UiToast({super.key, required this.data, this.onDismiss});
+  const UiToast({
+    super.key,
+    required this.data,
+    this.onDismiss,
+    this.count = 1,
+  });
 
   final UiToastData data;
   final VoidCallback? onDismiss;
+
+  /// How many times this notification has fired while it was on screen. Any
+  /// value above 1 renders as a "×N" pill instead of stacking a second card.
+  final int count;
 
   /// General toast trigger.
   static void show(
@@ -204,14 +213,25 @@ class UiToast extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Text(
-                        data.title,
-                        style: context.uiText.bodyStrong.copyWith(
-                          color: colors.foreground,
-                          fontSize: context.fs(13.5),
-                          fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.none,
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              data.title,
+                              style: context.uiText.bodyStrong.copyWith(
+                                color: colors.foreground,
+                                fontSize: context.fs(13.5),
+                                fontWeight: FontWeight.w600,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ),
+                          if (count > 1) ...<Widget>[
+                            SizedBox(width: context.sp(theme.spacing.xs)),
+                            _RepeatCount(count: count, accent: accent),
+                          ],
+                        ],
                       ),
                       if (data.message != null &&
                           data.message!.isNotEmpty) ...<Widget>[
@@ -291,13 +311,52 @@ class UiToast extends StatelessWidget {
     );
 
     if (mobile) {
+      // Phones have no close affordance, so the whole card is the dismiss
+      // target: tap it, or flick it sideways the way a notification behaves.
       toastBody = GestureDetector(
         onTap: onDismiss,
+        onHorizontalDragEnd: (DragEndDetails details) {
+          if (details.primaryVelocity == null) return;
+          if (details.primaryVelocity!.abs() > 120) onDismiss?.call();
+        },
         behavior: HitTestBehavior.opaque,
         child: toastBody,
       );
     }
 
     return toastBody;
+  }
+}
+
+/// "×3" pill shown when the same notification fires again while visible.
+class _RepeatCount extends StatelessWidget {
+  const _RepeatCount({required this.count, required this.accent});
+
+  final int count;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(theme.spacing.xs),
+        vertical: context.sp(theme.spacing.xxs) / 2,
+      ),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.14),
+        borderRadius: context.radius(theme.radii.pill),
+      ),
+      child: Text(
+        '×$count',
+        style: context.uiText.caption.copyWith(
+          color: accent,
+          fontSize: context.fs(10.5),
+          fontWeight: FontWeight.w700,
+          height: 1.2,
+          decoration: TextDecoration.none,
+        ),
+      ),
+    );
   }
 }

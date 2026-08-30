@@ -304,7 +304,7 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
     final isMobile = context.uiRes.isMobile;
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double bottomInset = isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(

@@ -56,17 +56,17 @@ class UiPage extends StatelessWidget {
         child: body,
       ),
     );
-    return ColoredBox(
-      color: theme.colors.background,
-      child: SafeArea(
-        child: scrollable
-            ? SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                child: body,
-              )
-            : SizedBox.expand(child: body),
-      ),
+    // No background of its own. A page always sits inside something that has
+    // already painted one — the app shell's content surface, a dialog, a sheet —
+    // and an opaque fill here covered that surface's rounded corners and border
+    // on desktop. Transparent lets whatever hosts the page own the colour.
+    return SafeArea(
+      child: scrollable
+          ? SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: body,
+            )
+          : SizedBox.expand(child: body),
     );
   }
 }

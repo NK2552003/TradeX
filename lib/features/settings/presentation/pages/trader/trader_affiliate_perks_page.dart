@@ -42,7 +42,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final responsive = context.uiRes;
     final double bottomInset = responsive.isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(
@@ -65,9 +65,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                 child: Padding(
                   padding: EdgeInsets.all(
                     context.sp(
-                      responsive.isMobile
-                          ? theme.spacing.md
-                          : theme.spacing.lg,
+                      responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
                     ),
                   ),
                   child: Column(
@@ -89,10 +87,12 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                                         context.sp(theme.spacing.sm),
                                       ),
                                       decoration: BoxDecoration(
-                                        color: colors.warning
-                                            .withValues(alpha: 0.15),
-                                        borderRadius:
-                                            context.radius(theme.radii.md),
+                                        color: colors.warning.withValues(
+                                          alpha: 0.15,
+                                        ),
+                                        borderRadius: context.radius(
+                                          theme.radii.md,
+                                        ),
                                       ),
                                       child: Icon(
                                         Icons.handshake_outlined,
@@ -188,9 +188,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                 child: Padding(
                   padding: EdgeInsets.all(
                     context.sp(
-                      responsive.isMobile
-                          ? theme.spacing.md
-                          : theme.spacing.lg,
+                      responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
                     ),
                   ),
                   child: Column(
@@ -342,9 +340,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                 child: Padding(
                   padding: EdgeInsets.all(
                     context.sp(
-                      responsive.isMobile
-                          ? theme.spacing.md
-                          : theme.spacing.lg,
+                      responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
                     ),
                   ),
                   child: Column(
@@ -404,9 +400,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                                     color: colors.foregroundMuted,
                                   ),
                                 ),
-                                SizedBox(
-                                  height: context.sp(theme.spacing.xxs),
-                                ),
+                                SizedBox(height: context.sp(theme.spacing.xxs)),
                                 Text(
                                   '₹${_monthlyEarnings.toStringAsFixed(0)} / mo',
                                   style: context.uiText.heading.copyWith(
@@ -437,9 +431,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                                     color: colors.foregroundMuted,
                                   ),
                                 ),
-                                SizedBox(
-                                  height: context.sp(theme.spacing.xxs),
-                                ),
+                                SizedBox(height: context.sp(theme.spacing.xxs)),
                                 Text(
                                   '₹${_annualEarnings.toStringAsFixed(0)} / yr',
                                   style: context.uiText.heading.copyWith(

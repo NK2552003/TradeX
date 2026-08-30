@@ -81,18 +81,18 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final colors = theme.colors;
+    // The page renders inside the shell, and on a phone the dock floats over the
+    // bottom of it, so the last row needs to be able to scroll clear of it.
+    final EdgeInsets padding = EdgeInsets.fromLTRB(
+      context.sp(theme.spacing.lg),
+      context.sp(theme.spacing.lg),
+      context.sp(theme.spacing.lg),
+      context.sp(theme.spacing.lg) +
+          (context.uiRes.isMobile ? context.uiDockInset : 0),
+    );
 
     if (_loading) {
-      return Padding(
-        padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-        child: Column(
-          children: const [
-            UiSkeleton(height: 70),
-            SizedBox(height: 12),
-            UiSkeleton(height: 70),
-          ],
-        ),
-      );
+      return UiSkeleton.settingsList(showHeader: false, rows: 4);
     }
 
     if (_blockedUsers.isEmpty) {
@@ -107,7 +107,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
     }
 
     return ListView.separated(
-      padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+      padding: padding,
       itemCount: _blockedUsers.length,
       separatorBuilder: (context, index) =>
           SizedBox(height: context.sp(theme.spacing.sm)),

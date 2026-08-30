@@ -43,7 +43,9 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final bool isMobile = context.uiRes.isMobile;
     final double bottomInset = isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0
+              ? keyboardInset + 24.0
+              : (context.uiDockInset < 100.0 ? 100.0 : context.uiDockInset))
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(

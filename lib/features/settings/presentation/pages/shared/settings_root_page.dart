@@ -17,7 +17,7 @@ import 'package:tradex/features/settings/presentation/pages/trader/billing_setti
 import 'package:tradex/features/settings/presentation/pages/trader/trader_affiliate_perks_page.dart';
 import 'package:tradex/features/settings/presentation/pages/trader/trading_preferences_page.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class SettingsRootPage extends StatefulWidget {
   const SettingsRootPage({
@@ -48,7 +48,17 @@ class SettingsRootPage extends StatefulWidget {
 
 class _SettingsRootPageState extends State<SettingsRootPage> {
   late String _selectedSectionId;
-  ({String title, Widget page, IconData icon})? _activeMobileSubpage;
+
+  /// Settings screens the reader has drilled into, oldest first.
+  ///
+  /// Replaces the old "one mobile subpage, a side sheet everywhere else" split:
+  /// a drill-in is now a page at every width, so the dock and the shell header
+  /// behave the same on a phone and on a desktop.
+  final List<SettingsSubpageEntry> _stack = <SettingsSubpageEntry>[];
+
+  /// Which way the next transition runs. Drilling in slides forward, coming back
+  /// out slides the same distance backwards.
+  bool _poppingBack = false;
 
   @override
   void initState() {
@@ -63,11 +73,39 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
         (widget.initialSectionId != null &&
             widget.initialSectionId != oldWidget.initialSectionId)) {
       _selectedSectionId = widget.initialSectionId ?? 'profile';
-      if (_activeMobileSubpage != null) {
-        _activeMobileSubpage = null;
+      if (_stack.isNotEmpty) {
+        _stack.clear();
         widget.onSubpageChanged?.call(null, null, null);
       }
     }
+  }
+
+  /// Tells the shell which screen is on top, so its header names that screen and
+  /// its back affordance unwinds one level of this stack.
+  void _reportTop() {
+    if (_stack.isEmpty) {
+      widget.onSubpageChanged?.call(null, null, null);
+      return;
+    }
+    final SettingsSubpageEntry top = _stack.last;
+    widget.onSubpageChanged?.call(top.title, top.icon, _popSubpage);
+  }
+
+  void _pushSubpage(SettingsSubpageEntry entry) {
+    setState(() {
+      _poppingBack = false;
+      _stack.add(entry);
+    });
+    _reportTop();
+  }
+
+  void _popSubpage() {
+    if (!mounted || _stack.isEmpty) return;
+    setState(() {
+      _poppingBack = true;
+      _stack.removeLast();
+    });
+    _reportTop();
   }
 
   void _showLogoutDialog() {
@@ -122,23 +160,8 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
     };
   }
 
-  void _navigateToSubpage(Widget page, String title, IconData icon) {
-    if (context.uiRes.isMobile) {
-      void onBack() {
-        if (mounted) {
-          setState(() => _activeMobileSubpage = null);
-        }
-        widget.onSubpageChanged?.call(null, null, null);
-      }
-
-      setState(() {
-        _activeMobileSubpage = (title: title, page: page, icon: icon);
-      });
-      widget.onSubpageChanged?.call(title, icon, onBack);
-    } else {
-      showSettingsSideSheet(context, title: title, child: page);
-    }
-  }
+  void _navigateToSubpage(Widget page, String title, IconData icon) =>
+      _pushSubpage((title: title, subtitle: null, icon: icon, page: page));
 
   List<Map<String, dynamic>> _getSectionsForRole() {
     switch (widget.userRole) {
@@ -303,8 +326,6 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.ui;
-    final colors = theme.colors;
     final isMobile = context.uiRes.isMobile;
     final sections = _getSectionsForRole();
 
@@ -315,176 +336,187 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
 
     // Wide layouts use the application sidebar as the single navigation
     // source. The settings overview is only a mobile drill-in surface.
-    if (!widget.showNavigationPane || !isMobile) {
-      return _buildDetailPane(_selectedSectionId);
-    }
+    final Widget root = !widget.showNavigationPane || !isMobile
+        ? _buildDetailPane(_selectedSectionId)
+        : (isMobile
+              ? _buildSettingsOverview(context)
+              : _buildNavigationSplit(context, sections));
 
-    if (isMobile) {
-      return PageTransitionSwitcher(
+    // The switcher now wraps every width, not just the phone layout: a drill-in
+    // is a page everywhere, so the slide that used to be mobile-only is the
+    // transition for all of them.
+    return SettingsSubpageScope(
+      push: _pushSubpage,
+      pop: _popSubpage,
+      child: PageTransitionSwitcher(
         duration: const Duration(milliseconds: 240),
-        reverse: _activeMobileSubpage == null,
-        layoutBuilder: (List<Widget> entries) => Stack(
-          alignment: Alignment.topLeft,
-          children: entries,
-        ),
-        transitionBuilder: (
-          Widget child,
-          Animation<double> primaryAnimation,
-          Animation<double> secondaryAnimation,
-        ) {
-          return SharedAxisTransition(
-            animation: primaryAnimation,
-            secondaryAnimation: secondaryAnimation,
-            transitionType: SharedAxisTransitionType.horizontal,
-            fillColor: theme.colors.background,
-            child: child,
-          );
-        },
+        reverse: _poppingBack,
+        layoutBuilder: (List<Widget> entries) =>
+            Stack(alignment: Alignment.topLeft, children: entries),
+        transitionBuilder:
+            (
+              Widget child,
+              Animation<double> primaryAnimation,
+              Animation<double> secondaryAnimation,
+            ) {
+              return SharedAxisTransition(
+                animation: primaryAnimation,
+                secondaryAnimation: secondaryAnimation,
+                transitionType: SharedAxisTransitionType.horizontal,
+                fillColor: Colors.transparent,
+                child: child,
+              );
+            },
         child: KeyedSubtree(
-          key: ValueKey<String>(_activeMobileSubpage?.title ?? 'overview'),
-          child: _activeMobileSubpage?.page ?? _buildSettingsOverview(context),
+          key: ValueKey<String>(
+            _stack.isEmpty
+                ? 'settings_root_$_selectedSectionId'
+                : 'settings_sub_${_stack.length}_${_stack.last.title}',
+          ),
+          child: _stack.isEmpty ? root : _stack.last.page,
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    // Tablet and desktop keep settings navigation visible beside the detail.
+  /// Tablet/desktop layout with settings navigation beside the detail pane.
+  Widget _buildNavigationSplit(
+    BuildContext context,
+    List<Map<String, dynamic>> sections,
+  ) {
+    final theme = context.ui;
+    final colors = theme.colors;
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: context.sz(1120)),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-              // In-Page Navigation Pane (~240px)
-              SizedBox(
-                width: context.uiRes.isTablet
-                    ? context.sz(220)
-                    : context.sz(250),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    vertical: context.sp(theme.spacing.lg),
-                    horizontal: context.sp(theme.spacing.sm),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: context.sp(theme.spacing.sm),
-                          vertical: context.sp(theme.spacing.xs),
-                        ),
-                        child: Row(
-                          children: [
-                            Text('Settings', style: context.uiText.heading),
-                            SizedBox(width: context.sp(theme.spacing.xs)),
-                            UiBadge(
-                              label: widget.userRole.shortTitle,
-                              intent: widget.userRole.badgeIntent,
-                              size: UiSize.xs,
-                            ),
-                          ],
-                        ),
+            // In-Page Navigation Pane (~240px)
+            SizedBox(
+              width: context.uiRes.isTablet ? context.sz(220) : context.sz(250),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  vertical: context.sp(theme.spacing.lg),
+                  horizontal: context.sp(theme.spacing.sm),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.sp(theme.spacing.sm),
+                        vertical: context.sp(theme.spacing.xs),
                       ),
-                      SizedBox(height: context.sp(theme.spacing.sm)),
-                      Expanded(
-                        child: ListView.separated(
-                          itemCount: sections.length,
-                          separatorBuilder: (context, index) =>
-                              SizedBox(height: context.sp(theme.spacing.xxs)),
-                          itemBuilder: (context, index) {
-                            final s = sections[index];
-                            final isSelected = _selectedSectionId == s['id'];
+                      child: Row(
+                        children: [
+                          Text('Settings', style: context.uiText.heading),
+                          SizedBox(width: context.sp(theme.spacing.xs)),
+                          UiBadge(
+                            label: widget.userRole.shortTitle,
+                            intent: widget.userRole.badgeIntent,
+                            size: UiSize.xs,
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: sections.length,
+                        separatorBuilder: (context, index) =>
+                            SizedBox(height: context.sp(theme.spacing.xxs)),
+                        itemBuilder: (context, index) {
+                          final s = sections[index];
+                          final isSelected = _selectedSectionId == s['id'];
 
-                            return UiInteractive(
-                              onTap: () => setState(
-                                () => _selectedSectionId = s['id'] as String,
+                          return UiInteractive(
+                            onTap: () => setState(
+                              () => _selectedSectionId = s['id'] as String,
+                            ),
+                            builder: (context, state) => Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: context.sp(theme.spacing.sm),
+                                vertical: context.sp(theme.spacing.xs + 2),
                               ),
-                              builder: (context, state) => Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: context.sp(theme.spacing.sm),
-                                  vertical: context.sp(theme.spacing.xs + 2),
-                                ),
-                                decoration: BoxDecoration(
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? colors.primary.withValues(alpha: 0.12)
+                                    : (state.hovered
+                                          ? colors.surfaceHover
+                                          : Colors.transparent),
+                                borderRadius: context.radius(theme.radii.md),
+                                border: Border.all(
                                   color: isSelected
-                                      ? colors.primary.withValues(alpha: 0.12)
-                                      : (state.hovered
-                                            ? colors.surfaceHover
-                                            : Colors.transparent),
-                                  borderRadius: context.radius(theme.radii.md),
-                                  border: Border.all(
+                                      ? colors.primary
+                                      : Colors.transparent,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    s['icon'] as IconData,
+                                    size: context.sz(18),
                                     color: isSelected
                                         ? colors.primary
-                                        : Colors.transparent,
-                                    width: 1,
+                                        : colors.foregroundMuted,
                                   ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      s['icon'] as IconData,
-                                      size: context.sz(18),
-                                      color: isSelected
-                                          ? colors.primary
-                                          : colors.foregroundMuted,
-                                    ),
-                                    SizedBox(
-                                      width: context.sp(theme.spacing.sm),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        s['title'] as String,
-                                        style: context.uiText.bodyStrong
-                                            .copyWith(
-                                              color: isSelected
-                                                  ? colors.primary
-                                                  : colors.foreground,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.bold
-                                                  : FontWeight.normal,
-                                            ),
+                                  SizedBox(width: context.sp(theme.spacing.sm)),
+                                  Expanded(
+                                    child: Text(
+                                      s['title'] as String,
+                                      style: context.uiText.bodyStrong.copyWith(
+                                        color: isSelected
+                                            ? colors.primary
+                                            : colors.foreground,
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        },
                       ),
-                      UiDivider(),
-                      SizedBox(height: context.sp(theme.spacing.xs)),
-                      UiButton(
-                        label: 'Log Out',
-                        leadingIcon: Icons.logout_rounded,
-                        variant: UiVariant.ghost,
-                        intent: UiIntent.danger,
-                        size: UiSize.sm,
-                        onPressed: _showLogoutDialog,
-                      ),
-                    ],
-                  ),
+                    ),
+                    UiDivider(),
+                    SizedBox(height: context.sp(theme.spacing.xs)),
+                    UiButton(
+                      label: 'Log Out',
+                      leadingIcon: Icons.logout_rounded,
+                      variant: UiVariant.ghost,
+                      intent: UiIntent.danger,
+                      size: UiSize.sm,
+                      onPressed: _showLogoutDialog,
+                    ),
+                  ],
                 ),
               ),
+            ),
 
-              // Divider between left nav and detail pane
-              Container(
-                width: 1,
-                color: colors.border,
-                margin: EdgeInsets.symmetric(
-                  vertical: context.sp(theme.spacing.md),
-                ),
+            // Divider between left nav and detail pane
+            Container(
+              width: 1,
+              color: colors.border,
+              margin: EdgeInsets.symmetric(
+                vertical: context.sp(theme.spacing.md),
               ),
+            ),
 
-              // Detail Pane
-              Expanded(child: _buildDetailPane(_selectedSectionId)),
-            ],
-          ),
+            // Detail Pane
+            Expanded(child: _buildDetailPane(_selectedSectionId)),
+          ],
         ),
-      );
+      ),
+    );
   }
 
   Widget _buildSettingsOverview(BuildContext context) {
     final theme = context.ui;
-    final isMobile = context.uiRes.isMobile;
     final double pagePadding = context.sp(theme.spacing.md);
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
@@ -570,11 +602,9 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                   onTap: () => _navigateToSubpage(
                     TraderAffiliatePerksPage(
                       onUpgradeToAffiliate: () {
-                        if (!isMobile) {
-                          Navigator.of(context).pop();
-                        } else {
-                          setState(() => _activeMobileSubpage = null);
-                        }
+                        // Leave the perks screen before the shell swaps in the
+                        // application, so the reader does not come back to it.
+                        _popSubpage();
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           widget.onApplyForAffiliate?.call();
                         });

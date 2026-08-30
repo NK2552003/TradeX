@@ -138,19 +138,24 @@ class UiResponsive {
     UiBreakpoints breakpoints = const UiBreakpoints(),
     UiScaleConfig scaleConfig = const UiScaleConfig(),
   }) {
-    final MediaQueryData? mq = MediaQuery.maybeOf(context);
-    final double width = mq?.size.width ?? 1280.0;
-    final double height = mq?.size.height ?? 800.0;
+    // Depend on *size* and *text scale* only. `MediaQuery.of` would subscribe
+    // every token reader to unrelated aspects — most damagingly `viewInsets`,
+    // which changes on every keyboard animation frame and would otherwise
+    // rebuild every widget that calls `context.sp()`.
+    final Size? size = MediaQuery.maybeSizeOf(context);
+    final TextScaler? scaler = MediaQuery.maybeTextScalerOf(context);
+    final double width = size?.width ?? 1280.0;
+    final double height = size?.height ?? 800.0;
     final UiDeviceType type = breakpoints.typeForWidth(width);
-    final double raw = mq != null ? mq.textScaler.scale(1) : 1.0;
+    final double raw = scaler?.scale(1) ?? 1.0;
     return UiResponsive(
       width: width,
       height: height,
       deviceType: type,
       scale: scaleConfig.forType(type),
-      orientation:
-          mq?.orientation ??
-          (width >= height ? Orientation.landscape : Orientation.portrait),
+      orientation: width >= height
+          ? Orientation.landscape
+          : Orientation.portrait,
       textScaleFactor: raw.clamp(
         scaleConfig.minTextScale,
         scaleConfig.maxTextScale,

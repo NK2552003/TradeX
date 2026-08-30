@@ -6,7 +6,7 @@ import 'package:tradex/features/settings/data/repositories/privacy_repository.da
 import 'package:tradex/features/settings/models/privacy_settings_model.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/blocked_users_page.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
-import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class PrivacySettingsPage extends StatefulWidget {
   const PrivacySettingsPage({super.key, this.repository});
@@ -188,21 +188,12 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
     final theme = context.ui;
 
     if (_loading) {
-      return Padding(
-        padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-        child: Column(
-          children: const [
-            UiSkeleton(height: 140),
-            SizedBox(height: 16),
-            UiSkeleton(height: 140),
-          ],
-        ),
-      );
+      return UiSkeleton.settingsDetail(sections: 3, rowsPerSection: 3);
     }
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final bool isMobile = context.uiRes.isMobile;
     final double bottomInset = isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(
@@ -262,11 +253,12 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                         'Review and unblock accounts you have previously restricted',
                     icon: Icons.block_rounded,
                     onTap: () {
-                      showSettingsSideSheet(
+                      openSettingsSubpage(
                         context,
                         title: 'Blocked Users',
                         subtitle: 'Review restricted and muted trader profiles',
-                        child: BlockedUsersPage(repository: _repo),
+                        icon: Icons.block_outlined,
+                        page: BlockedUsersPage(repository: _repo),
                       );
                     },
                   ),

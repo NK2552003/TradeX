@@ -188,6 +188,7 @@ class UiSelect<T> extends StatelessWidget {
           ),
         ),
         child: Row(
+          mainAxisSize: width == null && maxWidth == null ? MainAxisSize.min : MainAxisSize.max,
           children: <Widget>[
             if (leadingIcon != null || sel?.icon != null) ...<Widget>[
               Icon(
@@ -197,7 +198,7 @@ class UiSelect<T> extends StatelessWidget {
               ),
               SizedBox(width: ctx.sp(theme.spacing.sm)),
             ],
-            Expanded(
+            Flexible(
               child: Text(
                 sel?.label ?? hintText,
                 overflow: TextOverflow.ellipsis,
@@ -210,6 +211,7 @@ class UiSelect<T> extends StatelessWidget {
                 ),
               ),
             ),
+            SizedBox(width: ctx.sp(theme.spacing.xs)),
             Icon(
               Icons.keyboard_arrow_down,
               size: size.icon(ctx),

@@ -44,7 +44,8 @@ class TraderProfilePreviewPage extends StatefulWidget {
   final String? payoutMethod;
 
   @override
-  State<TraderProfilePreviewPage> createState() => _TraderProfilePreviewPageState();
+  State<TraderProfilePreviewPage> createState() =>
+      _TraderProfilePreviewPageState();
 }
 
 class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
@@ -80,88 +81,89 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
 
     final List<UiTabItem> tabItems = switch (widget.userRole) {
       UserRole.userAdmin => <UiTabItem>[
-          UiTabItem(
-            label: 'Command Center',
-            icon: Icons.terminal_rounded,
-            content: const _AdminCommandCenterPreview(),
-          ),
-          UiTabItem(
-            label: 'Risk & Audit Stream',
-            icon: Icons.security_rounded,
-            content: const _AdminRiskAuditPreview(),
-          ),
-          UiTabItem(
-            label: 'Desk Governance',
-            icon: Icons.account_tree_rounded,
-            content: const _AdminDeskGovernancePreview(),
-          ),
-          UiTabItem(
-            label: 'Firm Analytics',
-            icon: Icons.analytics_outlined,
-            content: const _AdminAnalyticsPreview(),
-          ),
-        ],
+        UiTabItem(
+          label: 'Command Center',
+          icon: Icons.terminal_rounded,
+          content: const _AdminCommandCenterPreview(),
+        ),
+        UiTabItem(
+          label: 'Risk & Audit Stream',
+          icon: Icons.security_rounded,
+          content: const _AdminRiskAuditPreview(),
+        ),
+        UiTabItem(
+          label: 'Desk Governance',
+          icon: Icons.account_tree_rounded,
+          content: const _AdminDeskGovernancePreview(),
+        ),
+        UiTabItem(
+          label: 'Firm Analytics',
+          icon: Icons.analytics_outlined,
+          content: const _AdminAnalyticsPreview(),
+        ),
+      ],
       UserRole.affiliate => <UiTabItem>[
-          UiTabItem(
-            label: 'Campaigns',
-            icon: Icons.campaign_outlined,
-            content: _AffiliateCampaignsPreview(
-              displayName: widget.displayName,
-              handle: widget.handle,
-              referralCode: widget.referralCode ?? 'TRADEX-PARTNER-2026',
-              avatarUrl: widget.avatarUrl,
-              verifiedColor: verifiedColor,
-            ),
+        UiTabItem(
+          label: 'Campaigns',
+          icon: Icons.campaign_outlined,
+          content: _AffiliateCampaignsPreview(
+            displayName: widget.displayName,
+            handle: widget.handle,
+            referralCode: widget.referralCode ?? 'TRADEX-PARTNER-2026',
+            avatarUrl: widget.avatarUrl,
+            verifiedColor: verifiedColor,
           ),
-          UiTabItem(
-            label: 'Community Perks',
-            icon: Icons.card_giftcard_rounded,
-            content: _AffiliateReferralPortalPreview(
-              referralCode: widget.referralCode ?? 'TRADEX-PARTNER-2026',
-              audienceReach: widget.audienceReach ?? '10,000 – 100,000',
-            ),
+        ),
+        UiTabItem(
+          label: 'Community Perks',
+          icon: Icons.card_giftcard_rounded,
+          content: _AffiliateReferralPortalPreview(
+            referralCode: widget.referralCode ?? 'TRADEX-PARTNER-2026',
+            audienceReach: widget.audienceReach ?? '10,000 – 100,000',
           ),
-          const UiTabItem(
-            label: 'Playbooks',
-            icon: Icons.menu_book_outlined,
-            content: _NotesPlaybooksPreview(),
-          ),
-          const UiTabItem(
-            label: 'Community Overview',
-            icon: Icons.groups_outlined,
-            content: _AffiliateCommunityOverviewPreview(),
-          ),
-        ],
+        ),
+        const UiTabItem(
+          label: 'Playbooks',
+          icon: Icons.menu_book_outlined,
+          content: _NotesPlaybooksPreview(),
+        ),
+        const UiTabItem(
+          label: 'Community Overview',
+          icon: Icons.groups_outlined,
+          content: _AffiliateCommunityOverviewPreview(),
+        ),
+      ],
       UserRole.customer => <UiTabItem>[
-          UiTabItem(
-            label: 'Posts',
-            icon: Icons.dynamic_feed_outlined,
-            content: _TwitterFeedPreview(
-              displayName: widget.displayName,
-              handle: widget.handle,
-              avatarUrl: widget.avatarUrl,
-              verifiedColor: verifiedColor,
-            ),
+        UiTabItem(
+          label: 'Posts',
+          icon: Icons.dynamic_feed_outlined,
+          content: _TwitterFeedPreview(
+            displayName: widget.displayName,
+            handle: widget.handle,
+            avatarUrl: widget.avatarUrl,
+            verifiedColor: verifiedColor,
           ),
-          UiTabItem(
-            label: 'Journal',
-            icon: Icons.auto_stories_outlined,
-            content: _PublicJournalPreview(
-              selectedFilter: _selectedFilterIndex,
-              onFilterChanged: (int idx) => setState(() => _selectedFilterIndex = idx),
-            ),
+        ),
+        UiTabItem(
+          label: 'Journal',
+          icon: Icons.auto_stories_outlined,
+          content: _PublicJournalPreview(
+            selectedFilter: _selectedFilterIndex,
+            onFilterChanged: (int idx) =>
+                setState(() => _selectedFilterIndex = idx),
           ),
-          const UiTabItem(
-            label: 'Notes',
-            icon: Icons.note_alt_outlined,
-            content: _NotesPlaybooksPreview(),
-          ),
-          const UiTabItem(
-            label: 'Dashboard',
-            icon: Icons.space_dashboard_outlined,
-            content: _PublicDashboardPreview(),
-          ),
-        ],
+        ),
+        const UiTabItem(
+          label: 'Notes',
+          icon: Icons.note_alt_outlined,
+          content: _NotesPlaybooksPreview(),
+        ),
+        const UiTabItem(
+          label: 'Dashboard',
+          icon: Icons.space_dashboard_outlined,
+          content: _PublicDashboardPreview(),
+        ),
+      ],
     };
 
     final Color bannerColor = isAdmin
@@ -174,11 +176,15 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
 
     final IconData bannerBadgeIcon = isAdmin
         ? Icons.admin_panel_settings_rounded
-        : (isAffiliate ? Icons.workspace_premium_rounded : Icons.public_rounded);
+        : (isAffiliate
+              ? Icons.workspace_premium_rounded
+              : Icons.public_rounded);
 
     final String calloutTitle = isAdmin
         ? 'Desk superadmin profile & root governance'
-        : (isAffiliate ? 'Affiliate partner profile preview' : 'Public profile preview');
+        : (isAffiliate
+              ? 'Affiliate partner profile preview'
+              : 'Public profile preview');
 
     final String calloutMessage = isAdmin
         ? 'Root administrator preview. You have unrestricted execution clearance across risk parameters, desk allocation, killswitch mechanisms, and global platform state.'
@@ -188,7 +194,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
 
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double bottomInset = isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(
@@ -209,7 +215,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
               UiCallout(
                 title: calloutTitle,
                 message: calloutMessage,
-                intent: isAdmin ? UiIntent.danger : (isAffiliate ? UiIntent.warning : UiIntent.info),
+                intent: isAdmin
+                    ? UiIntent.danger
+                    : (isAffiliate ? UiIntent.warning : UiIntent.info),
               ),
               SizedBox(height: context.sp(theme.spacing.md)),
 
@@ -253,7 +261,11 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                             child: UiBadge(
                               label: bannerBadgeText,
                               icon: bannerBadgeIcon,
-                              intent: isAdmin ? UiIntent.danger : (isAffiliate ? UiIntent.warning : UiIntent.primary),
+                              intent: isAdmin
+                                  ? UiIntent.danger
+                                  : (isAffiliate
+                                        ? UiIntent.warning
+                                        : UiIntent.primary),
                               variant: UiBadgeVariant.solid,
                               size: UiSize.xs,
                             ),
@@ -265,7 +277,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                     // 2. Avatar + Action Buttons Row (Overlapping Banner)
                     Padding(
                       padding: EdgeInsets.symmetric(
-                        horizontal: context.sp(isMobile ? theme.spacing.md : theme.spacing.lg),
+                        horizontal: context.sp(
+                          isMobile ? theme.spacing.md : theme.spacing.lg,
+                        ),
                       ),
                       child: Stack(
                         clipBehavior: Clip.none,
@@ -298,14 +312,20 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                           ),
 
                           // Top-right Action Buttons
-                          Padding(
-                            padding: EdgeInsets.only(
-                              top: context.sp(theme.spacing.sm),
-                              bottom: context.sp(theme.spacing.xs),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: <Widget>[
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                top: context.sp(theme.spacing.sm),
+                                bottom: context.sp(theme.spacing.xs),
+                                left: context.sz(isMobile ? 84 : 108),
+                              ),
+                              child: Wrap(
+                                alignment: WrapAlignment.end,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: context.sp(theme.spacing.xs),
+                                runSpacing: context.sp(theme.spacing.xs),
+                                children: <Widget>[
                                 if (isAdmin) ...[
                                   UiButton(
                                     label: 'Root Terminal',
@@ -318,12 +338,12 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       UiToast.show(
                                         context,
                                         title: 'Admin Terminal',
-                                        message: 'Initializing root administrative session with Level 5 clearance...',
+                                        message:
+                                            'Initializing root administrative session with Level 5 clearance...',
                                         intent: UiIntent.danger,
                                       );
                                     },
                                   ),
-                                  SizedBox(width: context.sp(theme.spacing.xs)),
                                   UiIconButton(
                                     icon: Icons.crisis_alert_rounded,
                                     tooltip: 'Emergency Killswitch',
@@ -332,12 +352,12 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       UiToast.show(
                                         context,
                                         title: 'Killswitch Armed',
-                                        message: 'Global trade matching and margin engines are nominal.',
+                                        message:
+                                            'Global trade matching and margin engines are nominal.',
                                         intent: UiIntent.warning,
                                       );
                                     },
                                   ),
-                                  SizedBox(width: context.sp(theme.spacing.xs)),
                                   UiIconButton(
                                     icon: Icons.tune_rounded,
                                     tooltip: 'Risk Governance Config',
@@ -346,7 +366,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       UiToast.show(
                                         context,
                                         title: 'Risk Config',
-                                        message: 'Opening institutional risk parameters panel.',
+                                        message:
+                                            'Opening institutional risk parameters panel.',
                                         intent: UiIntent.info,
                                       );
                                     },
@@ -354,22 +375,27 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                 ] else ...[
                                   UiIconButton(
                                     icon: Icons.share_outlined,
-                                    tooltip: isAffiliate ? 'Share Referral Link' : 'Share Profile',
+                                    tooltip: isAffiliate
+                                        ? 'Share Referral Link'
+                                        : 'Share Profile',
                                     variant: UiVariant.outline,
                                     onPressed: () {
                                       final link = isAffiliate
                                           ? 'https://tradex.io/join/${widget.referralCode ?? widget.handle}'
                                           : 'https://tradex.io/@${widget.handle}';
-                                      Clipboard.setData(ClipboardData(text: link));
+                                      Clipboard.setData(
+                                        ClipboardData(text: link),
+                                      );
                                       UiToast.show(
                                         context,
-                                        title: isAffiliate ? 'Referral link copied' : 'Profile link copied',
+                                        title: isAffiliate
+                                            ? 'Referral link copied'
+                                            : 'Profile link copied',
                                         message: link,
                                         intent: UiIntent.success,
                                       );
                                     },
                                   ),
-                                  SizedBox(width: context.sp(theme.spacing.xs)),
                                   UiIconButton(
                                     icon: Icons.mail_outline_rounded,
                                     tooltip: 'Direct Message',
@@ -378,24 +404,36 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       UiToast.show(
                                         context,
                                         title: 'Direct Message',
-                                        message: 'Opening conversation with @${widget.handle}',
+                                        message:
+                                            'Opening conversation with @${widget.handle}',
                                         intent: UiIntent.info,
                                       );
                                     },
                                   ),
-                                  SizedBox(width: context.sp(theme.spacing.xs)),
                                   UiButton(
                                     label: isAffiliate
-                                        ? (_isFollowing ? 'Subscribed' : 'Subscribe')
-                                        : (_isFollowing ? 'Following' : 'Follow'),
+                                        ? (_isFollowing
+                                              ? 'Subscribed'
+                                              : 'Subscribe')
+                                        : (_isFollowing
+                                              ? 'Following'
+                                              : 'Follow'),
                                     leadingIcon: _isFollowing
                                         ? Icons.check_rounded
-                                        : (isAffiliate ? Icons.stars_rounded : Icons.person_add_alt_1_rounded),
-                                    variant: _isFollowing ? UiVariant.outline : UiVariant.primary,
-                                    intent: isAffiliate ? UiIntent.warning : UiIntent.primary,
+                                        : (isAffiliate
+                                              ? Icons.stars_rounded
+                                              : Icons.person_add_alt_1_rounded),
+                                    variant: _isFollowing
+                                        ? UiVariant.outline
+                                        : UiVariant.primary,
+                                    intent: isAffiliate
+                                        ? UiIntent.warning
+                                        : UiIntent.primary,
                                     expandOnMobile: false,
                                     onPressed: () {
-                                      setState(() => _isFollowing = !_isFollowing);
+                                      setState(
+                                        () => _isFollowing = !_isFollowing,
+                                      );
                                       UiToast.show(
                                         context,
                                         title: _isFollowing
@@ -404,7 +442,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                         message: _isFollowing
                                             ? 'You will receive creator market playbooks and discount updates.'
                                             : 'You have unsubscribed from partner alerts.',
-                                        intent: _isFollowing ? UiIntent.success : UiIntent.neutral,
+                                        intent: _isFollowing
+                                            ? UiIntent.success
+                                            : UiIntent.neutral,
                                       );
                                     },
                                   ),
@@ -412,16 +452,23 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                               ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    ),
                     ),
 
                     // 3. User Identity & Details
                     Padding(
                       padding: EdgeInsets.fromLTRB(
-                        context.sp(isMobile ? theme.spacing.md : theme.spacing.lg),
-                        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-                        context.sp(isMobile ? theme.spacing.md : theme.spacing.lg),
+                        context.sp(
+                          isMobile ? theme.spacing.md : theme.spacing.lg,
+                        ),
+                        context.sp(
+                          isMobile ? theme.spacing.sm : theme.spacing.md,
+                        ),
+                        context.sp(
+                          isMobile ? theme.spacing.md : theme.spacing.lg,
+                        ),
                         context.sp(theme.spacing.md),
                       ),
                       child: Column(
@@ -443,16 +490,24 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                               UiTooltip(
                                 message: isAdmin
                                     ? 'Desk Superadmin (Root Clearance)'
-                                    : (isAffiliate ? 'Verified Affiliate Partner' : 'Verified market participant'),
+                                    : (isAffiliate
+                                          ? 'Verified Affiliate Partner'
+                                          : 'Verified market participant'),
                                 child: Icon(
-                                  isAdmin ? Icons.admin_panel_settings_rounded : Icons.verified_rounded,
+                                  isAdmin
+                                      ? Icons.admin_panel_settings_rounded
+                                      : Icons.verified_rounded,
                                   color: verifiedColor,
                                   size: context.sz(20),
                                 ),
                               ),
                               UiBadge(
                                 label: roleBadgeText,
-                                intent: isAdmin ? UiIntent.danger : (isAffiliate ? UiIntent.warning : UiIntent.primary),
+                                intent: isAdmin
+                                    ? UiIntent.danger
+                                    : (isAffiliate
+                                          ? UiIntent.warning
+                                          : UiIntent.primary),
                                 variant: UiBadgeVariant.soft,
                                 size: UiSize.xs,
                               ),
@@ -492,7 +547,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                 ),
                                 _MetaItem(
                                   icon: Icons.domain_rounded,
-                                  text: widget.topStrategy?.trim().isNotEmpty == true
+                                  text:
+                                      widget.topStrategy?.trim().isNotEmpty ==
+                                          true
                                       ? widget.topStrategy!
                                       : 'Proprietary Trading Desk',
                                 ),
@@ -512,7 +569,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                               ] else ...[
                                 _MetaItem(
                                   icon: Icons.location_on_outlined,
-                                  text: widget.location?.trim().isNotEmpty == true
+                                  text:
+                                      widget.location?.trim().isNotEmpty == true
                                       ? widget.location!
                                       : 'Mumbai, IN',
                                 ),
@@ -524,28 +582,34 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                   icon: Icons.link_rounded,
                                   text: isAffiliate
                                       ? 'tradex.io/join/${widget.referralCode ?? widget.handle}'
-                                      : (widget.website?.trim().isNotEmpty == true
-                                          ? widget.website!
-                                          : 'tradex.io/@${widget.handle}'),
+                                      : (widget.website?.trim().isNotEmpty ==
+                                                true
+                                            ? widget.website!
+                                            : 'tradex.io/@${widget.handle}'),
                                   isLink: true,
                                 ),
                                 if (isAffiliate) ...[
                                   _MetaItem(
                                     icon: Icons.smart_display_outlined,
-                                    text: widget.topStrategy?.trim().isNotEmpty == true
+                                    text:
+                                        widget.topStrategy?.trim().isNotEmpty ==
+                                            true
                                         ? widget.topStrategy!
                                         : 'YouTube',
                                   ),
                                   _MetaItem(
                                     icon: Icons.groups_outlined,
-                                    text: 'Reach: ${widget.audienceReach?.trim().isNotEmpty == true ? widget.audienceReach! : "10K - 100K"}',
+                                    text:
+                                        'Reach: ${widget.audienceReach?.trim().isNotEmpty == true ? widget.audienceReach! : "10K - 100K"}',
                                   ),
                                 ] else ...[
                                   _MetaItem(
                                     icon: Icons.bolt_rounded,
-                                    text: 'Avg Hold: ${widget.avgHoldDuration?.trim().isNotEmpty == true ? widget.avgHoldDuration! : "45 mins"}',
+                                    text:
+                                        'Avg Hold: ${widget.avgHoldDuration?.trim().isNotEmpty == true ? widget.avgHoldDuration! : "45 mins"}',
                                   ),
-                                  if (widget.primaryMarket?.trim().isNotEmpty == true)
+                                  if (widget.primaryMarket?.trim().isNotEmpty ==
+                                      true)
                                     _MetaItem(
                                       icon: Icons.show_chart_rounded,
                                       text: widget.primaryMarket!,
@@ -562,24 +626,60 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                             runSpacing: context.sp(theme.spacing.sm),
                             children: isAdmin
                                 ? const <Widget>[
-                                    _SocialStat(count: '12.4K', label: 'Monitored Traders'),
-                                    _SocialStat(count: '₹148.2 Cr', label: 'Supervised AUM'),
-                                    _SocialStat(count: '99.99%', label: 'Systems Uptime'),
-                                    _SocialStat(count: '0', label: 'Critical Breaches'),
+                                    _SocialStat(
+                                      count: '12.4K',
+                                      label: 'Monitored Traders',
+                                    ),
+                                    _SocialStat(
+                                      count: '₹148.2 Cr',
+                                      label: 'Supervised AUM',
+                                    ),
+                                    _SocialStat(
+                                      count: '99.99%',
+                                      label: 'Systems Uptime',
+                                    ),
+                                    _SocialStat(
+                                      count: '0',
+                                      label: 'Critical Breaches',
+                                    ),
                                   ]
                                 : (isAffiliate
-                                    ? const <Widget>[
-                                        _SocialStat(count: '48.5K', label: 'Community Reach'),
-                                        _SocialStat(count: '148', label: 'Traders Mentored'),
-                                        _SocialStat(count: '24', label: 'Shared Playbooks'),
-                                        _SocialStat(count: '4.9★', label: 'Community Rating'),
-                                      ]
-                                    : const <Widget>[
-                                        _SocialStat(count: '2.4K', label: 'Following'),
-                                        _SocialStat(count: '14.8K', label: 'Followers'),
-                                        _SocialStat(count: '342', label: 'Public Trades'),
-                                        _SocialStat(count: '98.4%', label: 'Discipline Score'),
-                                      ]),
+                                      ? const <Widget>[
+                                          _SocialStat(
+                                            count: '48.5K',
+                                            label: 'Community Reach',
+                                          ),
+                                          _SocialStat(
+                                            count: '148',
+                                            label: 'Traders Mentored',
+                                          ),
+                                          _SocialStat(
+                                            count: '24',
+                                            label: 'Shared Playbooks',
+                                          ),
+                                          _SocialStat(
+                                            count: '4.9★',
+                                            label: 'Community Rating',
+                                          ),
+                                        ]
+                                      : const <Widget>[
+                                          _SocialStat(
+                                            count: '2.4K',
+                                            label: 'Following',
+                                          ),
+                                          _SocialStat(
+                                            count: '14.8K',
+                                            label: 'Followers',
+                                          ),
+                                          _SocialStat(
+                                            count: '342',
+                                            label: 'Public Trades',
+                                          ),
+                                          _SocialStat(
+                                            count: '98.4%',
+                                            label: 'Discipline Score',
+                                          ),
+                                        ]),
                           ),
 
                           // Trading Performance / Governance Strip - Full Width & Responsive
@@ -599,146 +699,369 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                               ),
                             ),
                             child: LayoutBuilder(
-                              builder: (BuildContext context, BoxConstraints constraints) {
-                                if (isAdmin) {
-                                  if (constraints.maxWidth > 520) {
-                                    return Row(
-                                      children: <Widget>[
-                                        const Expanded(child: _KpiPill(label: 'Admin Clearance', value: 'Root / L5', isPositive: false)),
-                                        _buildKpiDivider(theme),
-                                        const Expanded(child: _KpiPill(label: 'Firm Risk Status', value: 'Optimal (1.4% VaR)', isPositive: true)),
-                                        _buildKpiDivider(theme),
-                                        const Expanded(child: _KpiPill(label: 'Active Desks', value: '8 Divisions', isPositive: true)),
-                                        _buildKpiDivider(theme),
-                                        const Expanded(child: _KpiPill(label: 'Engine Latency', value: '1.2 ms Direct', isPositive: true)),
-                                        _buildKpiDivider(theme),
-                                        const Expanded(child: _KpiPill(label: 'Governance', value: 'SEBI & ISO 27001', isPositive: null)),
-                                      ],
-                                    );
-                                  } else {
-                                    return Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: <Widget>[
-                                        Row(
-                                          children: const <Widget>[
-                                            Expanded(child: _KpiPill(label: 'Clearance', value: 'Root / L5', isPositive: false)),
-                                            Expanded(child: _KpiPill(label: 'Firm Risk', value: 'Optimal', isPositive: true)),
-                                            Expanded(child: _KpiPill(label: 'Active Desks', value: '8 Divisions', isPositive: true)),
-                                          ],
-                                        ),
-                                        Padding(
-                                          padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
-                                          child: Divider(
-                                            height: 1,
-                                            color: theme.colors.border.withValues(alpha: 0.5),
-                                          ),
-                                        ),
-                                        Row(
-                                          children: const <Widget>[
-                                            Expanded(child: _KpiPill(label: 'Engine Latency', value: '1.2 ms Direct', isPositive: true)),
-                                            Expanded(child: _KpiPill(label: 'Governance', value: 'ISO 27001', isPositive: null)),
-                                            Expanded(child: _KpiPill(label: 'System Uptime', value: '99.99%', isPositive: true)),
-                                          ],
-                                        ),
-                                      ],
-                                    );
-                                  }
-                                }
-
-                                if (isAffiliate) {
-                                  final String nicheText = widget.primaryMarket?.trim().isNotEmpty == true
-                                      ? widget.primaryMarket!
-                                      : 'Trading Education';
-                                  if (constraints.maxWidth > 520) {
-                                    return Row(
-                                      children: <Widget>[
-                                        const Expanded(child: _KpiPill(label: 'Partner Status', value: 'Verified Creator', isPositive: true)),
-                                        _buildKpiDivider(theme),
-                                        const Expanded(child: _KpiPill(label: 'Active Community', value: '148 Traders', isPositive: true)),
-                                        _buildKpiDivider(theme),
-                                        const Expanded(child: _KpiPill(label: 'Trader Perk', value: '20% Lifetime Off', isPositive: true)),
-                                        _buildKpiDivider(theme),
-                                        const Expanded(child: _KpiPill(label: 'Member Trust', value: '98.4% Positive', isPositive: true)),
-                                        _buildKpiDivider(theme),
-                                        Expanded(child: _KpiPill(label: 'Content Focus', value: nicheText, isPositive: null)),
-                                      ],
-                                    );
-                                  } else {
-                                    return Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: <Widget>[
-                                        Row(
-                                          children: const <Widget>[
-                                            Expanded(child: _KpiPill(label: 'Status', value: 'Verified Creator', isPositive: true)),
-                                            Expanded(child: _KpiPill(label: 'Community', value: '148 Traders', isPositive: true)),
-                                            Expanded(child: _KpiPill(label: 'Discount', value: '20% Off Pro', isPositive: true)),
-                                          ],
-                                        ),
-                                        Padding(
-                                          padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
-                                          child: Divider(
-                                            height: 1,
-                                            color: theme.colors.border.withValues(alpha: 0.5),
-                                          ),
-                                        ),
-                                        Row(
+                              builder:
+                                  (
+                                    BuildContext context,
+                                    BoxConstraints constraints,
+                                  ) {
+                                    if (isAdmin) {
+                                      if (constraints.maxWidth > 520) {
+                                        return Row(
                                           children: <Widget>[
-                                            const Expanded(child: _KpiPill(label: 'Member Trust', value: '98.4% Rating', isPositive: true)),
-                                            Expanded(child: _KpiPill(label: 'Niche', value: nicheText, isPositive: null)),
-                                            const Expanded(child: _KpiPill(label: 'Playbooks', value: '24 Guides', isPositive: true)),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Admin Clearance',
+                                                value: 'Root / L5',
+                                                isPositive: false,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Firm Risk Status',
+                                                value: 'Optimal (1.4% VaR)',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Active Desks',
+                                                value: '8 Divisions',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Engine Latency',
+                                                value: '1.2 ms Direct',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Governance',
+                                                value: 'SEBI & ISO 27001',
+                                                isPositive: null,
+                                              ),
+                                            ),
                                           ],
-                                        ),
-                                      ],
-                                    );
-                                  }
-                                }
+                                        );
+                                      } else {
+                                        return Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: <Widget>[
+                                            Row(
+                                              children: const <Widget>[
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Clearance',
+                                                    value: 'Root / L5',
+                                                    isPositive: false,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Firm Risk',
+                                                    value: 'Optimal',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Active Desks',
+                                                    value: '8 Divisions',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                vertical: context.sp(
+                                                  theme.spacing.xs,
+                                                ),
+                                              ),
+                                              child: Divider(
+                                                height: 1,
+                                                color: theme.colors.border
+                                                    .withValues(alpha: 0.5),
+                                              ),
+                                            ),
+                                            Row(
+                                              children: const <Widget>[
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Engine Latency',
+                                                    value: '1.2 ms Direct',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Governance',
+                                                    value: 'ISO 27001',
+                                                    isPositive: null,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'System Uptime',
+                                                    value: '99.99%',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        );
+                                      }
+                                    }
 
-                                final String topStrategyText = widget.topStrategy?.trim().isNotEmpty == true
-                                    ? widget.topStrategy!
-                                    : 'ORB Breakout';
-                                if (constraints.maxWidth > 520) {
-                                  return Row(
-                                    children: <Widget>[
-                                      const Expanded(child: _KpiPill(label: 'Win Rate', value: '68.4%', isPositive: true)),
-                                      _buildKpiDivider(theme),
-                                      const Expanded(child: _KpiPill(label: 'Avg R Multiple', value: '2.15R', isPositive: true)),
-                                      _buildKpiDivider(theme),
-                                      const Expanded(child: _KpiPill(label: 'Profit Factor', value: '2.48', isPositive: true)),
-                                      _buildKpiDivider(theme),
-                                      const Expanded(child: _KpiPill(label: 'Best Streak', value: '9 Wins', isPositive: true)),
-                                      _buildKpiDivider(theme),
-                                      Expanded(child: _KpiPill(label: 'Top Strategy', value: topStrategyText, isPositive: null)),
-                                    ],
-                                  );
-                                } else {
-                                  return Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: <Widget>[
-                                      Row(
-                                        children: const <Widget>[
-                                          Expanded(child: _KpiPill(label: 'Win Rate', value: '68.4%', isPositive: true)),
-                                          Expanded(child: _KpiPill(label: 'Avg R Multiple', value: '2.15R', isPositive: true)),
-                                          Expanded(child: _KpiPill(label: 'Profit Factor', value: '2.48', isPositive: true)),
-                                        ],
-                                      ),
-                                      Padding(
-                                        padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
-                                        child: Divider(
-                                          height: 1,
-                                          color: theme.colors.border.withValues(alpha: 0.5),
-                                        ),
-                                      ),
-                                      Row(
+                                    if (isAffiliate) {
+                                      final String nicheText =
+                                          widget.primaryMarket
+                                                  ?.trim()
+                                                  .isNotEmpty ==
+                                              true
+                                          ? widget.primaryMarket!
+                                          : 'Trading Education';
+                                      if (constraints.maxWidth > 520) {
+                                        return Row(
+                                          children: <Widget>[
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Partner Status',
+                                                value: 'Verified Creator',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Active Community',
+                                                value: '148 Traders',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Trader Perk',
+                                                value: '20% Lifetime Off',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            const Expanded(
+                                              child: _KpiPill(
+                                                label: 'Member Trust',
+                                                value: '98.4% Positive',
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            Expanded(
+                                              child: _KpiPill(
+                                                label: 'Content Focus',
+                                                value: nicheText,
+                                                isPositive: null,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      } else {
+                                        return Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: <Widget>[
+                                            Row(
+                                              children: const <Widget>[
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Status',
+                                                    value: 'Verified Creator',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Community',
+                                                    value: '148 Traders',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Discount',
+                                                    value: '20% Off Pro',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                vertical: context.sp(
+                                                  theme.spacing.xs,
+                                                ),
+                                              ),
+                                              child: Divider(
+                                                height: 1,
+                                                color: theme.colors.border
+                                                    .withValues(alpha: 0.5),
+                                              ),
+                                            ),
+                                            Row(
+                                              children: <Widget>[
+                                                const Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Member Trust',
+                                                    value: '98.4% Rating',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Niche',
+                                                    value: nicheText,
+                                                    isPositive: null,
+                                                  ),
+                                                ),
+                                                const Expanded(
+                                                  child: _KpiPill(
+                                                    label: 'Playbooks',
+                                                    value: '24 Guides',
+                                                    isPositive: true,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        );
+                                      }
+                                    }
+
+                                    final String topStrategyText =
+                                        widget.topStrategy?.trim().isNotEmpty ==
+                                            true
+                                        ? widget.topStrategy!
+                                        : 'ORB Breakout';
+                                    if (constraints.maxWidth > 520) {
+                                      return Row(
                                         children: <Widget>[
-                                          const Expanded(child: _KpiPill(label: 'Best Streak', value: '9 Wins', isPositive: true)),
-                                          Expanded(child: _KpiPill(label: 'Top Strategy', value: topStrategyText, isPositive: null)),
-                                          const Expanded(child: _KpiPill(label: 'Discipline', value: '98.4%', isPositive: true)),
+                                          const Expanded(
+                                            child: _KpiPill(
+                                              label: 'Win Rate',
+                                              value: '68.4%',
+                                              isPositive: true,
+                                            ),
+                                          ),
+                                          _buildKpiDivider(theme),
+                                          const Expanded(
+                                            child: _KpiPill(
+                                              label: 'Avg R Multiple',
+                                              value: '2.15R',
+                                              isPositive: true,
+                                            ),
+                                          ),
+                                          _buildKpiDivider(theme),
+                                          const Expanded(
+                                            child: _KpiPill(
+                                              label: 'Profit Factor',
+                                              value: '2.48',
+                                              isPositive: true,
+                                            ),
+                                          ),
+                                          _buildKpiDivider(theme),
+                                          const Expanded(
+                                            child: _KpiPill(
+                                              label: 'Best Streak',
+                                              value: '9 Wins',
+                                              isPositive: true,
+                                            ),
+                                          ),
+                                          _buildKpiDivider(theme),
+                                          Expanded(
+                                            child: _KpiPill(
+                                              label: 'Top Strategy',
+                                              value: topStrategyText,
+                                              isPositive: null,
+                                            ),
+                                          ),
                                         ],
-                                      ),
-                                    ],
-                                  );
-                                }
-                              },
+                                      );
+                                    } else {
+                                      return Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: <Widget>[
+                                          Row(
+                                            children: const <Widget>[
+                                              Expanded(
+                                                child: _KpiPill(
+                                                  label: 'Win Rate',
+                                                  value: '68.4%',
+                                                  isPositive: true,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: _KpiPill(
+                                                  label: 'Avg R Multiple',
+                                                  value: '2.15R',
+                                                  isPositive: true,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: _KpiPill(
+                                                  label: 'Profit Factor',
+                                                  value: '2.48',
+                                                  isPositive: true,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Padding(
+                                            padding: EdgeInsets.symmetric(
+                                              vertical: context.sp(
+                                                theme.spacing.xs,
+                                              ),
+                                            ),
+                                            child: Divider(
+                                              height: 1,
+                                              color: theme.colors.border
+                                                  .withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                          Row(
+                                            children: <Widget>[
+                                              const Expanded(
+                                                child: _KpiPill(
+                                                  label: 'Best Streak',
+                                                  value: '9 Wins',
+                                                  isPositive: true,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: _KpiPill(
+                                                  label: 'Top Strategy',
+                                                  value: topStrategyText,
+                                                  isPositive: null,
+                                                ),
+                                              ),
+                                              const Expanded(
+                                                child: _KpiPill(
+                                                  label: 'Discipline',
+                                                  value: '98.4%',
+                                                  isPositive: true,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      );
+                                    }
+                                  },
                             ),
                           ),
                         ],
@@ -793,11 +1116,15 @@ class _MetaItem extends StatelessWidget {
           color: isLink ? theme.colors.primary : theme.colors.foregroundMuted,
         ),
         const SizedBox(width: 4),
-        Text(
-          text,
-          style: context.uiText.caption.copyWith(
-            color: isLink ? theme.colors.primary : theme.colors.foregroundMuted,
-            fontWeight: isLink ? FontWeight.w600 : FontWeight.normal,
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.uiText.caption.copyWith(
+              color: isLink ? theme.colors.primary : theme.colors.foregroundMuted,
+              fontWeight: isLink ? FontWeight.w600 : FontWeight.normal,
+            ),
           ),
         ),
       ],
@@ -820,10 +1147,14 @@ class _SocialStat extends StatelessWidget {
         style: context.uiText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
       ),
       const SizedBox(width: 4),
-      Text(
-        label,
-        style: context.uiText.caption.copyWith(
-          color: context.ui.colors.foregroundMuted,
+      Flexible(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.uiText.caption.copyWith(
+            color: context.ui.colors.foregroundMuted,
+          ),
         ),
       ),
     ],
@@ -1140,7 +1471,9 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
           // Twitter Style Action Bar (Comments, Reposts, Likes, Views, Bookmark, Share)
           SizedBox(height: context.sp(theme.spacing.md)),
           Container(
-            padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xxs)),
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.xxs),
+            ),
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(
@@ -1165,8 +1498,11 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                   onTap: () {},
                 ),
                 _EngagementButton(
-                  icon: _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  count: (int.tryParse(widget.likes) ?? 0 + (_liked ? 1 : 0)).toString(),
+                  icon: _liked
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  count: (int.tryParse(widget.likes) ?? 0 + (_liked ? 1 : 0))
+                      .toString(),
                   isActive: _liked,
                   activeColor: Colors.redAccent,
                   onTap: () => setState(() => _liked = !_liked),
@@ -1178,7 +1514,9 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                   onTap: () {},
                 ),
                 _EngagementButton(
-                  icon: _bookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                  icon: _bookmarked
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
                   count: '',
                   isActive: _bookmarked,
                   activeColor: theme.colors.warning,
@@ -1344,7 +1682,11 @@ class _PublicJournalPreview extends StatelessWidget {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Icon(Icons.verified_user_outlined, color: theme.colors.bullish, size: context.sz(20)),
+                  Icon(
+                    Icons.verified_user_outlined,
+                    color: theme.colors.bullish,
+                    size: context.sz(20),
+                  ),
                   SizedBox(width: context.sp(theme.spacing.xs)),
                   Expanded(
                     child: Text(
@@ -1362,7 +1704,9 @@ class _PublicJournalPreview extends StatelessWidget {
               SizedBox(height: context.sp(theme.spacing.sm)),
               Text(
                 'Every trade shown below is cryptographically hashed against broker fill timestamps. Private personal executions remain confidential.',
-                style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
               ),
               SizedBox(height: context.sp(theme.spacing.md)),
               Wrap(
@@ -1370,9 +1714,21 @@ class _PublicJournalPreview extends StatelessWidget {
                 runSpacing: context.sp(theme.spacing.xs),
                 children: const <Widget>[
                   _JournalStat(title: 'Public Trades', val: '48 Logged'),
-                  _JournalStat(title: 'Net Realized PnL', val: '+₹1,84,200', color: Colors.green),
-                  _JournalStat(title: 'Win Ratio', val: '68.8% (33W - 15L)', color: Colors.green),
-                  _JournalStat(title: 'Total R Gained', val: '+38.4R', color: Colors.green),
+                  _JournalStat(
+                    title: 'Net Realized PnL',
+                    val: '+₹1,84,200',
+                    color: Colors.green,
+                  ),
+                  _JournalStat(
+                    title: 'Win Ratio',
+                    val: '68.8% (33W - 15L)',
+                    color: Colors.green,
+                  ),
+                  _JournalStat(
+                    title: 'Total R Gained',
+                    val: '+38.4R',
+                    color: Colors.green,
+                  ),
                 ],
               ),
             ],
@@ -1384,18 +1740,28 @@ class _PublicJournalPreview extends StatelessWidget {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: <String>['All Trades (48)', 'Wins (33)', 'Losses (15)', 'Breakouts (24)', 'Pullbacks (18)', 'Reversals (6)'].asMap().entries.map((MapEntry<int, String> e) {
-              final bool isSelected = selectedFilter == e.key;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(e.value),
-                  selected: isSelected,
-                  selectedColor: theme.colors.primary.withValues(alpha: 0.2),
-                  onSelected: (_) => onFilterChanged(e.key),
-                ),
-              );
-            }).toList(),
+            children:
+                <String>[
+                  'All Trades (48)',
+                  'Wins (33)',
+                  'Losses (15)',
+                  'Breakouts (24)',
+                  'Pullbacks (18)',
+                  'Reversals (6)',
+                ].asMap().entries.map((MapEntry<int, String> e) {
+                  final bool isSelected = selectedFilter == e.key;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(e.value),
+                      selected: isSelected,
+                      selectedColor: theme.colors.primary.withValues(
+                        alpha: 0.2,
+                      ),
+                      onSelected: (_) => onFilterChanged(e.key),
+                    ),
+                  );
+                }).toList(),
           ),
         ),
         SizedBox(height: context.sp(theme.spacing.sm)),
@@ -1413,7 +1779,8 @@ class _PublicJournalPreview extends StatelessWidget {
           entryPrice: '₹2,890.00',
           exitPrice: '₹2,955.00',
           quantity: '500 Qty',
-          notes: 'High relative volume on 5-min breakout. Reclaimed VWAP with index confirmation. Scaled out at 2R target.',
+          notes:
+              'High relative volume on 5-min breakout. Reclaimed VWAP with index confirmation. Scaled out at 2R target.',
           tags: const <String>['ORB', 'VWAP', 'Momentum'],
         ),
         SizedBox(height: context.sp(theme.spacing.sm)),
@@ -1431,7 +1798,8 @@ class _PublicJournalPreview extends StatelessWidget {
           entryPrice: '₹145.00',
           exitPrice: '₹190.60',
           quantity: '400 Qty',
-          notes: 'Afternoon session breakout continuation. Protected capital by trailing stop loss to entry after 1R.',
+          notes:
+              'Afternoon session breakout continuation. Protected capital by trailing stop loss to entry after 1R.',
           tags: const <String>['Options', 'Index', 'Trend'],
         ),
         SizedBox(height: context.sp(theme.spacing.sm)),
@@ -1449,7 +1817,8 @@ class _PublicJournalPreview extends StatelessWidget {
           entryPrice: '₹3,920.00',
           exitPrice: '₹3,935.00',
           quantity: '200 Qty',
-          notes: 'Failed breakdown attempt as IT sector reversed. Stopped out cleanly without adding or widening stop.',
+          notes:
+              'Failed breakdown attempt as IT sector reversed. Stopped out cleanly without adding or widening stop.',
           tags: const <String>['Discipline', 'StopLoss'],
         ),
       ],
@@ -1470,7 +1839,12 @@ class _JournalStat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(title, style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted)),
+        Text(
+          title,
+          style: context.uiText.caption.copyWith(
+            color: theme.colors.foregroundMuted,
+          ),
+        ),
         const SizedBox(height: 2),
         Text(
           val,
@@ -1536,12 +1910,16 @@ class _JournalTradeCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 ticker,
-                style: context.uiText.bodyStrong.copyWith(fontWeight: FontWeight.w800),
+                style: context.uiText.bodyStrong.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(width: 6),
               Text(
                 '· $setup',
-                style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
               ),
               const Spacer(),
               UiBadge(
@@ -1556,7 +1934,10 @@ class _JournalTradeCard extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.sm)),
           Text(
             notes,
-            style: context.uiText.body.copyWith(fontSize: context.fs(13), height: 1.4),
+            style: context.uiText.body.copyWith(
+              fontSize: context.fs(13),
+              height: 1.4,
+            ),
           ),
 
           SizedBox(height: context.sp(theme.spacing.sm)),
@@ -1574,7 +1955,12 @@ class _JournalTradeCard extends StatelessWidget {
                 Text('Exit: $exitPrice', style: context.uiText.caption),
                 Text('Qty: $quantity', style: context.uiText.caption),
                 Text('Time: $duration', style: context.uiText.caption),
-                Text(date, style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted)),
+                Text(
+                  date,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1584,7 +1970,13 @@ class _JournalTradeCard extends StatelessWidget {
             Wrap(
               spacing: 6,
               children: tags
-                  .map((String t) => UiBadge(label: '#$t', intent: UiIntent.primary, size: UiSize.xs))
+                  .map(
+                    (String t) => UiBadge(
+                      label: '#$t',
+                      intent: UiIntent.primary,
+                      size: UiSize.xs,
+                    ),
+                  )
                   .toList(),
             ),
           ],
@@ -1679,7 +2071,9 @@ class _NotePlaybookCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: context.uiText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
+                  style: context.uiText.bodyStrong.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               UiBadge(
@@ -1692,18 +2086,29 @@ class _NotePlaybookCard extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             subtitle,
-            style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
           Text(
             summary,
-            style: context.uiText.body.copyWith(height: 1.45, fontSize: context.fs(13.5)),
+            style: context.uiText.body.copyWith(
+              height: 1.45,
+              fontSize: context.fs(13.5),
+            ),
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
           Wrap(
             spacing: 6,
             children: tags
-                .map((String t) => UiBadge(label: t, intent: UiIntent.neutral, size: UiSize.xs))
+                .map(
+                  (String t) => UiBadge(
+                    label: t,
+                    intent: UiIntent.neutral,
+                    size: UiSize.xs,
+                  ),
+                )
                 .toList(),
           ),
         ],
@@ -1727,11 +2132,15 @@ class _PublicDashboardPreview extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         UiCardGrid(
-          mobileColumns: 1,
+          mobileColumns: 2,
           tabletColumns: 2,
           desktopColumns: 2,
           largeColumns: 4,
-          childAspectRatio: 2.1,
+          childAspectRatio: context.uiRes.pick<double>(
+            mobile: 1.25,
+            tablet: 1.45,
+            desktop: 1.55,
+          ),
           children: <Widget>[
             UiMetricCard(
               label: '30D return',
@@ -1739,7 +2148,18 @@ class _PublicDashboardPreview extends StatelessWidget {
               delta: 18.4,
               icon: Icons.trending_up_rounded,
               chart: UiSparkChart(
-                values: const <double>[10, 12, 11, 14, 13, 16, 15, 18, 17, 18.4],
+                values: const <double>[
+                  10,
+                  12,
+                  11,
+                  14,
+                  13,
+                  16,
+                  15,
+                  18,
+                  17,
+                  18.4,
+                ],
                 color: theme.colors.bullish,
               ),
             ),
@@ -1749,7 +2169,16 @@ class _PublicDashboardPreview extends StatelessWidget {
               delta: 0.18,
               icon: Icons.analytics_outlined,
               chart: UiSparkChart(
-                values: const <double>[1.8, 1.9, 1.85, 2.0, 1.95, 2.1, 2.05, 2.15],
+                values: const <double>[
+                  1.8,
+                  1.9,
+                  1.85,
+                  2.0,
+                  1.95,
+                  2.1,
+                  2.05,
+                  2.15,
+                ],
                 color: theme.colors.primary,
               ),
             ),
@@ -1820,11 +2249,26 @@ class _PublicDashboardPreview extends StatelessWidget {
           subtitle: 'Realized performance by primary traded universe',
           child: Column(
             children: <Widget>[
-              _SectorBar(label: 'NIFTY & Index Options', pct: 0.55, amount: '+₹1,02,400', color: theme.colors.primary),
+              _SectorBar(
+                label: 'NIFTY & Index Options',
+                pct: 0.55,
+                amount: '+₹1,02,400',
+                color: theme.colors.primary,
+              ),
               const SizedBox(height: 10),
-              _SectorBar(label: 'High-Beta Equities (Large Cap)', pct: 0.30, amount: '+₹54,600', color: theme.colors.bullish),
+              _SectorBar(
+                label: 'High-Beta Equities (Large Cap)',
+                pct: 0.30,
+                amount: '+₹54,600',
+                color: theme.colors.bullish,
+              ),
               const SizedBox(height: 10),
-              _SectorBar(label: 'Swing Breakouts (Mid Cap)', pct: 0.15, amount: '+₹27,200', color: theme.colors.warning),
+              _SectorBar(
+                label: 'Swing Breakouts (Mid Cap)',
+                pct: 0.15,
+                amount: '+₹27,200',
+                color: theme.colors.warning,
+              ),
             ],
           ),
         ),
@@ -1855,8 +2299,22 @@ class _SectorBar extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
-            Text(label, style: context.uiText.bodyStrong.copyWith(fontSize: context.fs(13))),
-            Text(amount, style: context.uiText.bodyStrong.copyWith(color: color)),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.uiText.bodyStrong.copyWith(
+                  fontSize: context.fs(13),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              amount,
+              maxLines: 1,
+              style: context.uiText.bodyStrong.copyWith(color: color),
+            ),
           ],
         ),
         const SizedBox(height: 4),
@@ -1918,19 +2376,26 @@ class _AffiliateCampaignsPreview extends StatelessWidget {
                   const Spacer(),
                   Text(
                     'Active through 2026',
-                    style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted),
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
                   ),
                 ],
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
               Text(
                 'Exclusive TradeX Community Discount 🎉',
-                style: context.uiText.heading.copyWith(fontSize: context.fs(16)),
+                style: context.uiText.heading.copyWith(
+                  fontSize: context.fs(16),
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Get 20% OFF all TradeX Pro & Team annual memberships. Includes access to my verified trade journals, setup notes, and private strategy templates.',
-                style: context.uiText.body.copyWith(height: 1.45, fontSize: context.fs(13.5)),
+                style: context.uiText.body.copyWith(
+                  height: 1.45,
+                  fontSize: context.fs(13.5),
+                ),
               ),
               SizedBox(height: context.sp(theme.spacing.md)),
               Container(
@@ -1945,7 +2410,11 @@ class _AffiliateCampaignsPreview extends StatelessWidget {
                 ),
                 child: Row(
                   children: <Widget>[
-                    Icon(Icons.vpn_key_rounded, size: 18, color: theme.colors.warning),
+                    Icon(
+                      Icons.vpn_key_rounded,
+                      size: 18,
+                      color: theme.colors.warning,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -1966,7 +2435,8 @@ class _AffiliateCampaignsPreview extends StatelessWidget {
                         UiToast.show(
                           context,
                           title: 'Code copied',
-                          message: 'Referral code $referralCode copied to clipboard.',
+                          message:
+                              'Referral code $referralCode copied to clipboard.',
                           intent: UiIntent.success,
                         );
                       },
@@ -1986,24 +2456,39 @@ class _AffiliateCampaignsPreview extends StatelessWidget {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  UiAvatar(name: displayName, imageUrl: avatarUrl, size: UiSize.sm),
+                  UiAvatar(
+                    name: displayName,
+                    imageUrl: avatarUrl,
+                    size: UiSize.sm,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(displayName, style: context.uiText.bodyStrong),
-                        Text('@$handle · 2h ago', style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted)),
+                        Text(
+                          '@$handle · 2h ago',
+                          style: context.uiText.caption.copyWith(
+                            color: theme.colors.foregroundMuted,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  UiBadge(label: 'NEW VIDEO', intent: UiIntent.primary, size: UiSize.xs),
+                  UiBadge(
+                    label: 'NEW VIDEO',
+                    intent: UiIntent.primary,
+                    size: UiSize.xs,
+                  ),
                 ],
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
               Text(
                 'Mastering the Opening Range Breakout (ORB) on NIFTY & Tech Stocks',
-                style: context.uiText.heading.copyWith(fontSize: context.fs(15)),
+                style: context.uiText.heading.copyWith(
+                  fontSize: context.fs(15),
+                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -2023,9 +2508,18 @@ class _AffiliateCampaignsPreview extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Icon(Icons.play_circle_fill_rounded, size: 48, color: theme.colors.warning),
+                      Icon(
+                        Icons.play_circle_fill_rounded,
+                        size: 48,
+                        color: theme.colors.warning,
+                      ),
                       const SizedBox(height: 6),
-                      Text('Watch Full Masterclass (35 mins)', style: context.uiText.caption.copyWith(fontWeight: FontWeight.w600)),
+                      Text(
+                        'Watch Full Masterclass (35 mins)',
+                        style: context.uiText.caption.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -2062,7 +2556,8 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
         UiCard(
           accentColor: theme.colors.warning,
           title: 'Join via Partner Link & Unlock VIP Perks',
-          subtitle: 'Use this link to automatically apply a 20% discount on all platform subscriptions and gain instant access to private setups.',
+          subtitle:
+              'Use this link to automatically apply a 20% discount on all platform subscriptions and gain instant access to private setups.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -2078,7 +2573,11 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                 ),
                 child: Row(
                   children: <Widget>[
-                    Icon(Icons.link_rounded, size: 20, color: theme.colors.warning),
+                    Icon(
+                      Icons.link_rounded,
+                      size: 20,
+                      color: theme.colors.warning,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -2096,7 +2595,11 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                       size: UiSize.xs,
                       leadingIcon: Icons.copy_rounded,
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: 'https://tradex.io/join/$referralCode'));
+                        Clipboard.setData(
+                          ClipboardData(
+                            text: 'https://tradex.io/join/$referralCode',
+                          ),
+                        );
                         UiToast.show(
                           context,
                           title: 'Link copied',
@@ -2111,17 +2614,35 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
               SizedBox(height: context.sp(theme.spacing.md)),
               Text(
                 'Member Perks When Joining via This Partner:',
-                style: context.uiText.caption.copyWith(fontWeight: FontWeight.w700),
+                style: context.uiText.caption.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 8,
                 runSpacing: 6,
                 children: const <Widget>[
-                  UiBadge(label: '20% Lifetime Platform Discount', intent: UiIntent.success, size: UiSize.xs),
-                  UiBadge(label: 'Free Curated Playbooks', intent: UiIntent.primary, size: UiSize.xs),
-                  UiBadge(label: 'VIP Live Workshop Access', intent: UiIntent.warning, size: UiSize.xs),
-                  UiBadge(label: 'Zero Setup / Hidden Fees', intent: UiIntent.neutral, size: UiSize.xs),
+                  UiBadge(
+                    label: '20% Lifetime Platform Discount',
+                    intent: UiIntent.success,
+                    size: UiSize.xs,
+                  ),
+                  UiBadge(
+                    label: 'Free Curated Playbooks',
+                    intent: UiIntent.primary,
+                    size: UiSize.xs,
+                  ),
+                  UiBadge(
+                    label: 'VIP Live Workshop Access',
+                    intent: UiIntent.warning,
+                    size: UiSize.xs,
+                  ),
+                  UiBadge(
+                    label: 'Zero Setup / Hidden Fees',
+                    intent: UiIntent.neutral,
+                    size: UiSize.xs,
+                  ),
                 ],
               ),
             ],
@@ -2132,13 +2653,15 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
         // 4-Step Community Trader Journey Card
         UiCard(
           title: 'How to Get Started in 4 Easy Steps',
-          subtitle: 'Simple onboarding steps to activate your partner perks and join the private trade room',
+          subtitle:
+              'Simple onboarding steps to activate your partner perks and join the private trade room',
           child: Column(
             children: <Widget>[
               const _AffiliateStepTile(
                 stepNumber: '1',
                 title: 'Create Your Free Account',
-                description: 'Sign up on TradeX in under 60 seconds with your email, mobile number, or Google auth.',
+                description:
+                    'Sign up on TradeX in under 60 seconds with your email, mobile number, or Google auth.',
                 statusText: 'Step 1',
                 statusIntent: UiIntent.primary,
               ),
@@ -2146,7 +2669,8 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
               _AffiliateStepTile(
                 stepNumber: '2',
                 title: 'Apply Partner Code: $referralCode',
-                description: 'Instantly lock in your 20% lifetime membership discount on Pro and Team tier plans.',
+                description:
+                    'Instantly lock in your 20% lifetime membership discount on Pro and Team tier plans.',
                 statusText: '20% Off',
                 statusIntent: UiIntent.success,
               ),
@@ -2154,7 +2678,8 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
               const _AffiliateStepTile(
                 stepNumber: '3',
                 title: 'Unlock Verified Playbooks & Setups',
-                description: 'Gain instant access to the creator’s verified chart templates, ORB strategies, and trade journal.',
+                description:
+                    'Gain instant access to the creator’s verified chart templates, ORB strategies, and trade journal.',
                 statusText: 'Free Access',
                 statusIntent: UiIntent.warning,
               ),
@@ -2162,7 +2687,8 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
               const _AffiliateStepTile(
                 stepNumber: '4',
                 title: 'Trade with Active Community Support',
-                description: 'Participate in weekly market preparation sessions, live execution reviews, and peer discussions.',
+                description:
+                    'Participate in weekly market preparation sessions, live execution reviews, and peer discussions.',
                 statusText: 'VIP Community',
                 statusIntent: UiIntent.primary,
               ),
@@ -2224,10 +2750,16 @@ class _AffiliateStepTile extends StatelessWidget {
                   Expanded(
                     child: Text(
                       title,
-                      style: context.uiText.bodyStrong.copyWith(fontSize: context.fs(14)),
+                      style: context.uiText.bodyStrong.copyWith(
+                        fontSize: context.fs(14),
+                      ),
                     ),
                   ),
-                  UiBadge(label: statusText, intent: statusIntent, size: UiSize.xs),
+                  UiBadge(
+                    label: statusText,
+                    intent: statusIntent,
+                    size: UiSize.xs,
+                  ),
                 ],
               ),
               const SizedBox(height: 3),
@@ -2261,11 +2793,15 @@ class _AffiliateCommunityOverviewPreview extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         UiCardGrid(
-          mobileColumns: 1,
+          mobileColumns: 2,
           tabletColumns: 2,
           desktopColumns: 2,
           largeColumns: 4,
-          childAspectRatio: 2.1,
+          childAspectRatio: context.uiRes.pick<double>(
+            mobile: 1.25,
+            tablet: 1.45,
+            desktop: 1.55,
+          ),
           children: <Widget>[
             UiMetricCard(
               label: 'Active community',
@@ -2313,7 +2849,8 @@ class _AffiliateCommunityOverviewPreview extends StatelessWidget {
         // Community Growth Trajectory Chart Card
         UiCard(
           title: 'Mentorship Growth & Community Activity',
-          subtitle: 'Active traders executing this educator’s verified strategy playbooks',
+          subtitle:
+              'Active traders executing this educator’s verified strategy playbooks',
           trailing: UiBadge(
             label: '+148 Active Traders',
             intent: UiIntent.primary,
@@ -2344,14 +2881,30 @@ class _AffiliateCommunityOverviewPreview extends StatelessWidget {
 
         UiCard(
           title: 'Primary Trading Frameworks & Setups',
-          subtitle: 'Strategy curriculum and execution models taught by this partner',
+          subtitle:
+              'Strategy curriculum and execution models taught by this partner',
           child: Column(
             children: <Widget>[
-              _SectorBar(label: 'Opening Range Breakouts (ORB)', pct: 0.55, amount: '18 Setups · 68.4% Win Rate', color: theme.colors.primary),
+              _SectorBar(
+                label: 'Opening Range Breakouts (ORB)',
+                pct: 0.55,
+                amount: '18 Setups · 68.4% Win Rate',
+                color: theme.colors.primary,
+              ),
               const SizedBox(height: 10),
-              _SectorBar(label: 'Trend Following & Moving Average Pullbacks', pct: 0.30, amount: '12 Setups · 62.1% Win Rate', color: theme.colors.bullish),
+              _SectorBar(
+                label: 'Trend Following & Moving Average Pullbacks',
+                pct: 0.30,
+                amount: '12 Setups · 62.1% Win Rate',
+                color: theme.colors.bullish,
+              ),
               const SizedBox(height: 10),
-              _SectorBar(label: 'Options Volatility & Delta Neutral', pct: 0.15, amount: '6 Setups · 71.0% Win Rate', color: theme.colors.warning),
+              _SectorBar(
+                label: 'Options Volatility & Delta Neutral',
+                pct: 0.15,
+                amount: '6 Setups · 71.0% Win Rate',
+                color: theme.colors.warning,
+              ),
             ],
           ),
         ),
@@ -2366,7 +2919,8 @@ class _AffiliateCommunityOverviewPreview extends StatelessWidget {
                 handle: '@rohan_trades',
                 timeAgo: 'Yesterday',
                 rating: 5,
-                comment: 'The ORB blueprint and 15-minute risk checklist completely transformed my execution discipline. Profit factor is up from 1.2 to 2.4R this month!',
+                comment:
+                    'The ORB blueprint and 15-minute risk checklist completely transformed my execution discipline. Profit factor is up from 1.2 to 2.4R this month!',
               ),
               const Divider(height: 24),
               _ReviewTile(
@@ -2374,7 +2928,8 @@ class _AffiliateCommunityOverviewPreview extends StatelessWidget {
                 handle: '@priya_fno',
                 timeAgo: '3 days ago',
                 rating: 5,
-                comment: 'Clear, zero-noise technical analysis. The private weekend workshops and TradeX orderflow charts give immense clarity before market open.',
+                comment:
+                    'Clear, zero-noise technical analysis. The private weekend workshops and TradeX orderflow charts give immense clarity before market open.',
               ),
             ],
           ),
@@ -2409,14 +2964,28 @@ class _ReviewTile extends StatelessWidget {
           children: <Widget>[
             UiAvatar(name: author, size: UiSize.xs),
             const SizedBox(width: 8),
-            Text(author, style: context.uiText.bodyStrong.copyWith(fontSize: context.fs(13))),
+            Text(
+              author,
+              style: context.uiText.bodyStrong.copyWith(
+                fontSize: context.fs(13),
+              ),
+            ),
             const SizedBox(width: 4),
-            Text('$handle · $timeAgo', style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted)),
+            Text(
+              '$handle · $timeAgo',
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
+            ),
             const Spacer(),
             Row(
               children: List.generate(
                 rating,
-                (int i) => Icon(Icons.star_rounded, size: 15, color: theme.colors.warning),
+                (int i) => Icon(
+                  Icons.star_rounded,
+                  size: 15,
+                  color: theme.colors.warning,
+                ),
               ),
             ),
           ],
@@ -2424,7 +2993,10 @@ class _ReviewTile extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           comment,
-          style: context.uiText.body.copyWith(fontSize: context.fs(13), height: 1.4),
+          style: context.uiText.body.copyWith(
+            fontSize: context.fs(13),
+            height: 1.4,
+          ),
         ),
       ],
     );
@@ -2446,11 +3018,15 @@ class _AdminCommandCenterPreview extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         UiCardGrid(
-          mobileColumns: 1,
+          mobileColumns: 2,
           tabletColumns: 2,
           desktopColumns: 2,
           largeColumns: 4,
-          childAspectRatio: 2.1,
+          childAspectRatio: context.uiRes.pick<double>(
+            mobile: 1.25,
+            tablet: 1.45,
+            desktop: 1.55,
+          ),
           children: <Widget>[
             UiMetricCard(
               label: 'Firm killswitch',
@@ -2499,7 +3075,8 @@ class _AdminCommandCenterPreview extends StatelessWidget {
         UiCard(
           accentColor: theme.colors.destructive,
           title: 'Root Authority Command Actions',
-          subtitle: 'Unrestricted high-clearance controls over platform state, risk engines, and order routing',
+          subtitle:
+              'Unrestricted high-clearance controls over platform state, risk engines, and order routing',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -2517,7 +3094,8 @@ class _AdminCommandCenterPreview extends StatelessWidget {
                       UiToast.show(
                         context,
                         title: 'Emergency Trading Pause',
-                        message: 'Global trade matching halted for risk assessment.',
+                        message:
+                            'Global trade matching halted for risk assessment.',
                         intent: UiIntent.danger,
                       );
                     },
@@ -2532,7 +3110,8 @@ class _AdminCommandCenterPreview extends StatelessWidget {
                       UiToast.show(
                         context,
                         title: 'Risk Recalibration',
-                        message: 'Recalibrating VaR margin buffers across 12,480 accounts.',
+                        message:
+                            'Recalibrating VaR margin buffers across 12,480 accounts.',
                         intent: UiIntent.warning,
                       );
                     },
@@ -2547,7 +3126,8 @@ class _AdminCommandCenterPreview extends StatelessWidget {
                       UiToast.show(
                         context,
                         title: 'Terminal Broadcast',
-                        message: 'Urgent platform notification pushed to all active sessions.',
+                        message:
+                            'Urgent platform notification pushed to all active sessions.',
                         intent: UiIntent.info,
                       );
                     },
@@ -2561,7 +3141,8 @@ class _AdminCommandCenterPreview extends StatelessWidget {
                       UiToast.show(
                         context,
                         title: 'Audit Dump Generated',
-                        message: 'Cryptographic trade ledger exported for regulatory inspection.',
+                        message:
+                            'Cryptographic trade ledger exported for regulatory inspection.',
                         intent: UiIntent.success,
                       );
                     },
@@ -2579,11 +3160,26 @@ class _AdminCommandCenterPreview extends StatelessWidget {
           subtitle: 'Live connection health across institutional gateways',
           child: Column(
             children: <Widget>[
-              _SectorBar(label: 'NSE & BSE Direct Colocation Feed (0.8ms)', pct: 0.99, amount: '100% Operational', color: theme.colors.bullish),
+              _SectorBar(
+                label: 'NSE & BSE Direct Colocation Feed (0.8ms)',
+                pct: 0.99,
+                amount: '100% Operational',
+                color: theme.colors.bullish,
+              ),
               const SizedBox(height: 10),
-              _SectorBar(label: 'Institutional Order Routing Engine (1.2ms)', pct: 0.98, amount: 'Optimal Throughput', color: theme.colors.primary),
+              _SectorBar(
+                label: 'Institutional Order Routing Engine (1.2ms)',
+                pct: 0.98,
+                amount: 'Optimal Throughput',
+                color: theme.colors.primary,
+              ),
               const SizedBox(height: 10),
-              _SectorBar(label: 'Real-Time VaR Risk Gateway (2.1ms)', pct: 0.95, amount: 'Zero Bottlenecks', color: theme.colors.warning),
+              _SectorBar(
+                label: 'Real-Time VaR Risk Gateway (2.1ms)',
+                pct: 0.95,
+                amount: 'Zero Bottlenecks',
+                color: theme.colors.warning,
+              ),
             ],
           ),
         ),
@@ -2608,14 +3204,16 @@ class _AdminRiskAuditPreview extends StatelessWidget {
       children: <Widget>[
         UiCard(
           title: 'Real-Time Institutional Audit Stream',
-          subtitle: 'Immutable cryptographically hashed security and risk events',
+          subtitle:
+              'Immutable cryptographically hashed security and risk events',
           child: Column(
             children: <Widget>[
               _AdminAuditTile(
                 icon: Icons.shield_rounded,
                 iconColor: theme.colors.bullish,
                 title: 'System Security & KYC Sanction Check Passed',
-                subtitle: 'Automated screening against SEBI & global FATF watchlists verified 12,480 accounts clean.',
+                subtitle:
+                    'Automated screening against SEBI & global FATF watchlists verified 12,480 accounts clean.',
                 timestamp: '1 min ago',
                 badgeLabel: 'VERIFIED',
                 badgeIntent: UiIntent.success,
@@ -2625,7 +3223,8 @@ class _AdminRiskAuditPreview extends StatelessWidget {
                 icon: Icons.warning_amber_rounded,
                 iconColor: theme.colors.warning,
                 title: 'Margin Threshold Alert Intercepted',
-                subtitle: 'Account #TRX-8821 reached 82% margin capacity on NIFTY weekly straddles. Automated liquidation buffer armed.',
+                subtitle:
+                    'Account #TRX-8821 reached 82% margin capacity on NIFTY weekly straddles. Automated liquidation buffer armed.',
                 timestamp: '8 mins ago',
                 badgeLabel: 'INTERCEPTED',
                 badgeIntent: UiIntent.warning,
@@ -2635,7 +3234,8 @@ class _AdminRiskAuditPreview extends StatelessWidget {
                 icon: Icons.bolt_rounded,
                 iconColor: theme.colors.primary,
                 title: 'High-Frequency Order Throttle Engaged',
-                subtitle: 'Automated algorithmic flow on Desk #3 capped at 100 orders/second to maintain matching integrity.',
+                subtitle:
+                    'Automated algorithmic flow on Desk #3 capped at 100 orders/second to maintain matching integrity.',
                 timestamp: '24 mins ago',
                 badgeLabel: 'THROTTLED',
                 badgeIntent: UiIntent.primary,
@@ -2645,7 +3245,8 @@ class _AdminRiskAuditPreview extends StatelessWidget {
                 icon: Icons.key_rounded,
                 iconColor: theme.colors.destructive,
                 title: 'Revoked Stale API Key for Inactive Broker Connector',
-                subtitle: 'Root admin security daemon terminated dormant OAuth token for Broker Gateway #5.',
+                subtitle:
+                    'Root admin security daemon terminated dormant OAuth token for Broker Gateway #5.',
                 timestamp: '1 hour ago',
                 badgeLabel: 'SECURITY ACTION',
                 badgeIntent: UiIntent.danger,
@@ -2702,10 +3303,16 @@ class _AdminAuditTile extends StatelessWidget {
                   Expanded(
                     child: Text(
                       title,
-                      style: context.uiText.bodyStrong.copyWith(fontSize: context.fs(14)),
+                      style: context.uiText.bodyStrong.copyWith(
+                        fontSize: context.fs(14),
+                      ),
                     ),
                   ),
-                  UiBadge(label: badgeLabel, intent: badgeIntent, size: UiSize.xs),
+                  UiBadge(
+                    label: badgeLabel,
+                    intent: badgeIntent,
+                    size: UiSize.xs,
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -2720,7 +3327,9 @@ class _AdminAuditTile extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 timestamp,
-                style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
               ),
             ],
           ),
@@ -2746,16 +3355,37 @@ class _AdminDeskGovernancePreview extends StatelessWidget {
       children: <Widget>[
         UiCard(
           title: 'Trading Desk Division Allocation Matrix',
-          subtitle: 'Institutional capital distribution and leverage ceilings by desk unit',
+          subtitle:
+              'Institutional capital distribution and leverage ceilings by desk unit',
           child: Column(
             children: <Widget>[
-              _SectorBar(label: 'Index Futures & Options Desk (3x Leverage)', pct: 0.40, amount: '₹60.0 Cr Supervised', color: theme.colors.primary),
+              _SectorBar(
+                label: 'Index Futures & Options Desk (3x Leverage)',
+                pct: 0.40,
+                amount: '₹60.0 Cr Supervised',
+                color: theme.colors.primary,
+              ),
               const SizedBox(height: 10),
-              _SectorBar(label: 'High-Beta Equities Proprietary Desk (5x Leverage)', pct: 0.30, amount: '₹45.0 Cr Supervised', color: theme.colors.bullish),
+              _SectorBar(
+                label: 'High-Beta Equities Proprietary Desk (5x Leverage)',
+                pct: 0.30,
+                amount: '₹45.0 Cr Supervised',
+                color: theme.colors.bullish,
+              ),
               const SizedBox(height: 10),
-              _SectorBar(label: 'Quantitative Algo & Market Making Desk (10x Max)', pct: 0.20, amount: '₹30.0 Cr Supervised', color: theme.colors.warning),
+              _SectorBar(
+                label: 'Quantitative Algo & Market Making Desk (10x Max)',
+                pct: 0.20,
+                amount: '₹30.0 Cr Supervised',
+                color: theme.colors.warning,
+              ),
               const SizedBox(height: 10),
-              _SectorBar(label: 'Commodities & FX Risk Desk (4x Leverage)', pct: 0.10, amount: '₹13.2 Cr Supervised', color: theme.colors.destructive),
+              _SectorBar(
+                label: 'Commodities & FX Risk Desk (4x Leverage)',
+                pct: 0.10,
+                amount: '₹13.2 Cr Supervised',
+                color: theme.colors.destructive,
+              ),
             ],
           ),
         ),
@@ -2845,11 +3475,15 @@ class _AdminAnalyticsPreview extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         UiCardGrid(
-          mobileColumns: 1,
+          mobileColumns: 2,
           tabletColumns: 2,
           desktopColumns: 2,
           largeColumns: 4,
-          childAspectRatio: 2.1,
+          childAspectRatio: context.uiRes.pick<double>(
+            mobile: 1.25,
+            tablet: 1.45,
+            desktop: 1.55,
+          ),
           children: <Widget>[
             UiMetricCard(
               label: 'Firm-wide daily volume',
@@ -2896,7 +3530,8 @@ class _AdminAnalyticsPreview extends StatelessWidget {
         // Firm Cumulative Performance Curve
         UiCard(
           title: 'Firm Realized PnL & Volatility Trajectory',
-          subtitle: 'Aggregated return across all 8 proprietary and client desks',
+          subtitle:
+              'Aggregated return across all 8 proprietary and client desks',
           trailing: UiBadge(
             label: '+24.8% Realized Alpha',
             intent: UiIntent.success,
@@ -2957,5 +3592,3 @@ class _GridPatternPainter extends CustomPainter {
   bool shouldRepaint(_GridPatternPainter oldDelegate) =>
       oldDelegate.gridColor != gridColor;
 }
-
-

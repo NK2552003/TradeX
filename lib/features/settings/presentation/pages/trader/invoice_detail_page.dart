@@ -33,7 +33,13 @@ class InvoiceDetailPage extends StatelessWidget {
     final bool stacked = context.uiRes.isMobile;
 
     return SingleChildScrollView(
-      padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+      // Bottom padding clears the phone dock, which floats over the page.
+      padding: EdgeInsets.fromLTRB(
+        context.sp(theme.spacing.lg),
+        context.sp(theme.spacing.lg),
+        context.sp(theme.spacing.lg),
+        context.sp(theme.spacing.lg) + (stacked ? context.uiDockInset : 0),
+      ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),

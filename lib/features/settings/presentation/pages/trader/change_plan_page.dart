@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/settings/data/repositories/billing_settings_repository.dart';
 import 'package:tradex/features/settings/models/billing_models.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 /// The plan chooser: a billing-cycle toggle above the catalogue, and a checkout
 /// sheet for the plan the reader picks.
@@ -312,7 +313,7 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                           'You are now on TradeX ${AppTokens.tierLabel(plan.tier)}.',
                       intent: UiIntent.success,
                     );
-                    Navigator.of(context).pop();
+                    closeSettingsSubpage(context);
                   } catch (_) {
                     if (!dialogCtx.mounted) return;
                     setDialogState(() => processing = false);
@@ -339,23 +340,14 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
     final UiTheme theme = context.ui;
 
     if (_loading) {
-      return Padding(
-        padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-        child: Column(
-          children: const <Widget>[
-            UiSkeleton(height: 50),
-            SizedBox(height: 24),
-            UiSkeleton(height: 380),
-          ],
-        ),
-      );
+      return UiSkeleton.plans(count: 3);
     }
 
     final SubscriptionSummary? sub = _subscription;
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final bool isMobile = context.uiRes.isMobile;
     final double bottomInset = isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(

@@ -77,22 +77,13 @@ class _NotificationsSettingsPageState extends State<NotificationsSettingsPage> {
     final theme = context.ui;
 
     if (_loading) {
-      return Padding(
-        padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-        child: Column(
-          children: const [
-            UiSkeleton(height: 180),
-            SizedBox(height: 16),
-            UiSkeleton(height: 180),
-          ],
-        ),
-      );
+      return UiSkeleton.settingsDetail(sections: 3, rowsPerSection: 4);
     }
 
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final bool isMobile = context.uiRes.isMobile;
     final double bottomInset = isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : 108.0)
+        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
         : context.sp(theme.spacing.lg);
 
     return SingleChildScrollView(

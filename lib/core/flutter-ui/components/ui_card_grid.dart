@@ -30,16 +30,13 @@ class UiCardGrid extends StatelessWidget {
         if (constraints.maxWidth < 360) {
           cols = 1;
         } else if (constraints.maxWidth < 640) {
-          cols = 2;
-        } else if (constraints.maxWidth < 920) {
-          cols = desktopColumns.clamp(2, 3);
+          cols = mobileColumns;
+        } else if (constraints.maxWidth < 960) {
+          cols = tabletColumns;
+        } else if (constraints.maxWidth < 1300) {
+          cols = desktopColumns;
         } else {
-          cols = context.uiRes.columns(
-            mobile: mobileColumns,
-            tablet: tabletColumns,
-            desktop: desktopColumns,
-            large: largeColumns,
-          );
+          cols = largeColumns;
         }
         final double gap = context.sp(theme.spacing.md);
         return GridView.builder(

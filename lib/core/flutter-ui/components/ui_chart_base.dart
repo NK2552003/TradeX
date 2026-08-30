@@ -176,6 +176,99 @@ class _UiChartState extends State<UiChart> {
     );
     final UiValueFormatter fmt = widget.valueFormatter ?? uiCompactNumber;
 
+    final Widget chartBody = LayoutBuilder(
+      builder: (BuildContext ctx, BoxConstraints c) {
+        final double w = c.maxWidth;
+        final double plotH = c.hasBoundedHeight ? c.maxHeight : h;
+        void track(Offset local) {
+          if (!widget.interactive || widget.data.isEmpty) return;
+          final double plotW = w - pad.left - pad.right;
+          final double t =
+              ((local.dx - pad.left) / (plotW <= 0 ? 1 : plotW)).clamp(
+                0.0,
+                1.0,
+              );
+          final int i = (t * (widget.data.length - 1)).round().clamp(
+            0,
+            widget.data.length - 1,
+          );
+          if (i != _active) setState(() => _active = i);
+        }
+
+        final Widget paint = CustomPaint(
+          size: Size(w, plotH),
+          painter: _ChartPainter(
+            data: widget.data,
+            series: <UiChartSeries>[
+              for (final int i in shown) widget.series[i],
+            ],
+            seriesIndices: shown,
+            colors: <Color>[for (final int i in shown) colors[i]],
+            gridColor: theme.colors.border,
+            axisTextColor: theme.colors.foregroundSubtle,
+            axisTextStyle: ctx.uiText.caption,
+            showGrid: widget.showGrid && !widget.minimal,
+            showAxisLabels: axes,
+            curved: widget.curved,
+            formatter: fmt,
+            // Label density adapts to available width.
+            maxXLabels: ctx.uiRes.pick<int>(
+              mobile: 4,
+              tablet: 6,
+              desktop: 8,
+            ),
+            padding: pad,
+            strokeWidth: ctx.sz(2),
+            activeIndex: widget.interactive ? _active : null,
+            crosshairColor: theme.colors.borderStrong,
+            surfaceColor: theme.colors.surface,
+            stacked: widget.stacked,
+            glow: widget.glow,
+            thresholds: widget.thresholds,
+            thresholdColor: theme.colors.warning,
+          ),
+        );
+
+        if (!widget.interactive) return paint;
+
+        return MouseRegion(
+          onHover: (e) => track(e.localPosition),
+          onExit: (_) => setState(() => _active = null),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (TapDownDetails d) => track(d.localPosition),
+            onHorizontalDragUpdate: (DragUpdateDetails d) =>
+                track(d.localPosition),
+            onHorizontalDragEnd: (_) => setState(() => _active = null),
+            child: Stack(
+              children: <Widget>[
+                Positioned.fill(child: paint),
+                if (_active != null && shown.isNotEmpty)
+                  _Tooltip(
+                    point: widget.data[_active!],
+                    seriesIndices: shown,
+                    series: widget.series,
+                    colors: colors,
+                    formatter: fmt,
+                    alignRight:
+                        (_active! /
+                            (widget.data.length - 1).clamp(1, 1 << 30)) >
+                        0.6,
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (widget.minimal) {
+      if (widget.height != null) {
+        return SizedBox(height: h, child: chartBody);
+      }
+      return chartBody;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -241,90 +334,7 @@ class _UiChartState extends State<UiChart> {
         ],
         SizedBox(
           height: h,
-          child: LayoutBuilder(
-            builder: (BuildContext ctx, BoxConstraints c) {
-              final double w = c.maxWidth;
-              void track(Offset local) {
-                if (!widget.interactive || widget.data.isEmpty) return;
-                final double plotW = w - pad.left - pad.right;
-                final double t =
-                    ((local.dx - pad.left) / (plotW <= 0 ? 1 : plotW)).clamp(
-                      0.0,
-                      1.0,
-                    );
-                final int i = (t * (widget.data.length - 1)).round().clamp(
-                  0,
-                  widget.data.length - 1,
-                );
-                if (i != _active) setState(() => _active = i);
-              }
-
-              final Widget paint = CustomPaint(
-                size: Size(w, h),
-                painter: _ChartPainter(
-                  data: widget.data,
-                  series: <UiChartSeries>[
-                    for (final int i in shown) widget.series[i],
-                  ],
-                  seriesIndices: shown,
-                  colors: <Color>[for (final int i in shown) colors[i]],
-                  gridColor: theme.colors.border,
-                  axisTextColor: theme.colors.foregroundSubtle,
-                  axisTextStyle: ctx.uiText.caption,
-                  showGrid: widget.showGrid && !widget.minimal,
-                  showAxisLabels: axes,
-                  curved: widget.curved,
-                  formatter: fmt,
-                  // Label density adapts to available width.
-                  maxXLabels: ctx.uiRes.pick<int>(
-                    mobile: 4,
-                    tablet: 6,
-                    desktop: 8,
-                  ),
-                  padding: pad,
-                  strokeWidth: ctx.sz(2),
-                  activeIndex: widget.interactive ? _active : null,
-                  crosshairColor: theme.colors.borderStrong,
-                  surfaceColor: theme.colors.surface,
-                  stacked: widget.stacked,
-                  glow: widget.glow,
-                  thresholds: widget.thresholds,
-                  thresholdColor: theme.colors.warning,
-                ),
-              );
-
-              if (!widget.interactive) return paint;
-
-              return MouseRegion(
-                onHover: (e) => track(e.localPosition),
-                onExit: (_) => setState(() => _active = null),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTapDown: (TapDownDetails d) => track(d.localPosition),
-                  onHorizontalDragUpdate: (DragUpdateDetails d) =>
-                      track(d.localPosition),
-                  onHorizontalDragEnd: (_) => setState(() => _active = null),
-                  child: Stack(
-                    children: <Widget>[
-                      Positioned.fill(child: paint),
-                      if (_active != null && shown.isNotEmpty)
-                        _Tooltip(
-                          point: widget.data[_active!],
-                          seriesIndices: shown,
-                          series: widget.series,
-                          colors: colors,
-                          formatter: fmt,
-                          alignRight:
-                              (_active! /
-                                  (widget.data.length - 1).clamp(1, 1 << 30)) >
-                              0.6,
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+          child: chartBody,
         ),
       ],
     );

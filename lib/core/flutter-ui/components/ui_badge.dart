@@ -101,23 +101,48 @@ class UiBadge extends StatelessWidget {
 
   UiBadgeVariant get _variant => filled ? UiBadgeVariant.solid : variant;
 
+  /// One step smaller on a phone.
+  ///
+  /// A badge annotates something else — a tag under a title, a delta beside a
+  /// price — so it should read as secondary to it. The device scale multipliers
+  /// grow type and spacing together, which is right for controls and wrong here:
+  /// at phone widths a row of default-size tags ends up looking like a row of
+  /// buttons. Stepping the size down centrally fixes every tag in the app at
+  /// once instead of asking each call site to remember `UiSize.xs`.
+  UiSize get _step => switch (size) {
+    UiSize.xl => UiSize.lg,
+    UiSize.lg => UiSize.md,
+    UiSize.md => UiSize.sm,
+    UiSize.sm => UiSize.xs,
+    UiSize.xs => UiSize.xs,
+  };
+
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
+    final bool mobile = context.uiRes.isMobile;
+    final UiSize effective = mobile ? _step : size;
     final Color base = intent.color(context);
     final BorderRadius radius = context.radius(theme.radii.pill);
     final bool solid = _variant == UiBadgeVariant.solid;
 
     final Color fg = solid ? intent.onColor(context) : base;
-    final TextStyle textStyle =
-        (size == UiSize.xs || size == UiSize.sm
-                ? context.uiText.caption
-                : context.uiText.label)
-            .copyWith(
-              color: fg,
-              fontWeight: FontWeight.w600,
-              letterSpacing: uppercase ? 0.6 : null,
-            );
+    final TextStyle baseStyle =
+        effective == UiSize.xs || effective == UiSize.sm
+        ? context.uiText.caption
+        : context.uiText.label;
+    final TextStyle textStyle = baseStyle.copyWith(
+      color: fg,
+      fontWeight: FontWeight.w600,
+      letterSpacing: uppercase ? 0.6 : null,
+      // Caption is already the smallest token, so a phone gets an explicit
+      // scaled size rather than another token below it. Still routed through
+      // `fs()`, so a reader who raises their text size keeps the increase.
+      fontSize: mobile
+          ? context.fs(effective == UiSize.xs ? 10.5 : 11.5)
+          : baseStyle.fontSize,
+      height: mobile ? 1.15 : baseStyle.height,
+    );
 
     Color background;
     Color borderColor;
@@ -141,7 +166,10 @@ class UiBadge extends StatelessWidget {
         break;
     }
 
-    final double iconSize = size.icon(context) * 0.85;
+    final double iconSize = effective.icon(context) * (mobile ? 0.78 : 0.85);
+    final double innerGap = context.sp(
+      mobile ? theme.spacing.xxs : theme.spacing.xs,
+    );
     final Widget chip = AnimatedContainer(
       duration: theme.motion.fast,
       curve: theme.motion.curve,
@@ -150,9 +178,11 @@ class UiBadge extends StatelessWidget {
           : BoxConstraints(maxWidth: maxWidth!),
       padding: EdgeInsets.symmetric(
         horizontal: context.sp(
-          _variant == UiBadgeVariant.dot ? theme.spacing.xxs : theme.spacing.sm,
+          _variant == UiBadgeVariant.dot
+              ? theme.spacing.xxs
+              : (mobile ? theme.spacing.xs + 2 : theme.spacing.sm),
         ),
-        vertical: context.sp(theme.spacing.xxs),
+        vertical: context.sp(theme.spacing.xxs) * (mobile ? 0.75 : 1),
       ),
       decoration: BoxDecoration(
         color: background,
@@ -164,7 +194,7 @@ class UiBadge extends StatelessWidget {
         children: <Widget>[
           if (showDot || _variant == UiBadgeVariant.dot) ...<Widget>[
             _Dot(color: solid ? fg : base, pulse: pulse, size: iconSize * 0.5),
-            SizedBox(width: context.sp(theme.spacing.xs)),
+            SizedBox(width: innerGap),
           ],
           if (icon != null) ...<Widget>[
             Icon(icon, size: iconSize, color: fg),
