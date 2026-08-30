@@ -10,6 +10,7 @@ export '../flutter-ui/flutter_ui.dart';
 export 'theme/app_tokens.dart';
 export 'theme/app_theme_controller.dart';
 export 'motion/app_motion.dart';
+export 'motion/page_transition.dart';
 export 'models/app_models.dart';
 export 'models/app_models_extra.dart';
 export 'brand/app_logo.dart';

@@ -19,4 +19,8 @@ export 'presentation/pages/login_page.dart';
 export 'presentation/pages/signup_page.dart';
 export 'presentation/pages/forgot_password_page.dart';
 export 'presentation/pages/otp_verification_page.dart';
+export 'models/pricing_models.dart';
+export 'data/repositories/subscription_pricing_repository.dart';
+export 'presentation/pages/subscription_pricing_page.dart';
+export 'presentation/widgets/tradex_footer.dart';
 export 'presentation/pages/auth_wrapper.dart';

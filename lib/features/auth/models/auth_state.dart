@@ -13,6 +13,7 @@ enum AuthStage {
   /// considered active. See `OtpVerificationPage`.
   signupVerification,
   affiliateApplication,
+  subscription,
   forgotPassword,
   authenticated,
 }

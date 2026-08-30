@@ -1,7 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:tradex/features/auth/data/repositories/subscription_pricing_repository.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/auth/models/pricing_models.dart';
+import 'package:tradex/features/auth/presentation/widgets/tradex_footer.dart';
 import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
 
 /// Records for the marketing preview. They come from the same source the
@@ -21,10 +25,12 @@ class GetStartedPage extends StatefulWidget {
     super.key,
     required this.onGetStarted,
     required this.onSignIn,
+    this.onViewFullPricing,
   });
 
   final void Function(UserRole role) onGetStarted;
   final VoidCallback onSignIn;
+  final VoidCallback? onViewFullPricing;
 
   @override
   State<GetStartedPage> createState() => _GetStartedPageState();
@@ -32,6 +38,80 @@ class GetStartedPage extends StatefulWidget {
 
 class _GetStartedPageState extends State<GetStartedPage> {
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _featuresKey = GlobalKey();
+  final GlobalKey _showcaseKey = GlobalKey();
+  final GlobalKey _personasKey = GlobalKey();
+  final GlobalKey _pricingKey = GlobalKey();
+  final GlobalKey _faqKey = GlobalKey();
+
+  final SubscriptionPricingRepository _pricingRepo =
+      SubscriptionPricingRepositoryImpl();
+  bool _isAnnualPricing = true;
+  String _selectedLandingFaqCategory = 'all';
+  late Future<PricingCatalogueResponse> _pricingFuture = _pricingRepo
+      .getPricingCatalogue(annual: _isAnnualPricing);
+
+  final ValueNotifier<bool> _isScrolledNotifier = ValueNotifier<bool>(false);
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _isScrolledNotifier.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final bool scrolled = _scrollController.offset > 40.0;
+    if (_isScrolledNotifier.value != scrolled) {
+      _isScrolledNotifier.value = scrolled;
+    }
+  }
+
+  void _scrollToKey(GlobalKey key) {
+    final BuildContext? ctx = key.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 650),
+        curve: Curves.easeInOutCubic,
+        alignment: 0.06,
+      );
+    }
+  }
+
+  void _scrollToSection(String section) {
+    switch (section) {
+      case 'showcase':
+        _scrollToKey(_showcaseKey);
+        break;
+      case 'personas':
+        _scrollToKey(_personasKey);
+        break;
+      case 'features':
+        _scrollToKey(_featuresKey);
+        break;
+      case 'pricing':
+        _scrollToKey(_pricingKey);
+        break;
+      case 'faq':
+        _scrollToKey(_faqKey);
+        break;
+      default:
+        _scrollController.animateTo(
+          0.0,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOutCubic,
+        );
+    }
+  }
 
   static const List<Map<String, String>> _features = [
     {
@@ -76,12 +156,6 @@ class _GetStartedPageState extends State<GetStartedPage> {
   }
 
   @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = context.ui;
     final colors = theme.colors;
@@ -99,95 +173,200 @@ class _GetStartedPageState extends State<GetStartedPage> {
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            _buildTopNav(context, theme, colors, responsive),
-            Expanded(
-              child: Stack(
-                children: [
-                  RawScrollbar(
-                    controller: _scrollController,
-                    thumbVisibility: false,
-                    thickness: 6,
-                    radius: Radius.circular(context.sp(theme.radii.pill)),
-                    thumbColor: colors.borderStrong,
-                    child: SingleChildScrollView(
-                      controller: _scrollController,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: context.sp(theme.spacing.xl),
-                        vertical: context.sp(theme.spacing.xxxl),
+            // Scrollable Content
+            Positioned.fill(
+              child: RawScrollbar(
+                controller: _scrollController,
+                thumbVisibility: false,
+                thickness: 6,
+                radius: Radius.circular(context.sp(theme.radii.pill)),
+                thumbColor: colors.borderStrong,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  padding: EdgeInsets.only(
+                    top: context.sz(72), // Clearance for sticky frosted header
+                    left: context.sp(theme.spacing.xl),
+                    right: context.sp(theme.spacing.xl),
+                    bottom: context.sp(theme.spacing.xxxl),
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: context.sz(1400),
                       ),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: context.sz(1400),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          _buildHero(context, theme, colors, responsive),
+                          SizedBox(
+                            height: context.sp(theme.spacing.xxxl) * 2,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              _buildHero(context, theme, colors, responsive),
-                              SizedBox(
-                                height: context.sp(theme.spacing.xxxl) * 2,
-                              ),
 
-                              // Real App Components Showcase Grid
-                              _buildShowcaseGrid(
-                                context,
-                                theme,
-                                colors,
-                                responsive,
-                              ),
-
-                              SizedBox(
-                                height: context.sp(theme.spacing.xxxl) * 2,
-                              ),
-
-                              // Feature Cards below showcase
-                              _buildFeaturesGrid(
-                                context,
-                                theme,
-                                colors,
-                                responsive,
-                              ),
-
-                              SizedBox(
-                                height: context.sp(theme.spacing.xxxl) * 2,
-                              ),
-                              // Footer
-                              _buildFooter(context, theme, colors),
-
-                              SizedBox(
-                                height: context.sp(theme.spacing.xxxl) * 2,
-                              ), // extra bottom padding for the fade
-                            ],
+                          // Real App Components Showcase Grid
+                          KeyedSubtree(
+                            key: _showcaseKey,
+                            child: _buildShowcaseGrid(
+                              context,
+                              theme,
+                              colors,
+                              responsive,
+                            ),
                           ),
-                        ),
+
+                          SizedBox(
+                            height: context.sp(theme.spacing.xxxl) * 2,
+                          ),
+
+                          // 2 Types of Users / Personas Section
+                          KeyedSubtree(
+                            key: _personasKey,
+                            child: _buildUserTypesSection(
+                              context,
+                              theme,
+                              colors,
+                              responsive,
+                            ),
+                          ),
+
+                          SizedBox(
+                            height: context.sp(theme.spacing.xxxl) * 2,
+                          ),
+
+                          // Feature Cards below showcase
+                          KeyedSubtree(
+                            key: _featuresKey,
+                            child: _buildFeaturesGrid(
+                              context,
+                              theme,
+                              colors,
+                              responsive,
+                            ),
+                          ),
+
+                          SizedBox(
+                            height: context.sp(theme.spacing.xxxl) * 2,
+                          ),
+
+                          // Dedicated Desktop Pricing Section
+                          KeyedSubtree(
+                            key: _pricingKey,
+                            child: _buildPricingSection(
+                              context,
+                              theme,
+                              colors,
+                              responsive,
+                            ),
+                          ),
+
+                          SizedBox(
+                            height: context.sp(theme.spacing.xxxl) * 2,
+                          ),
+
+                          // Landing Page FAQ Section
+                          KeyedSubtree(
+                            key: _faqKey,
+                            child: _buildFaqSection(
+                              context,
+                              theme,
+                              colors,
+                              responsive,
+                            ),
+                          ),
+
+                          SizedBox(
+                            height: context.sp(theme.spacing.xxxl) * 2,
+                          ),
+                          // Claude-styled Detailed Footer
+                          _buildFooter(context, theme, colors, responsive),
+
+                          SizedBox(
+                            height: context.sp(theme.spacing.xxxl) * 2,
+                          ), // extra bottom padding for the fade
+                        ],
                       ),
                     ),
                   ),
+                ),
+              ),
+            ),
 
-                  // Bottom Faded Dark Overlay
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: 120,
-                    child: IgnorePointer(
+            // Top Gradient Backdrop Blur Mask (Matching ultimate-media-downloader h-32 blur with vertical mask gradient)
+            ValueListenableBuilder<bool>(
+              valueListenable: _isScrolledNotifier,
+              builder: (context, isScrolled, child) {
+                return Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: context.sz(128),
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeOut,
+                      opacity: isScrolled ? 1.0 : 0.0,
+                      child: child,
+                    ),
+                  ),
+                );
+              },
+              child: RepaintBoundary(
+                child: ShaderMask(
+                  shaderCallback: (Rect bounds) {
+                    return const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black,
+                        Colors.black,
+                        Colors.transparent,
+                      ],
+                      stops: [0.0, 0.45, 1.0],
+                    ).createShader(bounds);
+                  },
+                  blendMode: BlendMode.dstIn,
+                  child: ClipRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
                       child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              colors.background.withValues(alpha: 0.0),
-                              colors.background,
-                            ],
-                          ),
-                        ),
+                        color: colors.background.withValues(alpha: 0.85),
                       ),
                     ),
                   ),
-                ],
+                ),
+              ),
+            ),
+
+            // Top Sticky Navigation Bar (Matching ultimate-media-downloader layout)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: RepaintBoundary(
+                child: _buildTopNav(context, theme, colors, responsive),
+              ),
+            ),
+
+            // Bottom Faded Dark Overlay
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 100,
+              child: IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        colors.background.withValues(alpha: 0.0),
+                        colors.background,
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -237,7 +416,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
               SizedBox(
                 width: double.infinity,
                 child: UiButton(
-                  label: 'Get Started',
+                  label: 'Get Started Free',
                   variant: UiVariant.primary,
                   intent: UiIntent.primary,
                   size: UiSize.lg,
@@ -248,11 +427,12 @@ class _GetStartedPageState extends State<GetStartedPage> {
               SizedBox(
                 width: double.infinity,
                 child: UiButton(
-                  label: 'Sign In / Sign Up',
+                  label: 'Already a Customer? Sign In',
                   variant: UiVariant.outline,
                   intent: UiIntent.neutral,
                   size: UiSize.lg,
-                  onPressed: () => widget.onGetStarted(UserRole.customer),
+                  leadingIcon: Icons.login_rounded,
+                  onPressed: widget.onSignIn,
                 ),
               ),
             ],
@@ -270,43 +450,100 @@ class _GetStartedPageState extends State<GetStartedPage> {
   ) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: context.sp(theme.spacing.xl),
-        vertical: context.sp(theme.spacing.md),
+        horizontal: context.sp(
+          responsive.isMobile ? theme.spacing.lg : theme.spacing.xl,
+        ),
+        vertical: context.sp(responsive.isMobile ? theme.spacing.sm : theme.spacing.md),
       ),
-      // Removed the bottom border to keep it clean
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              const AppLogoMark(size: 24), // Same as splash screen
-              SizedBox(width: context.sp(theme.spacing.sm)),
-              Text(
-                'TradeX',
-                style: context.uiText.bodyStrong.copyWith(fontSize: 18),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              SizedBox(width: context.sp(theme.spacing.md)),
-              Text(
-                'Already have an account?',
-                style: context.uiText.body.copyWith(
-                  color: colors.foregroundMuted,
+      child: Material(
+        color: Colors.transparent,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Left: Brand Logo (UMD Style bold tracking-tight)
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  _scrollController.animateTo(
+                    0.0,
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeInOutCubic,
+                  );
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const AppLogoMark(size: 24),
+                    SizedBox(width: context.sp(theme.spacing.sm)),
+                    Text(
+                      'TRADEX',
+                      style: context.uiText.display.copyWith(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              SizedBox(width: context.sp(theme.spacing.md)),
-              UiButton(
-                label: 'Sign In',
-                variant: UiVariant.outline,
-                intent: UiIntent.neutral,
-                size: UiSize.sm,
-                onPressed: widget.onSignIn,
+            ),
+
+            // Center: Navigation Links (Desktop)
+            if (!responsive.isMobile)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _HeaderNavLink(
+                    label: 'home',
+                    onTap: () {
+                      _scrollController.animateTo(
+                        0.0,
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeInOutCubic,
+                      );
+                    },
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xl)),
+                  _HeaderNavLink(
+                    label: 'platform',
+                    onTap: () => _scrollToKey(_showcaseKey),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xl)),
+                  _HeaderNavLink(
+                    label: 'solutions',
+                    onTap: () => _scrollToKey(_personasKey),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xl)),
+                  _HeaderNavLink(
+                    label: 'features',
+                    onTap: () => _scrollToKey(_featuresKey),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xl)),
+                  _HeaderNavLink(
+                    label: 'pricing',
+                    onTap: () => _scrollToKey(_pricingKey),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xl)),
+                  _HeaderNavLink(
+                    label: 'faq',
+                    onTap: () => _scrollToKey(_faqKey),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ],
+
+            // Right: Primary + GET TRADEX CTA Button
+            UiButton(
+              label: '+ GET TRADEX',
+              variant: UiVariant.primary,
+              intent: UiIntent.primary,
+              size: UiSize.sm,
+              onPressed: () => widget.onGetStarted(UserRole.customer),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -336,6 +573,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                 'TradeX Intelligence v1.0',
                 style: context.uiText.caption.copyWith(
                   fontWeight: FontWeight.w500,
+                  fontSize: 12.0,
                 ),
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
@@ -352,23 +590,23 @@ class _GetStartedPageState extends State<GetStartedPage> {
           'The Foundation for your\nTrading System',
           textAlign: TextAlign.center,
           style: context.uiText.display.copyWith(
-            fontSize: responsive.isMobile ? 40 : 72,
+            fontSize: responsive.isMobile ? 32.0 : 48.0,
             fontWeight: FontWeight.w700,
-            letterSpacing: -2.0,
-            height: 1.1,
+            letterSpacing: -1.2,
+            height: 1.15,
             color: colors.foreground,
           ),
         ),
-        SizedBox(height: context.sp(theme.spacing.lg)),
+        SizedBox(height: context.sp(theme.spacing.md)),
         ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: context.sz(700)),
+          constraints: BoxConstraints(maxWidth: context.sz(680)),
           child: Text(
             'A complete ecosystem combining AI analysis, quantitative journaling, and community. Built for precision, clarity, and intelligent execution. Open for traders.',
             textAlign: TextAlign.center,
             style: context.uiText.body.copyWith(
               color: colors.foregroundMuted,
-              fontSize: responsive.isMobile ? 16 : 20,
-              height: 1.6,
+              fontSize: responsive.isMobile ? 14.0 : 16.0,
+              height: 1.55,
             ),
           ),
         ),
@@ -377,7 +615,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             UiButton(
-              label: 'Get Started',
+              label: 'Get Started Free',
               variant: UiVariant.primary,
               intent: UiIntent.primary,
               size: UiSize.lg,
@@ -385,15 +623,54 @@ class _GetStartedPageState extends State<GetStartedPage> {
             ),
             SizedBox(width: context.sp(theme.spacing.md)),
             UiButton(
-              label: 'Explore Features',
+              label: 'Already a Customer? Sign In',
               variant: UiVariant.outline,
               intent: UiIntent.neutral,
               size: UiSize.lg,
-              leadingIcon: Icons.explore_outlined,
+              leadingIcon: Icons.login_rounded,
+              onPressed: widget.onSignIn,
             ),
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildSectionBadge(
+    BuildContext context,
+    UiTheme theme,
+    UiColors colors, {
+    required IconData icon,
+    required String label,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(theme.spacing.md),
+        vertical: context.sp(theme.spacing.xs),
+      ),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: context.radius(theme.radii.pill),
+        border: Border.all(
+          color: const Color(0xFF84CC16).withValues(alpha: 0.35),
+          width: theme.borders.hairline,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: context.sz(14), color: const Color(0xFF84CC16)),
+          SizedBox(width: context.sp(theme.spacing.xs)),
+          Text(
+            label,
+            style: context.uiText.caption.copyWith(
+              fontWeight: FontWeight.w600,
+              color: colors.foreground,
+              fontSize: 12.0,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -403,79 +680,370 @@ class _GetStartedPageState extends State<GetStartedPage> {
     UiColors colors,
     UiResponsive responsive,
   ) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double spacing = context.sp(theme.spacing.lg);
-        final int cols = responsive.isMobile ? 1 : 3;
-        final double colWidth =
-            (constraints.maxWidth - (spacing * (cols - 1))) / cols;
-
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          alignment: WrapAlignment.center,
-          crossAxisAlignment: WrapCrossAlignment.start,
-          children: [
-            // Column 1
-            SizedBox(
-              width: colWidth,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [AppPostCard(post: _previewPost)],
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        _buildSectionBadge(
+          context,
+          theme,
+          colors,
+          icon: Icons.auto_graph_rounded,
+          label: 'Live Market Intelligence',
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        Text(
+          'Institutional Workspace at Your Fingertips',
+          textAlign: TextAlign.center,
+          style: context.uiText.display.copyWith(
+            fontSize: responsive.isMobile ? 24.0 : 32.0,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.6,
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.xs)),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.sz(620)),
+          child: Text(
+            'From disciplined quantitative journaling to live NSE/BSE scanner feeds, community strategies, and AI pattern detection.',
+            textAlign: TextAlign.center,
+            style: context.uiText.body.copyWith(
+              color: colors.foregroundMuted,
+              fontSize: 14.0,
+              height: 1.5,
             ),
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.xl)),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final double spacing = context.sp(theme.spacing.lg);
+            final int cols = responsive.isMobile ? 1 : 3;
+            final double colWidth =
+                (constraints.maxWidth - (spacing * (cols - 1))) / cols;
 
-            // Column 2
-            SizedBox(
-              width: colWidth,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  UiToggleGroup<String>(
-                    expand: true,
-                    options: const [
-                      UiToggleOption<String>(
-                        label: '1D',
-                        value: '1d',
-                        icon: Icons.today,
-                      ),
-                      UiToggleOption<String>(label: '1W', value: '1w'),
-                      UiToggleOption<String>(label: '1M', value: '1m'),
-                      UiToggleOption<String>(
-                        label: '1Y',
-                        value: '1y',
-                        badge: 'new',
-                      ),
-                    ],
-                    value: '1m',
-                    variant: UiToggleGroupVariant.segmented,
-                    onChanged: (v) {},
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.start,
+              children: [
+                // Column 1
+                SizedBox(
+                  width: colWidth,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [AppPostCard(post: _previewPost)],
                   ),
-                  SizedBox(height: spacing),
-                  for (int i = 0; i < _previewStrategies.length; i++) ...[
-                    if (i > 0) SizedBox(height: spacing),
-                    AppStrategyPerformanceCard(strategy: _previewStrategies[i]),
+                ),
+
+                // Column 2
+                SizedBox(
+                  width: colWidth,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      UiToggleGroup<String>(
+                        expand: true,
+                        options: const [
+                          UiToggleOption<String>(
+                            label: '1D',
+                            value: '1d',
+                            icon: Icons.today,
+                          ),
+                          UiToggleOption<String>(label: '1W', value: '1w'),
+                          UiToggleOption<String>(label: '1M', value: '1m'),
+                          UiToggleOption<String>(
+                            label: '1Y',
+                            value: '1y',
+                            badge: 'new',
+                          ),
+                        ],
+                        value: '1m',
+                        variant: UiToggleGroupVariant.segmented,
+                        onChanged: (v) {},
+                      ),
+                      SizedBox(height: spacing),
+                      for (int i = 0; i < _previewStrategies.length; i++) ...[
+                        if (i > 0) SizedBox(height: spacing),
+                        AppStrategyPerformanceCard(strategy: _previewStrategies[i]),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // Column 3
+                SizedBox(
+                  width: colWidth,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AppNewsCard(item: _previewNews),
+                      SizedBox(height: spacing),
+                      AppAiInsightCard(insight: _previewInsight),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 2 Types of Users / Personas Section
+  // ---------------------------------------------------------------------------
+  Widget _buildUserTypesSection(
+    BuildContext context,
+    UiTheme theme,
+    UiColors colors,
+    UiResponsive responsive,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        _buildSectionBadge(
+          context,
+          theme,
+          colors,
+          icon: Icons.people_outline_rounded,
+          label: 'Two Ecosystem Roles',
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        Text(
+          'Built for Both Traders & Creators',
+          textAlign: TextAlign.center,
+          style: context.uiText.display.copyWith(
+            fontSize: responsive.isMobile ? 24.0 : 32.0,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.6,
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.xs)),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.sz(640)),
+          child: Text(
+            'TradeX bridges quantitative execution discipline for active market participants with powerful monetization tools for trading educators and strategy authors.',
+            textAlign: TextAlign.center,
+            style: context.uiText.body.copyWith(
+              color: colors.foregroundMuted,
+              fontSize: 14.0,
+              height: 1.5,
+            ),
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.xl)),
+        LayoutBuilder(
+          builder: (BuildContext ctx, BoxConstraints constraints) {
+            final double spacing = context.sp(theme.spacing.xl);
+            final bool isMobile = responsive.isMobile;
+            final double colWidth = isMobile
+                ? constraints.maxWidth
+                : (constraints.maxWidth - spacing) / 2;
+
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: <Widget>[
+                // Role 1: Independent Quantitative Trader (Customer)
+                _buildPersonaCard(
+                  context,
+                  theme,
+                  colors,
+                  width: colWidth,
+                  icon: Icons.candlestick_chart_rounded,
+                  iconColor: const Color(0xFF84CC16),
+                  badgeText: 'INDIVIDUAL TRADERS',
+                  badgeIntent: UiIntent.primary,
+                  title: 'Quantitative Trader',
+                  subtitle:
+                      'For discretionary, F&O, equity swing, and quant algorithmic traders seeking structured risk discipline and automated logging.',
+                  features: const <String>[
+                    '1-Click Auto-Sync with Zerodha, Upstox, Angel One & Dhan',
+                    'AI Setup Detection (Double Tops, FVG Gaps, Order Blocks)',
+                    'Automated Equity Curve, Drawdown & Sharpe Ratio Analytics',
+                    'Audit-Ready ITR-2 / ITR-3 Capital Gains Tax Book Export',
+                    'Discipline Rules, Slippage Tracking & Risk Heatmaps',
                   ],
-                ],
+                  ctaLabel: 'Get Started as Trader',
+                  ctaPrimary: true,
+                  onPressed: () => widget.onGetStarted(UserRole.customer),
+                ),
+
+                // Role 2: Strategy Creator & Educator (Affiliate)
+                _buildPersonaCard(
+                  context,
+                  theme,
+                  colors,
+                  width: colWidth,
+                  icon: Icons.groups_rounded,
+                  iconColor: colors.primary,
+                  badgeText: 'CREATORS & MENTORS',
+                  badgeIntent: UiIntent.success,
+                  title: 'Strategy Creator & Partner',
+                  subtitle:
+                      'For trading educators, signal providers, and desk managers looking to publish verified strategies and earn recurring revenue.',
+                  features: const <String>[
+                    'Monetize Proprietary Strategies with Paywalled Subscriptions',
+                    'Up to 30% Recurring Tiered Commission on Referred Traders',
+                    'Real-Time Conversion Dashboard & Custom Link Generator',
+                    'Private Subscriber Feeds, Discussion Circles & Chat',
+                    'Algorithmic Verified Desk Badge & Leaderboard Rank',
+                  ],
+                  ctaLabel: 'Apply as Affiliate Partner',
+                  ctaPrimary: false,
+                  onPressed: () => widget.onGetStarted(UserRole.affiliate),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPersonaCard(
+    BuildContext context,
+    UiTheme theme,
+    UiColors colors, {
+    required double width,
+    required IconData icon,
+    required Color iconColor,
+    required String badgeText,
+    required UiIntent badgeIntent,
+    required String title,
+    required String subtitle,
+    required List<String> features,
+    required String ctaLabel,
+    required bool ctaPrimary,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: width,
+      child: Container(
+        padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: context.radius(theme.radii.xl),
+          border: Border.all(
+            color: ctaPrimary
+                ? const Color(0xFF84CC16).withValues(alpha: 0.35)
+                : colors.border,
+            width: ctaPrimary ? 1.5 : theme.borders.hairline,
+          ),
+          boxShadow: ctaPrimary
+              ? <BoxShadow>[
+                  BoxShadow(
+                    color: const Color(0xFF84CC16).withValues(alpha: 0.06),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            // Top Row: Icon + Badge
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Container(
+                  padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: context.sz(22), color: iconColor),
+                ),
+                UiBadge(
+                  label: badgeText,
+                  intent: badgeIntent,
+                  variant: UiBadgeVariant.soft,
+                  size: UiSize.xs,
+                ),
+              ],
+            ),
+            SizedBox(height: context.sp(theme.spacing.lg)),
+
+            // Title & Subtitle
+            Text(
+              title,
+              style: context.uiText.display.copyWith(
+                fontSize: 22.0,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
               ),
             ),
+            SizedBox(height: context.sp(theme.spacing.xs)),
+            Text(
+              subtitle,
+              style: context.uiText.body.copyWith(
+                color: colors.foregroundMuted,
+                fontSize: 13.5,
+                height: 1.45,
+              ),
+            ),
+            SizedBox(height: context.sp(theme.spacing.lg)),
+            const UiDivider(),
+            SizedBox(height: context.sp(theme.spacing.md)),
 
-            // Column 3
+            // Feature Points Checklist
+            Text(
+              'Key Capabilities:',
+              style: context.uiText.caption.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colors.foreground,
+                fontSize: 12.5,
+              ),
+            ),
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            for (final String f in features)
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  vertical: context.sp(theme.spacing.xxs),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Icon(
+                      Icons.check_circle_rounded,
+                      size: context.sz(16),
+                      color: iconColor,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Expanded(
+                      child: Text(
+                        f,
+                        style: context.uiText.body.copyWith(
+                          color: colors.foregroundMuted,
+                          fontSize: 13.0,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            SizedBox(height: context.sp(theme.spacing.xl)),
+
+            // Action CTA Button
             SizedBox(
-              width: colWidth,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AppNewsCard(item: _previewNews),
-                  SizedBox(height: spacing),
-                  AppAiInsightCard(insight: _previewInsight),
-                ],
+              width: double.infinity,
+              child: UiButton(
+                label: ctaLabel,
+                variant: ctaPrimary ? UiVariant.primary : UiVariant.outline,
+                intent: ctaPrimary ? UiIntent.primary : UiIntent.neutral,
+                size: UiSize.lg,
+                onPressed: onPressed,
               ),
             ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -486,13 +1054,35 @@ class _GetStartedPageState extends State<GetStartedPage> {
     UiResponsive responsive,
   ) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Center(
+        _buildSectionBadge(
+          context,
+          theme,
+          colors,
+          icon: Icons.widgets_outlined,
+          label: 'Engineered for Discipline',
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        Text(
+          'Core Features Built for Indian Markets',
+          textAlign: TextAlign.center,
+          style: context.uiText.display.copyWith(
+            fontSize: responsive.isMobile ? 24.0 : 32.0,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.6,
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.xs)),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.sz(620)),
           child: Text(
-            'Core Features',
-            style: context.uiText.display.copyWith(
-              fontSize: 32,
-              fontWeight: FontWeight.w600,
+            'Designed to eliminate emotional trading mistakes, enforce strict risk parameters, and automate multi-asset trade analytics.',
+            textAlign: TextAlign.center,
+            style: context.uiText.body.copyWith(
+              color: colors.foregroundMuted,
+              fontSize: 14.0,
+              height: 1.5,
             ),
           ),
         ),
@@ -537,14 +1127,16 @@ class _GetStartedPageState extends State<GetStartedPage> {
                           child: Icon(
                             _getIcon(item['icon']!),
                             color: colors.foreground,
-                            size: context.sz(22),
+                            size: context.sz(20),
                           ),
                         ),
-                        SizedBox(height: context.sp(theme.spacing.xl)),
+                        SizedBox(height: context.sp(theme.spacing.lg)),
                         Text(
                           item['title']!,
                           style: context.uiText.bodyStrong.copyWith(
-                            fontSize: 18,
+                            fontSize: 18.0,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.2,
                           ),
                         ),
                         SizedBox(height: context.sp(theme.spacing.sm)),
@@ -552,7 +1144,8 @@ class _GetStartedPageState extends State<GetStartedPage> {
                           item['desc']!,
                           style: context.uiText.body.copyWith(
                             color: colors.foregroundMuted,
-                            height: 1.5,
+                            fontSize: 14.0,
+                            height: 1.55,
                           ),
                         ),
                       ],
@@ -567,62 +1160,594 @@ class _GetStartedPageState extends State<GetStartedPage> {
     );
   }
 
-  Widget _buildFooter(BuildContext context, UiTheme theme, UiColors colors) {
+  // ---------------------------------------------------------------------------
+  // Landing Page FAQ Section
+  // ---------------------------------------------------------------------------
+  Widget _buildFaqSection(
+    BuildContext context,
+    UiTheme theme,
+    UiColors colors,
+    UiResponsive responsive,
+  ) {
     return Column(
-      children: [
-        const UiDivider(),
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        // Pill Badge
+        _buildSectionBadge(
+          context,
+          theme,
+          colors,
+          icon: Icons.help_outline_rounded,
+          label: 'Knowledge & FAQs',
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        Text(
+          'Frequently Asked Questions',
+          textAlign: TextAlign.center,
+          style: context.uiText.display.copyWith(
+            fontSize: responsive.isMobile ? 24.0 : 32.0,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.6,
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.xs)),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.sz(620)),
+          child: Text(
+            'Everything you need to know about TradeX, quantitative journaling, Indian broker connections, security, and AI capabilities.',
+            textAlign: TextAlign.center,
+            style: context.uiText.body.copyWith(
+              color: colors.foregroundMuted,
+              fontSize: 14.0,
+              height: 1.5,
+            ),
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.xl)),
+
+        // Category Filter Pills
+        Wrap(
+          spacing: context.sp(theme.spacing.xs),
+          runSpacing: context.sp(theme.spacing.xs),
+          alignment: WrapAlignment.center,
+          children: <Widget>[
+            _buildLandingFaqFilter(context, 'all', 'All Questions'),
+            _buildLandingFaqFilter(context, 'trading', 'Trading & Brokers'),
+            _buildLandingFaqFilter(context, 'billing', 'Pricing & Plans'),
+            _buildLandingFaqFilter(context, 'features', 'AI & Quant Tools'),
+            _buildLandingFaqFilter(context, 'security', 'Security & Tax'),
+          ],
+        ),
+        SizedBox(height: context.sp(theme.spacing.xl)),
+
+        // Accordion from dynamic future
+        FutureBuilder<PricingCatalogueResponse>(
+          future: _pricingFuture,
+          builder: (
+            BuildContext context,
+            AsyncSnapshot<PricingCatalogueResponse> snapshot,
+          ) {
+            final List<PricingFaqItem> allFaqs = snapshot.hasData
+                ? snapshot.data!.faqs
+                : const <PricingFaqItem>[];
+
+            // Rich categorized FAQs for the landing page
+            final List<PricingFaqItem> landingFaqs = <PricingFaqItem>[
+              ...allFaqs,
+              const PricingFaqItem(
+                id: 'faq_landing_1',
+                category: 'trading',
+                question: 'Which Indian brokers can I auto-sync with TradeX?',
+                answer:
+                    'TradeX integrates with Zerodha Kite Connect, Upstox API, Angel One SmartAPI, Dhan HQ, and Groww. Executions, order timestamps, slippage, and chart snapshots are logged into your journal in real time without manual entry.',
+              ),
+              const PricingFaqItem(
+                id: 'faq_landing_2',
+                category: 'security',
+                question:
+                    'How does TradeX safeguard my broker API credentials and trading secrets?',
+                answer:
+                    'TradeX utilizes client-side AES-256 GCM token encryption and non-custodial broker bridging. We never have withdrawal access or custody of your funds. All strategy notes and quantitative rules remain private and encrypted.',
+              ),
+              const PricingFaqItem(
+                id: 'faq_landing_3',
+                category: 'security',
+                question:
+                    'Can I export my journal data for Indian Income Tax filing (ITR-2 / ITR-3)?',
+                answer:
+                    'Yes. You can generate audit-ready trade books, PnL statements, STCG/LTCG capital gains summaries, and turnover reports formatted specifically for Indian Chartered Accountants and tax filing portals.',
+              ),
+            ];
+
+            final List<PricingFaqItem> filtered =
+                _selectedLandingFaqCategory == 'all'
+                    ? landingFaqs
+                    : landingFaqs
+                        .where(
+                          (PricingFaqItem f) =>
+                              f.category == _selectedLandingFaqCategory,
+                        )
+                        .toList();
+
+            return ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: context.sz(860)),
+              child: UiAccordion(
+                items: <UiAccordionItem>[
+                  for (final PricingFaqItem item in filtered)
+                    UiAccordionItem(
+                      title: item.question,
+                      content: Text(
+                        item.answer,
+                        style: context.uiText.body.copyWith(
+                          color: colors.foregroundMuted,
+                          height: 1.6,
+                          fontSize: 14.0,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLandingFaqFilter(
+    BuildContext context,
+    String categoryKey,
+    String label,
+  ) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final bool isSelected = _selectedLandingFaqCategory == categoryKey;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => _selectedLandingFaqCategory = categoryKey),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: EdgeInsets.symmetric(
+          horizontal: context.sp(theme.spacing.md),
+          vertical: context.sp(theme.spacing.xs),
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colors.surface
+              : colors.surfaceMuted.withValues(alpha: 0.4),
+          borderRadius: context.radius(theme.radii.pill),
+          border: Border.all(
+            color: isSelected ? colors.primary : colors.border,
+            width: theme.borders.hairline,
+          ),
+        ),
+        child: Text(
+          label,
+          style: context.uiText.caption.copyWith(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? colors.foreground : colors.foregroundMuted,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Claude-Style Detailed Footer
+  // ---------------------------------------------------------------------------
+  Widget _buildFooter(
+    BuildContext context,
+    UiTheme theme,
+    UiColors colors,
+    UiResponsive responsive,
+  ) {
+    return TradeXFooter(
+      onNavigateToSection: _scrollToSection,
+      onGetStartedTrader: () => widget.onGetStarted(UserRole.customer),
+      onGetStartedAffiliate: () => widget.onGetStarted(UserRole.affiliate),
+    );
+  }
+
+
+  Widget _buildPricingSection(
+    BuildContext context,
+    UiTheme theme,
+    UiColors colors,
+    UiResponsive responsive,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        // Header
+        _buildSectionBadge(
+          context,
+          theme,
+          colors,
+          icon: Icons.payments_outlined,
+          label: 'Simple & Transparent Pricing (INR ₹)',
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        Text(
+          'Scale Your Trading Edge',
+          textAlign: TextAlign.center,
+          style: context.uiText.display.copyWith(
+            fontSize: responsive.isMobile ? 24.0 : 32.0,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.6,
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.xs)),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.sz(620)),
+          child: Text(
+            'Start free with standard quantitative journaling or unlock real-time Indian market scanners, AI vision copilot, and prop desk risk guardrails.',
+            textAlign: TextAlign.center,
+            style: context.uiText.body.copyWith(
+              color: colors.foregroundMuted,
+              fontSize: 14.0,
+              height: 1.5,
+            ),
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.xl)),
+
+        // Cycle Selector
+        Container(
+          decoration: BoxDecoration(
+            color: colors.surfaceMuted.withValues(alpha: 0.5),
+            borderRadius: context.radius(theme.radii.pill),
+            border: Border.all(
+              color: colors.border,
+              width: theme.borders.hairline,
+            ),
+          ),
+          padding: EdgeInsets.all(context.sp(theme.spacing.xxs)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (!_isAnnualPricing) return;
+                  setState(() {
+                    _isAnnualPricing = false;
+                    _pricingFuture = _pricingRepo.getPricingCatalogue(annual: false);
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(theme.spacing.md),
+                    vertical: context.sp(theme.spacing.xs),
+                  ),
+                  decoration: BoxDecoration(
+                    color: !_isAnnualPricing ? colors.surface : Colors.transparent,
+                    borderRadius: context.radius(theme.radii.pill),
+                  ),
+                  child: Text(
+                    'Monthly',
+                    style: context.uiText.bodyStrong.copyWith(
+                      fontSize: 13,
+                      color: !_isAnnualPricing
+                          ? colors.foreground
+                          : colors.foregroundMuted,
+                    ),
+                  ),
+                ),
+              ),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (_isAnnualPricing) return;
+                  setState(() {
+                    _isAnnualPricing = true;
+                    _pricingFuture = _pricingRepo.getPricingCatalogue(annual: true);
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(theme.spacing.md),
+                    vertical: context.sp(theme.spacing.xs),
+                  ),
+                  decoration: BoxDecoration(
+                    color: _isAnnualPricing ? colors.surface : Colors.transparent,
+                    borderRadius: context.radius(theme.radii.pill),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        'Billed annually',
+                        style: context.uiText.bodyStrong.copyWith(
+                          fontSize: 13,
+                          color: _isAnnualPricing
+                              ? colors.foreground
+                              : colors.foregroundMuted,
+                        ),
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      const UiBadge(
+                        label: 'Save 20%',
+                        intent: UiIntent.success,
+                        variant: UiBadgeVariant.soft,
+                        size: UiSize.xs,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.xxl)),
+
+        // 3 Cards FutureBuilder
+        FutureBuilder<PricingCatalogueResponse>(
+          future: _pricingFuture,
+          builder: (
+            BuildContext context,
+            AsyncSnapshot<PricingCatalogueResponse> snapshot,
+          ) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final List<PricingPlanModel> plans = snapshot.data!.plans;
+
+            return LayoutBuilder(
+              builder: (BuildContext ctx, BoxConstraints constraints) {
+                return IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      for (int i = 0; i < plans.length; i++) ...<Widget>[
+                        if (i > 0) SizedBox(width: context.sp(theme.spacing.lg)),
+                        Expanded(
+                          child: _buildLandingPricingCard(
+                            context,
+                            theme,
+                            colors,
+                            plans[i],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
         SizedBox(height: context.sp(theme.spacing.xl)),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                const AppLogoMark(size: 20),
-                SizedBox(width: context.sp(theme.spacing.sm)),
-                Text(
-                  'TradeX © ${DateTime.now().year}',
-                  style: context.uiText.caption.copyWith(
-                    color: colors.foregroundMuted,
-                  ),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    'Privacy Policy',
-                    style: context.uiText.caption.copyWith(
-                      color: colors.foregroundMuted,
-                    ),
-                  ),
-                ),
-                SizedBox(width: context.sp(theme.spacing.md)),
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    'Terms of Service',
-                    style: context.uiText.caption.copyWith(
-                      color: colors.foregroundMuted,
-                    ),
-                  ),
-                ),
-                SizedBox(width: context.sp(theme.spacing.md)),
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    'System Status',
-                    style: context.uiText.caption.copyWith(
-                      color: colors.foregroundMuted,
-                    ),
-                  ),
-                ),
-              ],
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            UiButton(
+              label: 'See Whole Details & Feature Matrix',
+              leading: const Icon(Icons.table_chart_outlined, size: 16),
+              trailing: const Icon(Icons.arrow_forward_rounded, size: 15),
+              variant: UiVariant.outline,
+              intent: UiIntent.primary,
+              size: UiSize.lg,
+              onPressed: () {
+                if (widget.onViewFullPricing != null) {
+                  widget.onViewFullPricing!();
+                } else {
+                  widget.onGetStarted(UserRole.customer);
+                }
+              },
             ),
           ],
         ),
       ],
     );
   }
+
+  Widget _buildLandingPricingCard(
+    BuildContext context,
+    UiTheme theme,
+    UiColors colors,
+    PricingPlanModel plan,
+  ) {
+    final bool isFeatured = plan.highlighted;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: context.radius(theme.radii.lg),
+        border: Border.all(
+          color: isFeatured ? colors.primary : colors.border,
+          width: isFeatured ? 1.5 : theme.borders.hairline,
+        ),
+        boxShadow: isFeatured
+            ? <BoxShadow>[
+                BoxShadow(
+                  color: colors.primary.withValues(alpha: 0.08),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
+      padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Text(
+                plan.name,
+                style: context.uiText.display.copyWith(
+                  fontSize: 20.0,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (plan.badgeLabel != null)
+                UiBadge(
+                  label: plan.badgeLabel!,
+                  intent: UiIntent.primary,
+                  variant: UiBadgeVariant.solid,
+                  size: UiSize.xs,
+                ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.xs)),
+          SizedBox(
+            height: context.sz(38),
+            child: Text(
+              plan.subtitle,
+              style: context.uiText.caption.copyWith(
+                color: colors.foregroundMuted,
+                fontSize: 13.0,
+                height: 1.4,
+              ),
+            ),
+          ),
+          SizedBox(height: context.sp(theme.spacing.md)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: <Widget>[
+              Text(
+                plan.priceLabel(isAnnual: _isAnnualPricing),
+                style: context.uiText.display.copyWith(
+                  fontSize: 32.0,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              Text(
+                plan.monthlyAmount == 0 ? '' : '/ mo',
+                style: context.uiText.caption.copyWith(
+                  color: colors.foregroundMuted,
+                  fontSize: 13.0,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.xxs)),
+          Text(
+            plan.periodLabel(isAnnual: _isAnnualPricing),
+            style: context.uiText.caption.copyWith(
+              color: colors.foregroundSubtle,
+              fontSize: 12.0,
+            ),
+          ),
+          SizedBox(height: context.sp(theme.spacing.lg)),
+          UiButton(
+            label: isFeatured ? 'Get Started Pro' : 'Choose ${plan.name}',
+            variant: isFeatured ? UiVariant.primary : UiVariant.outline,
+            intent: isFeatured ? UiIntent.primary : UiIntent.neutral,
+            size: UiSize.md,
+            onPressed: () => widget.onGetStarted(UserRole.customer),
+          ),
+          SizedBox(height: context.sp(theme.spacing.lg)),
+          const UiDivider(),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                for (final String f in plan.featuresSummary.take(6))
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      vertical: context.sp(theme.spacing.xxs),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Icon(
+                          Icons.check_rounded,
+                          size: context.sz(14),
+                          color: isFeatured ? colors.primary : colors.bullish,
+                        ),
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        Expanded(
+                          child: Text(
+                            f,
+                            style: context.uiText.caption.copyWith(
+                              color: colors.foregroundMuted,
+                              fontSize: 13.0,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+class _HeaderNavLink extends StatefulWidget {
+  const _HeaderNavLink({
+    required this.label,
+    required this.onTap,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  State<_HeaderNavLink> createState() => _HeaderNavLinkState();
+}
+
+class _HeaderNavLinkState extends State<_HeaderNavLink> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+
+    return RepaintBoundary(
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.xxs),
+              vertical: context.sp(theme.spacing.xxs),
+            ),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: _isHovered ? colors.foreground : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+            ),
+            child: Text(
+              widget.label,
+              style: context.uiText.body.copyWith(
+                color: _isHovered
+                    ? colors.foreground
+                    : colors.foregroundMuted.withValues(alpha: 0.75),
+                fontWeight: _isHovered ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 15.0,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
