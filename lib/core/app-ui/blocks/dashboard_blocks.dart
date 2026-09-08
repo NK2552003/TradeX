@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../flutter-ui/flutter_ui.dart';
 import '../cards/journal_cards.dart';
 import '../cards/portfolio_cards.dart';
-import '../cards/watchlist_cards.dart';
 import '../models/app_models.dart';
 import '../motion/app_motion.dart';
 import '../theme/app_tokens.dart';
@@ -257,47 +256,6 @@ class AppRecentTradesBlock extends StatelessWidget {
                 ],
               ],
             ),
-    );
-  }
-}
-
-/// Horizontally scrolling gainers / losers rail.
-class AppMoversRailBlock extends StatelessWidget {
-  const AppMoversRailBlock({
-    super.key,
-    required this.tickers,
-    this.title = 'Top movers',
-    this.onTickerTap,
-  });
-
-  final List<AppTicker> tickers;
-  final String title;
-  final ValueChanged<AppTicker>? onTickerTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(title, style: context.uiText.subheading),
-        SizedBox(height: context.sp(theme.spacing.md)),
-        SizedBox(
-          height: context.sz(168),
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: tickers.length,
-            separatorBuilder: (_, _) =>
-                SizedBox(width: context.sp(theme.spacing.md)),
-            itemBuilder: (BuildContext _, int i) => AppMoverCard(
-              ticker: tickers[i],
-              onTap: onTickerTap == null
-                  ? null
-                  : () => onTickerTap!(tickers[i]),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

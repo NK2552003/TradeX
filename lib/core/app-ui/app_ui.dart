@@ -18,7 +18,6 @@ export 'brand/app_logo.dart';
 // Cards
 export 'cards/journal_cards.dart';
 export 'cards/strategy_cards.dart';
-export 'cards/watchlist_cards.dart';
 export 'cards/portfolio_cards.dart';
 export 'cards/community_cards.dart';
 export 'cards/account_cards.dart';
@@ -29,7 +28,6 @@ export 'cards/calculator_cards.dart';
 // Blocks
 export 'blocks/dashboard_blocks.dart';
 export 'blocks/journal_blocks.dart';
-export 'blocks/market_blocks.dart';
 export 'blocks/community_blocks.dart';
 export 'blocks/account_blocks.dart';
 export 'blocks/ai_blocks.dart';

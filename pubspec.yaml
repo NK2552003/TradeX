@@ -100,8 +100,6 @@ flutter:
     # Embedded in generated note PDFs — the `pdf` package cannot reach system
     # fonts, so the export bundles its own.
     - assets/fonts/
-    - assets/market/
-    - assets/market/history/
 
   fonts:
     - family: NotoSans

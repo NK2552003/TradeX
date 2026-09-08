@@ -3,7 +3,6 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/linking/link_graph.dart';
-import 'package:tradex/features/markets/data/market_repository.dart';
 
 import 'link_graph_service.dart';
 
@@ -29,19 +28,13 @@ class _RecordLinkPicker extends StatefulWidget {
 class _RecordLinkPickerState extends State<_RecordLinkPicker> {
   String query = '';
   AppLinkKind? kind;
-  @override
-  void initState() {
-    super.initState();
-    MarketWorkspaceStore.instance.initialize();
-  }
+
 
   @override
   Widget build(BuildContext context) => StreamBuilder<AppLinkGraph>(
     stream: AppLinkGraphScope.service.watch(),
     initialData: AppLinkGraphScope.service.current,
-    builder: (context, snapshot) => ListenableBuilder(
-      listenable: MarketWorkspaceStore.instance,
-      builder: (context, _) {
+    builder: (context, snapshot) {
         final graph = snapshot.data ?? AppLinkGraph.empty;
         final refs = <String, AppLinkRef>{};
         for (final type in AppLinkKind.values) {
@@ -49,20 +42,7 @@ class _RecordLinkPickerState extends State<_RecordLinkPicker> {
             refs['${type.name}:${ref.id}'] = ref;
           }
         }
-        for (final q
-            in MarketWorkspaceStore.instance.snapshot?.instruments ??
-                <MarketInstrument>[]) {
-          if ('${q.symbol} ${q.name}'.toLowerCase().contains(
-            query.toLowerCase(),
-          )) {
-            refs['ticker:${q.symbol}'] = AppLinkRef(
-              kind: AppLinkKind.ticker,
-              id: q.symbol,
-              title: q.symbol,
-              subtitle: q.name,
-            );
-          }
-        }
+
         final visible = refs.values
             .where(
               (r) =>
@@ -124,7 +104,6 @@ class _RecordLinkPickerState extends State<_RecordLinkPicker> {
             ),
           ],
         );
-      },
-    ),
+    },
   );
 }

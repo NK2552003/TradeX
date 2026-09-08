@@ -174,57 +174,6 @@ class _AppShellState extends State<AppShell> {
   Widget _pagePlaceholder(BuildContext context, AppNavItem item) =>
       widget.pagePlaceholderBuilder?.call(context, item) ?? UiSkeleton.page();
 
-  Widget _buildTicker(UiTheme theme) {
-    final textStyle = context.uiText.caption.copyWith(
-      fontWeight: FontWeight.w600,
-      fontSize: context.fs(12),
-      color: Colors.white,
-    );
-
-    final tickerItems = <(String, String, String)>[
-      ('S&P 500', '7,718.60', '-0.38%'),
-      ('Dow 30', '53,414.25', '-0.51%'),
-      ('Nasdaq', '26,506.99', '-0.29%'),
-      ('Russell 2000', '2,975.65', '+0.25%'),
-      ('VIX', '15.30', '+5.30%'),
-      ('Gold', '4,479.90', '+0.07%'),
-      ('Bitcoin USD', '78,914.85', '-0.84%'),
-    ];
-
-    return Container(
-      height: 32,
-      decoration: const BoxDecoration(
-        color: Color(0xFF111827),
-        border: Border(
-          bottom: BorderSide(
-            color: Color(0xFF1F2937),
-            width: 1.0,
-          ),
-        ),
-      ),
-      alignment: Alignment.centerLeft,
-      child: UiMarquee(
-        speed: 40,
-        spacing: 32,
-        children: tickerItems.map((item) {
-          final isPositive = item.$3.startsWith('+');
-          final color = isPositive ? theme.colors.bullish : theme.colors.bearish;
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(item.$1, style: textStyle.copyWith(color: const Color(0xFF9CA3AF))),
-              const SizedBox(width: 8),
-              Text(item.$2, style: textStyle),
-              const SizedBox(width: 8),
-              Text(item.$3, style: textStyle.copyWith(color: color)),
-            ],
-          );
-        }).toList(),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
@@ -489,10 +438,6 @@ class _AppShellState extends State<AppShell> {
       // only screen content participates in destination swipe transitions.
       final Widget mobileShell = Column(
         children: <Widget>[
-          SafeArea(
-            bottom: false,
-            child: _buildTicker(theme),
-          ),
           topBar(
             onResearch: widget.researchPanelBuilder == null
                 ? null
@@ -570,11 +515,6 @@ class _AppShellState extends State<AppShell> {
       backgroundColor: theme.colors.background,
       body: Column(
         children: [
-          if (!r.isMobile)
-            SafeArea(
-              bottom: false,
-              child: _buildTicker(theme),
-            ),
           Expanded(
             child: Row(
               children: <Widget>[

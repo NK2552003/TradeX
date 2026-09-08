@@ -8,8 +8,6 @@ import 'package:tradex/features/auth/models/auth_user_role.dart';
 /// no illustrations, icons-as-art, or image/SVG assets anywhere here.
 enum AuthScene {
   /// Portfolio + market view: equity curve, headline stats, watchlist.
-  markets,
-
   /// AI + community view: an AI insight, a logged trade, a community post.
   social,
 }
@@ -26,7 +24,7 @@ class AuthWindowGraphics extends StatefulWidget {
     super.key,
     this.role = UserRole.customer,
     this.title = 'TradeX',
-    this.scene = AuthScene.markets,
+    this.scene = AuthScene.social,
     this.height,
     this.compact = false,
   });
@@ -232,16 +230,7 @@ class _AuthWindowGraphicsState extends State<AuthWindowGraphics> {
             child: SingleChildScrollView(
               physics: const ClampingScrollPhysics(),
               padding: EdgeInsets.all(pad),
-              child: widget.scene == AuthScene.markets
-                  ? _MarketsScene(
-                      areaData: _areaData,
-                      areaSeries: areaSeries,
-                      tickers: _tickers,
-                      statPnl: _statPnl,
-                      statWinRate: _statWinRate,
-                      gap: context.sp(theme.spacing.md),
-                    )
-                  : _SocialScene(
+              child: _SocialScene(
                       insight: _insight,
                       trade: _trade,
                       post: _post,
@@ -251,65 +240,6 @@ class _AuthWindowGraphicsState extends State<AuthWindowGraphics> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _MarketsScene extends StatelessWidget {
-  const _MarketsScene({
-    required this.areaData,
-    required this.areaSeries,
-    required this.tickers,
-    required this.statPnl,
-    required this.statWinRate,
-    required this.gap,
-  });
-
-  final List<UiChartPoint> areaData;
-  final List<UiChartSeries> areaSeries;
-  final List<AppTicker> tickers;
-  final AppStat statPnl;
-  final AppStat statWinRate;
-  final double gap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(child: AppStatCard(stat: statPnl, dense: true)),
-            SizedBox(width: gap),
-            Expanded(child: AppStatCard(stat: statWinRate, dense: true)),
-          ],
-        ),
-        SizedBox(height: gap),
-        UiAreaChartCard(
-          title: 'Equity Curve',
-          subtitle: 'Account vs index, rebased to 100',
-          data: areaData,
-          series: areaSeries,
-          height: 190,
-          showGrid: false,
-          showAxisLabels: false,
-          interactive: false,
-          curved: true,
-          glow: true,
-        ),
-        SizedBox(height: gap),
-        Text(
-          'Watchlist',
-          style: context.uiText.label.copyWith(
-            color: context.ui.colors.foregroundSubtle,
-          ),
-        ),
-        SizedBox(height: gap * 0.5),
-        for (final t in tickers) ...[
-          AppTickerCard(ticker: t, dense: true),
-          if (t != tickers.last) SizedBox(height: gap * 0.5),
-        ],
-      ],
     );
   }
 }

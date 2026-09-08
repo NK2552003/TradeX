@@ -18,8 +18,8 @@ import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/calculators/ui/calculators_screen.dart';
 import 'package:tradex/features/journal/ui/journal_screen.dart';
 import 'package:tradex/features/notes/ui/notes_screen.dart';
-import 'package:tradex/features/markets/ui/markets_screen.dart';
-import 'package:tradex/features/markets/ui/news_screen.dart';
+
+
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
 import 'package:tradex/features/strategies/ui/strategies_screen.dart';
@@ -430,22 +430,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
       openRequest: _linkRequest,
     ),
-    'watchlists' => MarketsScreen(
-      key: const ValueKey('watchlists'),
-      watchlist: true,
-      onOpenRef: _openLinkRef,
-    ),
-    'markets' => MarketsScreen(
-      key: const ValueKey('markets'),
-      openRequest: _linkRequest,
-      onOpenRef: _openLinkRef,
-    ),
-    'news' => NewsScreen(
-      onOpenRef: _openLinkRef,
-      onOpenSymbol: (symbol) => _openLinkRef(
-        AppLinkRef(kind: AppLinkKind.ticker, id: symbol, title: symbol),
-      ),
-    ),
+
     'calculators' => CalculatorsScreen(onSubpageChanged: _onSubpageChanged),
     'portfolio' => UiSkeleton.portfolio(),
     'community' => UiSkeleton.community(),
@@ -783,25 +768,7 @@ class _AppScaffoldState extends State<AppScaffold> {
             pagePlaceholderBuilder: (BuildContext context, AppNavItem item) =>
                 _destinationSkeleton(item.id),
             primaryAction: _buildDesktopPreviewControls(),
-            researchPanelBuilder: _effectiveRole != UserRole.customer
-                ? null
-                : (context, close, overlay) => ResearchRail(
-                    onClose: close,
-                    onOpenSymbol: (symbol) {
-                      if (overlay) close();
-                      _openLinkRef(
-                        AppLinkRef(
-                          kind: AppLinkKind.ticker,
-                          id: symbol,
-                          title: symbol,
-                        ),
-                      );
-                    },
-                    onOpenRef: (ref) {
-                      if (overlay) close();
-                      _openLinkRef(ref);
-                    },
-                  ),
+            researchPanelBuilder: null,
             child: _buildActivePage(),
           ),
         ),

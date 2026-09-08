@@ -139,13 +139,7 @@ class RoleNavigationConfig {
         label: 'Strategy Notes',
         icon: Icons.account_tree_outlined,
       ),
-      AppNavItem(id: 'markets', label: 'Markets', icon: Icons.public_rounded),
-      AppNavItem(id: 'news', label: 'News', icon: Icons.newspaper_outlined),
-      AppNavItem(
-        id: 'watchlists',
-        label: 'Watchlist',
-        icon: Icons.visibility_outlined,
-      ),
+
       AppNavItem(
         id: 'calculators',
         label: 'Calculators',
@@ -216,14 +210,6 @@ class RoleNavigationConfig {
             label: 'Strategy Notes',
             icon: Icons.account_tree_outlined,
             selectedIcon: Icons.account_tree_rounded,
-          ),
-          AppNavItem(id: 'markets', label: 'Markets', icon: Icons.public_rounded),
-          AppNavItem(id: 'news', label: 'News', icon: Icons.newspaper_outlined),
-          AppNavItem(
-            id: 'watchlists',
-            label: 'Watchlist',
-            icon: Icons.visibility_outlined,
-            selectedIcon: Icons.visibility_rounded,
           ),
           AppNavItem(
             id: 'calculators',

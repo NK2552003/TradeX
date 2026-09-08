@@ -88,15 +88,7 @@ class _AppUiExampleAppState extends State<AppUiExampleApp> {
                       isFavorite: true,
                     ),
                   ),
-                  SizedBox(height: context.sp(theme.spacing.md)),
-                  const AppTickerCard(
-                    ticker: AppTicker(
-                      symbol: 'AAPL',
-                      name: 'Apple Inc.',
-                      price: 224.50,
-                      changePercent: 1.85,
-                    ),
-                  ),
+
                   SizedBox(height: context.sp(theme.spacing.md)),
                   const AppTraderCard(
                     trader: AppTrader(

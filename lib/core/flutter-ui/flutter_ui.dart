@@ -94,7 +94,6 @@ export 'components/ui_breadcrumbs.dart';
 export 'components/ui_pagination.dart';
 export 'components/ui_stepper.dart';
 export 'components/ui_timeline.dart';
-export 'components/ui_marquee.dart';
 
 // State & async
 export 'components/ui_async_view.dart';
