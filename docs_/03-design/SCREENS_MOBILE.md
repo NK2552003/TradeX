@@ -1,548 +1,545 @@
-# Screens — Mobile (iOS / Android)
-## Full Screen + Sub-Screen Inventory, Components, and States
+# Mobile screens (iOS and Android)
+## Screen inventory, components, and states
 
-This is the **primary/baseline screen spec** — [SCREENS_TABLET.md](./SCREENS_TABLET.md) and [SCREENS_DESKTOP.md](./SCREENS_DESKTOP.md) only document how each screen's layout *adapts* on larger breakpoints; content/fields are defined once, here. Per-screen mermaid state/flow diagrams: [UI_FLOW_DIAGRAMS.md](./UI_FLOW_DIAGRAMS.md). Visual tokens: [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md). Navigation/deep-linking: [DYNAMIC_LINKING.md](./DYNAMIC_LINKING.md). Product context: [PRD.md](./PRD.md).
+This document serves as the baseline screen specification for mobile devices. Breakpoint adaptations for larger screens appear in [SCREENS_TABLET.md](./SCREENS_TABLET.md) and [SCREENS_DESKTOP.md](./SCREENS_DESKTOP.md). For state diagrams, see [UI_FLOW_DIAGRAMS.md](./UI_FLOW_DIAGRAMS.md). Visual design tokens are cataloged in [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md), navigation links in [DYNAMIC_LINKING.md](./DYNAMIC_LINKING.md), and product context in [PRD.md](./PRD.md).
 
-**Mobile navigation pattern:** bottom tab bar (7 tabs — see note in SCREENS_AND_FLOWS.md § 0 about collapsing to a "More" tab), full-screen modals for create/edit flows, bottom sheets for quick actions, native back gesture/button for stack navigation.
+Mobile navigation relies on a bottom tab bar with seven primary tabs (collapsible to a "More" overflow pattern), full-screen modals for creation flows, bottom sheets for quick actions, and native gestures for back-stack navigation.
+
+The three writing destinations — journal notes (section 2), strategy notes (section 3) and trader notes (section 4) — are cross-linked in both directions. How a link is followed between them, and why the phone's document counts as a real back step, is specified in [DYNAMIC_LINKING.md](./DYNAMIC_LINKING.md) sections 2 and 3.
 
 Tier gating shorthand: **F** = Free, **P** = Premium, **E** = Enterprise (post-MVP).
 
-**Tagging convention (this revision):** every screen that fetches data on mount now explicitly tags **Loading** and **Error** (previously only Empty state was tagged consistently — Loading/Error existed only as a cross-cutting convention with no per-screen confirmation, which was a real gap). Every screen with a save/delete/action-complete moment now explicitly tags **Toast**. Pure static forms (Sign Up, Log In, most create/edit forms) don't fetch on mount and are correctly left untagged for Loading/Error — that's not an oversight, they have nothing to load.
+Every screen that fetches data on mount explicitly handles loading and error states. Screens with write, delete, or completion actions display toast notifications. Static forms that perform no initial network requests omit initial loading states.
 
 ---
 
-## Cross-cutting sub-screens (apply across all modules)
-These recur throughout the app and are specced once here rather than repeated per module:
+## Cross-cutting sub-screens and states
+These states recur throughout the app and share a single standard specification:
 
-| Sub-screen / state | Contains |
+| State or sub-screen | Contents and behavior |
 |---|---|
-| **Loading state** | Skeleton placeholders matching the target screen's card/list shape (not a bare spinner, except on first cold launch) |
-| **Empty state** | Icon, one-line message, primary CTA (e.g. "No journal entries yet" → "Create your first entry") |
-| **Error state** | Icon, one-line error message, "Retry" button |
-| **Confirmation dialog** | Title, short body copy, Cancel + destructive-styled confirm button (delete entry, delete strategy, remove team member, etc.) |
-| **Image viewer / lightbox** | Full-screen image (screenshots, post images), pinch-zoom, swipe-to-dismiss, share/download icon |
-| **Bottom sheet (generic pattern)** | Drag handle, title, content, primary action pinned to bottom — used for: Add Ticker quick-add, content-type picker, sort/filter options, share sheet |
-| **Toast / snackbar** | Bottom-anchored, auto-dismiss, used for: save confirmations, undo actions (e.g. "Entry deleted — Undo") |
-| **Upsell / paywall interstitial** | Triggered mid-flow when a Free-tier user hits a locked action; shows the specific feature they hit, "Upgrade" CTA, "Not now" dismiss |
+| Loading state | Skeleton placeholders matching the target screen layout rather than bare spinners |
+| Empty state | Icon, one-line message, and a clear call to action |
+| Error state | Warning icon, friendly error message, and a "Retry" button |
+| Confirmation dialog | Title, concise explanation, "Cancel" button, and a styled destructive button |
+| Image viewer lightbox | Full-screen image preview, pinch to zoom, swipe down to dismiss, and export controls |
+| Bottom sheet | Drag handle, title bar, content body, and a pinned bottom action button |
+| Toast notification | Bottom-anchored banner with auto-dismiss and optional undo action |
+| Paywall interstitial | Modal sheet triggered when a free-tier user attempts to access a premium feature |
 
 ---
 
-## 1. Auth & Profile
+## 1. Auth and profile
 
-### Splash / Onboarding — All
-- App logo/wordmark, centered
-- Value-prop carousel (swipeable, 5 slides — one per pillar), page indicator dots
-- Primary button: "Get Started" (pinned bottom)
+### Splash and onboarding (all tiers)
+- Centered application logo and wordmark
+- Swipeable value-proposition carousel with five slides and page indicator dots
+- Pinned bottom primary button: "Get Started"
 - Secondary text link: "Log In"
 
-### Sign Up — All
-- Back button (top-left)
-- Email field, Password field (+ show/hide toggle, strength meter below)
-- Handle field (+ live availability check, inline checkmark/error)
-- Divider "or"
-- "Continue with Google" button (full-width, Google icon)
-- "Continue with Apple" button (full-width, Apple icon)
-- ToS/Privacy checkbox + inline links
-- Primary button: "Sign Up" (disabled until valid)
-- Bottom text link: "Already have an account? Log In"
-- Error state (see cross-cutting): inline, for signup failures (email already registered, network failure) — not a full-screen replacement, shown above the submit button so the filled fields aren't lost
+### Sign up (all tiers)
+- Top-left back navigation button
+- Email field, password field with visibility toggle, and real-time strength meter
+- Unique handle input with live availability validation
+- Centered "or" divider
+- Full-width "Continue with Google" button
+- Full-width "Continue with Apple" button
+- Terms of service and privacy policy checkbox with inline legal links
+- Primary "Sign Up" button, disabled until validation rules pass
+- Footer link: "Already have an account? Log In"
+- Error handling: inline banners placed above the submit button to preserve entered values
 
-### Log In — All
+### Log in (all tiers)
 - Back button
-- Email field, Password field
-- OAuth buttons (as above)
-- "Forgot password?" link (right-aligned under password field)
-- Primary button: "Log In"
-- Bottom text link: "Sign Up"
-- Error state (see cross-cutting): inline, for invalid credentials or network failure
+- Email and password input fields
+- Third-party authentication buttons for Google and Apple
+- Right-aligned "Forgot password?" link beneath the password field
+- Primary "Log In" button
+- Footer link: "Sign Up"
+- Error handling: inline alert banner for invalid credentials or network timeouts
 
-### Forgot Password — All
-- Back button, email field, "Send reset link" button
-- Sub-screen: confirmation state (replaces form) — checkmark icon, "Check your email" message, "Resend" link (rate-limited)
-- Error state (see cross-cutting): inline, for network failure on submit
+### Forgot password (all tiers)
+- Back navigation button, email input field, and "Send reset link" button
+- Confirmation state replacing the form with a success checkmark and rate-limited resend option
+- Error handling: inline alert banner on submission failure
 
-### Own Profile — All
-- Top bar: Settings icon (top-right)
-- Loading state (see cross-cutting): skeleton for avatar/handle/stats on first open
-- Avatar (tap → image picker bottom sheet), edit pencil overlay
-- Handle (tap-to-edit inline)
-- Bio (tap-to-edit inline, multi-line)
-- Experience level chip + Trading style chip (tap → picker bottom sheet)
-- Tier badge (tap → Manage Subscription if Premium/Enterprise, or Paywall if Free)
-- Stat row: Followers count | Following count (tap either → Followers/Following List)
-- Public statistics card (win rate, total P/L) — only rendered if user has sharing enabled
-- "Public Journals" toggle row
-- Segmented control: Posts / Strategy Notes / Journal (public)
-- Content grid/list below segmented control, per selected tab
-- FAB or top-right "+": context-sensitive (new post if on Posts tab, etc.)
-- Error state (see cross-cutting): if the initial profile fetch fails
-- Toast (see cross-cutting): confirms inline edits (handle, bio, chips, toggle) save successfully; rolls back with an error toast on failure
+### Personal profile (all tiers)
+- Top navigation bar with Settings icon button
+- Loading state: skeleton layout for avatar, handle, and metrics
+- Avatar image with edit pencil overlay, opening image picker bottom sheet on tap
+- Inline tap-to-edit fields for handle and bio
+- Experience level and trading style chips that open selection sheets on tap
+- Subscription tier badge routing to subscription management or upgrade flows
+- Metric row showing follower and following counts, opening user lists on tap
+- Public performance card displaying win rate and net P/L when sharing is enabled
+- Toggle switch for public journal entry visibility
+- Segmented control switching between Posts, Strategy Notes, and Public Journal entries
+- Tab-specific content grid or list
+- Floating action button or top action icon to create content matching the active tab
+- Toast notification confirming profile updates or displaying save failures
 
-### Public Profile (other user) — All
-- Loading state (see cross-cutting): skeleton for avatar/handle/stats
-- Back button, overflow menu (Report/Block)
-- Avatar, handle, bio, experience level chip, trading style chip
-- Stat row: Followers | Following
-- Public statistics card (if shared)
-- Follow/Unfollow button (primary, full-width)
-- Message button (secondary, next to Follow/Unfollow) — tier-gated on the *viewer's* own subscription (Direct Messages, § 7): Premium/Enterprise viewers go straight to Conversation Detail (existing or new); Free-tier viewers see the upsell interstitial instead. Not shown at all if viewing your own profile, obviously.
-- Segmented control: Posts / Strategy Notes / Journal (public)
-- Content grid/list below
-- Error state (see cross-cutting): if the profile doesn't exist or fetch fails (same deliberately-vague "not available" message as any private-content-not-found case, per ERROR_HANDLING.md backend doc § 2)
-- Toast (see cross-cutting): confirms Follow/Unfollow and Report/Block actions
+### Public profile for another user (all tiers)
+- Loading state: skeleton layout for profile card
+- Back button and overflow menu for report or block actions
+- Avatar, handle, bio, experience level chip, and trading style chip
+- Follower and following count displays
+- Public statistics card if the owner shares performance data
+- Full-width primary follow/unfollow toggle button
+- Secondary message button for Premium and Enterprise viewers, directing to direct messages; Free viewers see an upgrade prompt
+- Segmented control switching between public Posts, Strategies, and Journals
+- Content feed for the selected segment
+- Error handling: standard "Profile not available" screen if user does not exist
+- Toast notification confirming follow state changes or moderation actions
 
-### Settings — All
-- Section: Notifications → row linking to Notification Preferences
-- Section: Account → Change Email row, Change Password row
-- Section: Privacy → "Public Journals" toggle
-- Section: Subscription → row showing current tier, links to Manage Subscription or Paywall
-- Section: Enterprise (only visible if org member) → "Organization" row → Org Dashboard
-- "Log Out" button (destructive-adjacent styling, not full red)
-- "Delete Account" row (bottom, red text, opens confirmation dialog)
-- Toast (see cross-cutting): confirms email/password change and toggle saves; error toast on failure (e.g. wrong current password)
+### Settings (all tiers)
+- Notifications row opening notification preferences
+- Account management rows for changing email and updating password
+- Privacy section with public journal visibility toggle
+- Subscription row showing current tier and linking to billing management
+- Enterprise organization link, visible only to team members
+- Log out button with neutral destructive styling
+- Red "Delete Account" button opening a confirmation modal
+- Toast notifications confirming credentials or preference updates
 
 ---
 
-## 2. Trading Journal
+## 2. Journal notes (trading journal)
 
-### Journal List — F (limited) / P+ (unlimited)
-- Top bar: title "Journal", search icon (expands to search bar), filter icon
-- Filter bottom sheet (sub-screen): ticker input, date range picker, tag multi-select, strategy multi-select, outcome multi-select, "Apply"/"Clear" buttons
-- Loading state (see cross-cutting): skeleton entry cards on first open
-- Entry cards (vertical list): ticker + date (top row), outcome badge + P/L (right-aligned), notes snippet (2-line truncate)
-- Pull-to-refresh
-- Empty state (see cross-cutting)
-- Error state (see cross-cutting): if the entry list fails to load
-- FAB: "+" → Journal Entry Create
-- Free-tier banner (dismissible, shown near/at entry limit): "3 entries left this month — Upgrade for unlimited"
+The journal destination is **one screen with three surfaces** — index, document, editor — and the phone gets a genuinely different arrangement from the desktop workbench described in [SCREENS_DESKTOP.md](./SCREENS_DESKTOP.md) section 2. Implementation: [lib/features/journal/ui/journal_screen.dart](../../lib/features/journal/ui/journal_screen.dart).
 
-### Journal Entry Detail — F/P/E
-- Loading state (see cross-cutting): skeleton for the full field layout on open
-- Top bar: back button, overflow menu (Edit / Delete / Make Public toggle / Link to another entry)
-- Ticker header (large, tappable → Ticker Detail)
-- Outcome badge (large, tappable → outcome override bottom sheet)
-- Trade fields grid (2-column): Entry / Exit / Stop Loss / Target / Size / Side / P/L — mono numerals
-- Screenshot carousel (horizontal scroll, tap → Image Viewer)
-- Notes section (expandable if long)
-- Psychology section
-- Mistakes Made section
-- Lessons Learned section
-- Linked strategy chip (tap → Strategy Detail)
-- Tag chips row
-- Bottom action bar (Premium): "AI Trade Review" button
-- Error state (see cross-cutting): entry not found or fetch failed
-- Toast (see cross-cutting): "Entry deleted — Undo" on delete; confirms outcome override and Make Public toggle saves
+On a phone the index *is* the first screen and the entry is the second. A 340 dp rail cannot coexist with a document at 390 dp, and hiding the rail behind a button buries the list — so opening an entry is a real back step, reported to the shell through `onSubpageChanged` so the app bar names it and the hardware back gesture unwinds it.
 
-### Journal Entry Create/Edit — F/P/E
-- Top bar: Cancel (left), "Save" (right, disabled until required fields filled)
-- Ticker autocomplete field
-- "Attach Screenshot" button/card → camera/gallery bottom sheet → upload progress inline → parsed-fields banner ("Filled from screenshot — review below")
-- Trade fields (editable, pre-filled if parsed): Entry / Exit / Stop Loss / Target / Size / Side (segmented long/short)
-- P/L (auto-computed, shown read-only with a small "override" pencil icon)
-- Notes text area (expands with content)
-- Psychology / Mistakes Made / Lessons Learned text areas (collapsed by default, "Add psychology notes" style expand-on-tap affordance to avoid overwhelming the form)
-- Tags input (chip entry, autocomplete against existing tags)
-- Strategy picker row → bottom sheet: search existing / "Create New Strategy" shortcut
-- Error state (see cross-cutting): inline, for screenshot-parsing failure (falls back to manual entry, doesn't block the form) and for save failure
-- Toast (see cross-cutting): "Entry saved" on successful create/edit
+### Journal index (Free: limited entries; Premium and Enterprise: unlimited)
+- `AppJournalNoteStatRow` at the top, compact variant: total entries, open positions, net P/L, win rate, average R, entries written up, entries unfiled, and a sparkline equity curve over the filtered slice
+- `AppJournalNoteFilterBar`: search field, sort selector (recent, oldest, best P/L, worst P/L), outcome filter, tag filter, ticker filter, and two switches — "needs a write-up" and "not filed under a playbook"
+- Both the stat strip and the filter bar **scroll away with the list**. On a 390 dp screen a pinned header of controls leaves room for one and a half cards
+- Count badge distinguishing "N shown" from "N of M" when a page limit is in effect
+- Loading state: skeleton entry cards; the subtitle reads "Loading…"
+- `AppJournalNoteGrid` of entry cards, optionally grouped under month headers — grouping appears only under a chronological sort, because over a list sorted by P/L a month header would misdescribe the grouping
+- Each card shows ticker, side, outcome badge, net P/L, R multiple, a story excerpt, a write-up indicator, and a linked-notes count resolved through the link graph rather than read off the record
+- Scroll paging: 12 entries at a time, extended when the list is within 560 dp of its end
+- Empty state distinguishes "nothing matches" (offers "Clear filters") from "no entries yet" (offers "New entry")
+- Floating "New entry" button (`journal_new_entry_fab`), positioned clear of the mobile dock inset
+- Free-tier usage banner warning when approaching or reaching the monthly entry limit
 
-**Sub-screen — Outcome override bottom sheet:** current outcome shown, three large tap targets (Win / Loss / Breakeven), "Reset to auto" link.
+### Journal note document (all tiers)
+- Opened by tapping a card; replaces the index and takes a back step
+- Header showing ticker symbol, side, outcome badge and date; the ticker is a link into instrument detail
+- Trade numbers: entry, exit, stop loss, target, size, fees, net P/L and R multiple, all derived rather than retyped
+- Screenshot gallery opening the lightbox viewer on tap; attachments resolve through signed URLs
+- The write-up itself: what was seen, what was done, psychology, mistakes, lessons — rendered as markdown, with `tradex://` links resolved inline
+- `AppLinkedRecordsPanel` naming the playbook this trade was filed under, the trader notes that discuss it, and the instrument — every tile navigable, cross-destination tiles routed through the shell
+- "Same playbook" list: other trades taken under the same rules, newest first
+- A broken link renders as a broken link and reports "That record is gone — the link is kept so you can see it broke" rather than disappearing
+- Overflow menu for edit, delete, share and link actions; deleting returns to the index with an undoable toast
+- Bottom action bar with "AI Trade Review" for Premium accounts
 
----
+### Journal note editor (all tiers)
+- **Opened from a template gallery, never a blank form.** A template is the fastest way to log a trade properly and the only way a trader who has never written one up learns what belongs in it
+- Top bar with "Cancel" and "Save"; the editor owns the save-or-discard decision, so the shell's back button asks the editor to close rather than closing over its head
+- Ticker search field with autocomplete
+- "Attach screenshot" with gallery picker, upload progress, and OCR field extraction notice
+- Editable trade parameters pre-filled from OCR: entry, exit, stop loss, target, size, side toggle; P/L calculated automatically with an override
+- Markdown body for the write-up, with a link-insertion affordance for playbooks, notes and tickers
+- Tag chip input with suggestions
+- Playbook selector opening a searchable picker; the candidate list comes from `AppLinkGraph.options`
+- Inline error banners if screenshot parsing or database writes fail; toast confirming saves
+- Closing after a save lands on the entry just written — including one created from a template, whose id the index never saw
 
-## 3. Strategy Notes & Analyzer
-
-### Strategy List — F: locked/upsell · P/E: full
-- Top bar: title "Strategies", tabs: List / Analyzer / Graph
-- Category filter chip row (horizontal scroll)
-- Loading state (see cross-cutting): skeleton strategy cards on first open (Premium/Enterprise only — Free sees the lock state instead, below)
-- Strategy cards: title, category chip, visibility icon, favorite star (tap to toggle), win-rate mini-badge if linked entries exist
-- FAB: "+" → Strategy Editor (new)
-- Free-tier: full-screen locked state with illustration + "Unlock Strategy Notes" CTA
-- Premium/Enterprise, no strategies yet: standard empty state (see cross-cutting) — "No strategies yet" → tap CTA opens Strategy Editor
-- Error state (see cross-cutting): if the strategy list fails to load
-
-### Strategy Detail — P/E
-- Loading state (see cross-cutting): skeleton for title/body/metadata on open
-- Top bar: back, overflow (Edit / Delete / Version History)
-- Title (large)
-- Category chip, visibility toggle (segmented: Private/Public), favorite star
-- Rendered rich-text body (scrollable), embedded images inline at full card width
-- AI Summary card (Premium) — italic/tinted background, "Regenerate" text button
-- "Used in N journal entries" row → tap opens Analyzer filtered to this strategy
-- Bottom action bar: "Edit" button
-- Error state (see cross-cutting): strategy not found (private and not owner, or deleted) or fetch failed
-- Toast (see cross-cutting): "Strategy deleted" on delete; confirms visibility toggle and favorite-star changes; confirms AI summary regeneration or shows an error toast on failure
-
-### Strategy Editor — P/E
-- Top bar: Cancel, "Save"
-- Title field
-- Formatting toolbar (bottom-anchored above keyboard, iOS/Android standard pattern): Bold/Italic, Heading, Bullet list, Image insert, Chart/embed insert
-- Rich text body (full-screen editable area)
-- Bottom sheet (on "settings" icon tap): Category picker, Visibility toggle
-- Autosave indicator (small text, top-right: "Saved" / "Saving…")
-- Error state (see cross-cutting): inline, if a save (autosave or manual) fails — autosave indicator switches to "Not saved — Retry" rather than silently failing
-- Toast (see cross-cutting): confirms an explicit "Save" tap beyond the passive autosave indicator, e.g. when publishing a new version
-
-### Version History — P/E
-- Loading state (see cross-cutting): skeleton list on open
-- Top bar: back, title "Version History"
-- List: version number + relative timestamp
-- Tap row → read-only preview screen (sub-screen) with "Restore This Version" button pinned bottom
-- Error state (see cross-cutting): if version history fails to load
-- Toast (see cross-cutting): "Restored version N" after a successful restore
-
-### Strategy Analyzer — P/E
-- Loading state (see cross-cutting): skeleton rollup cards on open
-- Top bar tab context (from Strategy List tabs)
-- Sort control (dropdown/bottom sheet: Win Rate / P&L / Entry Count)
-- Rollup cards: strategy name, win rate %, avg P/L, entry count, mini outcome-distribution bar
-- Tap card → filtered Journal List (pre-applied strategy filter)
-- Empty state (see cross-cutting): no strategies with linked entries yet — "Link a strategy to your journal entries to see performance here"
-- Error state (see cross-cutting): if the rollup query fails
-
-### Graph View — P/E
-- Loading state (see cross-cutting): centered spinner while the graph data (entries, strategies, links) is fetched — a skeleton canvas isn't meaningful for a force-directed layout the way it is for a list
-- Top bar tab context, "Link Entries" toggle button (top-right)
-- Full-screen canvas: pinch-zoom, pan, tap node → relevant detail screen
-- Legend (collapsible bottom sheet): node type key (entry/strategy/ticker), edge type key
-- When "Link Entries" mode active: tap-to-select two nodes → confirm bottom sheet → creates edge
-- Error state (see cross-cutting): if the graph data fails to load
-- Toast (see cross-cutting): confirms a new entry-to-entry link was created
+Sub-screen outcome override sheet provides distinct options for Win, Loss, and Breakeven alongside an automatic calculation reset.
 
 ---
 
-## 4. Watchlists
+## 3. Strategy notes (playbooks) and analyzer
 
-### Watchlist List — F: 1 · P/E: unlimited
-- Loading state (see cross-cutting): skeleton watchlist cards on open
-- Top bar: title "Watchlists"
-- Favorites shortlist (horizontal scroll row, top)
-- Watchlist cards (name, ticker count)
-- FAB: "+" → Create Watchlist bottom sheet (name field only, single-purpose)
-- No watchlists yet: standard empty state (see cross-cutting) — "No watchlists yet" → tap CTA opens Create Watchlist
-- Error state (see cross-cutting): if the watchlist list fails to load
-- Toast (see cross-cutting): confirms a new watchlist was created
+The strategy destination mirrors the journal deliberately: the same three surfaces, the same workbench on desktop, the same replace-and-back step on a phone. Whatever a reader learns about one applies to the other. Implementation: [lib/features/strategies/ui/strategies_screen.dart](../../lib/features/strategies/ui/strategies_screen.dart).
 
-### Watchlist Detail — F: no alerts · P/E: full
-- Loading state (see cross-cutting): skeleton ticker rows on open
-- Top bar: back, watchlist name (tap to rename), overflow (categories manage / delete watchlist)
-- Category filter chip row
-- Ticker rows: symbol, last price, day change (colored), notes icon if present, favorite star, swipe-left reveals Remove
-- "+" row/button at bottom of list → Add Ticker
-- Empty state (see cross-cutting): watchlist created but no tickers added yet — "No tickers yet" → tap CTA opens Add Ticker
-- Error state (see cross-cutting): if the ticker list or live prices fail to load
-- Toast (see cross-cutting): "Ticker removed — Undo" on swipe-remove; confirms rename
+### Playbook library (Free: locked with upsell; Premium and Enterprise: full)
+- `AppStrategyNoteStatRow`: playbook count, live count, aggregate win rate, total trades, best performer
+- `AppStrategyNoteFilterBar`: search, sort, status filter (draft / testing / live / retired), tag filter, ticker filter, favourites-only switch
+- Loading state: skeleton cards for subscribed users
+- `AppStrategyNoteGrid` of playbook cards: name, status badge, favourite toggle, win rate, trade count, R expectancy, linked-note count, and the instruments the playbook names
+- **Win rate is displayed as a percentage of the 0–100 value stored on the record.** `AppStrategy.winRate` is already 0..100 while `AppJournalStats.winRate` is 0..1; the split is documented rather than unified, and a widget test fails on any percentage above 100 to catch a re-introduced `* 100`
+- Scroll paging: 8 playbooks at a time
+- Floating "New playbook" button (`strategy_new_fab`)
+- Free-tier lock screen featuring an upgrade illustration and paywall action
+- Empty state distinguishing a filtered miss from an empty library
 
-### Add Ticker — F/P/E (bottom sheet, not full screen)
-- Ticker search field with live results
-- Loading state (see cross-cutting): inline spinner in the results list while a search is in flight
-- On select: category dropdown, optional note field, "Set price alert" toggle
-- "Add" button pinned bottom
-- Error state (see cross-cutting): inline, if the ticker search fails
-- Toast (see cross-cutting): confirms the ticker was added, shown on the Watchlist Detail screen after the sheet closes
+### Strategy note document (Premium and Enterprise)
+- Header with name, status selector, visibility selector and favourite star
+- Performance block: win rate, trades, net P/L, average R, outcome distribution — **all derived from the journal entries filed under this playbook, never stored by hand**
+- The rules themselves as markdown: entry conditions, invalidation, stop placement, sizing, exit — with `tradex://` links resolved inline
+- AI summary callout with refresh action for Premium accounts
+- `AppLinkedRecordsPanel` naming the trades filed under this playbook, the notes that discuss it, and the union of instruments it names and instruments it was actually traded on. A playbook written for the index that keeps getting traded on bank futures is worth seeing
+- Version history entry point
+- Bottom action bar with "Edit"; toasts confirm deletions, tag edits and AI summary refreshes
 
-### Price Alert Setup — P/E (bottom sheet)
-- Above/Below segmented toggle
-- Threshold price input (numeric keypad)
-- Live preview text: "Alert when AAPL crosses $230.00"
+### Strategy note editor (Premium and Enterprise)
+- **Opened from a template gallery.** A template carries the section headings a set of rules needs — entry, invalidation, stop, sizing, exit — which is the difference between a playbook and a note that says "buy breakouts"
+- Navigation bar with "Cancel" and "Save"; the editor owns the dirty check
+- Name field, status and visibility controls, tag and ticker inputs
+- Markdown body with a toolbar docked above the software keyboard
+- Autosave status indicator: Saved, Saving, or Failed, with a retry prompt if a background autosave drops connection
+- Toast confirming manual version publishing
+
+### Version history (Premium and Enterprise)
+- Loading state: skeleton list of revisions
+- Chronological list displaying version numbers and relative timestamps
+- Tap row to preview read-only content with a pinned "Restore This Version" button
+- Toast notification confirming successful version rollbacks
+
+### Strategy analyzer (Premium and Enterprise)
+- Loading state: skeleton metric cards
+- Sorting controls for win rate, total profit, and total trade count
+- Summary cards showing strategy name, win rate percentage, average P/L, trade volume, and outcome bars
+- Tap card to open the filtered journal entries for that playbook — a cross-destination link, so it travels through the shell's `AppLinkOpenRequest`
+- Empty state prompting the user to file trades under a playbook
+
+### Linking health (all tiers, surfaced on the journal and playbook indexes)
+- Unfiled trades count, tapping into the journal filtered to `onlyUnfiled`
+- Entries without a write-up, tapping into `onlyUnwritten`
+- Orphan records: anything with nothing attached. A trade with no plan and no note is the one that will be repeated
+- Journal coverage percentage: how many entries carry a story. A journal of numbers with no words is the failure mode the whole feature exists to prevent
+- Tickers are excluded from orphan detection — naming an instrument is a topic tag, not a relationship to the trader's own records
+
+### Graph view (deferred)
+Specified in [DYNAMIC_LINKING.md](./DYNAMIC_LINKING.md) section 8. The linked-records panels and linking health cards cover the MVP need; a force-directed canvas is worth building once a workspace routinely holds hundreds of edges.
+
+---
+
+## 4. Trader notes
+
+The third writing surface, and the oldest of the three. Where a journal note is about one trade and a playbook is about one set of rules, a trader note is about anything else worth keeping: a market read, a checklist, a post-mortem across ten trades, a cheat sheet. Implementation: [lib/features/notes/ui/notes_screen.dart](../../lib/features/notes/ui/notes_screen.dart).
+
+Trader notes deliberately do **not** use the workbench frame. A note has no natural index ordering to keep beside the reader the way a dated trade log or a status-grouped playbook library does, so the surface is a card grid that opens a full-width reader.
+
+### Notes workspace (all tiers)
+- `AppNoteStatRow` (a `UiStatStrip` of four): notes, this week, public, words
+- Two collections behind tabs: "My notes" and "Public notes". Public notes are read-only — edit and delete controls are absent, not disabled
+- `AppNoteFilterBlock` in a **pinned** sticky header (148 dp on a phone, 172 dp above): search with match highlighting, note-type filter, tag filter, sort, and a density toggle. Unlike the journal and playbook indexes, these controls stay put — the notes grid is browsed by search far more than by scroll
+- Count badge distinguishing "N shown" from "N of M"
+- Lazy grid of `AppNoteCard`: title, type icon, excerpt, tags, tickers, word count, read time, and engagement counters on public notes. Search terms are highlighted in place
+- Loading state: skeleton cards inside the same grid geometry
+- Empty state distinguishes a filtered miss (offers "Clear filters") from an empty collection (offers "New note")
+- Floating "New note" button (`new_note_fab`) — an icon button on a phone, a labelled pill above it — positioned clear of the mobile dock inset
+- Deleting a note shows an undoable toast
+
+### Note reader (all tiers; public notes readable by anyone)
+- Full-screen markdown document with an outline affordance ("Jump to section") that clears the mobile dock
+- Metadata: note type, tags, tickers, read time, word count, created and updated timestamps
+- `AppLinkedRecordsPanel` — the same panel the journal and playbook documents use. A note shows every kind it touches: trades, playbooks, other notes and instruments
+- "Related notes": other notes sharing at least one tag, most overlap first
+- On tablet and desktop the metadata moves into a details rail beside the body; on a phone it sits above it
+- Engagement row on public notes: view count, likes, comments
+- Export to PDF; share action offers "make public first" on a private note
+
+### Note editor (all tiers)
+- Writing canvas plus a details panel — "Note details" on a phone, a persistent rail on desktop
+- Title, note type, tag input, ticker input, public/private toggle
+- Markdown body with an AI refactor toolbar over a selection
+- "Linked strategy" picker and "Link journal entry" picker, both drawing candidates from `AppLinkGraph.options` with already-attached records excluded
+- `onInsertJournal` writes a `tradex://journal/<id>` markdown link at the cursor, so the reference lives in the prose rather than only in a sidebar list
+- Attachment upload with progress; the returned storage path is written straight into the markdown body
+- Autosave status indicator; derived counters (word count, checklist progress, has-images, has-code) are recomputed before every write
+
+---
+
+## 5. Watchlists
+
+### Watchlist list (Free: one watchlist; Premium and Enterprise: unlimited)
+- Loading state: skeleton cards
+- Favorites preview row scrolling horizontally across the top
+- Watchlist cards displaying list names and ticker counts
+- Floating action button opening a watchlist creation sheet
+- Empty state prompting creation of an initial watchlist
+- Toast notification confirming new watchlist creation
+
+### Watchlist detail (Free: no alerts; Premium and Enterprise: full)
+- Loading state: skeleton rows
+- Navigation bar showing watchlist name (tap to edit) and options menu
+- Category filter chips
+- Ticker rows with symbol, current price, daily percentage move, notes indicator, and favorite star
+- Swipe left on ticker row to trigger delete action
+- Pinned bottom button to add tickers
+- Empty state prompting user to add tickers
+- Toast notification offering an "Undo" action after ticker removal
+
+### Add ticker sheet (all tiers)
+- Ticker search input with live lookup
+- Selection sheet for assigning categories, entering notes, and setting price alerts
+- Pinned bottom action button to confirm additions
+- Inline search error handling
+- Toast notification confirming added tickers
+
+### Price alert setup sheet (Premium and Enterprise)
+- Directional condition toggle: Price Crosses Above or Below
+- Numeric threshold price input
+- Dynamic preview string clarifying alert parameters
 - "Save Alert" button
-- Toast (see cross-cutting): confirms the alert was saved, shown after the sheet closes
+- Toast notification confirming active alert setup
 
 ---
 
-## 5. Portfolio Dashboard
+## 6. Portfolio dashboard
 
-### Portfolio Dashboard — F: headline only · P/E: full
-- Loading state (see cross-cutting): skeleton stat cards + chart placeholders on open
-- Top bar: title "Portfolio", time-range segmented control (Weekly/Monthly), overflow (export — future)
-- Headline stat cards (2×2 grid): Total P/L, Win Rate, Avg RR, Max Drawdown
-- Equity Curve chart (full-width, scrollable/zoomable horizontally)
-- Monthly Growth chart (bar chart, full-width)
-- Win/Loss Distribution chart (donut or stacked bar)
-- Best Trade card / Worst Trade card (side-by-side, tap → Journal Entry Detail)
-- "Strategy Performance" section header + "See all" link (Premium; Free shows lock icon + upsell)
-- Empty state (see cross-cutting): fewer than 5 journal entries with `pnl` set — per DESIGN_SYSTEM.md § 13's muted-placeholder-chart treatment, not the generic icon+CTA empty state, since the screen itself is still meaningful with partial data
-- Error state (see cross-cutting): if `portfolio_stats` or the entry list fails to load
+### Portfolio dashboard (Free: headline stats only; Premium and Enterprise: full)
+- Loading state: skeleton metric cards and chart blocks
+- Navigation bar with time range selector: Weekly, Monthly
+- Primary metric cards: Total P/L, Win Rate, Average Risk/Reward, Maximum Drawdown
+- Interactive equity curve chart plotting cumulative P/L
+- Monthly growth bar chart
+- Win and loss distribution chart
+- Side-by-side cards highlighting best and worst trades, linking to journal entries
+- Strategy performance preview section with upgrade lock for free accounts
+- Placeholder chart state for accounts with fewer than five closed trades
+- Pull-to-refresh dashboard metrics
 
-### Strategy Performance Breakdown — P/E
-- Loading state (see cross-cutting): skeleton rollup cards on open
-- Top bar: back button, title "Strategy Performance," overflow menu (sort options duplicated here for one-tap access)
-- Summary strip (top, above the list): "N strategies with linked entries" count + portfolio-wide win rate for context, so per-strategy numbers below have a baseline to compare against
-- Sort control (segmented or dropdown): Win Rate / Total P&L / Entry Count / Most Recent Activity — persists as the user's preference across visits (not reset each time)
-- Time-range filter chip (optional, mirrors Portfolio Dashboard's Weekly/Monthly toggle — filters which linked journal entries count toward each strategy's stats)
-- Rollup cards (reused `THStrategyCard`-style component from Strategy Analyzer, one per strategy with ≥1 linked entry):
-  - Strategy title + category chip
-  - Win rate (large, mono numerals) with a small outcome-distribution bar (win/loss/breakeven segments, colored per DESIGN_SYSTEM.md § 2)
-  - Avg P/L (mono, signed and colored per outcome-win/loss tokens)
-  - Entry count
-  - Mini sparkline of that strategy's cumulative P/L trend (optional but valuable — helps distinguish "consistently solid" from "one big win carrying the average")
-  - Tap target: whole card → Strategy Analyzer, filtered to this strategy
-- Empty state (see cross-cutting): shown if the user has strategies but none have any linked journal entries yet — message: "Link a strategy to your journal entries to see performance here" → CTA to Journal List
-- Error state (see cross-cutting): if the breakdown query fails
-- Pull-to-refresh
+### Strategy performance breakdown (Premium and Enterprise)
+- Loading state: skeleton cards
+- Portfolio baseline banner displaying total linked strategies and overall win rate
+- Persistent sorting controls: Win Rate, Total P/L, Entry Count, or Recent Activity
+- Time range filter chips matching portfolio dashboard intervals
+- Performance cards featuring win rates, colored outcome segments, average P/L, trade count, and mini sparklines
+- Tap card to open filtered strategy analysis
+- Empty state directing users to link strategies to trades in the journal
+- Pull-to-refresh metrics
 
 ---
 
-## 6. Community
+## 7. Community
 
-### Community Feed — F: limited · P/E: unlimited
-- Loading state (see cross-cutting): skeleton post cards on first open
-- Top bar: title "Community", saved-posts icon (top-right)
-- Content-type filter chip row (horizontal scroll)
-- Post cards: avatar + handle (tap → Public Profile), content-type badge, timestamp, text (truncated with "more"), image (if present, tap → Image Viewer), action row (like/comment/save counts + icons)
-- Pull-to-refresh
-- FAB: "+" → Create Post
-- Free-tier daily-limit banner near/at cap
-- No posts for the selected content-type filter: standard empty state (see cross-cutting) — "No posts in this category yet" (no CTA needed; the fix is switching filters, not creating content)
-- Error state (see cross-cutting): if the feed fails to load
-- Toast (see cross-cutting): confirms like/save actions with a brief inline animation rather than a toast in most cases, but a toast is used specifically for "Post reported" / "User blocked" confirmations from the overflow menu
+### Community feed (Free: limited reads daily; Premium and Enterprise: unlimited)
+- Loading state: skeleton post cards
+- Header bar with saved posts navigation icon
+- Horizontal filter chips for content categories: Trade Analysis, Education, Psychology, Strategies, News, Market Discussion
+- Post cards with user details, category chip, relative timestamp, body text, optional media, and interaction counters
+- Pull-to-refresh feed
+- Floating action button to compose new posts
+- Free-tier banner tracking daily read allowance
+- Empty state when active category filter contains no posts
+- Toast notification confirming report and block actions
 
-### Post Detail — F/P/E
-- Loading state (see cross-cutting): skeleton post + comment thread on open
-- Top bar: back, overflow (Report/Block/Mute)
-- Full post (same card, untruncated, tappable image)
-- Action row: like (with count), save (with count)
-- Comment thread (list), each comment: avatar, handle, text, timestamp
-- Comment input bar (pinned bottom, above keyboard)
-- Error state (see cross-cutting): post not found or fetch failed
-- Toast (see cross-cutting): confirms comment posted, and Report/Block/Mute actions
+### Post detail (all tiers)
+- Loading state: skeleton post and comment list
+- Navigation bar with report, block, and mute actions
+- Full post body with zoomable media
+- Action bar showing like and bookmark buttons with live counters
+- Chronological comment list showing author credentials and timestamps
+- Docked bottom comment input field
+- Toast notification confirming published comments
 
-### Create Post — F/P/E
-- Top bar: Cancel, "Post" (disabled until content type + text present)
-- Content-type picker (horizontal chip row, single-select, required)
-- Text area
-- Ticker tag field (optional, autocomplete)
-- "Add Image" button → camera/gallery bottom sheet, thumbnail preview with remove "×"
-- Error state (see cross-cutting): inline, if the post fails to publish (stays on the form, content preserved)
-- Toast (see cross-cutting): "Posted" on success, shown after returning to Community Feed
+### Create post (all tiers)
+- Header with "Cancel" and "Post" actions
+- Required content-category selector chips
+- Free-form text input area
+- Optional ticker search input
+- Image attachment button with photo picker and preview removal controls
+- Inline error banners if post upload fails
+- Toast notification on return to feed confirming publication
 
-### Saved Posts — F/P/E
-- Loading state (see cross-cutting): skeleton post cards on open
-- Top bar: back, title "Saved"
-- Same card list as feed, swipe-to-unsave
-- Empty state (see cross-cutting)
-- Error state (see cross-cutting): if the saved list fails to load
-- Toast (see cross-cutting): "Removed from Saved — Undo" on swipe-unsave
+### Saved posts (all tiers)
+- Loading state: skeleton cards
+- Saved posts feed matching standard feed formatting
+- Swipe action to remove saved items
+- Empty state when no posts are bookmarked
+- Toast notification with "Undo" action on removal
 
-### Followers / Following List — F/P/E
-- Loading state (see cross-cutting): skeleton user rows on open
-- Top bar: back, segmented control (Followers/Following)
-- Search field
-- User rows: avatar, handle, follow/unfollow button
-- No followers/following yet: standard empty state (see cross-cutting) — "No followers yet" / "Not following anyone yet" → CTA to Community Feed on the Following tab (discover people to follow), no CTA on the Followers tab (nothing to prompt)
-- Error state (see cross-cutting): if the list fails to load
+### Followers and following list (all tiers)
+- Loading state: skeleton rows
+- Segmented control switching between Followers and Following lists
+- Search bar filtering usernames
+- User rows with avatar, handle, and follow/unfollow toggle button
+- Empty states tailored to each tab, pointing to the community feed on the Following tab
 
 ---
 
-## 7. Direct Messages — P/E only (Free: locked/upsell everywhere in this module)
+## 8. Direct messages (Premium and Enterprise)
 
-### Direct Messages List — P/E
-- Loading state (see cross-cutting): skeleton conversation rows on open
-- Top bar: title "Messages," new-message icon (top-right)
-- Conversation rows, sorted by most recent activity (`conversations.last_message_at`): counterpart's avatar + handle, last message preview (truncated, one line), relative timestamp, unread indicator (dot or bold styling) if the latest message's `read_at` is null and it wasn't sent by the current user
-- Swipe-left on a row → Mute / Delete conversation (delete removes it from *this user's* list view only — the thread and messages remain for the other participant; this is a client-side "hide," not a data deletion, since deleting someone else's readable history unilaterally isn't appropriate)
-- Pull-to-refresh
-- No conversations yet: standard empty state (see cross-cutting) — "No messages yet" → CTA opens New Message
-- Free tier: full-screen locked state (same pattern as Strategy List's Free lock) with illustration + "Unlock Direct Messages" CTA — there's no partial/read-only view for Free, since a Free user by definition can't have sent or received anything in-app yet
-- Error state (see cross-cutting): if the conversation list fails to load
-- Toast (see cross-cutting): "Conversation hidden — Undo" on swipe-delete
+### Direct messages list (Premium and Enterprise)
+- Loading state: skeleton conversation rows
+- Header with new message composer icon
+- Conversation rows sorted by latest activity, displaying user avatar, handle, last message snippet, timestamp, and unread indicator
+- Swipe left on conversation to mute or hide the thread locally
+- Pull-to-refresh list
+- Empty state prompting user to start a conversation
+- Free-tier lock screen featuring direct message explanation and upgrade button
+- Toast notification with "Undo" action after hiding a conversation
 
-### Conversation Detail (chat thread) — P/E
-- Loading state (see cross-cutting): skeleton message bubbles on open, before the Realtime subscription establishes
-- Top bar: back, counterpart's avatar + handle (tap → their Public Profile), overflow menu (Mute / Block / Report)
-- Message list (reverse-chronological scroll, newest at bottom, standard chat layout): message bubbles left-aligned for the counterpart, right-aligned for the current user, timestamp shown on long-press or grouped by time-gap, read receipt indicator on the current user's own sent messages (matches `read_at` state)
-- Real-time updates: new messages append live via the Supabase Realtime subscription (API_REFERENCE.md § 1) without a manual refresh
-- Message input bar (pinned bottom, above keyboard): text field, send button (disabled when empty or when the current user's tier no longer permits sending — see tier-downgrade note below)
-- **Tier-downgrade state:** if the current user's subscription has lapsed since the conversation started, the input bar is replaced with a compact upsell strip ("Resubscribe to keep messaging") rather than a full-screen block — the message history above stays fully visible and scrollable
-- **Blocked state:** if either party has blocked the other, the input bar is replaced with a neutral, non-accusatory message ("You can't send messages in this conversation") — deliberately not stating which direction the block went, to avoid escalating a conflict
-- Empty state (brand new conversation, no messages yet): centered prompt — "Say hello to [handle]" — rather than the generic cross-cutting empty state, since this is the start of a thread, not an error/absence
-- Error state (see cross-cutting): if the conversation/message history fails to load, or if the Realtime subscription drops (shows a subtle "Reconnecting…" indicator rather than a full-screen error, since history is still visible and usable)
-- Toast (see cross-cutting): inline failed-to-send indicator on the specific message bubble (with a Retry tap target) rather than a screen-level toast, since a chat's failure state needs to stay attached to the specific message
+### Conversation detail (Premium and Enterprise)
+- Loading state: skeleton chat bubbles while connecting to realtime channels
+- Header with recipient avatar, handle, and options menu to block or report
+- Message feed with incoming messages on the left and outgoing messages on the right, plus read receipts
+- Realtime message updates via Supabase web sockets
+- Docked bottom composer with text input and send button
+- Tier downgrade banner replacing composer if subscription expires, keeping history readable
+- Blocked conversation notice replacing composer if either user blocks the other
+- Initial empty conversation prompt inviting the user to say hello
+- Subtle reconnecting banner if realtime socket drops connection
+- Message-level failure indicator with tap-to-retry action
 
-### New Message — P/E
-- Top bar: Cancel (left), title "New Message"
-- Search field: search by handle, results show avatar + handle + (if followed) a "Follows you" / "Following" indicator
-- Loading state (see cross-cutting): inline spinner in the results list while a search is in flight
-- Tap a result → if a conversation with that person already exists, opens the existing Conversation Detail directly (no duplicate thread created, matches the `unique (user_a_id, user_b_id)` constraint in the schema); otherwise opens a fresh Conversation Detail in its empty state, ready for the first message
-- Free tier: this screen isn't reachable at all — the entry points that would open it (the "+" icon on Direct Messages List, and any "Message" button on a Public Profile) show the upsell interstitial instead of navigating here
-- Error state (see cross-cutting): inline, if the handle search fails
+### New message composer (Premium and Enterprise)
+- Navigation bar with "Cancel" button
+- Search field matching user handles with follower status badges
+- Loading state: inline spinner in search results
+- Tap user to open an existing thread or start a new conversation
+- Free tier blocks access to this screen through upgrade interstitials
 
 ---
 
-## 8. AI Trading Assistant
+## 9. AI trading assistant
 
-### Ticker Search / Detail — F: basic · P/E: full
-- Top bar: search field (persistent)
-- Loading state (see cross-cutting): skeleton chart + indicator placeholders on open
-- Price chart (candlestick, timeframe segmented control)
-- Indicator toggles (RSI/MACD/SMA — chip row, tap to overlay on chart)
-- News & Sentiment card (Premium; collapsed summary, "Read more" expand)
-- "Ask AI about this ticker" button (Premium) — pinned above bottom nav
-- Free tier: chart + indicators visible, News/Sentiment and Ask AI show lock state
-- Error state (see cross-cutting): if price/indicator data fails to load (per INTEGRATIONS.md § 2, no cached-price fallback exists yet — this is a real error state, not stale data shown silently)
+### Ticker search and detail (Free: basic analytics; Premium and Enterprise: full)
+- Persistent search bar in navigation header
+- Loading state: skeleton chart and indicator panels
+- Candlestick price chart with timeframe selector
+- Indicator toggles for RSI, MACD, and moving averages
+- News and sentiment summary card with expansion trigger
+- Pinned bottom action button: "Ask AI about this ticker"
+- Free tier displays basic chart and indicators while locking sentiment and AI features behind paywalls
 
-### AI Trading Assistant (chat) — P/E
-- Top bar: back, scope selector (dropdown: this ticker / this watchlist / my portfolio)
-- Chat thread (message bubbles, AI messages include disclaimer footnote inline)
-- Quick-action chip row (above input): "Risk/Reward", "Watchlist Insights", "Ask something else"
-- Message input bar (pinned bottom)
-- Loading state (see cross-cutting): typing-indicator-style animation in place of the next AI bubble while a response streams in
-- Error state (see cross-cutting): inline failed-to-respond indicator on the specific exchange (with a Retry tap target), same pattern as Conversation Detail's failed-send state
+### AI trading assistant chat (Premium and Enterprise)
+- Navigation bar with scope selector: Current Ticker, Active Watchlist, or Full Portfolio
+- Conversational chat stream with legal disclaimer footers on AI messages
+- Quick prompt chips: Risk/Reward, Watchlist Insights, General Question
+- Docked bottom message input field
+- Loading state: animated typing indicator during AI response streaming
+- Inline retry button on message failure
 
-### Trade Review results — P/E (bottom sheet or full screen from Journal Entry Detail)
-- Loading state (see cross-cutting): skeleton/spinner while the AI call is in flight
-- Entry summary header (ticker, outcome, P/L)
-- AI commentary block
-- Disclaimer footnote
-- "Re-run" / "Dismiss" buttons
-- Error state (see cross-cutting): if the AI call fails — "Re-run" doubles as the retry action
+### Trade review results (Premium and Enterprise)
+- Loading state: skeleton layout during AI analysis processing
+- Trade summary banner showing ticker, outcome, and P/L
+- Structured AI review comparing execution against planned rules
+- Regulatory disclaimer footer
+- Action buttons to re-run analysis or dismiss
 
-### AI Strategy Review results — P/E
-- Loading state (see cross-cutting): skeleton/spinner while the AI call is in flight
+### AI strategy review results (Premium and Enterprise)
+- Loading state: skeleton layout during processing
 - Strategy title header
-- Review block (clarity/consistency notes)
-- Flagged rules list (each with a short excerpt + issue)
-- "Re-run" / "Dismiss" buttons
-- Error state (see cross-cutting): if the AI call fails
+- Structural review notes covering logic, clarity, and consistency
+- Bulleted list highlighting conflicting rules or ambiguities
+- Re-run and dismiss action buttons
 
-### AI Journal Analysis results — P/E
-- Loading state (see cross-cutting): skeleton/spinner while the AI call is in flight
-- Top bar: back, title
-- Date range picker + strategy filter (top, collapsible)
-- Pattern summary card(s): recurring mistakes, psychology trends, tag/outcome correlations
-- Disclaimer footnote
-- No entries in the selected range/strategy filter: standard empty state (see cross-cutting) — "No entries in this range to analyze" → CTA to widen the date range, not to create a new entry (this screen doesn't create data, it reads it)
-- Error state (see cross-cutting): if the AI call fails
+### AI journal analysis results (Premium and Enterprise)
+- Loading state: skeleton panels during data aggregation
+- Collapsible date range and strategy filters
+- Behavioral pattern cards identifying repeated mistakes, emotional triggers, and outcome trends
+- Disclaimer footer
+- Empty state prompting user to expand date filters if no qualifying trades exist
 
-### Weekly / Monthly Performance Review — P/E
-- Loading state (see cross-cutting): skeleton/spinner while the AI call is in flight
-- Period segmented control
-- Narrative summary card
-- Key stat chips pulled from Portfolio Dashboard
-- Disclaimer footnote
-- Error state (see cross-cutting): if the AI call fails
+### Weekly and monthly performance review (Premium and Enterprise)
+- Loading state: skeleton cards during report generation
+- Segmented control selecting weekly or monthly review periods
+- AI narrative evaluation summarizing performance trends
+- Key statistic chips pulled directly from the portfolio dashboard
+- Regulatory disclaimer footer
 
-### Daily Digest — P/E
-- Loading state (see cross-cutting): skeleton on open
-- Top movers list (ticker, change %, tap → Ticker Detail)
-- AI summary card
-- Disclaimer footnote
-- Error state (see cross-cutting): if the digest fails to load
+### Daily digest (Premium and Enterprise)
+- Loading state: skeleton cards
+- Top market movers list with percentage changes, linking to ticker details
+- Concise AI summary briefing
+- Disclaimer footer
+- Push notification entry point opening this screen directly
 
 ---
 
-## 9. Notifications
+## 10. Notifications
 
-### Notification Center — F/P/E
-- Loading state (see cross-cutting): skeleton notification rows on open
-- Top bar: title "Notifications", "Mark all read" text button
-- Grouped list by category (section headers: Market Alerts, Community, Messages, Strategy, AI, Subscription)
-- Notification rows: icon (by category), title, body snippet, relative timestamp, unread dot
-- Tap row → deep link to relevant screen (see DYNAMIC_LINKING.md)
-- Empty state (see cross-cutting)
-- Error state (see cross-cutting): if the notification list fails to load
+### Notification center (all tiers)
+- Loading state: skeleton notification rows
+- Header with "Mark all read" button
+- Categorized notification list: Market Alerts, Community, Messages, Strategy, AI, Subscription
+- Notification rows with category icons, title, description preview, timestamp, and unread marker
+- Tap notification to navigate directly to related screens
+- Empty state view when no notifications are present
 
-### Notification Preferences — F/P/E
-- Loading state (see cross-cutting): skeleton toggle rows on open (brief — this is a small, mostly-static list)
-- Top bar: back, title
-- List of category rows, each with: label, push toggle, in-app-only fallback note
-- Toast (see cross-cutting): confirms a toggle change saved, or shows an error toast if it fails to persist
+### Notification preferences (all tiers)
+- Loading state: skeleton toggle rows
+- List of alert categories with push notification toggles and in-app delivery notices
+- Toast notifications confirming saved preference updates
 
 ---
 
-## 10. Subscriptions
+## 11. Subscriptions
 
-### Plan Comparison / Paywall — All
-- Top bar: close "×" (top-right)
-- Billing-cycle segmented control (Monthly/Annual) — shown above Premium column
-- Horizontally swipeable or stacked plan cards: Free / Premium / Enterprise
-- Feature checklist per card (checkmark/lock icons)
-- Premium card: price, "Upgrade" button (primary, prominent)
-- Enterprise card: "Contact Us" button (secondary)
+### Plan comparison and paywall (all tiers)
+- Top close button
+- Monthly and annual billing toggle placed above premium options
+- Comparison cards for Free, Premium, and Enterprise plans
+- Itemized feature lists with checkmark indicators
+- Primary "Upgrade" button on the Premium card
+- Secondary "Contact Us" button on the Enterprise card
 
-### Upgrade / Checkout — All
-- Native purchase sheet (platform-provided on iOS/Android) or in-app Stripe sheet (web-equivalent on Flutter web)
-- Plan/cycle/price recap
-- Success sub-screen: checkmark animation, "You're on Premium" message, "Continue" button
-- Error sub-screen: error message, "Try Again" / "Contact Support"
+### Upgrade and checkout (all tiers)
+- Native payment sheet on iOS and Android, or Stripe checkout on web
+- Billing cycle and price breakdown
+- Post-purchase success screen with account confirmation
+- Error handling screen with retry and support links
 
-### Manage Subscription — P/E
-- Loading state (see cross-cutting): skeleton for the current-plan card on open
-- Top bar: back, title
-- Current plan card (name, cycle, renewal date)
-- "Change Plan" row → Plan Comparison
-- "Cancel Subscription" row (destructive style, opens confirmation dialog, deep-links to store management on iOS/Android)
-- Billing history list (web only)
-- Error state (see cross-cutting): if subscription details fail to load
-- Toast (see cross-cutting): confirms cancellation was processed
+### Manage subscription (Premium and Enterprise)
+- Loading state: skeleton card for active subscription details
+- Subscription summary card displaying plan tier, billing frequency, and next renewal date
+- "Change Plan" link opening plan comparison
+- "Cancel Subscription" option opening a confirmation modal with store management deep links
+- Billing receipt list on web
+- Toast notification confirming plan adjustments
 
 ---
 
-## 11. Enterprise (post-MVP)
+## 12. Enterprise (post-MVP)
 
-**Reminder from ARCHITECTURE.md § 4 / ROADMAP.md:** the `organizations`, `organization_members`, and `api_keys` data model doesn't exist yet — the component detail below is a design-level spec to build toward, not something implementable against a real backend contract today. Treat field names here as provisional until the schema is actually specced.
+The organization, membership, and API key models represent post-MVP designs. Schema specifications and field definitions remain provisional until backend development begins.
 
-### Org Dashboard — E
-- Loading state (see cross-cutting): skeleton for the quick-link cards on open
-- Top bar: org logo (small, left) + org name, settings gear icon (top-right) → org-level settings (rename org, delete org — destructive, behind confirmation)
-- Member count summary row ("12 members, 2 pending invites") — tap → Team Management
-- Quick-link cards (2-column grid): Team Management, Admin Controls, Organization Analytics, Branding Settings, API Access — each card shows an icon, label, and a one-line status ("3 pending approvals" on Admin Controls, "Last updated 2 days ago" on Branding)
-- Seat usage indicator (e.g. "12 of 20 seats used") if the Enterprise plan is seat-limited — tap → upgrade seat count flow (billing, out of this screen's direct scope but linked)
-- Empty state: not applicable — an org always has at least the creating admin as a member
-- Error state (see cross-cutting): if org data fails to load
+### Organization dashboard (Enterprise)
+- Loading state: skeleton card layout
+- Organization logo, company name, and settings gear linking to organization settings
+- Member summary row showing total count and pending invites, linking to team management
+- Two-column quick links grid: Team Management, Admin Controls, Organization Analytics, Branding Settings, API Access
+- Seat utilization meter tracking allocated licenses
+- Organization settings supporting workspace renaming and deletion workflows
 
-### Team Management — E
-- Loading state (see cross-cutting): skeleton member rows on open
-- Top bar: back, title "Team", search icon (expands to filter member list by name/email)
-- Role filter chip row (All / Admin / Member / Pending)
-- Member list rows: avatar, name + email, role chip (tap chip → role picker, inline), seat status badge (Active / Pending invite / Suspended)
-- Swipe-left on row → Remove (confirmation dialog: "Remove [name] from the team? They'll lose access immediately.")
-- FAB: "+" → Invite Member bottom sheet: email field (supports comma-separated multi-invite), role picker (Admin / Member), optional welcome-message text field, "Send Invite(s)" button
-- Pending invite rows show a "Resend" text action and an expiry indicator ("Invite expires in 5 days")
-- Empty state: not applicable beyond the creating admin, but a fresh org shows a prominent "Invite your team" CTA above an otherwise single-row list
-- Error state (see cross-cutting): if the member list fails to load
-- Toast (see cross-cutting): confirms invite sent, member removed, or role changed
+### Team management (Enterprise)
+- Loading state: skeleton member rows
+- Header search bar filtering member directory by name or email address
+- Role filter chips: All, Admin, Member, Pending
+- Member directory rows displaying avatar, name, email, role badge, and status indicator
+- Swipe left on member row to remove user with confirmation modal
+- Floating action button opening an invitation sheet with email fields, role selector, and welcome message
+- Resend and expiration notices on pending invitations
+- Contextual invitation prompt when an organization has only one active member
 
-### Admin Controls — E
-- Loading state (see cross-cutting): skeleton for each section on open
-- Top bar: back, title "Admin Controls"
-- Section: **Feature toggles** — list of org-wide feature flags (e.g. "Allow members to post publicly outside the org," "Require AI disclaimer acknowledgment") — each a labeled toggle row
-- Section: **Moderation queue** — list of flagged org-internal content (if org-internal posting/commenting exists), each row: flagged item preview, reporter, "Review" button → review sub-screen (approve / remove / escalate)
-- Section: **Device licensing** — list of registered devices per seat (device name, platform, last active), "Revoke" swipe action per row, relevant if the Enterprise plan ties seats to specific devices rather than floating licenses
-- Empty states per section independently (e.g. "No flagged content" for an empty moderation queue) rather than one screen-level empty state, since sections are independently populated
-- Error state (see cross-cutting): per-section, if any one section's data fails to load independently of the others
-- Toast (see cross-cutting): confirms a feature toggle change, a moderation decision, or a device revocation
+### Admin controls (Enterprise)
+- Loading state: skeleton section cards
+- Organization feature flags controlling public sharing and compliance disclaimers
+- Moderation queue listing flagged internal content with approve and remove options
+- Device licensing table tracking active devices per seat with remote revocation actions
+- Independent empty states and error recovery for each admin panel section
+- Toast notifications confirming flag modifications and moderation actions
 
-### Organization Analytics — E
-- Loading state (see cross-cutting): skeleton stat cards + chart on open
-- Top bar: back, title "Analytics", export icon (CSV/PDF export — future, may be a locked/upsell affordance even within Enterprise if it's a higher-tier add-on)
-- Date range control (segmented: 7d / 30d / 90d / Custom)
-- Aggregate stat cards (2×2 or scrollable row): Active Members (this period), Total Journal Entries Logged, Total AI Calls (all types combined), Community Engagement (posts+comments+likes org-wide)
-- Per-member breakdown table (below the stat cards): member name, activation status, entries logged, AI usage — sortable columns, matches the dense-data-table pattern rather than card-based (this is the one Enterprise screen closest in spirit to Watchlist Detail's row-dense layout)
-- Chart: org-wide activity trend line over the selected date range (reuses `THEquityCurveChart`'s line-chart styling, different data source)
-- Empty state: "No activity in this range" if the date filter returns nothing
-- Error state (see cross-cutting): if the analytics query fails
+### Organization analytics (Enterprise)
+- Loading state: skeleton metric cards and charts
+- Header export button for CSV or PDF reports
+- Time range filter: 7 days, 30 days, 90 days, Custom
+- Aggregated metric cards tracking active members, journal volume, AI queries, and team engagement
+- Sortable tabular breakdown listing per-member activity and platform usage
+- Activity line chart plotting member engagement trends over time
+- Empty state when selected date range contains no recorded activity
 
-### Branding Settings — E
-- Loading state (see cross-cutting): skeleton for current logo/theme/domain values on open
-- Top bar: back, title "Branding"
-- Logo upload row: current logo preview (or placeholder), "Change" button → image picker bottom sheet, recommended-dimensions helper text
-- Color theme picker: a small set of preset accent-color swatches (not full custom color picker for MVP-of-Enterprise scope — keeps this from becoming its own mini design tool) — selected swatch previews live against a sample card/button
-- Custom domain field (web-relevant primarily): text input + "Verify" button, DNS instructions link, status indicator (Unverified / Verifying / Active)
-- Preview panel (persistent, right side on tablet/desktop per SCREENS_TABLET.md § 2 pattern; a "Preview" button opening a full-screen preview on mobile given space constraints) showing how the org's branding renders in-app
-- "Save" button (bottom-pinned on mobile), disabled until a change is made
-- Error state (see cross-cutting): if current branding fails to load, or if save/verify fails
-- Toast (see cross-cutting): confirms branding saved
+### Branding settings (Enterprise)
+- Loading state: skeleton preview panels
+- Logo management row with preview, upload trigger, and dimension guidance
+- Curated color theme palette previewing accent colors against sample UI cards
+- Custom web domain configuration field with verification status and DNS guidance
+- Split-panel live preview on large screens or preview modal on mobile devices
+- Pinned bottom save button, enabled when modifications exist
+- Toast notification confirming branding updates
 
-### API Access / Key Management — E
-- Loading state (see cross-cutting): skeleton key rows on open
-- Top bar: back, title "API Keys", info icon → brief explainer sub-screen on what API access enables (links out to API documentation, not built here)
-- Key list rows: key name, scope badge (Read-only / Full access), created date, last-used relative timestamp, status dot (Active / Revoked, revoked keys shown greyed-out rather than removed, for audit history)
-- Empty state: "No API keys yet" → CTA to create one
-- FAB: "+" → Create Key sub-screen: name field, scope picker (Read-only / Full access — expand to granular per-resource scopes post-MVP-of-Enterprise if needed, flagged as a future refinement not required for launch), "Create" button
-- One-time reveal screen (immediately after creation): key value in a monospace field with a "Copy" button and a prominent warning ("This key won't be shown again — copy it now"), "Done" button
-- Swipe-left on an active key row → "Revoke" (confirmation dialog: "Revoke this key? Any integration using it will stop working immediately.")
-- Usage log link per key (tap key name, not the row itself) → a simple chronological request log sub-screen (timestamp, endpoint called, response status) — read-only, no filtering needed at MVP-of-Enterprise scope
-- Error state (see cross-cutting): if the key list fails to load
-- Toast (see cross-cutting): confirms key creation, "Copied to clipboard" on the one-time reveal screen, and confirms revocation
+### API access and key management (Enterprise)
+- Loading state: skeleton key rows
+- Header information button explaining API integration capabilities
+- Key directory displaying key name, scope badge, creation date, last used date, and status dot
+- Empty state prompting creation of initial API credentials
+- Floating action button opening key generation form with name and permission scope fields
+- One-time key display screen presenting unmasked secret token with copy button and warning notice
+- Swipe action to revoke active API keys with confirmation prompt
+- Dedicated request log view showing timestamps, endpoints, and response status codes
+- Toast notifications confirming key creation, clipboard copies, and key revocations

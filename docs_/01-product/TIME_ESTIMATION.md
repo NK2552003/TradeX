@@ -1,17 +1,18 @@
+# TradeX delivery timeline
 
+## Project delivery timeline
 
-### Timeline
-Three separate engagements (`CLIENT_BRIEF_UIUX.md`, `CLIENT_BRIEF_FRONTEND.md`, `CLIENT_BRIEF_BACKEND.md`) running concurrently rather than one person doing everything in sequence:
+Work is structured across three parallel development tracks:
 
-| Track | Est. duration | Can start |
+| Track | Estimated duration | Prerequisites |
 |---|---|---|
-| UI/UX design | 4–6 weeks | Immediately — full screen/design spec already exists (`03-design/`), now including the 3 Direct Messages screens |
-| Backend | 5–7 weeks | Immediately — full schema/API spec exists (`02-architecture/`), independent of design; includes `conversations`/`messages`/`blocks` and the `notify_new_message` trigger |
-| Frontend | 5–7 weeks | Blocked on the design system milestone (~week 1–2 of the UI/UX track); can build against the documented API contract before the backend finishes, per `06-business/DOC_ACCESS_MAP.md` |
+| UI/UX design | 4 to 6 weeks | Starts immediately. Full screen and interaction specifications are documented in `03-design/`. |
+| Backend | 5 to 7 weeks | Starts immediately. Complete database schema and API contracts are documented in `02-architecture/`. |
+| Frontend | 5 to 7 weeks | Begins once the design system milestone is reached (around week 2 of design). Development proceeds against documented API mocks prior to backend completion. |
 
 ```mermaid
 gantt
-    title TraderHub — Parallel Freelance Build
+    title TradeX: Parallel Freelance Build
     dateFormat  2026-08-04
     axisFormat  %W
 
@@ -37,4 +38,4 @@ gantt
     Polish + store submission          :fe5, after fe4, 10d
 ```
 
-**Critical path: Frontend.** It's blocked at the start by the design system milestone, and it needs the backend meaningfully done before final integration/QA — so it roughly bookends the other two tracks rather than running fully independently of them. Total wall-clock time lands around **8–10 weeks**.
+Critical path: Frontend. Development is initially blocked on design system approval, and final integration requires backend completion. Total calendar time is estimated at 8 to 10 weeks.

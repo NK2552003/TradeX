@@ -397,6 +397,7 @@ class UiInteractive extends StatefulWidget {
     this.focusNode,
     this.autofocus = false,
     this.forceState,
+    this.trackHover = true,
   });
 
   final Widget Function(BuildContext context, UiInteractiveState state) builder;
@@ -414,6 +415,7 @@ class UiInteractive extends StatefulWidget {
   final FocusNode? focusNode;
   final bool autofocus;
   final UiInteractiveState? forceState;
+  final bool trackHover;
 
   @override
   State<UiInteractive> createState() => _UiInteractiveState();
@@ -462,7 +464,7 @@ class _UiInteractiveState extends State<UiInteractive> {
         mouseCursor: widget.enabled
             ? widget.cursor
             : SystemMouseCursors.forbidden,
-        onShowHoverHighlight: _setHover,
+        onShowHoverHighlight: widget.trackHover ? _setHover : null,
         onShowFocusHighlight: _setFocus,
         shortcuts: const <ShortcutActivator, Intent>{
           SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),

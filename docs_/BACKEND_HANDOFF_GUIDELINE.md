@@ -1,29 +1,29 @@
-# TradeX — Post-Auth & Settings Backend Integration Guideline
+# TradeX backend integration guide: Authentication and settings
 
-> **Document Version**: 1.0.0  
-> **Audience**: Backend Engineers, API Developers, Full-Stack Architects  
-> **Frontend Target**: Flutter (Web, Desktop & Mobile) with Clean Architecture  
-> **Status**: Frontend Complete & Verified (Zero Warnings, Zero Analyzer Errors, 100% Tests Passing)
-
----
-
-## 📑 Table of Contents
-
-1. [Architectural Overview](#1-architectural-overview)
-2. [Phase 1: Session Security & Role-Based Access Control (RBAC)](#2-phase-1-session-security--role-based-access-control-rbac)
-3. [Phase 2: Core Profile & Security Foundation](#3-phase-2-core-profile--security-foundation)
-4. [Phase 3: Role-Specific Domain Business Engines](#4-phase-3-role-specific-domain-business-engines)
-   - [3A. Active Trader Domain (Trading Preferences & Risk Gates)](#3a-active-trader-domain-trading-preferences--risk-gates)
-   - [3B. Affiliate Partner Domain (Referrals, RevShare & Payouts)](#3b-affiliate-partner-domain-referrals-revshare--payouts)
-   - [3C. Desk Administrator Domain (Firm Risk Limits & Team Seats)](#3c-desk-administrator-domain-firm-risk-limits--team-seats)
-5. [Phase 4: Subscriptions, Monetization & Invoicing](#5-phase-4-subscriptions-monetization--invoicing)
-6. [Phase 5: Alerts, Privacy & GDPR Data Export](#6-phase-5-alerts-privacy--gdpr-data-export)
-7. [Repository Swapping Guide (How to Wire Real APIs)](#7-repository-swapping-guide-how-to-wire-real-apis)
-8. [Complete API Schema & Payload Reference](#8-complete-api-schema--payload-reference)
+Document version: 1.0.0  
+Audience: Backend engineers, API developers, and full stack architects  
+Frontend target: Flutter (Web, Desktop, and Mobile) with clean architecture  
+Status: Frontend complete and verified with passing test suites
 
 ---
 
-## 1. Architectural Overview
+## Table of contents
+
+1. [Architectural overview](#1-architectural-overview)
+2. [Phase 1: Session security and role-based access control](#2-phase-1-session-security-and-role-based-access-control-rbac)
+3. [Phase 2: Core profile and security foundation](#3-phase-2-core-profile-and-security-foundation)
+4. [Phase 3: Role-specific domain business engines](#4-phase-3-role-specific-domain-business-engines)
+   - [3A. Active trader domain](#3a-active-trader-domain-personal-trading-preferences-and-discipline-rules)
+   - [3B. Affiliate partner domain](#3b-affiliate-partner-domain-referrals-revshare-and-payouts)
+   - [3C. Desk administrator domain](#3c-desk-administrator-domain-firm-risk-limits-circuit-breakers-and-team-seats)
+5. [Phase 4: Subscriptions, monetization, and invoicing](#5-phase-4-subscriptions-monetization-and-invoicing)
+6. [Phase 5: Alerts, privacy, and data export](#6-phase-5-alerts-privacy-and-gdpr-data-export)
+7. [Repository swapping guide](#7-repository-swapping-guide-how-to-wire-real-apis)
+8. [Verification status](#8-complete-verification-status)
+
+---
+
+## 1. Architectural overview
 
 TradeX follows clean architecture principles. Every feature module is organized into three distinct layers:
 
@@ -84,9 +84,9 @@ lib/features/settings/
 
 ---
 
-## 2. Phase 1: Session Security & Role-Based Access Control (RBAC)
+## 2. Phase 1: Session security and role-based access control (RBAC)
 
-### 2.1 Three Supported User Roles
+### 2.1 Three supported user roles
 
 ```dart
 enum UserRole {
@@ -96,9 +96,9 @@ enum UserRole {
 }
 ```
 
-### 2.2 JWT Token Payload Specification
+### 2.2 JWT token payload specification
 
-Every issued authentication JWT (or Supabase auth session) **must** contain custom claims for `role`, `tier`, and optional `org_id`:
+Every issued authentication JWT (or Supabase auth session) must contain custom claims for `role`, `tier`, and optional `org_id`:
 
 ```json
 {
@@ -112,32 +112,32 @@ Every issued authentication JWT (or Supabase auth session) **must** contain cust
 }
 ```
 
-### 2.3 Server-Side Access Control (RBAC Matrix)
+### 2.3 Server-side access control (RBAC matrix)
 
-> **Important Role Distinction**:
-> - **`customer` = Individual Trader**: Has full access to their **own personal trading preferences** (e.g. personal max risk %, personal checklist, personal watchlists). They **do NOT** have access to firm-wide desk policies or team management.
-> - **`affiliate` = Creator / Partner**: Has full access to their **affiliate portal, referral slugs, and commission payout requests**.
-> - **`userAdmin` = Institutional Desk Administrator**: Has exclusive access to **firm-wide risk limits, trader capital ceilings, team seat invites, and workspace governance**.
+Role boundaries:
+- `customer` (Individual Trader): Full access to personal trading preferences (such as risk percentages, personal checklists, and watchlists). Does not have access to desk-wide policies or team settings.
+- `affiliate` (Creator / Partner): Full access to the affiliate portal, referral slugs, and commission payout requests.
+- `userAdmin` (Institutional Desk Administrator): Access to firm-wide risk controls, trader capital allocations, team seat invitations, and workspace governance.
 
-| Endpoint Scope | Customer (Trader) | Affiliate Partner | Desk Admin | Purpose & Access Boundary |
+| Endpoint scope | Customer (Trader) | Affiliate partner | Desk admin | Purpose and access boundary |
 |---|---|---|---|---|
-| `/users/*` | ✅ Read/Write | ✅ Read/Write | ✅ Read/Write | Personal user profile, email & security 2FA |
-| `/users/trading-preferences` (or `/trader/preferences`) | ✅ Read/Write | ❌ Block (403) | ✅ Read/Write | **Personal** risk rules, pre-trade checklist & watchlists |
-| `/affiliate/settings` | 👁️ Read-Only (Perks) | ✅ Read/Write | ✅ Read/Write | Referral link (`/r/:slug`), RevShare info |
-| `/affiliate/payout/*` | ❌ Block (403) | ✅ Read/Write | ✅ Read/Write | Monthly commission payout withdrawal requests |
-| `/desk/risk/*` | ❌ Block (403) | ❌ Block (403) | ✅ Read/Write | **Desk-wide** firm drawdown limits & trader capital caps |
-| `/org/workspace` & `/org/members/*` | ❌ Block (403) | ❌ Block (403) | ✅ Read/Write | **Desk-wide** team seat invites & workspace branding |
-| `/billing/*` | ✅ Read/Write | ❌ Not Applicable | ❌ Not Applicable | **Customer-Only** subscription plans, cards, & invoices |
+| `/users/*` | Read/Write | Read/Write | Read/Write | Personal user profile, email, and 2FA settings |
+| `/users/trading-preferences` (or `/trader/preferences`) | Read/Write | Block (403) | Read/Write | Personal risk rules, pre-trade checklist, and watchlists |
+| `/affiliate/settings` | Read-only (Perks) | Read/Write | Read/Write | Referral link (`/r/:slug`) and revenue share info |
+| `/affiliate/payout/*` | Block (403) | Read/Write | Read/Write | Monthly commission payout withdrawal requests |
+| `/desk/risk/*` | Block (403) | Block (403) | Read/Write | Desk-wide firm drawdown limits and capital caps |
+| `/org/workspace` and `/org/members/*` | Block (403) | Block (403) | Read/Write | Desk-wide team seat invites and workspace branding |
+| `/billing/*` | Read/Write | Not applicable | Not applicable | Customer subscription plans, cards, and invoices |
 
 ---
 
-## 3. Phase 2: Core Profile & Security Foundation
+## 3. Phase 2: Core profile and security foundation
 
-### 3.1 User Profile Endpoints
+### 3.1 User profile endpoints
 
 #### `GET /users/profile`
-**Headers**: `Authorization: Bearer <token>`  
-**Response (200 OK)**:
+Headers: `Authorization: Bearer <token>`  
+Response (200 OK):
 ```json
 {
   "id": "usr_01HXYZ789",
@@ -155,7 +155,7 @@ Every issued authentication JWT (or Supabase auth session) **must** contain cust
 ```
 
 #### `PATCH /users/profile`
-**Payload**:
+Payload:
 ```json
 {
   "displayName": "Nitish Kumar",
@@ -168,7 +168,7 @@ Every issued authentication JWT (or Supabase auth session) **must** contain cust
 
 ---
 
-### 3.2 Security & Two-Factor Authentication (2FA)
+### 3.2 Security and two-factor authentication (2FA)
 
 #### `POST /auth/password/update`
 ```json
@@ -179,7 +179,7 @@ Every issued authentication JWT (or Supabase auth session) **must** contain cust
 ```
 
 #### `POST /auth/2fa/generate-secret`
-**Response (200 OK)**:
+Response (200 OK):
 ```json
 {
   "secretKey": "JBSWY3DPEHPK3PXP",
@@ -205,11 +205,11 @@ Every issued authentication JWT (or Supabase auth session) **must** contain cust
 
 ---
 
-## 4. Phase 3: Role-Specific Domain Business Engines
+## 4. Phase 3: Role-specific domain business engines
 
-### 3A. Active Trader Domain (Personal Trading Preferences & Discipline Rules)
-*Frontend Repository*: [`TradingPrefsRepository`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/settings/data/repositories/trading_prefs_repository.dart)  
-*Scope*: Personal risk boundaries, execution checklists, and watchlists for the **individual trader**.
+### 3A. Active trader domain (Personal trading preferences and discipline rules)
+Frontend repository: [`TradingPrefsRepository`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/settings/data/repositories/trading_prefs_repository.dart)  
+Scope: Personal risk boundaries, execution checklists, and watchlists for individual traders.
 
 #### `GET /trader/preferences` (or `/users/trading-preferences`)
 ```json
@@ -228,13 +228,13 @@ Every issued authentication JWT (or Supabase auth session) **must** contain cust
 ```
 
 #### `PATCH /trader/preferences`
-*Accepts partial updates to personal position sizing %, R:R multiples, checklist items, and watchlists.*
+Accepts partial updates to personal position sizing percentage, R:R multiples, checklist items, and watchlists.
 
 ---
 
-### 3B. Affiliate Partner Domain (Referrals, RevShare & Payouts)
-*Frontend Repository*: [`AffiliateSettingsRepository`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/settings/data/repositories/affiliate_settings_repository.dart)  
-*Scope*: Referral link tracking, 30% lifetime revenue share, and payout destinations for **creators / affiliate partners**.
+### 3B. Affiliate partner domain (Referrals, RevShare, and payouts)
+Frontend repository: [`AffiliateSettingsRepository`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/settings/data/repositories/affiliate_settings_repository.dart)  
+Scope: Referral link tracking, 30% lifetime revenue share, and payout destinations for partners and creators.
 
 #### `GET /affiliate/settings`
 ```json
@@ -255,16 +255,16 @@ Every issued authentication JWT (or Supabase auth session) **must** contain cust
 ```
 
 #### `PATCH /affiliate/settings`
-*Used to customize slug (`tradex.ai/r/:slug`), update payout method (`upi`, `bank_neft`, `razorpay`), and adjust threshold.*
+Updates custom referral slugs (`tradex.ai/r/:slug`), payout methods (`upi`, `bank_neft`, `razorpay`), and payment thresholds.
 
 #### `POST /affiliate/payout/request`
-*Triggers an on-demand payout if `pending_payout >= minimum_payout_threshold`.*
+Submits a withdrawal request when `pending_payout` meets or exceeds `minimum_payout_threshold`.
 
 ---
 
-### 3C. Desk Administrator Domain (Firm Risk Limits, Circuit Breakers & Team Seats)
-*Frontend Repositories*: [`DeskRiskRepository`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/settings/data/repositories/desk_risk_repository.dart) & [`OrganizationSettingsRepository`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/settings/data/repositories/organization_settings_repository.dart)  
-*Scope*: Institutional desk governance configured by the **Desk Administrator**, applied desk-wide across all traders.
+### 3C. Desk administrator domain (Firm risk limits, circuit breakers, and team seats)
+Frontend repositories: [`DeskRiskRepository`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/settings/data/repositories/desk_risk_repository.dart) and [`OrganizationSettingsRepository`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/settings/data/repositories/organization_settings_repository.dart)  
+Scope: Institutional desk governance configured by administrators and applied across all desk traders.
 
 #### `GET /desk/risk/policies`
 ```json
@@ -301,10 +301,10 @@ Every issued authentication JWT (or Supabase auth session) **must** contain cust
 
 ---
 
-## 5. Phase 4: Subscriptions, Monetization & Invoicing
+## 5. Phase 4: Subscriptions, monetization, and invoicing
 
-*Frontend Repository*: [`BillingSettingsRepository`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/settings/data/repositories/billing_settings_repository.dart)  
-*Scope*: Exclusively for paying **Customers (Active Traders)**. Affiliate Partners (who earn commissions via `/affiliate/payout/*`) and Desk Administrators (who manage desk capacity via `/org/workspace`) do NOT have self-serve customer billing.
+Frontend repository: [`BillingSettingsRepository`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/settings/data/repositories/billing_settings_repository.dart)  
+Scope: Applicable to paying customers (active traders). Affiliate partners receive payouts through affiliate endpoints, and desk administrators manage desk capacity via workspace endpoints.
 
 ### 5.1 Endpoints
 
@@ -358,10 +358,10 @@ Every issued authentication JWT (or Supabase auth session) **must** contain cust
 
 ---
 
-## 6. Phase 5: Alerts, Privacy & GDPR Data Export
+## 6. Phase 5: Alerts, privacy, and GDPR data export
 
-### 6.1 Notifications Preferences
-*Endpoint*: `GET/PATCH /users/notifications`
+### 6.1 Notifications preferences
+Endpoint: `GET/PATCH /users/notifications`
 ```json
 {
   "email_trade_alerts": true,
@@ -375,16 +375,16 @@ Every issued authentication JWT (or Supabase auth session) **must** contain cust
 }
 ```
 
-### 6.2 Privacy & GDPR Data Export
-*Endpoint*: `GET /users/data-export`
-- Generates a zip archive containing:
-  - `profile.json` (account metadata)
-  - `trades.csv` (all executed journal records)
-  - `risk_logs.json` (discipline & checklist history)
+### 6.2 Privacy and GDPR data export
+Endpoint: `GET /users/data-export`
+Generates a zip archive containing:
+- `profile.json` (account metadata)
+- `trades.csv` (all logged trade records)
+- `risk_logs.json` (discipline metrics and checklist responses)
 
 ---
 
-## 7. Repository Swapping Guide (How to Wire Real APIs)
+## 7. Repository swapping guide: How to wire real APIs
 
 Each repository in `lib/features/settings/data/repositories/` is designed for drop-in replacement:
 
@@ -413,13 +413,13 @@ class HttpBillingSettingsRepositoryImpl implements BillingSettingsRepository {
 }
 ```
 
-Then inject into `BillingSettingsPage(repository: HttpBillingSettingsRepositoryImpl(...))` or via your dependency container (e.g. `get_it` or `Provider`).
+Inject the implementation into `BillingSettingsPage(repository: HttpBillingSettingsRepositoryImpl(...))` or register it in your dependency container.
 
 ---
 
-## 8. Complete Verification Status
+## 8. Complete verification status
 
-All pages and models have been validated against the Flutter & Dart compiler:
+All pages and models validate cleanly against the compiler:
 
 ```bash
 # Static analysis verification
@@ -428,5 +428,5 @@ dart analyze --fatal-warnings lib/
 
 # Unit & integration tests
 flutter test
-# Result: All 6 tests passed! (Exit Code: 0)
+# Result: All tests passed
 ```

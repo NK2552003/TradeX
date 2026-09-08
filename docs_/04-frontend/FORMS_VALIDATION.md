@@ -1,67 +1,67 @@
-# Forms & Validation — TraderHub
+# Forms and validation: TradeX
 
-Every input field across the app, its validation rule, and the error copy shown (per [CONTENT_STYLE.md](./CONTENT_STYLE.md) § 4 microcopy conventions). Widget implementations: [COMPONENT_LIBRARY.md](./COMPONENT_LIBRARY.md) § 4.
+This document catalogs every input field across the application, its validation rules, and the error copy shown to users following [CONTENT_STYLE.md](./CONTENT_STYLE.md) microcopy standards. For component implementations, consult [COMPONENT_LIBRARY.md](./COMPONENT_LIBRARY.md).
 
-### 1. Validation philosophy
-- **Inline, on blur — not on every keystroke.** Validate a field when the user leaves it, not while they're actively typing (exception: live availability checks like handle uniqueness, which are inherently async and shown as a trailing icon rather than an error).
-- **Client-side validation is a UX convenience, not the source of truth** — every field is re-validated server-side (Postgres constraints, RLS, Edge Function checks per the backend doc set) regardless of what the client already checked. Never skip a server round-trip's error handling because "the client already validated this."
-- **Error copy follows CONTENT_STYLE.md § 4:** specific, not generic ("Enter a valid ticker symbol," never "Invalid input").
+## 1. Validation philosophy
+- Validate inline on blur rather than on every keystroke. Evaluate fields when the user finishes and moves away, not while they type. The only exceptions are asynchronous availability checks, such as handle uniqueness, which display an inline indicator instead of an error state.
+- Client validation improves responsiveness but never replaces server validation. Database constraints, row-level security policies, and edge functions enforce final business rules. Never bypass backend error handling under the assumption that client validation succeeded.
+- Error messages follow specific guidance from CONTENT_STYLE.md: use clear phrasing such as "Enter a valid ticker symbol" rather than vague notices like "Invalid input".
 
-### 2. Auth fields
-| Field | Rule | Error copy |
+## 2. Authentication fields
+| Field | Validation rule | Error message |
 |---|---|---|
-| Email (Sign Up / Log In / Forgot Password) | Valid email format | "Enter a valid email address" |
-| Password (Sign Up) | Min 8 chars, at least 1 number | "Password needs at least 8 characters and a number" |
-| Handle (Sign Up) | 3-20 chars, alphanumeric + underscore, live uniqueness check | "Handle is taken" / "Handles can only contain letters, numbers, and underscores" |
+| Email (Sign Up, Log In, Forgot Password) | Valid email format | "Enter a valid email address" |
+| Password (Sign Up) | Minimum 8 characters, at least 1 number | "Password needs at least 8 characters and a number" |
+| Handle (Sign Up) | 3 to 20 alphanumeric characters or underscores, unique | "Handle is taken" or "Handles can only contain letters, numbers, and underscores" |
 
-### 3. Journal Entry fields
-| Field | Rule | Error copy |
+## 3. Journal entry fields
+| Field | Validation rule | Error message |
 |---|---|---|
-| Ticker | Non-empty if any trade fields are filled; otherwise optional (a pure text-note entry with no ticker is valid) | "Add a ticker or clear the trade fields" |
-| Entry price / Exit price / Stop loss / Target | Numeric, > 0 if present; all optional individually | "Enter a valid price" |
-| Size | Numeric, > 0 if present | "Enter a valid size" |
-| Side | Enum (long/short), required only if any price field is filled | — (segmented control, can't be invalid, just unset) |
-| P/L | Auto-computed from entry/exit/size/side when all four are present; manually editable override always allowed regardless of computed value | — (no validation beyond numeric) |
-| Notes / Psychology / Mistakes Made / Lessons Learned | All optional, no length cap enforced client-side (server may cap — confirm against `text` column limits, effectively unbounded in Postgres) | — |
-| Tags | Optional, each tag 1-30 chars | "Tags can't be longer than 30 characters" |
-| Screenshot upload | Max 10MB, `image/png` or `image/jpeg` only (matches backend API_REFERENCE.md § 2 limit) | "Image must be under 10MB" / "Only PNG or JPEG images" |
+| Ticker | Required if trade fields are filled; otherwise optional | "Add a ticker or clear the trade fields" |
+| Entry, Exit, Stop loss, Target | Numeric, greater than 0 if present; optional individually | "Enter a valid price" |
+| Size | Numeric, greater than 0 if present | "Enter a valid size" |
+| Side | Enumeration (long, short); required only when price fields are populated | None (segmented control, defaults to unset) |
+| Net P/L | Auto-calculated from trade parameters; manual override permitted | None (numeric format only) |
+| Notes, Psychology, Mistakes, Lessons | Optional, unconstrained length on client | None |
+| Tags | Optional, each tag between 1 and 30 characters | "Tags cannot be longer than 30 characters" |
+| Screenshot upload | Maximum 10MB; PNG or JPEG only | "Image must be under 10MB" or "Only PNG or JPEG images" |
 
-**Cross-field rule:** if Entry, Exit, and Size are all present but Side is not set, block save with "Select long or short" — this is the one case where an otherwise-optional field becomes required because the others imply a complete trade record.
+Cross-field rule: if entry price, exit price, and position size are all populated while trade side remains unset, block submission with the message "Select long or short".
 
-### 4. Strategy Notes fields
-| Field | Rule | Error copy |
+## 4. Strategy note fields
+| Field | Validation rule | Error message |
 |---|---|---|
-| Title | Required, 1-100 chars | "Give this strategy a title" |
-| Content (rich text) | Required, non-empty (a strategy with only a title and no body can't be saved) | "Write something before saving" |
-| Category | Optional | — |
-| Visibility | Defaults to Private; switching to Public shows a one-time confirmation ("This strategy will be visible on your public profile") rather than a hard validation error | — |
+| Title | Required, 1 to 100 characters | "Give this strategy a title" |
+| Content (rich text) | Required, cannot be blank | "Write something before saving" |
+| Category | Optional | None |
+| Visibility | Defaults to Private; selecting Public prompts confirmation | None |
 
-### 5. Watchlist fields
-| Field | Rule | Error copy |
+## 5. Watchlist fields
+| Field | Validation rule | Error message |
 |---|---|---|
-| Watchlist name | Required, 1-50 chars, unique per user (soft check — not a hard DB constraint, just prevents obvious duplicates client-side) | "Name this watchlist" |
-| Ticker (Add Ticker) | Must resolve to a known symbol via the ticker autocomplete — free-text entry that doesn't match any suggestion is blocked | "Select a ticker from the list" |
-| Price alert threshold | Numeric, > 0 | "Enter a valid price" |
+| Watchlist name | Required, 1 to 50 characters, unique per account | "Name this watchlist" |
+| Ticker search | Must match a symbol returned by autocomplete search | "Select a ticker from the list" |
+| Price alert threshold | Numeric, greater than 0 | "Enter a valid price" |
 
-### 6. Community fields
-| Field | Rule | Error copy |
+## 6. Community fields
+| Field | Validation rule | Error message |
 |---|---|---|
-| Post content type | Required (one of six, no default pre-selected — forces an explicit choice per PRD.md's content categorization intent) | "Choose a category for your post" |
-| Post text | Required, 1-2000 chars | "Write something" / "Posts are limited to 2000 characters" |
-| Ticker tag (post) | Optional | — |
-| Comment text | Required, 1-500 chars | "Write a comment" |
+| Post category | Required selection across the six categories | "Choose a category for your post" |
+| Post text | Required, 1 to 2,000 characters | "Write something" or "Posts are limited to 2000 characters" |
+| Ticker tag | Optional symbol link | None |
+| Comment text | Required, 1 to 500 characters | "Write a comment" |
 
-### 7. Profile fields
-| Field | Rule | Error copy |
+## 7. Profile fields
+| Field | Validation rule | Error message |
 |---|---|---|
-| Bio | Optional, max 300 chars | "Bio can't be longer than 300 characters" |
-| Experience level / Trading style | Optional, enum picker — no free text, so no validation needed beyond selection | — |
+| Bio | Optional, maximum 300 characters | "Bio cannot be longer than 300 characters" |
+| Experience level, Trading style | Optional selection from predefined options | None |
 
-### 8. Subscription / Enterprise fields (post-MVP for the latter)
-| Field | Rule | Error copy |
+## 8. Subscription and enterprise fields
+| Field | Validation rule | Error message |
 |---|---|---|
-| Team member invite email | Valid email format, must not already be a member | "Enter a valid email" / "Already a team member" |
-| API key name | Required, 1-50 chars | "Name this key" |
+| Team member invitation email | Valid email address not currently registered in the organization | "Enter a valid email" or "Already a team member" |
+| API key name | Required, 1 to 50 characters | "Name this key" |
 
-### 9. Not yet decided
-- Whether journal/strategy text fields need a client-side max length at all (currently only capped by Postgres `text` column limits, which are effectively unbounded) — worth a sanity cap (e.g. 10,000 chars) purely to prevent an accidental paste-of-a-whole-document from degrading UI performance, not for data-integrity reasons.
+## 9. Open considerations
+The client currently imposes no character cap on rich text journal or strategy notes, relying on database text capacity. Establishing a practical limit, such as 10,000 characters, would guard against UI performance slowdowns caused by pasting large external documents.

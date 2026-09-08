@@ -1,17 +1,78 @@
-Project TraderHub {
+Project TradeX {
   database_type: "PostgreSQL"
-  Note: "Supabase/Postgres schema aligned to API_DATA_MODEL.md"
+  Note: '''
+    Supabase/Postgres schema, aligned to database/schema.sql.
+
+    Three things in the real schema cannot be drawn here and are not omissions:
+    the `strategy_performance` view (playbook figures are derived from the
+    journal entries filed under a playbook, never stored), the mirror-rebuilding
+    triggers on `note_journal_links`, `journal_entries.strategy_id` and
+    `trader_notes.strategy_id`, and the `public_document()` read path that is the
+    only door an unauthenticated visitor has. See
+    docs_/LINKED_NOTES_BACKEND_HANDOFF.md.
+  '''
 }
 
 Table profiles {
-  id uuid [pk]
+  id uuid [pk, note: 'same id as auth.users']
   handle citext [not null, unique]
+  email citext [unique]
+  display_name text
+  role text [not null, default: 'customer', note: 'customer | affiliate | user_admin']
+  status text [not null, default: 'active', note: 'active | suspended | pending_approval']
+  admin_key text
+  referral_code text [unique]
+  referred_by_code text
   bio text
   avatar_url text
   experience_level text
   trading_style text
   public_journals boolean [not null, default: false]
   subscription_tier text [not null, default: 'free']
+  created_at timestamptz
+  updated_at timestamptz
+
+  note: 'handle is the public identity. The public read path publishes handle, display_name and avatar_url and nothing else from this table.'
+}
+
+Table affiliate_profiles {
+  id uuid [pk, note: 'same id as profiles']
+  affiliate_code text [not null, unique]
+  tier text [not null, default: 'standard', note: 'standard | silver | gold | platinum']
+  commission_rate numeric [not null, default: 0.15, note: '0.0 .. 1.0']
+  total_referrals int [not null, default: 0]
+  active_referrals int [not null, default: 0]
+  total_earnings numeric [not null, default: 0]
+  unpaid_balance numeric [not null, default: 0]
+  paid_earnings numeric [not null, default: 0]
+  payout_method text [note: 'bank_transfer | paypal | stripe | crypto']
+  payout_details jsonb [not null, default: '{}']
+  status text [not null, default: 'active', note: 'pending | active | suspended']
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table affiliate_referrals {
+  id uuid [pk]
+  affiliate_id uuid [not null]
+  referred_user_id uuid [not null, unique, note: 'a user is referred once, ever']
+  referral_code text [not null]
+  status text [not null, default: 'converted', note: 'pending | converted | churned']
+  bonus_awarded numeric [not null, default: 50]
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table affiliate_payouts {
+  id uuid [pk]
+  affiliate_id uuid [not null]
+  amount numeric [not null, note: '> 0']
+  currency text [not null, default: 'USD']
+  status text [not null, default: 'pending', note: 'pending | processing | paid | failed | cancelled']
+  payout_method text
+  transaction_reference text
+  notes text
+  processed_at timestamptz
   created_at timestamptz
   updated_at timestamptz
 }
@@ -41,20 +102,52 @@ Table strategies {
   id uuid [pk]
   user_id uuid [not null]
   title text [not null]
-  content jsonb [not null]
+  summary text
+  content text [not null, note: 'markdown body, not structured data']
   category text
+  status text [default: 'draft', note: 'draft | testing | live | retired']
   is_favorite boolean [default: false]
-  visibility text [default: 'private']
+  visibility text [default: 'private', note: 'private | public']
+  tags text[]
+  linked_tickers text[]
+  linked_note_ids uuid[] [note: 'mirror of trader_notes.strategy_id, trigger-maintained']
+  linked_journal_ids uuid[] [note: 'mirror of journal_entries.strategy_id, trigger-maintained']
+  version_count int [default: 1]
+  word_count int [default: 0]
+  checklist_done int [default: 0]
+  checklist_total int [default: 0]
+  has_images boolean [default: false]
+  has_code boolean [default: false]
   ai_summary text
   created_at timestamptz
   updated_at timestamptz
+
+  note: 'Win rate, average R and net P&L are NOT columns here. They are derived from the journal entries filed under the playbook by the strategy_performance view.'
 }
 
 Table strategy_versions {
   id uuid [pk]
   strategy_id uuid [not null]
-  content jsonb [not null]
+  content text [not null]
+  summary text
+  note text
   version_number int [not null]
+  author_id uuid
+  is_current boolean [default: false, note: 'unique per strategy where true']
+  word_count int [default: 0]
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table strategy_attachments {
+  id uuid [pk]
+  strategy_id uuid [not null]
+  user_id uuid [not null]
+  storage_path text [not null, unique, note: '<user_id>/<strategy_id>/<uuid><ext>']
+  filename text [not null]
+  mime_type text
+  byte_size bigint [note: '<= 10 MB']
+  is_image boolean [default: false]
   created_at timestamptz
   updated_at timestamptz
 }
@@ -62,6 +155,7 @@ Table strategy_versions {
 Table journal_entries {
   id uuid [pk]
   user_id uuid [not null]
+  title text [not null, default: '']
   ticker text
   content text [not null]
   entry_price numeric
@@ -69,25 +163,124 @@ Table journal_entries {
   stop_loss numeric
   target numeric
   size numeric
-  side text
+  side text [note: 'long | short']
   pnl numeric
-  screenshots text[]
-  psychology text
+  pnl_percent numeric
+  r_multiple numeric
+  opened_at timestamptz [not null]
+  closed_at timestamptz
+  screenshots text[] [note: 'legacy, write-frozen']
+  psychology text [note: 'legacy free text']
+  psychology_score int [note: '1..10']
   mistakes_made text
   lessons_learned text
-  strategy_id uuid
-  outcome text
-  outcome_source text [default: 'auto']
+  strategy_id uuid [note: 'many-to-one: the playbook this trade was filed under']
+  outcome text [note: 'win | loss | breakeven | open']
+  outcome_source text [default: 'auto', note: 'auto | manual']
   tags text[]
-  is_public boolean [default: false]
+  linked_note_ids uuid[] [note: 'mirror of note_journal_links, trigger-maintained']
+  word_count int [default: 0]
+  checklist_done int [default: 0]
+  checklist_total int [default: 0]
+  has_images boolean [default: false]
+  has_code boolean [default: false]
+  is_public boolean [default: false, note: 'always false: there is no public journal route']
   created_at timestamptz
   updated_at timestamptz
+
+  note: 'A trade and its write-up are one row, never two. An open trade has no exit_price and no closed_at.'
+}
+
+Table journal_entry_attachments {
+  id uuid [pk]
+  entry_id uuid [not null]
+  user_id uuid [not null]
+  storage_path text [not null, unique, note: '<user_id>/<entry_id>/<uuid><ext>']
+  filename text [not null]
+  mime_type text
+  byte_size bigint [note: '<= 10 MB']
+  is_image boolean [default: false]
+  created_at timestamptz
+  updated_at timestamptz
+
+  note: 'Owner-only at every depth. No public reader exists to grant.'
 }
 
 Table journal_entry_links {
   id uuid [pk]
   source_entry_id uuid [not null]
   target_entry_id uuid [not null]
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table note_journal_links {
+  note_id uuid [not null]
+  entry_id uuid [not null]
+  user_id uuid [not null, note: 'denormalised owner, assigned by trigger']
+  created_at timestamptz
+
+  indexes {
+    (note_id, entry_id) [pk]
+  }
+
+  note: 'The only genuine many-to-many edge in the link graph, and its source of truth. Both parents carry a mirror array rebuilt from this table. Linking twice is the same as linking once.'
+}
+
+Table trader_notes {
+  id uuid [pk]
+  user_id uuid [not null]
+  title text [not null]
+  content text [not null]
+  note_type text [default: 'general']
+  tags text[]
+  linked_tickers text[]
+  strategy_id uuid [note: 'many-to-one: the playbook this note is filed under']
+  linked_journal_ids uuid[] [note: 'mirror of note_journal_links, trigger-maintained']
+  is_public boolean [default: false]
+  word_count int [default: 0]
+  checklist_done int [default: 0]
+  checklist_total int [default: 0]
+  has_images boolean [default: false]
+  has_code boolean [default: false]
+  view_count int [default: 0]
+  like_count int [default: 0]
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table trader_note_likes {
+  note_id uuid [not null]
+  user_id uuid [not null]
+  created_at timestamptz
+  indexes { (note_id, user_id) [pk] }
+}
+
+Table trader_note_comments {
+  id uuid [pk]
+  note_id uuid [not null]
+  user_id uuid [not null]
+  content text [not null]
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table trader_note_views {
+  note_id uuid [not null]
+  user_id uuid [not null]
+  viewed_at timestamptz
+  indexes { (note_id, user_id) [pk] }
+}
+
+Table trader_note_attachments {
+  id uuid [pk]
+  note_id uuid [not null]
+  user_id uuid [not null]
+  storage_path text [not null, unique]
+  filename text [not null]
+  mime_type text
+  byte_size bigint
+  is_image boolean [default: false]
   created_at timestamptz
   updated_at timestamptz
 }
@@ -235,13 +428,39 @@ Table revenuecat_webhook_events {
 }
 
 Ref: subscriptions.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: affiliate_profiles.id > profiles.id [delete: cascade, update: cascade]
+Ref: affiliate_referrals.affiliate_id > profiles.id [delete: cascade, update: cascade]
+Ref: affiliate_referrals.referred_user_id > profiles.id [delete: cascade, update: cascade]
+Ref: affiliate_payouts.affiliate_id > profiles.id [delete: cascade, update: cascade]
 Ref: device_tokens.user_id > profiles.id [delete: cascade, update: cascade]
 Ref: strategies.user_id > profiles.id [delete: cascade, update: cascade]
 Ref: strategy_versions.strategy_id > strategies.id [delete: cascade, update: cascade]
+Ref: strategy_versions.author_id > profiles.id [delete: set null]
+Ref: strategy_attachments.strategy_id > strategies.id [delete: cascade, update: cascade]
+Ref: strategy_attachments.user_id > profiles.id [delete: cascade, update: cascade]
 Ref: journal_entries.user_id > profiles.id [delete: cascade, update: cascade]
-Ref: journal_entries.strategy_id > strategies.id [delete: cascade, update: cascade]
+// SET NULL, not cascade: deleting a playbook unfiles its trades, it does not
+// destroy the trader's record of them.
+Ref: journal_entries.strategy_id > strategies.id [delete: set null, update: cascade]
+Ref: journal_entry_attachments.entry_id > journal_entries.id [delete: cascade, update: cascade]
+Ref: journal_entry_attachments.user_id > profiles.id [delete: cascade, update: cascade]
 Ref: journal_entry_links.source_entry_id > journal_entries.id [delete: cascade, update: cascade]
 Ref: journal_entry_links.target_entry_id > journal_entries.id [delete: cascade, update: cascade]
+Ref: trader_notes.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: trader_notes.strategy_id > strategies.id [delete: set null, update: cascade]
+Ref: trader_note_attachments.note_id > trader_notes.id [delete: cascade, update: cascade]
+Ref: trader_note_likes.note_id > trader_notes.id [delete: cascade, update: cascade]
+Ref: trader_note_likes.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: trader_note_comments.note_id > trader_notes.id [delete: cascade, update: cascade]
+Ref: trader_note_comments.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: trader_note_views.note_id > trader_notes.id [delete: cascade, update: cascade]
+Ref: trader_note_views.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: trader_note_attachments.user_id > profiles.id [delete: cascade, update: cascade]
+// The note <-> journal edge. Both sides cascade: a deleted parent takes its
+// edges with it, and the AFTER DELETE trigger rebuilds the surviving mirror.
+Ref: note_journal_links.note_id > trader_notes.id [delete: cascade, update: cascade]
+Ref: note_journal_links.entry_id > journal_entries.id [delete: cascade, update: cascade]
+Ref: note_journal_links.user_id > profiles.id [delete: cascade, update: cascade]
 Ref: watchlists.user_id > profiles.id [delete: cascade, update: cascade]
 Ref: watchlist_items.watchlist_id > watchlists.id [delete: cascade, update: cascade]
 Ref: posts.user_id > profiles.id [delete: cascade, update: cascade]

@@ -1,16 +1,16 @@
-# UI Flow Diagrams — Every Screen & Sub-Screen
-## Per-Screen Mermaid State/Interaction Flows (Mobile Baseline)
+# UI flow diagrams: individual screens
+## State and interaction flows (mobile baseline)
 
-This is the missing piece: [SCREENS_AND_FLOWS.md](./SCREENS_AND_FLOWS.md) had one flow diagram per **module** (now 11 diagrams); [SCREEN_CONTENTS.md](./SCREEN_CONTENTS.md) and [SCREENS_MOBILE.md](./SCREENS_MOBILE.md) list components but no diagrams. This doc gives **one mermaid diagram per individual screen** (all 48 MVP + Enterprise screens, plus the 8 cross-cutting sub-screen patterns) — showing that screen's internal states, its sub-screens/modals, tier-gating branches (Free/Premium/Enterprise), and its navigation entry/exit points.
+This document provides state and interaction flow diagrams for individual screens across the platform. While [SCREENS_AND_FLOWS.md](./SCREENS_AND_FLOWS.md) presents module-level navigation and [SCREENS_MOBILE.md](./SCREENS_MOBILE.md) details component requirements, this document covers individual screens across MVP and Enterprise tiers, alongside common sub-screen patterns. Each diagram outlines internal states, modals, subscription gating branches, and navigation boundaries.
 
-Screen content/fields: [SCREENS_MOBILE.md](./SCREENS_MOBILE.md). Route/deep-link table: [DYNAMIC_LINKING.md](./DYNAMIC_LINKING.md). Tablet/desktop layout differences: [SCREENS_TABLET.md](./SCREENS_TABLET.md) / [SCREENS_DESKTOP.md](./SCREENS_DESKTOP.md) — the flows below are the same on every device (tier gating and navigation logic don't change by device); only *layout* changes, which is why these aren't re-diagrammed per device.
+For screen field specifications, consult [SCREENS_MOBILE.md](./SCREENS_MOBILE.md). Route paths and deep links are listed in [DYNAMIC_LINKING.md](./DYNAMIC_LINKING.md). Breakpoint adaptations for larger screens appear in [SCREENS_TABLET.md](./SCREENS_TABLET.md) and [SCREENS_DESKTOP.md](./SCREENS_DESKTOP.md). State logic and tier rules remain identical across platforms, with only layout structure shifting by breakpoint.
 
-Tier shorthand in diagrams: **F** = Free, **P** = Premium, **E** = Enterprise.
+Tier shorthand used in diagrams: **F** = Free, **P** = Premium, **E** = Enterprise.
 
 ---
 
 ## 0. Cross-cutting sub-screen state machine
-Applies inside every screen below wherever "Loading/Empty/Error" is referenced rather than re-drawn each time.
+This lifecycle applies across screens whenever loading, empty, and error states occur.
 
 ```mermaid
 flowchart TD
@@ -26,9 +26,9 @@ flowchart TD
 
 ---
 
-## 1. Auth & Profile
+## 1. Auth and profile
 
-### Splash / Onboarding
+### Splash and onboarding
 ```mermaid
 flowchart TD
     A[App cold launch] --> B[Splash renders: logo + value-prop carousel]
@@ -40,7 +40,7 @@ flowchart TD
     F -- Log In link --> H[Log In]
 ```
 
-### Sign Up
+### Sign up
 ```mermaid
 flowchart TD
     A[Enter from Splash or Log In] --> B[Form: email, password, handle]
@@ -53,7 +53,7 @@ flowchart TD
     F --> G[App Shell, first-run state]
 ```
 
-### Log In
+### Log in
 ```mermaid
 flowchart TD
     A[Enter from Splash or Sign Up] --> B[Form: email, password]
@@ -64,7 +64,7 @@ flowchart TD
     B -->|tap OAuth button| E
 ```
 
-### Forgot Password
+### Forgot password
 ```mermaid
 flowchart TD
     A[Enter from Log In] --> B[Email field]
@@ -75,7 +75,7 @@ flowchart TD
     E -->|user follows email link externally| F[Reset Password web/app flow, out of app scope]
 ```
 
-### Own Profile
+### Personal profile
 ```mermaid
 flowchart TD
     A[Tap Profile tab] --> B[Loading -> Loaded: avatar, bio, stats]
@@ -90,10 +90,10 @@ flowchart TD
     C -- Public Journals toggle --> K[Toggle updates inline, no navigation]
     C -- Settings icon --> L[Settings]
     C -- Segmented tab: Posts/Strategies/Journal --> M[Content list swaps below, in place]
-    C -- "+" --> N[Create Post / New Strategy / New Entry, context-sensitive]
+    C -- + button --> N[Create Post / New Strategy / New Entry, context-sensitive]
 ```
 
-### Public Profile (other user)
+### Public profile for another user
 ```mermaid
 flowchart TD
     A[Enter via tap-author or /u/handle deep link] --> B[Loading -> Loaded]
@@ -123,9 +123,9 @@ flowchart TD
 
 ---
 
-## 2. Trading Journal
+## 2. Trading journal
 
-### Journal List
+### Journal list
 ```mermaid
 flowchart TD
     A[Tap Journal tab] --> B[Loading]
@@ -142,7 +142,7 @@ flowchart TD
     G -- Free tier near limit --> K[Dismissible upsell banner shown]
 ```
 
-### Journal Entry Detail
+### Journal entry detail
 ```mermaid
 flowchart TD
     A[Enter from Journal List, Analyzer, Portfolio, or Graph View] --> B[Loading]
@@ -161,7 +161,7 @@ flowchart TD
     F -- AI Trade Review, Free --> P[Upsell interstitial]
 ```
 
-### Journal Entry Create/Edit
+### Journal entry creation and editing
 ```mermaid
 flowchart TD
     A[Enter via FAB, Edit action, or deep link with prefill] --> B[Form renders, empty or pre-filled]
@@ -183,9 +183,9 @@ flowchart TD
 
 ---
 
-## 3. Strategy Notes & Analyzer
+## 3. Strategy notes and analyzer
 
-### Strategy List
+### Strategy list
 ```mermaid
 flowchart TD
     A[Tap Strategies tab] --> B{Subscription tier}
@@ -205,7 +205,7 @@ flowchart TD
     J -- Tab: Graph --> M[Graph View]
 ```
 
-### Strategy Detail
+### Strategy detail
 ```mermaid
 flowchart TD
     A[Enter from Strategy List, Journal Entry linked-strategy chip, or public /strategies/id link] --> B[Loading]
@@ -218,12 +218,12 @@ flowchart TD
     G -- Favorite star --> F
     G -- Regenerate AI Summary, Premium --> I[strategy-ai-summary call -> updates card]
     G -- Version History link --> J[Version History]
-    G -- "Used in N entries" --> K[Strategy Analyzer, filtered]
+    G -- Used in N entries --> K[Strategy Analyzer, filtered]
     G -- Edit --> L[Strategy Editor]
     G -- Delete --> M[Confirmation dialog] -->|confirm| N[Return to Strategy List]
 ```
 
-### Strategy Editor
+### Strategy editor
 ```mermaid
 flowchart TD
     A[Enter via New from Strategy List, or Edit from Strategy Detail] --> B[Rich text editor renders, empty or existing content]
@@ -240,7 +240,7 @@ flowchart TD
     J -- No --> H
 ```
 
-### Version History
+### Version history
 ```mermaid
 flowchart TD
     A[Enter from Strategy Detail] --> B[Loading]
@@ -253,7 +253,7 @@ flowchart TD
     F -- Cancel --> C
 ```
 
-### Strategy Analyzer
+### Strategy analyzer
 ```mermaid
 flowchart TD
     A[Enter from Strategy List tab, Strategy Detail, or Graph View strategy node] --> B[Loading]
@@ -265,7 +265,7 @@ flowchart TD
     F -- Tap card --> G[Filtered Journal List, strategy pre-applied]
 ```
 
-### Graph View
+### Graph view
 ```mermaid
 flowchart TD
     A[Enter from Strategy List tab or Journal Entry link action] --> B[Loading: fetch entries, strategies, journal_entry_links]
@@ -283,7 +283,7 @@ flowchart TD
 
 ## 4. Watchlists
 
-### Watchlist List
+### Watchlist list
 ```mermaid
 flowchart TD
     A[Tap Watchlists tab] --> B[Loading]
@@ -298,7 +298,7 @@ flowchart TD
     G -- Attempt 2nd watchlist on Free --> I[Upsell interstitial]
 ```
 
-### Watchlist Detail
+### Watchlist detail
 ```mermaid
 flowchart TD
     A[Enter from Watchlist List] --> B[Loading]
@@ -314,7 +314,7 @@ flowchart TD
     G -- Tap ticker row --> I[Ticker Search / Detail]
 ```
 
-### Add Ticker
+### Add ticker
 ```mermaid
 flowchart TD
     A[Enter from Watchlist Detail, bottom sheet] --> B[Search field, live results]
@@ -329,7 +329,7 @@ flowchart TD
     H --> I[watchlist_items row created, sheet closes -> Watchlist Detail]
 ```
 
-### Price Alert Setup
+### Price alert setup
 ```mermaid
 flowchart TD
     A[Enter from Add Ticker or existing ticker row] --> B[Above/Below toggle, threshold input]
@@ -342,9 +342,9 @@ flowchart TD
 
 ---
 
-## 5. Portfolio Dashboard
+## 5. Portfolio dashboard
 
-### Portfolio Dashboard
+### Portfolio dashboard
 ```mermaid
 flowchart TD
     A[Tap Portfolio tab] --> B[Loading: fetch portfolio_stats view + entries]
@@ -359,7 +359,7 @@ flowchart TD
     G -- Strategy Performance, Free --> J[Upsell banner, no navigation]
 ```
 
-### Strategy Performance Breakdown
+### Strategy performance breakdown
 ```mermaid
 flowchart TD
     A[Enter from Portfolio Dashboard] --> B[Loading]
@@ -373,7 +373,7 @@ flowchart TD
 
 ## 6. Community
 
-### Community Feed
+### Community feed
 ```mermaid
 flowchart TD
     A[Tap Community tab] --> B[Loading]
@@ -390,7 +390,7 @@ flowchart TD
     F -- Free tier at daily limit --> K[Read-limit banner shown, further reads blocked until reset]
 ```
 
-### Post Detail
+### Post detail
 ```mermaid
 flowchart TD
     A[Enter from Community Feed, Saved Posts, or public /community/postId link] --> B[Loading]
@@ -406,7 +406,7 @@ flowchart TD
     F -- Logged-out user attempts like/comment --> I[Inline login prompt] --> J[Log In] -->|success| E
 ```
 
-### Create Post
+### Create post
 ```mermaid
 flowchart TD
     A[Enter from Community Feed FAB] --> B[Form: content-type picker, text area]
@@ -422,7 +422,7 @@ flowchart TD
     I -- No --> K[Return to Community Feed]
 ```
 
-### Saved Posts
+### Saved posts
 ```mermaid
 flowchart TD
     A[Enter from Community Feed icon] --> B[Loading]
@@ -434,7 +434,7 @@ flowchart TD
     F -- Tap card --> G[Post Detail]
 ```
 
-### Followers / Following List
+### Followers and following list
 ```mermaid
 flowchart TD
     A[Enter from own or public Profile stat row] --> B[Loading]
@@ -448,9 +448,9 @@ flowchart TD
 
 ---
 
-## 7. Direct Messages
+## 7. Direct messages
 
-### Direct Messages List
+### Direct messages list
 ```mermaid
 flowchart TD
     A[Tap Messages icon on Community Feed] --> B{Subscription tier}
@@ -467,12 +467,12 @@ flowchart TD
     J -- Swipe-left --> L[Mute / Delete, local hide only]
 ```
 
-### Conversation Detail
+### Conversation detail
 ```mermaid
 flowchart TD
     A[Enter from Direct Messages List, New Message, or a Public Profile Message button] --> B[Loading: message history + Realtime subscription]
     B --> C{Any messages yet?}
-    C -- No --> D["Say hello" empty-state prompt]
+    C -- No --> D[Say hello empty-state prompt]
     C -- Yes --> E[Message bubbles render, newest at bottom]
     D --> F
     E --> F{Can the current user send?}
@@ -487,7 +487,7 @@ flowchart TD
     A -->|overflow: Report| O[Report form sub-screen]
 ```
 
-### New Message
+### New message
 ```mermaid
 flowchart TD
     A[Enter from Direct Messages List or a Public Profile Message button, Premium/Enterprise only] --> B[Handle search field]
@@ -500,9 +500,9 @@ flowchart TD
 
 ---
 
-## 8. AI Trading Assistant
+## 8. AI trading assistant
 
-### Ticker Search / Detail
+### Ticker search and detail
 ```mermaid
 flowchart TD
     A[Enter from Insights tab, Watchlist row, or Daily Digest mover] --> B[Loading: price + indicators]
@@ -514,7 +514,7 @@ flowchart TD
     E -->|tap locked feature| H[Upsell interstitial]
 ```
 
-### AI Trading Assistant (chat)
+### AI trading assistant chat
 ```mermaid
 flowchart TD
     A[Enter from Ticker Detail, Watchlist Detail, or Insights tab] --> B[Scope selector: ticker/watchlist/portfolio]
@@ -525,7 +525,7 @@ flowchart TD
     G --> C
 ```
 
-### Trade Review results
+### Trade review results
 ```mermaid
 flowchart TD
     A[Enter from Journal Entry Detail, AI Trade Review button] --> B[Loading: ai-journal-analysis, single-entry mode]
@@ -535,7 +535,7 @@ flowchart TD
     D -- Dismiss --> E[Return to Journal Entry Detail]
 ```
 
-### AI Strategy Review results
+### AI strategy review results
 ```mermaid
 flowchart TD
     A[Enter from Strategy Detail, AI Strategy Review action] --> B[Loading: ai-strategy-review call]
@@ -545,7 +545,7 @@ flowchart TD
     D -- Dismiss --> E[Return to Strategy Detail]
 ```
 
-### AI Journal Analysis results
+### AI journal analysis results
 ```mermaid
 flowchart TD
     A[Enter from Journal List, AI Journal Analysis action] --> B[Date range + strategy filter picker]
@@ -555,7 +555,7 @@ flowchart TD
     E -->|adjust filters| B
 ```
 
-### Weekly / Monthly Performance Review
+### Weekly and monthly performance review
 ```mermaid
 flowchart TD
     A[Enter from Insights tab or AI recommendation notification] --> B[Period selector: weekly/monthly]
@@ -564,7 +564,7 @@ flowchart TD
     D -->|switch period| B
 ```
 
-### Daily Digest
+### Daily digest
 ```mermaid
 flowchart TD
     A[Enter from Insights tab or push notification tap] --> B[Loading]
@@ -577,7 +577,7 @@ flowchart TD
 
 ## 9. Notifications
 
-### Notification Center
+### Notification center
 ```mermaid
 flowchart TD
     A[Enter from bell icon, any screen] --> B[Loading]
@@ -590,7 +590,7 @@ flowchart TD
     F -- Preferences icon --> I[Notification Preferences]
 ```
 
-### Notification Preferences
+### Notification preferences
 ```mermaid
 flowchart TD
     A[Enter from Settings or Notification Center] --> B[Category toggle list renders]
@@ -602,7 +602,7 @@ flowchart TD
 
 ## 10. Subscriptions
 
-### Plan Comparison / Paywall
+### Plan comparison and paywall
 ```mermaid
 flowchart TD
     A[Enter from any upsell interstitial, Profile tier badge, or Settings] --> B[Three-column plan comparison renders]
@@ -614,7 +614,7 @@ flowchart TD
     E -- Close --> H[Return to originating screen]
 ```
 
-### Upgrade / Checkout
+### Upgrade and checkout
 ```mermaid
 flowchart TD
     A[Enter from Plan Comparison] --> B[Plan/cycle/price recap]
@@ -626,7 +626,7 @@ flowchart TD
     F -->|Try Again| C
 ```
 
-### Manage Subscription
+### Manage subscription
 ```mermaid
 flowchart TD
     A[Enter from Profile tier badge or Settings] --> B[Loading]
@@ -641,7 +641,7 @@ flowchart TD
 
 ## 11. Enterprise (post-MVP)
 
-### Org Dashboard
+### Organization dashboard
 ```mermaid
 flowchart TD
     A[Enter from Settings, Organization row, org-admin accounts only] --> B[Loading]
@@ -654,7 +654,7 @@ flowchart TD
     D -- API Keys --> I[API Access / Key Management]
 ```
 
-### Team Management
+### Team management
 ```mermaid
 flowchart TD
     A[Enter from Org Dashboard] --> B[Loading]
@@ -666,7 +666,7 @@ flowchart TD
     D -- Tap role chip --> I[Role assignment picker] --> C
 ```
 
-### Admin Controls
+### Admin controls
 ```mermaid
 flowchart TD
     A[Enter from Org Dashboard] --> B[Loading]
@@ -677,7 +677,7 @@ flowchart TD
     D -- Tap device row --> F[Device detail sub-screen: revoke license]
 ```
 
-### Organization Analytics
+### Organization analytics
 ```mermaid
 flowchart TD
     A[Enter from Org Dashboard] --> B[Loading]
@@ -686,7 +686,7 @@ flowchart TD
     D --> B
 ```
 
-### Branding Settings
+### Branding settings
 ```mermaid
 flowchart TD
     A[Enter from Org Dashboard] --> B[Current logo/theme/domain render]
@@ -699,7 +699,7 @@ flowchart TD
     H -- Success --> B
 ```
 
-### API Access / Key Management
+### API access and key management
 ```mermaid
 flowchart TD
     A[Enter from Org Dashboard] --> B[Loading]
@@ -713,8 +713,8 @@ flowchart TD
 
 ---
 
-## 12. Subscription-type flow overlay
-Cross-cutting view of how tier (Free / Premium / Enterprise) changes the flow at the points where it actually branches — consolidates every tier-gating decision node from the diagrams above into one reference:
+## 12. Subscription tier flow overlay
+This overview tracks where access branches by subscription tier across the product lifecycle.
 
 ```mermaid
 flowchart TD
@@ -747,4 +747,4 @@ flowchart TD
     P -- Yes --> O
 ```
 
-Direct Messages is the one gate in this diagram that isn't a single check-on-entry — it re-evaluates on every send (`P` above), not just when the screen opens, per the "checked per-message, not just at signup" requirement in PRD.md § 5.9. Every other gate in this overlay is a one-time check at the point of entry.
+Direct messaging re-evaluates subscription status on every individual send attempt rather than relying solely on screen-mount validation, enforcing the per-message check specified in PRD requirements. All other features evaluate tier permissions once upon initial access.

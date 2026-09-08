@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../theme/ui_theme.dart';
 import 'ui_button.dart';
 import 'ui_common.dart';
+import 'ui_card.dart';
+import 'ui_icon_button.dart';
 
 class UiDialog extends StatelessWidget {
   const UiDialog({
@@ -27,41 +29,38 @@ class UiDialog extends StatelessWidget {
     BuildContext context, {
     required Widget child,
     bool dismissible = true,
+    double maxWidth = 480,
   }) {
     final theme = context.ui;
-    if (context.uiRes.isMobile) {
-      return showModalBottomSheet<T>(
-        context: context,
-        isDismissible: dismissible,
-        isScrollControlled: true,
-        backgroundColor: theme.colors.surface,
-        barrierColor: theme.colors.overlay,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(context.sz(theme.radii.xxl)),
-          ),
-        ),
-        builder: (BuildContext ctx) => SafeArea(
-          child: Padding(
-            padding: EdgeInsets.all(ctx.sp(theme.spacing.lg)),
-            child: _UiDialogHost(child: child),
-          ),
-        ),
-      );
-    }
+    final mobile = context.uiRes.isMobile;
     return showDialog<T>(
       context: context,
       barrierDismissible: dismissible,
       barrierColor: theme.colors.overlay,
-      builder: (BuildContext ctx) => Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: ctx.sz(480)),
-          child: Material(
-            color: theme.colors.surface,
-            borderRadius: ctx.radius(theme.radii.xl),
-            child: Padding(
-              padding: EdgeInsets.all(ctx.sp(theme.spacing.xl)),
-              child: _UiDialogHost(child: child),
+      builder: (BuildContext ctx) => AnimatedPadding(
+        duration: theme.motion.fast,
+        padding:
+            MediaQuery.viewInsetsOf(ctx) +
+            EdgeInsets.all(
+              ctx.sp(mobile ? theme.spacing.sm : theme.spacing.md),
+            ),
+        child: Align(
+          alignment: mobile ? Alignment.bottomCenter : Alignment.center,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: ctx.sz(maxWidth)),
+            child: UiCard(
+              key: const ValueKey('ui-dialog-surface'),
+              padding: EdgeInsets.zero,
+              variant: UiCardVariant.elevated,
+              child: Material(
+                type: MaterialType.transparency,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(
+                    ctx.sp(mobile ? theme.spacing.lg : theme.spacing.xl),
+                  ),
+                  child: _UiDialogHost(child: child),
+                ),
+              ),
             ),
           ),
         ),
@@ -137,13 +136,11 @@ class UiDialog extends StatelessWidget {
                 ),
               ),
             ),
-            GestureDetector(
-              onTap: () => Navigator.of(context).maybePop(),
-              child: Icon(
-                Icons.close,
-                size: context.sz(theme.sizes.iconMd),
-                color: theme.colors.foregroundSubtle,
-              ),
+            UiIconButton(
+              icon: Icons.close_rounded,
+              tooltip: 'Close',
+              size: UiSize.sm,
+              onPressed: () => Navigator.of(context).maybePop(),
             ),
           ],
         ),
@@ -187,14 +184,16 @@ class UiDialog extends StatelessWidget {
           maxWidth: context.sz(560),
           maxHeight: MediaQuery.sizeOf(context).height * 0.9,
         ),
-        child: Material(
+        child: UiCard(
           key: const ValueKey<String>('ui-dialog-surface'),
-          color: theme.colors.surface,
-          borderRadius: context.radius(theme.radii.xl),
-          clipBehavior: Clip.antiAlias,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-            child: _UiDialogHost(child: dialogBody),
+          padding: EdgeInsets.zero,
+          variant: UiCardVariant.elevated,
+          child: Material(
+            type: MaterialType.transparency,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
+              child: _UiDialogHost(child: dialogBody),
+            ),
           ),
         ),
       ),

@@ -6,6 +6,7 @@ import 'package:tradex/core/data/session_trader.dart';
 // Required unified primitive import for application layouts.
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/core/navigation/role_navigation_config.dart';
 import 'package:tradex/features/affiliate_program/affiliate_program.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_marketing_page.dart';
@@ -14,8 +15,14 @@ import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_p
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
+import 'package:tradex/features/calculators/ui/calculators_screen.dart';
+import 'package:tradex/features/journal/ui/journal_screen.dart';
+import 'package:tradex/features/notes/ui/notes_screen.dart';
+import 'package:tradex/features/markets/ui/markets_screen.dart';
+import 'package:tradex/features/markets/ui/news_screen.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
+import 'package:tradex/features/strategies/ui/strategies_screen.dart';
 
 /// The signed-in application shell: chrome, navigation and the active page.
 ///
@@ -35,9 +42,11 @@ class AppScaffold extends StatefulWidget {
     this.subscriptionTier = AppTier.free,
     this.userId = '',
     this.userDisplayName = '',
+    this.initialDestination = 'overview',
   });
 
   final UserRole userRole;
+  final String initialDestination;
 
   /// Identity handed down by the auth layer. All three default to empty rather
   /// than to a stand-in name: the chrome falls back to the profile repository,
@@ -63,6 +72,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   static const Map<String, String> _shellDestinations = <String, String>{
     'notifications': 'Notifications',
     'search': 'Search',
+    'affiliate_application': 'Affiliate Application',
   };
 
   final AppSession _session = AppSession.instance;
@@ -74,12 +84,18 @@ class _AppScaffoldState extends State<AppScaffold> {
   bool _showAffiliateApplication = false;
   AffiliateApplicationStatus? _affiliateApplicationStatus;
 
+  UserRole? _previewRoleOverride;
+  UserRole get _effectiveRole => _previewRoleOverride ?? widget.userRole;
+
   RoleNavigationConfig get _navigation =>
-      RoleNavigationConfig.forRole(widget.userRole);
+      RoleNavigationConfig.forRole(_effectiveRole);
 
   @override
   void initState() {
     super.initState();
+    if (_navigation.allows(widget.initialDestination)) {
+      _selectedId = widget.initialDestination;
+    }
     // The plan arrives with the profile but every gate in the app reads it from
     // the session, so the session adopts it here. That makes entitlement
     // single-owner: upgrading in billing unlocks DMs and copilot credits in the
@@ -97,6 +113,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   void didUpdateWidget(AppScaffold oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.userRole != widget.userRole) {
+      _previewRoleOverride = widget.userRole;
       _resetToOverview();
       _loadAffiliateApplicationStatus();
     }
@@ -159,20 +176,16 @@ class _AppScaffoldState extends State<AppScaffold> {
     );
   }
 
-  String? _activeSettingsSubpageTitle;
-  IconData? _activeSettingsSubpageIcon;
-  VoidCallback? _activeSettingsSubpageOnBack;
+  String? _activeSubpageTitle;
+  IconData? _activeSubpageIcon;
+  VoidCallback? _activeSubpageOnBack;
 
-  void _onSettingsSubpageChanged(
-    String? title,
-    IconData? icon,
-    VoidCallback? onBack,
-  ) {
+  void _onSubpageChanged(String? title, IconData? icon, VoidCallback? onBack) {
     if (!mounted) return;
     setState(() {
-      _activeSettingsSubpageTitle = title;
-      _activeSettingsSubpageIcon = icon;
-      _activeSettingsSubpageOnBack = onBack;
+      _activeSubpageTitle = title;
+      _activeSubpageIcon = icon;
+      _activeSubpageOnBack = onBack;
     });
   }
 
@@ -182,23 +195,47 @@ class _AppScaffoldState extends State<AppScaffold> {
   void _resetToOverview() {
     _selectedId = 'overview';
     _showAffiliateApplication = false;
-    _activeSettingsSubpageTitle = null;
-    _activeSettingsSubpageIcon = null;
-    _activeSettingsSubpageOnBack = null;
+    _activeSubpageTitle = null;
+    _activeSubpageIcon = null;
+    _activeSubpageOnBack = null;
+    _linkRequest = null;
+  }
+
+  void _switchRole(UserRole role) {
+    setState(() {
+      _previewRoleOverride = role;
+      _resetToOverview();
+    });
+    _loadAffiliateApplicationStatus();
+    widget.onRoleChanged?.call(role);
   }
 
   bool _canReach(String id) =>
       _shellDestinations.containsKey(id) || _navigation.allows(id);
+
+  void _openAffiliateApplication() {
+    setState(() {
+      _showAffiliateApplication = true;
+      _activeSubpageTitle = null;
+      _activeSubpageIcon = null;
+      _activeSubpageOnBack = null;
+    });
+  }
 
   /// The one way a destination changes.
   void _go(String id) {
     if (!_canReach(id)) return;
     setState(() {
       _selectedId = id;
-      _showAffiliateApplication = false;
-      _activeSettingsSubpageTitle = null;
-      _activeSettingsSubpageIcon = null;
-      _activeSettingsSubpageOnBack = null;
+      _showAffiliateApplication = id == 'affiliate_application';
+      _activeSubpageTitle = null;
+      _activeSubpageIcon = null;
+      _activeSubpageOnBack = null;
+      // Cleared, or walking back to a destination by hand would re-open the
+      // record a link sent the reader to an hour ago: the screens apply their
+      // request in `initState`, and a remount cannot tell a fresh one from a
+      // spent one.
+      _linkRequest = null;
     });
   }
 
@@ -206,18 +243,48 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// cross-link renders as absent rather than as a button that does nothing.
   VoidCallback? _jump(String id) => _canReach(id) ? () => _go(id) : null;
 
+  /// The record a linked destination should open on arrival, and the counter
+  /// that makes two clicks on the same link two distinct requests.
+  ///
+  /// The shell holds this rather than the screens because a link is followed
+  /// *across* destinations: the note being clicked is unmounted a frame later,
+  /// and the journal that must show its trade has not been built yet.
+  AppLinkOpenRequest? _linkRequest;
+  int _linkSeq = 0;
+
+  /// Follows a link from one destination into another.
+  ///
+  /// Role permissions still govern the destination. Writing screens handle
+  /// same-kind links locally; ticker links arrive at the matching Markets detail.
+  void _openLinkRef(AppLinkRef ref, {bool writing = false}) {
+    final String? destination = writing ? 'notes' : ref.kind.destinationId;
+    if (destination == null || !_canReach(destination)) return;
+    setState(() {
+      _selectedId = destination;
+      _showAffiliateApplication = false;
+      _activeSubpageTitle = null;
+      _activeSubpageIcon = null;
+      _activeSubpageOnBack = null;
+      _linkRequest = AppLinkOpenRequest(
+        kind: ref.kind,
+        id: ref.id,
+        seq: ++_linkSeq,
+        editWriting: writing,
+      );
+    });
+  }
+
   /// Breadcrumb leaf when the active surface has no sidebar entry to name it.
   String? get _pageTitleOverride => _showAffiliateApplication
       ? 'Affiliate application'
-      : _activeSettingsSubpageTitle ?? _shellDestinations[_selectedId];
+      : _activeSubpageTitle ?? _shellDestinations[_selectedId];
 
-  IconData? get _pageIconOverride => _showAffiliateApplication
-      ? Icons.handshake_outlined
-      : _activeSettingsSubpageIcon;
+  IconData? get _pageIconOverride =>
+      _showAffiliateApplication ? Icons.handshake_outlined : _activeSubpageIcon;
 
   VoidCallback? get _pageBackOverride => _showAffiliateApplication
       ? () => setState(() => _showAffiliateApplication = false)
-      : _activeSettingsSubpageOnBack;
+      : _activeSubpageOnBack;
 
   Widget _buildActivePage() {
     if (_showAffiliateApplication) return _affiliateApplicationPage();
@@ -225,7 +292,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     if (_selectedId == 'notifications') return _notificationsPage();
     if (_selectedId.startsWith('settings')) return _settingsPage();
 
-    return switch (widget.userRole) {
+    return switch (_effectiveRole) {
       UserRole.customer => _traderPage(),
       UserRole.affiliate => _affiliatePage(),
       UserRole.userAdmin => _adminPage(),
@@ -233,9 +300,22 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   Widget _affiliateApplicationPage() => AffiliateApplicationPage(
-    userId: widget.userId,
-    email: widget.userEmail,
-    displayName: widget.userDisplayName,
+    key: const ValueKey<String>('affiliate_application_page'),
+    userId: widget.userId.isNotEmpty
+        ? widget.userId
+        : (_chromeIdentity.id.isNotEmpty
+              ? _chromeIdentity.id
+              : 'usr_preview_trader'),
+    email: widget.userEmail.isNotEmpty
+        ? widget.userEmail
+        : (_chromeIdentity.handle.isNotEmpty
+              ? _chromeIdentity.handle
+              : 'trader@tradex.ai'),
+    displayName: widget.userDisplayName.isNotEmpty
+        ? widget.userDisplayName
+        : ((_chromeIdentity.displayName?.isNotEmpty ?? false)
+              ? _chromeIdentity.displayName!
+              : 'Pro Trader'),
     isExistingCustomer: true,
     onSubmitted: (AffiliateApplicationModel application) =>
         setState(() => _affiliateApplicationStatus = application.status),
@@ -292,8 +372,14 @@ class _AppScaffoldState extends State<AppScaffold> {
     return switch (id) {
       'overview' => UiSkeleton.dashboard(),
       'journal' => UiSkeleton.journal(),
+      // No notes preset in flutter-ui, and adding one there for a single caller
+      // would be the wrong layer: the journal list is the same shape.
+      'notes' => UiSkeleton.journal(),
       'strategies' => UiSkeleton.strategies(),
       'watchlists' => UiSkeleton.watchlists(),
+      // The hub is a filter bar over a card grid, which is the watchlist shape
+      // too — close enough that nothing jumps when the real page lands.
+      'calculators' => UiSkeleton.watchlists(),
       'portfolio' => UiSkeleton.portfolio(),
       'community' => UiSkeleton.community(),
       'messages' => UiSkeleton.messages(),
@@ -310,8 +396,8 @@ class _AppScaffoldState extends State<AppScaffold> {
         ? 'profile'
         : _selectedId.replaceFirst('settings_', '');
     return SettingsRootPage(
-      key: ValueKey<String>('settings_${widget.userRole.id}_$sectionId'),
-      userRole: widget.userRole,
+      key: ValueKey<String>('settings_${_effectiveRole.id}_$sectionId'),
+      userRole: _effectiveRole,
       initialSectionId: sectionId,
       showNavigationPane: context.uiRes.isMobile && _selectedId == 'settings',
       onLogout: widget.onLogout,
@@ -319,17 +405,48 @@ class _AppScaffoldState extends State<AppScaffold> {
       // Straight into the session: billing is not allowed a private copy of the
       // plan, or the gates elsewhere would stay shut after an upgrade.
       onSubscriptionTierChanged: _session.changeTier,
-      onApplyForAffiliate: () =>
-          setState(() => _showAffiliateApplication = true),
-      onSubpageChanged: _onSettingsSubpageChanged,
+      onApplyForAffiliate: _openAffiliateApplication,
+      onSubpageChanged: _onSubpageChanged,
     );
   }
 
   Widget _traderPage() => switch (_selectedId) {
     'overview' => UiSkeleton.dashboard(),
-    'journal' => UiSkeleton.journal(),
-    'strategies' => UiSkeleton.strategies(),
-    'watchlists' => UiSkeleton.watchlists(),
+    // The three linked writing surfaces. Each is handed the same three
+    // affordances so a link followed out of one lands correctly in the next:
+    // `onOpenRef` to leave, `openRequest` to arrive, and — for the two that put
+    // a document behind a real back step on a phone — `onSubpageChanged` so the
+    // app bar names what is open.
+    'journal' => JournalScreen(
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
+      openRequest: _linkRequest,
+    ),
+    'notes' => NotesScreen(onOpenRef: _openLinkRef, openRequest: _linkRequest),
+    'strategies' => StrategiesScreen(
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
+      openRequest: _linkRequest,
+    ),
+    'watchlists' => MarketsScreen(
+      key: const ValueKey('watchlists'),
+      watchlist: true,
+      onOpenRef: _openLinkRef,
+    ),
+    'markets' => MarketsScreen(
+      key: const ValueKey('markets'),
+      openRequest: _linkRequest,
+      onOpenRef: _openLinkRef,
+    ),
+    'news' => NewsScreen(
+      onOpenRef: _openLinkRef,
+      onOpenSymbol: (symbol) => _openLinkRef(
+        AppLinkRef(kind: AppLinkKind.ticker, id: symbol, title: symbol),
+      ),
+    ),
+    'calculators' => CalculatorsScreen(onSubpageChanged: _onSubpageChanged),
     'portfolio' => UiSkeleton.portfolio(),
     'community' => UiSkeleton.community(),
     'messages' => UiSkeleton.messages(),
@@ -338,6 +455,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   };
 
   Widget _affiliatePage() => switch (_selectedId) {
+    'notes' => const NotesScreen(),
     'overview' => AffiliateOverviewPage(
       onOpenReferrals: _jump('referrals'),
       onOpenPayouts: _jump('payouts'),
@@ -374,6 +492,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   };
 
   Widget _adminPage() => switch (_selectedId) {
+    'notes' => const NotesScreen(),
     'overview' => _placeholderPage(
       'Desk Overview',
       'This screen will display the trading firm executive summary and risk metrics.',
@@ -413,7 +532,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   Widget _unknownPage() => AppPageBlock(
     title: _navigation.labelFor(_selectedId) ?? 'Not available',
     subtitle:
-        'This surface is not part of the ${widget.userRole.label} '
+        'This surface is not part of the ${_effectiveRole.label} '
         'workspace yet',
     child: Center(
       child: ConstrainedBox(
@@ -440,11 +559,12 @@ class _AppScaffoldState extends State<AppScaffold> {
   // -------------------------------------------------------------------------
 
   Widget _buildDesktopPreviewControls() {
-    final bool isAffiliate = widget.userRole == UserRole.affiliate;
+    final bool isAffiliate = _effectiveRole == UserRole.affiliate;
     final bool isPending =
         _affiliateApplicationStatus == AffiliateApplicationStatus.pending;
     final bool isApproved =
         _affiliateApplicationStatus == AffiliateApplicationStatus.approved;
+    final bool isAdmin = _effectiveRole == UserRole.userAdmin;
     return UiCard(
       padding: EdgeInsets.all(context.sp(context.ui.spacing.xs)),
       variant: UiCardVariant.outlined,
@@ -461,7 +581,7 @@ class _AppScaffoldState extends State<AppScaffold> {
             ),
           ),
           SizedBox(height: context.sp(context.ui.spacing.xxs)),
-          if (widget.userRole != UserRole.userAdmin)
+          if (!isAdmin)
             UiButton(
               label: isAffiliate
                   ? 'Switch to Trader'
@@ -480,46 +600,36 @@ class _AppScaffoldState extends State<AppScaffold> {
                   : UiVariant.outline,
               intent: UiIntent.warning,
               size: UiSize.xs,
-              onPressed: isPending
-                  ? null
-                  : () {
-                      if (isAffiliate) {
-                        widget.onRoleChanged?.call(UserRole.customer);
-                      } else if (isApproved) {
-                        widget.onRoleChanged?.call(UserRole.affiliate);
-                      } else {
-                        setState(() => _showAffiliateApplication = true);
-                      }
-                    },
+              onPressed: () {
+                if (isAffiliate) {
+                  _switchRole(UserRole.customer);
+                } else if (isApproved) {
+                  _switchRole(UserRole.affiliate);
+                } else {
+                  _openAffiliateApplication();
+                }
+              },
             ),
-          if (widget.userRole != UserRole.userAdmin)
-            SizedBox(height: context.sp(context.ui.spacing.xxs)),
-          if (!isAffiliate) ...<Widget>[
+          if (!isAdmin) SizedBox(height: context.sp(context.ui.spacing.xxs)),
+          if (!isAffiliate && !isAdmin) ...<Widget>[
             UiButton(
               label: 'Preview Affiliate',
               leadingIcon: Icons.visibility_outlined,
               variant: UiVariant.outline,
               intent: UiIntent.warning,
               size: UiSize.xs,
-              onPressed: () => widget.onRoleChanged?.call(UserRole.affiliate),
+              onPressed: () => _switchRole(UserRole.affiliate),
             ),
             SizedBox(height: context.sp(context.ui.spacing.xxs)),
           ],
           UiButton(
-            label: widget.userRole == UserRole.userAdmin
-                ? 'Exit Admin'
-                : 'Admin',
+            label: isAdmin ? 'Exit Admin' : 'Admin',
             leadingIcon: Icons.admin_panel_settings_outlined,
-            variant: widget.userRole == UserRole.userAdmin
-                ? UiVariant.soft
-                : UiVariant.outline,
+            variant: isAdmin ? UiVariant.soft : UiVariant.outline,
             intent: UiIntent.danger,
             size: UiSize.xs,
-            onPressed: () => widget.onRoleChanged?.call(
-              widget.userRole == UserRole.userAdmin
-                  ? UserRole.customer
-                  : UserRole.userAdmin,
-            ),
+            onPressed: () =>
+                _switchRole(isAdmin ? UserRole.customer : UserRole.userAdmin),
           ),
         ],
       ),
@@ -535,7 +645,7 @@ class _AppScaffoldState extends State<AppScaffold> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: UserRole.values.map((UserRole role) {
-            final bool isSelected = widget.userRole == role;
+            final bool isSelected = _effectiveRole == role;
             return Padding(
               padding: EdgeInsets.only(
                 bottom: context.sp(context.ui.spacing.sm),
@@ -543,7 +653,7 @@ class _AppScaffoldState extends State<AppScaffold> {
               child: UiInteractive(
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  widget.onRoleChanged?.call(role);
+                  _switchRole(role);
                   UiToast.show(
                     context,
                     title: 'Role Switch',
@@ -635,13 +745,15 @@ class _AppScaffoldState extends State<AppScaffold> {
         Expanded(
           child: AppShell(
             key: ValueKey<String>(
-              '${AppConstants.appName}_${widget.userRole.id}',
+              '${AppConstants.appName}_${_effectiveRole.id}',
             ),
             sections: navigation.sections,
             mobilePrimaryItems: navigation.mobilePrimaryItems,
             mobileMoreItems: navigation.mobileMoreItems,
             userMenuItems: navigation.userMenuItems,
-            selectedId: _selectedId,
+            selectedId: _showAffiliateApplication
+                ? 'affiliate_application'
+                : _selectedId,
             onSelect: _go,
             onSearch: () => _go('search'),
             onSettings: () => _go('settings_profile'),
@@ -650,14 +762,14 @@ class _AppScaffoldState extends State<AppScaffold> {
             onLogout: widget.onLogout,
             trader: _chromeIdentity,
             tier: tier,
-            workspaceName: widget.userRole == UserRole.customer
+            workspaceName: _effectiveRole == UserRole.customer
                 ? switch (tier) {
                     AppTier.free => 'TradeX Basic',
                     AppTier.premium => 'TradeX Pro',
                     AppTier.enterprise => 'TradeX Enterprise',
                   }
                 : navigation.workspaceName,
-            tierLabel: widget.userRole == UserRole.customer
+            tierLabel: _effectiveRole == UserRole.customer
                 ? switch (tier) {
                     AppTier.free => 'Basic Plan',
                     AppTier.premium => 'Pro Plan',
@@ -670,9 +782,26 @@ class _AppScaffoldState extends State<AppScaffold> {
             onBack: _pageBackOverride,
             pagePlaceholderBuilder: (BuildContext context, AppNavItem item) =>
                 _destinationSkeleton(item.id),
-            primaryAction: widget.onRoleChanged == null
+            primaryAction: _buildDesktopPreviewControls(),
+            researchPanelBuilder: _effectiveRole != UserRole.customer
                 ? null
-                : _buildDesktopPreviewControls(),
+                : (context, close, overlay) => ResearchRail(
+                    onClose: close,
+                    onOpenSymbol: (symbol) {
+                      if (overlay) close();
+                      _openLinkRef(
+                        AppLinkRef(
+                          kind: AppLinkKind.ticker,
+                          id: symbol,
+                          title: symbol,
+                        ),
+                      );
+                    },
+                    onOpenRef: (ref) {
+                      if (overlay) close();
+                      _openLinkRef(ref);
+                    },
+                  ),
             child: _buildActivePage(),
           ),
         ),
@@ -687,7 +816,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   Widget _buildSessionBanner() {
     final UiTheme theme = context.ui;
     final UiColors colors = theme.colors;
-    final bool isAdmin = widget.userRole == UserRole.userAdmin;
+    final bool isAdmin = _effectiveRole == UserRole.userAdmin;
     final Color accent = isAdmin ? colors.bearish : colors.warning;
     return Container(
       height: context.sz(36),
@@ -720,14 +849,14 @@ class _AppScaffoldState extends State<AppScaffold> {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Icon(
-                    widget.userRole.icon,
+                    _effectiveRole.icon,
                     size: context.sz(theme.sizes.iconSm - 2),
                     color: accent,
                   ),
                   UiGap.h(theme.spacing.xxs),
                   Flexible(
                     child: Text(
-                      widget.userRole.label.toUpperCase(),
+                      _effectiveRole.label.toUpperCase(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: context.uiText.caption.copyWith(
@@ -744,7 +873,7 @@ class _AppScaffoldState extends State<AppScaffold> {
           UiGap.h(theme.spacing.xs),
           Expanded(
             child: Text(
-              widget.userRole.subtitle,
+              _effectiveRole.subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: context.uiText.caption.copyWith(

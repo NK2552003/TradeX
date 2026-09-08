@@ -1,11 +1,11 @@
-# TraderHub — Full-Stack Folder Structure
+# TradeX full stack folder structure
 
-This document shows the recommended project layout for the full TraderHub app: Flutter on the client side and Supabase on the backend side. It is meant to be the single place to understand where app code, tests, migrations, and Edge Functions live.
+This document outlines the project layout for the TradeX application, organizing the Flutter client and Supabase backend into a single repository structure.
 
 ## Recommended layout
 
 ```text
-traderhub/
+TradeX/
   android/
   ios/
   macos/
@@ -96,46 +96,46 @@ traderhub/
   README.md
 ```
 
-## Frontend side
+## Frontend structure
 
-The Flutter app stays under `lib/` and `test/`.
+The Flutter application lives in `lib/` and `test/`:
 
-- `lib/core/` holds shared app-wide code: config, networking, routing, theme, utilities, and reusable widgets.
-- `lib/features/<feature>/` keeps each feature isolated into `data/`, `domain/`, and `presentation/` layers.
-- `test/` mirrors the production structure so tests are easy to place and find.
-- Platform folders like `android/`, `ios/`, `web/`, and desktop targets stay at the root because they are standard Flutter platform entry points.
+- `lib/core/`: shared application code including configuration, networking, routing, theme tokens, and reusable widgets.
+- `lib/features/<feature>/`: self-contained domain features separated into `data/`, `domain/`, and `presentation/` layers.
+- `test/`: mirrors the production directory structure to keep test suites paired with source features.
+- Platform folders (`android/`, `ios/`, `web/`, and desktop): standard Flutter platform targets at the workspace root.
 
-## Backend side
+## Backend structure
 
-The Supabase backend stays under `supabase/`.
+Supabase backend assets live under `supabase/`:
 
-- `supabase/migrations/` contains SQL migration files for schema, RLS, indexes, and database changes.
-- `supabase/functions/` contains Edge Functions, one folder per function.
-- Each Edge Function folder is server-side TypeScript/Deno code and should stay focused on a single API boundary or scheduled job.
+- `supabase/migrations/`: SQL migration files managing database schema definitions, row-level security policies, and performance indexes.
+- `supabase/functions/`: Supabase Edge Functions, with one directory per function.
+- Each function runs server-side TypeScript on Deno and handles a single API boundary or scheduled task.
 
-## Backend function map
+## Backend functions
 
 ```text
 supabase/functions/
-  ai-insight/                # AI market/trading insight generation
-  analyze-screenshot/        # Screenshot parsing for trade journal prefill
+  ai-insight/                # AI market and trading insights
+  analyze-screenshot/        # Vision parsing for trade journal screenshots
   ai-strategy-review/        # Premium strategy review
-  ai-journal-analysis/       # Premium journal analysis / trade review
+  ai-journal-analysis/       # Premium journal analysis and trade review
   strategy-ai-summary/       # Premium strategy summary generation
-  ai-chat/                   # Premium AI chat / Q&A
+  ai-chat/                   # Premium conversational Q&A
   price-alerts/              # Scheduled market alert checks
-  revenuecat-webhook/        # Subscription sync webhook
+  revenuecat-webhook/        # Subscription synchronization webhook
 ```
 
-## Practical rules
+## Architecture guidelines
 
-- Keep Flutter UI, state, and data access in the feature slice that owns them.
-- Keep shared logic in `lib/core/` only when more than one feature needs it.
-- Keep all schema changes in `supabase/migrations/` so the database is reproducible.
-- Keep all server-side API logic in `supabase/functions/` so secret keys never enter the client.
-- Add new product features as new feature slices in Flutter and, when needed, matching migrations or Edge Functions in Supabase.
+- Keep UI components, state providers, and repositories inside the feature slice that owns them.
+- Place utility functions in `lib/core/` only when multiple feature modules depend on them.
+- Track all database schema changes through `supabase/migrations/` to guarantee reproducible environments.
+- Keep third-party secrets and private keys inside Supabase Edge Function environment variables.
+- Implement new capabilities as self-contained feature slices in Flutter, paired with corresponding migrations or Edge Functions when backend support is required.
 
-## Relationship to the other docs
+## Related documentation
 
-- [04-frontend/FLUTTER_FOLDER_STRUCTURE.md](04-frontend/FLUTTER_FOLDER_STRUCTURE.md) is the frontend-only version of the app layout.
-- [02-architecture/ARCHITECTURE.md](02-architecture/ARCHITECTURE.md) remains the source of truth for the backend stack and the canonical folder structure used here.
+- [04-frontend/FLUTTER_FOLDER_STRUCTURE.md](./04-frontend/FLUTTER_FOLDER_STRUCTURE.md) details the client-only folder layout.
+- [02-architecture/ARCHITECTURE.md](./02-architecture/ARCHITECTURE.md) defines the backend stack and overall system design.

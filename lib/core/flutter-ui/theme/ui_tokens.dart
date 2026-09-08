@@ -293,7 +293,10 @@ class UiTypography {
   final TextStyle caption;
   final TextStyle numeric;
 
-  factory UiTypography.standard({String? fontFamily, String? monoFontFamily}) {
+  factory UiTypography.standard({
+    String? fontFamily = 'NotoSans',
+    String? monoFontFamily = 'NotoSansMono',
+  }) {
     // Optical tracking: large text tightens, small text opens up slightly.
     TextStyle base(
       double size,

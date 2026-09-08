@@ -1,35 +1,37 @@
-# Design System — TraderHub
-## Color Palette, Typography, and Component Styles for UI/UX
+# TradeX design system
+## Color palette, typography, and component styles
 
-Foundational visual language for TraderHub. Screens are specced separately per device: [SCREENS_MOBILE.md](./SCREENS_MOBILE.md), [SCREENS_TABLET.md](./SCREENS_TABLET.md), [SCREENS_DESKTOP.md](./SCREENS_DESKTOP.md). Navigation/deep-link behavior is in [DYNAMIC_LINKING.md](./DYNAMIC_LINKING.md).
+This document defines the visual standards for TradeX. Device-specific screen layouts live in [SCREENS_MOBILE.md](./SCREENS_MOBILE.md), [SCREENS_TABLET.md](./SCREENS_TABLET.md), and [SCREENS_DESKTOP.md](./SCREENS_DESKTOP.md). Route paths and deep linking rules live in [DYNAMIC_LINKING.md](./DYNAMIC_LINKING.md).
 
-### 1. Brand Personality
-Trust, clarity, discipline. TraderHub is a tool traders live in for hours — dense with numbers, charts, and journal text — so the system prioritizes **legibility and calm** over decoration. Data (P/L, prices, percentages) should never compete visually with chrome; color is reserved almost entirely for meaning (win/loss/alert/premium), not branding flourish.
+### 1. Brand personality
+Traders spend hours inside TradeX reading dense tables, charts, and journal entries. The interface favors clear legibility over visual flair. Core data like profit and loss, prices, and percentages should stand out immediately without competing with UI chrome. Color carries functional meaning (outcomes, alerts, and account tiers) rather than decorative branding.
 
-### 2. Color Palette
+### 2. Color palette
 
-**Dark mode is the default theme** (traders commonly work in low-light, chart-heavy sessions for extended periods); light mode is a supported alternative, not an afterthought.
+Dark mode is the default theme because traders typically work in low-light environments during long charting sessions. Light mode is fully supported as an alternate theme.
 
 #### Brand
 | Token | Hex | Usage |
 |---|---|---|
-| `brand-primary` | `#4F46E5` (Indigo 600) | Primary actions, active nav state, links |
+| `brand-primary` | `#4F46E5` (Indigo 600) | Primary actions, active navigation states, links |
 | `brand-primary-dark` | `#4338CA` (Indigo 700) | Primary button pressed state |
-| `brand-secondary` | `#0EA5E9` (Sky 500) | Secondary accents, AI-feature highlights (ties AI Trading Assistant surfaces together) |
+| `brand-secondary` | `#0EA5E9` (Sky 500) | Secondary accents and AI trading assistant highlights |
 
-#### Semantic (trading-specific — do not repurpose for anything else)
+#### Semantic colors (trading specific)
+Do not repurpose these tokens for general UI accents.
+
 | Token | Hex | Usage |
 |---|---|---|
-| `outcome-win` | `#16A34A` (Green 600) | Win outcome badge, positive P/L, equity curve upward segments |
-| `outcome-loss` | `#DC2626` (Red 600) | Loss outcome badge, negative P/L, equity curve downward segments |
+| `outcome-win` | `#16A34A` (Green 600) | Win outcome badges, positive profit/loss, upward equity curve lines |
+| `outcome-loss` | `#DC2626` (Red 600) | Loss outcome badges, negative profit/loss, downward equity curve lines |
 | `outcome-breakeven` | `#D97706` (Amber 600) | Breakeven outcome badge |
 | `alert` | `#F59E0B` (Amber 500) | Price alert triggers, warning banners |
-| `premium-accent` | `#EAB308` (Yellow 500, gold-leaning) | Premium tier badge, "Premium" locked-feature indicators, upgrade CTAs |
-| `enterprise-accent` | `#7C3AED` (Violet 600) | Enterprise tier badge, Org Dashboard chrome |
+| `premium-accent` | `#EAB308` (Yellow 500, gold) | Premium tier badges, locked feature indicators, upgrade prompts |
+| `enterprise-accent` | `#7C3AED` (Violet 600) | Enterprise tier badges, organization dashboard chrome |
 
-Colorblind note: red/green is the single highest-risk pairing in this app (P/L is the core signal). `outcome-win`/`outcome-loss` must always be paired with a non-color cue — an up/down icon, a `+`/`−` sign, or badge text ("Win"/"Loss") — never color alone.
+Accessibility note for color vision: red and green are high risk for colorblind users, yet profit and loss is the core signal in the product. Always pair `outcome-win` and `outcome-loss` with a non-color indicator: an arrow icon, a plus or minus sign, or explicit text like "Win" or "Loss". Never rely on color alone.
 
-#### Neutrals — Dark mode
+#### Dark mode neutrals
 | Token | Hex | Usage |
 |---|---|---|
 | `bg-base` | `#0B0E14` | App background |
@@ -37,10 +39,10 @@ Colorblind note: red/green is the single highest-risk pairing in this app (P/L i
 | `bg-surface-raised` | `#1E2430` | Modals, elevated cards |
 | `border-subtle` | `#2A3140` | Dividers, card borders |
 | `text-primary` | `#F5F6F8` | Primary text |
-| `text-secondary` | `#9AA3B2` | Secondary/meta text (timestamps, labels) |
+| `text-secondary` | `#9AA3B2` | Secondary and metadata text (timestamps, labels) |
 | `text-disabled` | `#5A6272` | Disabled text |
 
-#### Neutrals — Light mode
+#### Light mode neutrals
 | Token | Hex | Usage |
 |---|---|---|
 | `bg-base` | `#FFFFFF` | App background |
@@ -48,150 +50,166 @@ Colorblind note: red/green is the single highest-risk pairing in this app (P/L i
 | `bg-surface-raised` | `#FFFFFF` (with shadow) | Modals, elevated cards |
 | `border-subtle` | `#E2E5EA` | Dividers, card borders |
 | `text-primary` | `#12151C` | Primary text |
-| `text-secondary` | `#5A6272` | Secondary/meta text |
+| `text-secondary` | `#5A6272` | Secondary and metadata text |
 | `text-disabled` | `#B0B6C2` | Disabled text |
 
-#### Charts (Portfolio Dashboard, Ticker Detail)
+#### Chart colors
+Used in portfolio dashboards and ticker detail views.
+
 | Token | Hex | Usage |
 |---|---|---|
-| `chart-line-primary` | `brand-secondary` (`#0EA5E9`) | Equity curve line, indicator lines (SMA/MACD) |
-| `chart-fill-positive` | `outcome-win` @ 20% opacity | Win/Loss Distribution positive bars, area fill under equity curve when net positive |
-| `chart-fill-negative` | `outcome-loss` @ 20% opacity | Win/Loss Distribution negative bars, area fill when net negative |
+| `chart-line-primary` | `brand-secondary` (`#0EA5E9`) | Equity curve line, indicator lines (SMA, MACD) |
+| `chart-fill-positive` | `outcome-win` at 20% opacity | Positive bars in win/loss distribution, positive equity fill |
+| `chart-fill-negative` | `outcome-loss` at 20% opacity | Negative bars in win/loss distribution, negative equity fill |
 | `chart-gridline` | `border-subtle` | Axis gridlines |
 
 ### 3. Typography
+
 | Role | Font | Notes |
 |---|---|---|
-| UI / body text | Inter | Full app chrome, journal/strategy body text |
-| Numeric data (prices, P/L, stats) | IBM Plex Mono (or Roboto Mono) | Tabular figures for aligned decimals — critical anywhere prices/P&L stack vertically (Journal List, Portfolio Dashboard stat cards, Watchlist rows) |
-| Rich text editor content (Strategy Notes) | Inter | Matches body; headings within the editor use the same scale as below |
+| UI and body text | Inter | Application chrome, journal entries, and strategy copy |
+| Numeric figures (prices, P/L, statistics) | IBM Plex Mono (or Roboto Mono) | Tabular figures to keep decimals aligned when values stack vertically |
+| Rich text editor (Strategy notes) | Inter | Matches body text; headings use the scale below |
 
-**Type scale:**
-| Style | Size / Weight | Usage |
+#### Type scale
+| Style | Size / weight | Usage |
 |---|---|---|
-| Display | 28 / Bold | Portfolio Dashboard headline stat values |
-| H1 | 22 / Semibold | Screen titles |
-| H2 | 18 / Semibold | Section headers (card group titles) |
-| Body | 15 / Regular | Default body text |
-| Body Mono | 15 / Regular (mono) | Prices, P/L figures, stat values |
-| Caption | 13 / Regular | Timestamps, meta text, helper text |
-| Label | 12 / Medium, uppercase, letter-spaced | Badge text, tag chips |
+| Display | 28 / Bold | Primary portfolio stat figures |
+| H1 | 22 / Semibold | Main screen titles |
+| H2 | 18 / Semibold | Section headers and card group titles |
+| Body | 15 / Regular | Standard interface text |
+| Body Mono | 15 / Regular (mono) | Prices, profit and loss numbers, stat values |
+| Caption | 13 / Regular | Timestamps, secondary labels, helper copy |
+| Label | 12 / Medium (uppercase, tracked) | Badges and tag chips |
 
-### 4. Spacing & Grid
-- Base unit: 4px. Standard spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48
-- Screen horizontal padding: 16px (mobile), 24px (tablet), 32px+ (desktop, capped content width ~1200px for readability)
-- Card padding: 16px
-- Minimum tap target: 44×44px (mobile/tablet)
+### 4. Spacing and grid
+- Base unit: 4px. Standard scale: 4, 8, 12, 16, 24, 32, and 48px.
+- Screen horizontal margins: 16px on mobile, 24px on tablet, and 32px or more on desktop (max content width centered at 1200px).
+- Card padding: 16px.
+- Minimum tap target: 44x44px on mobile and tablet.
 
 ### 5. Iconography
-- Style: outline icons at rest, filled/duotone for active/selected state (nav tabs, favorited items)
-- Recommended set: Lucide (or Phosphor) — both have full coverage for finance-app needs (trending-up/down, bell, star, chart icons)
-- Outcome icons: up-arrow (win), down-arrow (loss), dash/tilde (breakeven) — always paired with `outcome-*` colors, never color-only (§ 2)
-- Tier badges: small crown or star icon for Premium, building/org icon for Enterprise
+- Style: outline icons at rest, filled or duotone icons for active and selected states (navigation tabs, saved items).
+- Icon set: Lucide or Phosphor. Both include financial icons such as trend lines, bells, stars, and chart indicators.
+- Outcome indicators: up arrow for wins, down arrow for losses, and a horizontal dash for breakeven trades. Always display these alongside the corresponding semantic color tokens.
+- Tier indicators: crown or star icon for Premium, building or organization icon for Enterprise.
 
-### 6. Core Components
+### 6. Core components
 
-**Buttons**
-| Variant | Style |
+#### Buttons
+| Variant | Visual style |
 |---|---|
 | Primary | Filled `brand-primary`, white text, 8px corner radius |
-| Secondary | Outlined `border-subtle`, `text-primary` text |
-| Destructive | Filled `outcome-loss`, white text — delete/remove actions only |
-| Disabled | `text-disabled` on `bg-surface`, no interaction |
-| Premium-locked | Secondary style + small lock icon + `premium-accent` accent border |
+| Secondary | Outlined with `border-subtle`, `text-primary` text |
+| Destructive | Filled `outcome-loss`, white text (reserved strictly for delete or remove actions) |
+| Disabled | `text-disabled` text on `bg-surface`, non-interactive |
+| Premium locked | Secondary outline with a small lock icon and a `premium-accent` border |
 
-**Cards** — `bg-surface`, 12px corner radius, 1px `border-subtle` border, 16px padding. Elevated cards (modals, active states) use `bg-surface-raised` with a soft shadow (dark mode: shadow via lighter surface, not drop-shadow).
+#### Cards
+Cards use `bg-surface` with a 12px corner radius, a 1px `border-subtle` border, and 16px internal padding. Elevated surfaces (modals and active selections) switch to `bg-surface-raised`. In dark mode, elevation is represented by the lighter surface token rather than a drop shadow. In light mode, elevated cards take a soft drop shadow.
 
-**Badges**
-| Type | Style |
+#### Badges
+| Type | Visual style |
 |---|---|
-| Outcome (win/loss/breakeven) | Pill, `outcome-*` background @ 15% opacity, `outcome-*` text + icon |
-| Tier (Free/Premium/Enterprise) | Pill, `premium-accent` or `enterprise-accent` outline |
-| Content type (Community posts) | Pill, `bg-surface-raised` background, `text-secondary` text |
-| Visibility (Private/Public on Strategy Notes) | Small icon only (lock / globe), no pill |
+| Outcome (win, loss, breakeven) | Rounded pill with an `outcome-*` background at 15% opacity, matching text color, and status icon |
+| Tier (Free, Premium, Enterprise) | Rounded pill with a `premium-accent` or `enterprise-accent` border |
+| Content category (Community posts) | Rounded pill on `bg-surface-raised` with `text-secondary` text |
+| Strategy visibility | Inline lock or globe icon without a pill container |
 
-**Inputs** — `bg-surface` background, `border-subtle` border (1px), `brand-primary` border on focus, 8px corner radius, 44px min height.
+#### Inputs
+Form fields use a `bg-surface` fill, a 1px `border-subtle` stroke, an 8px corner radius, and a 44px minimum touch height. Focusing a field changes the border to `brand-primary`.
 
-**Charts** — see § 2 Charts table. All charts share consistent axis label typography (Caption style) and a single tooltip style (`bg-surface-raised`, Body Mono for values).
+#### Charts
+Chart colors follow the tokens defined in section 2. Axis labels use the Caption type style. Tooltips use a `bg-surface-raised` container with Body Mono figures for numeric values.
 
 ### 7. Accessibility
-- Minimum contrast: 4.5:1 for body text, 3:1 for large text/icons, against both `bg-base` and `bg-surface` in both themes
-- `outcome-win`/`outcome-loss` pairing verified for deuteranopia/protanopia — icon + text label required alongside color everywhere it appears (journal outcome badges, equity curve, Win/Loss Distribution chart legend)
-- All interactive elements meet the 44×44px minimum tap target regardless of device
+- Text contrast: maintain at least 4.5:1 for body text and 3:1 for large headings and icons against `bg-base` and `bg-surface` in both light and dark modes.
+- Color perception: every instance of `outcome-win` or `outcome-loss` (badges, curves, chart legends) must include an icon or text label so users with deuteranopia or protanopia can read the state without relying on color.
+- Touch target sizing: all interactive controls must be at least 44x44px.
 
-### 8. Breakpoints & Grid
-| Breakpoint | Width | Columns | Gutter | Margin | Doc |
+### 8. Breakpoints and grid
+
+| Breakpoint | Width | Columns | Gutter | Margin | Specification |
 |---|---|---|---|---|---|
-| Mobile | < 600px | 4 | 16px | 16px | [SCREENS_MOBILE.md](./SCREENS_MOBILE.md) |
-| Tablet | 600–1200px | 8 | 20px | 24px | [SCREENS_TABLET.md](./SCREENS_TABLET.md) |
-| Desktop | > 1200px | 12 (content capped ~1200px, centered) | 24px | 32px+ | [SCREENS_DESKTOP.md](./SCREENS_DESKTOP.md) |
+| Mobile | Under 600px | 4 | 16px | 16px | [SCREENS_MOBILE.md](./SCREENS_MOBILE.md) |
+| Tablet | 600 to 1200px | 8 | 20px | 24px | [SCREENS_TABLET.md](./SCREENS_TABLET.md) |
+| Desktop | Over 1200px | 12 (centered, 1200px max content width) | 24px | 32px+ | [SCREENS_DESKTOP.md](./SCREENS_DESKTOP.md) |
 
-Transition between breakpoints is layout-only (reflow, pane count, nav pattern) — component styling (§ 6), color (§ 2), and type scale (§ 3) do not change by breakpoint. Orientation change on mobile/tablet (portrait↔landscape) re-evaluates against this same table using the new width, not a separate ruleset.
+Breakpoint changes alter layout structure only (column count, pane visibility, and navigation mode). Component tokens, typography scales, and color values remain identical across screen sizes. When a mobile or tablet device rotates between portrait and landscape, re-evaluate layout against width thresholds in this table.
 
-### 9. Motion & Transitions
+### 9. Motion and transitions
+
 | Token | Duration | Easing | Usage |
 |---|---|---|---|
-| `motion-instant` | 100ms | linear | Toggle switches, checkbox states |
-| `motion-fast` | 150ms | ease-out | Button press feedback, chip selection |
-| `motion-standard` | 250ms | ease-in-out | Screen push/pop, tab switch, card expand/collapse |
-| `motion-modal` | 300ms | ease-out (enter) / ease-in (exit) | Bottom sheet slide-up, dialog fade+scale-in |
-| `motion-chart` | 400ms | ease-in-out | Chart data transitions (e.g. switching Weekly↔Monthly on Portfolio Dashboard) |
+| `motion-instant` | 100ms | linear | Toggle switches, checkbox selections |
+| `motion-fast` | 150ms | ease-out | Button press feedback, chip selections |
+| `motion-standard` | 250ms | ease-in-out | Route navigation, tab switches, card accordion toggles |
+| `motion-modal` | 300ms | ease-out (open), ease-in (close) | Bottom sheets, dialog open and close animations |
+| `motion-chart` | 400ms | ease-in-out | Chart timeframe switches (such as weekly to monthly views) |
 
-**Screen transition patterns** (mobile/tablet): push new screens slide in from the right, pop slides out to the right (platform-native — do not override iOS's native back-swipe feel). Bottom sheets slide up from the bottom edge and dim the backdrop. Desktop dialogs fade+scale from 96%→100% rather than sliding (no "edge" to slide from in a windowed context).
+#### Screen transitions
+On mobile and tablet, pushed screens slide in from the right and exit to the right. Keep platform-native navigation intact, especially the iOS edge-swipe back gesture. Bottom sheets slide up from the bottom of the screen while dimming the background. Desktop dialogs fade and scale between 96% and 100% rather than sliding from an edge.
 
-**Loading:** skeleton placeholders (§ Cross-cutting states, SCREENS_MOBILE.md) use a subtle shimmer sweep, `motion-standard` duration, looping — never a spinner as the primary loading indicator except the very first cold-launch splash frame.
+#### Loading indicators
+Use skeleton loaders with a looping shimmer effect (`motion-standard`) for loading states, as detailed in [SCREENS_MOBILE.md](./SCREENS_MOBILE.md). Do not use spinners as primary page loaders, except during the initial application launch splash screen.
 
-**Reduced motion:** respect OS-level "reduce motion" settings — fall back to simple opacity crossfades (`motion-fast`) in place of slide/scale transitions everywhere in this section.
+#### Reduced motion
+Check system accessibility preferences for reduced motion. When enabled, replace all slide and scale animations with simple opacity crossfades (`motion-fast`).
 
-### 10. Elevation & Shadow Scale
-| Level | Usage | Dark mode treatment | Light mode treatment |
+### 10. Elevation and shadow scale
+
+| Level | Usage | Dark mode | Light mode |
 |---|---|---|---|
-| 0 | Base screen background | `bg-base` | `bg-base` |
-| 1 | Cards, list rows | `bg-surface`, no shadow | `bg-surface`, no shadow |
-| 2 | Raised cards, active/selected card state | `bg-surface-raised`, no shadow (lighter fill reads as "raised" in dark mode) | `bg-surface-raised` + shadow `0 1px 3px rgba(0,0,0,0.08)` |
-| 3 | Bottom sheets, popovers | `bg-surface-raised` + 1px top border `border-subtle` (sheets), shadow `0 -2px 8px rgba(0,0,0,0.24)` | Same shadow, no border needed |
-| 4 | Modals/dialogs, toasts | `bg-surface-raised` + shadow `0 8px 24px rgba(0,0,0,0.32)` | shadow `0 8px 24px rgba(0,0,0,0.12)` |
+| 0 | Base canvas | `bg-base` | `bg-base` |
+| 1 | Flat cards and rows | `bg-surface` without shadow | `bg-surface` without shadow |
+| 2 | Selected or raised cards | `bg-surface-raised` without shadow | `bg-surface-raised` with `0 1px 3px rgba(0,0,0,0.08)` shadow |
+| 3 | Bottom sheets and popovers | `bg-surface-raised`, 1px top border `border-subtle`, and `0 -2px 8px rgba(0,0,0,0.24)` shadow | `bg-surface-raised` with `0 -2px 8px rgba(0,0,0,0.24)` shadow |
+| 4 | Dialogs, toasts, and alerts | `bg-surface-raised` with `0 8px 24px rgba(0,0,0,0.32)` shadow | `bg-surface-raised` with `0 8px 24px rgba(0,0,0,0.12)` shadow |
 
-Dark mode leans on surface-color steps rather than heavy shadows (shadows barely read against near-black backgrounds); light mode leans on shadow since surface steps are subtler there.
+Dark mode relies on step changes in background tint rather than heavy shadows because drop shadows are difficult to see against dark backgrounds. Light mode uses shadows because neutral background steps are closer in value.
 
-### 11. Component States
-Beyond the default/disabled states already in § 6:
+### 11. Component states
 
-| Component | Hover (desktop only) | Focus (keyboard/a11y) | Pressed/Active |
+These states extend the default and disabled definitions from section 6:
+
+| Component | Hover (pointer devices only) | Focus (keyboard navigation) | Pressed / active |
 |---|---|---|---|
-| Buttons (all variants) | Background darkens ~8% | 2px `brand-primary` outline, 2px offset | Background darkens ~16%, scale 98% (`motion-fast`) |
-| Inputs | Border → `text-secondary` | Border → `brand-primary` (2px) | — (focus state persists while typing) |
-| Cards (journal/strategy/post/watchlist rows) | Elevate to Level 2 (§ 10), border → `brand-primary` @ 40% | 2px `brand-primary` outline | Background → `bg-surface-raised` briefly on tap (`motion-fast`) |
-| List rows (Followers, Notification Center, Team Management) | Background → `bg-surface-raised` | 2px inset `brand-primary` outline | Background darkens briefly |
-| Chips/Tags (filters, categories) | Border → `brand-primary` | 2px `brand-primary` outline | Fill toggles to selected state |
-| Nav items (sidebar/rail/tab bar) | Background → `bg-surface` (desktop/tablet only) | 2px `brand-primary` outline | Active state uses filled icon variant (§ 5), not a pressed-flash |
+| Buttons (all variants) | Background darkens by roughly 8% | 2px `brand-primary` outline with a 2px offset | Background darkens by roughly 16%, scales to 98% (`motion-fast`) |
+| Input fields | Border changes to `text-secondary` | Border changes to `brand-primary` (2px width) | Focus border remains active during text input |
+| Interactive cards | Elevates to level 2, border tints to `brand-primary` at 40% | 2px `brand-primary` outline | Background briefly switches to `bg-surface-raised` on tap (`motion-fast`) |
+| List items | Background switches to `bg-surface-raised` | 2px inset `brand-primary` outline | Background briefly darkens |
+| Chips and filter tags | Border changes to `brand-primary` | 2px `brand-primary` outline | Background fill changes to selected state |
+| Navigation items | Background changes to `bg-surface` | 2px `brand-primary` outline | Active route uses the filled icon variant rather than a flash animation |
 
-Hover only applies where a real pointer exists (desktop, and tablet with a trackpad/mouse) — mobile touch has no hover state; pressed/active is the only additional state beyond default there.
+Hover states only render when a cursor is present (desktop and tablet with a mouse or trackpad). Touch screens do not show hover states; touch interaction goes directly from default to pressed.
 
-### 12. Illustration Style Direction
-No illustration assets exist yet — this is direction for whoever produces them (designer or an image-generation pass), not artwork itself.
-- **Style:** simple line-art / duotone (two-tone using `brand-primary` + a neutral), flat — no photorealism, no busy detail. Matches the "calm, data-first" brand personality (§ 1).
-- **Where illustrations appear:** empty states (Journal List, Strategy List, Watchlist List, Community Feed, Notification Center, Saved Posts — see SCREENS_MOBILE.md cross-cutting states), Splash/Onboarding carousel (5 slides, one per pillar), the Free-tier Strategy Notes locked state.
-- **Tone:** illustrative, not cartoonish — this is a tool for serious financial record-keeping; avoid mascot characters or overly playful shapes.
-- **Sizing:** empty-state illustrations ~120×120px (mobile), scale proportionally on tablet/desktop; onboarding illustrations full-bleed within their carousel slide.
+### 12. Illustration guidelines
 
-### 13. Chart Spec Detail
-Applies to Equity Curve, Monthly Growth, and Win/Loss Distribution (Portfolio Dashboard) and price/indicator charts (Ticker Detail):
-- **Number formatting:** currency values abbreviate above $10,000 (`$12.4K`, `$1.2M`); below that, full value with 2 decimals (`$1,234.56`). Percentages always 1 decimal (`64.3%`). Never abbreviate in tooltips — tooltips always show the full precise value even if the axis label is abbreviated.
-- **Date formatting:** axis labels adapt to range — day-of-month only for a single month view (`12`, `19`, `26`), abbreviated month for a year view (`Jan`, `Feb`).
-- **Tooltip content:** on hover (desktop, § 11) or tap-and-hold (mobile/tablet) — shows the exact date, exact value (Body Mono style, § 3), and for Equity Curve additionally shows the day's individual trade count.
-- **Empty/insufficient-data state:** fewer than 5 journal entries with `pnl` set → charts render a muted placeholder curve/bars with a centered message ("Log a few more trades to see your equity curve") rather than a misleadingly sparse real chart.
-- **Color mapping:** reuses `chart-*` tokens from § 2 exactly — no chart introduces a new color outside that token set.
+These specifications guide future artwork production:
 
-### 14. App Icon & Splash Assets
-Specification only — actual artwork production is outside this doc's scope.
-| Asset | Requirement |
+- Style: flat two-tone line art using `brand-primary` combined with background neutrals. Avoid photorealism and heavy detail.
+- Placement: empty states (journal entries, strategy notes, watchlists, social feed, notifications, saved posts), onboarding walkthrough slides, and the locked preview for free tier strategy notes.
+- Tone: clean and functional. Avoid cartoon mascots and whimsical shapes.
+- Dimensions: empty state artwork is approximately 120x120px on mobile and scales proportionally on tablet and desktop. Onboarding artwork spans full width inside its slide container.
+
+### 13. Chart specifications
+
+These rules apply to portfolio dashboard charts (equity curve, monthly growth, win/loss breakdown) and ticker detail charts:
+
+- Number formatting: abbreviate currency amounts above $10,000 (such as $12.4K or $1.2M). Show full values with two decimal places below $10,000 (such as $1,234.56). Percentages always display one decimal place (64.3%). Tooltips always show the exact, unrounded value even when the chart axis is abbreviated.
+- Date formatting: axis labels adjust based on the visible range. Single-month views show day numbers (12, 19, 26). Multi-month or annual views show abbreviated month names (Jan, Feb).
+- Tooltip details: hovering on desktop or pressing and holding on mobile displays the exact date, unrounded value in Body Mono font, and the daily trade count for equity curves.
+- Low data threshold: when a user has logged fewer than 5 trades with recorded profit or loss, show a muted placeholder line with a message prompting them to log more trades. Do not render an empty or single-point graph.
+- Color consistency: charts only use the `chart-*` tokens defined in section 2.
+
+### 14. Icon and splash asset requirements
+
+| Asset | Technical requirement |
 |---|---|
-| iOS App Icon | 1024×1024px source, no transparency, no rounded corners pre-applied (iOS masks automatically) |
-| Android Adaptive Icon | Separate foreground (432×432px, safe zone centered 264×264px) and background layers |
-| Web Favicon | 512×512px source, exported to standard favicon sizes (16/32/48/180/192/512) |
-| Splash screen | Logo mark centered on `bg-base` (dark) — no separate splash illustration; keep it minimal since it's on-screen for milliseconds |
-| Notification icon (Android) | Monochrome, transparent background, per Android's status-bar icon requirements |
+| iOS app icon | 1024x1024px source image without transparency. Do not round corners beforehand because iOS handles masking automatically. |
+| Android adaptive icon | Separate foreground (432x432px with a centered 264x264px safe area) and background layers. |
+| Web favicon | 512x512px master source, exported to 16, 32, 48, 180, 192, and 512px outputs. |
+| Splash screen | Brand logo mark centered on `bg-base` dark background without additional illustrations. |
+| Android notification icon | Monochrome silhouette with a transparent background following Android status bar conventions. |
 
-Icon mark should be a simplified/monochrome-friendly version of the full wordmark logo (§ 1) — legible at 16px favicon size, which the full wordmark is not.
-
+The icon mark should be a simplified version of the wordmark logo so it remains recognizable at a 16px favicon resolution.

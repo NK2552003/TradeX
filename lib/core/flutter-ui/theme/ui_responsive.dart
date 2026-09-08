@@ -171,10 +171,12 @@ class UiResponsiveBuilder extends StatelessWidget {
   final Widget Function(BuildContext context, UiResponsive r) builder;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (BuildContext ctx, BoxConstraints _) =>
-        builder(ctx, UiResponsive.of(ctx)),
-  );
+  Widget build(BuildContext context) {
+    final r = UiResponsive.of(context);
+    return LayoutBuilder(
+      builder: (BuildContext ctx, BoxConstraints _) => builder(ctx, r),
+    );
+  }
 }
 
 /// Responsive layout switch.

@@ -24,6 +24,14 @@ ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE revenuecat_webhook_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trader_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trader_note_likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trader_note_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trader_note_views ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trader_note_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE journal_entry_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE strategy_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE note_journal_links ENABLE ROW LEVEL SECURITY;
 
 -- Helper function to check if current user is user_admin
 CREATE OR REPLACE FUNCTION is_user_admin()
@@ -232,4 +240,245 @@ WITH CHECK (sender_id <> auth.uid());
 DROP POLICY IF EXISTS notifications_own_all ON notifications;
 CREATE POLICY notifications_own_all ON notifications FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+-- trader notes
+DROP POLICY IF EXISTS trader_notes_own_all ON trader_notes;
+CREATE POLICY trader_notes_own_all ON trader_notes FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS trader_notes_public_read ON trader_notes;
+CREATE POLICY trader_notes_public_read ON trader_notes FOR SELECT USING (is_public = true);
+
+DROP POLICY IF EXISTS trader_note_likes_public_read ON trader_note_likes;
+CREATE POLICY trader_note_likes_public_read ON trader_note_likes FOR SELECT
+USING (EXISTS (SELECT 1 FROM trader_notes n WHERE n.id = note_id AND n.is_public));
+DROP POLICY IF EXISTS trader_note_likes_own_write ON trader_note_likes;
+CREATE POLICY trader_note_likes_own_write ON trader_note_likes FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (
+  auth.uid() = user_id AND
+  EXISTS (SELECT 1 FROM trader_notes n WHERE n.id = note_id AND n.is_public)
+);
+
+DROP POLICY IF EXISTS trader_note_comments_public_read ON trader_note_comments;
+CREATE POLICY trader_note_comments_public_read ON trader_note_comments FOR SELECT
+USING (EXISTS (SELECT 1 FROM trader_notes n WHERE n.id = note_id AND n.is_public));
+DROP POLICY IF EXISTS trader_note_comments_own_insert ON trader_note_comments;
+CREATE POLICY trader_note_comments_own_insert ON trader_note_comments FOR INSERT
+WITH CHECK (
+  auth.uid() = user_id AND
+  EXISTS (SELECT 1 FROM trader_notes n WHERE n.id = note_id AND n.is_public)
+);
+DROP POLICY IF EXISTS trader_note_comments_own_modify ON trader_note_comments;
+CREATE POLICY trader_note_comments_own_modify ON trader_note_comments FOR UPDATE
+USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS trader_note_comments_own_delete ON trader_note_comments;
+CREATE POLICY trader_note_comments_own_delete ON trader_note_comments FOR DELETE
+USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS trader_note_views_own_insert ON trader_note_views;
+CREATE POLICY trader_note_views_own_insert ON trader_note_views FOR INSERT
+WITH CHECK (
+  auth.uid() = user_id AND
+  EXISTS (SELECT 1 FROM trader_notes n WHERE n.id = note_id AND n.is_public)
+);
+DROP POLICY IF EXISTS trader_note_views_owner_read ON trader_note_views;
+CREATE POLICY trader_note_views_owner_read ON trader_note_views FOR SELECT
+USING (
+  auth.uid() = user_id OR
+  auth.uid() = (SELECT n.user_id FROM trader_notes n WHERE n.id = note_id)
+);
+
+-- trader note attachments
+DROP POLICY IF EXISTS trader_note_attachments_own_all ON trader_note_attachments;
+CREATE POLICY trader_note_attachments_own_all ON trader_note_attachments
+FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (
+  auth.uid() = user_id
+  -- An attachment may only be filed against a note the same user owns,
+  -- otherwise a shared note could be used to smuggle rows into someone
+  -- else's gallery.
+  AND auth.uid() = (SELECT n.user_id FROM trader_notes n WHERE n.id = trader_note_attachments.note_id)
+);
+-- Without this a public note renders with broken images for every reader but
+-- its author, since the preview resolves each attachment row before signing.
+DROP POLICY IF EXISTS trader_note_attachments_public_read ON trader_note_attachments;
+CREATE POLICY trader_note_attachments_public_read ON trader_note_attachments
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM trader_notes n
+    WHERE n.id = trader_note_attachments.note_id AND n.is_public
+  )
+);
+
+-- note <-> journal links (migration 011)
+-- user_id is denormalised onto the join row precisely so this policy is one
+-- comparison instead of two subqueries: it is the hot path behind every
+-- linked-records panel in the app. Cross-owner edges are rejected by
+-- validate_note_journal_link() before the row lands, which is also what assigns
+-- user_id -- so WITH CHECK here trusts the trigger, not the client.
+DROP POLICY IF EXISTS note_journal_links_own_all ON note_journal_links;
+CREATE POLICY note_journal_links_own_all ON note_journal_links
+FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (
+  auth.uid() = (SELECT n.user_id FROM trader_notes n WHERE n.id = note_journal_links.note_id)
+);
+
+-- journal entry attachments (migration 009)
+-- No public read policy, at any depth. There is no public journal route, so
+-- there is no reader to grant.
+DROP POLICY IF EXISTS journal_entry_attachments_own_all ON journal_entry_attachments;
+CREATE POLICY journal_entry_attachments_own_all ON journal_entry_attachments
+FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (
+  auth.uid() = user_id
+  AND auth.uid() = (
+    SELECT e.user_id FROM journal_entries e WHERE e.id = journal_entry_attachments.entry_id
+  )
+);
+
+-- strategy attachments (migration 010)
+DROP POLICY IF EXISTS strategy_attachments_own_all ON strategy_attachments;
+CREATE POLICY strategy_attachments_own_all ON strategy_attachments
+FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (
+  auth.uid() = user_id
+  AND auth.uid() = (
+    SELECT s.user_id FROM strategies s WHERE s.id = strategy_attachments.strategy_id
+  )
+);
+-- A published playbook's diagrams travel with it, or it renders with broken
+-- images for every reader but its author.
+DROP POLICY IF EXISTS strategy_attachments_public_read ON strategy_attachments;
+CREATE POLICY strategy_attachments_public_read ON strategy_attachments
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM strategies s
+    WHERE s.id = strategy_attachments.strategy_id AND s.visibility = 'public'
+  )
+);
+
 COMMIT;
+
+-- ---------------------------------------------------------------------------
+-- Storage object policies.
+--
+-- Deliberately a separate transaction: `storage.objects` is owned by
+-- supabase_admin, so these must run as a role that can create policies on it
+-- (the dashboard SQL editor runs as postgres, which can). A failure here must
+-- not roll back the table policies above.
+--
+-- Create the three private buckets first: note-attachments,
+-- journal-attachments, strategy-attachments. Every object key is
+-- `<user_id>/<parent_id>/<uuid><ext>`, which is what lets the owner policies be
+-- prefix matches rather than joins.
+-- ---------------------------------------------------------------------------
+
+BEGIN;
+
+DROP POLICY IF EXISTS note_attachments_owner_all ON storage.objects;
+CREATE POLICY note_attachments_owner_all ON storage.objects
+FOR ALL
+USING (bucket_id = 'note-attachments'
+       AND (storage.foldername(name))[1] = auth.uid()::text)
+WITH CHECK (bucket_id = 'note-attachments'
+       AND (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Compare s.id::text to the path segment rather than casting the segment to
+-- uuid: one malformed key would otherwise raise inside a policy, which fails
+-- the whole query instead of skipping the one row.
+DROP POLICY IF EXISTS note_attachments_public_read ON storage.objects;
+CREATE POLICY note_attachments_public_read ON storage.objects
+FOR SELECT
+USING (
+  bucket_id = 'note-attachments'
+  AND EXISTS (
+    SELECT 1 FROM trader_notes n
+     WHERE n.id::text = (storage.foldername(name))[2]
+       AND n.is_public
+  )
+);
+
+-- journal-attachments gets an owner policy and nothing else. A journal entry has
+-- no reader other than its owner, so there is nothing to grant, and a "just in
+-- case" public read here is how a trade screenshot ends up on a CDN.
+DROP POLICY IF EXISTS journal_attachments_owner_all ON storage.objects;
+CREATE POLICY journal_attachments_owner_all ON storage.objects
+FOR ALL
+USING (bucket_id = 'journal-attachments'
+       AND (storage.foldername(name))[1] = auth.uid()::text)
+WITH CHECK (bucket_id = 'journal-attachments'
+       AND (storage.foldername(name))[1] = auth.uid()::text);
+
+DROP POLICY IF EXISTS strategy_attachments_owner_all ON storage.objects;
+CREATE POLICY strategy_attachments_owner_all ON storage.objects
+FOR ALL
+USING (bucket_id = 'strategy-attachments'
+       AND (storage.foldername(name))[1] = auth.uid()::text)
+WITH CHECK (bucket_id = 'strategy-attachments'
+       AND (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Without this, granting the attachment *row* to a visitor is not enough:
+-- createSignedUrl checks storage.objects RLS for the caller, so the reader gets
+-- a row, a request, and a 403.
+DROP POLICY IF EXISTS strategy_attachments_objects_public_read ON storage.objects;
+CREATE POLICY strategy_attachments_objects_public_read ON storage.objects
+FOR SELECT
+USING (
+  bucket_id = 'strategy-attachments'
+  AND EXISTS (
+    SELECT 1 FROM strategies s
+     WHERE s.id::text = (storage.foldername(name))[2]
+       AND s.visibility = 'public'
+  )
+);
+
+COMMIT;
+
+-- 013 Markets and News
+ALTER TABLE instruments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE quotes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE news_articles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE news_tickers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE news_bookmarks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE note_ticker_links ENABLE ROW LEVEL SECURITY;
+
+-- instruments
+DROP POLICY IF EXISTS instruments_read ON instruments;
+CREATE POLICY instruments_read ON instruments FOR SELECT USING (true);
+
+-- quotes
+DROP POLICY IF EXISTS quotes_read ON quotes;
+CREATE POLICY quotes_read ON quotes FOR SELECT USING (true);
+
+-- news_articles
+DROP POLICY IF EXISTS news_articles_read ON news_articles;
+CREATE POLICY news_articles_read ON news_articles FOR SELECT USING (true);
+
+-- news_tickers
+DROP POLICY IF EXISTS news_tickers_read ON news_tickers;
+CREATE POLICY news_tickers_read ON news_tickers FOR SELECT USING (true);
+
+-- news_bookmarks
+DROP POLICY IF EXISTS news_bookmarks_select ON news_bookmarks;
+CREATE POLICY news_bookmarks_select ON news_bookmarks FOR SELECT USING (user_id = auth.uid());
+DROP POLICY IF EXISTS news_bookmarks_insert ON news_bookmarks;
+CREATE POLICY news_bookmarks_insert ON news_bookmarks FOR INSERT WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS news_bookmarks_delete ON news_bookmarks;
+CREATE POLICY news_bookmarks_delete ON news_bookmarks FOR DELETE USING (user_id = auth.uid());
+
+-- note_ticker_links
+DROP POLICY IF EXISTS note_ticker_links_select ON note_ticker_links;
+CREATE POLICY note_ticker_links_select ON note_ticker_links FOR SELECT USING (user_id = auth.uid());
+DROP POLICY IF EXISTS note_ticker_links_insert ON note_ticker_links;
+CREATE POLICY note_ticker_links_insert ON note_ticker_links FOR INSERT WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS note_ticker_links_delete ON note_ticker_links;
+CREATE POLICY note_ticker_links_delete ON note_ticker_links FOR DELETE USING (user_id = auth.uid());
+
+-- 014 Market History
+ALTER TABLE market_history ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS market_history_read ON market_history;
+CREATE POLICY market_history_read ON market_history FOR SELECT USING (true);

@@ -41,7 +41,7 @@ class UiAccordionItem {
   final Widget? trailing;
   final String? badge;
 
-  /// Tints the header text/icon and shows an accent stripe.
+  /// Tints the header text/icon without adding a heavy edge stripe.
   final UiIntent? intent;
   final bool enabled;
   final bool initiallyOpen;
@@ -241,11 +241,6 @@ class _UiAccordionTile extends StatelessWidget {
                       : (open && variant != UiAccordionVariant.ghost
                             ? c.surfaceMuted
                             : const Color(0x00000000)),
-                  border: accent != null
-                      ? Border(
-                          left: BorderSide(color: accent, width: ctx.sz(3)),
-                        )
-                      : null,
                 ),
                 foregroundDecoration: s.focused
                     ? uiFocusRing(ctx, BorderRadius.zero)

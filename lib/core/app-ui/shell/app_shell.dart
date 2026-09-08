@@ -6,6 +6,7 @@ import '../../flutter-ui/flutter_ui.dart';
 import '../brand/app_logo.dart';
 import '../models/app_models.dart';
 import '../motion/app_motion.dart';
+import '../motion/page_transition.dart';
 import '../theme/app_tokens.dart';
 
 /// Adaptive application shell.
@@ -39,12 +40,19 @@ class AppShell extends StatefulWidget {
     this.pageIcon,
     this.onBack,
     this.pagePlaceholderBuilder,
+    this.researchPanelBuilder,
   });
 
   final List<AppNavSection> sections;
   final String selectedId;
   final ValueChanged<String> onSelect;
   final Widget child;
+
+  /// Full-height companion panel, outside the page and its header. The builder
+  /// receives a close callback and an overlay flag, so navigation can dismiss
+  /// a temporary drawer while leaving a docked pane open.
+  final Widget Function(BuildContext context, VoidCallback close, bool overlay)?
+  researchPanelBuilder;
   final AppTrader? trader;
   final AppTier tier;
   final VoidCallback? onSearch;
@@ -90,7 +98,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   bool _collapsed = false;
-  bool _navigationForward = true;
+  bool _researchVisible = true;
 
   /// The dock owns its own page index and reads `initialIndex` exactly once, so
   /// the shell drives it through a controller instead. Without this, navigation
@@ -143,14 +151,6 @@ class _AppShellState extends State<AppShell> {
   void didUpdateWidget(covariant AppShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedId != widget.selectedId) {
-      final List<AppNavItem> items = _dockItems;
-      final int previous = items.indexWhere(
-        (AppNavItem item) => item.id == oldWidget.selectedId,
-      );
-      final int next = items.indexWhere(
-        (AppNavItem item) => item.id == widget.selectedId,
-      );
-      _navigationForward = previous < 0 || next < 0 || next >= previous;
       _syncDock();
     }
   }
@@ -174,6 +174,57 @@ class _AppShellState extends State<AppShell> {
   Widget _pagePlaceholder(BuildContext context, AppNavItem item) =>
       widget.pagePlaceholderBuilder?.call(context, item) ?? UiSkeleton.page();
 
+  Widget _buildTicker(UiTheme theme) {
+    final textStyle = context.uiText.caption.copyWith(
+      fontWeight: FontWeight.w600,
+      fontSize: context.fs(12),
+      color: Colors.white,
+    );
+
+    final tickerItems = <(String, String, String)>[
+      ('S&P 500', '7,718.60', '-0.38%'),
+      ('Dow 30', '53,414.25', '-0.51%'),
+      ('Nasdaq', '26,506.99', '-0.29%'),
+      ('Russell 2000', '2,975.65', '+0.25%'),
+      ('VIX', '15.30', '+5.30%'),
+      ('Gold', '4,479.90', '+0.07%'),
+      ('Bitcoin USD', '78,914.85', '-0.84%'),
+    ];
+
+    return Container(
+      height: 32,
+      decoration: const BoxDecoration(
+        color: Color(0xFF111827),
+        border: Border(
+          bottom: BorderSide(
+            color: Color(0xFF1F2937),
+            width: 1.0,
+          ),
+        ),
+      ),
+      alignment: Alignment.centerLeft,
+      child: UiMarquee(
+        speed: 40,
+        spacing: 32,
+        children: tickerItems.map((item) {
+          final isPositive = item.$3.startsWith('+');
+          final color = isPositive ? theme.colors.bullish : theme.colors.bearish;
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(item.$1, style: textStyle.copyWith(color: const Color(0xFF9CA3AF))),
+              const SizedBox(width: 8),
+              Text(item.$2, style: textStyle),
+              const SizedBox(width: 8),
+              Text(item.$3, style: textStyle.copyWith(color: color)),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
@@ -187,38 +238,8 @@ class _AppShellState extends State<AppShell> {
     // of its neighbours.
     Widget surface({required Widget child, required String childKey}) {
       final BorderRadius borderRadius = context.radius(theme.radii.xl);
-      final Widget switcher = PageTransitionSwitcher(
-        duration: const Duration(milliseconds: 250),
-        reverse: !_navigationForward,
-        layoutBuilder: (List<Widget> entries) => Stack(
-          alignment: Alignment.topLeft,
-          children: entries,
-        ),
-        transitionBuilder: (
-          Widget child,
-          Animation<double> primaryAnimation,
-          Animation<double> secondaryAnimation,
-        ) {
-          if (r.isMobile) {
-            return SharedAxisTransition(
-              animation: primaryAnimation,
-              secondaryAnimation: secondaryAnimation,
-              transitionType: SharedAxisTransitionType.horizontal,
-              fillColor: Colors.transparent,
-              child: child,
-            );
-          }
-          return FadeThroughTransition(
-            animation: primaryAnimation,
-            secondaryAnimation: secondaryAnimation,
-            fillColor: Colors.transparent,
-            child: child,
-          );
-        },
-        child: KeyedSubtree(
-          key: ValueKey<String>(childKey),
-          child: child,
-        ),
+      final Widget switcher = UiStaggeredPageTransition(
+        child: KeyedSubtree(key: ValueKey<String>(childKey), child: child),
       );
 
       return Container(
@@ -250,44 +271,62 @@ class _AppShellState extends State<AppShell> {
       );
     }
 
+    final String surfaceKey = widget.child.key != null
+        ? 'page_${widget.selectedId}_${widget.child.key}'
+        : 'page_${widget.selectedId}';
     final Widget contentSurface = surface(
       child: widget.child,
-      childKey: 'page_${widget.selectedId}',
+      childKey: surfaceKey,
     );
 
-    final Widget topBar = AppTopBar(
-      trader: widget.trader,
-      tier: widget.tier,
-      onSearch: widget.onSearch,
-      onNotifications: widget.onNotifications,
-      onSettings: widget.onSettings,
-      onAi: widget.onAi,
-      unread: widget.unreadNotifications,
-      showLogo: r.isMobile,
-      title: widget.pageTitle,
-      sectionTitle: widget.pageSectionTitle,
-      selectedId: widget.selectedId,
-      sections: widget.sections,
-      mobilePrimaryItems: widget.mobilePrimaryItems,
-      mobileMoreItems: widget.mobileMoreItems,
-      pageIcon: widget.pageIcon,
-      onBack: widget.onBack,
-      leading: r.isMobile
-          ? null
-          : UiIconButton(
-              icon: _collapsed ? Icons.menu_open_rounded : Icons.menu_rounded,
-              size: UiSize.sm,
-              tooltip: 'Toggle sidebar',
-              onPressed: _toggleDesktopSidebar,
-            ),
-    );
+    void openResearchOverlay() {
+      UiDrawer.show<void>(
+        context,
+        title: 'Research desk',
+        showHeader: false,
+        contentPadding: EdgeInsets.zero,
+        scrollable: false,
+        child: Builder(
+          builder: (overlayContext) => widget.researchPanelBuilder!(
+            overlayContext,
+            () => Navigator.of(overlayContext).pop(),
+            true,
+          ),
+        ),
+      );
+    }
 
-    final Widget workspace = Column(
-      children: <Widget>[
-        topBar,
-        Expanded(child: contentSurface),
-      ],
-    );
+    Widget topBar({bool researchVisible = false, VoidCallback? onResearch}) =>
+        AppTopBar(
+          researchVisible: researchVisible,
+          onResearch: onResearch,
+          trader: widget.trader,
+          tier: widget.tier,
+          onSearch: widget.onSearch,
+          onNotifications: widget.onNotifications,
+          onSettings: widget.onSettings,
+          onAi: widget.onAi,
+          unread: widget.unreadNotifications,
+          showLogo: r.isMobile,
+          title: widget.pageTitle,
+          sectionTitle: widget.pageSectionTitle,
+          selectedId: widget.selectedId,
+          sections: widget.sections,
+          mobilePrimaryItems: widget.mobilePrimaryItems,
+          mobileMoreItems: widget.mobileMoreItems,
+          pageIcon: widget.pageIcon,
+          onBack: widget.onBack,
+          leading: r.isMobile
+              ? null
+              : UiIconButton(
+                  icon: _collapsed
+                      ? Icons.menu_open_rounded
+                      : Icons.menu_rounded,
+                  size: UiSize.sm,
+                  tooltip: 'Toggle sidebar',
+                  onPressed: _toggleDesktopSidebar,
+                ),
+        );
 
     if (r.isMobile) {
       // QuietDockScaffold intentionally extends its body beneath the floating
@@ -450,7 +489,15 @@ class _AppShellState extends State<AppShell> {
       // only screen content participates in destination swipe transitions.
       final Widget mobileShell = Column(
         children: <Widget>[
-          topBar,
+          SafeArea(
+            bottom: false,
+            child: _buildTicker(theme),
+          ),
+          topBar(
+            onResearch: widget.researchPanelBuilder == null
+                ? null
+                : openResearchOverlay,
+          ),
           Expanded(child: dockLayer),
         ],
       );
@@ -521,13 +568,88 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       backgroundColor: theme.colors.background,
-      body: Row(
-        children: <Widget>[
-          adaptiveSidebar,
-          Expanded(child: workspace),
+      body: Column(
+        children: [
+          if (!r.isMobile)
+            SafeArea(
+              bottom: false,
+              child: _buildTicker(theme),
+            ),
+          Expanded(
+            child: Row(
+              children: <Widget>[
+                adaptiveSidebar,
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, box) {
+                      final canDock = box.maxWidth >= 1080;
+                      final hasResearch = widget.researchPanelBuilder != null;
+                      final visible = hasResearch && canDock && _researchVisible;
+                      void closeResearch() =>
+                          setState(() => _researchVisible = false);
+                      final workspace = Column(
+                        children: [
+                          topBar(
+                      researchVisible: visible,
+                      onResearch: !hasResearch
+                          ? null
+                          : () {
+                              if (canDock) {
+                                setState(
+                                  () => _researchVisible = !_researchVisible,
+                                );
+                              } else {
+                                openResearchOverlay();
+                              }
+                            },
+                    ),
+                    Expanded(child: contentSurface),
+                  ],
+                );
+                // Keep the primary branch mounted when Focus mode changes width.
+                return UiSplitPane(
+                  key: const ValueKey('app-research-split'),
+                  showDetail: visible,
+                  initialRatio: .70,
+                  minRatio: .64,
+                  maxRatio: .74,
+                  primary: workspace,
+                  detail: visible
+                      ? SafeArea(
+                          left: false,
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              0,
+                              context.sp(theme.spacing.xs),
+                              context.sp(theme.spacing.xs + 3),
+                              context.sp(theme.spacing.xs + 3),
+                            ),
+                            child: UiCard(
+                              key: const ValueKey('app-research-surface'),
+                              padding: EdgeInsets.zero,
+                              variant: UiCardVariant.elevated,
+                              child: ClipRRect(
+                                borderRadius: context.radius(theme.radii.xl),
+                                child: widget.researchPanelBuilder!(
+                                  context,
+                                  closeResearch,
+                                  false,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                );
+              },
+            ),
+          ),
         ],
       ),
-    );
+    ),
+  ],
+),
+);
   }
 }
 
@@ -1176,6 +1298,8 @@ class AppTopBar extends StatelessWidget {
     this.mobileMoreItems,
     this.pageIcon,
     this.onBack,
+    this.onResearch,
+    this.researchVisible = false,
   });
 
   final AppTrader? trader;
@@ -1195,15 +1319,23 @@ class AppTopBar extends StatelessWidget {
   final List<AppNavItem>? mobileMoreItems;
   final IconData? pageIcon;
   final VoidCallback? onBack;
+  final VoidCallback? onResearch;
+  final bool researchVisible;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) =>
+        _buildHeader(context, constraints.maxWidth),
+  );
+
+  Widget _buildHeader(BuildContext context, double availableWidth) {
     final UiTheme theme = context.ui;
     final bool isMobile = context.uiRes.isMobile;
     final bool isCompactHeader =
         isMobile ||
         context.uiRes.isTablet ||
-        context.uiRes.width < context.sz(1180);
+        availableWidth < context.sz(onResearch == null ? 1000 : 1200);
+    final researchLabelVisible = availableWidth >= context.sz(600);
 
     String sectionTitle = this.sectionTitle ?? 'Terminal';
     String pageTitle = title ?? 'Dashboard';
@@ -1230,7 +1362,9 @@ class AppTopBar extends StatelessWidget {
       }
     }
 
-    if (activeIcon == null && mobilePrimaryItems != null && selectedId != null) {
+    if (activeIcon == null &&
+        mobilePrimaryItems != null &&
+        selectedId != null) {
       for (final item in mobilePrimaryItems!) {
         if (item.id == selectedId) {
           activeIcon = item.icon;
@@ -1267,7 +1401,8 @@ class AppTopBar extends StatelessWidget {
       };
     }
 
-    final Widget breadcrumbWidget = (sections != null && selectedId != null && !isMobile)
+    final Widget breadcrumbWidget =
+        (sections != null && selectedId != null && !isMobile)
         ? UiBreadcrumbs(
             crumbs: <UiCrumb>[
               UiCrumb(label: sectionTitle),
@@ -1342,19 +1477,21 @@ class AppTopBar extends StatelessWidget {
                         alignment: Alignment.centerLeft,
                         children: entries,
                       ),
-                      transitionBuilder: (
-                        Widget child,
-                        Animation<double> primaryAnimation,
-                        Animation<double> secondaryAnimation,
-                      ) {
-                        return SharedAxisTransition(
-                          animation: primaryAnimation,
-                          secondaryAnimation: secondaryAnimation,
-                          transitionType: SharedAxisTransitionType.horizontal,
-                          fillColor: Colors.transparent,
-                          child: child,
-                        );
-                      },
+                      transitionBuilder:
+                          (
+                            Widget child,
+                            Animation<double> primaryAnimation,
+                            Animation<double> secondaryAnimation,
+                          ) {
+                            return SharedAxisTransition(
+                              animation: primaryAnimation,
+                              secondaryAnimation: secondaryAnimation,
+                              transitionType:
+                                  SharedAxisTransitionType.horizontal,
+                              fillColor: Colors.transparent,
+                              child: child,
+                            );
+                          },
                       child: KeyedSubtree(
                         key: ValueKey<String>(
                           '${selectedId ?? pageTitle}_${onBack != null}',
@@ -1393,190 +1530,180 @@ class AppTopBar extends StatelessWidget {
                 ),
               ),
               SizedBox(width: context.sp(theme.spacing.md)),
-              SizedBox(
-                width: context.sz(isCompactHeader ? 116 : 560),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    // Center-Right: Search Command Pill (Desktop)
-                    if (!isCompactHeader) ...<Widget>[
-                      UiInteractive(
-                        onTap: onSearch,
-                        builder: (BuildContext ctx, UiInteractiveState s) =>
-                            AnimatedContainer(
-                              duration: theme.motion.fast,
-                              width: ctx.sz(250),
-                              height: ctx.sz(32),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: ctx.sp(theme.spacing.sm),
-                              ),
-                              decoration: BoxDecoration(
-                                color: s.hovered
-                                    ? theme.colors.surfaceHover
-                                    : theme.colors.background.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                borderRadius: ctx.radius(theme.radii.md),
-                                border: Border.all(
-                                  color: s.hovered
-                                      ? theme.colors.borderStrong
-                                      : theme.colors.border,
-                                  width: theme.borders.hairline,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.search_rounded,
-                                    size: ctx.sz(15),
-                                    color: theme.colors.foregroundSubtle,
-                                  ),
-                                  SizedBox(width: ctx.sp(theme.spacing.xs)),
-                                  Expanded(
-                                    child: Text(
-                                      'Search symbols, orders...',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: ctx.uiText.caption.copyWith(
-                                        color: theme.colors.foregroundSubtle,
-                                        fontSize: ctx.fs(12.0),
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 5.0,
-                                      vertical: 1.5,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: theme.colors.surface,
-                                      borderRadius: ctx.radius(theme.radii.sm),
-                                      border: Border.all(
-                                        color: theme.colors.border,
-                                        width: theme.borders.hairline,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      '⌘K',
-                                      style: ctx.uiText.caption.copyWith(
-                                        fontSize: ctx.fs(10),
-                                        fontWeight: FontWeight.w600,
-                                        color: theme.colors.foregroundMuted,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.sm)),
-
-                      // Market Live Status Pill
-                      Container(
-                        height: context.sz(28),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: context.sp(theme.spacing.sm),
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colors.bullish.withValues(alpha: 0.08),
-                          borderRadius: context.radius(theme.radii.pill),
-                          border: Border.all(
-                            color: theme.colors.bullish.withValues(alpha: 0.3),
-                            width: theme.borders.hairline,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: context.sz(6.5),
-                              height: context.sz(6.5),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: theme.colors.bullish,
-                              ),
-                            ),
-                            SizedBox(width: context.sp(theme.spacing.xs)),
-                            Text(
-                              'NSE/BSE LIVE',
-                              style: context.uiText.caption.copyWith(
-                                color: theme.colors.bullish,
-                                fontWeight: FontWeight.w600,
-                                fontSize: context.fs(11.0),
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.sm)),
-
-                      // Vertical subtle separator
-                      Container(
-                        width: theme.borders.hairline,
-                        height: context.sz(18),
-                        color: theme.colors.border.withValues(alpha: 0.6),
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.xs)),
-                    ],
-
-                    // Search Icon on Mobile
-                    if (isCompactHeader)
-                      UiIconButton(
-                        icon: Icons.search_rounded,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  if (onResearch != null) ...[
+                    if (researchLabelVisible)
+                      UiButton(
+                        label: researchVisible ? 'Focus mode' : 'Research desk',
+                        variant: UiVariant.ghost,
                         size: UiSize.sm,
-                        tooltip: 'Search',
-                        onPressed: onSearch,
-                      ),
-
-                    // Notifications Icon with perfectly positioned badge
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: <Widget>[
-                        UiIconButton(
-                          icon: Icons.notifications_none_rounded,
-                          size: UiSize.sm,
-                          tooltip: 'Notifications',
-                          onPressed: onNotifications,
-                        ),
-                        if (unread > 0)
-                          Positioned(
-                            right: 6,
-                            top: 6,
-                            child: Container(
-                              width: context.sz(7),
-                              height: context.sz(7),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: theme.colors.bearish,
-                                border: Border.all(
-                                  color: theme.colors.surface,
-                                  width: theme.borders.thick,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xxs)),
-
-                    if (isMobile)
-                      UiIconButton(
-                        icon: Icons.auto_awesome_rounded,
-                        size: UiSize.sm,
-                        tooltip: 'AI Assistant',
-                        onPressed: onAi,
+                        leadingIcon: researchVisible
+                            ? Icons.fullscreen_rounded
+                            : Icons.view_sidebar_outlined,
+                        onPressed: onResearch,
                       )
                     else
                       UiIconButton(
-                        icon: Icons.settings_outlined,
+                        icon: researchVisible
+                            ? Icons.fullscreen_rounded
+                            : Icons.view_sidebar_outlined,
+                        tooltip: researchVisible
+                            ? 'Focus mode'
+                            : 'Research desk',
                         size: UiSize.sm,
-                        tooltip: 'Settings',
-                        onPressed: onSettings,
+                        onPressed: onResearch,
                       ),
+                    UiGap.h(theme.spacing.xxs),
                   ],
-                ),
+                  // Center-Right: Search Command Pill (Desktop)
+                  if (!isCompactHeader) ...<Widget>[
+                    UiInteractive(
+                      onTap: onSearch,
+                      builder: (BuildContext ctx, UiInteractiveState s) =>
+                          AnimatedContainer(
+                            duration: theme.motion.fast,
+                            width: ctx.sz(250),
+                            height: ctx.sz(32),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: ctx.sp(theme.spacing.sm),
+                            ),
+                            decoration: BoxDecoration(
+                              color: s.hovered
+                                  ? theme.colors.surfaceHover
+                                  : theme.colors.background.withValues(
+                                      alpha: 0.7,
+                                    ),
+                              borderRadius: ctx.radius(theme.radii.md),
+                              border: Border.all(
+                                color: s.hovered
+                                    ? theme.colors.borderStrong
+                                    : theme.colors.border,
+                                width: theme.borders.hairline,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.search_rounded,
+                                  size: ctx.sz(15),
+                                  color: theme.colors.foregroundSubtle,
+                                ),
+                                SizedBox(width: ctx.sp(theme.spacing.xs)),
+                                Expanded(
+                                  child: Text(
+                                    'Search symbols, orders...',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: ctx.uiText.caption.copyWith(
+                                      color: theme.colors.foregroundSubtle,
+                                      fontSize: ctx.fs(12.0),
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 5.0,
+                                    vertical: 1.5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: theme.colors.surface,
+                                    borderRadius: ctx.radius(theme.radii.sm),
+                                    border: Border.all(
+                                      color: theme.colors.border,
+                                      width: theme.borders.hairline,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '⌘K',
+                                    style: ctx.uiText.caption.copyWith(
+                                      fontSize: ctx.fs(10),
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colors.foregroundMuted,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.sm)),
+
+                    const UiBadge(
+                      label: 'Daily snapshots',
+                      icon: Icons.schedule_rounded,
+                      variant: UiBadgeVariant.outline,
+                      size: UiSize.sm,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.sm)),
+
+                    // Vertical subtle separator
+                    Container(
+                      width: theme.borders.hairline,
+                      height: context.sz(18),
+                      color: theme.colors.border.withValues(alpha: 0.6),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                  ],
+
+                  // Search Icon on Mobile
+                  if (isCompactHeader)
+                    UiIconButton(
+                      icon: Icons.search_rounded,
+                      size: UiSize.sm,
+                      tooltip: 'Search',
+                      onPressed: onSearch,
+                    ),
+
+                  // Notifications Icon with perfectly positioned badge
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: <Widget>[
+                      UiIconButton(
+                        icon: Icons.notifications_none_rounded,
+                        size: UiSize.sm,
+                        tooltip: 'Notifications',
+                        onPressed: onNotifications,
+                      ),
+                      if (unread > 0)
+                        Positioned(
+                          right: 6,
+                          top: 6,
+                          child: Container(
+                            width: context.sz(7),
+                            height: context.sz(7),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: theme.colors.bearish,
+                              border: Border.all(
+                                color: theme.colors.surface,
+                                width: theme.borders.thick,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xxs)),
+
+                  if (isMobile)
+                    UiIconButton(
+                      icon: Icons.auto_awesome_rounded,
+                      size: UiSize.sm,
+                      tooltip: 'AI Assistant',
+                      onPressed: onAi,
+                    )
+                  else
+                    UiIconButton(
+                      icon: Icons.settings_outlined,
+                      size: UiSize.sm,
+                      tooltip: 'Settings',
+                      onPressed: onSettings,
+                    ),
+                ],
               ),
             ],
           ),

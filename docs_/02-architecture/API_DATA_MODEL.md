@@ -10,9 +10,9 @@ create table profiles (
   bio text,
   avatar_url text,
   experience_level text, -- beginner | intermediate | advanced | pro
-  trading_style text, -- free text, client offers a picker with suggested values (day_trading, swing, scalping, options, forex, crypto) but doesn't constrain the column itself — avoids a migration every time a new style needs adding
+  trading_style text, -- free text, client offers a picker with suggested values (day_trading, swing, scalping, options, forex, crypto) but doesn't constrain the column itself; avoids a migration every time a new style needs adding
   public_journals boolean default false, -- opt-in: allow selected journal entries to show on public profile
-  subscription_tier text default 'free', -- free | premium | enterprise (denormalized read copy — subscriptions table below is the source of truth)
+  subscription_tier text default 'free', -- free | premium | enterprise (denormalized read copy; subscriptions table below is the source of truth)
   created_at timestamptz default now()
 );
 
@@ -31,7 +31,7 @@ create table subscriptions (
   updated_at timestamptz default now()
 );
 
--- device_tokens (push notification delivery targets — FCM/APNs)
+-- device_tokens (push notification delivery targets; FCM/APNs)
 create table device_tokens (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references profiles(id) not null,
@@ -189,7 +189,7 @@ create table ai_insight_requests (
 );
 
 
--- blocks (user-to-user blocking — was previously a described feature with no backing
+-- blocks (user-to-user blocking; was previously a described feature with no backing
 -- table anywhere in the schema; added now because Direct Messages makes blocking
 -- load-bearing rather than just a UI affordance)
 create table blocks (
@@ -211,7 +211,7 @@ create or replace function are_blocked(user_x uuid, user_y uuid) returns boolean
   );
 $$ language sql security definer stable;
 
--- conversations (one-on-one Direct Messages, Premium+ only — see § 2 RLS for the tier gate)
+-- conversations (one-on-one Direct Messages, Premium+ only; see § 2 RLS for the tier gate)
 create table conversations (
   id uuid primary key default gen_random_uuid(),
   user_a_id uuid references profiles(id) not null,
@@ -249,7 +249,7 @@ create table notifications (
   created_at timestamptz default now()
 );
 
--- revenuecat_webhook_events (idempotency log — dedupes redelivered webhook events)
+-- revenuecat_webhook_events (idempotency log; dedupes redelivered webhook events)
 create table revenuecat_webhook_events (
   event_id text primary key, -- RevenueCat's own event id, guarantees no double-processing
   event_type text not null,
@@ -330,7 +330,7 @@ create policy "own saved posts only" on saved_posts
 alter table blocks enable row level security;
 create policy "own blocks only" on blocks
   for all using (auth.uid() = blocker_id);
--- Deliberately no policy letting blocked_id see who blocked them — block lists are
+-- Deliberately no policy letting blocked_id see who blocked them; block lists are
 -- one-directional and private to the person who created the block.
 
 alter table conversations enable row level security;
@@ -342,7 +342,7 @@ create policy "only paid tiers can start a conversation" on conversations
     and (select subscription_tier from profiles where id = auth.uid()) in ('premium', 'enterprise')
     and not are_blocked(user_a_id, user_b_id)
   );
--- No update/delete policy: conversations aren't edited or deleted by clients — they're
+-- No update/delete policy: conversations aren't edited or deleted by clients; they're
 -- an implicit thread that exists as long as messages exist within it.
 
 alter table messages enable row level security;
@@ -371,12 +371,12 @@ create policy "only paid tiers can send messages" on messages
   );
 -- Deliberate design choice: the tier check runs on EVERY message insert, not just at
 -- conversation creation. A user who downgrades mid-conversation can still read the
--- thread but can't send further messages until they resubscribe — matches PRD.md § 5.9's
+-- thread but can't send further messages until they resubscribe; matches PRD.md § 5.9's
 -- "checked per-message, not just at signup" requirement. The counterparty's tier is
--- never checked — only the sender's own subscription gates their own sends, so a
+-- never checked; only the sender's own subscription gates their own sends, so a
 -- Premium user can always reply to a Free user's existing messages to them (the Free
 -- user just couldn't have started or continued the thread themselves). The block check
--- is symmetric (are_blocked checks both directions) — either party blocking the other
+-- is symmetric (are_blocked checks both directions); either party blocking the other
 -- stops new messages from either side, matching the "mutual block" behavior in
 -- SECURITY_COMPLIANCE.md § 8.
 create policy "mark received messages as read" on messages
@@ -398,7 +398,7 @@ create policy "own device tokens only" on device_tokens
   for all using (auth.uid() = user_id);
 
 -- Note: price-alerts and other server-triggered push functions run as the
--- service role, which bypasses RLS entirely — this policy governs client access only.
+-- service role, which bypasses RLS entirely; this policy governs client access only.
 
 alter table subscriptions enable row level security;
 create policy "own subscription read-only" on subscriptions
@@ -421,7 +421,7 @@ create policy "owner update profile" on profiles
 
 -- revenuecat_webhook_events and ai_insight_requests intentionally have NO client-facing
 -- RLS policy at all (RLS enabled, zero policies = fully inaccessible to anon/authenticated
--- roles) — both are service-role-only tables, never queried directly by the client.
+-- roles); both are service-role-only tables, never queried directly by the client.
 alter table revenuecat_webhook_events enable row level security;
 alter table ai_insight_requests enable row level security;
 ```
@@ -438,7 +438,7 @@ alter table ai_insight_requests enable row level security;
 **Flow:**
 1. Verify JWT → get `user_id` and `subscription_tier`
 2. Check `ai_insight_requests` (kind='ai_insight') count for today against tier limit; reject with 429 if exceeded
-3. Check `ai_insights` cache — if fresh (< 15 min old), return cached summary
+3. Check `ai_insights` cache, if fresh (< 15 min old), return cached summary
 4. Else: fetch price/indicator data from market data provider
 5. Call Claude API with a system prompt instructing plain-English technical summary + mandatory disclaimer
 6. Store result in `ai_insights`, log request in `ai_insight_requests`
@@ -505,7 +505,7 @@ alter table ai_insight_requests enable row level security;
 **Auth:** requires valid Supabase JWT + `subscription_tier = 'premium'` or `'enterprise'`
 **Request body:** `{ "date_range": { "from": "...", "to": "..." }, "strategy_id": "uuid | null", "single_entry_id": "uuid | null" }`
 
-**Flow:** query the user's `journal_entries` in range (optionally filtered by strategy, or scoped to exactly one entry when `single_entry_id` is set — this is how the Trade Review feature reuses this same function per API_REFERENCE.md's capability mapping), send psychology/mistakes/lessons/outcome fields to Claude for pattern analysis (recurring mistakes, psychology trends, tag/outcome correlations). Log to `ai_insight_requests` (kind='journal_analysis'). Response returned directly, not persisted.
+**Flow:** query the user's `journal_entries` in range (optionally filtered by strategy, or scoped to exactly one entry when `single_entry_id` is set, this is how the Trade Review feature reuses this same function per API_REFERENCE.md's capability mapping), send psychology/mistakes/lessons/outcome fields to Claude for pattern analysis (recurring mistakes, psychology trends, tag/outcome correlations). Log to `ai_insight_requests` (kind='journal_analysis'). Response returned directly, not persisted.
 
 ### 7. Edge Function: `strategy-ai-summary` (Premium)
 
@@ -517,8 +517,8 @@ alter table ai_insight_requests enable row level security;
 
 ### 8. Edge Function: `price-alerts` (scheduled)
 
-**Trigger:** scheduled (e.g. every 5 min, frequency varies by asset class — see BACKGROUND_JOBS.md § 1 on equity vs. forex/crypto market hours) via Supabase cron
-**Auth:** service role only — never reachable by a client JWT
+**Trigger:** scheduled (e.g. every 5 min, frequency varies by asset class, see BACKGROUND_JOBS.md § 1 on equity vs. forex/crypto market hours) via Supabase cron
+**Auth:** service role only, never reachable by a client JWT
 
 **Flow:**
 1. Select all `watchlist_items` rows where `price_alert_threshold is not null and alert_armed = true`
@@ -527,36 +527,36 @@ alter table ai_insight_requests enable row level security;
    - Insert a `notifications` row (`category='market_alert'`, `deep_link` pointing at that watchlist)
    - Look up the user's `device_tokens` and push via FCM/APNs
    - Set `alert_armed = false`, `alert_last_triggered_at = now()`
-4. Separately, for already-triggered (`alert_armed = false`) items: re-arm (`alert_armed = true`) once price has moved back past the threshold by a buffer (recommend 0.5%) on the *opposite* side — prevents re-triggering on every 5-minute tick while price sits right at the line
+4. Separately, for already-triggered (`alert_armed = false`) items: re-arm (`alert_armed = true`) once price has moved back past the threshold by a buffer (recommend 0.5%) on the *opposite* side, prevents re-triggering on every 5-minute tick while price sits right at the line
 
 No per-user rate limit needed since it's a scheduled system job, not a user-triggered AI call.
 
 ### 9. Edge Function: `revenuecat-webhook`
 
 **Endpoint:** `POST /functions/v1/revenuecat-webhook`
-**Auth:** **not** a Supabase JWT — this is a service-to-service webhook. Verify the request using RevenueCat's signature header against `REVENUECAT_WEBHOOK_SECRET` (see ENVIRONMENT_VARIABLES.md); reject with `401` if the signature doesn't match. Confirm RevenueCat's current signature-verification mechanism at implementation time, since webhook auth schemes are versioned on their end.
+**Auth:** **not** a Supabase JWT, this is a service-to-service webhook. Verify the request using RevenueCat's signature header against `REVENUECAT_WEBHOOK_SECRET` (see ENVIRONMENT_VARIABLES.md); reject with `401` if the signature doesn't match. Confirm RevenueCat's current signature-verification mechanism at implementation time, since webhook auth schemes are versioned on their end.
 
-**Request body:** RevenueCat's standard webhook event payload — includes `event.id`, `event.type`, `app_user_id` (maps to `profiles.id`), `product_id`, `expiration_at_ms`, and other fields per RevenueCat's own webhook documentation.
+**Request body:** RevenueCat's standard webhook event payload, includes `event.id`, `event.type`, `app_user_id` (maps to `profiles.id`), `product_id`, `expiration_at_ms`, and other fields per RevenueCat's own webhook documentation.
 
 **Flow:**
 1. Verify signature (above)
-2. **Idempotency check:** `insert into revenuecat_webhook_events (event_id, event_type) values (...) on conflict (event_id) do nothing returning event_id`. If no row is returned, this event was already processed — return `200` immediately without reprocessing (RevenueCat redelivers events; this must never double-apply a state change).
+2. **Idempotency check:** `insert into revenuecat_webhook_events (event_id, event_type) values (...) on conflict (event_id) do nothing returning event_id`. If no row is returned, this event was already processed, return `200` immediately without reprocessing (RevenueCat redelivers events; this must never double-apply a state change).
 3. Switch on `event.type`:
 
 | Event type | Action |
 |---|---|
 | `INITIAL_PURCHASE`, `RENEWAL`, `PRODUCT_CHANGE` (upgrade/downgrade) | Upsert `subscriptions` row: `tier` from `product_id` mapping, `status='active'`, `revenuecat_id`, `billing_cycle`, `renewed_at=now()`, `expires_at` from payload. Update `profiles.subscription_tier` to match. |
-| `CANCELLATION` | Update `subscriptions.status='canceling'`. **Do not** change `tier` or `profiles.subscription_tier` yet — access continues until `expires_at` (matches the "Unlimited AI Trading Assistant" promise not silently breaking mid-cycle, per BACKGROUND_JOBS.md § 2's reasoning). |
+| `CANCELLATION` | Update `subscriptions.status='canceling'`. **Do not** change `tier` or `profiles.subscription_tier` yet, access continues until `expires_at` (matches the "Unlimited AI Trading Assistant" promise not silently breaking mid-cycle, per BACKGROUND_JOBS.md § 2's reasoning). |
 | `EXPIRATION` | Update `subscriptions.status='expired'`, `tier='free'`. Update `profiles.subscription_tier='free'`. |
 | `BILLING_ISSUE` | Update `subscriptions.status='billing_issue'` (tier unchanged). Insert a `notifications` row (`category='subscription_reminder'`). |
-| Any other event type | Log and acknowledge with `200`, no state change — don't fail the webhook on an event type this function doesn't need to act on. |
+| Any other event type | Log and acknowledge with `200`, no state change, don't fail the webhook on an event type this function doesn't need to act on. |
 
-4. Return `200` quickly — RevenueCat expects fast acknowledgment; do any non-critical follow-up work (e.g. analytics) asynchronously if needed, don't block the response on it.
+4. Return `200` quickly, RevenueCat expects fast acknowledgment; do any non-critical follow-up work (e.g. analytics) asynchronously if needed, don't block the response on it.
 
 **Response (success):** `{ "received": true }`
 **Errors:** `401` bad signature · `400` malformed payload · `500` on an unexpected failure to write (RevenueCat will retry on non-2xx, which is why the idempotency check in step 2 exists)
 
-### 10. Edge Function: `ai-chat` (Premium — AI Q&A / AI Trading Assistant chat)
+### 10. Edge Function: `ai-chat` (Premium: AI Q&A / AI Trading Assistant chat)
 
 **Endpoint:** `POST /functions/v1/ai-chat`
 **Auth:** requires valid Supabase JWT + `subscription_tier = 'premium'` or `'enterprise'`
@@ -573,8 +573,8 @@ No per-user rate limit needed since it's a scheduled system job, not a user-trig
 
 **Flow:**
 1. Verify JWT + tier
-2. Check `ai_insight_requests` (kind='chat') count against the Premium soft-cap pattern (BACKGROUND_JOBS.md § 2 — logged for anomaly detection, not a hard block)
-3. Load conversation history for `conversation_id` if provided (a lightweight `ai_chat_messages` table — **not yet added to the schema above**, flagged below)
+2. Check `ai_insight_requests` (kind='chat') count against the Premium soft-cap pattern (BACKGROUND_JOBS.md § 2, logged for anomaly detection, not a hard block)
+3. Load conversation history for `conversation_id` if provided (a lightweight `ai_chat_messages` table, **not yet added to the schema above**, flagged below)
 4. Build context based on `scope`: current ticker's price/indicators (scope=ticker), the named watchlist's tickers (scope=watchlist), or `portfolio_stats` + recent journal entries (scope=portfolio)
 5. Call Claude API with conversation history + new message + scope context + the standard disclaimer-mandatory system prompt
 6. Log to `ai_insight_requests` (kind='chat')
@@ -590,13 +590,13 @@ No per-user rate limit needed since it's a scheduled system job, not a user-trig
 }
 ```
 
-**Streaming:** the chat UI (SCREENS_MOBILE.md § 7) implies token-by-token streaming for a responsive feel. Recommend implementing this as a Server-Sent Events or chunked response rather than a single blocking JSON response — the request/response shapes above describe the *logical* contract; the actual wire format for streaming should be finalized alongside whichever Flutter HTTP client handles it (see FRONTEND_README.md's `ai-chat` UI note).
+**Streaming:** the chat UI (SCREENS_MOBILE.md § 7) implies token-by-token streaming for a responsive feel. Recommend implementing this as a Server-Sent Events or chunked response rather than a single blocking JSON response, the request/response shapes above describe the *logical* contract; the actual wire format for streaming should be finalized alongside whichever Flutter HTTP client handles it (see FRONTEND_README.md's `ai-chat` UI note).
 
-**Still incomplete — flagging rather than inventing further:** this function needs an `ai_chat_messages` table (`id`, `conversation_id`, `user_id`, `role` [`user`/`assistant`], `content`, `created_at`) with owner-only RLS, which isn't in § 1's schema yet. Adding it here would be reasonable but touches conversation-retention policy (how long to keep chat history, whether it counts toward any storage limits) that hasn't been decided — recommend deciding retention before adding the table rather than adding it with an arbitrary default.
+**Still incomplete, flagging rather than inventing further:** this function needs an `ai_chat_messages` table (`id`, `conversation_id`, `user_id`, `role` [`user`/`assistant`], `content`, `created_at`) with owner-only RLS, which isn't in § 1's schema yet. Adding it here would be reasonable but touches conversation-retention policy (how long to keep chat history, whether it counts toward any storage limits) that hasn't been decided, recommend deciding retention before adding the table rather than adding it with an arbitrary default.
 
 ### 11. Database trigger: `notify_new_message`
 
-Direct Messages don't go through an Edge Function to send (client inserts directly into `messages`, gated by the RLS policies in § 2) — but a new message still needs to produce a `notifications` row and a push, consistent with every other notification-producing event in the app. This is a Postgres trigger, not an Edge Function:
+Direct Messages don't go through an Edge Function to send (client inserts directly into `messages`, gated by the RLS policies in § 2), but a new message still needs to produce a `notifications` row and a push, consistent with every other notification-producing event in the app. This is a Postgres trigger, not an Edge Function:
 
 ```sql
 create or replace function notify_new_message() returns trigger as $$
@@ -630,11 +630,11 @@ create trigger on_new_message
   for each row execute function notify_new_message();
 ```
 
-`security definer` is required here — the trigger needs to write a `notifications` row for the **recipient**, not the sender, and the recipient's RLS policy (`auth.uid() = user_id`) would otherwise block that insert since the trigger runs in the sender's auth context. This is the one place in the schema where a trigger writes across a user boundary; treat it as a reviewed exception, not a pattern to reuse elsewhere without the same scrutiny.
+`security definer` is required here, the trigger needs to write a `notifications` row for the **recipient**, not the sender, and the recipient's RLS policy (`auth.uid() = user_id`) would otherwise block that insert since the trigger runs in the sender's auth context. This is the one place in the schema where a trigger writes across a user boundary; treat it as a reviewed exception, not a pattern to reuse elsewhere without the same scrutiny.
 
-**Push delivery:** this trigger only writes the in-app `notifications` row — actually pushing via FCM/APNs still needs something watching for new `category='direct_message'` rows and sending through `device_tokens`, the same as any other push-worthy notification. Options: a Supabase Realtime-triggered Edge Function listening on `notifications` inserts, or folding it into the existing scheduled-job pattern with a short interval. Not yet decided which — flagged as an open implementation detail, not a contract gap (the notification itself is fully specced; only its push-delivery mechanism isn't chosen yet).
+**Push delivery:** this trigger only writes the in-app `notifications` row, actually pushing via FCM/APNs still needs something watching for new `category='direct_message'` rows and sending through `device_tokens`, the same as any other push-worthy notification. Options: a Supabase Realtime-triggered Edge Function listening on `notifications` inserts, or folding it into the existing scheduled-job pattern with a short interval. Not yet decided which, flagged as an open implementation detail, not a contract gap (the notification itself is fully specced; only its push-delivery mechanism isn't chosen yet).
 
-### 12. AI Trading Assistant — capability mapping
+### 12. AI Trading Assistant: capability mapping
 
 PRD.md § 5.7 lists a broad set of AI Trading Assistant capabilities. Most map onto the edge functions already defined above rather than needing new endpoints:
 
@@ -644,10 +644,10 @@ PRD.md § 5.7 lists a broad set of AI Trading Assistant capabilities. Most map o
 | Risk-to-reward analysis | `ai-insight` (extended request) or client-computed from entry/stop/target | Simple RR math can be client-side; AI framing of it goes through `ai-insight` |
 | Trade review after execution | `ai-journal-analysis` with `single_entry_id` set (§ 6) | Same function, now explicitly supports single-entry scope |
 | Strategy improvement suggestions | `ai-strategy-review` + `ai-journal-analysis` combined | Client merges both responses into one suggestions view |
-| News & sentiment summaries | `ai-insight` (extended) | Requires a news/sentiment data source in addition to price/indicator data — provider TBD, see ROADMAP.md |
+| News & sentiment summaries | `ai-insight` (extended) | Requires a news/sentiment data source in addition to price/indicator data, provider TBD, see ROADMAP.md |
 | Watchlist insights | `ai-insight` (batch mode over a watchlist's tickers) or `ai-chat` with `scope=watchlist` | Either works; `ai-chat` is the better fit if the interaction is conversational rather than one-shot |
 | Weekly / monthly performance review | `ai-journal-analysis` (date-range mode) | Reads from `portfolio_stats` view (§ 1) plus journal entries in the period |
-| AI Q&A | `ai-chat` (§ 10) | Now specced above — was the one fully-open item, resolved as of this revision |
+| AI Q&A | `ai-chat` (§ 10) | Now specced above, was the one fully-open item, resolved as of this revision |
 
 ### 13. Tier Limits (config, stored server-side)
 | Tier | AI Trading Assistant | AI Strategy Review | AI Journal Analysis | Screenshot analyses/day | Journal entries | Watchlists | Strategy Notes | Portfolio Dashboard | Direct Messages | Community reads/day |
@@ -656,4 +656,4 @@ PRD.md § 5.7 lists a broad set of AI Trading Assistant capabilities. Most map o
 | Premium | Unlimited | Yes | Yes | Unlimited (soft daily cap, e.g. 50) | Unlimited | Unlimited | Yes (full: editor, version history, AI summary) | Full (breakdowns + charts) | Unlimited (send + receive) | Unlimited |
 | Enterprise | Unlimited (org-pooled) | Yes | Yes | Unlimited | Unlimited | Unlimited | Yes | Full | Unlimited | Unlimited |
 
-Enterprise limits are placeholders pending the org/seat model — see ROADMAP.md. Direct Messages has no rate limit beyond the tier gate itself (§ 2) — no `ai_insight_requests`-style logging, since sending a message isn't a metered/costly AI call.
+Enterprise limits are placeholders pending the org/seat model, see ROADMAP.md. Direct Messages has no rate limit beyond the tier gate itself (§ 2), no `ai_insight_requests`-style logging, since sending a message isn't a metered/costly AI call.

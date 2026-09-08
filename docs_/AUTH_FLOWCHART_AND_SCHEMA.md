@@ -1,12 +1,12 @@
-# TradeX Authentication Architecture, Flowcharts & Database Schema
+# TradeX authentication architecture, flowcharts, and database schema
 
-> **Source**: Generated directly from the active frontend pages (`AuthWrapper`, `LoginPage`, `SignupPage`, `OtpVerificationPage`, `ForgotPasswordPage`, `GetStartedPage`, `AffiliateApplicationPage`, `SupabaseAuthBackendService`) and database schema migrations.
+Source: Generated from the frontend authentication pages (`AuthWrapper`, `LoginPage`, `SignupPage`, `OtpVerificationPage`, `ForgotPasswordPage`, `GetStartedPage`, `AffiliateApplicationPage`, and `SupabaseAuthBackendService`) and database migrations.
 
 ---
 
-## 1. End-to-End Auth State Machine & Navigation Flowchart
+## 1. End-to-end auth state machine and navigation flowchart
 
-This flowchart outlines the entire navigation routing, role handling, multi-step sub-flows, OTP verification, and session creation lifecycle.
+This diagram outlines navigation routing, role handling, multi-step flows, OTP verification, and session creation.
 
 ```mermaid
 flowchart TD
@@ -149,7 +149,7 @@ flowchart TD
 
 ---
 
-## 2. Session Creation, Trigger & Token Exchange Lifecycle
+## 2. Session creation, trigger, and token exchange lifecycle
 
 ```mermaid
 sequenceDiagram
@@ -195,7 +195,7 @@ sequenceDiagram
 
 ---
 
-## 3. Database Schema & Tables Created for Auth (PostgreSQL ER Diagram)
+## 3. Database schema and tables created for authentication
 
 ```mermaid
 erDiagram
@@ -354,16 +354,16 @@ erDiagram
 
 ---
 
-## 4. Frontend Page to Database Entity Mapping Matrix
+## 4. Frontend page to database entity mapping matrix
 
-| Page Component | User Actions & Triggers | Service & Repository Methods | Backing Database Tables | App State Transition |
+| Page component | User actions and triggers | Service and repository methods | Backing database tables | App state transition |
 | :--- | :--- | :--- | :--- | :--- |
 | [`SplashScreen`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/auth/presentation/pages/splash_screen.dart) | Initial app launch | None | None | `AuthStage.onboarding` |
 | [`GetStartedPage`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/auth/presentation/pages/get_started_page.dart) | "Get Started" / "Sign In" | None | None | `AuthStage.signup` / `AuthStage.login` |
 | [`LoginPage`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/auth/presentation/pages/login_page.dart) | Submit Email/Handle + Password (+ Admin Key if User Admin) | `SupabaseAuthBackendService.signIn()` | `auth.users`, `public.profiles`, `public.affiliate_profiles`, `public.affiliate_applications` | `AuthStage.authenticated` (`AppScaffold`) |
 | [`SignupPage`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/auth/presentation/pages/signup_page.dart) | Submit Handle + Email + Password (+ Referral Code if Affiliate) | `SupabaseAuthBackendService.signUp()` | `auth.users`, `public.profiles`, `public.affiliate_referrals` (via trigger) | `AuthStage.signupVerification` (`OtpVerificationPage`) |
-| [`OtpVerificationPage`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/auth/presentation/pages/otp_verification_page.dart) | Enter 6-digit OTP code / Resend | `AuthOtpRepository.verifyOtp()` & `resendOtp()` | `public.otp_codes`, `auth.users` | If Customer: `AuthStage.subscription`<br/>If Affiliate: `AuthStage.affiliateApplication` |
-| [`AffiliateApplicationPage`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/affiliate_program/presentation/pages/affiliate_application_page.dart) | 4-step wizard (Personal $\rightarrow$ Social $\rightarrow$ Banking $\rightarrow$ Review) | `AffiliateApplicationRepository.submit()` | `public.affiliate_applications` (`status: pending_review`) | `AuthStage.subscription` (Review plans before dashboard) |
+| [`OtpVerificationPage`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/auth/presentation/pages/otp_verification_page.dart) | Enter 6-digit OTP code / Resend | `AuthOtpRepository.verifyOtp()` and `resendOtp()` | `public.otp_codes`, `auth.users` | If Customer: `AuthStage.subscription`<br/>If Affiliate: `AuthStage.affiliateApplication` |
+| [`AffiliateApplicationPage`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/affiliate_program/presentation/pages/affiliate_application_page.dart) | 4-step wizard (Personal to Social to Banking to Review) | `AffiliateApplicationRepository.submit()` | `public.affiliate_applications` (`status: pending_review`) | `AuthStage.subscription` (Review plans before dashboard) |
 | [`SubscriptionPricingPage`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/auth/presentation/pages/subscription_pricing_page.dart) | Choose Plan / Billed Annual Toggle / Continue Free | `SubscriptionPricingRepository.selectPlan()` | `public.subscriptions`, `public.profiles` | `AuthStage.authenticated` (`AppScaffold`) |
-| [`ForgotPasswordPage`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/auth/presentation/pages/forgot_password_page.dart) | 4-step inline wizard (Request $\rightarrow$ OTP $\rightarrow$ New Password $\rightarrow$ Confirm) | `AuthRepository.resetPassword()` & `AuthOtpRepository.verifyOtp()` | `auth.users`, `public.otp_codes` | `AuthStage.login` |
+| [`ForgotPasswordPage`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/features/auth/presentation/pages/forgot_password_page.dart) | 4-step inline wizard (Request to OTP to New Password to Confirm) | `AuthRepository.resetPassword()` and `AuthOtpRepository.verifyOtp()` | `auth.users`, `public.otp_codes` | `AuthStage.login` |
 | [`AppScaffold`](file:///Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/lib/core/widgets/app_scaffold.dart) | Sign Out | `SupabaseAuthBackendService.signOut()` | `auth.users` (Revokes session) | `AuthStage.login` |

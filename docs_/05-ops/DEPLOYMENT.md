@@ -1,58 +1,61 @@
-# Deployment — TraderHub
+# Deployment guidelines: TradeX
 
-### 1. Environments
-Per ARCHITECTURE.md:
-- **dev** — local Supabase (via CLI) + local `.env`, individual developer machine
-- **staging** — Supabase project #1, app distributed via TestFlight (iOS) / Internal testing track (Play), web build on a staging URL
-- **prod** — Supabase project #2, store releases (App Store / Play), production web URL
+## 1. Environments
+Following the architecture specifications in [ARCHITECTURE.md](../02-architecture/ARCHITECTURE.md):
+- **Development**: Local Supabase instance managed via the Supabase CLI, paired with local `.env` configuration on individual developer workstations.
+- **Staging**: Supabase cloud project for pre-release validation. Mobile builds distribute through TestFlight for iOS and Google Play Internal Testing tracks; web builds deploy to a dedicated staging URL.
+- **Production**: Dedicated production Supabase project powering public store releases on the Apple App Store and Google Play Console, alongside production web hosting.
 
-Each Supabase project has its own database, secrets, and Edge Function deployment — staging and prod never share data.
+Each Supabase environment maintains isolated databases, edge functions, and API secrets. Staging and production environments never share data.
 
-### 2. CI/CD Pipeline (GitHub Actions)
+## 2. CI/CD pipeline (GitHub Actions)
 
-**On every PR to `main`:**
+**Pull request checks against `main`:**
 1. `flutter analyze`
 2. `flutter test`
-3. `supabase test db` (RLS/pgTAP suite)
-4. Edge Function tests
+3. `supabase test db` (running pgTAP and row-level security tests)
+4. Deno unit tests for Edge Functions
 
-**On merge to `main` (auto-deploy to staging):**
-1. Run full test suite (as above)
-2. `supabase db push --project-ref <staging-ref>` — apply new migrations
-3. `supabase functions deploy ai-insight --project-ref <staging-ref>`
-4. `flutter build web --release` → deploy to staging web host
-5. Build staging mobile artifacts → TestFlight / Play Internal track
+**Merge to `main` (automated deployment to staging):**
+1. Execute the full test suite.
+2. `supabase db push --project-ref <staging-ref>` to apply new migrations.
+3. `supabase functions deploy ai-insight --project-ref <staging-ref>` to update backend functions.
+4. `flutter build web --release` and upload static artifacts to the staging web host.
+5. Compile staging mobile builds for TestFlight and the Google Play Internal track.
 
-**Production release (manual trigger / tag-based):**
-1. Cut a release branch or tag (`v1.x.x`)
-2. Run full test suite against staging one more time
-3. `supabase db push --project-ref <prod-ref>` — apply migrations to prod
-4. `supabase functions deploy ai-insight --project-ref <prod-ref>`
-5. `flutter build apk --release` / `flutter build ios --release` / `flutter build web --release`
-6. Submit to App Store / Play Console; deploy web build to prod host
-7. Tag release in git, update ROADMAP.md status if a phase completed
+**Production release (triggered by release tag):**
+1. Cut a release branch or tag (for example, `v1.0.0`).
+2. Run automated validation checks against staging.
+3. Apply migrations to production using `supabase db push --project-ref <prod-ref>`.
+4. Deploy production edge functions with `supabase functions deploy ai-insight --project-ref <prod-ref>`.
+5. Compile production client artifacts:
+   - `flutter build apk --release`
+   - `flutter build ios --release`
+   - `flutter build web --release`
+6. Submit application packages to the App Store and Google Play Console; upload web assets to the production CDN.
+7. Tag the release in source control and update milestone progress in the product roadmap.
 
-### 3. Migrations
-- All schema changes go through `supabase/migrations/`, never applied by hand against a live project
-- Order: dev → staging → prod, never skip staging
-- Every migration PR includes the matching RLS policy changes (if any) in the same file, per API_DATA_MODEL.md
+## 3. Database migrations
+- Apply schema updates exclusively through versioned SQL files in `supabase/migrations/`. Never modify live databases manually.
+- Promote changes sequentially: development, staging, and production.
+- Include matching row-level security policies in the same migration file, as outlined in [API_DATA_MODEL.md](../02-architecture/API_DATA_MODEL.md).
 
-### 4. Secrets Management
-- Client `.env` (SUPABASE_URL, SUPABASE_ANON_KEY) — safe to be public-ish, scoped by RLS; still not committed to git
-- `ANTHROPIC_API_KEY`, `MARKET_DATA_API_KEY` — set via `supabase secrets set`, scoped per project (staging keys ≠ prod keys where the provider allows it)
-- RevenueCat API keys — per-environment (sandbox for dev/staging, production for prod)
-- Never log secret values in Edge Function logs or CI output
+## 4. Secrets management
+- Client configuration keys (`SUPABASE_URL` and `SUPABASE_ANON_KEY`) are protected by database row-level security policies. These remain untracked in version control and load through environment files.
+- Third-party API credentials (`ANTHROPIC_API_KEY`, `MARKET_DATA_API_KEY`) are configured through `supabase secrets set` with distinct staging and production keys.
+- RevenueCat uses sandbox keys in development and staging, switching to production keys for live store releases.
+- Never write credentials or tokens to function logs or continuous integration job outputs.
 
-### 5. Rollback Plan
-- **Edge Functions:** redeploy the previous git tag's function version (`supabase functions deploy` is fast — no downtime migration needed since functions are stateless)
-- **Migrations:** write forward-fix migrations rather than reversing in place where possible; if a migration is destructive, have a tested down-migration ready before applying to prod
-- **Mobile builds:** App Store/Play both support halting rollout of a bad release; keep previous build available for expedited re-review if needed
-- **Web:** keep the previous static build artifact deployable via a one-command redeploy
+## 5. Rollback strategy
+- Edge functions: Redeploy the previous Git tag using `supabase functions deploy`. Because functions are stateless, redeployments execute quickly without downtime.
+- Migrations: Prioritize forward-fixing migrations whenever feasible. For destructive changes, test rollback SQL scripts in staging before executing production updates.
+- Mobile releases: Both Apple App Store Connect and Google Play Console allow teams to halt phased rollouts of problematic builds. Retain prior stable builds for expedited review if needed.
+- Web releases: Re-point CDN distribution or redeploy previous static build artifacts using automated commands.
 
-### 6. Release Cadence
-Tracks the phased plan in PRD.md § Release Plan — staging deploys continuously off `main`; production releases happen at the end of each phase (0–5), not continuously, to keep app store review overhead manageable during MVP build-out.
+## 6. Release cadence
+Releases follow the phased timeline defined in the product requirements. Staging updates continuously upon merging pull requests to `main`. Production releases align with major milestones (Phases 0 through 5), keeping app store submission and review cycles structured.
 
-### 7. Monitoring Post-Deploy
-- Sentry for crash/error tracking (client + Edge Function errors)
-- PostHog/Firebase Analytics for activation/retention funnel (ties to PRD.md § Success Metrics)
-- Watch `ai_insight_requests` volume after each release for unexpected rate-limit or cost spikes
+## 7. Post-deployment monitoring
+- Error tracking: Sentry captures crashes and unhandled exceptions across Flutter clients and Supabase edge functions.
+- Product analytics: PostHog tracks activation, retention, and funnel conversion against product KPIs.
+- Consumption monitoring: Review `ai_insight_requests` query volumes post-release to verify rate-limiting rules and manage Anthropic API costs.

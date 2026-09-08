@@ -106,41 +106,27 @@ class UiEditorToolbar extends StatelessWidget {
         horizontal: context.sp(theme.spacing.xs),
         vertical: context.sp(theme.spacing.xxs),
       ),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: <Widget>[
-                  for (final UiEditorAction a in actions)
-                    Container(
-                      margin: EdgeInsets.only(
-                        right: context.sp(theme.spacing.xxs),
-                      ),
-                      decoration: BoxDecoration(
-                        color: activeActions.contains(a)
-                            ? UiIntent.primary.surface(context)
-                            : null,
-                        borderRadius: context.radius(theme.radii.md),
-                      ),
-                      child: UiIconButton(
-                        icon: a.icon,
-                        tooltip: a.label,
-                        size: UiSize.sm,
-                        variant: UiVariant.ghost,
-                        onPressed: () => onAction(a),
-                      ),
-                    ),
-                ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final action in actions)
+              UiIconButton(
+                icon: action.icon,
+                tooltip: action.label,
+                size: UiSize.sm,
+                variant: activeActions.contains(action)
+                    ? UiVariant.soft
+                    : UiVariant.ghost,
+                onPressed: () => onAction(action),
               ),
-            ),
-          ),
-          if (trailing != null) ...<Widget>[
-            const UiDivider(vertical: true),
-            trailing!,
+            if (trailing != null) ...[
+              const UiDivider(vertical: true, spacing: 4),
+              trailing!,
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

@@ -1,77 +1,84 @@
-# Content Style Guide — TraderHub
-## Tone of Voice, Microcopy Patterns, and Terminology
+# TradeX content style guide
+## Tone of voice, microcopy patterns, and terminology
 
-How TraderHub talks to the user — every button label, empty state, error message, and notification in the app should read as if written by the same person. Companion to [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) (visual voice) and [SCREENS_MOBILE.md](./SCREENS_MOBILE.md) (where each piece of copy lives).
+This guide establishes copy standards across button labels, empty states, validation messages, and system notifications. It serves as a companion to [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) and [SCREENS_MOBILE.md](./SCREENS_MOBILE.md).
 
-### 1. Tone of Voice
-- **Direct, not hyped.** This is a financial record-keeping and analysis tool — avoid exclamation points, "🚀"-style enthusiasm, or gamified praise language ("Great trade! 🔥"). A trader's worst days happen in this app too; tone has to hold up on a loss entry the same as a win.
-- **Plain English over jargon**, except where trading terminology *is* the plain English for this audience (RR, P/L, stop loss are fine — they're the user's own vocabulary; don't over-explain them).
-- **Second person, active voice.** "You've hit your daily read limit," not "The daily read limit has been reached."
-- **Confident, not commanding.** Suggest, don't order: "Consider linking a strategy" reads better than "You must link a strategy."
-- **Never dispense financial advice in copy** — this applies to every string in the app, not just AI-generated content. UI copy should never say things like "This looks like a good entry" — save opinions on trade quality entirely for AI outputs, which already carry the mandatory disclaimer (§ 5).
+### 1. Tone of voice
+- Direct and composed: Avoid exclamation points, rocket emojis, and gamified praise. A trader's worst drawdowns occur in this application; copy must remain calm and objective during both losses and wins.
+- Accessible language over unnecessary jargon: Use standard trading terms (such as RR, P/L, and stop loss) directly without over-explaining, but keep UI guidance plain and concise.
+- Second person, active voice: Write "You reached your daily read limit" rather than "The daily read limit has been reached."
+- Advisory rather than demanding: Suggest actions with "Consider linking a strategy" rather than "You must link a strategy."
+- Never dispense financial advice in interface copy: UI copy must never instruct the user on whether to trade. Objective analysis belongs strictly in AI outputs accompanied by mandatory disclaimers.
 
-### 2. Capitalization & Formatting Conventions
-- **Buttons:** Sentence case, verb-first where possible ("Save entry", not "Save Entry" or "Entry Saved"). Exception: platform-native buttons (native iOS/Android purchase sheets) follow OS convention, not this rule.
-- **Screen titles / nav labels:** Title Case ("Journal", "Strategy Notes", "Portfolio").
-- **Section headers within a screen:** Sentence case ("Trading psychology", not "Trading Psychology").
-- **Numbers:** Always use digits, never spell out ("3 entries left", not "three entries left") — this is a data-dense app, digits scan faster.
-- **Currency:** Follow DESIGN_SYSTEM.md § 13 chart formatting rules everywhere currency appears, not just in charts (e.g. Journal Entry Detail's P/L field, Portfolio Dashboard stat cards).
-- **Dates:** Relative for anything within 7 days ("2 days ago", "Yesterday"), absolute (`Jul 30, 2026`) beyond that — applies to journal entries, posts, notifications, version history.
+### 2. Capitalization and formatting conventions
+- Buttons: Sentence case, starting with an active verb ("Save entry" rather than "Save Entry"). Native purchase dialogs follow OS conventions.
+- Screen titles and primary navigation: Title Case ("Journal", "Strategy Notes", "Portfolio").
+- Sub-headings within screens: Sentence case ("Trading psychology" rather than "Trading Psychology").
+- Numeric figures: Always use digits rather than spelling out words ("3 entries left" rather than "three entries left") for rapid scanning.
+- Currency amounts: Follow currency formatting rules from section 13 of [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md).
+- Timestamps: Use relative dates within 7 days ("2 days ago", "Yesterday") and absolute calendar dates (Jul 30, 2026) thereafter.
 
-### 3. Terminology Glossary
-Use these terms consistently — the alternatives listed are what NOT to use, since they appear as tempting synonyms but create inconsistency across screens:
+### 3. Terminology glossary
 
-| Canonical term | Do not use |
-|---|---|
-| Journal entry | Trade log, trade entry, log entry |
-| Strategy Note | Strategy doc, playbook, strategy page |
-| Outcome (win / loss / breakeven) | Result, status |
-| Watchlist item | Watched ticker, tracked stock (item can be any asset class, not just stocks) |
-| Post | Update, share (as a noun) |
-| Save (Community bookmarks) | Bookmark (as a verb in-app; "Saved Posts" is the screen name, keep "Save" as the button verb) |
-| Public / Private (visibility) | Shared / Hidden |
-| Upgrade | Subscribe, buy Premium (in-app CTA copy — "Upgrade" implies moving to something better, fits the tone better than a transactional "Buy") |
-| Ticker | Symbol, stock (again, asset-class-neutral — TraderHub covers forex/crypto too per PRD.md § 4 Target Users) |
+| Canonical term | Avoid using | Rationale |
+|---|---|---|
+| Journal entry | Trade log, trade entry, log entry | Standardizes primary trade record naming. |
+| Strategy Note | Strategy doc, playbook, strategy page | Distinguishes rich strategy documents. |
+| Outcome (win, loss, breakeven) | Result, status | Aligns with trading performance tracking. |
+| Watchlist item | Watched ticker, tracked stock | Neutral across equities, crypto, and forex. |
+| Post | Update, share (as noun) | Standardizes social feed entity names. |
+| Save (Community bookmarks) | Bookmark | Keeps the action verb "Save" consistent with "Saved Posts". |
+| Public / Private | Shared / Hidden | Matches database visibility fields. |
+| Upgrade | Subscribe, buy Premium | Focuses on unlocking advanced capabilities. |
+| Ticker | Symbol, stock | Broad asset class coverage across asset types. |
 
-### 4. Microcopy Patterns
+### 4. Microcopy patterns
 
-**Empty states** — one line describing the absence + a CTA verb, never apologetic:
-- Journal List: "No journal entries yet" → "Create your first entry"
-- Strategy List: "No strategies yet" → "Write your first strategy"
-- Watchlist List: "No watchlists yet" → "Create a watchlist"
-- Community Feed (filtered, no results): "No posts in this category yet"
-- Saved Posts: "Nothing saved yet" → "Browse Community"
+#### Empty states
+Provide a concise explanation of absence followed by a clear action verb:
+- Journal List: "No journal entries yet" followed by "Create your first entry"
+- Strategy List: "No strategies yet" followed by "Write your first strategy"
+- Watchlist List: "No watchlists yet" followed by "Create a watchlist"
+- Filtered Community Feed: "No posts in this category yet"
+- Saved Posts: "Nothing saved yet" followed by "Browse Community"
 - Notification Center: "You're all caught up"
 
-**Error states** — what happened + what to do, never a raw technical error:
-- Network/fetch failure: "Couldn't load this — check your connection" → Retry
-- Not found / no access: "This entry isn't available" (deliberately vague for private-content-not-found vs. deleted, to avoid leaking existence of private data)
-- Form validation: inline, specific ("Enter a valid ticker symbol", not "Invalid input")
+#### Error states
+State what occurred and offer an immediate remedy:
+- Network failures: "Couldn't load data. Check your connection." followed by Retry
+- Missing or private records: "This entry is unavailable" (intentionally vague to protect private record existence)
+- Form validation: Specific inline error text ("Enter a valid ticker symbol" rather than "Invalid input")
 
-**Confirmation dialogs** — state the consequence, not just the action:
-- Delete journal entry: "Delete this entry? This can't be undone." (not just "Are you sure?")
-- Cancel subscription: "Cancel Premium? You'll lose AI Trading Assistant, unlimited entries, and Strategy Notes at the end of your billing period."
-- Log out: no scary framing needed — "Log out?" is sufficient, this is a low-stakes action
+#### Confirmation dialogs
+State the consequence clearly rather than asking generic questions:
+- Deleting journal entries: "Delete this entry? This action cannot be undone."
+- Canceling subscriptions: "Cancel Premium? Access to the AI assistant, unlimited journal entries, and Strategy Notes ends with your billing period."
+- Logging out: "Log out of your account?"
 
-**Toasts/confirmations** — short, past tense, include Undo where the action is reversible:
+#### Toasts and confirmations
+Short, past tense notices offering undo actions where reversible:
 - "Entry saved"
-- "Entry deleted — Undo"
-- "Strategy published" (on setting visibility to public)
+- "Entry deleted. Undo"
+- "Strategy published"
 
-**Upsell copy** — name the specific feature just hit, never generic:
-- "Strategy Notes is a Premium feature" (not "Upgrade to unlock more")
-- Always pairs with what they get, not just what's locked: "Upgrade to Premium for unlimited Strategy Notes, AI insights, and more"
+#### Upgrade prompts
+Specify the exact capability requested rather than generic marketing:
+- "Strategy Notes is a Premium feature."
+- "Upgrade to Premium for unlimited Strategy Notes, AI insights, and full portfolio analytics."
 
-**AI disclaimer footer** — exact required string (PRD.md § 7, SECURITY_COMPLIANCE.md § 5), never paraphrased or shortened per-screen: *"This is AI-generated educational content, not financial advice."* Appears on every AI Trading Assistant, AI Strategy Review, AI Journal Analysis, Trade Review, and Performance Review output.
+#### AI disclaimer footer
+Every AI response must display this exact educational notice:
+*"This is AI-generated educational content, not financial advice."*
+Display this notice on all AI Trading Assistant, Strategy Review, Journal Analysis, and Performance Review screens.
 
-**Notification copy** — lead with the specific trigger, not the category:
-- Market alert: "AAPL crossed $230.00" (not "Price alert triggered")
-- Community update: "Sam liked your post" / "New comment on your post"
-- Strategy reminder: "Revisit your Breakout strategy — 5 new entries linked"
+#### Notification copy
+Lead with the triggering event:
+- Market alert: "AAPL crossed $230.00"
+- Community: "Sam liked your post"
+- Strategy reminder: "Revisit your Breakout strategy: 5 new entries linked"
 - AI recommendation: "Your weekly performance review is ready"
 - Subscription: "Your Premium renews in 3 days"
 
-### 5. Compliance-sensitive copy
-Two rules that apply everywhere, not just in one screen:
-- Never phrase UI copy as a recommendation ("You should sell" is never acceptable, even in an AI-adjacent screen's surrounding chrome — the AI's own output is the only place opinion-adjacent language is permitted, and even there it carries the disclaimer).
-- Every screen that surfaces AI-generated content must show the disclaimer from § 4 — this is a hard requirement, not a style preference; see SECURITY_COMPLIANCE.md § 5.
+### 5. Compliance guidelines
+- Never phrase UI copy as an investment instruction. Copy must never state "You should buy" or "Time to take profits."
+- Every screen presenting AI-generated analysis must display the educational disclaimer defined in section 4.

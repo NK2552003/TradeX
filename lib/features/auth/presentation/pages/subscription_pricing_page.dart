@@ -142,151 +142,183 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
             Positioned.fill(
               child: FutureBuilder<PricingCatalogueResponse>(
                 future: _catalogueFuture,
-                builder: (
-                  BuildContext context,
-                  AsyncSnapshot<PricingCatalogueResponse> snapshot,
-                ) {
-                  if (snapshot.connectionState == ConnectionState.waiting &&
-                      !snapshot.hasData) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          const CircularProgressIndicator(),
-                          SizedBox(height: context.sp(theme.spacing.md)),
-                          Text(
-                            'Loading plan catalogue…',
-                            style: context.uiText.body.copyWith(
-                              color: colors.foregroundMuted,
+                builder:
+                    (
+                      BuildContext context,
+                      AsyncSnapshot<PricingCatalogueResponse> snapshot,
+                    ) {
+                      if (snapshot.connectionState == ConnectionState.waiting &&
+                          !snapshot.hasData) {
+                        return Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              const CircularProgressIndicator(),
+                              SizedBox(height: context.sp(theme.spacing.md)),
+                              Text(
+                                'Loading plan catalogue…',
+                                style: context.uiText.body.copyWith(
+                                  color: colors.foregroundMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      if (snapshot.hasError || !snapshot.hasData) {
+                        return Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(
+                              context.sp(theme.spacing.xl),
+                            ),
+                            child: UiCallout(
+                              title: 'Unable to load pricing catalogue',
+                              message:
+                                  'Please verify your connection and try again.',
+                              intent: UiIntent.danger,
                             ),
                           ),
-                        ],
-                      ),
-                    );
-                  }
+                        );
+                      }
 
-                  if (snapshot.hasError || !snapshot.hasData) {
-                    return Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-                        child: UiCallout(
-                          title: 'Unable to load pricing catalogue',
-                          message:
-                              'Please verify your connection and try again.',
-                          intent: UiIntent.danger,
+                      final PricingCatalogueResponse catalogue = snapshot.data!;
+
+                      return SingleChildScrollView(
+                        controller: _scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.only(
+                          left: context.sp(
+                            responsive.isMobile
+                                ? theme.spacing.lg
+                                : theme.spacing.xxxl,
+                          ),
+                          right: context.sp(
+                            responsive.isMobile
+                                ? theme.spacing.lg
+                                : theme.spacing.xxxl,
+                          ),
+                          top: context.sp(
+                            responsive.isMobile
+                                ? theme.spacing.xxxl * 2
+                                : theme.spacing.xxxl * 2.5,
+                          ),
+                          bottom: context.sp(theme.spacing.xxl),
                         ),
-                      ),
-                    );
-                  }
-
-                  final PricingCatalogueResponse catalogue = snapshot.data!;
-
-                  return SingleChildScrollView(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.only(
-                      left: context.sp(
-                        responsive.isMobile
-                            ? theme.spacing.lg
-                            : theme.spacing.xxxl,
-                      ),
-                      right: context.sp(
-                        responsive.isMobile
-                            ? theme.spacing.lg
-                            : theme.spacing.xxxl,
-                      ),
-                      top: context.sp(
-                        responsive.isMobile
-                            ? theme.spacing.xxxl * 2
-                            : theme.spacing.xxxl * 2.5,
-                      ),
-                      bottom: context.sp(theme.spacing.xxl),
-                    ),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: context.sz(1180)),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: <Widget>[
-                            // Hero Title & Description
-                            _buildHeroHeader(context, theme, colors),
-                            SizedBox(height: context.sp(theme.spacing.xl)),
-
-                            // Billing Cycle Toggle (Monthly vs Annual)
-                            _buildCycleToggle(
-                              context,
-                              theme,
-                              colors,
-                              catalogue.annualDiscountPercent,
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: context.sz(1180),
                             ),
-                            SizedBox(height: context.sp(theme.spacing.xxxl)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: <Widget>[
+                                if (widget.onBack != null) ...<Widget>[
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: UiButton(
+                                      label: 'Back',
+                                      leadingIcon: Icons.arrow_back_rounded,
+                                      tooltip: 'Back to Overview',
+                                      size: UiSize.sm,
+                                      variant: UiVariant.ghost,
+                                      onPressed: widget.onBack!,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.md),
+                                  ),
+                                ],
+                                // Hero Title & Description
+                                _buildHeroHeader(context, theme, colors),
+                                SizedBox(height: context.sp(theme.spacing.xl)),
 
-                            // 3 Pricing Cards Grid (Claude style)
-                            KeyedSubtree(
-                              key: _plansKey,
-                              child: _buildPricingCardsGrid(
-                                context,
-                                theme,
-                                colors,
-                                responsive,
-                                catalogue.plans,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
+                                // Billing Cycle Toggle (Monthly vs Annual)
+                                _buildCycleToggle(
+                                  context,
+                                  theme,
+                                  colors,
+                                  catalogue.annualDiscountPercent,
+                                ),
+                                SizedBox(
+                                  height: context.sp(theme.spacing.xxxl),
+                                ),
 
-                            // Compare Features Across Plans Section
-                            KeyedSubtree(
-                              key: _matrixKey,
-                              child: _buildFeatureMatrixSection(
-                                context,
-                                theme,
-                                colors,
-                                responsive,
-                                catalogue.categories,
-                                catalogue.plans,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
+                                // 3 Pricing Cards Grid (Claude style)
+                                KeyedSubtree(
+                                  key: _plansKey,
+                                  child: _buildPricingCardsGrid(
+                                    context,
+                                    theme,
+                                    colors,
+                                    responsive,
+                                    catalogue.plans,
+                                  ),
+                                ),
+                                SizedBox(
+                                  height: context.sp(theme.spacing.xxxl) * 2,
+                                ),
 
-                            // Frequently Asked Questions Section
-                            KeyedSubtree(
-                              key: _faqKey,
-                              child: _buildFaqSection(
-                                context,
-                                theme,
-                                colors,
-                                responsive,
-                                catalogue.faqs,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
+                                // Compare Features Across Plans Section
+                                KeyedSubtree(
+                                  key: _matrixKey,
+                                  child: _buildFeatureMatrixSection(
+                                    context,
+                                    theme,
+                                    colors,
+                                    responsive,
+                                    catalogue.categories,
+                                    catalogue.plans,
+                                  ),
+                                ),
+                                SizedBox(
+                                  height: context.sp(theme.spacing.xxxl) * 2,
+                                ),
 
-                            // Bottom Detailed 4-Column Footer & Regulatory Disclaimer
-                            TradeXFooter(
-                              onNavigateToSection: (section) {
-                                if (section == 'pricing' || section == 'plans') {
-                                  _scrollToKey(_plansKey);
-                                } else if (section == 'features' ||
-                                    section == 'compare') {
-                                  _scrollToKey(_matrixKey);
-                                } else if (section == 'faq') {
-                                  _scrollToKey(_faqKey);
-                                } else {
-                                  _scrollController.animateTo(
-                                    0.0,
-                                    duration: const Duration(milliseconds: 500),
-                                    curve: Curves.easeInOutCubic,
-                                  );
-                                }
-                              },
+                                // Frequently Asked Questions Section
+                                KeyedSubtree(
+                                  key: _faqKey,
+                                  child: _buildFaqSection(
+                                    context,
+                                    theme,
+                                    colors,
+                                    responsive,
+                                    catalogue.faqs,
+                                  ),
+                                ),
+                                SizedBox(
+                                  height: context.sp(theme.spacing.xxxl) * 2,
+                                ),
+
+                                // Bottom Detailed 4-Column Footer & Regulatory Disclaimer
+                                TradeXFooter(
+                                  onNavigateToSection: (section) {
+                                    if (section == 'pricing' ||
+                                        section == 'plans') {
+                                      _scrollToKey(_plansKey);
+                                    } else if (section == 'features' ||
+                                        section == 'compare') {
+                                      _scrollToKey(_matrixKey);
+                                    } else if (section == 'faq') {
+                                      _scrollToKey(_faqKey);
+                                    } else {
+                                      _scrollController.animateTo(
+                                        0.0,
+                                        duration: const Duration(
+                                          milliseconds: 500,
+                                        ),
+                                        curve: Curves.easeInOutCubic,
+                                      );
+                                    }
+                                  },
+                                ),
+                                SizedBox(height: context.sp(theme.spacing.xl)),
+                              ],
                             ),
-                            SizedBox(height: context.sp(theme.spacing.xl)),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                  );
-                },
+                      );
+                    },
               ),
             ),
 
@@ -302,11 +334,7 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
                     return const LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black,
-                        Colors.black,
-                        Colors.transparent,
-                      ],
+                      colors: [Colors.black, Colors.black, Colors.transparent],
                       stops: [0.0, 0.45, 1.0],
                     ).createShader(bounds);
                   },
@@ -362,49 +390,20 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            // Left: Brand Logo + Back Button
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                if (widget.onBack != null) ...<Widget>[
-                  UiIconButton(
-                    icon: Icons.arrow_back_rounded,
-                    tooltip: 'Back to Overview',
-                    size: UiSize.sm,
-                    variant: UiVariant.ghost,
-                    onPressed: widget.onBack!,
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                ],
-                MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      _scrollController.animateTo(
-                        0.0,
-                        duration: const Duration(milliseconds: 500),
-                        curve: Curves.easeInOutCubic,
-                      );
-                    },
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        const AppLogoMark(size: 24),
-                        SizedBox(width: context.sp(theme.spacing.sm)),
-                        Text(
-                          'TRADEX',
-                          style: context.uiText.display.copyWith(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+            // Left: compact brand. Back navigation sits below the header.
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  _scrollController.animateTo(
+                    0.0,
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeInOutCubic,
+                  );
+                },
+                child: const AppLogo(size: 20, tagline: 'TRADEX'),
+              ),
             ),
 
             // Center: Navigation Links (Desktop)
@@ -552,10 +551,7 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
       decoration: BoxDecoration(
         color: colors.surfaceMuted.withValues(alpha: 0.5),
         borderRadius: context.radius(theme.radii.pill),
-        border: Border.all(
-          color: colors.border,
-          width: theme.borders.hairline,
-        ),
+        border: Border.all(color: colors.border, width: theme.borders.hairline),
       ),
       padding: EdgeInsets.all(context.sp(theme.spacing.xxs)),
       child: Row(
@@ -812,15 +808,11 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
 
           // Main CTA Button
           UiButton(
-            label: _isProcessing && isSelected
-                ? 'Processing…'
-                : plan.ctaLabel,
+            label: _isProcessing && isSelected ? 'Processing…' : plan.ctaLabel,
             variant: isFeatured ? UiVariant.primary : UiVariant.outline,
             intent: isFeatured ? UiIntent.primary : UiIntent.neutral,
             size: UiSize.lg,
-            onPressed: _isProcessing
-                ? null
-                : () => _handlePlanSelection(plan),
+            onPressed: _isProcessing ? null : () => _handlePlanSelection(plan),
           ),
           SizedBox(height: context.sp(theme.spacing.xl)),
 
@@ -846,7 +838,8 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  for (final String feature in plan.featuresSummary) ...<Widget>[
+                  for (final String feature
+                      in plan.featuresSummary) ...<Widget>[
                     Padding(
                       padding: EdgeInsets.symmetric(
                         vertical: context.sp(theme.spacing.xxs),
@@ -1009,149 +1002,52 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                    // Sticky Column Header
-                    Padding(
-                      padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-                      child: Row(
-                        children: <Widget>[
-                          Expanded(
-                            flex: 3,
+                  // Sticky Column Header
+                  Padding(
+                    padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+                    child: Row(
+                      children: <Widget>[
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            'Features & Capabilities',
+                            style: context.uiText.bodyStrong.copyWith(
+                              color: colors.foregroundMuted,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Center(
                             child: Text(
-                              'Features & Capabilities',
+                              'Free',
                               style: context.uiText.bodyStrong.copyWith(
-                                color: colors.foregroundMuted,
                                 fontSize: 13,
                               ),
                             ),
                           ),
-                          Expanded(
-                            flex: 2,
-                            child: Center(
-                              child: Text(
-                                'Free',
-                                style: context.uiText.bodyStrong.copyWith(fontSize: 13),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Center(
-                              child: Text(
-                                'Pro',
-                                style: context.uiText.bodyStrong.copyWith(
-                                  fontSize: 13,
-                                  color: colors.primary,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Center(
-                              child: Text(
-                                'Enterprise',
-                                style: context.uiText.bodyStrong.copyWith(fontSize: 13),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const UiDivider(),
-
-              // Feature Categories & Rows
-              for (final PlanFeatureCategory category in categories) ...<Widget>[
-                // Category Headline
-                Container(
-                  color: colors.surfaceMuted.withValues(alpha: 0.3),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.sp(theme.spacing.lg),
-                    vertical: context.sp(theme.spacing.sm),
-                  ),
-                  child: Text(
-                    category.name.toUpperCase(),
-                    style: context.uiText.caption.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.6,
-                      color: colors.foregroundSubtle,
-                      fontSize: 11.5,
-                    ),
-                  ),
-                ),
-                UiDivider(),
-
-                for (final PlanComparisonRow row in category.rows) ...<Widget>[
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.sp(theme.spacing.lg),
-                      vertical: context.sp(theme.spacing.md),
-                    ),
-                    child: Row(
-                      children: <Widget>[
-                        // Feature Name + Tooltip
-                        Expanded(
-                          flex: 3,
-                          child: Row(
-                            children: <Widget>[
-                              Expanded(
-                                child: Text(
-                                  row.title,
-                                  style: context.uiText.body.copyWith(
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                              if (row.tooltip != null) ...<Widget>[
-                                SizedBox(width: context.sp(theme.spacing.xxs)),
-                                Tooltip(
-                                  message: row.tooltip!,
-                                  child: Icon(
-                                    Icons.info_outline_rounded,
-                                    size: context.sz(13),
-                                    color: colors.foregroundSubtle,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
                         ),
-
-                        // Free Value
                         Expanded(
                           flex: 2,
                           child: Center(
-                            child: _renderMatrixValue(
-                              context,
-                              colors,
-                              row.freeValue,
-                              row.isBoolean,
+                            child: Text(
+                              'Pro',
+                              style: context.uiText.bodyStrong.copyWith(
+                                fontSize: 13,
+                                color: colors.primary,
+                              ),
                             ),
                           ),
                         ),
-
-                        // Pro Value
                         Expanded(
                           flex: 2,
                           child: Center(
-                            child: _renderMatrixValue(
-                              context,
-                              colors,
-                              row.proValue,
-                              row.isBoolean,
-                              isPrimary: true,
-                            ),
-                          ),
-                        ),
-
-                        // Enterprise Value
-                        Expanded(
-                          flex: 2,
-                          child: Center(
-                            child: _renderMatrixValue(
-                              context,
-                              colors,
-                              row.enterpriseValue,
-                              row.isBoolean,
+                            child: Text(
+                              'Enterprise',
+                              style: context.uiText.bodyStrong.copyWith(
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                         ),
@@ -1159,16 +1055,121 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
                     ),
                   ),
                   const UiDivider(),
+
+                  // Feature Categories & Rows
+                  for (final PlanFeatureCategory category
+                      in categories) ...<Widget>[
+                    // Category Headline
+                    Container(
+                      color: colors.surfaceMuted.withValues(alpha: 0.3),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.sp(theme.spacing.lg),
+                        vertical: context.sp(theme.spacing.sm),
+                      ),
+                      child: Text(
+                        category.name.toUpperCase(),
+                        style: context.uiText.caption.copyWith(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.6,
+                          color: colors.foregroundSubtle,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                    UiDivider(),
+
+                    for (final PlanComparisonRow row
+                        in category.rows) ...<Widget>[
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.sp(theme.spacing.lg),
+                          vertical: context.sp(theme.spacing.md),
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            // Feature Name + Tooltip
+                            Expanded(
+                              flex: 3,
+                              child: Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: Text(
+                                      row.title,
+                                      style: context.uiText.body.copyWith(
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  if (row.tooltip != null) ...<Widget>[
+                                    SizedBox(
+                                      width: context.sp(theme.spacing.xxs),
+                                    ),
+                                    Tooltip(
+                                      message: row.tooltip!,
+                                      child: Icon(
+                                        Icons.info_outline_rounded,
+                                        size: context.sz(13),
+                                        color: colors.foregroundSubtle,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+
+                            // Free Value
+                            Expanded(
+                              flex: 2,
+                              child: Center(
+                                child: _renderMatrixValue(
+                                  context,
+                                  colors,
+                                  row.freeValue,
+                                  row.isBoolean,
+                                ),
+                              ),
+                            ),
+
+                            // Pro Value
+                            Expanded(
+                              flex: 2,
+                              child: Center(
+                                child: _renderMatrixValue(
+                                  context,
+                                  colors,
+                                  row.proValue,
+                                  row.isBoolean,
+                                  isPrimary: true,
+                                ),
+                              ),
+                            ),
+
+                            // Enterprise Value
+                            Expanded(
+                              flex: 2,
+                              child: Center(
+                                child: _renderMatrixValue(
+                                  context,
+                                  colors,
+                                  row.enterpriseValue,
+                                  row.isBoolean,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const UiDivider(),
+                    ],
+                  ],
                 ],
-              ],
-            ],
+              ),
+            ),
           ),
         ),
-      ),
-    ),
-  ],
-);
-}
+      ],
+    );
+  }
 
   Widget _renderMatrixValue(
     BuildContext context,
@@ -1263,7 +1264,11 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
             _buildFaqCategoryFilter(context, 'all', 'All Questions'),
             _buildFaqCategoryFilter(context, 'billing', 'Billing & Plans'),
             _buildFaqCategoryFilter(context, 'features', 'Features & AI'),
-            _buildFaqCategoryFilter(context, 'enterprise', 'Enterprise & Desks'),
+            _buildFaqCategoryFilter(
+              context,
+              'enterprise',
+              'Enterprise & Desks',
+            ),
           ],
         ),
         SizedBox(height: context.sp(theme.spacing.xl)),
@@ -1311,7 +1316,9 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
           vertical: context.sp(theme.spacing.xs),
         ),
         decoration: BoxDecoration(
-          color: isSelected ? colors.surface : colors.surfaceMuted.withValues(alpha: 0.4),
+          color: isSelected
+              ? colors.surface
+              : colors.surfaceMuted.withValues(alpha: 0.4),
           borderRadius: context.radius(theme.radii.pill),
           border: Border.all(
             color: isSelected ? colors.primary : colors.border,
@@ -1331,10 +1338,7 @@ class _SubscriptionPricingPageState extends State<SubscriptionPricingPage> {
 }
 
 class _HeaderNavLink extends StatefulWidget {
-  const _HeaderNavLink({
-    required this.label,
-    required this.onTap,
-  });
+  const _HeaderNavLink({required this.label, required this.onTap});
 
   final String label;
   final VoidCallback onTap;
@@ -1360,7 +1364,7 @@ class _HeaderNavLinkState extends State<_HeaderNavLink> {
           behavior: HitTestBehavior.opaque,
           onTap: widget.onTap,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
+            duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
             padding: EdgeInsets.symmetric(
               horizontal: context.sp(theme.spacing.xxs),
@@ -1369,21 +1373,25 @@ class _HeaderNavLinkState extends State<_HeaderNavLink> {
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: _isHovered ? colors.foreground : Colors.transparent,
+                  color: _isHovered
+                      ? colors.foreground
+                      : colors.foreground.withValues(alpha: 0.0),
                   width: 2,
                 ),
               ),
             ),
-            child: Text(
-              widget.label,
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
               style: context.uiText.body.copyWith(
                 color: _isHovered
                     ? colors.foreground
                     : colors.foregroundMuted.withValues(alpha: 0.75),
-                fontWeight: _isHovered ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: FontWeight.w500,
                 fontSize: 15.0,
                 letterSpacing: -0.2,
               ),
+              child: Text(widget.label),
             ),
           ),
         ),
@@ -1391,4 +1399,3 @@ class _HeaderNavLinkState extends State<_HeaderNavLink> {
     );
   }
 }
-

@@ -1,19 +1,19 @@
-# Screens & Flows — TraderHub
-## UI/UX Handoff: Full Screen Inventory, Contents, and Pipelines
+# Screens and flows: TradeX
+## UI and UX handoff: screens and interaction pipelines
 
-This doc is the UI/UX designer handoff: every screen in the app, what each screen contains, how screens connect, and the interaction pipeline for each feature. Product context: [PRD.md](./PRD.md). Data backing every field: [API_DATA_MODEL.md](./API_DATA_MODEL.md). Deeper flows for Strategy Notes/Analyzer: [NOTES_ANALYZER.md](./NOTES_ANALYZER.md). A flat per-screen content reference (no diagrams) is also available in [SCREEN_CONTENTS.md](./SCREEN_CONTENTS.md). Per-screen (not module-level) mermaid diagrams, including every Loading/Empty/Error/Toast state individually, live in [UI_FLOW_DIAGRAMS.md](./UI_FLOW_DIAGRAMS.md) — this doc stays at the module level; that one goes screen-by-screen.
+This document guides UI and UX designers by outlining every screen in the application, detailing component contents, and diagramming interaction flows between screens. For background product requirements, refer to [PRD.md](./PRD.md). For database schemas, see [API_DATA_MODEL.md](./API_DATA_MODEL.md). Strategy notes and analyzer workflows are documented further in [NOTES_ANALYZER.md](./NOTES_ANALYZER.md). For a flat per-screen listing without diagrams, see [SCREEN_CONTENTS.md](./SCREEN_CONTENTS.md). Detailed per-screen diagrams with isolated loading, empty, and error states live in [UI_FLOW_DIAGRAMS.md](./UI_FLOW_DIAGRAMS.md).
 
-Tier gating shorthand: **F** = Free, **P** = Premium, **E** = Enterprise (post-MVP, see ROADMAP.md — included here for completeness since the tier is priced/scoped in the PRD, but build it last).
+Tier gating shorthand: **F** = Free, **P** = Premium, **E** = Enterprise (post-MVP, see ROADMAP.md; included here for completeness since the tier is priced in the PRD, but built last).
 
 ---
 
-## 0. Global Navigation Map
+## 0. Global navigation map
 
 ```mermaid
 flowchart TD
     Splash[Splash / Onboarding] --> Auth{Logged in?}
     Auth -- No --> SignIn[Sign Up / Log In]
-    Auth -- Yes --> Shell[App Shell — bottom nav]
+    Auth -- Yes --> Shell[App Shell: bottom nav]
     SignIn --> Shell
 
     Shell --> TabJournal[Tab: Journal]
@@ -79,12 +79,12 @@ flowchart TD
     OrgDashboard -.-> APIKeys[API Access / Key Management]
 ```
 
-Bottom nav tabs: **Journal · Strategies · Watchlists · Portfolio · Community · Insights · Profile** (7 tabs — consider collapsing Strategies under Journal or Portfolio under Insights in a "More" tab if the nav bar feels crowded; flagged for design review). Enterprise screens (dotted lines above) only appear for org-admin accounts once Enterprise ships — see ROADMAP.md.
+Bottom navigation tabs include Journal, Strategies, Watchlists, Portfolio, Community, Insights, and Profile. Teams may collapse Strategies under Journal or Portfolio under Insights into a "More" overflow menu if the bar feels cramped on smaller devices. Enterprise screens (shown with dotted lines) appear only for organization administrators once Enterprise ships.
 
 ---
 
-## 0.1 Cross-cutting state flow (applies inside every screen below)
-Every screen in every module diagram that fetches data silently passes through this same state machine — shown once here rather than redrawn in each module's diagram. Full per-screen Loading/Error/Empty/Toast tagging: [SCREENS_MOBILE.md](./SCREENS_MOBILE.md)'s cross-cutting section and each screen's own listing.
+## 0.1 Cross-cutting state flow
+Every screen that fetches data follows this standard state pattern. Detailed tags for loading, error, empty, and toast states appear in [SCREENS_MOBILE.md](./SCREENS_MOBILE.md).
 
 ```mermaid
 flowchart TD
@@ -99,33 +99,33 @@ flowchart TD
     G -- Failure --> I[Inline error or error toast, form/data preserved]
 ```
 
-## 0.2 Report / Block / Mute (recurring pattern — not redrawn per module)
-This exact pattern appears three separate places (Public Profile overflow, Post Detail overflow, Conversation Detail overflow) — one flow, reused everywhere it's mentioned in the module sections below.
+## 0.2 Report, block, and mute flow
+This pattern appears on Public Profile, Post Detail, and Conversation Detail overflow menus.
 
 ```mermaid
 flowchart TD
     A[Overflow menu: Report / Block / Mute] --> B{Which action?}
     B -- Report --> C[Report reason picker] --> D[Submit] --> E[Toast: Report submitted]
-    B -- Block --> F[Confirmation dialog: this stops messages and hides content both directions]
-    F -->|confirm| G[blocks row created — API_DATA_MODEL.md § 1] --> H[Toast: User blocked]
-    B -- Mute --> I[No confirmation needed — reversible, low-stakes] --> J[Toast: User muted]
-    G -.affects.-> K[Any open/future Direct Messages conversation between the two — input bar shows blocked state]
-    G -.affects.-> L[Blocker's own Community feed — blocked user's posts filtered client-side, DATABASE_ERD.md § 2]
+    B -- Block --> F[Confirmation dialog: stops messages and hides content both directions]
+    F -->|confirm| G[blocks row created, API_DATA_MODEL.md section 1] --> H[Toast: User blocked]
+    B -- Mute --> I[No confirmation needed: reversible, low-stakes] --> J[Toast: User muted]
+    G -.affects.-> K[Any open or future Direct Messages conversation between the two: input bar shows blocked state]
+    G -.affects.-> L[Blocker own Community feed: blocked user posts filtered client-side, DATABASE_ERD.md section 2]
 ```
 
 ---
 
-## 1. Auth & Profile
+## 1. Auth and profile
 
 | Screen | Tier | Contains |
 |---|---|---|
-| Splash / Onboarding | All | App logo, brief value prop (five pillars), Get Started / Log In buttons |
-| Sign Up | All | Email/password fields, Google/Apple OAuth buttons, handle picker, ToS/privacy checkbox |
-| Log In | All | Email/password fields, OAuth buttons, "Forgot password?" link |
-| Forgot Password | All | Email input, reset-link confirmation state |
-| Own Profile | All | Avatar/profile picture, handle, bio, experience level, trading style, follower/following counts, public statistics (from Portfolio Dashboard, if public), subscription tier badge, "Public Journals" toggle, tabs/links to their public posts and public Strategy Notes, tier upgrade CTA (Free only), Settings entry point |
-| Public Profile (other user) | All | Avatar, handle, bio, experience level, trading style, follower/following counts, public statistics (if shared), their public posts, their public Strategy Notes, their public journal entries (if `public_journals` is on), Follow/Unfollow button, Report/Block |
-| Settings | All | Notification preferences (per category — see § 9), account (email/password change), subscription management entry, "Public Journals" visibility toggle, log out, delete account; Enterprise-only: link to Org Dashboard |
+| Splash and onboarding | All | App logo, brief value proposition across the five pillars, Get Started and Log In buttons |
+| Sign up | All | Email and password fields, Google and Apple authentication, handle picker, terms and privacy checkbox |
+| Log in | All | Email and password fields, OAuth buttons, "Forgot password?" link |
+| Forgot password | All | Email input, reset link confirmation state |
+| Personal profile | All | Avatar, handle, bio, experience level, trading style, follower and following counts, public performance stats, tier badge, public journals toggle, tabs for posts and strategy notes, upgrade CTA for free accounts, settings icon |
+| Public profile (other user) | All | Avatar, handle, bio, experience level, trading style, follower and following counts, public stats if shared, public posts, strategy notes, and journals, Follow button, and report or block menu |
+| Settings | All | Category notification controls, account settings for email and password, subscription management, public journals toggle, log out, delete account, and enterprise organization link |
 
 ```mermaid
 flowchart TD
@@ -147,20 +147,20 @@ flowchart TD
     L -->|Notification preferences row| N[Notification Preferences]
     L -->|Log Out| O[Confirmation dialog] -->|confirm| B
     L -->|Delete Account| P[Confirmation dialog, destructive] -->|confirm| Q[Account deleted] --> B
-    R[Any user's avatar elsewhere in the app] --> S[Public Profile]
-    S -->|overflow: Report/Block| T[Report / Block / Mute flow — § 0.2]
+    R[Any user avatar elsewhere in the app] --> S[Public Profile]
+    S -->|overflow: Report/Block| T[Report, Block, Mute flow: section 0.2]
     S -->|Follow/Unfollow| S
 ```
 
 ---
 
-## 2. Trading Journal
+## 2. Trading journal
 
 | Screen | Tier | Contains |
 |---|---|---|
-| Journal List | F (limited count) / P+ (unlimited) | Search bar, filter chips (ticker, date, tag, strategy, outcome), entry cards showing ticker, date, outcome badge (win/loss/breakeven), P/L, snippet of notes; FAB "New Entry" |
-| Journal Entry Detail | F/P/E | Ticker, entry/exit price, stop loss, target, size, side, P/L, outcome badge (tap to override), screenshots gallery, notes, psychology, mistakes made, lessons learned, linked strategy (tap to open), tags, "make public" toggle, edit/delete actions, "link to another entry" action (graph) |
-| Journal Entry Create/Edit | F/P/E | Ticker input (autocomplete), screenshot attach button → auto-fill flow, trade fields (entry/exit/stop loss/target/size/side — editable pre-fill), P/L (auto-computed or manual), notes rich text area, psychology/mistakes/lessons text areas, tags input, strategy picker (link existing or create new), save/cancel |
+| Journal list | Free (limited count), Premium and Enterprise (unlimited) | Search bar, filter chips for ticker, date, tag, strategy, and outcome, entry cards with outcome badges and net P/L, and new entry action button |
+| Journal entry detail | All | Ticker symbol, entry and exit prices, stop loss, target, position size, trade side, net P/L, outcome badge, screenshot carousel, notes, psychology, mistakes, lessons learned, linked strategy, tags, public toggle, edit and delete actions, entry linking |
+| Journal entry create and edit | All | Ticker input with autocomplete, screenshot attachment with automated OCR pre-fill, trade parameters, auto-calculated P/L, notes, psychology, mistakes, lessons learned, tag chips, strategy picker, save and cancel controls |
 
 ```mermaid
 flowchart TD
@@ -180,22 +180,22 @@ flowchart TD
     C -->|override outcome| K[Outcome picker: win/loss/breakeven] --> C
     C -->|toggle Make Public| C
     C -->|Link to another entry| Y[Pick target entry] --> Y2[journal_entry_link created] --> C
-    C -->|delete| Del[Confirmation dialog] -->|confirm| A2[Toast: Entry deleted — Undo] --> A
-    C -->|AI Trade Review, Premium| AITR[Trade Review results — § 8]
+    C -->|delete| Del[Confirmation dialog] -->|confirm| A2[Toast: Entry deleted, Undo] --> A
+    C -->|AI Trade Review, Premium| AITR[Trade Review results: section 8]
 ```
 
 ---
 
-## 3. Strategy Notes & Analyzer
+## 3. Strategy notes and analyzer
 
 | Screen | Tier | Contains |
 |---|---|---|
-| Strategy List | F: locked/upsell · P/E: full | Category filter chips, favorite toggle per card, cards showing title, category, visibility icon (private/public), win-rate summary if entries linked; FAB "New Strategy"; entry points to Strategy Analyzer and Graph View |
-| Strategy Detail | P/E (read-only preview shown to Free with upsell) | Title, rendered rich text content, embedded charts/images, category, favorite toggle, visibility toggle (private/public), AI summary block (Premium — "Regenerate" button), linked journal entries count/link to Analyzer, "View version history" link, edit/delete |
-| Strategy Editor | P/E | Rich text editor toolbar (headings, lists, images, embeds), title field, category picker/create, visibility toggle, save/cancel; autosave-to-draft indicator |
-| Version History | P/E | List of versions (number, timestamp), tap to preview, "Restore this version" action |
-| Strategy Analyzer | P/E | Per-strategy rollup cards: win rate, avg P/L, entry count, outcome breakdown (win/loss/breakeven chart); tap card → filtered journal entry list for that strategy |
-| Graph View | P/E | Interactive force-directed graph canvas: entry nodes, strategy nodes, ticker nodes, edges (explicit entry-links + derived strategy/ticker links); tap node to open detail; pinch/zoom/pan; "link entries" mode |
+| Strategy list | Free (locked with upsell), Premium and Enterprise (full) | Category filter chips, favorite toggles, strategy cards with win rate summaries, new strategy button, links to Strategy Analyzer and Graph View |
+| Strategy detail | Premium and Enterprise (read-only preview with upsell for Free) | Title, rich text body, embedded charts and media, category chip, favorite toggle, visibility toggle, AI summary block, linked trade counter, version history link, edit and delete buttons |
+| Strategy editor | Premium and Enterprise | Rich text formatting toolbar, title field, category selector, visibility toggle, autosave draft status, save and cancel controls |
+| Version history | Premium and Enterprise | Chronological revision list, preview pane, version restore button |
+| Strategy analyzer | Premium and Enterprise | Rollup summary cards by strategy with win rate, average P/L, trade volume, outcome charts, and filtered trade lists |
+| Graph view | Premium and Enterprise | Interactive node-link graph showing trade entries, strategies, and tickers, pan and zoom controls, manual entry-linking mode |
 
 ```mermaid
 flowchart TD
@@ -225,10 +225,10 @@ flowchart TD
 
 | Screen | Tier | Contains |
 |---|---|---|
-| Watchlist List | F: 1 watchlist · P/E: unlimited | List of named watchlists, ticker-count per watchlist, favorites shortlist section at top, FAB "New Watchlist" |
-| Watchlist Detail | F: no alerts · P/E: full | Ticker rows (symbol, last price, day change), per-ticker notes indicator, category grouping/filter, favorite star per ticker, swipe-to-remove, "Add Ticker" button |
-| Add Ticker | F/P/E | Ticker search/autocomplete, category assignment, optional note field, "Set price alert" toggle |
-| Price Alert Setup | P/E (Free: locked, upsell) | Threshold price input (above/below), notification preview, save/cancel |
+| Watchlist list | Free (1 watchlist), Premium and Enterprise (unlimited) | Watchlist collection, ticker counts per list, favorites preview bar, create watchlist button |
+| Watchlist detail | Free (no alerts), Premium and Enterprise (full) | Ticker rows with latest prices and moves, notes indicator, category filter chips, favorite stars, swipe to remove, add ticker action |
+| Add ticker | All | Ticker search with autocomplete, category selector, note field, price alert toggle |
+| Price alert setup | Premium and Enterprise (Free shows paywall) | Above or below price condition, threshold input, alert preview string, save and cancel actions |
 
 ```mermaid
 flowchart TD
@@ -242,26 +242,26 @@ flowchart TD
     E -- Yes, Premium --> F[Price Alert Setup] --> Toast2[Toast: alert saved] --> C
     E -- Yes, Free --> G[Upsell to Premium] --> C
     E -- No --> Toast3[Toast: ticker added] --> C
-    C -->|swipe ticker row| Remove[Toast: Ticker removed — Undo] --> C
-    C -->|tap ticker| H[Ticker Detail — Insights module]
+    C -->|swipe ticker row| Remove[Toast: Ticker removed, Undo] --> C
+    C -->|tap ticker| H[Ticker Detail: Insights module]
     C -->|favorite star| C
 ```
 
 ---
 
-## 5. Portfolio Dashboard
+## 5. Portfolio dashboard
 
 | Screen | Tier | Contains |
 |---|---|---|
-| Portfolio Dashboard | F: headline stats only · P/E: full | Headline stat cards (Total P/L, Win Rate, Avg RR, Max Drawdown), time-range toggle (weekly/monthly), Equity Curve chart, Monthly Growth chart, Win/Loss Distribution chart, Best Trade / Worst Trade cards (tap to open entry), "Strategy Performance" section entry point (Premium) |
-| Strategy Performance Breakdown | P/E | Per-strategy performance cards (reuses Strategy Analyzer data from § 3), sortable by win rate/P&L/entry count |
+| Portfolio dashboard | Free (headline metrics only), Premium and Enterprise (full) | Stat cards for Total P/L, Win Rate, Average Risk/Reward, Maximum Drawdown, weekly and monthly toggle, equity curve, monthly growth bars, win/loss chart, best and worst trade cards, strategy performance section |
+| Strategy performance breakdown | Premium and Enterprise | Per-strategy performance cards reusable from the Strategy Analyzer, sortable by win rate, profit, and entry count |
 
 ```mermaid
 flowchart TD
     A[Portfolio Dashboard] --> B[Fetch portfolio_stats view + journal_entries for charts]
     B --> C[Render headline stats]
     B --> D[Render Equity Curve / Monthly Growth / Win-Loss charts]
-    B -->|fewer than 5 entries with pnl| E2[Muted placeholder charts, DESIGN_SYSTEM.md § 13]
+    B -->|fewer than 5 entries with pnl| E2[Muted placeholder charts, DESIGN_SYSTEM.md section 13]
     A -->|tap Best/Worst Trade| E[Journal Entry Detail]
     A -->|Strategy Performance, Premium| F[Strategy Performance Breakdown]
     F -->|tap strategy| G[Strategy Analyzer filtered view]
@@ -275,12 +275,11 @@ flowchart TD
 
 | Screen | Tier | Contains |
 |---|---|---|
-| Community Feed | F: limited reads/day, limited interaction · P/E: unlimited | Reverse-chron post cards (avatar, handle, ticker tag, content-type badge, text, optional image, like/comment/save counts), content-type filter chips (Trade Analysis, Educational, Psychology, Strategies, News, Market Discussion), FAB "New Post", daily-read-limit banner (Free only) |
-| Post Detail | F/P/E | Full post content/image, content-type badge, comment thread, comment input, like button, save/bookmark button, report/block/mute on the author |
-| Create Post | F/P/E | Text area, content-type picker, optional ticker tag, optional image/screenshot attach, post/cancel |
-| Saved Posts | F/P/E | List of the user's bookmarked posts, same card format as feed, unsave action |
-| Public Profile | (see § 1) | — |
-| Followers / Following List | F/P/E | Searchable list of users, follow/unfollow inline |
+| Community feed | Free (limited reads and interactions), Premium and Enterprise (unlimited) | Reverse chronological posts with avatars, tags, badges, text, images, and engagement counts; category filter chips; new post button; daily read limit alert on Free |
+| Post detail | All | Full post text and image, category badge, comment list, comment input field, like button, save button, author moderation menu |
+| Create post | All | Text editor, category selector, ticker search input, image upload button, post and cancel buttons |
+| Saved posts | All | User bookmarks feed with swipe to unsave action |
+| Followers and following list | All | Searchable user directory with inline follow and unfollow buttons |
 
 ```mermaid
 flowchart TD
@@ -293,7 +292,7 @@ flowchart TD
     B -->|like| B
     B -->|save| B
     B -->|tap author| D[Public Profile]
-    B -->|overflow: Report/Block/Mute| RBM[Report / Block / Mute flow — § 0.2]
+    B -->|overflow: Report/Block/Mute| RBM[Report, Block, Mute flow: section 0.2]
     D -->|follow/unfollow| D
     D -->|followers count| E[Followers / Following List]
     E -->|search| E
@@ -307,13 +306,13 @@ flowchart TD
 
 ---
 
-## 7. Direct Messages — P/E only
+## 7. Direct messages (Premium and Enterprise)
 
 | Screen | Tier | Contains |
 |---|---|---|
-| Direct Messages List | P/E (Free: locked) | Conversation rows sorted by recent activity (avatar, handle, last message preview, timestamp, unread indicator), new-message icon, swipe-to-mute/delete (hides locally, doesn't delete for the other participant) |
-| Conversation Detail | P/E | Chat thread (real-time via Supabase Realtime), message bubbles with read receipts, message input bar, tier-downgrade and blocked-state variants replacing the input bar when sending isn't currently allowed |
-| New Message | P/E | Handle search, tap a result to open an existing or new Conversation Detail |
+| Direct messages list | Premium and Enterprise (Free shows paywall) | Active conversation rows with avatar, handle, message preview, timestamp, and unread indicator; new message button; swipe to mute or hide |
+| Conversation detail | Premium and Enterprise | Realtime chat thread, message bubbles with delivery receipts, composer bar, downgrade and blocked message states |
+| New message | Premium and Enterprise | Handle search input, mutual follow badges, conversation routing |
 
 ```mermaid
 flowchart TD
@@ -329,24 +328,24 @@ flowchart TD
     F -->|Message button, Free viewer| G[Upsell interstitial]
     A -->|Free tier| H[Locked full-screen state -> Plan Comparison]
     A -->|swipe row| Mute[Mute / Delete locally] --> A
-    D -->|overflow: Report/Block/Mute| RBM[Report / Block / Mute flow — § 0.2]
+    D -->|overflow: Report/Block/Mute| RBM[Report, Block, Mute flow: section 0.2]
     D -->|sender downgrades mid-thread| I[Input bar replaced with resubscribe strip, history stays visible]
     D -->|either party blocks the other| J[Input bar replaced with neutral blocked message]
 ```
 
 ---
 
-## 8. AI Trading Assistant
+## 8. AI trading assistant
 
 | Screen | Tier | Contains |
 |---|---|---|
-| Ticker Search / Detail | F: basic analytics only · P/E: full | Ticker search bar, price chart, key indicators (RSI, MACD, SMA), news/sentiment summary block (Premium), "Ask AI" entry point (Premium), basic analytics view (Free) |
-| AI Trading Assistant (chat) | P/E (Free: locked, upsell) | Chat-style thread scoped to a ticker, a watchlist, or the user's portfolio; message input; quick-action chips (risk-to-reward analysis, watchlist insights, AI Q&A); disclaimer footer on every AI message |
-| Trade Review results | P/E | Triggered from Journal Entry Detail — AI commentary on the completed trade vs. the stated plan, disclaimer footer |
-| AI Strategy Review results | P/E | Triggered from Strategy Detail — shows Claude's clarity/consistency review, flagged ambiguous rules, dismiss/re-run |
-| AI Journal Analysis results | P/E | Date range picker, optional strategy filter, pattern summary (recurring mistakes, psychology trends, tag/outcome correlations), disclaimer footer |
-| Weekly / Monthly Performance Review | P/E | AI-generated narrative layered over Portfolio Dashboard numbers, delivered in-app and as a notification |
-| Daily Digest | P/E | Top movers list, AI summary block, disclaimer footer; delivered as push notification + in-app screen |
+| Ticker search and detail | Free (basic analytics), Premium and Enterprise (full) | Ticker search bar, price chart, technical indicators (RSI, MACD, SMA), news and sentiment summary, "Ask AI" entry button, basic analytics view for Free |
+| AI trading assistant chat | Premium and Enterprise (Free shows paywall) | Chat thread scoped to ticker, watchlist, or overall portfolio; query composer; prompt suggestions; disclaimer footer on every response |
+| Trade review results | Premium and Enterprise | AI review analyzing an executed trade against its plan, disclaimer notice, re-run action |
+| AI strategy review results | Premium and Enterprise | AI evaluation of strategy consistency and clarity, flagged conflicting rules, dismiss and re-run actions |
+| AI journal analysis results | Premium and Enterprise | Date range picker, strategy filter, pattern analysis highlighting mistakes, emotional tendencies, and tag performance |
+| Weekly and monthly performance review | Premium and Enterprise | AI narrative report reviewing portfolio results, delivered in-app and as a push notification |
+| Daily digest | Premium and Enterprise | Top market movers, AI market overview, disclaimer notice, delivered via push alert and in-app feed |
 
 ```mermaid
 flowchart TD
@@ -354,7 +353,7 @@ flowchart TD
     B --> C[Ticker Detail: chart + indicators + news/sentiment]
     C -->|Ask AI, Premium| D[AI Trading Assistant chat]
     C -->|Free| E[Basic analytics only, upsell banner]
-    C -->|price/indicator fetch fails| C2[Error state — no cached fallback yet, INTEGRATIONS.md § 2]
+    C -->|price/indicator fetch fails| C2[Error state: no cached fallback yet, INTEGRATIONS.md section 2]
     A -->|Daily Digest, Premium| F[Daily Digest screen]
     A -->|Weekly/Monthly Review, Premium| Rv[Performance Review screen]
     G[Strategy Detail] -->|AI Strategy Review, Premium| H[Review results]
@@ -371,15 +370,15 @@ flowchart TD
 
 | Screen | Tier | Contains |
 |---|---|---|
-| Notification Center | F/P/E | Chronological list grouped by category (market alert, community update, direct message, strategy reminder, AI recommendation, subscription reminder), read/unread state, tap-to-deep-link into the relevant screen, mark-all-read action |
-| Notification Preferences | F/P/E | Per-category toggle (market alerts, community updates, direct messages, strategy reminders, AI recommendations, subscription reminders), push vs. in-app-only option per category |
+| Notification center | All | Categorized alerts (market, community, direct messages, strategy, AI, subscription), read and unread indicators, tap to navigate, mark all read action |
+| Notification preferences | All | Per-category delivery toggles, push versus in-app delivery options |
 
 ```mermaid
 flowchart TD
     A[Any screen] -->|tap bell icon| B[Notification Center]
     B -->|tap notification| C[Deep link to relevant screen]
     B --> D[Mark all read]
-    B -->|no notifications| B2[Empty state: You're all caught up]
+    B -->|no notifications| B2[Empty state: You are all caught up]
     E[Settings] --> F[Notification Preferences]
     F -->|toggle category| Toast1[Toast: preference saved] --> F
     G[price-alerts job] -.writes notification.-> B
@@ -395,9 +394,9 @@ flowchart TD
 
 | Screen | Tier | Contains |
 |---|---|---|
-| Plan Comparison / Paywall | All | Free / Premium / Enterprise columns, feature checklist matching PRD.md § 5.10, monthly/annual toggle for Premium, "Contact us" for Enterprise, Upgrade CTA |
-| Upgrade / Checkout | All | RevenueCat-driven native purchase sheet (App Store/Play) or Stripe checkout (web), plan/billing-cycle/price confirmation, success state |
-| Manage Subscription | P/E | Current plan, billing cycle, renewal date, cancel/downgrade link (deep-links to store subscription management on mobile), billing history (web/Stripe only) |
+| Plan comparison and paywall | All | Free, Premium, and Enterprise comparison tiers, feature matrix, monthly and annual pricing toggle, contact button for Enterprise, upgrade action |
+| Upgrade and checkout | All | RevenueCat native app store purchase flow or web Stripe checkout, billing recap, confirmation screen |
+| Manage subscription | Premium and Enterprise | Current tier, renewal schedule, cancellation link, billing invoices on web |
 
 ```mermaid
 flowchart TD
@@ -413,16 +412,16 @@ flowchart TD
 
 ---
 
-## 11. Enterprise (post-MVP — build last, see ROADMAP.md)
+## 11. Enterprise (post-MVP, build last)
 
 | Screen | Tier | Contains |
 |---|---|---|
-| Org Dashboard | E | Org name/logo, member count, quick links to Team Management, Admin Controls, Org Analytics, Branding, API Keys |
-| Team Management | E | Member list (name, role, seat status), invite member, remove member, role assignment |
-| Admin Controls | E | Org-wide feature toggles, content moderation queue for org-internal posts (if applicable), device licensing list |
-| Organization Analytics | E | Aggregate usage across org members: activation, engagement, AI usage volume |
-| Branding Settings | E | Logo upload, color theme, custom domain (web) |
-| API Access / Key Management | E | List of issued API keys, scopes, create/revoke key, usage logs |
+| Organization dashboard | Enterprise | Organization name and branding, member count, shortcuts to team settings, admin tools, analytics, branding, and API keys |
+| Team management | Enterprise | Member roster with roles and seat status, invitation flow, member removal, permission adjustments |
+| Admin controls | Enterprise | Organization feature flags, moderation queue for internal posts, device management |
+| Organization analytics | Enterprise | Team-wide activity metrics: active seats, journal volume, AI requests |
+| Branding settings | Enterprise | Logo customization, color palette selection, custom domain setup |
+| API access and key management | Enterprise | Active API credentials, permission scopes, key creation and revocation, audit logs |
 
 ```mermaid
 flowchart TD
@@ -437,25 +436,25 @@ flowchart TD
     C -->|review flagged item| Review[Approve / Remove / Escalate] --> C
     D -->|change date range| D
     E -->|edit logo/theme/domain| Save[Tap Save] --> Toast4[Toast: branding saved] --> E
-    F -->|create key| H[Key created — shown once] --> Toast5[Toast: Copied to clipboard] --> F
+    F -->|create key| H[Key created, shown once] --> Toast5[Toast: Copied to clipboard] --> F
     F -->|swipe row| Revoke[Confirmation dialog] -->|confirm| Toast6[Toast: key revoked] --> F
 ```
 
-Note: Enterprise's data model (`organizations`, `organization_members`, `api_keys`) is not yet specced in API_DATA_MODEL.md — flagged there and in ROADMAP.md as a design item to complete before this module is built.
+The data models for Enterprise (`organizations`, `organization_members`, `api_keys`) will be specified prior to developing this module.
 
 ---
 
-## 12. Screen Count Summary
-- Auth & Profile: 7 screens
-- Trading Journal: 3 screens
-- Strategy Notes & Analyzer: 6 screens
+## 12. Screen count summary
+- Auth and profile: 7 screens
+- Trading journal: 3 screens
+- Strategy notes and analyzer: 6 screens
 - Watchlists: 4 screens
-- Portfolio Dashboard: 2 screens
-- Community: 5 screens (1 shared with § 1)
-- Direct Messages: 3 screens
-- AI Trading Assistant: 7 screens
+- Portfolio dashboard: 2 screens
+- Community: 5 screens (one shared with profile)
+- Direct messages: 3 screens
+- AI trading assistant: 7 screens
 - Notifications: 2 screens
 - Subscriptions: 3 screens
 - Enterprise (post-MVP): 6 screens
 
-**MVP total (§ 1–10, excluding Enterprise): ~42 screens.** Enterprise adds 6 more when built. Recurring cross-module patterns (§ 0.1 state flow, § 0.2 Report/Block/Mute) are documented once rather than redrawn per screen — see [UI_FLOW_DIAGRAMS.md](./UI_FLOW_DIAGRAMS.md) for the fully expanded per-screen version of every diagram in this doc.
+**MVP total (sections 1 through 10, excluding Enterprise): approximately 42 screens.** Enterprise adds 6 additional screens. Cross-module patterns (section 0.1 state flow and section 0.2 moderation flow) are documented centrally. See [UI_FLOW_DIAGRAMS.md](./UI_FLOW_DIAGRAMS.md) for individual screen state diagrams.

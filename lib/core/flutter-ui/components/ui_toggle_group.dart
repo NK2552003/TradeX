@@ -63,7 +63,7 @@ class UiToggleGroup<T> extends StatelessWidget {
     this.expand = false,
     this.iconOnly = false,
     this.enabled = true,
-    this.scrollableOnMobile = true,
+    this.scrollWhenTight = true,
     this.allowEmpty = true,
     this.label,
     this.semanticLabel,
@@ -91,7 +91,15 @@ class UiToggleGroup<T> extends StatelessWidget {
   final bool expand;
   final bool iconOnly;
   final bool enabled;
-  final bool scrollableOnMobile;
+
+  /// Scroll horizontally instead of overflowing when the segments need more
+  /// width than the box allows.
+  ///
+  /// This is a question about the box, not about the screen: a five-segment
+  /// control is perfectly comfortable on a 1600 px desktop and clips its last
+  /// segment inside a 340 dp index rail on the same screen. Turn it off only for
+  /// a group you would rather see clip than scroll.
+  final bool scrollWhenTight;
 
   /// When false, the last selected item cannot be deselected in multi mode.
   final bool allowEmpty;
@@ -166,7 +174,9 @@ class UiToggleGroup<T> extends StatelessWidget {
     switch (variant) {
       case UiToggleGroupVariant.segmented:
         container = Container(
-          padding: EdgeInsets.all(context.sz(3)),
+          // Keep the buttons at their full token height while making the
+          // complete segmented control align with other controls of this size.
+          padding: EdgeInsets.all(context.sz(2)),
           decoration: BoxDecoration(
             color: c.surfaceMuted,
             borderRadius: radius,
@@ -230,12 +240,27 @@ class UiToggleGroup<T> extends StatelessWidget {
 
     if (!vertical &&
         !effectiveExpand &&
-        scrollableOnMobile &&
-        variant != UiToggleGroupVariant.pill &&
-        context.uiRes.isMobile) {
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: result,
+        scrollWhenTight &&
+        variant != UiToggleGroupVariant.pill) {
+      // The minimum width is what keeps this invisible when it is not needed:
+      // the track still fills the box it was given, segments still hug the
+      // leading edge, and the viewport only starts scrolling once the segments
+      // genuinely need more room than the box has. Without it, every
+      // non-expanding group would shrink to hug its labels — a different look
+      // for every caller, to fix a problem most of them do not have.
+      return LayoutBuilder(
+        builder: (BuildContext ctx, BoxConstraints constraints) =>
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: constraints.hasBoundedWidth
+                      ? constraints.maxWidth
+                      : 0,
+                ),
+                child: result,
+              ),
+            ),
       );
     }
     return result;

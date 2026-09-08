@@ -105,6 +105,7 @@ class RoleNavigationConfig {
       'Risk': 'portfolio',
       'Strategies': 'strategies',
       'Billing': 'settings_billing',
+      'Notes': 'notes',
     },
     mobilePrimaryItems: <AppNavItem>[
       AppNavItem(
@@ -129,14 +130,26 @@ class RoleNavigationConfig {
     ],
     mobileMoreItems: <AppNavItem>[
       AppNavItem(
+        id: 'notes',
+        label: 'Trader Notes',
+        icon: Icons.note_alt_outlined,
+      ),
+      AppNavItem(
         id: 'strategies',
         label: 'Strategy Notes',
         icon: Icons.account_tree_outlined,
       ),
+      AppNavItem(id: 'markets', label: 'Markets', icon: Icons.public_rounded),
+      AppNavItem(id: 'news', label: 'News', icon: Icons.newspaper_outlined),
       AppNavItem(
         id: 'watchlists',
         label: 'Watchlist',
         icon: Icons.visibility_outlined,
+      ),
+      AppNavItem(
+        id: 'calculators',
+        label: 'Calculators',
+        icon: Icons.calculate_outlined,
       ),
       AppNavItem(
         id: 'portfolio',
@@ -193,16 +206,30 @@ class RoleNavigationConfig {
             selectedIcon: Icons.receipt_long_rounded,
           ),
           AppNavItem(
+            id: 'notes',
+            label: 'Trader Notes',
+            icon: Icons.note_alt_outlined,
+            selectedIcon: Icons.note_alt_rounded,
+          ),
+          AppNavItem(
             id: 'strategies',
             label: 'Strategy Notes',
             icon: Icons.account_tree_outlined,
             selectedIcon: Icons.account_tree_rounded,
           ),
+          AppNavItem(id: 'markets', label: 'Markets', icon: Icons.public_rounded),
+          AppNavItem(id: 'news', label: 'News', icon: Icons.newspaper_outlined),
           AppNavItem(
             id: 'watchlists',
             label: 'Watchlist',
             icon: Icons.visibility_outlined,
             selectedIcon: Icons.visibility_rounded,
+          ),
+          AppNavItem(
+            id: 'calculators',
+            label: 'Calculators',
+            icon: Icons.calculate_outlined,
+            selectedIcon: Icons.calculate_rounded,
           ),
           AppNavItem(
             id: 'portfolio',
@@ -301,6 +328,7 @@ class RoleNavigationConfig {
       'AI': 'ai_copilot',
       'Community': 'community',
       'Billing': 'payouts',
+      'Notes': 'notes',
     },
     mobilePrimaryItems: <AppNavItem>[
       AppNavItem(
@@ -323,6 +351,11 @@ class RoleNavigationConfig {
       _settingsDock,
     ],
     mobileMoreItems: <AppNavItem>[
+      AppNavItem(
+        id: 'notes',
+        label: 'Notes',
+        icon: Icons.note_alt_outlined,
+      ),
       AppNavItem(
         id: 'marketing',
         label: 'Media Kit',
@@ -395,6 +428,12 @@ class RoleNavigationConfig {
             id: 'payouts',
             label: 'Payout History',
             icon: Icons.account_balance_wallet_outlined,
+          ),
+          AppNavItem(
+            id: 'notes',
+            label: 'Notes',
+            icon: Icons.note_alt_outlined,
+            selectedIcon: Icons.note_alt_rounded,
           ),
         ],
       ),
@@ -482,6 +521,7 @@ class RoleNavigationConfig {
       'Risk': 'org_risk',
       'Alerts': 'org_audit',
       'Billing': 'settings_organization',
+      'Notes': 'notes',
     },
     mobilePrimaryItems: <AppNavItem>[
       AppNavItem(
@@ -505,6 +545,11 @@ class RoleNavigationConfig {
       _settingsDock,
     ],
     mobileMoreItems: <AppNavItem>[
+      AppNavItem(
+        id: 'notes',
+        label: 'Desk Notes',
+        icon: Icons.note_alt_outlined,
+      ),
       AppNavItem(
         id: 'org_audit',
         label: 'Execution Audit',
@@ -595,6 +640,12 @@ class RoleNavigationConfig {
             label: 'Affiliate Applications',
             icon: Icons.fact_check_outlined,
             selectedIcon: Icons.fact_check_rounded,
+          ),
+          AppNavItem(
+            id: 'notes',
+            label: 'Desk Notes',
+            icon: Icons.note_alt_outlined,
+            selectedIcon: Icons.note_alt_rounded,
           ),
         ],
       ),

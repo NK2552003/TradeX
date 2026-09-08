@@ -1,9 +1,10 @@
-# Error Handling & Observability Conventions — TraderHub
+# TradeX error handling and observability
 
-Standard error shape, HTTP status usage, and logging/observability conventions for every Edge Function. Function-specific error cases: [API_REFERENCE.md](./API_REFERENCE.md). Incident response process: [SECURITY_COMPLIANCE.md](./SECURITY_COMPLIANCE.md) § 9.
+Standard error response envelope, HTTP status code conventions, and observability guidelines for Supabase Edge Functions. Endpoint-specific error definitions are in [API_REFERENCE.md](./API_REFERENCE.md). Incident response steps are in [SECURITY_COMPLIANCE.md](../05-ops/SECURITY_COMPLIANCE.md).
 
-### 1. Standard error response envelope
-Every Edge Function returns errors in this shape — never a bare string, never an unhandled stack trace:
+### 1. Error response envelope
+
+Edge Functions return errors in a consistent JSON structure, avoiding raw strings and unhandled stack traces:
 
 ```json
 {
@@ -14,38 +15,43 @@ Every Edge Function returns errors in this shape — never a bare string, never 
   }
 }
 ```
-- `code`: a stable, machine-readable snake_case identifier — the client switches on this, not on `message`.
-- `message`: human-readable, safe to show directly in the UI (see CONTENT_STYLE.md § 4 error microcopy patterns for tone — this is where that copy actually gets written into the API contract).
-- `status`: mirrors the HTTP status code, included in the body too so client error handling doesn't have to separately parse headers.
+
+- `code`: stable, snake_case identifier used for client logic branching.
+- `message`: human-readable description appropriate for UI display (see CONTENT_STYLE.md section 4).
+- `status`: mirrors the HTTP status code, enabling client error handlers to inspect status directly from the body.
 
 ### 2. HTTP status code conventions
-| Status | Meaning here | Example |
+
+| Status | Usage in TradeX | Example |
 |---|---|---|
-| `400` | Malformed request body (missing required field, wrong type) | Missing `ticker` on `ai-insight` |
-| `401` | No/invalid JWT | Expired session |
-| `403` | Authenticated but not authorized for this action | Free tier hitting a Premium-gated function; non-owner editing a private strategy |
-| `404` | Resource doesn't exist, **or** exists but is private and the caller isn't the owner | Deliberately conflated per CONTENT_STYLE.md § 4 — never distinguish "not found" from "not yours" in the response, to avoid leaking existence of private data |
-| `413` | Payload too large | Screenshot upload over the size limit (API_REFERENCE.md § 2) |
-| `422` | Well-formed request, semantically invalid | Unknown ticker symbol, invalid date range |
-| `429` | Rate limit exceeded | Tier daily cap hit |
-| `502` | Upstream third-party failure | Claude API or market data provider error/timeout |
-| `500` | Unhandled/unexpected — should be rare, always logged | Anything not already categorized above |
+| `400` | Malformed request body (missing required field, incorrect data type) | Missing `ticker` field on `ai-insight` |
+| `401` | Missing or invalid authentication token | Expired session token |
+| `403` | Authenticated account lacks authorization | Free tier calling Premium-only functions |
+| `404` | Record does not exist, or exists privately for another user | Returning 404 for private strategies prevents confirming existence |
+| `413` | Upload payload exceeds size limits | Screenshot upload over 10 MB limit |
+| `422` | Request is well-formed but semantically invalid | Unrecognized ticker symbol or invalid date range |
+| `429` | Rate limit exceeded | Daily AI request quota reached |
+| `502` | Upstream provider error or timeout | Claude API or market data service failure |
+| `500` | Unexpected server failure | Unhandled exceptions; logged automatically |
 
 ### 3. Client retry guidance
-| Status | Client behavior |
+
+| Status | Recommended client behavior |
 |---|---|
-| `429` | Do not auto-retry — show the upsell interstitial (SCREENS_MOBILE.md § cross-cutting) or a "try again tomorrow" message, depending on tier |
-| `502` | Safe to retry once automatically with a short backoff (1-2s); if it fails again, show the Error state (SCREENS_MOBILE.md cross-cutting) with a manual Retry button |
-| `500` | Same as `502` — treat as transient unless it persists across multiple manual retries |
-| `401` | Refresh the session token once; if that also fails, route to Log In (DYNAMIC_LINKING.md § 5.1 pattern — store intended destination, redirect back after re-auth) |
-| `400` / `422` / `403` / `404` | Never auto-retry — these won't succeed on retry without the request itself changing |
+| `429` | Do not retry automatically. Display an upgrade prompt or daily limit notice based on the user's tier. |
+| `502` | Retry once automatically after a 1 to 2 second backoff. If it fails again, display an error view with a manual retry button. |
+| `500` | Treat as transient on first occurrence; present a manual retry option. |
+| `401` | Refresh the session token once. If refresh fails, redirect to the login screen and preserve the intended target route. |
+| `400`, `422`, `403`, `404` | Do not retry automatically; the request parameters require client adjustment. |
 
-### 4. Logging & observability
-- **Sentry** (ARCHITECTURE.md § 1) captures both client crashes and Edge Function errors — every `500`/`502` response should also emit a Sentry event server-side with enough context to debug (function name, `kind`/`ticker`/relevant params) but **never** the raw request body if it could contain user journal/strategy content (privacy — SECURITY_COMPLIANCE.md § 2 data classification applies to logs too, not just the database).
-- **Never log secrets** — API keys, JWTs, full Authorization headers must never appear in logs, Sentry breadcrumbs, or error messages returned to the client (SECURITY_COMPLIANCE.md § 4 already states this for the codebase generally; it applies equally to logging).
-- **Structured logging:** Edge Functions should log as structured JSON (function name, `user_id` — safe to log since it's not secret and is needed for debugging, request duration, outcome) rather than free-text `console.log`, so logs are queryable later if a proper log aggregator gets added post-MVP.
-- **What's not yet decided:** whether Edge Function logs live only in Supabase's built-in function logs (fine at MVP scale) or get shipped to a dedicated log aggregator — revisit alongside the "team grows past solo" trigger already noted in ENVIRONMENT_VARIABLES.md § 4.
+### 4. Logging and monitoring
 
-### 5. Validation conventions
-- Validate request bodies at the top of every Edge Function before any side effects (before incrementing rate-limit counters, before calling any upstream API) — a `400` for a malformed request should never consume quota or cost money.
-- Prefer explicit allow-lists over blocklists where practical (e.g. `media_type` on `analyze-screenshot` should check against `['image/png', 'image/jpeg']` rather than trying to reject "bad" types).
+- Error tracking with Sentry: captures client exceptions and Edge Function failures. Edge Functions should report `500` and `502` errors with diagnostic context (function name, symbol, request ID), while strictly excluding private journal notes or personal user entries.
+- Credential protection: never log API keys, access tokens, or Authorization headers in application logs or monitoring breadcrumbs.
+- Structured logging: write function output as structured JSON (function name, `user_id`, execution duration, and outcome status) to enable structured filtering.
+- Log aggregation: native Supabase function logging is sufficient for MVP scale. Third-party log aggregators can be connected post-launch if team operations expand.
+
+### 5. Input validation standards
+
+- Validate input parameters at the top of every Edge Function before executing database queries or external API calls. Malformed requests (HTTP 400) should never consume rate limit quota or incur API costs.
+- Prefer explicit allowlists over blocklists (such as checking `media_type` against `['image/png', 'image/jpeg']`).

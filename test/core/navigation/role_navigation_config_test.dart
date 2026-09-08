@@ -36,6 +36,21 @@ void main() {
       expect(config.allows('settings_organization'), isFalse);
     });
 
+    test('every role can reach notes from the sidebar and the More list', () {
+      // Notes are personal, not role-specific: a desk admin keeps a runbook for
+      // the same reason a trader keeps a trade plan.
+      for (final UserRole role in UserRole.values) {
+        final RoleNavigationConfig config = RoleNavigationConfig.forRole(role);
+        expect(config.allows('notes'), isTrue, reason: '${role.id} sidebar');
+        expect(
+          config.mobileMoreItems.any((AppNavItem item) => item.id == 'notes'),
+          isTrue,
+          reason: '${role.id} More list',
+        );
+        expect(config.notificationDestinations['Notes'], isNotNull);
+      }
+    });
+
     test('affiliate only exposes partner settings', () {
       final RoleNavigationConfig config = RoleNavigationConfig.forRole(
         UserRole.affiliate,
@@ -924,7 +939,7 @@ void main() {
     final double searchX = tester
         .getTopLeft(find.text('Search symbols, orders...'))
         .dx;
-    final double marketX = tester.getTopLeft(find.text('NSE/BSE LIVE')).dx;
+    final double marketX = tester.getTopLeft(find.text('Daily snapshots')).dx;
     final double settingsX = tester.getTopLeft(find.byTooltip('Settings')).dx;
 
     await pumpHeader('settings_trading');
@@ -935,7 +950,7 @@ void main() {
       closeTo(searchX, 0.01),
     );
     expect(
-      tester.getTopLeft(find.text('NSE/BSE LIVE')).dx,
+      tester.getTopLeft(find.text('Daily snapshots')).dx,
       closeTo(marketX, 0.01),
     );
     expect(
@@ -998,8 +1013,9 @@ void main() {
       await tester.pumpWidget(
         UiApp(
           theme: UiTheme.dark(),
-          builder: (BuildContext context) =>
-              const MaterialApp(home: Scaffold(body: TraderAffiliatePerksPage())),
+          builder: (BuildContext context) => const MaterialApp(
+            home: Scaffold(body: TraderAffiliatePerksPage()),
+          ),
         ),
       );
       await tester.pump(const Duration(milliseconds: 300));
@@ -1042,9 +1058,8 @@ void main() {
       expect(find.text('Default Financial Chart Settings'), findsOneWidget);
       expect(find.text('Primary Chart Type'), findsOneWidget);
 
-      final SingleChildScrollView scrollView = tester.widget<SingleChildScrollView>(
-        find.byType(SingleChildScrollView),
-      );
+      final SingleChildScrollView scrollView = tester
+          .widget<SingleChildScrollView>(find.byType(SingleChildScrollView));
       final EdgeInsets padding = scrollView.padding! as EdgeInsets;
       expect(padding.bottom, greaterThanOrEqualTo(100.0));
 
@@ -1072,9 +1087,7 @@ void main() {
           child: UiApp(
             theme: UiTheme.dark(),
             builder: (BuildContext context) => const MaterialApp(
-              home: AppScaffold(
-                userRole: UserRole.customer,
-              ),
+              home: AppScaffold(userRole: UserRole.customer),
             ),
           ),
         ),
@@ -1106,58 +1119,59 @@ void main() {
     },
   );
 
-  testWidgets('mobile toast notifications float snugly above the quiet dock without close icon', (
-    WidgetTester tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'mobile toast notifications float snugly above the quiet dock without close icon',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(
-      UiApp(
-        theme: UiTheme.dark(),
-        builder: (BuildContext context) => MaterialApp(
-          home: UiToastScope(
-            child: Builder(
-              builder: (BuildContext ctx) => Scaffold(
-                body: UiButton(
-                  label: 'Show Toast',
-                  onPressed: () => UiToast.success(
-                    ctx,
-                    title: 'Trade Executed',
-                    message: 'Bought 10 AAPL @ \$220.00',
+      await tester.pumpWidget(
+        UiApp(
+          theme: UiTheme.dark(),
+          builder: (BuildContext context) => MaterialApp(
+            home: UiToastScope(
+              child: Builder(
+                builder: (BuildContext ctx) => Scaffold(
+                  body: UiButton(
+                    label: 'Show Toast',
+                    onPressed: () => UiToast.success(
+                      ctx,
+                      title: 'Trade Executed',
+                      message: 'Bought 10 AAPL @ \$220.00',
+                    ),
                   ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Show Toast'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.text('Show Toast'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Trade Executed'), findsOneWidget);
-    // Mobile toast should not render the cross / close button
-    expect(find.byIcon(Icons.close_rounded), findsNothing);
+      expect(find.text('Trade Executed'), findsOneWidget);
+      // Mobile toast should not render the cross / close button
+      expect(find.byIcon(Icons.close_rounded), findsNothing);
 
-    final Rect toastRect = tester.getRect(find.byType(UiToast));
-    // Toast bottom sits snugly right above dock (844 - 76 = 768)
-    expect(toastRect.bottom, lessThanOrEqualTo(844 - 76.0));
+      final Rect toastRect = tester.getRect(find.byType(UiToast));
+      // Toast bottom sits snugly right above dock (844 - 76 = 768)
+      expect(toastRect.bottom, lessThanOrEqualTo(844 - 76.0));
 
-    // Tap on mobile toast should dismiss it
-    await tester.tap(find.byType(UiToast));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle();
+      // Tap on mobile toast should dismiss it
+      await tester.tap(find.byType(UiToast));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Trade Executed'), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.text('Trade Executed'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'AccountSecurityPage renders on mobile without unconstrained button errors',
@@ -1170,11 +1184,8 @@ void main() {
       await tester.pumpWidget(
         UiApp(
           theme: UiTheme.dark(),
-          builder: (BuildContext context) => const MaterialApp(
-            home: Scaffold(
-              body: AccountSecurityPage(),
-            ),
-          ),
+          builder: (BuildContext context) =>
+              const MaterialApp(home: Scaffold(body: AccountSecurityPage())),
         ),
       );
       await tester.pump(const Duration(milliseconds: 600));

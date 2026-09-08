@@ -193,16 +193,12 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   ),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: context.sz(1400),
-                      ),
+                      constraints: BoxConstraints(maxWidth: context.sz(1400)),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           _buildHero(context, theme, colors, responsive),
-                          SizedBox(
-                            height: context.sp(theme.spacing.xxxl) * 2,
-                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
 
                           // Real App Components Showcase Grid
                           KeyedSubtree(
@@ -215,9 +211,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                             ),
                           ),
 
-                          SizedBox(
-                            height: context.sp(theme.spacing.xxxl) * 2,
-                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
 
                           // 2 Types of Users / Personas Section
                           KeyedSubtree(
@@ -230,9 +224,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                             ),
                           ),
 
-                          SizedBox(
-                            height: context.sp(theme.spacing.xxxl) * 2,
-                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
 
                           // Feature Cards below showcase
                           KeyedSubtree(
@@ -245,9 +237,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                             ),
                           ),
 
-                          SizedBox(
-                            height: context.sp(theme.spacing.xxxl) * 2,
-                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
 
                           // Dedicated Desktop Pricing Section
                           KeyedSubtree(
@@ -260,9 +250,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                             ),
                           ),
 
-                          SizedBox(
-                            height: context.sp(theme.spacing.xxxl) * 2,
-                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
 
                           // Landing Page FAQ Section
                           KeyedSubtree(
@@ -275,9 +263,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                             ),
                           ),
 
-                          SizedBox(
-                            height: context.sp(theme.spacing.xxxl) * 2,
-                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
                           // Claude-styled Detailed Footer
                           _buildFooter(context, theme, colors, responsive),
 
@@ -317,11 +303,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     return const LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black,
-                        Colors.black,
-                        Colors.transparent,
-                      ],
+                      colors: [Colors.black, Colors.black, Colors.transparent],
                       stops: [0.0, 0.45, 1.0],
                     ).createShader(bounds);
                   },
@@ -391,17 +373,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
             right: context.sp(theme.spacing.xl),
             bottom: context.sp(theme.spacing.lg),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const AppLogoMark(size: 24),
-              SizedBox(width: context.sp(theme.spacing.sm)),
-              Text(
-                'TradeX',
-                style: context.uiText.bodyStrong.copyWith(fontSize: 18),
-              ),
-            ],
-          ),
+          child: const Center(child: AppLogo(size: 24, tagline: 'TRADEX')),
         ),
 
         // Carousel
@@ -416,7 +388,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
               SizedBox(
                 width: double.infinity,
                 child: UiButton(
-                  label: 'Get Started Free',
+                  label: 'Continue as Trader',
                   variant: UiVariant.primary,
                   intent: UiIntent.primary,
                   size: UiSize.lg,
@@ -427,10 +399,22 @@ class _GetStartedPageState extends State<GetStartedPage> {
               SizedBox(
                 width: double.infinity,
                 child: UiButton(
-                  label: 'Already a Customer? Sign In',
+                  label: 'Join as Affiliate',
                   variant: UiVariant.outline,
-                  intent: UiIntent.neutral,
+                  intent: UiIntent.primary,
                   size: UiSize.lg,
+                  leadingIcon: Icons.handshake_outlined,
+                  onPressed: () => widget.onGetStarted(UserRole.affiliate),
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+              SizedBox(
+                width: double.infinity,
+                child: UiButton(
+                  label: 'Already have an account? Sign in',
+                  variant: UiVariant.ghost,
+                  intent: UiIntent.neutral,
+                  size: UiSize.sm,
                   leadingIcon: Icons.login_rounded,
                   onPressed: widget.onSignIn,
                 ),
@@ -453,7 +437,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
         horizontal: context.sp(
           responsive.isMobile ? theme.spacing.lg : theme.spacing.xl,
         ),
-        vertical: context.sp(responsive.isMobile ? theme.spacing.sm : theme.spacing.md),
+        vertical: context.sp(
+          responsive.isMobile ? theme.spacing.sm : theme.spacing.md,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -473,21 +459,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     curve: Curves.easeInOutCubic,
                   );
                 },
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const AppLogoMark(size: 24),
-                    SizedBox(width: context.sp(theme.spacing.sm)),
-                    Text(
-                      'TRADEX',
-                      style: context.uiText.display.copyWith(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ],
-                ),
+                child: const AppLogo(size: 20, tagline: 'TRADEX'),
               ),
             ),
 
@@ -766,7 +738,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                       SizedBox(height: spacing),
                       for (int i = 0; i < _previewStrategies.length; i++) ...[
                         if (i > 0) SizedBox(height: spacing),
-                        AppStrategyPerformanceCard(strategy: _previewStrategies[i]),
+                        AppStrategyPerformanceCard(
+                          strategy: _previewStrategies[i],
+                        ),
                       ],
                     ],
                   ),
@@ -809,11 +783,11 @@ class _GetStartedPageState extends State<GetStartedPage> {
           theme,
           colors,
           icon: Icons.people_outline_rounded,
-          label: 'Two Ecosystem Roles',
+          label: 'Choose Your Role',
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
         Text(
-          'Built for Both Traders & Creators',
+          'Built for Traders & Affiliates',
           textAlign: TextAlign.center,
           style: context.uiText.display.copyWith(
             fontSize: responsive.isMobile ? 24.0 : 32.0,
@@ -825,7 +799,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: context.sz(640)),
           child: Text(
-            'TradeX bridges quantitative execution discipline for active market participants with powerful monetization tools for trading educators and strategy authors.',
+            'Choose the workspace that matches what you do. Trade with more discipline, or grow the TradeX community as an affiliate.',
             textAlign: TextAlign.center,
             style: context.uiText.body.copyWith(
               color: colors.foregroundMuted,
@@ -855,11 +829,11 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   width: colWidth,
                   icon: Icons.candlestick_chart_rounded,
                   iconColor: const Color(0xFF84CC16),
-                  badgeText: 'INDIVIDUAL TRADERS',
+                  badgeText: 'TRADER',
                   badgeIntent: UiIntent.primary,
-                  title: 'Quantitative Trader',
+                  title: 'Trader',
                   subtitle:
-                      'For discretionary, F&O, equity swing, and quant algorithmic traders seeking structured risk discipline and automated logging.',
+                      'For active market participants who want structured risk, sharper execution, and one reliable place for every trade decision.',
                   features: const <String>[
                     '1-Click Auto-Sync with Zerodha, Upstox, Angel One & Dhan',
                     'AI Setup Detection (Double Tops, FVG Gaps, Order Blocks)',
@@ -872,7 +846,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   onPressed: () => widget.onGetStarted(UserRole.customer),
                 ),
 
-                // Role 2: Strategy Creator & Educator (Affiliate)
+                // Role 2: Affiliate
                 _buildPersonaCard(
                   context,
                   theme,
@@ -880,17 +854,17 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   width: colWidth,
                   icon: Icons.groups_rounded,
                   iconColor: colors.primary,
-                  badgeText: 'CREATORS & MENTORS',
+                  badgeText: 'AFFILIATE',
                   badgeIntent: UiIntent.success,
-                  title: 'Strategy Creator & Partner',
+                  title: 'Affiliate',
                   subtitle:
-                      'For trading educators, signal providers, and desk managers looking to publish verified strategies and earn recurring revenue.',
+                      'For partners who introduce serious traders to TradeX and want transparent referrals, commissions, and campaign reporting.',
                   features: const <String>[
-                    'Monetize Proprietary Strategies with Paywalled Subscriptions',
-                    'Up to 30% Recurring Tiered Commission on Referred Traders',
+                    'Share Trackable Links Across Your Audience and Community',
+                    'Earn Up to 30% Recurring Commission on Referred Traders',
                     'Real-Time Conversion Dashboard & Custom Link Generator',
-                    'Private Subscriber Feeds, Discussion Circles & Chat',
-                    'Algorithmic Verified Desk Badge & Leaderboard Rank',
+                    'Campaign-Level Performance and Payout Visibility',
+                    'Partner Resources, Creative Assets & Priority Support',
                   ],
                   ctaLabel: 'Apply as Affiliate Partner',
                   ctaPrimary: false,
@@ -922,27 +896,13 @@ class _GetStartedPageState extends State<GetStartedPage> {
   }) {
     return SizedBox(
       width: width,
-      child: Container(
+      child: UiCard(
+        variant: UiCardVariant.outlined,
+        selected: ctaPrimary,
+        intent: badgeIntent,
+        accentColor: iconColor,
+        hoverLift: true,
         padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: context.radius(theme.radii.xl),
-          border: Border.all(
-            color: ctaPrimary
-                ? const Color(0xFF84CC16).withValues(alpha: 0.35)
-                : colors.border,
-            width: ctaPrimary ? 1.5 : theme.borders.hairline,
-          ),
-          boxShadow: ctaPrimary
-              ? <BoxShadow>[
-                  BoxShadow(
-                    color: const Color(0xFF84CC16).withValues(alpha: 0.06),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                ]
-              : null,
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -1223,10 +1183,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
         // Accordion from dynamic future
         FutureBuilder<PricingCatalogueResponse>(
           future: _pricingFuture,
-          builder: (
-            BuildContext context,
-            AsyncSnapshot<PricingCatalogueResponse> snapshot,
-          ) {
+          builder: (BuildContext context, AsyncSnapshot<PricingCatalogueResponse> snapshot) {
             final List<PricingFaqItem> allFaqs = snapshot.hasData
                 ? snapshot.data!.faqs
                 : const <PricingFaqItem>[];
@@ -1261,13 +1218,13 @@ class _GetStartedPageState extends State<GetStartedPage> {
 
             final List<PricingFaqItem> filtered =
                 _selectedLandingFaqCategory == 'all'
-                    ? landingFaqs
-                    : landingFaqs
-                        .where(
-                          (PricingFaqItem f) =>
-                              f.category == _selectedLandingFaqCategory,
-                        )
-                        .toList();
+                ? landingFaqs
+                : landingFaqs
+                      .where(
+                        (PricingFaqItem f) =>
+                            f.category == _selectedLandingFaqCategory,
+                      )
+                      .toList();
 
             return ConstrainedBox(
               constraints: BoxConstraints(maxWidth: context.sz(860)),
@@ -1349,7 +1306,6 @@ class _GetStartedPageState extends State<GetStartedPage> {
     );
   }
 
-
   Widget _buildPricingSection(
     BuildContext context,
     UiTheme theme,
@@ -1412,7 +1368,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   if (!_isAnnualPricing) return;
                   setState(() {
                     _isAnnualPricing = false;
-                    _pricingFuture = _pricingRepo.getPricingCatalogue(annual: false);
+                    _pricingFuture = _pricingRepo.getPricingCatalogue(
+                      annual: false,
+                    );
                   });
                 },
                 child: AnimatedContainer(
@@ -1422,7 +1380,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     vertical: context.sp(theme.spacing.xs),
                   ),
                   decoration: BoxDecoration(
-                    color: !_isAnnualPricing ? colors.surface : Colors.transparent,
+                    color: !_isAnnualPricing
+                        ? colors.surface
+                        : Colors.transparent,
                     borderRadius: context.radius(theme.radii.pill),
                   ),
                   child: Text(
@@ -1442,7 +1402,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   if (_isAnnualPricing) return;
                   setState(() {
                     _isAnnualPricing = true;
-                    _pricingFuture = _pricingRepo.getPricingCatalogue(annual: true);
+                    _pricingFuture = _pricingRepo.getPricingCatalogue(
+                      annual: true,
+                    );
                   });
                 },
                 child: AnimatedContainer(
@@ -1452,7 +1414,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     vertical: context.sp(theme.spacing.xs),
                   ),
                   decoration: BoxDecoration(
-                    color: _isAnnualPricing ? colors.surface : Colors.transparent,
+                    color: _isAnnualPricing
+                        ? colors.surface
+                        : Colors.transparent,
                     borderRadius: context.radius(theme.radii.pill),
                   ),
                   child: Row(
@@ -1486,39 +1450,41 @@ class _GetStartedPageState extends State<GetStartedPage> {
         // 3 Cards FutureBuilder
         FutureBuilder<PricingCatalogueResponse>(
           future: _pricingFuture,
-          builder: (
-            BuildContext context,
-            AsyncSnapshot<PricingCatalogueResponse> snapshot,
-          ) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
+          builder:
+              (
+                BuildContext context,
+                AsyncSnapshot<PricingCatalogueResponse> snapshot,
+              ) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            final List<PricingPlanModel> plans = snapshot.data!.plans;
+                final List<PricingPlanModel> plans = snapshot.data!.plans;
 
-            return LayoutBuilder(
-              builder: (BuildContext ctx, BoxConstraints constraints) {
-                return IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      for (int i = 0; i < plans.length; i++) ...<Widget>[
-                        if (i > 0) SizedBox(width: context.sp(theme.spacing.lg)),
-                        Expanded(
-                          child: _buildLandingPricingCard(
-                            context,
-                            theme,
-                            colors,
-                            plans[i],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                return LayoutBuilder(
+                  builder: (BuildContext ctx, BoxConstraints constraints) {
+                    return IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          for (int i = 0; i < plans.length; i++) ...<Widget>[
+                            if (i > 0)
+                              SizedBox(width: context.sp(theme.spacing.lg)),
+                            Expanded(
+                              child: _buildLandingPricingCard(
+                                context,
+                                theme,
+                                colors,
+                                plans[i],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
                 );
               },
-            );
-          },
         ),
         SizedBox(height: context.sp(theme.spacing.xl)),
         Row(
@@ -1689,10 +1655,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
 }
 
 class _HeaderNavLink extends StatefulWidget {
-  const _HeaderNavLink({
-    required this.label,
-    required this.onTap,
-  });
+  const _HeaderNavLink({required this.label, required this.onTap});
 
   final String label;
   final VoidCallback onTap;
@@ -1718,7 +1681,7 @@ class _HeaderNavLinkState extends State<_HeaderNavLink> {
           behavior: HitTestBehavior.opaque,
           onTap: widget.onTap,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
+            duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
             padding: EdgeInsets.symmetric(
               horizontal: context.sp(theme.spacing.xxs),
@@ -1727,21 +1690,25 @@ class _HeaderNavLinkState extends State<_HeaderNavLink> {
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: _isHovered ? colors.foreground : Colors.transparent,
+                  color: _isHovered
+                      ? colors.foreground
+                      : colors.foreground.withValues(alpha: 0.0),
                   width: 2,
                 ),
               ),
             ),
-            child: Text(
-              widget.label,
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
               style: context.uiText.body.copyWith(
                 color: _isHovered
                     ? colors.foreground
                     : colors.foregroundMuted.withValues(alpha: 0.75),
-                fontWeight: _isHovered ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: FontWeight.w500,
                 fontSize: 15.0,
                 letterSpacing: -0.2,
               ),
+              child: Text(widget.label),
             ),
           ),
         ),
@@ -1749,5 +1716,3 @@ class _HeaderNavLinkState extends State<_HeaderNavLink> {
     );
   }
 }
-
-

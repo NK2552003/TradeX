@@ -20,46 +20,48 @@ class UiEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    return Padding(
-      padding: EdgeInsets.all(context.sp(theme.spacing.xxl)),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Container(
-            padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: theme.colors.surfaceMuted,
-            ),
-            child: Icon(
-              icon,
-              size: context.sz(theme.sizes.iconLg),
-              color: theme.colors.foregroundSubtle,
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: context.uiText.subheading.copyWith(
-              color: theme.colors.foreground,
-            ),
-          ),
-          if (message != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            Text(
-              message!,
-              textAlign: TextAlign.center,
-              style: context.uiText.body.copyWith(
-                color: theme.colors.foregroundMuted,
+    return SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.all(context.sp(theme.spacing.xxl)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.colors.surfaceMuted,
+              ),
+              child: Icon(
+                icon,
+                size: context.sz(theme.sizes.iconLg),
+                color: theme.colors.foregroundSubtle,
               ),
             ),
-          ],
-          if (action != null) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.lg)),
-            action!,
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: context.uiText.subheading.copyWith(
+                color: theme.colors.foreground,
+              ),
+            ),
+            if (message != null) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.xs)),
+              Text(
+                message!,
+                textAlign: TextAlign.center,
+                style: context.uiText.body.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
+              ),
+            ],
+            if (action != null) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.lg)),
+              action!,
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

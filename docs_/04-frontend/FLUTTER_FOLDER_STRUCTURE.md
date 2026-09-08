@@ -1,6 +1,6 @@
-# TraderHub — Flutter Folder Structure
+# Flutter folder structure: TradeX
 
-This document defines the recommended Flutter project layout for TraderHub. The goal is to keep feature code isolated, make Riverpod usage predictable, and leave room for testing, shared UI, and future platform-specific work without turning `lib/` into a dumping ground.
+This document defines the recommended Flutter project layout for TradeX. The goal is to keep feature code isolated, make Riverpod state management predictable, and organize testing and shared UI cleanly without cluttering `lib/`.
 
 ## Recommended layout
 
@@ -80,26 +80,26 @@ test/
 ### `lib/core/`
 Shared code that does not belong to a single feature.
 
-- `config/` for environment access, app constants, and app-wide configuration objects.
-- `network/` for the Dio client, interceptors, request helpers, and API plumbing.
-- `router/` for the `go_router` setup and route guards.
-- `theme/` for Material theme setup, tokens, and design-system mapping.
-- `utils/` for small reusable helpers that are not UI-specific.
-- `widgets/` for shared widgets used across multiple features.
+- `config/`: Environment configuration, app constants, and global settings.
+- `network/`: Dio client configuration, interceptors, request helpers, and API plumbing.
+- `router/`: Navigation setup using `go_router` and authentication guards.
+- `theme/`: Material theme definitions, tokens, and design system mappings.
+- `utils/`: Reusable utility functions and helper classes.
+- `widgets/`: Shared UI components used across multiple features.
 
 ### `lib/features/<feature>/`
-Each feature stays isolated inside its own slice.
+Each feature lives inside its own isolated slice.
 
-- `data/` for data sources, DTOs, repository implementations, and remote/local adapters.
-- `domain/` for entities, repository contracts, and business rules.
-- `presentation/` for screens, widgets, controllers, and Riverpod providers tied to the UI.
+- `data/`: Remote and local data sources, DTOs, and repository implementations.
+- `domain/`: Business entities, repository interfaces, and use cases.
+- `presentation/`: Screens, widgets, controllers, and Riverpod providers.
 
 ### `test/`
-Mirror the production feature structure so tests are easy to find.
+Mirrors the production feature structure to keep tests discoverable.
 
-- Keep unit tests near the corresponding feature slice.
-- Place widget and golden tests next to the presentation layer they cover.
-- Put shared test helpers in `test/core/`.
+- Keep unit tests near their corresponding feature slice.
+- Place widget and golden tests next to the presentation layer they verify.
+- Store shared test helpers and mock factories in `test/core/`.
 
 ## Feature slice example
 
@@ -121,12 +121,12 @@ lib/features/journal/
 
 ## Conventions
 
-- Prefer feature-first organization over generic app-wide folders.
-- Keep UI, state, and data access separated by layer inside a feature.
-- Put cross-feature helpers in `core/` only when they are truly shared.
-- Keep generated files out of the structure description; codegen output should live beside the source that generates it.
-- Add new features as new slices under `lib/features/` instead of expanding `core/`.
+- Organize files by feature first rather than by technical layer across the whole application.
+- Separate UI, state, and data access layers cleanly within each feature.
+- Place helpers in `core/` only when multiple features require them.
+- Keep generated code next to its source files.
+- Introduce new product capabilities as dedicated directories under `lib/features/`.
 
 ## Practical rule
 
-If a file answers a question for one feature, keep it inside that feature slice. If it answers a question for the whole app, move it to `core/`.
+If a file serves a single feature, keep it inside that feature directory. If it serves the entire application, place it in `core/`.

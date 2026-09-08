@@ -1,116 +1,116 @@
-# API Reference — TraderHub
+# TradeX API reference
 
-Full backend API surface: Supabase's auto-generated REST layer (PostgREST) for direct table access, plus every custom Edge Function. Schema/RLS source of truth: [API_DATA_MODEL.md](./API_DATA_MODEL.md) (this doc formats the same Edge Functions as a proper reference with error codes; the underlying flow/request/response bodies there are authoritative if the two ever drift). Error format conventions: [ERROR_HANDLING.md](./ERROR_HANDLING.md). Third-party calls made *by* these functions: [INTEGRATIONS.md](./INTEGRATIONS.md).
+This document details the backend API surface, comprising the auto-generated PostgREST endpoints and custom Supabase Edge Functions. Database schemas and row-level security policies are specified in [API_DATA_MODEL.md](./API_DATA_MODEL.md). Error formats are defined in [ERROR_HANDLING.md](./ERROR_HANDLING.md). External provider interactions are detailed in [INTEGRATIONS.md](./INTEGRATIONS.md).
 
 Base URL: `https://<project-ref>.supabase.co`
 
 ---
 
-## 1. Table access (PostgREST, auto-generated)
+## 1. Table access (PostgREST)
 
-Every table in API_DATA_MODEL.md § 1 is reachable at `/rest/v1/<table>` with standard PostgREST verbs — **RLS is the only authorization layer**, there's no separate application-level permission check. Client code (Flutter, via `supabase_flutter`) should use the SDK's query builder rather than hand-rolling REST calls, but the underlying contract is:
+Every database table defined in [API_DATA_MODEL.md](./API_DATA_MODEL.md) is accessible at `/rest/v1/<table>` using standard PostgREST conventions. Row-level security operates as the sole authorization boundary:
 
-| Verb | Path | Notes |
+| Method | Path | Operational notes |
 |---|---|---|
-| GET | `/rest/v1/journal_entries?select=*&order=created_at.desc` | RLS restricts to the caller's own rows automatically |
-| POST | `/rest/v1/journal_entries` | Body = row to insert; `user_id` should be set from the authenticated session, never trusted from client input even though RLS would reject a mismatched insert anyway (defense in depth) |
-| PATCH | `/rest/v1/journal_entries?id=eq.<uuid>` | Partial update |
-| DELETE | `/rest/v1/journal_entries?id=eq.<uuid>` | Hard delete — no soft-delete/trash convention currently specced; flagged as a gap if "undo delete" (SCREENS_MOBILE.md toast pattern) needs to survive an app restart, since right now Undo only works if the delete hasn't been confirmed to the server yet |
+| GET | `/rest/v1/journal_entries?select=*&order=created_at.desc` | RLS automatically filters results to the caller's authorized records. |
+| POST | `/rest/v1/journal_entries` | Inserts a trade record. Set `user_id` from the active session context. |
+| PATCH | `/rest/v1/journal_entries?id=eq.<uuid>` | Updates fields on an existing record owned by the caller. |
+| DELETE | `/rest/v1/journal_entries?id=eq.<uuid>` | Permanently deletes a trade record. |
 
-**Auth header on every request:** `Authorization: Bearer <supabase JWT>`. Anonymous/public reads (public strategies, posts, profiles) use the anon key and rely entirely on the `for select using (...)` RLS policies — never a separate "public API key."
+Authentication: include `Authorization: Bearer <jwt>` on all requests. Public queries (such as published strategies or public profiles) use the anonymous key and rely on `for select using (...)` security policies.
 
-**Views:** `portfolio_stats` (API_DATA_MODEL.md § 1) is queried the same way: `GET /rest/v1/portfolio_stats?user_id=eq.<uuid>` — views inherit RLS from their underlying tables in Postgres/Supabase, so no separate policy is needed on the view itself, but verify this on first deploy (view RLS inheritance has historically had Postgres-version-dependent edge cases).
+Database views: query `portfolio_stats` directly via `GET /rest/v1/portfolio_stats?user_id=eq.<uuid>`. The view inherits row-level security permissions from its underlying tables.
 
-**Direct Messages (`conversations` / `messages`) — table access with a tier-gated insert:**
-| Verb | Path | Notes |
+### Direct messaging endpoints
+
+| Method | Path | Operational notes |
 |---|---|---|
-| GET | `/rest/v1/conversations?select=*&order=last_message_at.desc` | Lists the caller's own conversations (participant on either side) — RLS handles the "own" filtering, but the client still needs to determine which side is "them" vs. "the other person" using its own `user_id`, since the row doesn't label which column is "me" |
-| POST | `/rest/v1/conversations` | Creating a new conversation — rejected with a Postgres RLS error (surfaces as `403` at the client, per ERROR_HANDLING.md's mapping) if the caller isn't Premium/Enterprise (API_DATA_MODEL.md § 2). Client should check `subscriptionTierProvider` (STATE_MANAGEMENT.md § 8, frontend doc set) *before* attempting this, to show the upsell interstitial without a failed round-trip |
-| GET | `/rest/v1/messages?conversation_id=eq.<uuid>&order=created_at.desc` | Message history for a conversation |
-| POST | `/rest/v1/messages` | Send a message — same tier-gate behavior as above, checked per-message (API_DATA_MODEL.md § 2) |
-| PATCH | `/rest/v1/messages?id=eq.<uuid>` | Used only to set `read_at` on received messages — the RLS policy explicitly blocks changing `content` this way (API_DATA_MODEL.md § 2) |
+| GET | `/rest/v1/conversations?select=*&order=last_message_at.desc` | Retrieves active conversations. The client uses its local `user_id` to determine counterparty identity. |
+| POST | `/rest/v1/conversations` | Initializes a conversation. Requests from Free accounts are rejected with HTTP 403 by database RLS. |
+| GET | `/rest/v1/messages?conversation_id=eq.<uuid>&order=created_at.desc` | Retrieves chronological message history. |
+| POST | `/rest/v1/messages` | Transmits a message, subject to tier gating checks on insert. |
+| PATCH | `/rest/v1/messages?id=eq.<uuid>` | Updates `read_at` on received messages. RLS policies prevent modifying message bodies. |
 
-**Real-time:** the chat UI subscribes to `messages` via Supabase Realtime filtered by `conversation_id`, rather than polling — this is the same `StreamProvider` pattern already used for other real-time surfaces (STATE_MANAGEMENT.md § 2, frontend doc set). New-message delivery to the Notification Center and push both come from the `notify_new_message` trigger (API_DATA_MODEL.md § 11), not from this Realtime subscription — the subscription is purely for the open chat screen's live updates.
+Real-time delivery: the active chat interface subscribes to `messages` via Supabase Realtime filtered by `conversation_id`. Outbound push alerts and notification center entries are generated through database triggers.
 
 ---
 
 ## 2. Edge Functions
 
-All Edge Functions live at `/functions/v1/<name>`, require `Authorization: Bearer <JWT>` unless noted, and return the standard error envelope from ERROR_HANDLING.md § 1 on failure.
+All Edge Functions run under `/functions/v1/<name>`, expect `Authorization: Bearer <jwt>` unless documented otherwise, and return standard error envelopes on failure.
 
 ### `POST /functions/v1/ai-insight`
-| | |
+| Parameter | Definition |
 |---|---|
-| Auth | Required |
-| Tier gate | Free: 0/day; Premium/Enterprise: soft cap (API_DATA_MODEL.md § 10) |
-| Request | `{ "ticker": string }` |
-| Success (200) | `{ ticker, summary, indicators, disclaimer, generated_at }` |
-| Errors | `401` unauthenticated · `429` tier limit exceeded · `422` unknown/invalid ticker · `502` upstream (Claude or market data) failure |
+| Authorization | Required |
+| Access tiers | Free: 0 per day; Premium and Enterprise: soft operational cap |
+| Request body | `{ "ticker": string }` |
+| Response (200 OK) | `{ ticker, summary, indicators, disclaimer, generated_at }` |
+| Error codes | `401` Unauthorized, `429` Rate limit exceeded, `422` Unrecognized ticker, `502` Provider failure |
 
 ### `POST /functions/v1/analyze-screenshot`
-| | |
+| Parameter | Definition |
 |---|---|
-| Auth | Required |
-| Tier gate | Free: 0/day; Premium/Enterprise: soft cap |
-| Request | `{ "image_base64": string, "media_type": "image/png" \| "image/jpeg" }` |
-| Success (200) | `{ screenshot_url, parsed: {...}, confidence }` |
-| Errors | `401` · `429` · `413` image too large (define a max — recommend 10MB) · `422` unreadable image · `502` upstream vision call failure |
+| Authorization | Required |
+| Access tiers | Free: 0 per day; Premium and Enterprise: soft operational cap |
+| Request body | `{ "image_base64": string, "media_type": "image/png" \| "image/jpeg" }` |
+| Response (200 OK) | `{ screenshot_url, parsed: {...}, confidence }` |
+| Error codes | `401` Unauthorized, `429` Rate limit exceeded, `413` Payload exceeds 10 MB, `422` Unreadable image, `502` Vision processing error |
 
 ### `POST /functions/v1/ai-strategy-review`
-| | |
+| Parameter | Definition |
 |---|---|
-| Auth | Required, Premium/Enterprise only |
-| Request | `{ "strategy_id": uuid }` |
-| Success (200) | `{ review: string, flagged_rules: [...] }` |
-| Errors | `401` · `403` Free tier or not the strategy owner · `404` strategy not found · `502` |
+| Authorization | Required (Premium and Enterprise subscribers only) |
+| Request body | `{ "strategy_id": uuid }` |
+| Response (200 OK) | `{ review: string, flagged_rules: [...] }` |
+| Error codes | `401` Unauthorized, `403` Insufficient subscription tier, `404` Record not found, `502` Provider failure |
 
 ### `POST /functions/v1/ai-journal-analysis`
-| | |
+| Parameter | Definition |
 |---|---|
-| Auth | Required, Premium/Enterprise only |
-| Request | `{ "date_range": { "from": ISO8601, "to": ISO8601 }, "strategy_id": uuid \| null }` |
-| Success (200) | `{ patterns: { mistakes: [...], psychology_trends: [...], tag_outcome_correlations: [...] } }` |
-| Errors | `401` · `403` · `422` invalid date range (e.g. `from` after `to`) · `502` |
+| Authorization | Required (Premium and Enterprise subscribers only) |
+| Request body | `{ "date_range": { "from": ISO8601, "to": ISO8601 }, "strategy_id": uuid \| null }` |
+| Response (200 OK) | `{ patterns: { mistakes: [...], psychology_trends: [...], tag_outcome_correlations: [...] } }` |
+| Error codes | `401` Unauthorized, `403` Insufficient subscription tier, `422` Invalid date bounds, `502` Provider failure |
 
 ### `POST /functions/v1/strategy-ai-summary`
-| | |
+| Parameter | Definition |
 |---|---|
-| Auth | Required, Premium/Enterprise only, must own the strategy |
-| Request | `{ "strategy_id": uuid }` |
-| Success (200) | `{ ai_summary: string }` — also persisted to `strategies.ai_summary` |
-| Errors | `401` · `403` · `404` · `502` |
+| Authorization | Required (Must own the target strategy) |
+| Request body | `{ "strategy_id": uuid }` |
+| Response (200 OK) | `{ ai_summary: string }` (automatically persisted to `strategies.ai_summary`) |
+| Error codes | `401` Unauthorized, `403` Forbidden, `404` Record not found, `502` Provider failure |
 
-### `POST /functions/v1/price-alerts` (scheduled, not client-invoked)
-| | |
+### `POST /functions/v1/price-alerts` (Scheduled background worker)
+| Parameter | Definition |
 |---|---|
-| Auth | Service role only — invoked by Supabase cron, never reachable by a client JWT |
-| Request | none (cron trigger) |
-| Behavior | See API_DATA_MODEL.md § 8; writes to `notifications`, pushes via FCM/APNs (INTEGRATIONS.md § 4) |
-| Errors | Logged to Sentry (DEPLOYMENT.md § 7), not returned to any caller |
+| Authorization | Service role only; invoked via cron schedule |
+| Request body | None |
+| Functionality | Evaluates alert triggers, records notification rows, and dispatches mobile push alerts |
+| Monitoring | Failures log directly to Sentry |
 
 ### `POST /functions/v1/revenuecat-webhook`
-| | |
+| Parameter | Definition |
 |---|---|
-| Auth | **Not** a client JWT — service-to-service, verified via RevenueCat's signature header against `REVENUECAT_WEBHOOK_SECRET` |
-| Request | RevenueCat's standard webhook payload (`event.id`, `event.type`, `app_user_id`, etc.) |
-| Success (200) | `{ "received": true }` |
-| Errors | `401` bad signature · `400` malformed payload · `500` unexpected failure (RevenueCat retries on non-2xx — idempotency via `revenuecat_webhook_events` handles safe reprocessing) |
-| Full event-type handling table | API_DATA_MODEL.md § 9 |
+| Authorization | Verified using RevenueCat signature header against `REVENUECAT_WEBHOOK_SECRET` |
+| Request body | Standard RevenueCat webhook event payload |
+| Response (200 OK) | `{ "received": true }` |
+| Error codes | `401` Signature mismatch, `400` Malformed payload, `500` Processing error (triggers provider retry) |
 
 ### `POST /functions/v1/ai-chat` (Premium)
-| | |
+| Parameter | Definition |
 |---|---|
-| Auth | Required, Premium/Enterprise only |
-| Tier gate | Free: `403`; Premium/Enterprise: soft cap, logged under `kind='chat'` |
-| Request | `{ scope: "ticker"\|"watchlist"\|"portfolio", scope_id: string, message: string, conversation_id: uuid\|null }` |
-| Success (200 or streamed) | `{ conversation_id, message, disclaimer }` — see API_DATA_MODEL.md § 10 for the streaming-format caveat (still an open implementation detail, not a contract gap) |
-| Errors | `401` · `403` Free tier · `422` invalid scope/scope_id · `502` upstream Claude failure |
-| Dependency note | Requires the `ai_chat_messages` table, which is flagged as not-yet-added to the schema in API_DATA_MODEL.md § 10 — pending a conversation-retention policy decision. This is the one piece of `ai-chat` still genuinely open; everything else about the endpoint is now specced. |
+| Authorization | Required (Premium and Enterprise subscribers only) |
+| Access tiers | Free: `403`; Premium: soft operational limit logged under `kind = 'chat'` |
+| Request body | `{ scope: "ticker"\|"watchlist"\|"portfolio", scope_id: string, message: string, conversation_id: uuid\|null }` |
+| Response | `{ conversation_id, message, disclaimer }` |
+| Error codes | `401` Unauthorized, `403` Insufficient tier, `422` Invalid scope parameters, `502` Claude API failure |
 
 ---
 
-## 3. Rate limiting implementation pattern
-Every tier-gated Edge Function follows the same check before doing any paid work (Claude/market-data calls):
+## 3. Rate limiting enforcement
+
+Functions verify usage limits before invoking third-party APIs:
 
 ```sql
 select count(*) from ai_insight_requests
@@ -118,7 +118,11 @@ where user_id = :user_id
   and kind = :kind
   and requested_at > now() - interval '1 day';
 ```
-Compare against the tier limit table (API_DATA_MODEL.md § 10), reject with `429` before calling any upstream API if exceeded, otherwise proceed and insert a new `ai_insight_requests` row **after** the upstream call succeeds (not before — a failed upstream call shouldn't consume the user's quota). See BACKGROUND_JOBS.md § 2 for the reasoning on soft vs. hard caps.
 
-## 4. Pagination convention
-All list-returning table queries use PostgREST's `Range` header / `limit`+`offset` query params (standard, no custom pagination scheme). Default page size: 20 for card-list screens (Journal, Strategy, Community, Watchlist), 50 for dense list screens (Notification Center, Followers/Following).
+If the count exceeds the subscriber's daily limit, return HTTP 429 immediately. Otherwise, invoke the external service and record a new row in `ai_insight_requests` upon successful completion.
+
+## 4. Pagination standards
+
+List queries use PostgREST range headers or `limit` and `offset` query parameters. Standard page sizing:
+- 20 items per page for card grids and visual lists (Journal, Strategies, Community feed, and Watchlists).
+- 50 items per page for dense operational lists (Notification Center and Follower lists).

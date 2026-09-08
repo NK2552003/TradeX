@@ -1,0 +1,22 @@
+{
+  "fetched_at": "2026-09-07T10:22:16.124671+00:00",
+  "fetch_requested": true,
+  "symbols": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "TSLA",
+    "AMZN",
+    "GOOGL",
+    "RELIANCE.NS",
+    "TCS.NS",
+    "INFY.NS",
+    "HDFCBANK.NS",
+    "ICICIBANK.NS"
+  ],
+  "yahoo_quotes": 6,
+  "yahoo_news": 13,
+  "note": "Daily adjusted price snapshots, never a live quote feed. Demo values are labeled per record.",
+  "fetch_exit_code": 0,
+  "fetch_log": "  [tickers] tickers/us_tickers.csv not found \u2014 using small fallback list. Run fetch_ticker_lists.py to get the full universe.\n  [tickers] tickers/in_tickers.csv not found \u2014 using small fallback list. Run fetch_ticker_lists.py to get the full universe.\nTracking 6 tickers total (3 US + 3 India)\nFundamentals will be fetched for the first 6 tickers only.\nNews will be fetched for the first 6 tickers only.\n\nBatch 1/1 (6 tickers)...\n  batch done \u2014 6 quotes, 6 fundamentals, 6 tickers' news so far\n\nSummary: 6 quotes, 6 fundamentals (capped subset), 13 news articles (rolling 7-day window), 6 history files.\nDone. Files written to ./data/\n"
+}

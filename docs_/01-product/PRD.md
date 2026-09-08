@@ -1,218 +1,216 @@
-# Product Requirements Document (PRD)
-## TraderHub (working name: TraderX) — AI Trading, Journaling & Community Platform
+# Product requirements document
+## TradeX: AI trading, journaling, and community platform
 
 ### 1. Overview
-TraderHub is a cross-platform Flutter app (iOS, Android, Web, Desktop) built exclusively for traders, combining five pillars:
-1. **AI Trading Assistant** — market analysis, trade setup explanation, risk/reward analysis, trade review, journal/strategy review, news & sentiment summaries
-2. **Trading Journal & Strategy Notes** — private journal entries linked to tickers/trades, reusable rich-document trading strategies with version history, a strategy analyzer, and a graph view linking related entries
-3. **Watchlists** — tracked tickers with price alerts, notes, and categories
-4. **Portfolio Dashboard** — aggregate performance analytics across the whole journal (P/L, win rate, RR, drawdown, equity curve)
-5. **Community** — a trader-focused social feed for posts, trade ideas, discussion, and one-on-one direct messages between traders (Premium+)
+TradeX is a cross-platform Flutter application (iOS, Android, Web, and Desktop) built for active traders, organized around five core pillars:
 
-A cross-cutting **Notifications** system ties the above together (market alerts, community updates, strategy reminders, AI recommendations, subscription reminders).
+1. **AI Trading Assistant**: market analysis, trade setup explanations, risk-to-reward calculations, post-trade reviews, strategy audits, and market sentiment summaries.
+2. **Trading Journal and Strategy Notes**: private trade logging linked to tickers, rich strategy documents with revision history, a strategy performance analyzer, and a relational graph view.
+3. **Watchlists**: symbol tracking with threshold alerts, custom notes, and asset categories.
+4. **Portfolio Dashboard**: aggregate analytics across trade records, including profit and loss, win rates, drawdown, and equity curves.
+5. **Community**: a social feed for trade ideas and technical discussions, plus direct messaging between paid subscribers.
 
-Monetized via subscription tiers (Free / Premium / Enterprise).
+A unified notifications system supports the platform through price alerts, community updates, strategy reminders, and subscription notices.
 
-**Long-term vision:** build the most comprehensive AI-powered platform for traders — combining market intelligence, journaling, analytics, and a professional trading community into one application that helps traders improve decision-making, maintain discipline, and measure long-term performance.
+Monetization follows a tiered subscription model (Free, Premium, and Enterprise).
+
+The platform aims to combine technical intelligence, journaling, analytics, and community in one workspace to support disciplined decision-making.
 
 ### 2. Goals
-- Ship a working MVP solo, AI-assisted, within 6-10 weeks
-- Validate willingness to pay for AI-generated trade insights bundled with community
-- Keep infra cost low pre-revenue (usage-based backend, no owned servers)
+- Deliver a functional MVP within 6 to 10 weeks.
+- Validate subscriber willingness to pay for AI-generated trade insights combined with community features.
+- Maintain low infrastructure costs before revenue through managed, usage-based backend services.
 
-### 3. Non-Goals (MVP)
-- No direct trade execution / brokerage integration (see ROADMAP.md for post-MVP broker integrations)
-- No proprietary ML model training (use LLM + technical indicators instead)
-- No group chat / multi-party messaging — direct messages are strictly one-on-one for MVP (see 5.9); group threads are a possible post-MVP extension, not scoped here
-- No copy trading, AI trade automation, or strategy/indicator marketplace in v1 — see ROADMAP.md
-- Not licensed financial advice — insights are educational/informational only
-- Enterprise plan (team management, multi-user dashboards, device licensing, org analytics, custom branding, API access) is **defined here for pricing/scope purposes but built post-MVP** — see ROADMAP.md.
+### 3. Non-goals (MVP)
+- Direct trade execution or brokerage order routing (planned for future phases).
+- Training custom machine learning models (leverage established LLM APIs and standard technical indicators).
+- Group messaging or multi-party chat (direct messages are strictly one-on-one in v1).
+- Copy trading, automated trade execution, or public strategy marketplaces in v1.
+- Licensed financial advice (all insights are educational and informational).
+- Enterprise team management and custom organizational branding (defined for scope planning, built post-MVP).
 
-### 4. Target Users
-- Forex traders, crypto traders, stock traders, options traders
-- Swing traders, scalpers, day traders
-- Retail/active traders who want a community + a scratchpad + quick AI-assisted read on a ticker
-- Enterprise (post-MVP): professional trading teams, prop trading desks / trading education businesses wanting a branded, managed version for their team
+### 4. Target users
+- Traders across equities, foreign exchange, commodities, options, and cryptocurrencies.
+- Swing traders, day traders, and scalpers.
+- Retail traders who want structured journaling, peer discussions, and quick AI setup reviews.
+- Professional trading groups and prop trading firms seeking managed team dashboards (post-MVP).
 
-### 5. Core Features by Module
+### 5. Core features by module
 
-#### 5.1 Auth & Profile
-- Email/password + OAuth (Google, Apple)
-- Public profile: profile picture, handle, bio, experience level (e.g. beginner/intermediate/advanced/pro), trading style (e.g. day trading, swing, scalping, options), follower/following counts, public statistics (win rate, etc. — see 5.5 Portfolio Dashboard)
-- Public journals (optional): user can opt to make selected journal entries visible on their public profile, off by default
-- Private settings: subscription tier, notification prefs
+#### 5.1 Auth and profile
+- Email with password, plus OAuth options for Google and Apple.
+- Public trader profile: avatar, handle, bio, experience level, trading style, follower counts, and optional public statistics (see section 5.5).
+- Public journals (optional): users can choose to share selected trade entries on their profile.
+- Account settings: subscription management and notification preferences.
 
-#### 5.2 Trading Journal
-Users maintain a complete trading journal — the private, per-trade counterpart to the public Community feed.
-- Create/edit/delete journal entries
-- Optional ticker tag (e.g. $AAPL)
-- Trade fields: entry price, exit price, stop loss, target, position size, side, profit/loss
-- Screenshots (one or more chart/trade screenshots per entry)
-- Free-text notes
-- Trading psychology (how the trader felt / what drove the decision)
-- Mistakes made
-- Lessons learned
-- Strategy used (optional link to a Strategy Note — see 5.3)
-- Tags (free-form, in addition to strategy/ticker)
-- Search & filter by ticker, date, tag, strategy, outcome
-- Free tier: limited entries count; Premium+: unlimited
-- **Screenshot auto-fill:** attach a trade/chart screenshot → Claude vision reads the image and pre-fills ticker, entry, exit, stop loss, target, size, and P/L; user reviews/edits before saving.
+#### 5.2 Trading journal
+The trading journal provides private trade logging alongside public community sharing:
+- Create, edit, and delete journal records.
+- Optional ticker symbols (such as $AAPL).
+- Trade fields: entry price, exit price, stop loss, profit target, position size, trade direction, and realized profit or loss.
+- Screenshot attachments: one or more chart or trade images per entry.
+- Unstructured execution notes.
+- Trading psychology notes recording emotional state and execution context.
+- Mistake categorization and lessons learned.
+- Relational link to an associated Strategy Note (see section 5.3).
+- Free-form tags.
+- Search and filtering across tickers, dates, tags, strategies, and trade outcomes.
+- Free tier includes entry limits; Premium accounts receive unlimited entries.
+- Screenshot auto-fill: uploading a chart or trade confirmation triggers Claude vision parsing to extract symbol, prices, position size, and outcome for user review before saving.
 
-#### 5.3 Strategy Notes
-Users create personal trading strategies as standalone rich documents — not just a tag, a first-class piece of content.
-- Rich text editor for strategy writeups
-- Charts & images embedded in the strategy document
-- Version history (every edit is retained; can view/restore prior versions)
-- Categories (user-defined groupings, e.g. "Breakout", "Mean Reversion")
-- Favorite strategies (pin for quick access)
-- Visibility: Private (default) or Public (visible on the user's public profile / discoverable by other users, read-only to non-owners)
-- **AI summary (Premium):** Claude-generated plain-English summary of a strategy document, refreshed when the strategy is edited
-- Journal entries (5.2) can optionally link to a strategy via "Strategy used"
+#### 5.3 Strategy notes
+Traders document setups as standalone rich documents:
+- Formatted text editor supporting headings, lists, and callouts.
+- Embedded charts and setup images.
+- Version history retaining past revisions with one-click restore.
+- User-defined strategy categories (such as Breakouts or Mean Reversion).
+- Bookmarked favorites for fast navigation.
+- Visibility options: Private (default) or Public (visible on the trader profile as read-only).
+- AI summaries: Claude generates concise summaries of strategy documents, updated on edit (Premium).
+- Journal entries can link directly to a parent strategy document.
 
-**Strategy Analyzer (rollup on top of Strategy Notes + Journal):**
-- **What it is:** a rollup view, per strategy, of every journal entry that used it, plus an aggregate win/loss/breakeven record and basic stats (win rate, avg P/L, avg hold time where derivable).
-- **How outcome is determined:** auto from journal entry P/L sign, or manual override; screenshot auto-fill (5.2) feeds the auto-determination end-to-end.
-- **How it's filed:** a journal entry stays a normal journal entry whether or not it's linked to a strategy; untagged entries are excluded from analyzer rollups.
-- **Graph view:** a visual map connecting journal entries, strategies, and tickers (explicit entry↔entry links, plus derived entry↔strategy/ticker edges).
-- Free tier: no Strategy Notes editor, no analyzer, no graph view; Premium+: full access.
+#### Strategy Analyzer
+- Strategy rollup: an aggregate view of all trades executed under a given strategy, calculating overall win rates, average returns, and holding periods.
+- Outcome computation: calculated automatically from recorded trade profit or loss, with optional manual overrides. Screenshot parsing feeds this calculation directly.
+- Classification: entries remain standard trade records whether linked to a strategy or not; unlinked trades are excluded from strategy rollups.
+- Graph view: a visual network showing relationships between trades, strategies, and tickers.
+- Tier access: Free accounts exclude strategy notes, analyzer views, and graph visualizations. Premium accounts have full access.
 
 #### 5.4 Watchlists
-- Multiple named watchlists (Free tier: 1 watchlist; Premium+: unlimited)
-- Add/remove tickers per watchlist
-- Price alerts per ticker (threshold-based, push notification)
-- Notes per watched ticker
-- Categories (group tickers within or across watchlists, e.g. "Earnings this week")
-- Favorite assets (quick-access shortlist independent of watchlist membership)
+- Multiple named watchlists (Free: 1 watchlist; Premium: unlimited).
+- Add and remove tracked tickers.
+- Price alerts per ticker based on price thresholds, delivered via push notifications.
+- Notes per watched asset.
+- Categorization tags (such as "Earnings this week").
+- Quick-access favorite asset lists independent of watchlist grouping.
 
-#### 5.5 Portfolio Dashboard
-An aggregate performance view computed from the user's Trading Journal — answers "how am I actually doing?" across all trades and strategies, not just per-entry.
-- **Headline stats:** Total P/L, Win Rate, Average Risk-to-Reward (RR), Max Drawdown
-- **Time-boxed performance:** Weekly Performance, Monthly Performance
-- **Breakdowns:** Strategy Performance (win rate/P&L per strategy — feeds from the Strategy Analyzer in 5.3), Best Trade, Worst Trade
-- **Charts:** Equity Curve (cumulative P/L over time), Monthly Growth, Win/Loss Distribution
-- All figures are computed/derived from `journal_entries` — no separate manual data entry
-- Free tier: basic analytics only (headline stats); Premium+: full dashboard including strategy breakdowns and all charts
+#### 5.5 Portfolio dashboard
+An aggregate performance dashboard computed from journal records:
+- Core metrics: total profit/loss, overall win rate, average risk-to-reward ratio, and maximum drawdown.
+- Timeframe performance: weekly and monthly performance breakdowns.
+- Performance breakdowns: strategy win rates, best trade, and worst trade.
+- Charts: cumulative equity curve, monthly growth bars, and win/loss distribution.
+- All metrics calculate directly from `journal_entries` without separate data entry.
+- Free tier includes basic headline stats; Premium accounts receive detailed breakdowns and charts.
 
 #### 5.6 Community
-A trader-focused social feed for sharing and discussing trades, distinct from the private Trading Journal.
-- Publish posts: share charts, trade ideas, and written analysis (+ optional chart screenshot/image)
-- Content types: Trade Analysis, Educational Posts, Psychology, Strategies, News, Market Discussion (tag a post with one on creation; used for feed filtering)
-- Like, comment, follow
-- **Save posts** (private bookmark list, separate from likes)
-- Report content / block / mute for moderation
-- Feed algorithm v1: reverse-chron of followed users + trending tickers, filterable by content type
-- Free tier: read a limited number of community posts per day, limited interaction (e.g. capped likes/comments); Premium+: unlimited community access
+A public feed for sharing ideas and discussing market setups:
+- Publish posts containing written analysis, trade ideas, and annotated chart images.
+- Post classifications: Trade Analysis, Educational, Psychology, Strategy, News, and Market Discussion.
+- Social interactions: likes, comments, and trader follows.
+- Private bookmarks to save posts for later reference.
+- Moderation tools: reporting, blocking, and muting accounts.
+- Feed sorting: chronological feed of followed traders and popular tickers, filterable by post category.
+- Free tier includes daily limits on reading and social interactions; Premium accounts have unrestricted access.
 
-#### 5.7 AI Trading Assistant
-- Ticker search → price chart + key indicators (RSI, MACD, moving averages)
-- **Market analysis using technical indicators** and **AI explanation of trade setups** — the core "explain this ticker/setup" capability
-- **Risk-to-reward analysis** on a proposed or logged trade
-- **Trade review after execution** — AI commentary on a completed journal entry (what went right/wrong relative to the plan)
-- **Strategy improvement suggestions** — surfaced from AI Strategy Review (on a Strategy Note) and AI Journal Analysis (patterns across entries) combined
-- **News and sentiment summaries** for a ticker or the market generally
-- **Watchlist insights** — AI commentary surfaced against a user's watchlist (e.g. notable movers, approaching alert thresholds)
-- **AI Strategy Review (Premium):** Claude reviews a Strategy Note (5.3) for internal consistency/clarity and flags ambiguous or conflicting rules
-- **AI Journal Analysis (Premium):** Claude reviews a user's journal entries for patterns — mistake detection, trading psychology analysis, which tags correlate with losses
-- **Weekly / monthly performance review (Premium):** AI-generated narrative summary layered on top of the Portfolio Dashboard (5.5) numbers
-- **AI Q&A:** open-ended chat for trading questions, risk management guidance
-- Daily digest notification (Premium+): top movers + AI summary
-- Basic analytics (Free): read-only summary stats, no AI-generated content
-- Explicit disclaimer on every AI output: educational, not financial advice — this applies to all AI Trading Assistant capabilities above, not just ticker insights
+#### 5.7 AI trading assistant
+- Ticker search returning price charts and standard indicators (RSI, MACD, and moving averages).
+- Technical setup evaluations and pattern explanations.
+- Risk-to-reward calculations on planned or logged executions.
+- Post-trade reviews assessing completed executions against documented plans.
+- Strategy suggestions combining strategy audits with cross-journal pattern analysis.
+- News aggregation and market sentiment summaries.
+- Watchlist commentary highlighting notable volume shifts or alert approaches.
+- AI Strategy Review: automated checks for internal consistency and ambiguous execution rules (Premium).
+- AI Journal Analysis: cross-journal pattern detection highlighting recurring mistakes and emotional tendencies (Premium).
+- Weekly and monthly performance reviews providing narrative summaries of portfolio trends (Premium).
+- Conversational Q&A assistant for trading and risk questions.
+- Daily market digest push notifications (Premium).
+- Free tier includes standard non-AI analytics only.
+- Clear educational disclaimer on all AI outputs stating that information does not constitute financial advice.
 
 #### 5.8 Notifications
-Cross-cutting delivery system spanning the modules above.
-- **Market alerts** — price alert thresholds from Watchlists (5.4)
-- **Community updates** — new follower, comment, like on the user's posts (Community, 5.6)
-- **Direct messages** — new message received (5.9)
-- **Strategy reminders** — nudges tied to Strategy Notes (5.3), e.g. revisit a strategy after N related journal entries
-- **AI recommendations** — surfaced insights from the AI Trading Assistant (5.7), e.g. a weekly performance review is ready
-- **Subscription reminders** — renewal upcoming, trial ending, payment failed
-- User-configurable per category in Settings; delivered via push notification + in-app notification center
+Unified messaging system across all platform modules:
+- Market alerts: price threshold notifications from watchlists.
+- Community updates: follower notifications, post comments, and likes.
+- Direct messages: incoming chat notifications.
+- Strategy reminders: scheduled prompts to review strategies after a set number of trades.
+- AI recommendations: notifications when performance digests or reviews are ready.
+- Subscription notifications: renewal notices, trial expiration, and billing alerts.
+- Notifications are configurable by category and delivered through push alerts and an in-app notification center.
 
-#### 5.9 Direct Messages (Premium+)
-One-on-one messaging between traders — a private counterpart to the public Community feed, gated behind a paid subscription (Premium or Enterprise; "subscribed to any kind" unlocks it, Free does not).
-- One-on-one conversations only — no group chat in v1 (see § 3 Non-Goals)
-- Start a conversation from another user's profile ("Message" action) or from an existing conversation list
-- Real-time delivery, read receipts, conversation list sorted by most recent activity
-- Report / block a conversation participant — reuses the same moderation actions as Community (5.6), extended to cover DMs
-- **Tier gating:** sending a message requires an active Premium or Enterprise subscription — checked per-message, not just at signup, so a downgrade takes effect immediately (a downgraded user can still read existing conversations, just can't send new messages until they resubscribe)
-- Free tier: no access — tapping "Message" on a profile or opening the Direct Messages list shows an upsell rather than a locked read-only view (unlike some other Premium features, there's no meaningful "basic" version of DMs to show for free)
-- Push + in-app notification on new message (ties into 5.8 Notifications as a new category)
+#### 5.9 Direct messages (Premium)
+One-on-one messaging provides a private communication channel between traders, accessible to paid subscribers:
+- Strictly one-on-one conversations in v1 without group messaging.
+- Initiate chats directly from trader profiles or an active conversation list.
+- Real-time message transport, read indicators, and sorting by recent activity.
+- User reporting and blocking reuses community moderation tools.
+- Access gating: sending messages requires an active Premium or Enterprise plan. If a subscription lapses, the user can read existing conversations but cannot send new messages until renewed.
+- Free tier users tapping message actions receive an upgrade prompt.
+- Push and in-app alerts trigger on incoming messages.
 
 #### 5.10 Subscriptions
 
 **Free**
-- Basic profile
-- Trading journal (limited entries)
-- Basic watchlist (1 watchlist, no price alerts)
-- Read a limited number of community posts per day, limited community interaction
-- Basic analytics
-- No AI access (no AI Trading Assistant, AI Strategy Review, AI Journal Analysis, Strategy Notes AI summary)
-- No Strategy Notes editor / analyzer / graph view
-- No Direct Messages
+- Basic trader profile
+- Trading journal with entry limits
+- Single watchlist without threshold alerts
+- Daily read limits on community posts with capped interactions
+- Standard summary statistics
+- No AI assistance or automated reviews
+- No strategy rich text editor, analyzer, or graph view
+- No direct messaging
 
-**Premium** ($9.99/mo — replaces the former "Pro" tier)
-- Unlimited AI Trading Assistant
-- AI Strategy Review
-- AI Journal Analysis
-- Unlimited community access
-- Direct Messages (one-on-one)
-- Advanced analytics
-- Portfolio insights (full Portfolio Dashboard)
-- Unlimited watchlists (+ price alerts, notes, categories)
-- Unlimited journal entries
-- Full Strategy Notes (rich editor, version history, AI summary) + analyzer + graph view
+**Premium** ($9.99 per month)
+- Unlimited access to the AI trading assistant
+- AI strategy audits and cross-journal pattern analysis
+- Unrestricted community browsing and interaction
+- One-on-one direct messaging
+- Advanced portfolio analytics and full chart suites
+- Unlimited watchlists with price threshold alerts
+- Unlimited journal entries with automated screenshot parsing
+- Strategy notes editor with revision history and graph visualization
 - Priority support
 
-**Enterprise** (custom pricing, post-MVP — see § 3 Non-Goals and ROADMAP.md)
-- Team management
-- Multi-user dashboard
-- Device licensing
-- Admin controls
-- Organization analytics
+**Enterprise** (custom pricing, planned post-MVP)
+- Team management and seat allocation
+- Consolidated organization dashboard
+- Device licensing controls
+- Administrative governance
+- Organization-wide reporting
 - Custom branding
-- API access
+- Dedicated API access
 
-Managed via RevenueCat across App Store / Play / Stripe (web) for Free/Premium (monthly and annual billing cycles); Enterprise billing likely direct/invoiced given its custom-pricing, team-seat nature (to be scoped when built).
+Subscriptions are managed through RevenueCat across mobile and web payment processors. Enterprise accounts will use direct invoicing upon release.
 
-### 6. Success Metrics (first 90 days post-launch)
-- Activation: % of signups who create ≥1 journal entry or post in first session
-- Retention: D7 / D30 return rate
-- Conversion: Free → Premium conversion rate
-- Engagement: posts/comments per weekly active user
-- Journaling depth: % of entries linked to a strategy, avg entries per strategy, graph view opens per WAU
-- Watchlist adoption: % of active users with ≥1 watchlist, avg tickers watched
-- Portfolio Dashboard engagement: % of WAU who open the dashboard, avg views per week
-- Direct Message adoption: % of Premium+ users who send ≥1 message, avg conversations per active DM user (a Premium-only feature adopted well is also a conversion argument for Free users)
+### 6. Success metrics (first 90 days)
+- Activation: percentage of new signups logging at least one trade or publishing a post during their first session.
+- Retention: day-7 and day-30 user return rates.
+- Conversion: free to paid tier subscription rate.
+- Engagement: average posts and comments per weekly active user.
+- Journal usage: percentage of trade entries linked to strategies and graph view interactions.
+- Watchlist adoption: percentage of active users tracking symbols and average tickers per watchlist.
+- Portfolio engagement: weekly active users opening the analytics dashboard.
+- Direct messaging: adoption rates and conversations per subscriber.
 
-### 7. Compliance & Risk Notes
-- Add Terms of Service disclaimer: not a registered investment advisor, no guaranteed returns
-- Rate-limit and log all AI calls (cost control + auditability)
-- Row-Level Security on all user data (journal entries and private strategies are private by default; posts and public strategies are public by default; opted-in public journal entries follow the same public-read model as public strategies)
+### 7. Compliance and risk controls
+- Terms of service notices clarifying that TradeX is not a registered investment advisor and does not guarantee returns.
+- Rate limiting and audit logging on all third-party AI requests to monitor costs and prevent abuse.
+- Row-level security on all database tables, defaulting journal entries and draft strategies to private access.
 
-### 8. Revenue Model
-- Monthly subscription (Premium)
-- Annual subscription (Premium, discounted vs. monthly)
-- Enterprise licensing (custom, post-MVP)
-- Premium analytics (bundled into Premium at MVP; potential future à la carte add-on)
-- Future: marketplace for strategies & indicators (post-MVP, see ROADMAP.md) — monetization model TBD (revenue share vs. flat listing fee)
+### 8. Revenue model
+- Monthly recurring subscription (Premium).
+- Annual discounted subscription (Premium).
+- Custom enterprise licensing (post-MVP).
+- Optional strategy and indicator marketplace fees (post-MVP evaluation).
 
-### 9. Release Plan
-| Phase | Scope | Est. Duration |
+### 9. Release plan
+
+| Phase | Scope | Estimated duration |
 |---|---|---|
-| 0 | Project scaffold, auth, navigation shell | 1 week |
-| 1 | Trading journal (full CRUD, all fields) | 1-1.5 weeks |
-| 1.5 | Strategy Notes + Strategy Analyzer (editor, version history, outcome tagging, screenshot auto-fill, graph view) | 1.5-2 weeks |
-| 1.75 | Watchlists (multi-watchlist, price alerts, categories) | 3-5 days |
-| 2 | Community feed (post/like/comment/follow/save, content types) | 2-2.5 weeks |
-| 2.25 | Direct Messages (one-on-one, real-time, tier-gated) | 1-1.5 weeks |
-| 2.5 | Portfolio Dashboard (headline stats, breakdowns, charts) | 1 week |
-| 3 | AI Trading Assistant (insights, strategy review, journal analysis, Q&A) | 2-3 weeks |
-| 3.5 | Notifications system (market alerts, community, direct messages, strategy, AI, subscription) | 3-5 days |
-| 4 | Subscriptions (RevenueCat) + paywalls (Free/Premium) | 1 week |
-| 5 | Polish, QA, store submission | 1-2 weeks |
-| 6 (post-MVP) | Enterprise: org/team model, admin controls, custom branding, API access | scoped separately — see ROADMAP.md |
+| 0 | Project scaffold, authentication, and navigation shell | 1 week |
+| 1 | Trading journal CRUD and core fields | 1 to 1.5 weeks |
+| 1.5 | Strategy Notes and Analyzer (editor, version history, screenshot parsing, graph view) | 1.5 to 2 weeks |
+| 1.75 | Watchlists (multiple watchlists, price alerts, categories) | 3 to 5 days |
+| 2 | Community feed (posts, interactions, categories, bookmarks) | 2 to 2.5 weeks |
+| 2.25 | Direct messaging (one-on-one, real-time, tier gated) | 1 to 1.5 weeks |
+| 2.5 | Portfolio dashboard (summary metrics, breakdowns, charts) | 1 week |
+| 3 | AI trading assistant (insights, reviews, pattern analysis, Q&A) | 2 to 3 weeks |
+| 3.5 | Notifications (price alerts, social, direct messages, system updates) | 3 to 5 days |
+| 4 | Subscription infrastructure (RevenueCat) and paywalls | 1 week |
+| 5 | Quality assurance, performance tuning, and app store submissions | 1 to 2 weeks |
+| 6 (post-MVP) | Enterprise features (team administration, branding, API access) | Planned separately in ROADMAP.md |
 
-Note: Phases 0–5 (Free/Premium MVP) now run roughly 11.5–16 weeks with Direct Messages added on top of the earlier estimate; treat Strategy Notes version history, Portfolio Dashboard charts, and Notification category granularity as the first things to descope if the timeline slips, since core CRUD/journal/community delivers most of the user value on its own.
+Phases 0 to 5 cover the initial Free and Premium release, estimated at 11.5 to 16 weeks. If schedule adjustments become necessary, strategy version history and chart animations can be deferred to protect core trade logging and community functionality.
 
-⚠️ **Open conflict:** this plan bundles Strategy Notes and Watchlists into the MVP, which pushes the timeline past the 6-10 week goal in § 2. The source product doc's own Phase 1 excludes both. See ROADMAP.md § "Source phase structure vs. this project's Release Plan" for the full comparison — needs a decision on which scope to build first.
+Scope note: this roadmap includes Strategy Notes and Watchlists in the MVP. If a tighter 6 to 10 week schedule is required, refer to ROADMAP.md for phased scope adjustments.

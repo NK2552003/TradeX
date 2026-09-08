@@ -1,388 +1,388 @@
-# Screen Contents — TraderHub
-## Flat Reference: Every Screen and What's In It
+# Screen contents: TradeX
+## Flat reference: screen elements
 
-Companion to [SCREENS_AND_FLOWS.md](./SCREENS_AND_FLOWS.md) (which has navigation + pipeline diagrams). This doc skips the diagrams and just lists, screen by screen, the elements a designer needs to lay out. Tier gating shorthand: **F** = Free, **P** = Premium, **E** = Enterprise (post-MVP). Field sources trace back to [API_DATA_MODEL.md](./API_DATA_MODEL.md).
+This document pairs with [SCREENS_AND_FLOWS.md](./SCREENS_AND_FLOWS.md), which covers navigation and pipeline diagrams. It lists screen elements required for design layouts across the platform. Tier gating shorthand: **F** = Free, **P** = Premium, **E** = Enterprise (post-MVP). Field sources trace back to [API_DATA_MODEL.md](./API_DATA_MODEL.md).
 
 ---
 
-## 1. Auth & Profile
+## 1. Auth and profile
 
-### Splash / Onboarding — All
-- App logo / wordmark
-- Short value-prop copy (one line per pillar: AI Assistant, Journal & Strategy Notes, Watchlists, Portfolio Dashboard, Community)
+### Splash and onboarding (all tiers)
+- App logo and wordmark
+- Value proposition copy covering each pillar: AI Assistant, Journal and Strategy Notes, Watchlists, Portfolio Dashboard, Community
 - Primary CTA: "Get Started"
 - Secondary CTA: "Log In"
 
-### Sign Up — All
+### Sign up (all tiers)
 - Email field
-- Password field (+ strength indicator)
-- Handle picker (with live availability check)
+- Password field with strength indicator
+- Handle picker with live availability check
 - "Continue with Google" button
 - "Continue with Apple" button
-- ToS / Privacy Policy checkbox (required)
+- Terms of service and privacy policy checkbox (required)
 - Submit button
-- Link to Log In
+- Link to log in
 
-### Log In — All
+### Log in (all tiers)
 - Email field
 - Password field
-- "Continue with Google" / "Continue with Apple" buttons
+- "Continue with Google" and "Continue with Apple" buttons
 - "Forgot password?" link
 - Submit button
-- Link to Sign Up
+- Link to sign up
 
-### Forgot Password — All
+### Forgot password (all tiers)
 - Email field
 - Submit button
-- Confirmation state ("check your email") after submit
+- Post-submit confirmation message directing user to check email
 
-### Own Profile — All
-- Avatar / profile picture (editable)
-- Handle (editable)
-- Bio (editable, multi-line)
-- Experience level selector (beginner / intermediate / advanced / pro)
-- Trading style selector (day trading / swing / scalping / options / forex / crypto / other)
-- Subscription tier badge (Free / Premium / Enterprise)
-- Follower count / Following count (tap to open Followers/Following list)
-- Public statistics block (win rate, total P/L — only shown if the user has opted to share; pulls from Portfolio Dashboard)
-- "Public Journals" toggle (controls whether any `is_public` journal entries surface here)
-- Tabs or sections: Posts / Strategy Notes (public ones) / Public Journal Entries
-- "Upgrade to Premium" CTA (Free tier only)
-- Settings entry point (icon/button)
+### Personal profile (all tiers)
+- Editable avatar or profile picture
+- Editable handle
+- Editable multi-line bio
+- Experience level selector: beginner, intermediate, advanced, pro
+- Trading style selector: day trading, swing, scalping, options, forex, crypto, other
+- Subscription tier badge: Free, Premium, Enterprise
+- Follower and following counters (tap to open full list)
+- Public statistics block (win rate, total P/L, shown only if opted in; pulls from portfolio dashboard)
+- Public journals toggle (controls whether `is_public` journal entries surface here)
+- Content tabs: Posts, Strategy Notes (public), Public Journal Entries
+- "Upgrade to Premium" CTA for Free tier users
+- Settings button
 
-### Public Profile (other user) — All
+### Public profile for another user (all tiers)
 - Avatar, handle, bio, experience level, trading style
-- Follower / Following counts
-- Public statistics block (if the profile owner shares it)
-- Tabs or sections: Posts / Public Strategy Notes / Public Journal Entries
-- Follow / Unfollow button
-- Message button (Premium/Enterprise viewers only — Direct Messages, § 7; Free viewers see an upsell instead)
-- Report / Block menu (overflow icon)
+- Follower and following counts
+- Public statistics block (if shared by profile owner)
+- Content tabs: Posts, Public Strategy Notes, Public Journal Entries
+- Follow/unfollow button
+- Message button (Premium and Enterprise viewers only, direct messages in section 7; Free viewers see an upsell prompt)
+- Report and block menu
 
-### Settings — All
-- Notification preferences entry point (per category — see § 8)
-- Account section: change email, change password
-- "Public Journals" visibility toggle
+### Settings (all tiers)
+- Notification preferences navigation (per category, see section 8)
+- Account controls: update email, update password
+- Public journals visibility toggle
 - Subscription management entry point
 - Log out button
-- Delete account (destructive, confirmation required)
-- Enterprise-only: "Organization" link → Org Dashboard
+- Account deletion (destructive action, requires confirmation)
+- Organization link for Enterprise users, routing to Org Dashboard
 
 ---
 
-## 2. Trading Journal
+## 2. Trading journal
 
-### Journal List — F (limited entries) / P+ (unlimited)
+### Journal list (Free: limited entries; Premium and Enterprise: unlimited)
 - Search bar (free text)
 - Filter chips: ticker, date range, tag, strategy, outcome
-- Entry cards, each showing: ticker, date, outcome badge (win/loss/breakeven color-coded), P/L value, one-line notes snippet
-- Empty state (no entries yet — prompt to create first entry)
+- Entry cards displaying ticker, date, color-coded outcome badge (win, loss, breakeven), P/L value, and brief notes snippet
+- Empty state prompting the user to log a first trade
 - Floating action button: "New Entry"
-- Free-tier entry-count banner when near/at limit
+- Free-tier entry count banner when approaching or at limit
 
-### Journal Entry Detail — F/P/E
-- Ticker (with link to Ticker Detail)
-- Entry price, exit price, stop loss, target, size, side (long/short)
+### Journal entry detail (all tiers)
+- Ticker with navigation link to Ticker Detail
+- Entry price, exit price, stop loss, target, size, and side (long or short)
 - P/L value
-- Outcome badge (win/loss/breakeven) — tappable to open outcome override picker
-- Screenshot gallery (one or more images, tap to zoom)
-- Notes (free text)
+- Outcome badge (win, loss, breakeven), tap to open outcome override picker
+- Screenshot gallery supporting multiple images with tap-to-zoom
+- Trade notes
 - Trading psychology section
 - Mistakes made section
 - Lessons learned section
-- Linked strategy chip (tap to open Strategy Detail)
-- Tags (chips)
+- Linked strategy chip, tap to open Strategy Detail
+- Tag chips
 - "Make public" toggle
-- Edit button / Delete button (with confirmation)
-- "Link to another entry" action (adds a graph edge)
-- Entry point to Trade Review (AI, Premium)
+- Edit button and delete button (requires confirmation)
+- "Link to another entry" action to create a graph edge
+- Entry point to AI Trade Review for Premium users
 
-### Journal Entry Create/Edit — F/P/E
+### Journal entry creation and editing (all tiers)
 - Ticker input with autocomplete
-- "Attach screenshot" button (camera or gallery picker)
-- Trade fields: entry price, exit price, stop loss, target, size, side — pre-filled if screenshot parsed, all editable
-- P/L (auto-computed from fields, editable override)
-- Notes text area
-- Psychology text area
-- Mistakes made text area
-- Lessons learned text area
-- Tags input (add/remove chips)
-- Strategy picker (search existing or "create new")
-- Save / Cancel buttons
+- "Attach screenshot" button with camera or gallery options
+- Trade fields: entry price, exit price, stop loss, target, size, and side (pre-filled if screenshot was parsed, all editable)
+- P/L field (auto-calculated from prices, supports manual override)
+- Notes input field
+- Psychology notes input field
+- Mistakes made input field
+- Lessons learned input field
+- Tag input to add or remove chips
+- Strategy selector (search existing or create new)
+- Save and cancel buttons
 
 ---
 
-## 3. Strategy Notes & Analyzer
+## 3. Strategy notes and analyzer
 
-### Strategy List — F: locked/upsell · P/E: full
+### Strategy list (Free: locked with upsell; Premium and Enterprise: full)
 - Category filter chips
-- Favorite toggle (star icon) per card
-- Strategy cards: title, category, visibility icon (private/public), win-rate summary chip if entries are linked
+- Favorite star toggle on each card
+- Strategy cards showing title, category, visibility icon (private or public), and win rate summary chip if entries are linked
 - Floating action button: "New Strategy"
-- Entry points: "Analyzer" tab, "Graph View" tab
-- Free-tier locked state with upsell banner
+- Navigation tabs: Analyzer and Graph View
+- Free-tier locked view with upgrade banner
 
-### Strategy Detail — P/E (read-only preview + upsell for Free)
+### Strategy detail (Premium and Enterprise, read-only preview with upsell for Free)
 - Title
-- Rendered rich-text content (with embedded charts/images inline)
+- Rendered rich text content with inline charts and images
 - Category chip
 - Favorite toggle
-- Visibility toggle (private/public)
-- AI summary block (Premium) with "Regenerate" button
-- Linked journal entries count, tap to open filtered Analyzer view
-- "View version history" link
-- Edit button / Delete button
+- Visibility toggle (private or public)
+- AI summary block for Premium users with "Regenerate" option
+- Linked journal entry counter, tap to open filtered Analyzer view
+- Version history link
+- Edit and delete buttons
 
-### Strategy Editor — P/E
+### Strategy editor (Premium and Enterprise)
 - Title field
-- Rich text editor toolbar: headings, bold/italic, lists, image embed, chart embed
+- Rich text toolbar: headings, bold, italic, lists, image embed, chart embed
 - Category picker (select existing or create new)
-- Visibility toggle (private/public)
-- Autosave-to-draft indicator
-- Save / Cancel buttons
+- Visibility toggle (private or public)
+- Autosave draft indicator
+- Save and cancel buttons
 
-### Version History — P/E
-- List of versions: version number, timestamp
-- Tap a version to preview its content (read-only)
-- "Restore this version" button (creates a new latest version from the old content)
+### Version history (Premium and Enterprise)
+- Chronological version list with version number and timestamp
+- Tap any version to preview read-only content
+- "Restore this version" button, creating a new latest version from historical content
 
-### Strategy Analyzer — P/E
-- Per-strategy rollup cards: win rate, avg P/L, entry count, outcome breakdown mini-chart (win/loss/breakeven)
-- Sort control (by win rate / P&L / entry count)
-- Tap a card → filtered journal entry list for that strategy
+### Strategy analyzer (Premium and Enterprise)
+- Per-strategy summary cards: win rate, average P/L, total entry count, and outcome distribution mini-chart
+- Sorting controls by win rate, P/L, or entry count
+- Tap a card to view filtered journal entries for that strategy
 
-### Graph View — P/E
-- Interactive canvas: entry nodes, strategy nodes, ticker nodes
-- Edges: explicit entry-to-entry links (user-drawn), derived entry-to-strategy edges, derived entry-to-ticker edges
-- Pinch-to-zoom / pan
-- Tap a node → opens its detail screen
-- "Link entries" mode toggle (pick two entry nodes to connect)
+### Graph view (Premium and Enterprise)
+- Interactive canvas displaying entry nodes, strategy nodes, and ticker nodes
+- Edges showing explicit entry-to-entry links (user-drawn) and derived links to strategies or tickers
+- Pinch to zoom and pan gestures
+- Tap node to open detail view
+- Link mode toggle to connect two entry nodes
 
 ---
 
 ## 4. Watchlists
 
-### Watchlist List — F: 1 watchlist · P/E: unlimited
-- Favorites shortlist section (top, independent of watchlist membership)
-- List of named watchlists, each showing ticker count
+### Watchlist list (Free: one watchlist; Premium and Enterprise: unlimited)
+- Favorites shortlist at the top, independent of watchlist grouping
+- Named watchlist cards showing ticker count
 - Floating action button: "New Watchlist"
-- Free-tier upsell if attempting a second watchlist
+- Free-tier upsell banner when attempting to create additional lists
 
-### Watchlist Detail — F: no alerts · P/E: full
-- Ticker rows: symbol, last price, day change (color-coded)
+### Watchlist detail (Free: no alerts; Premium and Enterprise: full)
+- Ticker rows showing symbol, latest price, and color-coded daily change
 - Per-ticker notes indicator icon
-- Category grouping / filter control
-- Favorite star per ticker row
-- Swipe-to-remove gesture on rows
+- Category grouping and filter control
+- Favorite star toggle on each row
+- Swipe-to-remove gesture on ticker rows
 - "Add Ticker" button
 
-### Add Ticker — F/P/E
-- Ticker search/autocomplete field
-- Category assignment (select existing or create new)
-- Optional note field
-- "Set price alert" toggle (Premium; Free sees locked state)
+### Add ticker (all tiers)
+- Ticker search with autocomplete
+- Category assignment (pick existing or add new)
+- Optional ticker note field
+- Price alert toggle (enabled for Premium and Enterprise; locked with upsell for Free)
 
-### Price Alert Setup — P/E (Free: locked, upsell)
-- Threshold price input (above / below toggle)
+### Price alert setup (Premium and Enterprise; Free: locked with upsell)
+- Threshold price input with above or below condition toggle
 - Notification preview text
-- Save / Cancel buttons
+- Save and cancel buttons
 
 ---
 
-## 5. Portfolio Dashboard
+## 5. Portfolio dashboard
 
-### Portfolio Dashboard — F: headline stats only · P/E: full
-- Headline stat cards: Total P/L, Win Rate, Average RR, Max Drawdown
-- Time-range toggle: Weekly / Monthly
-- Equity Curve chart (cumulative P/L over time)
-- Monthly Growth chart
-- Win/Loss Distribution chart
-- Best Trade card (tap → Journal Entry Detail)
-- Worst Trade card (tap → Journal Entry Detail)
-- "Strategy Performance" section entry point (Premium; Free sees upsell banner)
+### Portfolio dashboard (Free: headline stats only; Premium and Enterprise: full)
+- Headline metric cards: Total P/L, Win Rate, Average Risk/Reward, Maximum Drawdown
+- Timeframe selector: Weekly, Monthly
+- Equity curve chart showing cumulative P/L over time
+- Monthly growth chart
+- Win/loss distribution chart
+- Best trade summary card, tap to open Journal Entry Detail
+- Worst trade summary card, tap to open Journal Entry Detail
+- Strategy performance entry point (Premium and Enterprise; Free sees upsell prompt)
 
-### Strategy Performance Breakdown — P/E
-- Per-strategy performance cards (win rate, P&L, entry count)
-- Sort control (win rate / P&L / entry count)
-- Tap a card → Strategy Analyzer filtered view
+### Strategy performance breakdown (Premium and Enterprise)
+- Per-strategy metrics cards: win rate, P/L, entry count
+- Sorting controls by win rate, P/L, or entry count
+- Tap card to open filtered Strategy Analyzer view
 
 ---
 
 ## 6. Community
 
-### Community Feed — F: limited reads/day · P/E: unlimited
-- Content-type filter chips: Trade Analysis, Educational, Psychology, Strategies, News, Market Discussion
-- Post cards: avatar, handle, content-type badge, ticker tag (if any), text, optional image, like count, comment count, save count
+### Community feed (Free: limited reads daily; Premium and Enterprise: unlimited)
+- Content type filter chips: Trade Analysis, Educational, Psychology, Strategies, News, Market Discussion
+- Post cards with author avatar, handle, content category badge, ticker tag if present, text body, optional image, and counts for likes, comments, and saves
 - Floating action button: "New Post"
-- Daily-read-limit banner (Free tier only, shown near/at limit)
+- Daily read limit banner for Free tier when near or reaching daily cap
 
-### Post Detail — F/P/E
-- Full post content and image
-- Content-type badge
-- Author row (avatar, handle, tap to open Public Profile)
-- Like button (with count)
-- Save/bookmark button
-- Comment thread (list)
+### Post detail (all tiers)
+- Full post body and attached image
+- Content category badge
+- Author header with avatar and handle, tap to open Public Profile
+- Like button with total count
+- Bookmark button with save count
+- Comment thread list
 - Comment input field
-- Report / Block / Mute menu (overflow icon, on the author)
+- Report, block, and mute menu on the author profile
 
-### Create Post — F/P/E
-- Text area
-- Content-type picker (required)
+### Create post (all tiers)
+- Text composition area
+- Content category picker (required)
 - Optional ticker tag input
-- Optional image/screenshot attach
-- Post / Cancel buttons
+- Optional image or screenshot attachment
+- Publish and cancel buttons
 
-### Saved Posts — F/P/E
-- List of bookmarked posts (same card format as feed)
-- Unsave action per card (swipe or button)
-- Empty state if nothing saved yet
+### Saved posts (all tiers)
+- List of bookmarked post cards matching feed formatting
+- Unsave action per card via swipe or button
+- Empty state when no items are saved
 
-### Followers / Following List — F/P/E
+### Followers and following list (all tiers)
 - Search field
-- User rows: avatar, handle, follow/unfollow button inline
+- User rows with avatar, handle, and inline follow/unfollow toggle
 
 ---
 
-## 7. Direct Messages — P/E only
+## 7. Direct messages (Premium and Enterprise)
 
-### Direct Messages List — P/E
-- New-message icon (top-right)
-- Conversation rows: counterpart avatar, handle, last message preview, relative timestamp, unread indicator
-- Swipe-left: Mute / Delete (local hide, not a shared delete)
-- Free-tier locked full-screen state with "Unlock Direct Messages" CTA
+### Direct messages list (Premium and Enterprise)
+- New message button in header
+- Conversation rows showing participant avatar, handle, snippet of latest message, relative timestamp, and unread badge
+- Swipe actions: mute and hide conversation locally
+- Full-screen upgrade screen on Free tier with "Unlock Direct Messages" CTA
 
-### Conversation Detail — P/E
-- Counterpart avatar + handle (header, tap to open their Public Profile)
-- Overflow menu: Mute / Block / Report
-- Message bubbles (left = counterpart, right = you), timestamps, read receipts on your own sent messages
-- Message input bar (text field + send button)
-- Resubscribe strip (replaces input bar if your subscription lapsed)
-- Blocked-state message (replaces input bar if either party has blocked the other)
-- "Say hello" empty-state prompt for a brand-new thread
+### Conversation detail (Premium and Enterprise)
+- Header with participant avatar and handle, tap to view Public Profile
+- Overflow menu with mute, block, and report options
+- Message bubble stream with timestamps and read receipts on sent messages
+- Text composer and send button
+- Resubscribe banner replacing input if the user's subscription expires
+- Blocked conversation notice replacing input if either user blocks the other
+- Initial empty-thread prompt encouraging conversation
 
-### New Message — P/E
-- Handle search field
-- Result rows: avatar, handle, follow-relationship indicator
-- Tap a result → opens existing or new Conversation Detail
+### New message (Premium and Enterprise)
+- User handle search field
+- Result rows showing avatar, handle, and mutual follow indicator
+- Tap result to open existing or new conversation
 
 ---
 
-## 8. AI Trading Assistant
+## 8. AI trading assistant
 
-### Ticker Search / Detail — F: basic analytics · P/E: full
+### Ticker search and detail (Free: basic analytics; Premium and Enterprise: full)
 - Ticker search bar
 - Price chart
-- Key indicators: RSI, MACD, moving averages
-- News & sentiment summary block (Premium)
-- "Ask AI" button (Premium; Free sees locked state)
-- Basic analytics view (Free): read-only summary stats, no AI content
+- Core technical indicators: RSI, MACD, moving averages
+- News and sentiment summary block for Premium users
+- "Ask AI" button (Premium and Enterprise; Free shows upgrade modal)
+- Basic analytics view for Free tier with read-only statistics and no AI narrative
 
-### AI Trading Assistant (chat) — P/E (Free: locked)
-- Chat thread (scoped to a ticker, a watchlist, or the whole portfolio — scope selector at top)
+### AI trading assistant chat (Premium and Enterprise; Free: locked)
+- Chat stream scoped to a ticker, a watchlist, or the full portfolio using top selector
 - Message input field
-- Quick-action chips: "Risk-to-reward analysis", "Watchlist insights", "Ask a question"
-- Disclaimer footer on every AI-generated message
+- Quick prompt chips: risk-to-reward analysis, watchlist insights, ask a question
+- Disclaimer footer on every AI-generated response
 
-### Trade Review results — P/E
-- Journal entry summary header (ticker, outcome, P/L)
-- AI commentary block (what went right/wrong vs. the stated plan)
+### Trade review results (Premium and Enterprise)
+- Journal entry summary header with ticker, outcome, and P/L
+- AI commentary analyzing trade execution relative to plan
 - Disclaimer footer
-- Dismiss / re-run buttons
+- Action buttons to dismiss or re-run analysis
 
-### AI Strategy Review results — P/E
+### AI strategy review results (Premium and Enterprise)
 - Strategy title header
-- AI clarity/consistency review block
-- Flagged ambiguous or conflicting rules (list)
-- Dismiss / re-run buttons
+- AI assessment reviewing logic, clarity, and consistency
+- List of flagged ambiguities or conflicting rules
+- Action buttons to dismiss or re-run analysis
 
-### AI Journal Analysis results — P/E
-- Date range picker
+### AI journal analysis results (Premium and Enterprise)
+- Date range selector
 - Optional strategy filter
-- Pattern summary block: recurring mistakes, psychology trends, tag/outcome correlations
+- Pattern analysis identifying recurring mistakes, psychological trends, and tag correlations
 - Disclaimer footer
 
-### Weekly / Monthly Performance Review — P/E
-- Period selector (week/month)
-- AI-generated narrative summary
-- Key numbers pulled from Portfolio Dashboard (Total P/L, Win Rate, etc.)
+### Weekly and monthly performance review (Premium and Enterprise)
+- Timeframe selector: weekly or monthly
+- AI narrative evaluation of trading activity
+- Key figures pulled from the portfolio dashboard (Total P/L, Win Rate)
 - Disclaimer footer
 
-### Daily Digest — P/E
-- Top movers list
+### Daily digest (Premium and Enterprise)
+- Top market movers list
 - AI summary block
 - Disclaimer footer
-- (Also delivered as a push notification, opens this screen on tap)
+- Push notification integration opening this screen on tap
 
 ---
 
 ## 9. Notifications
 
-### Notification Center — F/P/E
-- Notification list grouped by category: Market Alert, Community Update, Strategy Reminder, AI Recommendation, Subscription Reminder
-- Read/unread visual state per item
-- Tap an item → deep-links into the relevant screen (e.g. the watchlist item, the post, the strategy, the subscription screen)
-- "Mark all read" button
-- Empty state if none
+### Notification center (all tiers)
+- Notification feed organized by category: Market Alert, Community Update, Strategy Reminder, AI Recommendation, Subscription Reminder
+- Read and unread states on each item
+- Tap notification to deep-link to relevant screen (watchlist item, post, strategy, or billing)
+- "Mark all read" action
+- Empty state view when no notifications exist
 
-### Notification Preferences — F/P/E
-- Per-category toggle: Market Alerts, Community Updates, Strategy Reminders, AI Recommendations, Subscription Reminders
-- Per-category delivery choice: Push + In-app, or In-app only
+### Notification preferences (all tiers)
+- Per-category toggles for Market Alerts, Community Updates, Strategy Reminders, AI Recommendations, and Subscription Reminders
+- Delivery channel options: Push and in-app, or in-app only
 
 ---
 
 ## 10. Subscriptions
 
-### Plan Comparison / Paywall — All
-- Three-column comparison: Free / Premium / Enterprise
-- Feature checklist per column (matches PRD.md § 5.9)
-- Monthly / Annual toggle for Premium pricing
-- "Upgrade" CTA (Premium column)
-- "Contact us" CTA (Enterprise column)
+### Plan comparison and paywall (all tiers)
+- Three-column matrix: Free, Premium, Enterprise
+- Feature checklist per tier aligned with PRD specifications
+- Monthly and annual billing toggle for Premium pricing
+- "Upgrade" CTA under Premium
+- "Contact us" CTA under Enterprise
 
-### Upgrade / Checkout — All
-- Selected plan + billing cycle summary
-- Native purchase sheet (App Store/Play) or Stripe checkout embed (web)
-- Price confirmation
-- Success state / error state
+### Upgrade and checkout (all tiers)
+- Selected tier and billing cycle summary
+- Native in-app purchase flow on mobile (App Store and Google Play) or Stripe checkout on web
+- Price confirmation details
+- Success and error states
 
-### Manage Subscription — P/E
-- Current plan name + billing cycle
-- Renewal date
-- Cancel/downgrade link (deep-links to store subscription management on mobile)
-- Billing history list (web/Stripe only)
+### Manage subscription (Premium and Enterprise)
+- Active plan name and billing cycle
+- Next renewal date
+- Cancellation or downgrade link (deep-links to store subscriptions on mobile)
+- Billing receipt history on web
 
 ---
 
 ## 11. Enterprise (post-MVP)
 
-### Org Dashboard — E
-- Org name and logo
-- Member count
-- Quick links: Team Management, Admin Controls, Organization Analytics, Branding Settings, API Access
+### Organization dashboard (Enterprise)
+- Organization name and logo
+- Total member count
+- Quick navigation cards: Team Management, Admin Controls, Organization Analytics, Branding Settings, API Access
 
-### Team Management — E
-- Member list: name, role, seat status
-- "Invite member" button (opens invite form: email + role)
-- Remove member action per row
-- Role assignment control per row
+### Team management (Enterprise)
+- Team directory with member name, role, and seat allocation
+- "Invite member" button opening invitation form with email and role selection
+- Remove member action on each row
+- Role assignment dropdown per user
 
-### Admin Controls — E
-- Org-wide feature toggle list
-- Content moderation queue (if org-internal posts exist)
-- Device licensing list
+### Admin controls (Enterprise)
+- Organization feature flags
+- Internal content moderation queue
+- Device license management
 
-### Organization Analytics — E
-- Aggregate usage stats across org members: activation, engagement, AI usage volume
-- Date range selector
+### Organization analytics (Enterprise)
+- Aggregated usage metrics across team: active members, platform engagement, AI query volume
+- Date range filter
 
-### Branding Settings — E
-- Logo upload
-- Color theme picker
-- Custom domain field (web)
+### Branding settings (Enterprise)
+- Custom logo upload
+- Brand color theme picker
+- Custom domain configuration on web
 
-### API Access / Key Management — E
-- List of issued API keys: name, scope, created date, last used
-- "Create key" button (shows the key once, then masked)
-- Revoke action per key
-- Usage logs link
+### API access and key management (Enterprise)
+- API key list: key name, permission scope, creation date, last used date
+- "Create key" action displaying raw secret once before masking
+- Key revocation action
+- Link to API usage logs

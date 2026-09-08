@@ -1,64 +1,64 @@
-# Testing Strategy — TraderHub
+# Testing strategy: TradeX
 
-### 1. Philosophy
-Solo, AI-assisted build with a 6–10 week MVP target — testing effort is weighted toward the areas where bugs are expensive (money-adjacent flows, RLS/data leakage, subscription gating) and lighter on presentational widgets. Not aiming for 100% coverage; aiming for confidence on the paths that touch user data, payments, or AI cost.
+## 1. Quality philosophy
+Designed for an agile build targeting a 6 to 10 week MVP, testing focuses on areas where regressions carry high impact: data privacy, row-level security enforcement, payment entitlements, and AI infrastructure costs. Rather than pursuing arbitrary overall coverage metrics, tests target code paths handling user records, billing state, and financial calculations.
 
-### 2. Test Layers
+## 2. Test layers
 
-| Layer | Tool | Scope |
+| Test layer | Framework | Scope and focus |
 |---|---|---|
-| Unit | `flutter test` | Providers, repositories, model serialization (freezed/json_serializable), business logic (tier limits, indicator formatting) |
-| Widget | `flutter test` | Individual screens/components in isolation, golden tests for key screens (feed card, note editor, insight card) |
-| Integration | `flutter test integration_test/` | Full user flows against local Supabase: sign up → create note → post → follow → like |
-| Edge Function | Deno test (`supabase functions serve` + local requests) | `ai-insight` function: auth check, rate-limit enforcement, cache hit/miss, error handling |
-| RLS / DB | `supabase test db` (pgTAP) or manual `supabase db diff` + scripted queries | Every policy in API_DATA_MODEL.md verified from both an authenticated-as-owner and authenticated-as-other-user session |
-| Manual QA | Checklist per release phase | Cross-platform smoke test (iOS/Android/Web), subscription purchase flow via RevenueCat sandbox |
+| Unit tests | `flutter test` | Business logic, state notifiers, repositories, DTO mapping, and indicator formatting |
+| Widget tests | `flutter test` | UI components in isolation, interaction handlers, and golden tests for core cards |
+| Integration tests | `flutter test integration_test/` | End-to-end user flows against local Supabase: authentication, journal creation, posting, social interactions |
+| Edge functions | Deno test suite | Verification of `ai-insight`: authentication, rate-limiting rules, cache evaluation, and error handling |
+| Database security | `supabase test db` (pgTAP) | Verification of every policy in [API_DATA_MODEL.md](../02-architecture/API_DATA_MODEL.md) across multiple authenticated roles |
+| Manual QA | Release checklist | Cross-platform sanity checks across iOS, Android, and web, alongside sandbox in-app purchases |
 
-### 3. Coverage Targets (guideline, not gate)
-- Domain/business logic (providers, repositories, tier-limit logic): high priority, aim to cover all branches
-- Widgets: cover interactive/stateful widgets; skip pure presentational ones
-- Edge Functions: cover all response codes (200 cached, 200 fresh, 429 rate-limited, 401 unauthorized, 500 upstream failure)
-- RLS policies: every policy needs at least one "allowed" test and one "denied" test
+## 3. Coverage targets
+- Domain and business logic: Verify state transitions, repository adapters, and tier-gating logic thoroughly.
+- Widget layer: Test stateful and interactive widgets, prioritizing error and empty state presentations.
+- Edge functions: Test all HTTP status codes (200 for cached or fresh responses, 429 for rate limits, 401 for unauthenticated requests, 500 for upstream errors).
+- Security policies: Validate that every row-level security policy has both an allowed assertion and a denied assertion.
 
-### 4. RLS Testing (critical path)
-Because `journal_entries` are private-by-default (except an opted-in public subset) and `posts`/`comments`/public `strategies` are public-read/owner-write, every policy change must be verified with two identities:
-1. As the row owner — operation should succeed
-2. As a different authenticated user — operation should fail (403/empty result, not a leak)
+## 4. Row-level security test matrix
+Because trade logs are strictly private by default while posts and public strategies allow community read access, all policy modifications require verification across two identities:
+1. Row owner: Operations must succeed as expected.
+2. Unrelated authenticated user: Operations must fail cleanly with empty result sets or 403 status codes without data leakage.
 
-This now also covers `strategies` (private vs. public visibility), `saved_posts` and `notifications` (owner-only), and the two-flag public journal entry policy (`journal_entries.is_public` AND `profiles.public_journals` both required — test that neither flag alone leaks a row).
+This validation extends to private versus public strategy visibility, bookmark isolation, and the dual-flag public journal policy (verifying that setting only one of `journal_entries.is_public` or `profiles.public_journals` does not expose records).
 
-**Direct Messages needs a third test dimension beyond the owner/non-owner pattern above**, since `conversations`/`messages` combine ownership, subscription tier, and blocking in one policy (API_DATA_MODEL.md § 2):
-1. Two Premium participants — both can read and send (baseline)
-2. A third, uninvolved user — cannot read or send into someone else's conversation (standard non-owner check)
-3. A Free-tier participant — can read an existing conversation but insert (send) is rejected; explicitly test both starting a new conversation and sending into an existing one
-4. A Premium user who downgrades mid-conversation — next send attempt is rejected even though earlier messages in the same thread succeeded (the tier check runs per-message, not once at conversation creation — test this transition, not just a static tier)
-5. Two users where one has blocked the other — `are_blocked()` should reject the insert in both directions (test as both the blocker and the blocked party attempting to send)
-6. The `read_at` update policy — confirm a participant can toggle `read_at` on a message they received, but cannot use the same update path to alter `content`
+Direct messaging requires additional verification scenarios because policies evaluate ownership, subscription tier, and mutual blocking simultaneously:
+1. Premium participants: Both users can read and send messages.
+2. Uninvolved third party: Querying or inserting into another conversation fails.
+3. Free-tier participant: Can read an existing conversation, but sending is rejected on both new and active threads.
+4. Mid-conversation downgrade: When a user subscription lapses during a conversation, subsequent messages are rejected even though prior messages succeeded.
+5. Blocked relationships: The `are_blocked()` function rejects message insertion in both directions.
+6. Read receipts: Verifying that recipients can update `read_at` while `with check` constraints prevent tampering with message text.
 
-Recommended: a small pgTAP suite in `supabase/tests/` run via `supabase test db` in CI, plus a manual pass before each release using two throwaway test accounts.
+Run automated pgTAP tests in `supabase/tests/` through CI, supplemented by manual checks before releases.
 
-### 5. AI Insight Function Testing
-Given AI calls cost money and are rate-limited per tier, test explicitly for:
-- Free tier → 0 allowed, immediate 429
-- Pro/Elite tier → allowed up to daily limit, 429 after
-- Cache hit (< 15 min old) → no upstream Claude/market-data call made
-- Cache miss → upstream calls made, result persisted to `ai_insights`, request logged to `ai_insight_requests`
-- Malformed/unknown ticker → graceful error, no partial writes
+## 5. AI edge function validation
+Because AI API requests incur external costs and observe tier limits, tests explicitly verify:
+- Free tier requests reject immediately with status 429.
+- Premium tier requests succeed up to daily allowances and return status 429 once quotas exhaust.
+- Cached results under 15 minutes return promptly without invoking upstream Claude or market APIs.
+- Cache misses query upstream services, write to `ai_insights`, and log requests in `ai_insight_requests`.
+- Invalid ticker symbols fail gracefully without leaving orphaned database records.
 
-### 6. Subscription/Paywall Testing
-- RevenueCat sandbox purchases on iOS/Android test tracks; Stripe test mode for web
-- Verify tier changes propagate to `profiles.subscription_tier` and that gated features (unlimited notes, AI insights, daily digest) unlock/lock correctly on upgrade/downgrade/expiry
+## 6. Subscription and entitlement verification
+- Test in-app purchases using RevenueCat sandbox environments on iOS and Android, paired with Stripe test modes on web.
+- Confirm tier transitions update `profiles.subscription_tier` and unlock or restrict features (such as AI commentary and unlimited trade logs) as subscriptions activate, downgrade, or expire.
 
-### 7. CI Integration
-Run on every PR (see [DEPLOYMENT.md](./DEPLOYMENT.md) for full pipeline):
+## 7. Continuous integration pipeline
+The following checks run on pull requests to `main`:
 1. `flutter analyze`
 2. `flutter test`
-3. `supabase test db` (RLS/pgTAP)
-4. Edge Function tests (`deno test` inside `supabase/functions/ai-insight/`)
+3. `supabase test db` (pgTAP database suite)
+4. Edge function tests (`deno test` within `supabase/functions/ai-insight/`)
 
-Integration tests and manual QA checklist run before each phase release, not on every PR, to keep CI fast.
+End-to-end integration tests and full manual checklists run prior to milestone releases.
 
-### 8. Out of Scope (MVP)
-- Load/performance testing (defer until real usage data exists)
-- Automated cross-device visual regression beyond a small golden-test set
-- Penetration testing (revisit before handling real brokerage/payment data beyond RevenueCat's abstraction)
+## 8. Out of scope for MVP
+- High-volume load and stress testing (deferred until production usage metrics exist).
+- Broad visual regression testing across all device form factors beyond core golden files.
+- Dedicated penetration testing (scheduled prior to connecting direct brokerage integrations).
