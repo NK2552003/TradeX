@@ -130,14 +130,14 @@ class RoleNavigationConfig {
     ],
     mobileMoreItems: <AppNavItem>[
       AppNavItem(
-        id: 'notes',
-        label: 'Trader Notes',
-        icon: Icons.note_alt_outlined,
+        id: 'strategies',
+        label: 'Linked Strategies',
+        icon: Icons.account_tree_outlined,
       ),
       AppNavItem(
-        id: 'strategies',
-        label: 'Strategy Notes',
-        icon: Icons.account_tree_outlined,
+        id: 'notes',
+        label: 'Linked Notes',
+        icon: Icons.note_alt_outlined,
       ),
 
       AppNavItem(
@@ -194,22 +194,22 @@ class RoleNavigationConfig {
             selectedIcon: Icons.dashboard_rounded,
           ),
           AppNavItem(
+            id: 'strategies',
+            label: 'Linked Strategies',
+            icon: Icons.account_tree_outlined,
+            selectedIcon: Icons.account_tree_rounded,
+          ),
+          AppNavItem(
             id: 'journal',
-            label: 'Trade Journal',
+            label: 'Linked Journal',
             icon: Icons.receipt_long_outlined,
             selectedIcon: Icons.receipt_long_rounded,
           ),
           AppNavItem(
             id: 'notes',
-            label: 'Trader Notes',
+            label: 'Linked Notes',
             icon: Icons.note_alt_outlined,
             selectedIcon: Icons.note_alt_rounded,
-          ),
-          AppNavItem(
-            id: 'strategies',
-            label: 'Strategy Notes',
-            icon: Icons.account_tree_outlined,
-            selectedIcon: Icons.account_tree_rounded,
           ),
           AppNavItem(
             id: 'calculators',
