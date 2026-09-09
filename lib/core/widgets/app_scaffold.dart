@@ -18,7 +18,7 @@ import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/calculators/ui/calculators_screen.dart';
 import 'package:tradex/features/journal/ui/journal_screen.dart';
 import 'package:tradex/features/notes/ui/notes_screen.dart';
-
+import 'package:tradex/features/workspace/ui/workspace_screen.dart';
 
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
@@ -77,8 +77,18 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   final AppSession _session = AppSession.instance;
   final ProfileSettingsRepository _profiles = ProfileSettingsRepositoryImpl();
+  final GlobalKey<JournalScreenState> _journalKey =
+      GlobalKey<JournalScreenState>();
+  final GlobalKey<StrategiesScreenState> _strategiesKey =
+      GlobalKey<StrategiesScreenState>();
+  final GlobalKey<NotesScreenState> _notesKey = GlobalKey<NotesScreenState>();
+  final GlobalKey _workspaceSearchKey = GlobalKey();
+  final GlobalKey _workspaceFilterKey = GlobalKey();
+  final GlobalKey _workspaceAddKey = GlobalKey();
+  final GlobalKey _workspaceGuideKey = GlobalKey();
 
   String _selectedId = 'overview';
+  String _workspaceQuery = '';
   AppTrader? _identity;
   int _unread = 0;
   bool _showAffiliateApplication = false;
@@ -182,11 +192,130 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   void _onSubpageChanged(String? title, IconData? icon, VoidCallback? onBack) {
     if (!mounted) return;
-    setState(() {
-      _activeSubpageTitle = title;
-      _activeSubpageIcon = icon;
-      _activeSubpageOnBack = onBack;
+    // Feature screens can announce a reader/editor while their own frame is
+    // still building. Updating AppScaffold synchronously there causes the
+    // framework's "setState during build" error, so coalesce the shell update
+    // to the next safe frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_activeSubpageTitle == title &&
+          _activeSubpageIcon == icon &&
+          identical(_activeSubpageOnBack, onBack)) {
+        return;
+      }
+      setState(() {
+        _activeSubpageTitle = title;
+        _activeSubpageIcon = icon;
+        _activeSubpageOnBack = onBack;
+      });
     });
+  }
+
+  bool get _isWritingFeature =>
+      const <String>{'journal', 'strategies', 'notes'}.contains(_selectedId);
+
+  String get _writingSearchHint => switch (_selectedId) {
+    'journal' => 'Search entries, tickers, tags or notes',
+    'strategies' => 'Search playbooks, rules or instruments',
+    'notes' => 'Search notes, tags or linked records',
+    _ => 'Search Writing Desk',
+  };
+
+  void _updateWorkspaceQuery(String value) {
+    setState(() => _workspaceQuery = value);
+    switch (_selectedId) {
+      case 'journal':
+        _journalKey.currentState?.setSearchQuery(value);
+      case 'strategies':
+        _strategiesKey.currentState?.setSearchQuery(value);
+      case 'notes':
+        _notesKey.currentState?.setSearchQuery(value);
+    }
+  }
+
+  Future<void> _showWorkspaceSearch() => UiDrawer.show<void>(
+    context,
+    title: _writingSearchHint,
+    child: StatefulBuilder(
+      builder: (BuildContext drawerContext, StateSetter updateDrawer) =>
+          UiInput.search(
+            value: _workspaceQuery,
+            hintText: _writingSearchHint,
+            autofocus: true,
+            onChanged: (String value) {
+              _updateWorkspaceQuery(value);
+              updateDrawer(() {});
+            },
+          ),
+    ),
+  );
+
+  List<Widget> _writingDeskHeaderActions() => <Widget>[
+    UiIconButton(
+      key: _workspaceFilterKey,
+      icon: Icons.tune_rounded,
+      tooltip: 'Filter $_selectedId',
+      size: UiSize.sm,
+      onPressed: _showActiveWritingFilters,
+    ),
+    UiIconButton(
+      key: _workspaceAddKey,
+      icon: Icons.add_rounded,
+      tooltip: switch (_selectedId) {
+        'journal' => 'New entry',
+        'strategies' => 'New playbook',
+        'notes' => 'New note',
+        _ => 'Create',
+      },
+      size: UiSize.sm,
+      variant: UiVariant.primary,
+      onPressed: _addActiveWriting,
+    ),
+    UiIconButton(
+      key: _workspaceGuideKey,
+      icon: Icons.help_outline_rounded,
+      tooltip: '${_navigation.labelFor(_selectedId) ?? 'Feature'} guide',
+      size: UiSize.sm,
+      onPressed: _showActiveWritingGuide,
+    ),
+  ];
+
+  void _showActiveWritingFilters() {
+    switch (_selectedId) {
+      case 'journal':
+        _journalKey.currentState?.showFilters();
+      case 'strategies':
+        _strategiesKey.currentState?.showFilters();
+      case 'notes':
+        _notesKey.currentState?.showFilters();
+    }
+  }
+
+  void _addActiveWriting() {
+    switch (_selectedId) {
+      case 'journal':
+        _journalKey.currentState?.newEntry();
+      case 'strategies':
+        _strategiesKey.currentState?.newPlaybook();
+      case 'notes':
+        _notesKey.currentState?.newNote();
+    }
+  }
+
+  void _showActiveWritingGuide() {
+    final List<GlobalKey> targets = <GlobalKey>[
+      _workspaceAddKey,
+      _workspaceFilterKey,
+      _workspaceSearchKey,
+    ];
+    switch (_selectedId) {
+      case 'journal':
+        _journalKey.currentState?.showGuideWithTargets(targets);
+      case 'strategies':
+        _strategiesKey.currentState?.showGuideWithTargets(targets);
+      case 'notes':
+        _notesKey.currentState?.showGuideWithTargets(targets);
+    }
   }
 
   /// Sends the reader home and forgets every pending deep link. Written without
@@ -227,6 +356,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     if (!_canReach(id)) return;
     setState(() {
       _selectedId = id;
+      _workspaceQuery = '';
       _showAffiliateApplication = id == 'affiliate_application';
       _activeSubpageTitle = null;
       _activeSubpageIcon = null;
@@ -257,7 +387,12 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// Role permissions still govern the destination. Writing screens handle
   /// same-kind links locally; ticker links arrive at the matching Markets detail.
   void _openLinkRef(AppLinkRef ref, {bool writing = false}) {
-    final String? destination = writing ? 'notes' : ref.kind.destinationId;
+    final String? destination = switch (ref.kind) {
+      AppLinkKind.journal => 'journal',
+      AppLinkKind.strategy => 'strategies',
+      AppLinkKind.note => 'notes',
+      _ => ref.kind.destinationId,
+    };
     if (destination == null || !_canReach(destination)) return;
     setState(() {
       _selectedId = destination;
@@ -371,6 +506,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     }
     return switch (id) {
       'overview' => UiSkeleton.dashboard(),
+      'workspace' => UiSkeleton.journal(),
       'journal' => UiSkeleton.journal(),
       // No notes preset in flutter-ui, and adding one there for a single caller
       // would be the wrong layer: the journal list is the same shape.
@@ -399,7 +535,10 @@ class _AppScaffoldState extends State<AppScaffold> {
       key: ValueKey<String>('settings_${_effectiveRole.id}_$sectionId'),
       userRole: _effectiveRole,
       initialSectionId: sectionId,
-      showNavigationPane: context.uiRes.isMobile && _selectedId == 'settings',
+      // The tablet rail intentionally keeps only the parent Settings icon.
+      // Selecting that parent must therefore open the same section chooser as
+      // mobile, rather than silently treating Profile as the destination.
+      showNavigationPane: _selectedId == 'settings',
       onLogout: widget.onLogout,
       subscriptionTier: _session.tier.value,
       // Straight into the session: billing is not allowed a private copy of the
@@ -417,18 +556,33 @@ class _AppScaffoldState extends State<AppScaffold> {
     // `onOpenRef` to leave, `openRequest` to arrive, and — for the two that put
     // a document behind a real back step on a phone — `onSubpageChanged` so the
     // app bar names what is open.
-    'journal' => JournalScreen(
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
-      openRequest: _linkRequest,
+    'workspace' => WorkspaceScreen(onOpenFeature: _go),
+    'journal' => AppWritingDeskScope(
+      child: JournalScreen(
+        key: _journalKey,
+        onSubpageChanged: _onSubpageChanged,
+        onOpenRef: _openLinkRef,
+        onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
+        openRequest: _linkRequest,
+      ),
     ),
-    'notes' => NotesScreen(onOpenRef: _openLinkRef, openRequest: _linkRequest),
-    'strategies' => StrategiesScreen(
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
-      openRequest: _linkRequest,
+    'notes' => AppWritingDeskScope(
+      child: NotesScreen(
+        key: _notesKey,
+        onSubpageChanged: _onSubpageChanged,
+        onOpenRef: _openLinkRef,
+        onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
+        openRequest: _linkRequest,
+      ),
+    ),
+    'strategies' => AppWritingDeskScope(
+      child: StrategiesScreen(
+        key: _strategiesKey,
+        onSubpageChanged: _onSubpageChanged,
+        onOpenRef: _openLinkRef,
+        onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
+        openRequest: _linkRequest,
+      ),
     ),
 
     'calculators' => CalculatorsScreen(onSubpageChanged: _onSubpageChanged),
@@ -740,8 +894,17 @@ class _AppScaffoldState extends State<AppScaffold> {
                 ? 'affiliate_application'
                 : _selectedId,
             onSelect: _go,
-            onSearch: () => _go('search'),
-            onSettings: () => _go('settings_profile'),
+            onSearch: _isWritingFeature
+                ? _showWorkspaceSearch
+                : () => _go('search'),
+            searchQuery: _isWritingFeature ? _workspaceQuery : null,
+            searchHint: _isWritingFeature ? _writingSearchHint : null,
+            onSearchChanged: _isWritingFeature ? _updateWorkspaceQuery : null,
+            searchTargetKey: _isWritingFeature ? _workspaceSearchKey : null,
+            headerActions: _isWritingFeature
+                ? _writingDeskHeaderActions()
+                : const <Widget>[],
+            onSettings: () => _go('settings'),
             onAi: () => _go('ai_copilot'),
             onNotifications: () => _go('notifications'),
             onLogout: widget.onLogout,

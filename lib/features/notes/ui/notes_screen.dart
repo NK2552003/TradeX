@@ -6,11 +6,11 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/linking/link_graph.dart';
+import 'package:tradex/features/linking/link_graph_service.dart';
 
 import '../data/note_templates.dart';
 import '../data/notes_repository.dart';
 import '../data/record_writing_repository.dart';
-import 'record_writing_library.dart';
 import 'note_editor_screen.dart';
 import 'note_preview_screen.dart';
 import 'note_template_gallery.dart';
@@ -26,33 +26,75 @@ enum _NotesCollection { mine, public }
 /// id — so this screen owns the list ⇄ read ⇄ write transition itself. The list
 /// is driven by [NotesRepository.watchAll], which means a save made in the
 /// editor, a delete made in the preview and an import made anywhere else all
-/// land here without the screen asking for a refresh.
 class NotesScreen extends StatefulWidget {
-  const NotesScreen({super.key, this.onOpenRef, this.openRequest});
+  const NotesScreen({
+    super.key,
+    this.onSubpageChanged,
+    this.onOpenRef,
+    this.onOpenWriting,
+    this.onAttachToPost,
+    this.openRequest,
+  });
+
+  /// Lets the shell draw the open note's title and back button on mobile.
+  final void Function(String? title, IconData? icon, VoidCallback? onBack)?
+  onSubpageChanged;
 
   /// Follows a link into another destination. Null when the shell cannot reach
   /// it for this role, in which case cross-kind links stay inert rather than
   /// pretending to navigate.
   final void Function(AppLinkRef ref)? onOpenRef;
+  final ValueChanged<AppLinkRef>? onOpenWriting;
+  final AppWritingPostAttachmentHandler? onAttachToPost;
 
   /// A note the shell wants opened — how a link from a trade or a playbook lands
   /// on the right note.
   final AppLinkOpenRequest? openRequest;
 
   @override
-  State<NotesScreen> createState() => _NotesScreenState();
+  State<NotesScreen> createState() => NotesScreenState();
 }
 
-class _NotesScreenState extends State<NotesScreen> {
+class NotesScreenState extends State<NotesScreen> {
+  /// Public entry point so host workspaces (like Writing Desk) can trigger
+  /// new note creation.
+  void newNote() => _newNote();
+
+  /// Public entry point for the unified Writing Desk help action.
+  void showGuide() => _showGuide();
+
+  void showGuideWithTargets(List<GlobalKey> targets) =>
+      FeatureGuideSpotlight.show(
+        context,
+        feature: FeatureId.notes,
+        steps: FeatureGuideSteps.notes,
+        targets: targets,
+        onStepAction: _onGuideStepAction,
+      );
+
+  void setSearchQuery(String value) {
+    if (_query == value || !mounted) return;
+    _updateFilter(() => _query = value);
+  }
+
+  void showFilters() => _noteFilterBlock().showFilters(context);
+
+  void performGuideStep(FeatureGuideStep step) => _onGuideStepAction(step);
+
   static const int _pageSize = 12;
 
   final NotesRepository _repo = NotesRepositoryScope.repository;
+  final AppLinkGraphService _links = AppLinkGraphScope.service;
   final ScrollController _notesScrollController = ScrollController();
+
+  final GlobalKey _guideFilterKey = GlobalKey();
   StreamSubscription<List<AppNote>>? _sub;
   StreamSubscription<List<AppNote>>? _publicSub;
+  StreamSubscription<AppLinkGraph>? _graphSub;
 
   List<AppNote> _notes = const <AppNote>[];
   List<AppNote> _publicNotes = const <AppNote>[];
+  late AppLinkGraph _graph = _links.current;
   bool _loading = true;
 
   String _query = '';
@@ -67,7 +109,6 @@ class _NotesScreenState extends State<NotesScreen> {
   AppNote? _active;
   AppLinkOpenRequest? _appliedRequest;
   RecordWritingDocument? _sourceWriting;
-  int _writingLibrary = 0;
   bool _openingWriting = false;
 
   NoteEditorMode _editorMode = NoteEditorMode.write;
@@ -100,6 +141,9 @@ class _NotesScreenState extends State<NotesScreen> {
         setState(() => _publicNotes = notes);
         if (widget.openRequest != null) _apply(widget.openRequest!);
       }
+    });
+    _graphSub = _links.watch().listen((AppLinkGraph graph) {
+      if (mounted) setState(() => _graph = graph);
     });
     final AppLinkOpenRequest? request = widget.openRequest;
     if (request != null) {
@@ -154,10 +198,7 @@ class _NotesScreenState extends State<NotesScreen> {
     try {
       final source = await RecordWritingRepository().open(ref.kind, ref.id);
       if (!mounted) return;
-      setState(() {
-        _sourceWriting = source;
-        _writingLibrary = ref.kind == AppLinkKind.journal ? 1 : 2;
-      });
+      setState(() => _sourceWriting = source);
     } catch (error) {
       if (mounted) {
         UiToast.error(
@@ -181,6 +222,7 @@ class _NotesScreenState extends State<NotesScreen> {
   void dispose() {
     _sub?.cancel();
     _publicSub?.cancel();
+    _graphSub?.cancel();
     _notesScrollController
       ..removeListener(_loadMoreNearBottom)
       ..dispose();
@@ -221,44 +263,104 @@ class _NotesScreenState extends State<NotesScreen> {
     _tag = null;
   });
 
+  AppNoteFilterBlock _noteFilterBlock({
+    bool showSearch = true,
+    bool showFilterControl = true,
+    VoidCallback? onNew,
+  }) => AppNoteFilterBlock(
+    key: _guideFilterKey,
+    showSearch: showSearch,
+    showFilterControl: showFilterControl,
+    query: _query,
+    type: _type,
+    tag: _tag,
+    sort: _sort,
+    density: _density,
+    availableTags: NotesQuery.tagsOf(_notes),
+    onQueryChanged: (String q) => _updateFilter(() => _query = q),
+    onTypeChanged: (AppNoteType? t) => _updateFilter(() => _type = t),
+    onTagChanged: (String? t) => _updateFilter(() => _tag = t),
+    onSortChanged: (AppNoteSort s) => _updateFilter(() => _sort = s),
+    onDensityChanged: (AppNoteDensity d) => setState(() => _density = d),
+    onNew: onNew,
+  );
+
   /// New notes start from the gallery rather than a blank page: a template is
   /// the fastest way to learn the syntax, and the fastest way to start writing
   /// for someone who never will.
+  void _notifySubpage() {
+    if (!mounted) return;
+    switch (_view) {
+      case _NotesView.preview when _active != null:
+        final String title = _active!.title.trim().isEmpty
+            ? 'Untitled note'
+            : _active!.title.trim();
+        widget.onSubpageChanged?.call(
+          title,
+          Icons.note_alt_outlined,
+          _backToList,
+        );
+        break;
+      case _NotesView.editor:
+        final String title = _active == null || _active!.title.trim().isEmpty
+            ? 'New note'
+            : _active!.title.trim();
+        widget.onSubpageChanged?.call(title, Icons.edit_outlined, _backToList);
+        break;
+      case _NotesView.list:
+      default:
+        widget.onSubpageChanged?.call(null, null, null);
+        break;
+    }
+  }
+
   Future<void> _newNote() async {
     final AppNoteTemplate? template = await showNoteTemplateGallery(context);
     if (template == null || !mounted) return;
     setState(() {
+      _collection = _NotesCollection.mine;
       _active = template.toDraft();
       _editorMode = NoteEditorMode.write;
       _view = _NotesView.editor;
     });
+    _notifySubpage();
   }
 
-  void _open(AppNote note) => setState(() {
-    _writingLibrary = 0;
-    _active = note;
-    _view = _NotesView.preview;
-  });
+  void _open(AppNote note) {
+    setState(() {
+      _active = note;
+      _view = _NotesView.preview;
+    });
+    _notifySubpage();
+  }
 
-  void _edit(AppNote note, {NoteEditorMode mode = NoteEditorMode.write}) =>
-      setState(() {
-        _active = note;
-        _editorMode = mode;
-        _view = _NotesView.editor;
-      });
+  void _edit(AppNote note, {NoteEditorMode mode = NoteEditorMode.write}) {
+    setState(() {
+      _active = note;
+      _editorMode = mode;
+      _view = _NotesView.editor;
+    });
+    _notifySubpage();
+  }
 
   /// The editor hands back what it saved, so closing it lands on the note the
   /// writer just wrote — including one created from a draft, whose id the host
   /// never saw. Nothing saved means there is nothing to read: back to the list.
-  void _closeEditor(AppNote? saved) => setState(() {
-    _active = saved;
-    _view = saved == null ? _NotesView.list : _NotesView.preview;
-  });
+  void _closeEditor(AppNote? saved) {
+    setState(() {
+      _active = saved;
+      _view = saved == null ? _NotesView.list : _NotesView.preview;
+    });
+    _notifySubpage();
+  }
 
-  void _backToList() => setState(() {
-    _active = null;
-    _view = _NotesView.list;
-  });
+  void _backToList() {
+    setState(() {
+      _active = null;
+      _view = _NotesView.list;
+    });
+    _notifySubpage();
+  }
 
   /// Follows a link out of a note. Note → note stays here; a trade or a playbook
   /// belongs to another destination and goes back through the shell.
@@ -314,6 +416,187 @@ class _NotesScreenState extends State<NotesScreen> {
     }
   }
 
+  // ── Guide ──────────────────────────────────────────────────────────────────
+
+  /// Opens the notes walkthrough, at any time, from the header help action or
+  /// the banner's "Show guide" button. The owning screen resolves each step's
+  /// action into real navigation below.
+  void _showGuide() {
+    FeatureGuideSpotlight.show(
+      context,
+      feature: FeatureId.notes,
+      steps: FeatureGuideSteps.notes,
+      targets: <GlobalKey>[_guideFilterKey],
+      onStepAction: _onGuideStepAction,
+    );
+  }
+
+  /// Maps a guide step to the real surface it describes. The sheet already marks
+  /// the step done when its action button is pressed; this only navigates — it
+  /// never fakes completion, and a step with nothing to act on navigates nowhere
+  /// and says so.
+  void _onGuideStepAction(FeatureGuideStep step) {
+    switch (step.id) {
+      case 'review':
+        _newNote();
+      case 'link':
+        _linkNote();
+      case 'tags':
+        _tagNote();
+      case 'refactor':
+        _refactorNote();
+      case 'weekly':
+        _reviewWeekly();
+      default:
+        break;
+    }
+  }
+
+  /// "Link it to the trade and the playbook" — linking happens in the note
+  /// editor's details panel, so the step lands on the note most in need of one:
+  /// the newest note with neither a playbook nor a journal entry attached.
+  void _linkNote() {
+    final AppNote? target = _firstNoteWhere(
+      (AppNote n) =>
+          _graph.bundleForNote(n).strategies.isEmpty &&
+          _graph.bundleForNote(n).journal.isEmpty,
+    );
+    if (target == null) {
+      UiToast.info(
+        context,
+        title: 'Nothing to link',
+        message: 'Write a note first, then link it to a trade and a playbook.',
+      );
+      return;
+    }
+    _edit(target);
+  }
+
+  /// "Tag it" — tags are the note editor's tag field, so the step lands on the
+  /// newest note that has none.
+  void _tagNote() {
+    final AppNote? target = _firstNoteWhere((AppNote n) => n.tags.isEmpty);
+    if (target == null) {
+      UiToast.info(
+        context,
+        title: 'Nothing to tag',
+        message: 'Every note already has a tag.',
+      );
+      return;
+    }
+    _edit(target);
+  }
+
+  /// "Use the AI refactor" — the AI surface lives in the editor, so the step
+  /// lands on the newest note, ready for a selection to be rewritten.
+  void _refactorNote() {
+    final AppNote? target = _firstNoteWhere((AppNote _) => true);
+    if (target == null) {
+      UiToast.info(
+        context,
+        title: 'Nothing to refactor',
+        message: 'Write a note first, then tighten it with the AI.',
+      );
+      return;
+    }
+    _edit(target);
+  }
+
+  /// "Revisit weekly using tag filters" — the weekly review is the landing with
+  /// the review notes pulled to the front, via the existing type filter rather
+  /// than a new surface.
+  void _reviewWeekly() {
+    _backToList();
+    _updateFilter(() {
+      _collection = _NotesCollection.mine;
+      _type = AppNoteType.review;
+      _tag = null;
+    });
+  }
+
+  /// First mine-note matching [test], in the repository's recently-edited order
+  /// — so "first" means "most recent", which is the one the trader is most
+  /// likely to mean.
+  AppNote? _firstNoteWhere(bool Function(AppNote n) test) {
+    for (final AppNote n in _notes) {
+      if (test(n)) return n;
+    }
+    return null;
+  }
+
+  // ── Next-best action ───────────────────────────────────────────────────────
+
+  /// The pipeline nudges shown as compact chips between the filter bar and the
+  /// grid.
+  ///
+  /// Derived from the **whole notebook** (`_notes`) plus the link graph — never
+  /// from the filtered slice, because "2 trades without a review" is true of the
+  /// workspace even while a search narrows what is on screen. Ordered
+  /// Review-first:
+  ///
+  ///  1. Journal entries whose linked-note set is empty → open the record
+  ///     writing flow, which is how a review is written back into the trade.
+  ///  2. Mine-notes with no tags → open the newest in the editor, where tags
+  ///     are edited.
+  ///
+  /// Empty while the stream is still loading or when there is nothing to act on,
+  /// so the row never advertises a zero. A chip whose action cannot be wired
+  /// honestly is simply not emitted.
+  List<_NextAction> get _nextActions {
+    if (_loading) return const <_NextAction>[];
+    final List<AppTrade> unreviewed = _graph.journalList
+        .where((AppTrade t) => _graph.bundleForJournal(t).notes.isEmpty)
+        .toList(growable: false);
+    final List<AppNote> untagged = _notes
+        .where((AppNote n) => n.tags.isEmpty)
+        .toList(growable: false);
+
+    return <_NextAction>[
+      if (unreviewed.isNotEmpty)
+        _NextAction(
+          label: unreviewed.length == 1
+              ? '1 trade still without a review note'
+              : '${unreviewed.length} trades still without a review note',
+          icon: Icons.edit_note_rounded,
+          intent: UiIntent.warning,
+          onTap: () => _openSourceWriting(_graph.journalRef(unreviewed.first)),
+        ),
+      if (untagged.isNotEmpty)
+        _NextAction(
+          label: untagged.length == 1
+              ? '1 untagged recent note'
+              : '${untagged.length} untagged recent notes',
+          icon: Icons.sell_outlined,
+          intent: UiIntent.info,
+          onTap: () => _edit(untagged.first),
+        ),
+    ];
+  }
+
+  Widget _nextActionChips(BuildContext context) {
+    final List<_NextAction> actions = _nextActions;
+    if (actions.isEmpty) return const SizedBox.shrink();
+    final UiTheme theme = context.ui;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: <Widget>[
+          for (int i = 0; i < actions.length; i++) ...<Widget>[
+            if (i > 0) SizedBox(width: context.sp(theme.spacing.xs)),
+            UiButton(
+              label: actions[i].label,
+              leadingIcon: actions[i].icon,
+              variant: UiVariant.soft,
+              intent: actions[i].intent,
+              size: UiSize.xs,
+              onPressed: actions[i].onTap,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_sourceWriting case final source?) {
@@ -329,36 +612,15 @@ class _NotesScreenState extends State<NotesScreen> {
     if (_openingWriting) {
       return const UiSkeleton(width: double.infinity, height: 240);
     }
-    if (_view != _NotesView.list) return _notesBody(context);
-    return Column(
-      children: [
-        UiTabs(
-          index: _writingLibrary,
-          stretch: true,
-          items: const [
-            UiTabItem(label: 'Notes', icon: Icons.description_outlined),
-            UiTabItem(
-              label: 'Trade reviews',
-              icon: Icons.candlestick_chart_outlined,
-            ),
-            UiTabItem(label: 'Playbooks', icon: Icons.account_tree_outlined),
-          ],
-          onChanged: (value) => setState(() => _writingLibrary = value),
-        ),
-        Expanded(
-          child: _writingLibrary == 0
-              ? _notesBody(context)
-              : RecordWritingLibrary(
-                  key: ValueKey(_writingLibrary),
-                  kind: _writingLibrary == 1
-                      ? AppLinkKind.journal
-                      : AppLinkKind.strategy,
-                  onWrite: _openSourceWriting,
-                  onOpen: widget.onOpenRef,
-                ),
-        ),
-      ],
-    );
+
+    // The editor is a full-surface step on every width: it owns its own
+    // save-or-discard decision and must not share the workbench's pane.
+    if (_view == _NotesView.editor) return _notesBody(context);
+
+    // Reading and editing are focused full-page steps at every width. Linked
+    // records remain inside the reader; no permanent index/sidebar competes
+    // with the writing surface.
+    return _notesBody(context);
   }
 
   Widget _notesBody(BuildContext context) {
@@ -374,6 +636,7 @@ class _NotesScreenState extends State<NotesScreen> {
         onClose: _backToList,
         onEdit: () => _edit(_freshest(active)),
         onOpenLink: _openRef,
+        onAttachToPost: widget.onAttachToPost,
         canEdit: _collection == _NotesCollection.mine,
       ),
       _NotesView.editor when active != null => NoteEditorScreen(
@@ -424,26 +687,12 @@ class _NotesScreenState extends State<NotesScreen> {
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 slivers: <Widget>[
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        const AppWorkspaceHeading(
-                          eyebrow: 'The research notebook',
-                          title: 'Trader notes',
-                          description:
-                              'Ideas, observations and the connections between them.',
-                        ),
-                        const UiGap.v(20),
-                        AppNoteStatRow(notes: _notes, loading: _loading),
-                        SizedBox(height: context.sp(theme.spacing.md)),
-                      ],
-                    ),
-                  ),
                   SliverPersistentHeader(
                     pinned: true,
                     delegate: _NotesStickyHeaderDelegate(
-                      extent: context.sz(context.uiRes.isMobile ? 148 : 172),
+                      extent: context.sz(
+                        AppWritingDeskScope.isHosted(context) ? 64 : 104,
+                      ),
                       background: theme.colors.background,
                       child: _stickyControls(context),
                     ),
@@ -453,11 +702,17 @@ class _NotesScreenState extends State<NotesScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
                         SizedBox(height: context.sp(theme.spacing.sm)),
+                        if (_nextActions.isNotEmpty) ...<Widget>[
+                          _nextActionChips(context),
+                          SizedBox(height: context.sp(theme.spacing.sm)),
+                        ],
                         Row(
                           children: <Widget>[
                             Expanded(
                               child: Text(
-                                'Your notes',
+                                _collection == _NotesCollection.mine
+                                    ? 'Your notes'
+                                    : 'Public notes',
                                 style: context.uiText.subheading,
                               ),
                             ),
@@ -499,27 +754,19 @@ class _NotesScreenState extends State<NotesScreen> {
             ),
           ),
         ),
-        Positioned(
-          right: gutter,
-          bottom: dockSafeBottom + gutter,
-          child: context.uiRes.isMobile
-              ? UiButton.icon(
-                  key: const ValueKey<String>('new_note_fab'),
-                  icon: Icons.add_rounded,
-                  label: 'New note',
-                  onPressed: _newNote,
-                  variant: UiVariant.primary,
-                  size: UiSize.lg,
-                )
-              : UiButton(
-                  key: const ValueKey<String>('new_note_fab'),
-                  label: 'New note',
-                  leadingIcon: Icons.add_rounded,
-                  rounded: true,
-                  elevate: true,
-                  onPressed: _newNote,
-                ),
-        ),
+        if (!context.uiRes.isDesktop && !AppWritingDeskScope.isHosted(context))
+          Positioned(
+            right: gutter,
+            bottom: dockSafeBottom + gutter,
+            child: UiIconButton(
+              key: const ValueKey<String>('new_note_fab'),
+              icon: Icons.add_rounded,
+              onPressed: _newNote,
+              variant: UiVariant.primary,
+              size: UiSize.lg,
+              tooltip: 'New note',
+            ),
+          ),
       ],
     );
   }
@@ -543,18 +790,9 @@ class _NotesScreenState extends State<NotesScreen> {
           }),
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
-        AppNoteFilterBlock(
-          query: _query,
-          type: _type,
-          tag: _tag,
-          sort: _sort,
-          density: _density,
-          availableTags: NotesQuery.tagsOf(_notes),
-          onQueryChanged: (String q) => _updateFilter(() => _query = q),
-          onTypeChanged: (AppNoteType? t) => _updateFilter(() => _type = t),
-          onTagChanged: (String? t) => _updateFilter(() => _tag = t),
-          onSortChanged: (AppNoteSort s) => _updateFilter(() => _sort = s),
-          onDensityChanged: (AppNoteDensity d) => setState(() => _density = d),
+        _noteFilterBlock(
+          showSearch: !AppWritingDeskScope.isHosted(context),
+          showFilterControl: !AppWritingDeskScope.isHosted(context),
         ),
       ],
     );
@@ -590,4 +828,21 @@ class _NotesStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
       extent != oldDelegate.extent ||
       background != oldDelegate.background ||
       child != oldDelegate.child;
+}
+
+/// One pipeline nudge in the "next best action" chip row. Private data, computed
+/// by [_NotesScreenState._nextActions] from the live repository stream and link
+/// graph — nothing here is hardcoded.
+class _NextAction {
+  const _NextAction({
+    required this.label,
+    required this.icon,
+    required this.intent,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final UiIntent intent;
+  final VoidCallback onTap;
 }

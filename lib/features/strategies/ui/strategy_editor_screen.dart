@@ -101,7 +101,6 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
   final MarkdownOutlineController _outline = MarkdownOutlineController();
   final SpeechToText _speech = SpeechToText();
   final ScrollController _editorScrollController = ScrollController();
-  final ScrollController _railScrollController = ScrollController();
 
   /// Bumped on every keystroke so the command bar, counters and derived hints
   /// rebuild without dragging the whole editor through `setState`.
@@ -189,7 +188,6 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
     _slash.dispose();
     _selection.dispose();
     _editorScrollController.dispose();
-    _railScrollController.dispose();
     super.dispose();
   }
 
@@ -1054,7 +1052,7 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   _commandBar(context, wide: wide),
-                  SizedBox(height: context.sp(theme.spacing.md)),
+                  SizedBox(height: context.sp(theme.spacing.sm)),
                   if (wide)
                     Expanded(child: _wideBody(context))
                   else
@@ -1077,13 +1075,16 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
     return ValueListenableBuilder<int>(
       valueListenable: _revision,
       builder: (BuildContext ctx, int _, Widget? _) {
+        final bool isMobile = context.uiRes.isMobile;
         final bool savable = !_saving && (_dirty || _strategy.id.isEmpty);
-        final Widget back = UiIconButton(
-          icon: Icons.arrow_back_rounded,
-          variant: UiVariant.ghost,
-          tooltip: 'Back to the strategy',
-          onPressed: _closeAndSave,
-        );
+        final Widget? back = isMobile
+            ? null
+            : UiIconButton(
+                icon: Icons.arrow_back_rounded,
+                variant: UiVariant.ghost,
+                tooltip: 'Back to the strategy',
+                onPressed: _closeAndSave,
+              );
         final Widget modes = UiToggleGroup<StrategyEditorMode>(
           options: <UiToggleOption<StrategyEditorMode>>[
             for (final StrategyEditorMode mode in StrategyEditorMode.values)
@@ -1154,14 +1155,15 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                _name.text.trim().isEmpty
-                    ? 'Untitled playbook'
-                    : _name.text.trim(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.bodyStrong,
-              ),
+              if (!isMobile)
+                Text(
+                  _name.text.trim().isEmpty
+                      ? 'Untitled playbook'
+                      : _name.text.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.bodyStrong,
+                ),
               Text(
                 _statusLine,
                 maxLines: 1,
@@ -1180,8 +1182,10 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  back,
-                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  if (back != null) ...<Widget>[
+                    back,
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                  ],
                   identity,
                   more,
                   SizedBox(width: context.sp(theme.spacing.xxs)),
@@ -1196,8 +1200,10 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
 
         return Row(
           children: <Widget>[
-            back,
-            SizedBox(width: context.sp(theme.spacing.sm)),
+            if (back != null) ...<Widget>[
+              back,
+              SizedBox(width: context.sp(theme.spacing.sm)),
+            ],
             identity,
             modes,
             SizedBox(width: context.sp(theme.spacing.sm)),
@@ -1229,7 +1235,7 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
         _nameField(context),
         SizedBox(height: context.sp(theme.spacing.sm)),
         _contractPanel(context),
-        SizedBox(height: context.sp(theme.spacing.md)),
+        SizedBox(height: context.sp(theme.spacing.sm)),
         if (_mode == StrategyEditorMode.read)
           _pane(
             context,
@@ -1250,54 +1256,46 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
     );
   }
 
-  /// Desktop keeps the contract permanently beside the rules. What a playbook is
-  /// *for* — which instruments, which status, which trades tested it — is the
-  /// context every rule is written against, so it stays readable while typing.
+  /// Desktop keeps one focused column. The playbook contract is a collapsible
+  /// section above the writing canvas instead of a permanent sidebar.
   Widget _wideBody(BuildContext context) {
     final UiTheme theme = context.ui;
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _nameField(context),
-              if (_mode != StrategyEditorMode.read) ...<Widget>[
-                SizedBox(height: context.sp(theme.spacing.sm)),
-                MarkdownFormatRibbon(
-                  editorKey: _editorKey,
-                  onPickImage: _pickImage,
-                  onPickDocument: _pickDocument,
-                  onInsertTicker: _insertTicker,
-                  onInsertRecord: () async {
-                    final ref = await showRecordLinkPicker(
-                      context,
-                      sourceKind: AppLinkKind.strategy,
-                      sourceId: _strategy.id,
-                    );
-                    if (ref != null && mounted) {
-                      _editorKey.currentState?.insertInline(
-                        AppDeepLink.markdown(
-                          kind: ref.kind,
-                          id: ref.id,
-                          label: ref.title,
-                        ),
-                      );
-                    }
-                  },
-                  onInsertJournal: _insertJournal,
-                  onToggleVoice: _toggleVoice,
-                  listening: _listening,
-                ),
-              ],
-              SizedBox(height: context.sp(theme.spacing.sm)),
-              Expanded(child: _wideArea(context)),
-            ],
+        _nameField(context),
+        SizedBox(height: context.sp(theme.spacing.sm)),
+        _contractPanel(context),
+        if (_mode != StrategyEditorMode.read) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          MarkdownFormatRibbon(
+            editorKey: _editorKey,
+            onPickImage: _pickImage,
+            onPickDocument: _pickDocument,
+            onInsertTicker: _insertTicker,
+            onInsertRecord: () async {
+              final ref = await showRecordLinkPicker(
+                context,
+                sourceKind: AppLinkKind.strategy,
+                sourceId: _strategy.id,
+              );
+              if (ref != null && mounted) {
+                _editorKey.currentState?.insertInline(
+                  AppDeepLink.markdown(
+                    kind: ref.kind,
+                    id: ref.id,
+                    label: ref.title,
+                  ),
+                );
+              }
+            },
+            onInsertJournal: _insertJournal,
+            onToggleVoice: _toggleVoice,
+            listening: _listening,
           ),
-        ),
-        SizedBox(width: context.sp(theme.spacing.md)),
-        SizedBox(width: context.sz(340), child: _rail(context)),
+        ],
+        SizedBox(height: context.sp(theme.spacing.sm)),
+        Expanded(child: _wideArea(context)),
       ],
     );
   }
@@ -1355,45 +1353,6 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
     readOnly: _mode == StrategyEditorMode.read,
     textInputAction: TextInputAction.next,
   );
-
-  /// The desktop rail: what the playbook covers, who can see it and what it is
-  /// linked to. Scrolls on its own so a long set of rules never pushes the
-  /// instrument list out of reach.
-  Widget _rail(BuildContext context) {
-    final UiTheme theme = context.ui;
-    return UiCard(
-      variant: UiCardVariant.outlined,
-      hoverLift: false,
-      padding: EdgeInsets.zero,
-      child: Scrollbar(
-        controller: _railScrollController,
-        interactive: true,
-        child: ScrollConfiguration(
-          behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-          child: SingleChildScrollView(
-            controller: _railScrollController,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text('The playbook', style: context.uiText.subheading),
-                SizedBox(height: context.sp(theme.spacing.xxs)),
-                Text(
-                  'Performance is derived from the trades filed here, never typed',
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundMuted,
-                  ),
-                ),
-                SizedBox(height: context.sp(theme.spacing.md)),
-                _contractFields(context, twoColumn: false),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   /// The phone panel. Open while the playbook is new, folded away once it is set
   /// up, because the reason somebody opens this screen on a phone is to write a

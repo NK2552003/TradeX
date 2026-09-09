@@ -90,7 +90,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   final MarkdownOutlineController _outline = MarkdownOutlineController();
   final SpeechToText _speech = SpeechToText();
   final ScrollController _editorScrollController = ScrollController();
-  final ScrollController _detailsScrollController = ScrollController();
 
   /// Bumped on every edit. Only the header and the footer counters listen, so a
   /// keystroke never rebuilds the metadata panel or re-parses the preview.
@@ -168,7 +167,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     _slash.dispose();
     _selection.dispose();
     _editorScrollController.dispose();
-    _detailsScrollController.dispose();
     super.dispose();
   }
 
@@ -704,7 +702,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   _editorCommandBar(context, wide: wide),
-                  SizedBox(height: context.sp(theme.spacing.md)),
+                  SizedBox(height: context.sp(theme.spacing.sm)),
                   if (wide)
                     Expanded(child: _wideBody(context))
                   else
@@ -724,14 +722,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     return ValueListenableBuilder<int>(
       valueListenable: _revision,
       builder: (BuildContext ctx, int _, Widget? _) {
-        final Widget back = UiIconButton(
-          icon: Icons.arrow_back_rounded,
-          variant: UiVariant.ghost,
-          tooltip: widget.sourceDocument == null
-              ? 'Back to notes'
-              : 'Back to source',
-          onPressed: _closeAndSave,
-        );
+        final bool isMobile = context.uiRes.isMobile;
+        final Widget? back = isMobile
+            ? null
+            : UiIconButton(
+                icon: Icons.arrow_back_rounded,
+                variant: UiVariant.ghost,
+                tooltip: widget.sourceDocument == null
+                    ? 'Back to notes'
+                    : 'Back to source',
+                onPressed: _closeAndSave,
+              );
         final Widget modes = UiToggleGroup<NoteEditorMode>(
           options: <UiToggleOption<NoteEditorMode>>[
             for (final NoteEditorMode mode in NoteEditorMode.values)
@@ -772,12 +773,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                _effectiveTitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.bodyStrong,
-              ),
+              if (!isMobile)
+                Text(
+                  _effectiveTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.bodyStrong,
+                ),
               Text(
                 _statusLine,
                 maxLines: 1,
@@ -796,8 +798,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  back,
-                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  if (back != null) ...<Widget>[
+                    back,
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                  ],
                   identity,
                   remove,
                   SizedBox(width: context.sp(theme.spacing.xxs)),
@@ -812,8 +816,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
         return Row(
           children: <Widget>[
-            back,
-            SizedBox(width: context.sp(theme.spacing.sm)),
+            if (back != null) ...<Widget>[
+              back,
+              SizedBox(width: context.sp(theme.spacing.sm)),
+            ],
             identity,
             modes,
             SizedBox(width: context.sp(theme.spacing.sm)),
@@ -857,51 +863,43 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   Widget _wideBody(BuildContext context) {
     final UiTheme theme = context.ui;
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _titleField(context),
-              if (_mode != NoteEditorMode.read) ...<Widget>[
-                SizedBox(height: context.sp(theme.spacing.sm)),
-                MarkdownFormatRibbon(
-                  editorKey: _editorKey,
-                  onPickImage: _pickImage,
-                  onPickDocument: _pickDocument,
-                  onInsertTicker: _insertTicker,
-                  onInsertRecord: () async {
-                    final ref = await showRecordLinkPicker(
-                      context,
-                      sourceKind:
-                          widget.sourceDocument?.source.kind ??
-                          AppLinkKind.note,
-                      sourceId: _note.id,
-                    );
-                    if (ref != null && mounted) {
-                      _editorKey.currentState?.insertInline(
-                        AppDeepLink.markdown(
-                          kind: ref.kind,
-                          id: ref.id,
-                          label: ref.title,
-                        ),
-                      );
-                    }
-                  },
-                  onInsertStrategy: _insertStrategy,
-                  onToggleVoice: _toggleVoice,
-                  listening: _listening,
-                ),
-              ],
-              SizedBox(height: context.sp(theme.spacing.sm)),
-              Expanded(child: _wideArea(context)),
-            ],
+        _titleField(context),
+        SizedBox(height: context.sp(theme.spacing.sm)),
+        _detailsPanel(context, twoColumn: true),
+        if (_mode != NoteEditorMode.read) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          MarkdownFormatRibbon(
+            editorKey: _editorKey,
+            onPickImage: _pickImage,
+            onPickDocument: _pickDocument,
+            onInsertTicker: _insertTicker,
+            onInsertRecord: () async {
+              final ref = await showRecordLinkPicker(
+                context,
+                sourceKind:
+                    widget.sourceDocument?.source.kind ?? AppLinkKind.note,
+                sourceId: _note.id,
+              );
+              if (ref != null && mounted) {
+                _editorKey.currentState?.insertInline(
+                  AppDeepLink.markdown(
+                    kind: ref.kind,
+                    id: ref.id,
+                    label: ref.title,
+                  ),
+                );
+              }
+            },
+            onInsertStrategy: _insertStrategy,
+            onToggleVoice: _toggleVoice,
+            listening: _listening,
           ),
-        ),
-        SizedBox(width: context.sp(theme.spacing.md)),
-        SizedBox(width: context.sz(320), child: _detailsRail(context)),
+        ],
+        SizedBox(height: context.sp(theme.spacing.sm)),
+        Expanded(child: _wideArea(context)),
       ],
     );
   }
@@ -958,49 +956,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     readOnly: _mode == NoteEditorMode.read,
     textInputAction: TextInputAction.next,
   );
-
-  Widget _detailsRail(BuildContext context) {
-    final UiTheme theme = context.ui;
-    return UiCard(
-      variant: UiCardVariant.outlined,
-      hoverLift: false,
-      padding: EdgeInsets.zero,
-      child: Scrollbar(
-        controller: _detailsScrollController,
-        interactive: true,
-        child: ScrollConfiguration(
-          behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-          child: SingleChildScrollView(
-            controller: _detailsScrollController,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text(
-                  widget.sourceDocument == null
-                      ? 'Note details'
-                      : 'Source record',
-                  style: context.uiText.subheading,
-                ),
-                SizedBox(height: context.sp(theme.spacing.xxs)),
-                Text(
-                  widget.sourceDocument == null
-                      ? 'Classify and connect this note'
-                      : 'Details stay with the original record',
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundMuted,
-                  ),
-                ),
-                SizedBox(height: context.sp(theme.spacing.md)),
-                _detailsFields(context, twoColumn: false),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _pane(
     BuildContext context, {
@@ -1271,8 +1226,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           RichMarkdownPreview(
             data: source,
             outlineController: _outline,
-            imageResolver: (context, uri) => NoteAttachments.resolve(context, uri,
-                using: widget.sourceDocument?.resolveImage),
+            imageResolver: (context, uri) => NoteAttachments.resolve(
+              context,
+              uri,
+              using: widget.sourceDocument?.resolveImage,
+            ),
             emptyPlaceholder: 'Nothing to read yet — switch to Write.',
           ),
     );

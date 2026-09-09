@@ -13,6 +13,7 @@ export 'motion/app_motion.dart';
 export 'motion/page_transition.dart';
 export 'models/app_models.dart';
 export 'models/app_models_extra.dart';
+export '../sharing/app_post_attachment.dart';
 export 'brand/app_logo.dart';
 
 // Cards
@@ -24,6 +25,10 @@ export 'cards/account_cards.dart';
 export 'cards/ai_cards.dart';
 export 'cards/notes_cards.dart';
 export 'cards/calculator_cards.dart';
+
+// Guides
+export 'guides/feature_guide.dart';
+export 'guides/guide_steps.dart';
 
 // Blocks
 export 'blocks/dashboard_blocks.dart';

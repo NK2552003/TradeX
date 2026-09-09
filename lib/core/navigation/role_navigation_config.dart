@@ -115,10 +115,10 @@ class RoleNavigationConfig {
         selectedIcon: Icons.dashboard_rounded,
       ),
       AppNavItem(
-        id: 'journal',
-        label: 'Journal',
-        icon: Icons.receipt_long_outlined,
-        selectedIcon: Icons.receipt_long_rounded,
+        id: 'workspace',
+        label: 'Workspace',
+        icon: Icons.edit_note_outlined,
+        selectedIcon: Icons.edit_note_rounded,
       ),
       AppNavItem(
         id: 'community',
@@ -129,17 +129,6 @@ class RoleNavigationConfig {
       _settingsDock,
     ],
     mobileMoreItems: <AppNavItem>[
-      AppNavItem(
-        id: 'strategies',
-        label: 'Linked Strategies',
-        icon: Icons.account_tree_outlined,
-      ),
-      AppNavItem(
-        id: 'notes',
-        label: 'Linked Notes',
-        icon: Icons.note_alt_outlined,
-      ),
-
       AppNavItem(
         id: 'calculators',
         label: 'Calculators',
@@ -194,22 +183,30 @@ class RoleNavigationConfig {
             selectedIcon: Icons.dashboard_rounded,
           ),
           AppNavItem(
-            id: 'strategies',
-            label: 'Linked Strategies',
-            icon: Icons.account_tree_outlined,
-            selectedIcon: Icons.account_tree_rounded,
-          ),
-          AppNavItem(
-            id: 'journal',
-            label: 'Linked Journal',
-            icon: Icons.receipt_long_outlined,
-            selectedIcon: Icons.receipt_long_rounded,
-          ),
-          AppNavItem(
-            id: 'notes',
-            label: 'Linked Notes',
-            icon: Icons.note_alt_outlined,
-            selectedIcon: Icons.note_alt_rounded,
+            id: 'workspace',
+            label: 'Writing Desk',
+            icon: Icons.edit_note_outlined,
+            selectedIcon: Icons.edit_note_rounded,
+            subItems: <AppNavItem>[
+              AppNavItem(
+                id: 'journal',
+                label: 'Journal',
+                icon: Icons.receipt_long_outlined,
+                selectedIcon: Icons.receipt_long_rounded,
+              ),
+              AppNavItem(
+                id: 'strategies',
+                label: 'Strategies',
+                icon: Icons.account_tree_outlined,
+                selectedIcon: Icons.account_tree_rounded,
+              ),
+              AppNavItem(
+                id: 'notes',
+                label: 'Notes',
+                icon: Icons.note_alt_outlined,
+                selectedIcon: Icons.note_alt_rounded,
+              ),
+            ],
           ),
           AppNavItem(
             id: 'calculators',
@@ -337,11 +334,7 @@ class RoleNavigationConfig {
       _settingsDock,
     ],
     mobileMoreItems: <AppNavItem>[
-      AppNavItem(
-        id: 'notes',
-        label: 'Notes',
-        icon: Icons.note_alt_outlined,
-      ),
+      AppNavItem(id: 'notes', label: 'Notes', icon: Icons.note_alt_outlined),
       AppNavItem(
         id: 'marketing',
         label: 'Media Kit',

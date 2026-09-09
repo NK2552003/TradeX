@@ -222,7 +222,7 @@ class AppNewsStoryCard extends StatelessWidget {
                   width: 80,
                   height: 80,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox(width: 80, height: 80),
+                  errorBuilder: (_, _, _) => const SizedBox(width: 80, height: 80),
                 ),
               ),
             ],

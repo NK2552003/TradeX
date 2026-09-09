@@ -315,6 +315,9 @@ Table posts {
   image_url text
   ticker text
   content_type text [default: 'market_discussion']
+  note_id uuid [note: 'optional; mutually exclusive with journal_entry_id and strategy_id']
+  journal_entry_id uuid [note: 'optional; mutually exclusive with note_id and strategy_id']
+  strategy_id uuid [note: 'optional; mutually exclusive with note_id and journal_entry_id']
   created_at timestamptz
   updated_at timestamptz
 }
@@ -464,6 +467,9 @@ Ref: note_journal_links.user_id > profiles.id [delete: cascade, update: cascade]
 Ref: watchlists.user_id > profiles.id [delete: cascade, update: cascade]
 Ref: watchlist_items.watchlist_id > watchlists.id [delete: cascade, update: cascade]
 Ref: posts.user_id > profiles.id [delete: cascade, update: cascade]
+Ref: posts.note_id > trader_notes.id [delete: set null, update: cascade]
+Ref: posts.journal_entry_id > journal_entries.id [delete: set null, update: cascade]
+Ref: posts.strategy_id > strategies.id [delete: set null, update: cascade]
 Ref: saved_posts.user_id > profiles.id [delete: cascade, update: cascade]
 Ref: saved_posts.post_id > posts.id [delete: cascade, update: cascade]
 Ref: comments.post_id > posts.id [delete: cascade, update: cascade]

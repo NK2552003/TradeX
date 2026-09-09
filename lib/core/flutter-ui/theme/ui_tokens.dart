@@ -40,11 +40,15 @@ class UiPalette {
 
   // Market semantics — desaturated so charts stay calm
   static const Color bullish500 = Color(0xFF3F9A6B);
+  static const Color bullish600 = Color(0xFF237A50);
   static const Color bullish400 = Color(0xFF4EB57F);
   static const Color bearish500 = Color(0xFFC0564E);
+  static const Color bearish600 = Color(0xFFA23B35);
   static const Color bearish400 = Color(0xFFD9695F);
   static const Color warning500 = Color(0xFFC98A2E);
+  static const Color warning700 = Color(0xFF8A5A10);
   static const Color info500 = Color(0xFF4A8FA8);
+  static const Color info700 = Color(0xFF2E718B);
 
   // Chart series — muted, evenly spaced hues
   static const List<Color> series = <Color>[
@@ -132,11 +136,11 @@ class UiColors {
     onPrimary: UiPalette.gray50,
     secondary: UiPalette.gray100,
     onSecondary: UiPalette.gray900,
-    bullish: UiPalette.bullish500,
-    bearish: UiPalette.bearish500,
-    warning: UiPalette.warning500,
-    info: UiPalette.info500,
-    destructive: UiPalette.bearish500,
+    bullish: UiPalette.bullish600,
+    bearish: UiPalette.bearish600,
+    warning: UiPalette.warning700,
+    info: UiPalette.info700,
+    destructive: UiPalette.bearish600,
     onDestructive: UiPalette.white,
     focusRing: UiPalette.brand500,
     disabledBackground: UiPalette.gray100,

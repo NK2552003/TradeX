@@ -28,6 +28,11 @@ import 'revision_note_prompt.dart';
 /// Separate from the editor for the same reason the notes and journal features
 /// split them: the editor optimises for reach, and a rule being checked at the
 /// open wants nothing but the rule.
+/// The four faces of a playbook document, addressable from outside the screen —
+/// guide actions and next-best-action chips land on a specific tab, not just the
+/// first one.
+enum StrategyDetailTab { playbook, history, links }
+
 class StrategyDetailScreen extends StatefulWidget {
   const StrategyDetailScreen({
     super.key,
@@ -36,7 +41,9 @@ class StrategyDetailScreen extends StatefulWidget {
     required this.onEdit,
     this.onOpenLink,
     this.onEditWriting,
+    this.onAttachToPost,
     this.canEdit = true,
+    this.initialTab = StrategyDetailTab.playbook,
   });
 
   final AppStrategy strategy;
@@ -49,14 +56,19 @@ class StrategyDetailScreen extends StatefulWidget {
   /// Cross-navigation into another record. Null renders links as plain rows,
   /// which is how a preview embedded somewhere without a navigator behaves.
   final void Function(AppLinkRef ref)? onOpenLink;
+  final AppWritingPostAttachmentHandler? onAttachToPost;
   final bool canEdit;
+
+  /// Which tab is selected when the document first opens. Additive — callers
+  /// that do not care leave it at the default and get the playbook body.
+  final StrategyDetailTab initialTab;
 
   @override
   State<StrategyDetailScreen> createState() => _StrategyDetailScreenState();
 }
 
 /// The four jobs a playbook is opened for.
-enum _StrategyTab { playbook, performance, history, links }
+enum _StrategyTab { playbook, history, links }
 
 class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
   final MarkdownOutlineController _outline = MarkdownOutlineController();
@@ -74,6 +86,11 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _tab = switch (widget.initialTab) {
+      StrategyDetailTab.playbook => _StrategyTab.playbook,
+      StrategyDetailTab.history => _StrategyTab.history,
+      StrategyDetailTab.links => _StrategyTab.links,
+    };
     // Subscribed rather than read once: filing a trade under this playbook from
     // anywhere in the app changes both its links and its win rate.
     _graphSub = _links.watch().listen((AppLinkGraph graph) {
@@ -516,11 +533,24 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
         tooltip: 'Export as PDF',
         onPressed: _busy ? null : _exportPdf,
       ),
+      if (widget.onAttachToPost != null) ...<Widget>[
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        UiIconButton(
+          icon: Icons.add_comment_outlined,
+          variant: UiVariant.ghost,
+          tooltip: 'Attach strategy to a post',
+          onPressed: _busy
+              ? null
+              : () => widget.onAttachToPost!(
+                  AppWritingPostAttachment.strategy(_strategy),
+                ),
+        ),
+      ],
       if (widget.canEdit) ...<Widget>[
         if (widget.onEditWriting != null)
-          UiButton(
-            label: 'Edit playbook',
-            leadingIcon: Icons.edit_note_rounded,
+          UiIconButton(
+            icon: Icons.edit_note_rounded,
+            tooltip: 'Edit playbook',
             size: UiSize.sm,
             variant: UiVariant.outline,
             onPressed: widget.onEditWriting,
@@ -533,11 +563,11 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
           onPressed: _busy ? null : _saveRevision,
         ),
         SizedBox(width: context.sp(theme.spacing.xs)),
-        UiButton(
-          label: 'Edit details',
-          leadingIcon: Icons.edit_outlined,
+        UiIconButton(
+          icon: Icons.edit_outlined,
+          tooltip: 'Edit details',
           size: UiSize.sm,
-          hideLabelOnMobile: true,
+          variant: UiVariant.primary,
           onPressed: _busy ? null : widget.onEdit,
         ),
       ],
@@ -571,7 +601,6 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
     final UiTheme theme = context.ui;
     final List<_StrategyTab> tabs = <_StrategyTab>[
       _StrategyTab.playbook,
-      _StrategyTab.performance,
       _StrategyTab.history,
       if (showLinksTab) _StrategyTab.links,
     ];
@@ -589,9 +618,6 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
                 label: _tabLabel(t),
                 icon: _tabIcon(t),
                 count: _tabCount(t),
-                intent: t == _StrategyTab.performance && _unwrittenCount > 0
-                    ? UiIntent.warning
-                    : null,
               ),
           ],
           index: index,
@@ -612,7 +638,6 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
                   context,
                   showFacts: showLinksTab,
                 ),
-                _StrategyTab.performance => _performanceTab(context),
                 _StrategyTab.history => _historyTab(context),
                 _StrategyTab.links => _aside(context, withFacts: false),
               },
@@ -625,14 +650,12 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
 
   String _tabLabel(_StrategyTab tab) => switch (tab) {
     _StrategyTab.playbook => 'Playbook',
-    _StrategyTab.performance => 'Performance',
     _StrategyTab.history => 'History',
     _StrategyTab.links => 'Links',
   };
 
   IconData _tabIcon(_StrategyTab tab) => switch (tab) {
     _StrategyTab.playbook => Icons.menu_book_outlined,
-    _StrategyTab.performance => Icons.insights_rounded,
     _StrategyTab.history => Icons.history_rounded,
     _StrategyTab.links => Icons.link_rounded,
   };
@@ -641,7 +664,6 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
   /// before the trader spends a tap finding out.
   int? _tabCount(_StrategyTab tab) => switch (tab) {
     _StrategyTab.playbook => null,
-    _StrategyTab.performance => _strategy.trades == 0 ? null : _strategy.trades,
     _StrategyTab.history => _loadingVersions ? null : _versions.length,
     _StrategyTab.links => _bundle.length == 0 ? null : _bundle.length,
   };
@@ -693,6 +715,8 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
   /// In that order and never separated: every figure above is a claim, and the
   /// list below is the evidence. A trader who disagrees with the win rate can tap
   /// straight through to the trade that produced it.
+  // The overview owns analytics; retained for downstream read-only embedders.
+  // ignore: unused_element
   Widget _performanceTab(BuildContext context) {
     final UiTheme theme = context.ui;
     final double gap = context.sp(theme.spacing.md);

@@ -33,6 +33,7 @@ class JournalEntryScreen extends StatefulWidget {
     required this.onEdit,
     this.onOpenLink,
     this.onEditWriting,
+    this.onAttachToPost,
     this.canEdit = true,
   });
 
@@ -46,6 +47,7 @@ class JournalEntryScreen extends StatefulWidget {
   /// Cross-navigation into another record. Null renders links as plain text,
   /// which is how a preview embedded somewhere without a navigator behaves.
   final void Function(AppLinkRef ref)? onOpenLink;
+  final AppWritingPostAttachmentHandler? onAttachToPost;
   final bool canEdit;
 
   @override
@@ -374,29 +376,42 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
   List<Widget> _headerActions(BuildContext context) {
     final UiTheme theme = context.ui;
     return <Widget>[
-      SizedBox(width: context.sp(theme.spacing.sm)),
+      SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: Icons.picture_as_pdf_outlined,
         variant: UiVariant.ghost,
         tooltip: 'Export as PDF',
         onPressed: _busy ? null : _exportPdf,
       ),
+      if (widget.onAttachToPost != null) ...<Widget>[
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        UiIconButton(
+          icon: Icons.add_comment_outlined,
+          variant: UiVariant.ghost,
+          tooltip: 'Attach journal entry to a post',
+          onPressed: _busy
+              ? null
+              : () => widget.onAttachToPost!(
+                  AppWritingPostAttachment.journal(_entry),
+                ),
+        ),
+      ],
       if (widget.canEdit) ...<Widget>[
         if (widget.onEditWriting != null)
-          UiButton(
-            label: 'Edit review',
-            leadingIcon: Icons.edit_note_rounded,
+          UiIconButton(
+            icon: Icons.edit_note_rounded,
+            tooltip: 'Edit review',
             size: UiSize.sm,
             variant: UiVariant.outline,
             onPressed: widget.onEditWriting,
           ),
 
         SizedBox(width: context.sp(theme.spacing.xs)),
-        UiButton(
-          label: 'Edit details',
-          leadingIcon: Icons.edit_outlined,
+        UiIconButton(
+          icon: Icons.edit_outlined,
+          tooltip: 'Edit details',
           size: UiSize.sm,
-          hideLabelOnMobile: true,
+          variant: UiVariant.primary,
           onPressed: widget.onEdit,
         ),
       ],

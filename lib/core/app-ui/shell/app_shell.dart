@@ -24,6 +24,11 @@ class AppShell extends StatefulWidget {
     this.trader,
     this.tier = AppTier.free,
     this.onSearch,
+    this.searchQuery,
+    this.searchHint,
+    this.onSearchChanged,
+    this.searchTargetKey,
+    this.headerActions = const <Widget>[],
     this.onNotifications,
     this.onSettings,
     this.onAi,
@@ -56,6 +61,11 @@ class AppShell extends StatefulWidget {
   final AppTrader? trader;
   final AppTier tier;
   final VoidCallback? onSearch;
+  final String? searchQuery;
+  final String? searchHint;
+  final ValueChanged<String>? onSearchChanged;
+  final GlobalKey? searchTargetKey;
+  final List<Widget> headerActions;
   final VoidCallback? onNotifications;
   final VoidCallback? onSettings;
   final VoidCallback? onAi;
@@ -252,6 +262,11 @@ class _AppShellState extends State<AppShell> {
           trader: widget.trader,
           tier: widget.tier,
           onSearch: widget.onSearch,
+          searchQuery: widget.searchQuery,
+          searchHint: widget.searchHint,
+          onSearchChanged: widget.onSearchChanged,
+          searchTargetKey: widget.searchTargetKey,
+          headerActions: widget.headerActions,
           onNotifications: widget.onNotifications,
           onSettings: widget.onSettings,
           onAi: widget.onAi,
@@ -524,72 +539,76 @@ class _AppShellState extends State<AppShell> {
                     builder: (context, box) {
                       final canDock = box.maxWidth >= 1080;
                       final hasResearch = widget.researchPanelBuilder != null;
-                      final visible = hasResearch && canDock && _researchVisible;
+                      final visible =
+                          hasResearch && canDock && _researchVisible;
                       void closeResearch() =>
                           setState(() => _researchVisible = false);
                       final workspace = Column(
                         children: [
                           topBar(
-                      researchVisible: visible,
-                      onResearch: !hasResearch
-                          ? null
-                          : () {
-                              if (canDock) {
-                                setState(
-                                  () => _researchVisible = !_researchVisible,
-                                );
-                              } else {
-                                openResearchOverlay();
-                              }
-                            },
-                    ),
-                    Expanded(child: contentSurface),
-                  ],
-                );
-                // Keep the primary branch mounted when Focus mode changes width.
-                return UiSplitPane(
-                  key: const ValueKey('app-research-split'),
-                  showDetail: visible,
-                  initialRatio: .70,
-                  minRatio: .64,
-                  maxRatio: .74,
-                  primary: workspace,
-                  detail: visible
-                      ? SafeArea(
-                          left: false,
-                          child: Padding(
-                            padding: EdgeInsets.fromLTRB(
-                              0,
-                              context.sp(theme.spacing.xs),
-                              context.sp(theme.spacing.xs + 3),
-                              context.sp(theme.spacing.xs + 3),
-                            ),
-                            child: UiCard(
-                              key: const ValueKey('app-research-surface'),
-                              padding: EdgeInsets.zero,
-                              variant: UiCardVariant.elevated,
-                              child: ClipRRect(
-                                borderRadius: context.radius(theme.radii.xl),
-                                child: widget.researchPanelBuilder!(
-                                  context,
-                                  closeResearch,
-                                  false,
-                                ),
-                              ),
-                            ),
+                            researchVisible: visible,
+                            onResearch: !hasResearch
+                                ? null
+                                : () {
+                                    if (canDock) {
+                                      setState(
+                                        () => _researchVisible =
+                                            !_researchVisible,
+                                      );
+                                    } else {
+                                      openResearchOverlay();
+                                    }
+                                  },
                           ),
-                        )
-                      : const SizedBox.shrink(),
-                );
-              },
+                          Expanded(child: contentSurface),
+                        ],
+                      );
+                      // Keep the primary branch mounted when Focus mode changes width.
+                      return UiSplitPane(
+                        key: const ValueKey('app-research-split'),
+                        showDetail: visible,
+                        initialRatio: .70,
+                        minRatio: .64,
+                        maxRatio: .74,
+                        primary: workspace,
+                        detail: visible
+                            ? SafeArea(
+                                left: false,
+                                child: Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    0,
+                                    context.sp(theme.spacing.xs),
+                                    context.sp(theme.spacing.xs + 3),
+                                    context.sp(theme.spacing.xs + 3),
+                                  ),
+                                  child: UiCard(
+                                    key: const ValueKey('app-research-surface'),
+                                    padding: EdgeInsets.zero,
+                                    variant: UiCardVariant.elevated,
+                                    child: ClipRRect(
+                                      borderRadius: context.radius(
+                                        theme.radii.xl,
+                                      ),
+                                      child: widget.researchPanelBuilder!(
+                                        context,
+                                        closeResearch,
+                                        false,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
-    ),
-  ],
-),
-);
+    );
   }
 }
 
@@ -1224,6 +1243,11 @@ class AppTopBar extends StatelessWidget {
     this.trader,
     this.tier = AppTier.free,
     this.onSearch,
+    this.searchQuery,
+    this.searchHint,
+    this.onSearchChanged,
+    this.searchTargetKey,
+    this.headerActions = const <Widget>[],
     this.onNotifications,
     this.onSettings,
     this.onAi,
@@ -1245,6 +1269,11 @@ class AppTopBar extends StatelessWidget {
   final AppTrader? trader;
   final AppTier tier;
   final VoidCallback? onSearch;
+  final String? searchQuery;
+  final String? searchHint;
+  final ValueChanged<String>? onSearchChanged;
+  final GlobalKey? searchTargetKey;
+  final List<Widget> headerActions;
   final VoidCallback? onNotifications;
   final VoidCallback? onSettings;
   final VoidCallback? onAi;
@@ -1274,7 +1303,12 @@ class AppTopBar extends StatelessWidget {
     final bool isCompactHeader =
         isMobile ||
         context.uiRes.isTablet ||
-        availableWidth < context.sz(onResearch == null ? 1000 : 1200);
+        availableWidth <
+            context.sz(
+              onSearchChanged != null
+                  ? 760
+                  : (onResearch == null ? 1000 : 1200),
+            );
     final researchLabelVisible = availableWidth >= context.sz(600);
 
     String sectionTitle = this.sectionTitle ?? 'Terminal';
@@ -1501,63 +1535,65 @@ class AppTopBar extends StatelessWidget {
                   ],
                   // Center-Right: Search Command Pill (Desktop)
                   if (!isCompactHeader) ...<Widget>[
-                    UiInteractive(
-                      onTap: onSearch,
-                      builder: (BuildContext ctx, UiInteractiveState s) =>
-                          AnimatedContainer(
-                            duration: theme.motion.fast,
-                            width: ctx.sz(250),
-                            height: ctx.sz(32),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: ctx.sp(theme.spacing.sm),
-                            ),
-                            decoration: BoxDecoration(
-                              color: s.hovered
-                                  ? theme.colors.surfaceHover
-                                  : theme.colors.background.withValues(
-                                      alpha: 0.7,
-                                    ),
-                              borderRadius: ctx.radius(theme.radii.md),
-                              border: Border.all(
-                                color: s.hovered
-                                    ? theme.colors.borderStrong
-                                    : theme.colors.border,
-                                width: theme.borders.hairline,
+                    if (onSearchChanged != null)
+                      SizedBox(
+                        key: searchTargetKey,
+                        width: context.sz(280),
+                        child: UiInput.search(
+                          value: searchQuery ?? '',
+                          hintText: searchHint ?? 'Search this workspace',
+                          size: UiSize.sm,
+                          density: UiDensity.compact,
+                          semanticLabel: searchHint ?? 'Search this workspace',
+                          onChanged: onSearchChanged,
+                        ),
+                      )
+                    else
+                      UiInteractive(
+                        key: searchTargetKey,
+                        onTap: onSearch,
+                        builder: (BuildContext ctx, UiInteractiveState s) =>
+                            AnimatedContainer(
+                              duration: theme.motion.fast,
+                              width: ctx.sz(250),
+                              height: ctx.sz(32),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: ctx.sp(theme.spacing.sm),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.search_rounded,
-                                  size: ctx.sz(15),
-                                  color: theme.colors.foregroundSubtle,
+                              decoration: BoxDecoration(
+                                color: s.hovered
+                                    ? theme.colors.surfaceHover
+                                    : theme.colors.background.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                borderRadius: ctx.radius(theme.radii.md),
+                                border: Border.all(
+                                  color: s.hovered
+                                      ? theme.colors.borderStrong
+                                      : theme.colors.border,
+                                  width: theme.borders.hairline,
                                 ),
-                                SizedBox(width: ctx.sp(theme.spacing.xs)),
-                                Expanded(
-                                  child: Text(
-                                    'Search symbols, orders...',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: ctx.uiText.caption.copyWith(
-                                      color: theme.colors.foregroundSubtle,
-                                      fontSize: ctx.fs(12.0),
+                              ),
+                              child: Row(
+                                children: <Widget>[
+                                  Icon(
+                                    Icons.search_rounded,
+                                    size: ctx.sz(15),
+                                    color: theme.colors.foregroundSubtle,
+                                  ),
+                                  SizedBox(width: ctx.sp(theme.spacing.xs)),
+                                  Expanded(
+                                    child: Text(
+                                      'Search symbols, orders...',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: ctx.uiText.caption.copyWith(
+                                        color: theme.colors.foregroundSubtle,
+                                        fontSize: ctx.fs(12.0),
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 5.0,
-                                    vertical: 1.5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: theme.colors.surface,
-                                    borderRadius: ctx.radius(theme.radii.sm),
-                                    border: Border.all(
-                                      color: theme.colors.border,
-                                      width: theme.borders.hairline,
-                                    ),
-                                  ),
-                                  child: Text(
+                                  Text(
                                     '⌘K',
                                     style: ctx.uiText.caption.copyWith(
                                       fontSize: ctx.fs(10),
@@ -1565,38 +1601,27 @@ class AppTopBar extends StatelessWidget {
                                       color: theme.colors.foregroundMuted,
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                    ),
+                      ),
                     SizedBox(width: context.sp(theme.spacing.sm)),
-
-                    const UiBadge(
-                      label: 'Daily snapshots',
-                      icon: Icons.schedule_rounded,
-                      variant: UiBadgeVariant.outline,
-                      size: UiSize.sm,
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.sm)),
-
-                    // Vertical subtle separator
-                    Container(
-                      width: theme.borders.hairline,
-                      height: context.sz(18),
-                      color: theme.colors.border.withValues(alpha: 0.6),
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
                   ],
 
                   // Search Icon on Mobile
                   if (isCompactHeader)
                     UiIconButton(
+                      key: searchTargetKey,
                       icon: Icons.search_rounded,
                       size: UiSize.sm,
                       tooltip: 'Search',
                       onPressed: onSearch,
                     ),
+
+                  if (headerActions.isNotEmpty) ...<Widget>[
+                    ...headerActions,
+                    SizedBox(width: context.sp(theme.spacing.xxs)),
+                  ],
 
                   // Notifications Icon with perfectly positioned badge
                   Stack(
@@ -1629,7 +1654,7 @@ class AppTopBar extends StatelessWidget {
                   ),
                   SizedBox(width: context.sp(theme.spacing.xxs)),
 
-                  if (isMobile)
+                  if (isMobile && headerActions.isEmpty)
                     UiIconButton(
                       icon: Icons.auto_awesome_rounded,
                       size: UiSize.sm,
@@ -1637,12 +1662,7 @@ class AppTopBar extends StatelessWidget {
                       onPressed: onAi,
                     )
                   else
-                    UiIconButton(
-                      icon: Icons.settings_outlined,
-                      size: UiSize.sm,
-                      tooltip: 'Settings',
-                      onPressed: onSettings,
-                    ),
+                    const SizedBox.shrink(),
                 ],
               ),
             ],

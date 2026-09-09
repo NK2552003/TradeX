@@ -51,7 +51,7 @@ class _StrategyTemplateGallery extends StatelessWidget {
                         in StrategyTemplates.all)
                       SizedBox(
                         width: width,
-                        height: columns == 2 ? context.sz(148) : null,
+                        height: columns == 2 ? context.sz(140) : null,
                         child: _TemplateTile(
                           template: template,
                           fixedHeight: columns == 2,
@@ -89,7 +89,7 @@ class _TemplateTile extends StatelessWidget {
       motion: false,
       padding: EdgeInsets.all(context.sp(theme.spacing.md)),
       onTap: onTap,
-      minHeight: context.sz(112),
+      minHeight: context.sz(108),
       child: Column(
         mainAxisSize: fixedHeight ? MainAxisSize.max : MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,

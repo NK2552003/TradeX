@@ -326,7 +326,6 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = context.uiRes.isMobile;
     final sections = _getSectionsForRole();
 
     // Ensure selectedSectionId exists in active role's sections
@@ -334,13 +333,13 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
       _selectedSectionId = sections.first['id'] as String;
     }
 
-    // Wide layouts use the application sidebar as the single navigation
-    // source. The settings overview is only a mobile drill-in surface.
-    final Widget root = !widget.showNavigationPane || !isMobile
-        ? _buildDetailPane(_selectedSectionId)
-        : (isMobile
-              ? _buildSettingsOverview(context)
-              : _buildNavigationSplit(context, sections));
+    // A parent Settings selection is a chooser at every width. This matters on
+    // tablet, where the compact application rail intentionally exposes only
+    // the parent icon. Selecting a concrete `settings_<section>` destination
+    // still lands directly on its detail page.
+    final Widget root = widget.showNavigationPane
+        ? _buildSettingsOverview(context)
+        : _buildDetailPane(_selectedSectionId);
 
     // The switcher now wraps every width, not just the phone layout: a drill-in
     // is a page everywhere, so the slide that used to be mobile-only is the
@@ -374,142 +373,6 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                 : 'settings_sub_${_stack.length}_${_stack.last.title}',
           ),
           child: _stack.isEmpty ? root : _stack.last.page,
-        ),
-      ),
-    );
-  }
-
-  /// Tablet/desktop layout with settings navigation beside the detail pane.
-  Widget _buildNavigationSplit(
-    BuildContext context,
-    List<Map<String, dynamic>> sections,
-  ) {
-    final theme = context.ui;
-    final colors = theme.colors;
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: context.sz(1120)),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // In-Page Navigation Pane (~240px)
-            SizedBox(
-              width: context.uiRes.isTablet ? context.sz(220) : context.sz(250),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  vertical: context.sp(theme.spacing.lg),
-                  horizontal: context.sp(theme.spacing.sm),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: context.sp(theme.spacing.sm),
-                        vertical: context.sp(theme.spacing.xs),
-                      ),
-                      child: Row(
-                        children: [
-                          Text('Settings', style: context.uiText.heading),
-                          SizedBox(width: context.sp(theme.spacing.xs)),
-                          UiBadge(
-                            label: widget.userRole.shortTitle,
-                            intent: widget.userRole.badgeIntent,
-                            size: UiSize.xs,
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: context.sp(theme.spacing.sm)),
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: sections.length,
-                        separatorBuilder: (context, index) =>
-                            SizedBox(height: context.sp(theme.spacing.xxs)),
-                        itemBuilder: (context, index) {
-                          final s = sections[index];
-                          final isSelected = _selectedSectionId == s['id'];
-
-                          return UiInteractive(
-                            onTap: () => setState(
-                              () => _selectedSectionId = s['id'] as String,
-                            ),
-                            builder: (context, state) => Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: context.sp(theme.spacing.sm),
-                                vertical: context.sp(theme.spacing.xs + 2),
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? colors.primary.withValues(alpha: 0.12)
-                                    : (state.hovered
-                                          ? colors.surfaceHover
-                                          : Colors.transparent),
-                                borderRadius: context.radius(theme.radii.md),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? colors.primary
-                                      : Colors.transparent,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    s['icon'] as IconData,
-                                    size: context.sz(18),
-                                    color: isSelected
-                                        ? colors.primary
-                                        : colors.foregroundMuted,
-                                  ),
-                                  SizedBox(width: context.sp(theme.spacing.sm)),
-                                  Expanded(
-                                    child: Text(
-                                      s['title'] as String,
-                                      style: context.uiText.bodyStrong.copyWith(
-                                        color: isSelected
-                                            ? colors.primary
-                                            : colors.foreground,
-                                        fontWeight: isSelected
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    UiDivider(),
-                    SizedBox(height: context.sp(theme.spacing.xs)),
-                    UiButton(
-                      label: 'Log Out',
-                      leadingIcon: Icons.logout_rounded,
-                      variant: UiVariant.ghost,
-                      intent: UiIntent.danger,
-                      size: UiSize.sm,
-                      onPressed: _showLogoutDialog,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Divider between left nav and detail pane
-            Container(
-              width: 1,
-              color: colors.border,
-              margin: EdgeInsets.symmetric(
-                vertical: context.sp(theme.spacing.md),
-              ),
-            ),
-
-            // Detail Pane
-            Expanded(child: _buildDetailPane(_selectedSectionId)),
-          ],
         ),
       ),
     );

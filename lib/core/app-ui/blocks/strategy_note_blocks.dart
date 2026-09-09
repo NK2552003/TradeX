@@ -28,6 +28,9 @@ class AppStrategyNoteFilterBar extends StatelessWidget {
   const AppStrategyNoteFilterBar({
     super.key,
     this.compact = false,
+    this.showSearch = true,
+    this.showFilterControl = true,
+    this.panelOnly = false,
     required this.query,
     required this.sort,
     this.status,
@@ -46,6 +49,9 @@ class AppStrategyNoteFilterBar extends StatelessWidget {
   });
 
   final bool compact;
+  final bool showSearch;
+  final bool showFilterControl;
+  final bool panelOnly;
   final String query;
   final AppStrategySort sort;
   final AppStrategyStatus? status;
@@ -68,6 +74,53 @@ class AppStrategyNoteFilterBar extends StatelessWidget {
       (tag == null ? 0 : 1) +
       (ticker == null ? 0 : 1) +
       (onlyFavorites ? 1 : 0);
+
+  Future<void> showFilters(BuildContext context) async {
+    AppStrategyStatus? selectedStatus = status;
+    String? selectedTag = tag;
+    String? selectedTicker = ticker;
+    bool selectedFavorites = onlyFavorites;
+    AppStrategySort selectedSort = sort;
+
+    await UiDrawer.show<void>(
+      context,
+      title: 'Playbook filters',
+      child: StatefulBuilder(
+        builder: (BuildContext panelContext, StateSetter updatePanel) =>
+            AppStrategyNoteFilterBar(
+              panelOnly: true,
+              query: query,
+              sort: selectedSort,
+              status: selectedStatus,
+              tag: selectedTag,
+              ticker: selectedTicker,
+              onlyFavorites: selectedFavorites,
+              availableTags: availableTags,
+              availableTickers: availableTickers,
+              onStatusChanged: (AppStrategyStatus? value) => updatePanel(() {
+                selectedStatus = value;
+                onStatusChanged?.call(value);
+              }),
+              onTagChanged: (String? value) => updatePanel(() {
+                selectedTag = value;
+                onTagChanged?.call(value);
+              }),
+              onTickerChanged: (String? value) => updatePanel(() {
+                selectedTicker = value;
+                onTickerChanged?.call(value);
+              }),
+              onSortChanged: (AppStrategySort value) => updatePanel(() {
+                selectedSort = value;
+                onSortChanged?.call(value);
+              }),
+              onOnlyFavoritesChanged: (bool value) => updatePanel(() {
+                selectedFavorites = value;
+                onOnlyFavoritesChanged?.call(value);
+              }),
+            ),
+      ),
+    );
+  }
 
   /// Status as a segmented control on desktop: four values, all worth one click.
   Widget _statusToggle(BuildContext context, {StateSetter? onAny}) {
@@ -117,26 +170,6 @@ class AppStrategyNoteFilterBar extends StatelessWidget {
     return expand ? UiField(label: 'Sort by', child: select) : select;
   }
 
-  Widget _statusField(BuildContext context, {StateSetter? onAny}) => UiField(
-    label: 'Status',
-    child: UiSelect<String>(
-      expand: true,
-      value: status?.name ?? 'all',
-      hintText: 'Any status',
-      onChanged: (String value) {
-        void apply() => onStatusChanged?.call(
-          value == 'all' ? null : AppStrategyStatus.values.byName(value),
-        );
-        onAny == null ? apply() : onAny(apply);
-      },
-      options: <UiOption<String>>[
-        const UiOption<String>(value: 'all', label: 'Any status'),
-        for (final AppStrategyStatus s in AppStrategyStatus.values)
-          UiOption<String>(value: s.name, label: s.label, icon: s.icon),
-      ],
-    ),
-  );
-
   Widget _tickerField(
     BuildContext context, {
     bool expand = false,
@@ -162,28 +195,28 @@ class AppStrategyNoteFilterBar extends StatelessWidget {
     return expand ? UiField(label: 'Instrument', child: select) : select;
   }
 
-  Widget _tagWrap(BuildContext context, {StateSetter? onAny}) {
-    final UiTheme theme = context.ui;
-    void fire(VoidCallback change) => onAny == null ? change() : onAny(change);
-    return Wrap(
-      spacing: context.sp(theme.spacing.xs),
-      runSpacing: context.sp(theme.spacing.xs),
-      children: <Widget>[
-        UiBadge(
-          label: 'All tags',
-          intent: UiIntent.primary,
-          variant: tag == null ? UiBadgeVariant.solid : UiBadgeVariant.outline,
-          onTap: () => fire(() => onTagChanged?.call(null)),
-        ),
+  Widget _tagDropField(
+    BuildContext context, {
+    bool expand = false,
+    StateSetter? onAny,
+  }) {
+    final Widget select = UiSelect<String>(
+      expand: expand,
+      value: tag ?? 'all',
+      hintText: 'Any tag',
+      leadingIcon: Icons.sell_outlined,
+      size: expand ? UiSize.md : UiSize.sm,
+      onChanged: (String value) {
+        void apply() => onTagChanged?.call(value == 'all' ? null : value);
+        onAny == null ? apply() : onAny(apply);
+      },
+      options: <UiOption<String>>[
+        const UiOption<String>(value: 'all', label: 'Any tag'),
         for (final String t in availableTags)
-          UiBadge(
-            label: '#$t',
-            intent: UiIntent.primary,
-            variant: tag == t ? UiBadgeVariant.solid : UiBadgeVariant.outline,
-            onTap: () => fire(() => onTagChanged?.call(tag == t ? null : t)),
-          ),
+          UiOption<String>(value: t, label: '#$t'),
       ],
     );
+    return expand ? UiField(label: 'Tag', child: select) : select;
   }
 
   Widget _favoriteToggle(BuildContext context, {StateSetter? onAny}) {
@@ -197,130 +230,83 @@ class AppStrategyNoteFilterBar extends StatelessWidget {
     );
   }
 
-  Future<void> _showMobileFilters(BuildContext context) async {
-    await UiDialog.show<void>(
-      context,
-      child: StatefulBuilder(
-        builder: (BuildContext sheet, StateSetter setSheetState) {
-          final UiTheme theme = sheet.ui;
-          return UiDialog(
-            title: 'Filter playbooks',
-            description: 'Narrow the library by status, instrument or tag.',
-            icon: Icons.tune_rounded,
-            actions: <Widget>[
-              UiButton(
-                label: 'Reset',
-                variant: UiVariant.ghost,
-                expandOnMobile: false,
-                onPressed: () => setSheetState(() {
-                  onStatusChanged?.call(null);
-                  onTagChanged?.call(null);
-                  onTickerChanged?.call(null);
-                  onOnlyFavoritesChanged?.call(false);
-                  onSortChanged?.call(AppStrategySort.recentlyUpdated);
-                }),
-              ),
-              UiButton(
-                label: 'Show playbooks',
-                expandOnMobile: false,
-                onPressed: () => Navigator.of(sheet).pop(),
-              ),
-            ],
-            content: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(sheet).height * 0.58,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    _statusField(sheet, onAny: setSheetState),
-                    SizedBox(height: sheet.sp(theme.spacing.md)),
-                    _sortField(sheet, expand: true, onAny: setSheetState),
-                    if (availableTickers.isNotEmpty) ...<Widget>[
-                      SizedBox(height: sheet.sp(theme.spacing.md)),
-                      _tickerField(sheet, expand: true, onAny: setSheetState),
-                    ],
-                    SizedBox(height: sheet.sp(theme.spacing.md)),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: _favoriteToggle(sheet, onAny: setSheetState),
-                    ),
-                    if (availableTags.isNotEmpty) ...<Widget>[
-                      SizedBox(height: sheet.sp(theme.spacing.md)),
-                      Text('Tag', style: sheet.uiText.label),
-                      SizedBox(height: sheet.sp(theme.spacing.xs)),
-                      _tagWrap(sheet, onAny: setSheetState),
-                    ],
-                  ],
-                ),
-              ),
+  /// One command row: search, one filter trigger, and an optional create icon.
+  Widget _collapsedBar(BuildContext context) {
+    final UiTheme theme = context.ui;
+    if (!showSearch && !showFilterControl && onNew == null) {
+      return const SizedBox.shrink();
+    }
+    return Row(
+      children: <Widget>[
+        if (showSearch)
+          Expanded(
+            child: UiInput.search(
+              value: query,
+              hintText: 'Search playbooks',
+              size: UiSize.sm,
+              onChanged: onQueryChanged,
             ),
-          );
-        },
-      ),
+          ),
+        if (showSearch && (showFilterControl || onNew != null))
+          SizedBox(width: context.sp(theme.spacing.xs)),
+        if (showFilterControl)
+          UiIconButton(
+            icon: Icons.tune_rounded,
+            tooltip: 'Playbook filters',
+            badgeCount: activeCount == 0 ? null : activeCount,
+            size: UiSize.sm,
+            variant: UiVariant.soft,
+            onPressed: () => showFilters(context),
+          ),
+        if (showFilterControl && onNew != null)
+          SizedBox(width: context.sp(theme.spacing.xs)),
+        if (onNew != null)
+          UiIconButton(
+            icon: Icons.add_rounded,
+            tooltip: 'New playbook',
+            size: UiSize.sm,
+            variant: UiVariant.primary,
+            onPressed: onNew,
+          ),
+      ],
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _panel(BuildContext context) {
     final UiTheme theme = context.ui;
-    final Widget search = UiInput.search(
-      value: query,
-      hintText: 'Search playbooks, rules, tags or instruments',
-      onChanged: onQueryChanged,
-    );
-
-    if (compact || context.uiRes.isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          search,
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          UiButton(
-            label: 'Filters and sort',
-            leadingIcon: Icons.tune_rounded,
-            trailingIcon: Icons.keyboard_arrow_up_rounded,
-            badgeCount: activeCount == 0 ? null : activeCount,
-            variant: UiVariant.secondary,
-            expand: true,
-            onPressed: () => _showMobileFilters(context),
-          ),
-        ],
-      );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        search,
-        SizedBox(height: context.sp(theme.spacing.sm)),
+        Text('Status', style: context.uiText.label),
+        SizedBox(height: context.sp(theme.spacing.xs)),
         _statusToggle(context),
-        SizedBox(height: context.sp(theme.spacing.sm)),
-        Wrap(
-          spacing: context.sp(theme.spacing.xs),
-          runSpacing: context.sp(theme.spacing.xs),
-          children: <Widget>[
-            _sortField(context),
-            if (availableTickers.isNotEmpty) _tickerField(context),
-            _favoriteToggle(context),
-          ],
-        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        _sortField(context, expand: true),
+        if (availableTickers.isNotEmpty) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.md)),
+          _tickerField(context, expand: true),
+        ],
         if (availableTags.isNotEmpty) ...<Widget>[
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          _tagWrap(context),
+          SizedBox(height: context.sp(theme.spacing.md)),
+          _tagDropField(context, expand: true),
         ],
-        if (onNew != null) ...<Widget>[
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          UiButton(
-            label: 'New playbook',
-            leadingIcon: Icons.add_rounded,
-            size: UiSize.sm,
-            expand: true,
-            onPressed: onNew,
-          ),
-        ],
+        SizedBox(height: context.sp(theme.spacing.md)),
+        Align(alignment: Alignment.centerLeft, child: _favoriteToggle(context)),
       ],
+    );
+  }
+
+  Widget _wideBar(BuildContext context) => _collapsedBar(context);
+
+  @override
+  Widget build(BuildContext context) {
+    if (panelOnly) return _panel(context);
+    if (compact || context.uiRes.isMobile) return _collapsedBar(context);
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints box) =>
+          box.maxWidth < context.sz(680)
+          ? _collapsedBar(context)
+          : _wideBar(context),
     );
   }
 }
@@ -371,8 +357,11 @@ class AppStrategyNoteStatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool mobile = compact || context.uiRes.isMobile;
+    // Denser than the old 132/150: a phone fits all four figures on one line
+    // (92 × 4 clears a 390dp viewport) and a desktop reflows later, so the
+    // strip never costs a second row before it has to.
     return UiStatStrip(
-      minCellWidth: mobile ? 132 : 150,
+      minCellWidth: mobile ? 92 : 132,
       stats: <UiStat>[
         UiStat(label: 'Playbooks', value: '$total', hint: '$live live'),
         UiStat(
@@ -435,7 +424,10 @@ class AppStrategyNoteIndexList extends StatelessWidget {
     if (strategies.isEmpty) {
       return emptyState ??
           Padding(
-            padding: EdgeInsets.all(context.sp(context.ui.spacing.lg)),
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(context.ui.spacing.md),
+              vertical: context.sp(context.ui.spacing.xl),
+            ),
             child: const UiEmptyState(
               icon: Icons.auto_awesome_mosaic_outlined,
               title: 'No playbooks match',
@@ -684,7 +676,7 @@ class AppStrategyNoteCard extends StatelessWidget {
               ],
             ),
             if (showExcerpt && excerpt.isNotEmpty) ...<Widget>[
-              SizedBox(height: context.sp(theme.spacing.sm)),
+              SizedBox(height: context.sp(theme.spacing.xs)),
               Text(
                 excerpt,
                 maxLines: 3,
@@ -692,9 +684,7 @@ class AppStrategyNoteCard extends StatelessWidget {
                 style: context.uiText.body.copyWith(color: c.foregroundMuted),
               ),
             ],
-            SizedBox(height: context.sp(theme.spacing.md)),
-            AppStrategyNotePerformance(strategy: strategy, dense: true),
-            SizedBox(height: context.sp(theme.spacing.sm)),
+            SizedBox(height: context.sp(theme.spacing.xs)),
             Wrap(
               spacing: context.sp(theme.spacing.xs),
               runSpacing: context.sp(theme.spacing.xs),
@@ -822,7 +812,7 @@ class AppStrategyNotePerformance extends StatelessWidget {
         children: <Widget>[
           UiStatStrip(stats: stats, minCellWidth: 132),
           if (showCurve && strategy.equityCurve.length >= 3) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
+            SizedBox(height: context.sp(theme.spacing.sm)),
             Text('Equity curve', style: uiOverline(context)),
             SizedBox(height: context.sp(theme.spacing.xs)),
             SizedBox(
@@ -879,7 +869,9 @@ class AppStrategyNoteGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final double gap = context.sp(theme.spacing.md);
+    // One step tighter than md: cards sit in a list, and the gap between them
+    // competes with the group headers that structure the list.
+    final double gap = context.sp(theme.spacing.sm);
     final int columns = context.uiRes.columns(mobile: 1, tablet: 2, desktop: 2);
 
     final List<Widget> children = <Widget>[
@@ -887,7 +879,10 @@ class AppStrategyNoteGrid extends StatelessWidget {
       if (strategies.isEmpty)
         emptyState ??
             Padding(
-              padding: EdgeInsets.symmetric(vertical: gap * 2),
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(theme.spacing.md),
+                vertical: context.sp(theme.spacing.xl),
+              ),
               child: const UiEmptyState(
                 icon: Icons.auto_awesome_mosaic_outlined,
                 title: 'No playbooks yet',
@@ -909,18 +904,20 @@ class AppStrategyNoteGrid extends StatelessWidget {
             padding: EdgeInsets.only(bottom: gap),
             child: columns == 1
                 ? _card(row.first)
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      for (int j = 0; j < columns; j++) ...<Widget>[
-                        if (j > 0) SizedBox(width: gap),
-                        Expanded(
-                          child: j < row.length
-                              ? _card(row[j])
-                              : const SizedBox.shrink(),
-                        ),
+                : IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        for (int j = 0; j < columns; j++) ...<Widget>[
+                          if (j > 0) SizedBox(width: gap),
+                          Expanded(
+                            child: j < row.length
+                                ? _card(row[j])
+                                : const SizedBox.shrink(),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
           ),
         );
@@ -940,7 +937,7 @@ class AppStrategyNoteGrid extends StatelessWidget {
         if (group.isEmpty) continue;
         children.add(
           Padding(
-            padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+            padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
             child: _GroupLabel(label: status.label, icon: status.icon),
           ),
         );
@@ -988,7 +985,7 @@ class _GroupLabel extends StatelessWidget {
         SizedBox(width: context.sp(context.ui.spacing.xs)),
       ],
       Text(label.toUpperCase(), style: uiOverline(context)),
-      SizedBox(width: context.sp(context.ui.spacing.sm)),
+      SizedBox(width: context.sp(context.ui.spacing.xs)),
       Expanded(
         child: SizedBox(
           height: context.ui.borders.hairline,
@@ -1015,6 +1012,7 @@ class AppStrategyNoteHeader extends StatelessWidget {
     this.onStatusChanged,
     this.onToggleFavorite,
     this.onToggleVisibility,
+    this.showTitle = true,
   });
 
   final AppStrategy strategy;
@@ -1025,39 +1023,64 @@ class AppStrategyNoteHeader extends StatelessWidget {
   final ValueChanged<AppStrategyStatus>? onStatusChanged;
   final VoidCallback? onToggleFavorite;
   final VoidCallback? onToggleVisibility;
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final UiColors c = theme.colors;
     final bool embedded = AppWorkbenchScope.hasEmbeddedHeader(context);
+    final bool inWorkbench = AppWorkbenchScope.of(context);
+    final bool showBackButton = !embedded && !inWorkbench && onBack != null;
+    final bool shouldDisplayTitle = showTitle && !embedded;
+
+    final List<Widget> allActions = [
+      if (onToggleFavorite != null)
+        UiIconButton(
+          icon: strategy.isFavorite
+              ? Icons.star_rounded
+              : Icons.star_outline_rounded,
+          tooltip: strategy.isFavorite
+              ? 'Remove from favourites'
+              : 'Add to favourites',
+          onPressed: onToggleFavorite,
+        ),
+      ...actions,
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        UiHeader(
-          title: strategy.name,
-          leading: !embedded && !AppWorkbenchScope.of(context) && onBack != null
-              ? UiIconButton(
-                  icon: Icons.arrow_back_rounded,
-                  tooltip: 'Back to the library',
-                  onPressed: onBack,
-                )
-              : null,
-          actions: [
-            if (onToggleFavorite != null)
-              UiIconButton(
-                icon: strategy.isFavorite
-                    ? Icons.star_rounded
-                    : Icons.star_outline_rounded,
-                tooltip: strategy.isFavorite
-                    ? 'Remove from favourites'
-                    : 'Add to favourites',
-                onPressed: onToggleFavorite,
-              ),
-            ...actions,
-          ],
-        ),
+        if (shouldDisplayTitle)
+          UiHeader(
+            title: strategy.name,
+            leading: showBackButton
+                ? UiIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: 'Back to the library',
+                    onPressed: onBack,
+                  )
+                : null,
+            actions: allActions,
+          )
+        else if (allActions.isNotEmpty || showBackButton)
+          Padding(
+            padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (showBackButton)
+                  UiIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: 'Back to the library',
+                    onPressed: onBack,
+                  )
+                else
+                  const SizedBox.shrink(),
+                Row(mainAxisSize: MainAxisSize.min, children: allActions),
+              ],
+            ),
+          ),
         if (strategy.summary?.trim().isNotEmpty == true) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.xxs)),
           Text(
@@ -1065,7 +1088,7 @@ class AppStrategyNoteHeader extends StatelessWidget {
             style: context.uiText.body.copyWith(color: c.foregroundMuted),
           ),
         ],
-        SizedBox(height: context.sp(theme.spacing.sm)),
+        SizedBox(height: context.sp(theme.spacing.xs)),
         if (onStatusChanged == null)
           SizedBox(
             width: double.infinity,
@@ -1193,7 +1216,7 @@ class AppStrategyNoteVersionList extends StatelessWidget {
       children: <Widget>[
         for (final AppStrategyVersion v in versions)
           Padding(
-            padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+            padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
             child: UiCard(
               variant: UiCardVariant.outlined,
               density: UiDensity.compact,

@@ -21,6 +21,9 @@ abstract class JournalRepository {
   /// list screen polling for it.
   Stream<List<AppTrade>> watchAll();
 
+  /// Entries the owner has explicitly allowed a public post to reference.
+  Stream<List<AppTrade>> watchPublic();
+
   Future<List<AppTrade>> fetchAll();
 
   Future<AppTrade?> getById(String id);
@@ -28,6 +31,8 @@ abstract class JournalRepository {
   Future<AppTrade> create(AppTrade draft);
 
   Future<AppTrade> update(AppTrade entry);
+
+  Future<AppTrade> setVisibility(String id, bool isPublic);
 
   Future<void> delete(String id);
 
@@ -107,6 +112,13 @@ class JournalRepositoryImpl implements JournalRepository {
   }
 
   @override
+  Stream<List<AppTrade>> watchPublic() => watchAll().map(
+    (List<AppTrade> entries) => entries
+        .where((AppTrade entry) => entry.isPublic)
+        .toList(growable: false),
+  );
+
+  @override
   Future<List<AppTrade>> fetchAll() async {
     _seed();
     return _snapshot();
@@ -152,6 +164,10 @@ class JournalRepositoryImpl implements JournalRepository {
     _publish();
     return saved;
   }
+
+  @override
+  Future<AppTrade> setVisibility(String id, bool isPublic) async =>
+      _mutate(id, (AppTrade entry) => entry.copyWith(isPublic: isPublic));
 
   @override
   Future<void> delete(String id) async {
@@ -278,10 +294,12 @@ class JournalQuery {
         (AppTrade a, AppTrade b) => b.sortDate.compareTo(a.sortDate),
       AppJournalSort.oldestFirst =>
         (AppTrade a, AppTrade b) => a.sortDate.compareTo(b.sortDate),
-      AppJournalSort.biggestWin =>
-        (AppTrade a, AppTrade b) => b.pnl.compareTo(a.pnl),
-      AppJournalSort.biggestLoss =>
-        (AppTrade a, AppTrade b) => a.pnl.compareTo(b.pnl),
+      AppJournalSort.biggestWin => (AppTrade a, AppTrade b) => b.pnl.compareTo(
+        a.pnl,
+      ),
+      AppJournalSort.biggestLoss => (AppTrade a, AppTrade b) => a.pnl.compareTo(
+        b.pnl,
+      ),
       AppJournalSort.bestR =>
         (AppTrade a, AppTrade b) =>
             (b.rMultiple ?? 0).compareTo(a.rMultiple ?? 0),
@@ -353,9 +371,7 @@ class JournalQuery {
           : rs.reduce((double a, double b) => a + b) / rs.length,
       written: written,
       unfiled: entries
-          .where(
-            (AppTrade t) => t.strategyId == null || t.strategyId!.isEmpty,
-          )
+          .where((AppTrade t) => t.strategyId == null || t.strategyId!.isEmpty)
           .length,
     );
   }

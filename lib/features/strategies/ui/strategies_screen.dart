@@ -12,6 +12,7 @@ import '../data/strategies_repository.dart';
 import '../data/strategy_templates.dart';
 import 'strategy_detail_screen.dart';
 import 'strategy_editor_screen.dart';
+import 'strategy_template_gallery.dart';
 
 /// Which surface the strategies destination is showing.
 enum _StrategyView { list, document, editor }
@@ -39,6 +40,7 @@ class StrategiesScreen extends StatefulWidget {
     this.onSubpageChanged,
     this.onOpenRef,
     this.onOpenWriting,
+    this.onAttachToPost,
     this.openRequest,
   });
 
@@ -51,21 +53,47 @@ class StrategiesScreen extends StatefulWidget {
   /// pretending to navigate.
   final void Function(AppLinkRef ref)? onOpenRef;
   final ValueChanged<AppLinkRef>? onOpenWriting;
+  final AppWritingPostAttachmentHandler? onAttachToPost;
 
   /// A record the shell wants opened — how a link from a note or a trade lands
   /// on the right playbook.
   final AppLinkOpenRequest? openRequest;
 
   @override
-  State<StrategiesScreen> createState() => _StrategiesScreenState();
+  State<StrategiesScreen> createState() => StrategiesScreenState();
 }
 
-class _StrategiesScreenState extends State<StrategiesScreen> {
+class StrategiesScreenState extends State<StrategiesScreen> {
+  /// Public entry point so host workspaces (like Writing Desk) can trigger
+  /// new playbook creation.
+  void newPlaybook() => _newPlaybook();
+
+  /// Public entry point for the unified Writing Desk help action.
+  void showGuide() => _showGuide();
+
+  void showGuideWithTargets(List<GlobalKey> targets) =>
+      FeatureGuideSpotlight.show(
+        context,
+        feature: FeatureId.strategies,
+        steps: FeatureGuideSteps.strategies,
+        targets: targets,
+        onStepAction: _onGuideStepAction,
+      );
+
+  void setSearchQuery(String value) {
+    if (_query == value || !mounted) return;
+    _updateFilter(() => _query = value);
+  }
+
+  void showFilters() => _strategyFilterBar().showFilters(context);
+
+  void performGuideStep(FeatureGuideStep step) => _onGuideStepAction(step);
+
   static const int _pageSize = 8;
 
   final StrategiesRepository _repo = StrategiesRepositoryScope.repository;
   final AppLinkGraphService _links = AppLinkGraphScope.service;
-  final ScrollController _railScroll = ScrollController();
+  final GlobalKey _guideFilterKey = GlobalKey();
 
   StreamSubscription<List<AppStrategy>>? _sub;
   StreamSubscription<AppLinkGraph>? _graphSub;
@@ -94,6 +122,11 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
   AppStrategy? _draft;
 
   StrategyEditorMode _editorMode = StrategyEditorMode.write;
+
+  /// The tab a freshly-opened document should land on. Set by guide actions and
+  /// next-best-action chips that point at a specific face of a playbook, and
+  /// reset to [StrategyDetailTab.playbook] by ordinary opens.
+  StrategyDetailTab _initialDetailTab = StrategyDetailTab.playbook;
 
   @override
   void initState() {
@@ -134,17 +167,15 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
     if (request != null && request != oldWidget.openRequest) _apply(request);
     // The shell rebuilt with a new callback identity while a playbook is open, so
     // re-announce it or the app bar loses its title and its back button.
-    if (oldWidget.onSubpageChanged != widget.onSubpageChanged) _announce();
+    if (oldWidget.onSubpageChanged != widget.onSubpageChanged) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _announce());
+    }
   }
 
   @override
   void dispose() {
     _sub?.cancel();
     _graphSub?.cancel();
-    _railScroll.dispose();
-    if (_view != _StrategyView.list) {
-      widget.onSubpageChanged?.call(null, null, null);
-    }
     super.dispose();
   }
   // ── Derived state ──────────────────────────────────────────────────────────
@@ -182,57 +213,9 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
     return null;
   }
 
-
   /// Status grouping is honest only over the default order. Sorted by win rate,
   /// a "Live" header above a block that also contains drafts would be a lie.
   bool get _grouped => _sort == AppStrategySort.recentlyUpdated;
-
-  /// Library-level numbers, over the current slice rather than the whole shelf,
-  /// so filtering to one instrument answers "how does this playbook family
-  /// actually do" instead of restating the account.
-  ///
-  /// There is no `AppStrategyStats` in the model layer because these figures are
-  /// only ever shown here: each playbook already carries its own record, derived
-  /// on the way in from the trades filed under it, and this only adds them up.
-  _LibraryStats get _stats {
-    final List<AppStrategy> slice = _visible;
-    int live = 0;
-    int testing = 0;
-    int drafts = 0;
-    int entries = 0;
-    int untested = 0;
-    double net = 0;
-    // Weighted by trade count on purpose: averaging the per-playbook win rates
-    // would let a playbook with two trades outvote one with two hundred.
-    double wins = 0;
-    for (final AppStrategy s in slice) {
-      switch (s.status) {
-        case AppStrategyStatus.live:
-          live++;
-        case AppStrategyStatus.testing:
-          testing++;
-        case AppStrategyStatus.draft:
-          drafts++;
-        case AppStrategyStatus.retired:
-          break;
-      }
-      entries += s.trades;
-      net += s.netPnl;
-      // AppStrategy.winRate is a 0..100 percentage; the stat row wants 0..1.
-      wins += s.winRate / 100 * s.trades;
-      if (s.trades == 0) untested++;
-    }
-    return _LibraryStats(
-      total: slice.length,
-      live: live,
-      testing: testing,
-      drafts: drafts,
-      tradedEntries: entries,
-      netPnl: net,
-      winRate: entries == 0 ? 0 : wins / entries,
-      unusedPlaybooks: untested,
-    );
-  }
 
   /// How many trader notes hang off each playbook, for the badge on the card.
   /// Read from the graph rather than from `linkedNoteIds` so a note deleted
@@ -247,6 +230,32 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
     _visibleLimit = _pageSize;
   });
 
+  AppStrategyNoteFilterBar _strategyFilterBar({
+    bool compact = false,
+    bool showSearch = true,
+    bool showFilterControl = true,
+    VoidCallback? onNew,
+  }) => AppStrategyNoteFilterBar(
+    key: _guideFilterKey,
+    compact: compact,
+    showSearch: showSearch,
+    showFilterControl: showFilterControl,
+    query: _query,
+    sort: _sort,
+    status: _status,
+    tag: _tag,
+    ticker: _ticker,
+    onlyFavorites: _onlyFavorites,
+    availableTags: StrategiesQuery.tagsOf(_strategies),
+    availableTickers: StrategiesQuery.tickersOf(_strategies),
+    onQueryChanged: (String v) => _updateFilter(() => _query = v),
+    onStatusChanged: (AppStrategyStatus? v) => _updateFilter(() => _status = v),
+    onTagChanged: (String? v) => _updateFilter(() => _tag = v),
+    onTickerChanged: (String? v) => _updateFilter(() => _ticker = v),
+    onSortChanged: (AppStrategySort v) => _updateFilter(() => _sort = v),
+    onOnlyFavoritesChanged: (bool v) => _updateFilter(() => _onlyFavorites = v),
+    onNew: onNew,
+  );
 
   // ── Navigation between the three surfaces ──────────────────────────────────
 
@@ -280,10 +289,13 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
     _open(request.id);
   }
 
-  void _open(String id) {
+  void _open(String id) => _openWithTab(id, StrategyDetailTab.playbook);
+
+  void _openWithTab(String id, StrategyDetailTab tab) {
     setState(() {
       _draft = null;
       _activeId = id;
+      _initialDetailTab = tab;
       _view = _StrategyView.document;
     });
     _announce();
@@ -307,6 +319,7 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
     if (!mounted) return;
     setState(() {
       _draft = null;
+      _activeId = null;
       _view = _StrategyView.list;
     });
     _announce();
@@ -330,6 +343,9 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
     setState(() {
       _draft = null;
       if (saved != null) _activeId = saved.id;
+      // A document opened from the editor always lands on the playbook body, not
+      // a stale tab left over from a guide action or a next-best-action chip.
+      _initialDetailTab = StrategyDetailTab.playbook;
       _view = saved == null && _activeId == null
           ? _StrategyView.list
           : _StrategyView.document;
@@ -341,7 +357,20 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
   /// carries the section headings a set of rules needs — entry, invalidation,
   /// stop, sizing, exit — which is the difference between a playbook and a note
   /// that says "buy breakouts".
-  void _newPlaybook() => _edit(StrategyTemplates.blank.toDraft());
+  ///
+  /// This is also the guide's "Start from a template" step: it returns to the
+  /// library unchanged when the trader backs out of the gallery.
+  Future<void> _newPlaybook() async {
+    final AppStrategyTemplate? template = await showStrategyTemplateGallery(
+      context,
+    );
+    if (template == null || !mounted) return;
+    _edit(template.toDraft());
+  }
+
+  /// Straight to a blank draft — the guide's "Write your rules" step, which
+  /// deliberately skips the gallery so the action lands exactly where it says.
+  void _newBlankPlaybook() => _edit(StrategyTemplates.blank.toDraft());
 
   Future<void> _toggleFavorite(AppStrategy strategy) async {
     if (strategy.id.isEmpty) return;
@@ -384,51 +413,258 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
     jump(ref);
   }
 
+  // ── Guide ──────────────────────────────────────────────────────────────────
+
+  /// Opens the strategies walkthrough, at any time, from the header help action
+  /// or the banner's "Show guide" button. The owning screen resolves each step's
+  /// action into real navigation below.
+  void _showGuide() {
+    FeatureGuideSpotlight.show(
+      context,
+      feature: FeatureId.strategies,
+      steps: FeatureGuideSteps.strategies,
+      targets: <GlobalKey>[_guideFilterKey],
+      onStepAction: _onGuideStepAction,
+    );
+  }
+
+  /// Maps a guide step to the real screen it describes. The sheet already marks
+  /// the step done when its action button is pressed; this only navigates — it
+  /// never fakes completion, and a step with nothing to act on navigates nowhere
+  /// and says so.
+  void _onGuideStepAction(FeatureGuideStep step) {
+    switch (step.id) {
+      case 'template':
+        _newPlaybook();
+      case 'rules':
+        _newBlankPlaybook();
+      case 'testing':
+        _promoteToTesting();
+      case 'file-entries':
+        _openJournalLinks();
+      case 'live':
+        _reviewRecord();
+      default:
+        break;
+    }
+  }
+
+  /// "Promote to Testing" — the first draft, open on its status control. If the
+  /// draft is already the open document the status control is right there on its
+  /// masthead, so there is nowhere to navigate; if there are no drafts there is
+  /// nothing to promote, so the step stays put rather than pretending.
+  void _promoteToTesting() {
+    final AppStrategy? draft = _firstWhere(
+      (AppStrategy s) => s.status == AppStrategyStatus.draft,
+    );
+    if (draft == null) {
+      UiToast.info(
+        context,
+        title: 'No drafts to promote',
+        message: 'Write a playbook first, then promote it to Testing.',
+      );
+      return;
+    }
+    if (_activeId == draft.id) return;
+    _edit(draft);
+  }
+
+  /// "File journal entries" — filing happens on the playbook's Links surface,
+  /// so the step lands on the playbook most in need of one: a testing playbook
+  /// with nothing filed yet, then any testing playbook, then the newest.
+  void _openJournalLinks() {
+    final AppStrategy? target =
+        _firstWhere(
+          (AppStrategy s) =>
+              s.status == AppStrategyStatus.testing && s.trades == 0,
+        ) ??
+        _firstWhere((AppStrategy s) => s.status == AppStrategyStatus.testing) ??
+        (_strategies.isEmpty ? null : _strategies.first);
+    if (target == null) {
+      UiToast.info(
+        context,
+        title: 'Nothing to file under',
+        message: 'Write a playbook and promote it to Testing first.',
+      );
+      return;
+    }
+    _openWithTab(target.id, StrategyDetailTab.links);
+  }
+
+  /// "Review the record" — the newest testing playbook that actually has one,
+  /// straight onto the Performance tab.
+  void _reviewRecord() {
+    final AppStrategy? target = _firstWhere(
+      (AppStrategy s) => s.status == AppStrategyStatus.testing && s.trades > 0,
+    );
+    if (target == null) {
+      UiToast.info(
+        context,
+        title: 'Nothing to review yet',
+        message:
+            'Promote a playbook to Testing and file trades under it first.',
+      );
+      return;
+    }
+    _openWithTab(target.id, StrategyDetailTab.playbook);
+  }
+
+  /// First playbook matching [test], in the repository's recently-updated order
+  /// — so "first" means "most recently edited", which is the one the trader is
+  /// most likely to mean.
+  AppStrategy? _firstWhere(bool Function(AppStrategy s) test) {
+    for (final AppStrategy s in _strategies) {
+      if (test(s)) return s;
+    }
+    return null;
+  }
+
+  // ── Next-best action ───────────────────────────────────────────────────────
+
+  /// The pipeline nudges shown as compact chips between the header and the list.
+  ///
+  /// Derived from the **whole library** (`_strategies`, the repository stream
+  /// already sorted recently-updated) plus the link graph — never from the
+  /// filtered slice, because "2 drafts to finish" is true of the shelf even
+  /// while a search narrows what is on screen. Ordered Define → Execute →
+  /// Review:
+  ///
+  ///  1. Drafts → open the newest one in the editor.
+  ///  2. Testing/live playbooks with no trades → open the newest on Links, where
+  ///     a trade is filed.
+  ///  3. Testing playbooks with a record → open the newest on Performance.
+  ///
+  /// Empty while the stream is still loading or when there is nothing to act on,
+  /// so the row never advertises a zero.
+  List<_NextAction> get _nextActions {
+    if (_loading) return const <_NextAction>[];
+    final List<AppStrategy> drafts = _strategies
+        .where((AppStrategy s) => s.status == AppStrategyStatus.draft)
+        .toList(growable: false);
+    final List<AppStrategy> untested = _strategies
+        .where(
+          (AppStrategy s) =>
+              (s.status == AppStrategyStatus.testing ||
+                  s.status == AppStrategyStatus.live) &&
+              s.trades == 0,
+        )
+        .toList(growable: false);
+    final List<AppStrategy> ready = _strategies
+        .where(
+          (AppStrategy s) =>
+              s.status == AppStrategyStatus.testing && s.trades > 0,
+        )
+        .toList(growable: false);
+
+    return <_NextAction>[
+      if (drafts.isNotEmpty)
+        _NextAction(
+          label: drafts.length == 1
+              ? '1 draft to finish'
+              : '${drafts.length} drafts to finish',
+          icon: Icons.edit_note_rounded,
+          intent: UiIntent.primary,
+          onTap: () => _edit(drafts.first),
+        ),
+      if (untested.isNotEmpty)
+        _NextAction(
+          label: untested.length == 1
+              ? '1 playbook has no trades — file one'
+              : '${untested.length} playbooks have no trades — file one',
+          icon: Icons.add_link_rounded,
+          intent: UiIntent.warning,
+          onTap: () => _openWithTab(untested.first.id, StrategyDetailTab.links),
+        ),
+      if (ready.isNotEmpty)
+        _NextAction(
+          label: ready.length == 1
+              ? '1 testing playbook ready for review'
+              : '${ready.length} testing playbooks ready for review',
+          icon: Icons.insights_rounded,
+          intent: UiIntent.bullish,
+          onTap: () => _openWithTab(ready.first.id, StrategyDetailTab.playbook),
+        ),
+    ];
+  }
+
+  Widget _nextActionChips(BuildContext context) {
+    final List<_NextAction> actions = _nextActions;
+    if (actions.isEmpty) return const SizedBox.shrink();
+    final UiTheme theme = context.ui;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: <Widget>[
+          for (int i = 0; i < actions.length; i++) ...<Widget>[
+            if (i > 0) SizedBox(width: context.sp(theme.spacing.xs)),
+            UiButton(
+              label: actions[i].label,
+              leadingIcon: actions[i].icon,
+              variant: UiVariant.soft,
+              intent: actions[i].intent,
+              size: UiSize.xs,
+              onPressed: actions[i].onTap,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   // ── Surfaces ───────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final AppStrategy? active = _active;
 
-    if (_view != _StrategyView.list && active != null) {
-      final bool editing = _view == _StrategyView.editor;
+    // The editor is a full-surface step on every width: it owns its own
+    // save-or-discard decision and must not share the workbench's pane.
+    if (_view == _StrategyView.editor && active != null) {
       return PopScope(
-        // The editor may need to save or ask before it lets go, so the pop is
-        // always handled here rather than by the navigator.
         canPop: false,
         onPopInvokedWithResult: (bool didPop, Object? result) {
           if (didPop) return;
-          editing ? _requestEditorClose() : _backToIndex();
+          _requestEditorClose();
         },
-        child: editing ? _editor(active) : _document(active),
+        child: AppWorkbenchScope(
+          embeddedHeader: widget.onSubpageChanged != null,
+          child: _editor(active),
+        ),
       );
     }
 
+    if (_view == _StrategyView.document && active != null) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (bool didPop, Object? result) {
+          if (didPop) return;
+          _backToIndex();
+        },
+        child: AppWorkbenchScope(
+          embeddedHeader: widget.onSubpageChanged != null,
+          child: _document(active),
+        ),
+      );
+    }
     return _index(context);
   }
 
   Widget _document(AppStrategy strategy) => StrategyDetailScreen(
     key: ValueKey<String>('strategy_document_${strategy.id}'),
     strategy: strategy,
+    initialTab: _initialDetailTab,
     onClose: _backToIndex,
     onEdit: () => _edit(strategy),
-    onEditWriting: widget.onOpenWriting == null
-        ? null
-        : () => widget.onOpenWriting!(
-            AppLinkRef(
-              kind: AppLinkKind.strategy,
-              id: strategy.id,
-              title: strategy.name,
-            ),
-          ),
+    onEditWriting: () => _edit(strategy, mode: StrategyEditorMode.write),
     onOpenLink: _openRef,
+    onAttachToPost: widget.onAttachToPost,
   );
 
   Widget _editor(AppStrategy strategy) => StrategyEditorScreen(
     key: _editorKey,
     strategy: strategy,
     initialMode: _editorMode,
-    detailsOnly: true,
+    detailsOnly: false,
     onClose: _closeEditor,
     onDeleted: _backToIndex,
   );
@@ -437,7 +673,6 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
   /// The stat strip and filters scroll away with the list.
   Widget _index(BuildContext context) {
     final UiTheme theme = context.ui;
-    final _LibraryStats stats = _stats;
     final List<AppStrategy> visible = _visible;
     final List<AppStrategy> batch = _visibleBatch;
     final double gutter = context.sp(theme.spacing.md);
@@ -469,42 +704,38 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
                 top: context.sp(theme.spacing.xs),
                 bottom: context.uiPageBottomInset + context.sz(72),
               ),
-              header: _indexHeader(
-                context,
-                stats: stats,
-                batch: batch,
-                visible: visible,
-              ),
+              header: _indexHeader(context, batch: batch, visible: visible),
               emptyState: Padding(
                 padding: EdgeInsets.symmetric(vertical: gutter * 2),
                 child: const UiEmptyState(
                   title: 'No strategies found',
-                  message: 'Try adjusting your filters or create a new strategy.',
+                  message:
+                      'Try adjusting your filters or create a new strategy.',
                   icon: Icons.lightbulb_outline,
                 ),
               ),
             ),
           ),
         ),
-        Positioned(
-          right: gutter,
-          bottom: MediaQuery.paddingOf(context).bottom + gutter,
-          child: UiButton.icon(
-            key: const ValueKey<String>('strategy_new_fab'),
-            icon: Icons.add_rounded,
-            label: 'New playbook',
-            variant: UiVariant.primary,
-            size: UiSize.lg,
-            onPressed: _newPlaybook,
+        if (!context.uiRes.isDesktop && !AppWritingDeskScope.isHosted(context))
+          Positioned(
+            right: gutter,
+            bottom: MediaQuery.paddingOf(context).bottom + gutter,
+            child: UiIconButton(
+              key: const ValueKey<String>('strategy_new_fab'),
+              icon: Icons.add_rounded,
+              variant: UiVariant.primary,
+              size: UiSize.lg,
+              tooltip: 'New playbook',
+              onPressed: _newPlaybook,
+            ),
           ),
-        ),
       ],
     );
   }
 
   Widget _indexHeader(
     BuildContext context, {
-    required _LibraryStats stats,
     required List<AppStrategy> batch,
     required List<AppStrategy> visible,
   }) {
@@ -513,43 +744,17 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        AppWorkspaceHeading(
-          eyebrow: 'Your trading practice',
-          title: 'Strategy playbooks',
-          description: 'Turn your best setups into repeatable decisions.',
-        ),
-        const UiGap.v(20),
-        AppStrategyNoteStatRow(
-          total: stats.total,
-          live: stats.live,
-          testing: stats.testing,
-          drafts: stats.drafts,
-          tradedEntries: stats.tradedEntries,
-          netPnl: stats.netPnl,
-          winRate: stats.winRate,
-          unusedPlaybooks: stats.unusedPlaybooks,
-          compact: true,
+        SizedBox(height: context.sp(theme.spacing.xs)),
+        _strategyFilterBar(
+          showSearch: !AppWritingDeskScope.isHosted(context),
+          showFilterControl: !AppWritingDeskScope.isHosted(context),
+          onNew:
+              context.uiRes.isDesktop && !AppWritingDeskScope.isHosted(context)
+              ? _newPlaybook
+              : null,
         ),
         SizedBox(height: gutter),
-        AppStrategyNoteFilterBar(
-          query: _query,
-          sort: _sort,
-          status: _status,
-          tag: _tag,
-          ticker: _ticker,
-          onlyFavorites: _onlyFavorites,
-          availableTags: StrategiesQuery.tagsOf(_strategies),
-          availableTickers: StrategiesQuery.tickersOf(_strategies),
-          onQueryChanged: (String v) => _updateFilter(() => _query = v),
-          onStatusChanged: (AppStrategyStatus? v) =>
-              _updateFilter(() => _status = v),
-          onTagChanged: (String? v) => _updateFilter(() => _tag = v),
-          onTickerChanged: (String? v) => _updateFilter(() => _ticker = v),
-          onSortChanged: (AppStrategySort v) => _updateFilter(() => _sort = v),
-          onOnlyFavoritesChanged: (bool v) =>
-              _updateFilter(() => _onlyFavorites = v),
-          onNew: _newPlaybook,
-        ),
+        _nextActionChips(context),
         SizedBox(height: gutter),
         Row(
           children: <Widget>[
@@ -574,35 +779,19 @@ class _StrategiesScreenState extends State<StrategiesScreen> {
   }
 }
 
-/// Library totals over the visible slice.
-///
-/// Deliberately private and deliberately not in the model layer: these are one
-/// screen's summary of rows that already carry their own derived record, not a
-/// new domain concept the repositories or the backend need to know about.
-class _LibraryStats {
-  const _LibraryStats({
-    required this.total,
-    required this.live,
-    required this.testing,
-    required this.drafts,
-    required this.tradedEntries,
-    required this.netPnl,
-    required this.winRate,
-    required this.unusedPlaybooks,
+/// One pipeline nudge in the "next best action" chip row. Private data, computed
+/// by [_StrategiesScreenState._nextActions] from the live repository stream and
+/// link graph — nothing here is hardcoded.
+class _NextAction {
+  const _NextAction({
+    required this.label,
+    required this.icon,
+    required this.intent,
+    required this.onTap,
   });
 
-  final int total;
-  final int live;
-  final int testing;
-  final int drafts;
-
-  /// Journal entries filed under any playbook in the slice.
-  final int tradedEntries;
-  final double netPnl;
-
-  /// 0..1, weighted by trade count — see [AppStrategyNoteStatRow.winRate].
-  final double winRate;
-
-  /// Playbooks with no trades filed at all: rules nobody has tested.
-  final int unusedPlaybooks;
+  final String label;
+  final IconData icon;
+  final UiIntent intent;
+  final VoidCallback onTap;
 }

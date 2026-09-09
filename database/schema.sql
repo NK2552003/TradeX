@@ -344,8 +344,16 @@ CREATE TABLE IF NOT EXISTS posts (
   image_url TEXT,
   ticker TEXT,
   content_type TEXT NOT NULL DEFAULT 'market_discussion',
+  -- A post can stand alone or carry exactly one Writing Desk record. SET NULL
+  -- preserves the conversation if its source is later deleted.
+  note_id UUID REFERENCES trader_notes(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  journal_entry_id UUID REFERENCES journal_entries(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  strategy_id UUID REFERENCES strategies(id) ON DELETE SET NULL ON UPDATE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT posts_one_writing_attachment CHECK (
+    num_nonnulls(note_id, journal_entry_id, strategy_id) <= 1
+  )
 );
 
 CREATE TABLE IF NOT EXISTS saved_posts (
@@ -542,6 +550,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_strategy_versions_current
   ON strategy_versions(strategy_id) WHERE is_current;
 CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_type_created ON posts(content_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_note ON posts(note_id) WHERE note_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_journal_entry ON posts(journal_entry_id) WHERE journal_entry_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_strategy ON posts(strategy_id) WHERE strategy_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_notifications_user_read_created ON notifications(user_id, read_at, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_insight_requests_user_kind_requested ON ai_insight_requests(user_id, kind, requested_at);
 CREATE INDEX IF NOT EXISTS idx_watchlist_items_armed_threshold ON watchlist_items(alert_armed, price_alert_threshold)
@@ -780,6 +791,51 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_signup();
+
+-- A post may reference only an owned, already-public Writing Desk record.
+-- This validates the privacy boundary without making publication a side effect
+-- of post creation. See migrations/016_post_writing_attachments.sql.
+CREATE OR REPLACE FUNCTION validate_post_writing_attachment()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  source_owner UUID;
+  source_public BOOLEAN;
+BEGIN
+  IF NEW.note_id IS NOT NULL THEN
+    SELECT user_id, is_public INTO source_owner, source_public
+      FROM trader_notes WHERE id = NEW.note_id;
+  ELSIF NEW.journal_entry_id IS NOT NULL THEN
+    SELECT e.user_id, e.is_public AND p.public_journals
+      INTO source_owner, source_public
+      FROM journal_entries e
+      JOIN profiles p ON p.id = e.user_id
+      WHERE e.id = NEW.journal_entry_id;
+  ELSIF NEW.strategy_id IS NOT NULL THEN
+    SELECT user_id, visibility = 'public' INTO source_owner, source_public
+      FROM strategies WHERE id = NEW.strategy_id;
+  ELSE
+    RETURN NEW;
+  END IF;
+
+  IF source_owner IS NULL OR source_owner <> NEW.user_id THEN
+    RAISE EXCEPTION 'A post attachment must belong to the post author';
+  END IF;
+  IF source_public IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'A post attachment must be public before it is posted';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_posts_validate_writing_attachment ON posts;
+CREATE TRIGGER trg_posts_validate_writing_attachment
+  BEFORE INSERT OR UPDATE OF user_id, note_id, journal_entry_id, strategy_id
+  ON posts
+  FOR EACH ROW EXECUTE FUNCTION validate_post_writing_attachment();
 
 -- ---------------------------------------------------------------------------
 -- Link graph maintenance. The join table and the two `strategy_id` columns are

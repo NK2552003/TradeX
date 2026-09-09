@@ -94,7 +94,9 @@ class AppLinkRefTile extends StatelessWidget {
     final Color accent = broken
         ? c.warning
         : (ref.intent ?? ref.kind.intent).color(context);
-    final double pad = context.sp(dense ? theme.spacing.sm : theme.spacing.md);
+    // One step tighter than before: link tiles stack in side rails, where
+    // vertical padding is the difference between five links visible and four.
+    final double pad = context.sp(theme.spacing.sm);
 
     return AppHoverLift(
       enabled: onTap != null,
@@ -107,7 +109,7 @@ class AppLinkRefTile extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.symmetric(
               horizontal: pad,
-              vertical: context.sp(dense ? theme.spacing.xs : theme.spacing.sm),
+              vertical: context.sp(dense ? theme.spacing.xxs : theme.spacing.xs),
             ),
             child: Row(
               children: <Widget>[
@@ -233,8 +235,8 @@ class AppLinkSection extends StatelessWidget {
         if (shown.isEmpty)
           Padding(
             padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.md),
-              vertical: context.sp(theme.spacing.sm),
+              horizontal: context.sp(theme.spacing.sm),
+              vertical: context.sp(theme.spacing.xs),
             ),
             child: Text(
               emptyMessage ?? 'Nothing linked yet.',
@@ -256,7 +258,7 @@ class AppLinkSection extends StatelessWidget {
         if (hidden > 0)
           Padding(
             padding: EdgeInsets.only(
-              left: context.sp(theme.spacing.md),
+              left: context.sp(theme.spacing.sm),
               top: context.sp(theme.spacing.xs),
             ),
             child: Text(
@@ -394,7 +396,7 @@ class AppLinkedRecordsPanel extends StatelessWidget {
       if (hideKinds.contains(kind)) return;
       if (refs.isEmpty && !showEmptyKinds) return;
       if (sections.isNotEmpty) {
-        sections.add(SizedBox(height: context.sp(theme.spacing.md)));
+        sections.add(SizedBox(height: context.sp(theme.spacing.sm)));
       }
       sections.add(
         AppLinkSection(
@@ -449,10 +451,10 @@ class AppLinkedRecordsPanel extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
+        SizedBox(height: context.sp(theme.spacing.xs)),
         if (sections.isEmpty)
           Padding(
-            padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+            padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
             child: UiEmptyState(
               icon: Icons.hub_outlined,
               title: 'Nothing linked yet',
@@ -477,7 +479,7 @@ class AppLinkedRecordsPanel extends StatelessWidget {
 
     if (!card) return body;
     return UiCard(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.sm)),
       child: body,
     );
   }
@@ -728,7 +730,7 @@ class AppLinkGraphStrip extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         UiStatStrip(
-          minCellWidth: 150,
+          minCellWidth: 132,
           stats: <UiStat>[
             UiStat(
               label: 'Links',
@@ -763,7 +765,7 @@ class AppLinkGraphStrip extends StatelessWidget {
           ],
         ),
         if (orphans.isNotEmpty) ...<Widget>[
-          SizedBox(height: context.sp(theme.spacing.md)),
+          SizedBox(height: context.sp(theme.spacing.sm)),
           UiCallout(
             intent: UiIntent.warning,
             icon: Icons.link_off_rounded,
@@ -781,7 +783,7 @@ class AppLinkGraphStrip extends StatelessWidget {
                     onPressed: onSeeAllOrphans,
                   ),
           ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
+          SizedBox(height: context.sp(theme.spacing.xs)),
           Wrap(
             spacing: context.sp(theme.spacing.xs),
             runSpacing: context.sp(theme.spacing.xs),

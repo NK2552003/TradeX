@@ -24,7 +24,7 @@ void main() {
         builder: (context, child) =>
             UiToastScope(child: child ?? const SizedBox.shrink()),
         home: const AppScaffold(
-          initialDestination: 'journal',
+          initialDestination: 'workspace',
           userDisplayName: 'Demo workspace',
         ),
       ),

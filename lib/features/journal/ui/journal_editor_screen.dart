@@ -107,7 +107,6 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
   final MarkdownOutlineController _outline = MarkdownOutlineController();
   final SpeechToText _speech = SpeechToText();
   final ScrollController _editorScrollController = ScrollController();
-  final ScrollController _detailsScrollController = ScrollController();
 
   /// Bumped on every edit. The command bar, the live numbers and the footer
   /// counters listen; the markdown canvas does not, so a keystroke never
@@ -130,6 +129,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
   late AppSide _side;
   late List<String> _tags;
   late List<String> _linkedNoteIds;
+  late bool _isPublic;
   late DateTime _openedAt;
   DateTime? _closedAt;
   String? _strategyId;
@@ -170,6 +170,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
     _side = _entry.side;
     _tags = List<String>.of(_entry.tags);
     _linkedNoteIds = List<String>.of(_entry.linkedNoteIds);
+    _isPublic = _entry.isPublic;
     _openedAt = _entry.openedAt;
     _closedAt = _entry.closedAt;
     _strategyId = _entry.strategyId;
@@ -220,7 +221,6 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
     _slash.dispose();
     _selection.dispose();
     _editorScrollController.dispose();
-    _detailsScrollController.dispose();
     super.dispose();
   }
 
@@ -306,6 +306,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
       content: _body.text,
       strategyId: _strategyId,
       linkedNoteIds: _linkedNoteIds,
+      isPublic: _isPublic,
       updatedAt: _entry.updatedAt,
     ).withDerivedCounts();
   }
@@ -1034,7 +1035,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   _commandBar(context, wide: wide),
-                  SizedBox(height: context.sp(theme.spacing.md)),
+                  SizedBox(height: context.sp(theme.spacing.sm)),
                   if (wide)
                     Expanded(child: _wideBody(context))
                   else
@@ -1057,12 +1058,15 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
     return ValueListenableBuilder<int>(
       valueListenable: _revision,
       builder: (BuildContext ctx, int _, Widget? _) {
-        final Widget back = UiIconButton(
-          icon: Icons.arrow_back_rounded,
-          variant: UiVariant.ghost,
-          tooltip: 'Back to the journal',
-          onPressed: _closeAndSave,
-        );
+        final bool isMobile = context.uiRes.isMobile;
+        final Widget? back = isMobile
+            ? null
+            : UiIconButton(
+                icon: Icons.arrow_back_rounded,
+                variant: UiVariant.ghost,
+                tooltip: 'Back to the journal',
+                onPressed: _closeAndSave,
+              );
         final Widget modes = UiToggleGroup<JournalEditorMode>(
           options: <UiToggleOption<JournalEditorMode>>[
             for (final JournalEditorMode mode in JournalEditorMode.values)
@@ -1101,12 +1105,13 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                _draft.displayTitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.bodyStrong,
-              ),
+              if (!isMobile)
+                Text(
+                  _draft.displayTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.bodyStrong,
+                ),
               Text(
                 _statusLine,
                 maxLines: 1,
@@ -1125,8 +1130,10 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  back,
-                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  if (back != null) ...<Widget>[
+                    back,
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                  ],
                   identity,
                   remove,
                   SizedBox(width: context.sp(theme.spacing.xxs)),
@@ -1141,8 +1148,10 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
 
         return Row(
           children: <Widget>[
-            back,
-            SizedBox(width: context.sp(theme.spacing.sm)),
+            if (back != null) ...<Widget>[
+              back,
+              SizedBox(width: context.sp(theme.spacing.sm)),
+            ],
             identity,
             modes,
             SizedBox(width: context.sp(theme.spacing.sm)),
@@ -1166,7 +1175,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
         _titleField(context),
         SizedBox(height: context.sp(theme.spacing.sm)),
         _tradePanel(context),
-        SizedBox(height: context.sp(theme.spacing.md)),
+        SizedBox(height: context.sp(theme.spacing.sm)),
         if (_mode == JournalEditorMode.read)
           _pane(
             context,
@@ -1187,54 +1196,46 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
     );
   }
 
-  /// Desktop keeps the trade permanently beside the prose. A review is a
-  /// conversation between the two, and hiding the numbers behind a tap is what
-  /// makes web journals feel like forms.
+  /// Desktop keeps one focused column. Trade details are available in the same
+  /// collapsible panel used on smaller screens, never in a permanent sidebar.
   Widget _wideBody(BuildContext context) {
     final UiTheme theme = context.ui;
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _titleField(context),
-              if (_mode != JournalEditorMode.read) ...<Widget>[
-                SizedBox(height: context.sp(theme.spacing.sm)),
-                MarkdownFormatRibbon(
-                  editorKey: _editorKey,
-                  onPickImage: _pickImage,
-                  onPickDocument: _pickDocument,
-                  onInsertTicker: _insertTicker,
-                  onInsertRecord: () async {
-                    final ref = await showRecordLinkPicker(
-                      context,
-                      sourceKind: AppLinkKind.journal,
-                      sourceId: _entry.id,
-                    );
-                    if (ref != null && mounted) {
-                      _editorKey.currentState?.insertInline(
-                        AppDeepLink.markdown(
-                          kind: ref.kind,
-                          id: ref.id,
-                          label: ref.title,
-                        ),
-                      );
-                    }
-                  },
-                  onInsertStrategy: _insertStrategy,
-                  onToggleVoice: _toggleVoice,
-                  listening: _listening,
-                ),
-              ],
-              SizedBox(height: context.sp(theme.spacing.sm)),
-              Expanded(child: _wideArea(context)),
-            ],
+        _titleField(context),
+        SizedBox(height: context.sp(theme.spacing.sm)),
+        _tradePanel(context),
+        if (_mode != JournalEditorMode.read) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          MarkdownFormatRibbon(
+            editorKey: _editorKey,
+            onPickImage: _pickImage,
+            onPickDocument: _pickDocument,
+            onInsertTicker: _insertTicker,
+            onInsertRecord: () async {
+              final ref = await showRecordLinkPicker(
+                context,
+                sourceKind: AppLinkKind.journal,
+                sourceId: _entry.id,
+              );
+              if (ref != null && mounted) {
+                _editorKey.currentState?.insertInline(
+                  AppDeepLink.markdown(
+                    kind: ref.kind,
+                    id: ref.id,
+                    label: ref.title,
+                  ),
+                );
+              }
+            },
+            onInsertStrategy: _insertStrategy,
+            onToggleVoice: _toggleVoice,
+            listening: _listening,
           ),
-        ),
-        SizedBox(width: context.sp(theme.spacing.md)),
-        SizedBox(width: context.sz(340), child: _tradeRail(context)),
+        ],
+        SizedBox(height: context.sp(theme.spacing.sm)),
+        Expanded(child: _wideArea(context)),
       ],
     );
   }
@@ -1300,47 +1301,6 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
       );
     },
   );
-
-  /// The desktop rail: the trade, the numbers it implies, and what it is linked
-  /// to. Scrolls independently of the prose so a long write-up never pushes the
-  /// entry price out of reach.
-  Widget _tradeRail(BuildContext context) {
-    final UiTheme theme = context.ui;
-    return UiCard(
-      variant: UiCardVariant.outlined,
-      hoverLift: false,
-      padding: EdgeInsets.zero,
-      child: Scrollbar(
-        controller: _detailsScrollController,
-        interactive: true,
-        child: ScrollConfiguration(
-          behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-          child: SingleChildScrollView(
-            controller: _detailsScrollController,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text('The trade', style: context.uiText.subheading),
-                SizedBox(height: context.sp(theme.spacing.xxs)),
-                Text(
-                  'Everything derived is computed, never typed',
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundMuted,
-                  ),
-                ),
-                SizedBox(height: context.sp(theme.spacing.md)),
-                _tradeFields(context, twoColumn: false),
-                SizedBox(height: context.sp(theme.spacing.md)),
-                _liveNumbers(context),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   /// The phone panel. Collapsed once the trade is filled in, because the reason
   /// somebody opens this screen on a phone is to write, and open while anything
@@ -1613,6 +1573,16 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
       ),
     );
 
+    final Widget visibility = UiSwitch(
+      value: _isPublic,
+      label: 'Public journal entry',
+      description: _isPublic
+          ? 'This entry can be attached to a public post'
+          : 'Only you can read this entry',
+      enabled: !reading,
+      onChanged: (bool value) => setState(() => _isPublic = value),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -1658,6 +1628,20 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
         tags,
         SizedBox(height: gap),
         notes,
+        SizedBox(height: gap),
+        visibility,
+        if (_isPublic) ...<Widget>[
+          SizedBox(height: gap),
+          UiCallout(
+            title: 'Only this entry becomes public',
+            message:
+                'Linked notes and strategies keep their own visibility. '
+                'A future social post can reference this entry without '
+                'publishing the rest of your Writing Desk.',
+            intent: UiIntent.info,
+            icon: Icons.public_rounded,
+          ),
+        ],
       ],
     );
   }

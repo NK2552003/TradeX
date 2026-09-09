@@ -35,6 +35,7 @@ fresh project and an upgraded project stop agreeing.
 | `010_strategy_notes.sql` | brings `strategies`/`strategy_versions` up to `AppStrategy`; `content` JSONB → TEXT; adds `strategy_attachments` |
 | `011_note_link_graph.sql` | `note_journal_links` + the four mirror-rebuilding triggers |
 | `012_linked_notes_reads.sql` | `strategy_performance` view, `public_document()` and its two helpers |
+| `016_post_writing_attachments.sql` | prepares posts for one optional public note, journal entry, or strategy attachment |
 
 Two steps in that list are not additive and are worth reading before you run
 them: 010 rewrites `strategies.content` from JSONB to TEXT (a playbook is
@@ -173,4 +174,3 @@ both a row policy and an object policy exist for each public bucket.
 - Service-role-only tables for webhook + AI request logs.
 - `storage.objects` policies live at the bottom of `rls_policies.sql`, in their own transaction, because that table is owned by `supabase_admin` and a privilege failure there must not roll back the table policies above it.
 - An unauthenticated reader is served by `public_document()`, not by a policy. RLS is row-level and cannot hide a column, so a policy alone would hand a visitor both mirror arrays — the cardinality of a trader's private workspace. The function's projected column list is the boundary, and there is no second check behind it.
-

@@ -94,9 +94,9 @@ class AppNoteCard extends StatelessWidget {
       hoverLift: false,
       motion: false,
       minHeight: context.sz(switch (density) {
-        AppNoteDensity.titleOnly => 118,
-        AppNoteDensity.comfortable => 154,
-        AppNoteDensity.full => 198,
+        AppNoteDensity.titleOnly => 108,
+        AppNoteDensity.comfortable => 140,
+        AppNoteDensity.full => 182,
       }),
       semanticLabel: '${note.noteType.label}: ${note.title}',
       child: Column(
@@ -152,8 +152,10 @@ class AppNoteCard extends StatelessWidget {
             SizedBox(height: context.sp(theme.spacing.xxs)),
             _Preview(note: note, highlight: highlight),
           ],
-          if (note.strategyName != null || tickers.isNotEmpty) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.sm)),
+          if (note.strategyName != null ||
+              note.linkedJournalIds.isNotEmpty ||
+              tickers.isNotEmpty) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.xs)),
             Wrap(
               spacing: context.sp(theme.spacing.xs),
               runSpacing: context.sp(theme.spacing.xxs),
@@ -165,6 +167,15 @@ class AppNoteCard extends StatelessWidget {
                     icon: Icons.account_tree_outlined,
                     size: UiSize.xs,
                     maxWidth: context.sz(160),
+                  ),
+                if (note.linkedJournalIds.isNotEmpty)
+                  UiBadge(
+                    label: note.linkedJournalIds.length == 1
+                        ? '1 journal'
+                        : '${note.linkedJournalIds.length} journals',
+                    intent: UiIntent.info,
+                    icon: Icons.receipt_long_outlined,
+                    size: UiSize.xs,
                   ),
                 ...tickers
                     .take(_maxTickerBadges)
@@ -201,7 +212,7 @@ class AppNoteCard extends StatelessWidget {
                   .toList(growable: false),
             ),
           ],
-          SizedBox(height: context.sp(theme.spacing.sm)),
+          SizedBox(height: context.sp(theme.spacing.xs)),
           _Footer(note: note),
         ],
       ),
@@ -397,7 +408,7 @@ class AppNoteStatRow extends StatelessWidget {
       return UiDataPanel(
         padding: EdgeInsets.zero,
         child: Padding(
-          padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+          padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
           child: Row(
             children: List<Widget>.generate(
               4,

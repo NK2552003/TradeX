@@ -56,7 +56,7 @@ class AppStrategyCard extends StatelessWidget {
                   color: theme.colors.foregroundMuted,
                 ),
               ),
-            SizedBox(height: context.sp(theme.spacing.md)),
+            SizedBox(height: context.sp(theme.spacing.sm)),
             Wrap(
               spacing: context.sp(theme.spacing.xs),
               runSpacing: context.sp(theme.spacing.xs),
@@ -115,7 +115,7 @@ class AppStrategyPerformanceCard extends StatelessWidget {
               style: context.uiText.bodyStrong,
             ),
           ),
-          SizedBox(width: context.sp(theme.spacing.lg)),
+          SizedBox(width: context.sp(theme.spacing.md)),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,7 +133,7 @@ class AppStrategyPerformanceCard extends StatelessWidget {
                   ),
                 ),
                 if (strategy.equityCurve.isNotEmpty) ...<Widget>[
-                  SizedBox(height: context.sp(theme.spacing.sm)),
+                  SizedBox(height: context.sp(theme.spacing.xs)),
                   UiSparkChart(
                     values: strategy.equityCurve,
                     color: pl,
@@ -167,7 +167,7 @@ class AppVersionCard extends StatelessWidget {
     final UiTheme theme = context.ui;
     return UiCard(
       onTap: onTap,
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+      padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
       child: Row(
         children: <Widget>[
           Container(
@@ -180,7 +180,7 @@ class AppVersionCard extends StatelessWidget {
             ),
             child: Text('v${version.version}', style: context.uiText.caption),
           ),
-          SizedBox(width: context.sp(theme.spacing.md)),
+          SizedBox(width: context.sp(theme.spacing.sm)),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,7 +264,7 @@ class AppStrategyComparisonCard extends StatelessWidget {
               Expanded(child: column(a, CrossAxisAlignment.start)),
               Padding(
                 padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.sm),
+                  horizontal: context.sp(theme.spacing.xs),
                 ),
                 child: Text(
                   'vs',
@@ -276,7 +276,7 @@ class AppStrategyComparisonCard extends StatelessWidget {
               Expanded(child: column(b, CrossAxisAlignment.end)),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
+          SizedBox(height: context.sp(theme.spacing.md)),
           UiCategoryBar(
             showLegend: false,
             segments: <UiCategorySegment>[
@@ -328,9 +328,9 @@ class AppStrategySummaryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 UiSkeleton(height: context.sz(12)),
-                SizedBox(height: context.sp(theme.spacing.sm)),
+                SizedBox(height: context.sp(theme.spacing.xs)),
                 UiSkeleton(height: context.sz(12)),
-                SizedBox(height: context.sp(theme.spacing.sm)),
+                SizedBox(height: context.sp(theme.spacing.xs)),
                 UiSkeleton(width: context.sz(180), height: context.sz(12)),
               ],
             )

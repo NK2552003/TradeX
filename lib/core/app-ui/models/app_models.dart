@@ -75,7 +75,10 @@ class AppMarkdownStats {
   static final RegExp _fence = RegExp(r'```[\s\S]*?```|~~~[\s\S]*?~~~');
   static final RegExp _image = RegExp(r'!\[[^\]]*\]\([^)]*\)');
   static final RegExp _link = RegExp(r'\[([^\]]*)\]\([^)]*\)');
-  static final RegExp _frontMatter = RegExp(r'^---[\s\S]*?---', multiLine: true);
+  static final RegExp _frontMatter = RegExp(
+    r'^---[\s\S]*?---',
+    multiLine: true,
+  );
   static final RegExp _blockSyntax = RegExp(
     r'^\s{0,3}(#{1,6}\s+|>\s?|[-*+]\s+(\[[ xX]\]\s*)?|\d+\.\s+|[-*_]{3,}\s*$)',
     multiLine: true,
@@ -125,6 +128,7 @@ class AppTrade {
     this.content = '',
     this.strategyId,
     this.linkedNoteIds = const <String>[],
+    this.isPublic = false,
     this.updatedAt,
     this.wordCount = 0,
     this.checklistDone = 0,
@@ -174,6 +178,10 @@ class AppTrade {
   /// [AppNote.linkedJournalIds].
   final List<String> linkedNoteIds;
 
+  /// Whether this entry may be opened from a public post. Its linked notes and
+  /// strategy keep their own visibility and never become public implicitly.
+  final bool isPublic;
+
   final DateTime? updatedAt;
   final int wordCount;
   final int checklistDone;
@@ -198,9 +206,7 @@ class AppTrade {
     if (title.trim().isNotEmpty) return title.trim();
     final String setup = strategy?.trim() ?? '';
     final String side0 = AppTokens.sideLabel(side);
-    return setup.isEmpty
-        ? '$ticker $side0'
-        : '$ticker $side0 · $setup';
+    return setup.isEmpty ? '$ticker $side0' : '$ticker $side0 · $setup';
   }
 
   AppTrade withDerivedCounts() {
@@ -242,6 +248,7 @@ class AppTrade {
     String? strategyId,
     bool clearStrategy = false,
     List<String>? linkedNoteIds,
+    bool? isPublic,
     DateTime? updatedAt,
     int? wordCount,
     int? checklistDone,
@@ -275,6 +282,7 @@ class AppTrade {
     content: content ?? this.content,
     strategyId: clearStrategy ? null : (strategyId ?? this.strategyId),
     linkedNoteIds: linkedNoteIds ?? this.linkedNoteIds,
+    isPublic: isPublic ?? this.isPublic,
     updatedAt: updatedAt ?? this.updatedAt,
     wordCount: wordCount ?? this.wordCount,
     checklistDone: checklistDone ?? this.checklistDone,
@@ -675,6 +683,7 @@ class AppPost {
     this.tickers = const <String>[],
     this.imageUrl,
     this.attachments = const <AppPostAttachment>[],
+    this.writingAttachment,
     this.likes = 0,
     this.comments = 0,
     this.liked = false,
@@ -689,6 +698,11 @@ class AppPost {
   final List<String> tickers;
   final String? imageUrl;
   final List<AppPostAttachment> attachments;
+
+  /// The one optional Writing Desk source carried by this post. Kept separate
+  /// from media attachments so multiple images can never accidentally permit
+  /// multiple notes, journal entries or strategies.
+  final AppWritingRecordPostAttachment? writingAttachment;
   final int likes;
   final int comments;
   final bool liked;
@@ -697,6 +711,11 @@ class AppPost {
 
 abstract class AppPostAttachment {
   const AppPostAttachment();
+}
+
+/// Marker for the single record-level attachment slot on [AppPost].
+abstract class AppWritingRecordPostAttachment extends AppPostAttachment {
+  const AppWritingRecordPostAttachment();
 }
 
 class AppPostImageAttachment extends AppPostAttachment {
@@ -1373,10 +1392,7 @@ class AppLinkBundle {
   final List<AppLinkRef> tickers;
 
   bool get isEmpty =>
-      notes.isEmpty &&
-      journal.isEmpty &&
-      strategies.isEmpty &&
-      tickers.isEmpty;
+      notes.isEmpty && journal.isEmpty && strategies.isEmpty && tickers.isEmpty;
 
   bool get isNotEmpty => !isEmpty;
 

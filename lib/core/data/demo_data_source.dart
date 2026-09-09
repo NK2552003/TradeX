@@ -30,15 +30,14 @@ class DemoDataSource {
   /// rather than two independent guesses.
   _LinkSeed? _linkCache;
 
-  _LinkSeed get _linkSeed =>
-      _linkCache ??= _LinkSeed(
-        noteIds: List<String>.generate(_noteTitles.length, _noteId),
-        journal: _rawTrades(),
-        strategyIds: List<String>.generate(
-          _setups.length,
-          (int i) => 'stg_${i + 1}',
-        ),
-      );
+  _LinkSeed get _linkSeed => _linkCache ??= _LinkSeed(
+    noteIds: List<String>.generate(_noteTitles.length, _noteId),
+    journal: _rawTrades(),
+    strategyIds: List<String>.generate(
+      _setups.length,
+      (int i) => 'stg_${i + 1}',
+    ),
+  );
 
   double _round(double value, [int decimals = 2]) {
     final num factor = pow(10, decimals);
@@ -295,6 +294,7 @@ class DemoDataSource {
               : AppOutcome.breakeven,
           strategy: unfiled ? null : setup,
           strategyId: unfiled ? null : 'stg_${_setups.indexOf(setup) + 1}',
+          isPublic: i % 5 == 0,
           tags: unfiled
               ? <String>[emotion, instrument.sector]
               : <String>[setup, emotion, instrument.sector],
@@ -479,9 +479,7 @@ class DemoDataSource {
     return List<AppStrategyVersion>.generate(count, (int i) {
       final int version = count - i;
       final int kept = (sections.length - i).clamp(1, sections.length);
-      final String content = i == 0
-          ? body
-          : sections.take(kept).join('\n\n');
+      final String content = i == 0 ? body : sections.take(kept).join('\n\n');
       return AppStrategyVersion(
         id: '${strategyId}_v$version',
         strategyId: strategyId,
@@ -1772,7 +1770,8 @@ class DemoDataSource {
 
   /// Six markdown bodies cycled across the seeded notes.
   String _noteSample(int i) => switch (i % 6) {
-    0 => '''
+    0 =>
+      '''
 ## Setup
 
 Trade the **first 15-minute range** on index futures. Only take the break when
@@ -1796,7 +1795,8 @@ the pre-open gap is under 0.4% — anything wider and the range is noise.
 > If the first candle after the break closes back inside the range, the trade is
 > void. No second entry.
 ''',
-    1 => '''
+    1 =>
+      '''
 ## What happened
 
 Expiry ran the way the weekly OI suggested: max pain pinned near 52,000 and
@@ -1819,7 +1819,8 @@ came from the 12:15–13:15 chop.
 Risk per trade stays at \$R = 0.01 \\times equity\$, so a 40-point stop on Bank
 Nifty is one lot and nothing more.
 ''',
-    2 => '''
+    2 =>
+      '''
 ## Scorecard
 
 - Trades taken: **14**
@@ -1842,7 +1843,8 @@ than the whole week's gains.
 - [ ] Flat by 14:45 on expiry day
 - [ ] One screenshot per trade, no exceptions
 ''',
-    3 => '''
+    3 =>
+      '''
 ## Bias
 
 Neutral-to-long while 24,180 holds on the hourly.
@@ -1865,7 +1867,8 @@ Neutral-to-long while 24,180 holds on the hourly.
 - [ ] Stop trading after two losses
 - [ ] No new positions after 14:30
 ''',
-    4 => '''
+    4 =>
+      '''
 I keep exiting at 1R because the *unrealised* number feels like it belongs to me
 already. It does not. It is a position, not a payout.
 
@@ -1882,7 +1885,8 @@ flowchart TD
 Set the target as a resting order **before** entry, then close the app. The
 decision has to be made while I am neutral, not while I am watching the tape.
 ''',
-    _ => '''
+    _ =>
+      '''
 ## Fixed-fractional sizing
 
 ```dart
@@ -1943,9 +1947,7 @@ resulting position is one you can hold.
     final String symbol = instrument.symbol;
     final String dir = AppTokens.sideLabel(side).toLowerCase();
     final String result = open ? 'still open' : AppTokens.signedMoney(pnl);
-    final String rMultiple = open || risk == 0
-        ? '—'
-        : AppTokens.rr(pnl / risk);
+    final String rMultiple = open || risk == 0 ? '—' : AppTokens.rr(pnl / risk);
     final String exited = open ? 'still working' : AppTokens.price(exit);
     final String lots = size.toStringAsFixed(0);
     final String opened = AppTokens.clockTime(openedAt);
@@ -2056,7 +2058,11 @@ ${AppTokens.price(stop)} and the first scale at ${AppTokens.price(target)}.
 
 ## Execution
 
-$emotion. ${open ? 'Position is still on — stop is at breakeven and the plan is to hold into the close.' : won ? 'Scaled half at the target and trailed the rest under the last swing.' : 'Stopped out where the plan said to. No widening, no second entry.'}
+$emotion. ${open
+          ? 'Position is still on — stop is at breakeven and the plan is to hold into the close.'
+          : won
+          ? 'Scaled half at the target and trailed the rest under the last swing.'
+          : 'Stopped out where the plan said to. No widening, no second entry.'}
 
 ## Review
 
@@ -2093,7 +2099,11 @@ flowchart TD
     B -->|Yes| C[Enter $dir @ ${AppTokens.price(entry)}]
     B -->|No| Z[Stand down]
     C --> D{Holding above ${AppTokens.price(stop)}?}
-    D -->|Yes| E[${open ? 'Trail and hold' : won ? 'Scale at target' : 'Give it room to the stop'}]
+    D -->|Yes| E[${open
+          ? 'Trail and hold'
+          : won
+          ? 'Scale at target'
+          : 'Give it room to the stop'}]
     D -->|No| F[Close: $exited]
 ```
 
@@ -2103,11 +2113,19 @@ flowchart TD
 | --- | --- | --- |
 | $opened | Entry $dir | Trigger matched the plan |
 | +20m | Stop to breakeven | ${won ? 'First push held' : 'Structure was thinning out'} |
-| +1h | ${open ? 'Still on' : 'Exit at $exited'} | ${open ? 'Thesis intact' : won ? 'Target reached' : 'Invalidation hit'} |
+| +1h | ${open ? 'Still on' : 'Exit at $exited'} | ${open
+          ? 'Thesis intact'
+          : won
+          ? 'Target reached'
+          : 'Invalidation hit'} |
 
 ## Honest note
 
-$emotion. ${open ? 'The only open question is whether I hold this overnight; the plan says flat by the close.' : won ? 'The process was clean. Sizing was the reason this mattered at all.' : 'I would take it again. The setup was right; the market was not.'}
+$emotion. ${open
+          ? 'The only open question is whether I hold this overnight; the plan says flat by the close.'
+          : won
+          ? 'The process was clean. Sizing was the reason this mattered at all.'
+          : 'I would take it again. The setup was right; the market was not.'}
 ''';
 
   /// Shape 2 — the open-P&L path through the hold.
@@ -2127,9 +2145,7 @@ $emotion. ${open ? 'The only open question is whether I hold this overnight; the
   }) {
     final double unit = risk == 0 ? 100 : risk;
     String at(double multiple) => (unit * multiple).round().toString();
-    final String close = open
-        ? at(0.9)
-        : pnl.round().toString();
+    final String close = open ? at(0.9) : pnl.round().toString();
     return '''
 ## Result
 
@@ -2686,7 +2702,6 @@ version of this document that fixes that, so it is archived rather than revised.
 None. If the reaction-candle absorption reverses, re-open as a fresh draft rather
 than reviving this one.
 ''';
-
 }
 
 @immutable

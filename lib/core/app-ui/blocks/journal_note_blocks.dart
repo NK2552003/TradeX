@@ -16,6 +16,18 @@ import 'workbench_blocks.dart';
 /// Prefixed `AppJournalNote*` to sit beside the older `AppJournal*` and `AppTrade*`
 /// blocks — those render the trade log, these render the journal as documents.
 
+/// Iconography for outcome badges, shared by every journal surface that names
+/// an outcome: rows, cards and document headers all render the same shape —
+/// [UiBadgeVariant.soft], [UiSize.xs], [AppTokens.outcomeIntent] and one of
+/// these icons — so a Win reads identically wherever it appears. The playbook
+/// status badges use the same soft/xs/icon recipe with `AppStrategyStatus`.
+IconData _outcomeIcon(AppOutcome outcome) => switch (outcome) {
+  AppOutcome.win => Icons.check_circle_outline_rounded,
+  AppOutcome.loss => Icons.cancel_outlined,
+  AppOutcome.breakeven => Icons.remove_circle_outline_rounded,
+  AppOutcome.open => Icons.schedule_rounded,
+};
+
 // ── Filtering ────────────────────────────────────────────────────────────────
 
 /// Search, outcome, sort, tag and the two review prompts in one bar.
@@ -28,6 +40,9 @@ class AppJournalNoteFilterBar extends StatelessWidget {
   const AppJournalNoteFilterBar({
     super.key,
     this.compact = false,
+    this.showSearch = true,
+    this.showFilterControl = true,
+    this.panelOnly = false,
     required this.query,
     required this.sort,
     this.outcome,
@@ -48,6 +63,9 @@ class AppJournalNoteFilterBar extends StatelessWidget {
   });
 
   final bool compact;
+  final bool showSearch;
+  final bool showFilterControl;
+  final bool panelOnly;
   final String query;
   final AppJournalSort sort;
   final AppOutcome? outcome;
@@ -79,67 +97,55 @@ class AppJournalNoteFilterBar extends StatelessWidget {
       (onlyUnwritten ? 1 : 0) +
       (onlyUnfiled ? 1 : 0);
 
-  Future<void> _showMobileFilters(BuildContext context) async {
-    await UiDialog.show<void>(
+  Future<void> showFilters(BuildContext context) async {
+    AppOutcome? selectedOutcome = outcome;
+    String? selectedTag = tag;
+    String? selectedTicker = ticker;
+    bool selectedUnwritten = onlyUnwritten;
+    bool selectedUnfiled = onlyUnfiled;
+    AppJournalSort selectedSort = sort;
+
+    await UiDrawer.show<void>(
       context,
+      title: 'Journal filters',
       child: StatefulBuilder(
-        builder: (BuildContext sheet, StateSetter setSheetState) {
-          final UiTheme theme = sheet.ui;
-          return UiDialog(
-            title: 'Filter the journal',
-            description:
-                'Narrow the entries, or jump straight to what still needs a '
-                'write-up.',
-            icon: Icons.tune_rounded,
-            actions: <Widget>[
-              UiButton(
-                label: 'Reset',
-                variant: UiVariant.ghost,
-                expandOnMobile: false,
-                onPressed: () => setSheetState(() {
-                  onOutcomeChanged?.call(null);
-                  onTagChanged?.call(null);
-                  onTickerChanged?.call(null);
-                  onOnlyUnwrittenChanged?.call(false);
-                  onOnlyUnfiledChanged?.call(false);
-                  onSortChanged?.call(AppJournalSort.recentFirst);
-                }),
-              ),
-              UiButton(
-                label: 'Show entries',
-                expandOnMobile: false,
-                onPressed: () => Navigator.of(sheet).pop(),
-              ),
-            ],
-            content: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(sheet).height * 0.58,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    _outcomeField(sheet, expand: true, onAny: setSheetState),
-                    SizedBox(height: sheet.sp(theme.spacing.md)),
-                    _sortField(sheet, expand: true, onAny: setSheetState),
-                    if (availableTickers.isNotEmpty) ...<Widget>[
-                      SizedBox(height: sheet.sp(theme.spacing.md)),
-                      _tickerField(sheet, expand: true, onAny: setSheetState),
-                    ],
-                    SizedBox(height: sheet.sp(theme.spacing.md)),
-                    _promptToggles(sheet, onAny: setSheetState),
-                    if (availableTags.isNotEmpty) ...<Widget>[
-                      SizedBox(height: sheet.sp(theme.spacing.md)),
-                      Text('Tag', style: sheet.uiText.label),
-                      SizedBox(height: sheet.sp(theme.spacing.xs)),
-                      _tagWrap(sheet, onAny: setSheetState),
-                    ],
-                  ],
-                ),
-              ),
+        builder: (BuildContext panelContext, StateSetter updatePanel) =>
+            AppJournalNoteFilterBar(
+              panelOnly: true,
+              query: query,
+              sort: selectedSort,
+              outcome: selectedOutcome,
+              tag: selectedTag,
+              ticker: selectedTicker,
+              onlyUnwritten: selectedUnwritten,
+              onlyUnfiled: selectedUnfiled,
+              availableTags: availableTags,
+              availableTickers: availableTickers,
+              onOutcomeChanged: (AppOutcome? value) => updatePanel(() {
+                selectedOutcome = value;
+                onOutcomeChanged?.call(value);
+              }),
+              onTagChanged: (String? value) => updatePanel(() {
+                selectedTag = value;
+                onTagChanged?.call(value);
+              }),
+              onTickerChanged: (String? value) => updatePanel(() {
+                selectedTicker = value;
+                onTickerChanged?.call(value);
+              }),
+              onSortChanged: (AppJournalSort value) => updatePanel(() {
+                selectedSort = value;
+                onSortChanged?.call(value);
+              }),
+              onOnlyUnwrittenChanged: (bool value) => updatePanel(() {
+                selectedUnwritten = value;
+                onOnlyUnwrittenChanged?.call(value);
+              }),
+              onOnlyUnfiledChanged: (bool value) => updatePanel(() {
+                selectedUnfiled = value;
+                onOnlyUnfiledChanged?.call(value);
+              }),
             ),
-          );
-        },
       ),
     );
   }
@@ -223,124 +229,136 @@ class AppJournalNoteFilterBar extends StatelessWidget {
     return expand ? UiField(label: 'Instrument', child: select) : select;
   }
 
-  /// The two review prompts. Rendered as toggles rather than a segmented control
-  /// because they compose: "no write-up **and** no playbook" is the worst state
-  /// an entry can be in, and it is the one worth looking at first.
-  Widget _promptToggles(BuildContext context, {StateSetter? onAny}) {
-    final UiTheme theme = context.ui;
+  /// The two review prompts, as toggle chips. Rendered as badges rather than a
+  /// segmented control because they compose: "no write-up **and** no playbook"
+  /// is the worst state an entry can be in, and it is the one worth looking at
+  /// first. Returned as a list so the wide bar can lay them into the same wrap
+  /// row as the selects.
+  List<Widget> _promptToggles(BuildContext context, {StateSetter? onAny}) {
     void fire(VoidCallback change) => onAny == null ? change() : onAny(change);
-    return Wrap(
-      spacing: context.sp(theme.spacing.xs),
-      runSpacing: context.sp(theme.spacing.xs),
-      children: <Widget>[
-        UiBadge(
-          label: 'Needs write-up',
-          icon: Icons.edit_note_rounded,
-          intent: UiIntent.warning,
-          variant: onlyUnwritten
-              ? UiBadgeVariant.solid
-              : UiBadgeVariant.outline,
-          onTap: () => fire(() => onOnlyUnwrittenChanged?.call(!onlyUnwritten)),
-        ),
-        UiBadge(
-          label: 'Unfiled',
-          icon: Icons.folder_off_outlined,
-          intent: UiIntent.info,
-          variant: onlyUnfiled ? UiBadgeVariant.solid : UiBadgeVariant.outline,
-          onTap: () => fire(() => onOnlyUnfiledChanged?.call(!onlyUnfiled)),
-        ),
-      ],
-    );
+    return <Widget>[
+      UiBadge(
+        label: 'Needs write-up',
+        icon: Icons.edit_note_rounded,
+        intent: UiIntent.warning,
+        variant: onlyUnwritten ? UiBadgeVariant.solid : UiBadgeVariant.outline,
+        onTap: () => fire(() => onOnlyUnwrittenChanged?.call(!onlyUnwritten)),
+      ),
+      UiBadge(
+        label: 'Unfiled',
+        icon: Icons.folder_off_outlined,
+        intent: UiIntent.info,
+        variant: onlyUnfiled ? UiBadgeVariant.solid : UiBadgeVariant.outline,
+        onTap: () => fire(() => onOnlyUnfiledChanged?.call(!onlyUnfiled)),
+      ),
+    ];
   }
 
-  Widget _tagWrap(BuildContext context, {StateSetter? onAny}) {
-    final UiTheme theme = context.ui;
-    void fire(VoidCallback change) => onAny == null ? change() : onAny(change);
-    return Wrap(
-      spacing: context.sp(theme.spacing.xs),
-      runSpacing: context.sp(theme.spacing.xs),
-      children: <Widget>[
-        UiBadge(
-          label: 'All tags',
-          intent: UiIntent.primary,
-          variant: tag == null ? UiBadgeVariant.solid : UiBadgeVariant.outline,
-          onTap: () => fire(() => onTagChanged?.call(null)),
-        ),
+  Widget _tagDropField(
+    BuildContext context, {
+    bool expand = false,
+    StateSetter? onAny,
+  }) {
+    final Widget select = UiSelect<String>(
+      expand: expand,
+      value: tag ?? 'all',
+      hintText: 'Any tag',
+      leadingIcon: Icons.sell_outlined,
+      size: expand ? UiSize.md : UiSize.sm,
+      onChanged: (String value) {
+        void apply() => onTagChanged?.call(value == 'all' ? null : value);
+        onAny == null ? apply() : onAny(apply);
+      },
+      options: <UiOption<String>>[
+        const UiOption<String>(value: 'all', label: 'Any tag'),
         for (final String t in availableTags)
-          UiBadge(
-            label: '#$t',
-            intent: UiIntent.primary,
-            variant: tag == t ? UiBadgeVariant.solid : UiBadgeVariant.outline,
-            onTap: () => fire(() => onTagChanged?.call(tag == t ? null : t)),
+          UiOption<String>(value: t, label: '#$t'),
+      ],
+    );
+    return expand ? UiField(label: 'Tag', child: select) : select;
+  }
+
+  /// One command row: search, one filter trigger, and an optional create icon.
+  Widget _collapsedBar(BuildContext context) {
+    final UiTheme theme = context.ui;
+    if (!showSearch && !showFilterControl && onNew == null) {
+      return const SizedBox.shrink();
+    }
+    return Row(
+      children: <Widget>[
+        if (showSearch)
+          Expanded(
+            child: UiInput.search(
+              value: query,
+              hintText: 'Search journal',
+              size: UiSize.sm,
+              onChanged: onQueryChanged,
+            ),
+          ),
+        if (showSearch && (showFilterControl || onNew != null))
+          SizedBox(width: context.sp(theme.spacing.xs)),
+        if (showFilterControl)
+          UiIconButton(
+            icon: Icons.tune_rounded,
+            tooltip: 'Journal filters',
+            badgeCount: activeCount == 0 ? null : activeCount,
+            size: UiSize.sm,
+            variant: UiVariant.soft,
+            onPressed: () => showFilters(context),
+          ),
+        if (showFilterControl && onNew != null)
+          SizedBox(width: context.sp(theme.spacing.xs)),
+        if (onNew != null)
+          UiIconButton(
+            icon: Icons.add_rounded,
+            tooltip: 'New entry',
+            size: UiSize.sm,
+            variant: UiVariant.primary,
+            onPressed: onNew,
           ),
       ],
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _panel(BuildContext context) {
     final UiTheme theme = context.ui;
-    final Widget search = UiInput.search(
-      value: query,
-      hintText: 'Search entries, tickers, tags or body text',
-      onChanged: onQueryChanged,
-    );
-
-    // Phone: one field and one button. Every other control is refinement, and a
-    // stack of six selects above a list leaves no list on screen.
-    if (compact || context.uiRes.isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          search,
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          UiButton(
-            label: 'Filters and sort',
-            leadingIcon: Icons.tune_rounded,
-            trailingIcon: Icons.keyboard_arrow_up_rounded,
-            badgeCount: activeCount == 0 ? null : activeCount,
-            variant: UiVariant.secondary,
-            expand: true,
-            onPressed: () => _showMobileFilters(context),
-          ),
-        ],
-      );
-    }
-
-    // Desktop: everything visible. The rail is narrow, so the controls wrap
-    // instead of scrolling sideways — a filter the trader cannot see is a filter
-    // they forget is applied.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        search,
-        SizedBox(height: context.sp(theme.spacing.sm)),
+        _outcomeField(context, expand: true),
+        SizedBox(height: context.sp(theme.spacing.md)),
+        _sortField(context, expand: true),
+        if (availableTickers.isNotEmpty) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.md)),
+          _tickerField(context, expand: true),
+        ],
+        if (availableTags.isNotEmpty) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.md)),
+          _tagDropField(context, expand: true),
+        ],
+        SizedBox(height: context.sp(theme.spacing.md)),
+        Text('Review state', style: context.uiText.label),
+        SizedBox(height: context.sp(theme.spacing.xs)),
         Wrap(
           spacing: context.sp(theme.spacing.xs),
           runSpacing: context.sp(theme.spacing.xs),
-          children: <Widget>[
-            _outcomeField(context),
-            _sortField(context),
-            if (availableTickers.isNotEmpty) _tickerField(context),
-          ],
+          children: _promptToggles(context),
         ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
-        _promptToggles(context),
-        if (availableTags.isNotEmpty) ...<Widget>[
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          _tagWrap(context),
-        ],
-        if (onNew != null) ...<Widget>[
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          UiButton(
-            label: 'New entry',
-            leadingIcon: Icons.add_rounded,
-            size: UiSize.sm,
-            expand: true,
-            onPressed: onNew,
-          ),
-        ],
       ],
+    );
+  }
+
+  Widget _wideBar(BuildContext context) => _collapsedBar(context);
+
+  @override
+  Widget build(BuildContext context) {
+    if (panelOnly) return _panel(context);
+    if (compact || context.uiRes.isMobile) return _collapsedBar(context);
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints box) =>
+          box.maxWidth < context.sz(680)
+          ? _collapsedBar(context)
+          : _wideBar(context),
     );
   }
 }
@@ -390,8 +408,11 @@ class AppJournalNoteStatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool mobile = compact || context.uiRes.isMobile;
+    // Denser than the old 132/150: a phone fits all four figures on one line
+    // (92 × 4 clears a 390dp viewport) and a desktop reflows later, so the
+    // strip never costs a second row before it has to.
     return UiStatStrip(
-      minCellWidth: mobile ? 132 : 150,
+      minCellWidth: mobile ? 92 : 132,
       stats: <UiStat>[
         UiStat(
           label: 'Net P/L',
@@ -488,7 +509,10 @@ class AppJournalNoteIndexList extends StatelessWidget {
     if (entries.isEmpty) {
       return emptyState ??
           Padding(
-            padding: EdgeInsets.all(context.sp(context.ui.spacing.lg)),
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(context.ui.spacing.md),
+              vertical: context.sp(context.ui.spacing.xl),
+            ),
             child: const UiEmptyState(
               icon: Icons.menu_book_outlined,
               title: 'No entries match',
@@ -682,7 +706,7 @@ class AppJournalNoteCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(width: context.sp(theme.spacing.sm)),
+                SizedBox(width: context.sp(theme.spacing.xs)),
                 Text(
                   entry.isOpen
                       ? 'Open'
@@ -708,7 +732,7 @@ class AppJournalNoteCard extends StatelessWidget {
               style: context.uiText.caption.copyWith(color: c.foregroundMuted),
             ),
             if (showExcerpt && excerpt.isNotEmpty) ...<Widget>[
-              SizedBox(height: context.sp(theme.spacing.sm)),
+              SizedBox(height: context.sp(theme.spacing.xs)),
               Text(
                 excerpt,
                 maxLines: 3,
@@ -716,7 +740,7 @@ class AppJournalNoteCard extends StatelessWidget {
                 style: context.uiText.body.copyWith(color: c.foregroundMuted),
               ),
             ],
-            SizedBox(height: context.sp(theme.spacing.sm)),
+            SizedBox(height: context.sp(theme.spacing.xs)),
             Wrap(
               spacing: context.sp(theme.spacing.xs),
               runSpacing: context.sp(theme.spacing.xs),
@@ -724,6 +748,7 @@ class AppJournalNoteCard extends StatelessWidget {
                 UiBadge(
                   label: AppTokens.outcomeLabel(entry.outcome),
                   size: UiSize.xs,
+                  icon: _outcomeIcon(entry.outcome),
                   intent: AppTokens.outcomeIntent(entry.outcome),
                   variant: UiBadgeVariant.soft,
                 ),
@@ -813,7 +838,9 @@ class AppJournalNoteGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final double gap = context.sp(theme.spacing.md);
+    // One step tighter than md: cards sit in a list, and the gap between them
+    // competes with the month headers that structure the list.
+    final double gap = context.sp(theme.spacing.sm);
     final int columns = context.uiRes.columns(mobile: 1, tablet: 2, desktop: 2);
 
     final List<Widget> children = <Widget>[
@@ -821,7 +848,10 @@ class AppJournalNoteGrid extends StatelessWidget {
       if (entries.isEmpty)
         emptyState ??
             Padding(
-              padding: EdgeInsets.symmetric(vertical: gap * 2),
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(theme.spacing.md),
+                vertical: context.sp(theme.spacing.xl),
+              ),
               child: const UiEmptyState(
                 icon: Icons.menu_book_outlined,
                 title: 'Nothing here yet',
@@ -849,18 +879,20 @@ class AppJournalNoteGrid extends StatelessWidget {
             padding: EdgeInsets.only(bottom: gap),
             child: columns == 1
                 ? _card(row.first)
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      for (int j = 0; j < columns; j++) ...<Widget>[
-                        if (j > 0) SizedBox(width: gap),
-                        Expanded(
-                          child: j < row.length
-                              ? _card(row[j])
-                              : const SizedBox.shrink(),
-                        ),
+                : IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        for (int j = 0; j < columns; j++) ...<Widget>[
+                          if (j > 0) SizedBox(width: gap),
+                          Expanded(
+                            child: j < row.length
+                                ? _card(row[j])
+                                : const SizedBox.shrink(),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
           ),
         );
@@ -877,7 +909,7 @@ class AppJournalNoteGrid extends StatelessWidget {
           lastGroup = group;
           children.add(
             Padding(
-              padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+              padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
               child: _GroupLabel(label: group),
             ),
           );
@@ -913,7 +945,7 @@ class _GroupLabel extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     children: <Widget>[
       Text(label.toUpperCase(), style: uiOverline(context)),
-      SizedBox(width: context.sp(context.ui.spacing.sm)),
+      SizedBox(width: context.sp(context.ui.spacing.xs)),
       Expanded(
         child: SizedBox(
           height: context.ui.borders.hairline,
@@ -939,6 +971,7 @@ class AppJournalNoteHeader extends StatelessWidget {
     this.actions = const <Widget>[],
     this.onOpenStrategy,
     this.onOpenTicker,
+    this.showTitle = true,
   });
 
   final AppTrade entry;
@@ -951,28 +984,52 @@ class AppJournalNoteHeader extends StatelessWidget {
   /// plain text.
   final VoidCallback? onOpenStrategy;
   final VoidCallback? onOpenTicker;
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
     final embedded = AppWorkbenchScope.hasEmbeddedHeader(context);
+    final inWorkbench = AppWorkbenchScope.of(context);
+    final bool showBackButton = !embedded && !inWorkbench && onBack != null;
+    final bool shouldDisplayTitle = showTitle && !embedded;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        UiHeader(
-          title: entry.displayTitle,
-          leading: !embedded && !AppWorkbenchScope.of(context) && onBack != null
-              ? UiIconButton(
-                  icon: Icons.arrow_back_rounded,
-                  tooltip: 'Back to the journal',
-                  onPressed: onBack,
-                )
-              : null,
-          actions: actions,
-        ),
-        const UiGap.v(12),
+        if (shouldDisplayTitle)
+          UiHeader(
+            title: entry.displayTitle,
+            leading: showBackButton
+                ? UiIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: 'Back to the journal',
+                    onPressed: onBack,
+                  )
+                : null,
+            actions: actions,
+          )
+        else if (actions.isNotEmpty || showBackButton)
+          Padding(
+            padding: EdgeInsets.only(bottom: context.sp(context.uiSpace.xs)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (showBackButton)
+                  UiIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: 'Back to the journal',
+                    onPressed: onBack,
+                  )
+                else
+                  const SizedBox.shrink(),
+                Row(mainAxisSize: MainAxisSize.min, children: actions),
+              ],
+            ),
+          ),
+        UiGap.v(context.uiSpace.sm),
         Wrap(
-          spacing: context.sp(6),
-          runSpacing: context.sp(6),
+          spacing: context.sp(context.uiSpace.xs),
+          runSpacing: context.sp(context.uiSpace.xs),
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             UiBadge(
@@ -986,15 +1043,28 @@ class AppJournalNoteHeader extends StatelessWidget {
               label: AppTokens.sideLabel(entry.side),
               size: UiSize.xs,
               intent: AppTokens.sideIntent(entry.side),
+              icon: AppTokens.sideIcon(entry.side),
             ),
             UiBadge(
               label: entry.isOpen
                   ? 'Open position'
                   : AppTokens.signedMoney(entry.pnl),
               size: UiSize.xs,
+              icon: entry.isOpen
+                  ? _outcomeIcon(AppOutcome.open)
+                  : _outcomeIcon(entry.outcome),
               intent: entry.isOpen
                   ? UiIntent.info
                   : AppTokens.plIntent(entry.pnl),
+            ),
+            UiBadge(
+              label: entry.isPublic ? 'Public' : 'Private',
+              size: UiSize.xs,
+              variant: UiBadgeVariant.soft,
+              intent: entry.isPublic ? UiIntent.info : UiIntent.neutral,
+              icon: entry.isPublic
+                  ? Icons.public_rounded
+                  : Icons.lock_outline_rounded,
             ),
             if (entry.strategy != null)
               UiBadge(

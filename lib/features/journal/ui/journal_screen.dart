@@ -12,15 +12,17 @@ import '../data/journal_repository.dart';
 import '../data/journal_templates.dart';
 import 'journal_editor_screen.dart';
 import 'journal_entry_screen.dart';
+import 'journal_template_gallery.dart';
 
 /// Which surface the journal destination is showing.
 enum _JournalView { list, document, editor }
 
 /// The trading journal — one index, two genuinely different surfaces.
 ///
-/// **Desktop** is a workbench: a permanent index rail beside the open entry, and
-/// on a very wide screen a third column for what the entry is linked to. Moving
-/// between entries costs one click and never unloads the one being read.
+/// **Desktop** is a workbench: a permanent, month-grouped index rail beside the
+/// open entry. Moving between entries costs one click and never unloads the one
+/// being read, which is what comparing two trades on the same plan actually
+/// takes.
 ///
 /// **Mobile** is an index that opens an entry. A 340 dp rail cannot coexist with
 /// a document on a phone, and hiding it behind a button buries the list, so the
@@ -37,6 +39,7 @@ class JournalScreen extends StatefulWidget {
     this.onSubpageChanged,
     this.onOpenRef,
     this.onOpenWriting,
+    this.onAttachToPost,
     this.openRequest,
   });
 
@@ -49,21 +52,48 @@ class JournalScreen extends StatefulWidget {
   /// pretending to navigate.
   final void Function(AppLinkRef ref)? onOpenRef;
   final ValueChanged<AppLinkRef>? onOpenWriting;
+  final AppWritingPostAttachmentHandler? onAttachToPost;
 
   /// A record the shell wants opened — how a link from a note or a playbook
   /// lands on the right entry.
   final AppLinkOpenRequest? openRequest;
 
   @override
-  State<JournalScreen> createState() => _JournalScreenState();
+  State<JournalScreen> createState() => JournalScreenState();
 }
 
-class _JournalScreenState extends State<JournalScreen> {
+class JournalScreenState extends State<JournalScreen> {
+  /// Public entry point so host workspaces (like Writing Desk) can trigger
+  /// new entry creation.
+  void newEntry() => _newEntry();
+
+  /// Public entry point for the unified Writing Desk help action.
+  void showGuide() => _showGuide();
+
+  void showGuideWithTargets(List<GlobalKey> targets) =>
+      FeatureGuideSpotlight.show(
+        context,
+        feature: FeatureId.journal,
+        steps: FeatureGuideSteps.journal,
+        targets: targets,
+        onStepAction: _onGuideStepAction,
+      );
+
+  /// Public entry points owned by the single global Writing Desk command bar.
+  void setSearchQuery(String value) {
+    if (_query == value || !mounted) return;
+    _updateFilter(() => _query = value);
+  }
+
+  void showFilters() => _journalFilterBar().showFilters(context);
+
+  void performGuideStep(FeatureGuideStep step) => _onGuideStepAction(step);
+
   static const int _pageSize = 12;
 
   final JournalRepository _repo = JournalRepositoryScope.repository;
   final AppLinkGraphService _links = AppLinkGraphScope.service;
-  final ScrollController _railScroll = ScrollController();
+  final GlobalKey _guideFilterKey = GlobalKey();
 
   StreamSubscription<List<AppTrade>>? _sub;
   StreamSubscription<AppLinkGraph>? _graphSub;
@@ -133,17 +163,15 @@ class _JournalScreenState extends State<JournalScreen> {
     if (request != null && request != oldWidget.openRequest) _apply(request);
     // The shell rebuilt with a new callback identity while an entry is open, so
     // re-announce it or the app bar loses its title and its back button.
-    if (oldWidget.onSubpageChanged != widget.onSubpageChanged) _announce();
+    if (oldWidget.onSubpageChanged != widget.onSubpageChanged) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _announce());
+    }
   }
 
   @override
   void dispose() {
     _sub?.cancel();
     _graphSub?.cancel();
-    _railScroll.dispose();
-    if (_view != _JournalView.list) {
-      widget.onSubpageChanged?.call(null, null, null);
-    }
     super.dispose();
   }
 
@@ -165,22 +193,12 @@ class _JournalScreenState extends State<JournalScreen> {
   List<AppTrade> get _visibleBatch =>
       _visible.take(_visibleLimit).toList(growable: false);
 
-  AppJournalStats get _stats => JournalQuery.statsOf(_visible);
-
-  /// Running P/L over the slice on screen, oldest first — the shape of the
-  /// filtered journal rather than of the whole account.
-  List<double> get _equityCurve {
-    final List<AppTrade> closed =
-        _visible.where((AppTrade t) => !t.isOpen).toList()
-          ..sort((AppTrade a, AppTrade b) => a.sortDate.compareTo(b.sortDate));
-    double running = 0;
-    return <double>[for (final AppTrade t in closed) running += t.pnl];
-  }
-
   /// Entry id → how many trader notes it is linked to, resolved through the
-  /// graph so a card can show edges the entry record itself never stored.
+  /// graph so a card can show edges the entry record itself never stored. Over
+  /// the whole journal, not the filtered slice: a link is a fact about the
+  /// record, not about the current search.
   Map<String, int> get _linkedNoteCounts => <String, int>{
-    for (final AppTrade t in _visibleBatch)
+    for (final AppTrade t in _entries)
       t.id: _graph.bundleForJournal(t).notes.length,
   };
 
@@ -217,6 +235,35 @@ class _JournalScreenState extends State<JournalScreen> {
     _onlyUnwritten = false;
     _onlyUnfiled = false;
   });
+
+  AppJournalNoteFilterBar _journalFilterBar({
+    bool compact = false,
+    bool showSearch = true,
+    bool showFilterControl = true,
+    VoidCallback? onNew,
+  }) => AppJournalNoteFilterBar(
+    key: _guideFilterKey,
+    compact: compact,
+    showSearch: showSearch,
+    showFilterControl: showFilterControl,
+    query: _query,
+    sort: _sort,
+    outcome: _outcome,
+    tag: _tag,
+    ticker: _ticker,
+    onlyUnwritten: _onlyUnwritten,
+    onlyUnfiled: _onlyUnfiled,
+    availableTags: JournalQuery.tagsOf(_entries),
+    availableTickers: JournalQuery.tickersOf(_entries),
+    onQueryChanged: (String v) => _updateFilter(() => _query = v),
+    onOutcomeChanged: (AppOutcome? v) => _updateFilter(() => _outcome = v),
+    onTagChanged: (String? v) => _updateFilter(() => _tag = v),
+    onTickerChanged: (String? v) => _updateFilter(() => _ticker = v),
+    onSortChanged: (AppJournalSort v) => _updateFilter(() => _sort = v),
+    onOnlyUnwrittenChanged: (bool v) => _updateFilter(() => _onlyUnwritten = v),
+    onOnlyUnfiledChanged: (bool v) => _updateFilter(() => _onlyUnfiled = v),
+    onNew: onNew,
+  );
 
   // ── Navigation between the three surfaces ──────────────────────────────────
 
@@ -277,6 +324,7 @@ class _JournalScreenState extends State<JournalScreen> {
     if (!mounted) return;
     setState(() {
       _draft = null;
+      _activeId = null;
       _view = _JournalView.list;
     });
     _announce();
@@ -310,7 +358,16 @@ class _JournalScreenState extends State<JournalScreen> {
   /// New entries start from the gallery rather than a blank form: a template is
   /// the fastest way to log a trade properly, and the only way a trader who has
   /// never written one up learns what belongs in it.
-  void _newEntry() => _edit(JournalTemplates.blank.toDraft());
+  ///
+  /// This is also the guide's "Log a trade" step: it returns to the library
+  /// unchanged when the trader backs out of the gallery.
+  Future<void> _newEntry() async {
+    final AppJournalTemplate? template = await showJournalTemplateGallery(
+      context,
+    );
+    if (template == null || !mounted) return;
+    _edit(template.toDraft());
+  }
 
   /// Follows a link. Journal → journal stays here; anything else is another
   /// destination's record and goes back through the shell.
@@ -339,6 +396,204 @@ class _JournalScreenState extends State<JournalScreen> {
     jump(ref);
   }
 
+  // ── Guide ──────────────────────────────────────────────────────────────────
+
+  /// Opens the journal walkthrough, at any time, from the header help action or
+  /// the banner's "Show guide" button. The owning screen resolves each step's
+  /// action into real navigation below.
+  void _showGuide() {
+    FeatureGuideSpotlight.show(
+      context,
+      feature: FeatureId.journal,
+      steps: FeatureGuideSteps.journal,
+      targets: <GlobalKey>[_guideFilterKey],
+      onStepAction: _onGuideStepAction,
+    );
+  }
+
+  /// Maps a guide step to the real surface it describes. The sheet already marks
+  /// the step done when its action button is pressed; this only navigates — it
+  /// never fakes completion, and a step with nothing to act on navigates nowhere
+  /// and says so.
+  void _onGuideStepAction(FeatureGuideStep step) {
+    switch (step.id) {
+      case 'log':
+        _newEntry();
+      case 'file':
+        _fileUnderPlaybook();
+      case 'checklist':
+        _openChecklist();
+      case 'attach':
+        _openAttach();
+      case 'outcome':
+        _markOutcome();
+      default:
+        break;
+    }
+  }
+
+  /// "File under a playbook" — filing happens on the entry's Links surface (the
+  /// document's linked-records aside), so the step lands on the entry most in
+  /// need of one: the newest unfiled entry, then the newest entry.
+  void _fileUnderPlaybook() {
+    final AppTrade? target = _firstWhere(
+      (AppTrade t) => t.strategyId == null || t.strategyId!.isEmpty,
+    );
+    if (target == null) {
+      UiToast.info(
+        context,
+        title: 'Nothing to file',
+        message: 'Log a trade first, then file it under a playbook.',
+      );
+      return;
+    }
+    if (_activeId == target.id) return;
+    _open(target.id);
+  }
+
+  /// "Fill the checklist and psychology sections" — psychology is the editor's
+  /// discipline slider, and the checklist lives in the write-up the editor owns
+  /// the numbers for. Land on the newest entry, open in the editor.
+  void _openChecklist() {
+    final AppTrade? target = _firstWhere((AppTrade _) => true);
+    if (target == null) {
+      UiToast.info(
+        context,
+        title: 'Nothing to review yet',
+        message: 'Log a trade first, then score its process.',
+      );
+      return;
+    }
+    _edit(target);
+  }
+
+  /// "Attach screenshots and tag it" — tags are the editor's tag field, and the
+  /// write-up (where charts attach) is reached from the same entry. Land on the
+  /// newest entry, open in the editor.
+  void _openAttach() {
+    final AppTrade? target = _firstWhere((AppTrade _) => true);
+    if (target == null) {
+      UiToast.info(
+        context,
+        title: 'Nothing to attach to yet',
+        message: 'Log a trade first, then attach the chart you saw.',
+      );
+      return;
+    }
+    _edit(target);
+  }
+
+  /// "Mark the outcome" — the outcome is computed from the exit the editor
+  /// collects, so the step lands on an open trade, ready to be closed out. If
+  /// nothing is open there is nothing to mark, and the step stays put.
+  void _markOutcome() {
+    final AppTrade? target = _firstWhere((AppTrade t) => t.isOpen);
+    if (target == null) {
+      UiToast.info(
+        context,
+        title: 'No open trades',
+        message: 'Every entry already has an outcome.',
+      );
+      return;
+    }
+    _edit(target);
+  }
+
+  /// First entry matching [test], in the repository's recently-first order — so
+  /// "first" means "most recent", which is the one the trader is most likely to
+  /// mean.
+  AppTrade? _firstWhere(bool Function(AppTrade t) test) {
+    for (final AppTrade t in _entries) {
+      if (test(t)) return t;
+    }
+    return null;
+  }
+
+  // ── Next-best action ───────────────────────────────────────────────────────
+
+  /// The pipeline nudges shown as compact chips between the header and the list.
+  ///
+  /// Derived from the **whole journal** (`_entries`, the repository stream
+  /// already sorted recent-first) plus the link graph — never from the filtered
+  /// slice, because "2 entries unfiled" is true of the journal even while a
+  /// search narrows what is on screen. Ordered Execute → Review:
+  ///
+  ///  1. Entries not filed under a playbook → open the newest on its document,
+  ///     where the links aside files it.
+  ///  2. Open trades → open the newest in the editor, where the outcome is
+  ///     computed from the exit.
+  ///  3. Trades with no review note → open the newest on its document, where
+  ///     notes attach.
+  ///
+  /// Empty while the stream is still loading or when there is nothing to act on,
+  /// so the row never advertises a zero.
+  List<_NextAction> get _nextActions {
+    if (_loading) return const <_NextAction>[];
+    final List<AppTrade> unfiled = _entries
+        .where((AppTrade t) => t.strategyId == null || t.strategyId!.isEmpty)
+        .toList(growable: false);
+    final List<AppTrade> open = _entries
+        .where((AppTrade t) => t.isOpen)
+        .toList(growable: false);
+    final List<AppTrade> unreviewed = _entries
+        .where((AppTrade t) => _graph.bundleForJournal(t).notes.isEmpty)
+        .toList(growable: false);
+
+    return <_NextAction>[
+      if (unfiled.isNotEmpty)
+        _NextAction(
+          label: unfiled.length == 1
+              ? '1 entry not filed under a playbook'
+              : '${unfiled.length} entries not filed under a playbook',
+          icon: Icons.folder_off_outlined,
+          intent: UiIntent.info,
+          onTap: () => _open(unfiled.first.id),
+        ),
+      if (open.isNotEmpty)
+        _NextAction(
+          label: open.length == 1
+              ? '1 open trade to close out'
+              : '${open.length} open trades to close out',
+          icon: Icons.schedule_rounded,
+          intent: UiIntent.warning,
+          onTap: () => _edit(open.first),
+        ),
+      if (unreviewed.isNotEmpty)
+        _NextAction(
+          label: unreviewed.length == 1
+              ? '1 trade with no review note'
+              : '${unreviewed.length} trades with no review note',
+          icon: Icons.edit_note_rounded,
+          intent: UiIntent.primary,
+          onTap: () => _open(unreviewed.first.id),
+        ),
+    ];
+  }
+
+  Widget _nextActionChips(BuildContext context) {
+    final List<_NextAction> actions = _nextActions;
+    if (actions.isEmpty) return const SizedBox.shrink();
+    final UiTheme theme = context.ui;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: <Widget>[
+          for (int i = 0; i < actions.length; i++) ...<Widget>[
+            if (i > 0) SizedBox(width: context.sp(theme.spacing.xs)),
+            UiButton(
+              label: actions[i].label,
+              leadingIcon: actions[i].icon,
+              variant: UiVariant.soft,
+              intent: actions[i].intent,
+              size: UiSize.xs,
+              onPressed: actions[i].onTap,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   // ── Surfaces ───────────────────────────────────────────────────────────────
 
   /// Month headers only make sense over a chronological order. Over a list sorted
@@ -351,20 +606,35 @@ class _JournalScreenState extends State<JournalScreen> {
   Widget build(BuildContext context) {
     final AppTrade? active = _active;
 
-    if (_view != _JournalView.list && active != null) {
-      final bool editing = _view == _JournalView.editor;
+    // The editor is a full-surface step on every width: it owns its own
+    // save-or-discard decision and must not share the workbench's pane.
+    if (_view == _JournalView.editor && active != null) {
       return PopScope(
-        // The editor may need to save or ask before it lets go, so the pop is
-        // always handled here rather than by the navigator.
         canPop: false,
         onPopInvokedWithResult: (bool didPop, Object? result) {
           if (didPop) return;
-          editing ? _requestEditorClose() : _backToIndex();
+          _requestEditorClose();
         },
-        child: editing ? _editor(active) : _document(active),
+        child: AppWorkbenchScope(
+          embeddedHeader: widget.onSubpageChanged != null,
+          child: _editor(active),
+        ),
       );
     }
 
+    if (_view == _JournalView.document && active != null) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (bool didPop, Object? result) {
+          if (didPop) return;
+          _backToIndex();
+        },
+        child: AppWorkbenchScope(
+          embeddedHeader: widget.onSubpageChanged != null,
+          child: _document(active),
+        ),
+      );
+    }
     return _index(context);
   }
 
@@ -373,23 +643,16 @@ class _JournalScreenState extends State<JournalScreen> {
     entry: entry,
     onClose: _backToIndex,
     onEdit: () => _edit(entry),
-    onEditWriting: widget.onOpenWriting == null
-        ? null
-        : () => widget.onOpenWriting!(
-            AppLinkRef(
-              kind: AppLinkKind.journal,
-              id: entry.id,
-              title: entry.displayTitle,
-            ),
-          ),
+    onEditWriting: () => _edit(entry, mode: JournalEditorMode.write),
     onOpenLink: _openRef,
+    onAttachToPost: widget.onAttachToPost,
   );
 
   Widget _editor(AppTrade entry) => JournalEditorScreen(
     key: _editorKey,
     entry: entry,
     initialMode: _editorMode,
-    detailsOnly: true,
+    detailsOnly: false,
     onClose: _closeEditor,
     onDeleted: _backToIndex,
   );
@@ -398,7 +661,6 @@ class _JournalScreenState extends State<JournalScreen> {
   /// stat strip and filters scroll away with the list.
   Widget _index(BuildContext context) {
     final UiTheme theme = context.ui;
-    final AppJournalStats stats = _stats;
     final List<AppTrade> visible = _visible;
     final List<AppTrade> batch = _visibleBatch;
     final double gutter = context.sp(theme.spacing.md);
@@ -429,73 +691,7 @@ class _JournalScreenState extends State<JournalScreen> {
                 top: context.sp(theme.spacing.xs),
                 bottom: context.uiPageBottomInset + context.sz(72),
               ),
-              header: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  AppWorkspaceHeading(
-                    eyebrow: 'Your trading practice',
-                    title: 'Trade journal',
-                    description:
-                        'Capture the decision. Learn from the outcome.',
-                  ),
-                  const UiGap.v(20),
-                  AppJournalNoteStatRow(
-                    total: stats.total,
-                    open: stats.open,
-                    netPnl: stats.netPnl,
-                    winRate: stats.winRate,
-                    avgR: stats.avgR,
-                    written: stats.written,
-                    unfiled: stats.unfiled,
-                    equityCurve: _equityCurve,
-                    compact: true,
-                  ),
-                  SizedBox(height: gutter),
-                  AppJournalNoteFilterBar(
-                    query: _query,
-                    sort: _sort,
-                    outcome: _outcome,
-                    tag: _tag,
-                    ticker: _ticker,
-                    onlyUnwritten: _onlyUnwritten,
-                    onlyUnfiled: _onlyUnfiled,
-                    availableTags: JournalQuery.tagsOf(_entries),
-                    availableTickers: JournalQuery.tickersOf(_entries),
-                    onQueryChanged: (String v) =>
-                        _updateFilter(() => _query = v),
-                    onOutcomeChanged: (AppOutcome? v) =>
-                        _updateFilter(() => _outcome = v),
-                    onTagChanged: (String? v) => _updateFilter(() => _tag = v),
-                    onTickerChanged: (String? v) =>
-                        _updateFilter(() => _ticker = v),
-                    onSortChanged: (AppJournalSort v) =>
-                        _updateFilter(() => _sort = v),
-                    onOnlyUnwrittenChanged: (bool v) =>
-                        _updateFilter(() => _onlyUnwritten = v),
-                    onOnlyUnfiledChanged: (bool v) =>
-                        _updateFilter(() => _onlyUnfiled = v),
-                  ),
-                  SizedBox(height: gutter),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          _loading ? 'Loading…' : 'Entries',
-                          style: context.uiText.subheading,
-                        ),
-                      ),
-                      UiBadge(
-                        label: batch.length == visible.length
-                            ? '${visible.length} shown'
-                            : '${batch.length} of ${visible.length}',
-                        icon: Icons.menu_book_outlined,
-                        variant: UiBadgeVariant.outline,
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.sm)),
-                ],
-              ),
+              header: _indexHeader(context, batch: batch, visible: visible),
               emptyState: Padding(
                 padding: EdgeInsets.symmetric(vertical: gutter * 2),
                 child: UiEmptyState(
@@ -523,19 +719,81 @@ class _JournalScreenState extends State<JournalScreen> {
             ),
           ),
         ),
-        Positioned(
-          right: gutter,
-          bottom: MediaQuery.paddingOf(context).bottom + gutter,
-          child: UiButton.icon(
-            key: const ValueKey<String>('journal_new_entry_fab'),
-            icon: Icons.add_rounded,
-            label: 'New entry',
-            variant: UiVariant.primary,
-            size: UiSize.lg,
-            onPressed: _newEntry,
+        if (!context.uiRes.isDesktop && !AppWritingDeskScope.isHosted(context))
+          Positioned(
+            right: gutter,
+            bottom: MediaQuery.paddingOf(context).bottom + gutter,
+            child: UiIconButton(
+              key: const ValueKey<String>('journal_new_entry_fab'),
+              icon: Icons.add_rounded,
+              variant: UiVariant.primary,
+              size: UiSize.lg,
+              tooltip: 'New entry',
+              onPressed: _newEntry,
+            ),
           ),
-        ),
       ],
     );
   }
+
+  Widget _indexHeader(
+    BuildContext context, {
+    required List<AppTrade> batch,
+    required List<AppTrade> visible,
+  }) {
+    final UiTheme theme = context.ui;
+    final double gutter = context.sp(theme.spacing.md);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        SizedBox(height: context.sp(theme.spacing.xs)),
+        _journalFilterBar(
+          showSearch: !AppWritingDeskScope.isHosted(context),
+          showFilterControl: !AppWritingDeskScope.isHosted(context),
+          onNew:
+              context.uiRes.isDesktop && !AppWritingDeskScope.isHosted(context)
+              ? _newEntry
+              : null,
+        ),
+        SizedBox(height: gutter),
+        _nextActionChips(context),
+        SizedBox(height: gutter),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                _loading ? 'Loading…' : 'Entries',
+                style: context.uiText.subheading,
+              ),
+            ),
+            UiBadge(
+              label: batch.length == visible.length
+                  ? '${visible.length} shown'
+                  : '${batch.length} of ${visible.length}',
+              icon: Icons.menu_book_outlined,
+              variant: UiBadgeVariant.outline,
+            ),
+          ],
+        ),
+        SizedBox(height: context.sp(theme.spacing.sm)),
+      ],
+    );
+  }
+}
+
+/// One pipeline nudge in the "next best action" chip row. Private data, computed
+/// by [_JournalScreenState._nextActions] from the live repository stream and
+/// link graph — nothing here is hardcoded.
+class _NextAction {
+  const _NextAction({
+    required this.label,
+    required this.icon,
+    required this.intent,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final UiIntent intent;
+  final VoidCallback onTap;
 }

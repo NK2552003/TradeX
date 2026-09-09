@@ -29,6 +29,7 @@ class NotePreviewScreen extends StatefulWidget {
     required this.onClose,
     required this.onEdit,
     this.onOpenLink,
+    this.onAttachToPost,
     this.canEdit = true,
   });
 
@@ -43,6 +44,10 @@ class NotePreviewScreen extends StatefulWidget {
   /// Follows a link out of this note. Null renders the links as plain rows,
   /// which is how a preview embedded somewhere without a navigator behaves.
   final void Function(AppLinkRef ref)? onOpenLink;
+
+  /// Future social composer seam. Null keeps the current Writing Desk UI free
+  /// of social-post controls until that feature exists.
+  final AppWritingPostAttachmentHandler? onAttachToPost;
   final bool canEdit;
 
   @override
@@ -198,32 +203,53 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
 
   Widget _previewCommandBar(BuildContext context) {
     final UiTheme theme = context.ui;
+    final bool isMobile = context.uiRes.isMobile;
+    // Inside the desktop workbench the shell already draws the note title and a
+    // back control; a second title and back button here would read as two
+    // headers stacked. Off the workbench (a phone, a future full window) we own
+    // that chrome and draw it ourselves.
+    final bool inWorkbench = AppWorkbenchScope.of(context);
+    final bool showChrome = !isMobile && !inWorkbench;
     return Row(
       children: <Widget>[
-        UiIconButton(
-          icon: Icons.arrow_back_rounded,
-          variant: UiVariant.ghost,
-          tooltip: 'Back to notes',
-          onPressed: widget.onClose,
-        ),
-        SizedBox(width: context.sp(theme.spacing.sm)),
+        if (showChrome) ...<Widget>[
+          UiIconButton(
+            icon: Icons.arrow_back_rounded,
+            variant: UiVariant.ghost,
+            tooltip: 'Back to notes',
+            onPressed: widget.onClose,
+          ),
+          SizedBox(width: context.sp(theme.spacing.sm)),
+        ],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                _title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.bodyStrong,
-              ),
-              Text(
-                '${AppTokens.fullDate(_note.updatedAt)} · ${_note.wordCount} words · $_readMinutes min read',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.caption.copyWith(
-                  color: theme.colors.foregroundMuted,
+              if (showChrome)
+                Text(
+                  _title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.bodyStrong,
                 ),
+              Wrap(
+                spacing: context.sp(theme.spacing.xs),
+                runSpacing: context.sp(theme.spacing.xxs),
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  UiBadge(
+                    label: _note.noteType.label,
+                    size: UiSize.xs,
+                    variant: UiBadgeVariant.soft,
+                    intent: UiIntent.primary,
+                  ),
+                  Text(
+                    '${AppTokens.fullDate(_note.updatedAt)} · ${_note.wordCount} words · $_readMinutes min read',
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -234,6 +260,16 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           tooltip: 'Export as PDF',
           onPressed: _exportPdf,
         ),
+        if (widget.onAttachToPost != null) ...<Widget>[
+          SizedBox(width: context.sp(theme.spacing.xs)),
+          UiIconButton(
+            icon: Icons.add_comment_outlined,
+            variant: UiVariant.ghost,
+            tooltip: 'Attach note to a post',
+            onPressed: () =>
+                widget.onAttachToPost!(AppWritingPostAttachment.note(_note)),
+          ),
+        ],
         if (widget.canEdit) ...<Widget>[
           SizedBox(width: context.sp(theme.spacing.xs)),
           UiButton(

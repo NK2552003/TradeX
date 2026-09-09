@@ -50,10 +50,26 @@ class AppWorkbenchScope extends InheritedWidget {
       embeddedHeader != oldWidget.embeddedHeader;
 }
 
+/// Marks feature screens hosted by the unified Writing Desk.
+///
+/// Standalone screens keep their own desktop creation/help actions. Inside the
+/// desk those actions belong to the shared header, while phone screens retain
+/// their thumb-reachable floating action. This presentation contract keeps one
+/// source of truth without coupling feature code to `WorkspaceScreen`.
+class AppWritingDeskScope extends InheritedWidget {
+  const AppWritingDeskScope({super.key, required super.child});
+
+  static bool isHosted(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppWritingDeskScope>() != null;
+
+  @override
+  bool updateShouldNotify(AppWritingDeskScope oldWidget) => false;
+}
+
 // ── Layout ───────────────────────────────────────────────────────────────────
 
-/// The desktop half of the workbench: a resizable index rail beside the open
-/// document.
+/// The desktop half of the workbench: a resizable index rail to the right of
+/// the open document.
 ///
 /// Mobile never reaches this widget. Screens branch on `context.uiRes.isMobile`
 /// and render their own index page, because the phone surface is a different
@@ -63,6 +79,8 @@ class AppWorkbenchLayout extends StatefulWidget {
     super.key,
     required this.index,
     required this.document,
+    this.expandedIndex,
+    this.hasActiveDocument = true,
     this.aside,
     this.railWidth = 300,
     this.asideWidth = 300,
@@ -71,6 +89,16 @@ class AppWorkbenchLayout extends StatefulWidget {
     this.title = 'Writing desk',
   });
   final Widget index, document;
+
+  /// The rich, full-width view shown when no document is active. When null the
+  /// compact [index] fills the width instead. Only consulted while
+  /// [hasActiveDocument] is false.
+  final Widget? expandedIndex;
+
+  /// When false the layout drops the split pane entirely and shows
+  /// [expandedIndex] (or [index]) at full width — no rail, no empty document
+  /// pane. When true the usual rail + document split is rendered.
+  final bool hasActiveDocument;
   final Widget? aside;
   final double railWidth, asideWidth;
   final bool showIndex, showAside;
@@ -85,6 +113,15 @@ class _AppWorkbenchLayoutState extends State<AppWorkbenchLayout> {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
+      // No document is active: collapse to a full-width index instead of a
+      // split pane with a blank right half. The rich expanded view is used
+      // when a screen provides one, otherwise the compact index fills the width.
+      if (!widget.hasActiveDocument) {
+        return ColoredBox(
+          color: context.ui.colors.background,
+          child: widget.expandedIndex ?? widget.index,
+        );
+      }
       final showIndex = widget.showIndex && library;
       final showAside =
           widget.showAside && widget.aside != null && box.maxWidth >= 1700;
@@ -95,17 +132,15 @@ class _AppWorkbenchLayoutState extends State<AppWorkbenchLayout> {
       Widget content = showIndex
           ? UiSplitPane(
               key: const ValueKey('workbench_library_split'),
-              initialRatio: (context.sz(widget.railWidth) / box.maxWidth).clamp(
-                .22,
-                .38,
-              ),
-              minRatio: .22,
-              maxRatio: .42,
-              primary: _WorkbenchLibraryScope(
+              initialRatio: (1 - (context.sz(widget.railWidth) / box.maxWidth))
+                  .clamp(.58, .78),
+              minRatio: .58,
+              maxRatio: .78,
+              primary: document,
+              detail: _WorkbenchLibraryScope(
                 hide: () => setState(() => library = false),
                 child: widget.index,
               ),
-              detail: document,
             )
           : document;
       if (showAside) {
@@ -122,19 +157,20 @@ class _AppWorkbenchLayoutState extends State<AppWorkbenchLayout> {
         color: context.ui.colors.background,
         child: showIndex || !widget.showIndex
             ? content
-            : Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.all(context.sp(context.ui.spacing.xs)),
+            : Stack(
+                children: <Widget>[
+                  Positioned.fill(child: content),
+                  Positioned(
+                    top: context.sp(context.ui.spacing.xs),
+                    right: context.sp(context.ui.spacing.xs),
                     child: UiIconButton(
                       icon: Icons.view_sidebar_outlined,
-                      tooltip: 'Show library',
+                      tooltip: 'Show record library',
                       size: UiSize.sm,
+                      variant: UiVariant.soft,
                       onPressed: () => setState(() => library = true),
                     ),
                   ),
-                  Expanded(child: content),
                 ],
               ),
       );
@@ -169,6 +205,7 @@ class AppWorkbenchIndex extends StatelessWidget {
     this.footer,
     this.scrollController,
     this.scrollHeader = false,
+    this.showTitle = false,
   });
   final String title;
   final String? subtitle;
@@ -179,15 +216,19 @@ class AppWorkbenchIndex extends StatelessWidget {
 
   /// Phone lists let filters scroll out of the way; desktop rails pin them.
   final bool scrollHeader;
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
     final gutter = context.sp(theme.spacing.md);
+    final libraryScope = _WorkbenchLibraryScope.of(context);
+    final bool hasTitle = showTitle && title.isNotEmpty;
+
     final header = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (title.isNotEmpty)
+        if (hasTitle)
           Padding(
             padding: EdgeInsets.fromLTRB(gutter, gutter, gutter, 0),
             child: Row(
@@ -200,7 +241,7 @@ class AppWorkbenchIndex extends StatelessWidget {
                     actions: actions,
                   ),
                 ),
-                if (_WorkbenchLibraryScope.of(context) case final library?)
+                if (libraryScope case final library?)
                   UiIconButton(
                     icon: Icons.chevron_left_rounded,
                     tooltip: 'Hide library',
@@ -209,13 +250,43 @@ class AppWorkbenchIndex extends StatelessWidget {
                   ),
               ],
             ),
+          )
+        else if (libraryScope != null || actions.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              gutter,
+              context.sp(theme.spacing.xs),
+              gutter,
+              0,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (libraryScope case final library?)
+                  UiIconButton(
+                    icon: Icons.chevron_left_rounded,
+                    tooltip: 'Hide library',
+                    size: UiSize.sm,
+                    onPressed: library.hide,
+                  )
+                else
+                  const SizedBox.shrink(),
+                if (actions.isNotEmpty)
+                  Row(mainAxisSize: MainAxisSize.min, children: actions),
+              ],
+            ),
           ),
         if (filters != null)
           Padding(
-            padding: EdgeInsets.fromLTRB(gutter, gutter, gutter, 0),
+            padding: EdgeInsets.fromLTRB(
+              gutter,
+              context.sp(theme.spacing.xs),
+              gutter,
+              0,
+            ),
             child: filters,
           ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
+        SizedBox(height: context.sp(theme.spacing.xs)),
         const UiDivider(spacing: 0),
       ],
     );
