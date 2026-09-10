@@ -6,10 +6,11 @@ import 'ui_common.dart';
 /// Line chart. A thin, named configuration of [UiChart] — no painting code is
 /// duplicated, so a change to the shared painter updates every chart type.
 class UiLineChart extends StatelessWidget {
-  const UiLineChart({
+  UiLineChart({
     super.key,
-    required this.data,
-    required this.series,
+    List<UiChartPoint>? data,
+    List<dynamic>? dataPoints,
+    List<UiChartSeries>? series,
     this.height,
     this.showGrid = true,
     this.showAxisLabels = true,
@@ -21,12 +22,50 @@ class UiLineChart extends StatelessWidget {
     this.stacked = false,
     this.glow = false,
     this.thresholds = const <UiChartThreshold>[],
-  });
+  }) : data = data ?? _mapDataPoints(dataPoints),
+       series = series ?? const <UiChartSeries>[UiChartSeries(name: 'Value')];
 
   final List<UiChartPoint> data;
 
   /// Series names/colors. Any [UiChartSeries.type] is forced to line here.
   final List<UiChartSeries> series;
+
+  static List<UiChartPoint> _mapDataPoints(List<dynamic>? points) {
+    if (points == null) return const <UiChartPoint>[];
+    final List<UiChartPoint> result = <UiChartPoint>[];
+    for (int i = 0; i < points.length; i++) {
+      final dynamic p = points[i];
+      if (p is UiChartPoint) {
+        result.add(p);
+      } else if (p is num) {
+        result.add(
+          UiChartPoint(
+            label: '$i',
+            values: <double>[p.toDouble()],
+          ),
+        );
+      } else if (p is Map<String, dynamic>) {
+        final String label = p['label']?.toString() ?? '$i';
+        final List<double> vals = <double>[];
+        if (p['values'] is List) {
+          for (final dynamic v in p['values'] as List) {
+            if (v is num) vals.add(v.toDouble());
+          }
+        } else if (p['value'] is num) {
+          vals.add((p['value'] as num).toDouble());
+        } else if (p['y'] is num) {
+          vals.add((p['y'] as num).toDouble());
+        }
+        result.add(
+          UiChartPoint(
+            label: label,
+            values: vals.isEmpty ? const <double>[0.0] : vals,
+          ),
+        );
+      }
+    }
+    return result;
+  }
   final double? height;
   final bool showGrid;
   final bool showAxisLabels;

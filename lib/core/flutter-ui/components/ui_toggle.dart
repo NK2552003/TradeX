@@ -15,7 +15,7 @@ class UiToggle extends StatelessWidget {
     super.key,
     bool value = false,
     bool? selected,
-    required this.icon,
+    this.icon = Icons.check_rounded,
     this.activeIcon,
     this.onChanged,
     this.label,
@@ -200,6 +200,8 @@ class UiToggle extends StatelessWidget {
 
   Widget _label(BuildContext ctx, String text, Color fg) => Text(
     text,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
     style: size
         .textStyle(ctx)
         .copyWith(

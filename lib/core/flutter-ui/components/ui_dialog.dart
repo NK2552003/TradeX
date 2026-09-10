@@ -11,11 +11,12 @@ class UiDialog extends StatelessWidget {
     super.key,
     required this.title,
     this.description,
-    this.content,
+    Widget? content,
+    Widget? child,
     this.actions = const <Widget>[],
     this.icon,
     this.intent = UiIntent.primary,
-  });
+  }) : content = content ?? child;
 
   final String title;
   final String? description;
@@ -42,7 +43,7 @@ class UiDialog extends StatelessWidget {
         padding:
             MediaQuery.viewInsetsOf(ctx) +
             EdgeInsets.all(
-              ctx.sp(mobile ? theme.spacing.sm : theme.spacing.md),
+              ctx.sp(mobile ? 0 : theme.spacing.md),
             ),
         child: Align(
           alignment: mobile ? Alignment.bottomCenter : Alignment.center,
@@ -52,6 +53,11 @@ class UiDialog extends StatelessWidget {
               key: const ValueKey('ui-dialog-surface'),
               padding: EdgeInsets.zero,
               variant: UiCardVariant.elevated,
+              borderRadius: mobile
+                  ? BorderRadius.vertical(
+                      top: Radius.circular(ctx.sz(theme.radii.xl)),
+                    )
+                  : null,
               child: Material(
                 type: MaterialType.transparency,
                 child: SingleChildScrollView(
@@ -159,12 +165,24 @@ class UiDialog extends StatelessWidget {
         ],
         if (actions.isNotEmpty) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.xl)),
-          Wrap(
-            alignment: WrapAlignment.end,
-            spacing: context.sp(theme.spacing.sm),
-            runSpacing: context.sp(theme.spacing.sm),
-            children: actions,
-          ),
+          if (context.uiRes.isMobile && actions.length <= 2)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (int i = actions.length - 1; i >= 0; i--) ...<Widget>[
+                  if (i < actions.length - 1)
+                    SizedBox(height: context.sp(theme.spacing.xs)),
+                  actions[i],
+                ],
+              ],
+            )
+          else
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: context.sp(theme.spacing.sm),
+              runSpacing: context.sp(theme.spacing.sm),
+              children: actions,
+            ),
         ],
       ],
     );

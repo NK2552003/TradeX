@@ -20,7 +20,8 @@ class UiCard extends StatefulWidget {
     this.titleWidget,
     this.subtitle,
     this.leading,
-    this.trailing,
+    Widget? trailing,
+    Widget? action,
     this.media,
     this.actions,
     this.footer,
@@ -41,11 +42,14 @@ class UiCard extends StatefulWidget {
     this.hoverLift = true,
     this.density = UiDensity.comfortable,
     this.radius,
+    this.borderRadius,
     this.minHeight,
     this.headerDivider = false,
     this.semanticLabel,
     this.motion = true,
-  });
+  }) : trailing = action ?? trailing;
+
+  final BorderRadiusGeometry? borderRadius;
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -117,8 +121,9 @@ class _UiCardState extends State<UiCard> {
     final theme = context.ui;
     final r = context.uiRes;
     final c = theme.colors;
-    final Color tint = widget.intent?.color(context) ?? c.primary;
-    final BorderRadius radius = context.radius(widget.radius ?? theme.radii.xl);
+    final Color tint = widget.accentColor ?? (widget.intent?.color(context) ?? c.primary);
+    final BorderRadius radius = (widget.borderRadius as BorderRadius?) ??
+        context.radius(widget.radius ?? theme.radii.xl);
     final double f = widget.density.factor;
     final EdgeInsetsGeometry pad =
         widget.padding ??
@@ -138,32 +143,38 @@ class _UiCardState extends State<UiCard> {
       builder: (BuildContext ctx, UiInteractiveState s) {
         final bool active = widget.motion && tappable && s.active;
         final _CardSkin skin = _skin(ctx, active, tint);
-        final Widget content = Container(
-          constraints: widget.minHeight == null
+        final BoxDecoration decoration = BoxDecoration(
+          color: skin.gradient == null ? skin.background : null,
+          gradient: skin.gradient,
+          borderRadius: radius,
+          border: widget.borderless
               ? null
-              : BoxConstraints(minHeight: widget.minHeight!),
-          decoration: BoxDecoration(
-            color: skin.gradient == null ? skin.background : null,
-            gradient: skin.gradient,
-            borderRadius: radius,
-            border: widget.borderless
-                ? null
-                : Border.all(
-                    color: widget.selected ? tint : skin.borderColor,
-                    width: widget.selected
-                        ? theme.borders.thick
-                        : theme.borders.hairline,
-                  ),
-            boxShadow: skin.shadow,
-          ),
-          foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
-          clipBehavior: Clip.none,
-          child: Opacity(
-            opacity: widget.enabled ? 1 : 0.55,
-            child: _body(ctx, pad, f),
-          ),
+              : Border.all(
+                  color: widget.selected ? tint : skin.borderColor,
+                  width: widget.selected
+                      ? theme.borders.thick
+                      : theme.borders.hairline,
+                ),
+          boxShadow: skin.shadow,
         );
-        if (!widget.motion) return content;
+
+        final Widget inner = Opacity(
+          opacity: widget.enabled ? 1 : 0.55,
+          child: _cardContent(ctx, pad, f, radius),
+        );
+
+        if (!widget.motion) {
+          return Container(
+            constraints: widget.minHeight == null
+                ? null
+                : BoxConstraints(minHeight: widget.minHeight!),
+            decoration: decoration,
+            foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
+            clipBehavior: Clip.antiAlias,
+            child: inner,
+          );
+        }
+
         return AnimatedContainer(
           duration: theme.motion.fast,
           curve: theme.motion.curve,
@@ -176,28 +187,28 @@ class _UiCardState extends State<UiCard> {
           constraints: widget.minHeight == null
               ? null
               : BoxConstraints(minHeight: widget.minHeight!),
-          decoration: BoxDecoration(
-            color: skin.gradient == null ? skin.background : null,
-            gradient: skin.gradient,
-            borderRadius: radius,
-            border: widget.borderless
-                ? null
-                : Border.all(
-                    color: widget.selected ? tint : skin.borderColor,
-                    width: widget.selected
-                        ? theme.borders.thick
-                        : theme.borders.hairline,
-                  ),
-            boxShadow: skin.shadow,
-          ),
+          decoration: decoration,
           foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
           clipBehavior: Clip.antiAlias,
-          child: Opacity(
-            opacity: widget.enabled ? 1 : 0.55,
-            child: _body(ctx, pad, f),
-          ),
+          child: inner,
         );
       },
+    );
+  }
+
+  Widget _cardContent(BuildContext ctx, EdgeInsetsGeometry pad, double f, BorderRadius radius) {
+    final Widget body = _body(ctx, pad, f);
+    if (widget.media == null) return body;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        ClipRRect(
+          borderRadius: BorderRadius.vertical(top: radius.topLeft),
+          child: widget.media!,
+        ),
+        body,
+      ],
     );
   }
 
@@ -228,7 +239,6 @@ class _UiCardState extends State<UiCard> {
         : widget.child;
 
     if (!hasHeader &&
-        widget.media == null &&
         (widget.actions == null || widget.actions!.isEmpty) &&
         widget.footer == null) {
       return Padding(padding: pad, child: content);
@@ -240,7 +250,6 @@ class _UiCardState extends State<UiCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          if (widget.media != null) widget.media!,
           if (hasHeader) ...<Widget>[
             _UiCardHeader(
               title: widget.title,

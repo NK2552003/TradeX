@@ -47,12 +47,28 @@ class UiAccordionItem {
   final bool initiallyOpen;
 }
 
+class UiAccordionSection extends UiAccordionItem {
+  UiAccordionSection({
+    required super.title,
+    required Widget child,
+    super.subtitle,
+    super.leadingIcon,
+    super.leading,
+    super.trailing,
+    super.badge,
+    super.intent,
+    super.enabled = true,
+    super.initiallyOpen = false,
+  }) : super(content: child);
+}
+
 /// Expand/collapse list. Single or multiple open sections, controlled or
 /// uncontrolled, with density, size and variant options.
 class UiAccordion extends StatefulWidget {
   const UiAccordion({
     super.key,
-    required this.items,
+    List<UiAccordionItem>? items,
+    List<UiAccordionSection>? sections,
     this.allowMultiple = false,
     this.initiallyOpen = const <int>{},
     this.openIndices,
@@ -64,7 +80,7 @@ class UiAccordion extends StatefulWidget {
     this.chevronLeading = false,
     this.dividers = true,
     this.enabled = true,
-  });
+  }) : items = items ?? sections ?? const <UiAccordionItem>[];
 
   final List<UiAccordionItem> items;
   final bool allowMultiple;

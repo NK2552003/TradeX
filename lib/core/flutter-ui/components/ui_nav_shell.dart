@@ -8,23 +8,70 @@ import 'ui_tabs.dart';
 class UiNavShell extends StatelessWidget {
   const UiNavShell({
     super.key,
-    required this.items,
-    required this.selectedIndex,
-    required this.onChanged,
+    this.items = const <UiTabItem>[],
+    this.selectedIndex = 0,
+    this.onChanged,
     required this.body,
+    this.sidebar,
     this.floatingAction,
   });
 
   final List<UiTabItem> items;
   final int selectedIndex;
-  final ValueChanged<int> onChanged;
+  final ValueChanged<int>? onChanged;
   final Widget body;
+  final Widget? sidebar;
   final Widget? floatingAction;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
     final bool rail = !context.uiRes.isMobile;
+
+    if (sidebar != null) {
+      if (rail) {
+        return Row(
+          children: <Widget>[
+            sidebar!,
+            Expanded(child: body),
+          ],
+        );
+      }
+      return Column(
+        children: <Widget>[
+          Expanded(child: body),
+          if (items.isNotEmpty)
+            Container(
+              decoration: BoxDecoration(
+                color: theme.colors.surface,
+                border: Border(
+                  top: BorderSide(
+                    color: theme.colors.border,
+                    width: theme.borders.hairline,
+                  ),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  children: <Widget>[
+                    for (int i = 0; i < items.length; i++)
+                      Expanded(
+                        child: _UiNavEntry(
+                          item: items[i],
+                          selected: i == selectedIndex,
+                          showLabel: true,
+                          vertical: true,
+                          onTap: () => onChanged?.call(i),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      );
+    }
 
     if (rail) {
       return Row(
@@ -49,7 +96,7 @@ class UiNavShell extends StatelessWidget {
                       item: items[i],
                       selected: i == selectedIndex,
                       showLabel: context.uiRes.isDesktop,
-                      onTap: () => onChanged(i),
+                      onTap: () => onChanged?.call(i),
                     ),
                   const Spacer(),
                   if (floatingAction != null)
@@ -69,7 +116,8 @@ class UiNavShell extends StatelessWidget {
     return Column(
       children: <Widget>[
         Expanded(child: body),
-        Container(
+        if (items.isNotEmpty)
+          Container(
           decoration: BoxDecoration(
             color: theme.colors.surface,
             border: Border(
@@ -90,7 +138,7 @@ class UiNavShell extends StatelessWidget {
                       selected: i == selectedIndex,
                       showLabel: true,
                       vertical: true,
-                      onTap: () => onChanged(i),
+                      onTap: () => onChanged?.call(i),
                     ),
                   ),
               ],

@@ -26,8 +26,9 @@ class UiTextarea extends StatefulWidget {
     this.variant = UiInputVariant.outline,
     this.density = UiDensity.comfortable,
     this.size = UiSize.md,
-    this.rows = 4,
-    this.maxRows = 8,
+    int? maxLines,
+    int rows = 4,
+    int maxRows = 8,
     this.maxLength,
     this.showCounter = true,
     this.autofocus = false,
@@ -36,7 +37,8 @@ class UiTextarea extends StatefulWidget {
     this.required = false,
     this.toolbar,
     this.footer,
-  });
+  })  : rows = maxLines ?? rows,
+        maxRows = maxLines ?? maxRows;
 
   final TextEditingController? controller;
   final String? hintText;
@@ -83,6 +85,14 @@ class _UiTextareaState extends State<UiTextarea> {
     _controller =
         widget.controller ?? TextEditingController(text: widget.value ?? '');
     _controller.addListener(_onText);
+  }
+
+  @override
+  void didUpdateWidget(UiTextarea oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != null && widget.value != _controller.text) {
+      _controller.text = widget.value!;
+    }
   }
 
   void _onText() {

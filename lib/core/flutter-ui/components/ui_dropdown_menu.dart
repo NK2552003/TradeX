@@ -17,9 +17,10 @@ class UiMenuItem {
     this.selected = false,
     VoidCallback? onTap,
     VoidCallback? onSelected,
+    VoidCallback? onPressed,
     this.children = const <UiMenuItem>[],
   }) : intent = intent ?? (destructive ? UiIntent.danger : null),
-       onTap = onTap ?? onSelected,
+       onTap = onPressed ?? onTap ?? onSelected,
        isDivider = false,
        isSection = false;
 
@@ -142,6 +143,13 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
     final double width =
         widget.width ?? (triggerWidth < 150 ? 150 : triggerWidth);
 
+    final Offset triggerPos = box?.localToGlobal(Offset.zero) ?? Offset.zero;
+    final double screenHeight = MediaQuery.sizeOf(context).height;
+    final bool openUpward =
+        (triggerPos.dy + (box?.size.height ?? 0) + widget.maxHeight) >
+            screenHeight &&
+        triggerPos.dy > widget.maxHeight;
+
     _entry = OverlayEntry(
       builder: (BuildContext ctx) => Stack(
         children: <Widget>[
@@ -157,13 +165,24 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
           CompositedTransformFollower(
             link: _link,
             showWhenUnlinked: false,
-            targetAnchor: widget.alignRight
-                ? Alignment.bottomRight
-                : Alignment.bottomLeft,
-            followerAnchor: widget.alignRight
-                ? Alignment.topRight
-                : Alignment.topLeft,
-            offset: Offset(0, context.sz(widget.offset)),
+            targetAnchor: openUpward
+                ? (widget.alignRight ? Alignment.topRight : Alignment.topLeft)
+                : (widget.alignRight
+                    ? Alignment.bottomRight
+                    : Alignment.bottomLeft),
+            followerAnchor: openUpward
+                ? (widget.alignRight
+                    ? Alignment.bottomRight
+                    : Alignment.bottomLeft)
+                : (widget.alignRight
+                    ? Alignment.topRight
+                    : Alignment.topLeft),
+            offset: Offset(
+              0,
+              openUpward
+                  ? -context.sz(widget.offset)
+                  : context.sz(widget.offset),
+            ),
             child: _MenuSurface(
               width: width,
               maxHeight: widget.maxHeight,

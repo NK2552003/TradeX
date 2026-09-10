@@ -120,6 +120,10 @@ class UiColors {
   final Color disabledForeground;
   final List<Color> series;
 
+  Color get success => bullish;
+  Color get danger => destructive;
+  Color get error => destructive;
+
   factory UiColors.light() => const UiColors(
     background: UiPalette.gray50,
     surface: UiPalette.white,

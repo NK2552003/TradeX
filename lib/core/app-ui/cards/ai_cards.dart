@@ -233,7 +233,10 @@ class AppAiAnalysisCard extends StatelessWidget {
                 ],
                 if (insight.sentimentScore != null) ...<Widget>[
                   SizedBox(height: context.sp(theme.spacing.md)),
-                  Row(
+                  Wrap(
+                    spacing: context.sp(theme.spacing.xs),
+                    runSpacing: context.sp(theme.spacing.xs),
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: <Widget>[
                       UiBadge(
                         label: AppTokens.sentimentLabel(
@@ -246,22 +249,14 @@ class AppAiAnalysisCard extends StatelessWidget {
                                   ? UiIntent.bearish
                                   : UiIntent.neutral),
                       ),
-                      if (insight.tickers.isNotEmpty) ...<Widget>[
-                        SizedBox(width: context.sp(theme.spacing.xs)),
-                        for (final String t in insight.tickers)
-                          Padding(
-                            padding: EdgeInsets.only(
-                              right: context.sp(theme.spacing.xs),
-                            ),
-                            child: UiBadge(
-                              label: '\$$t',
-                              intent: UiIntent.primary,
-                              onTap: onTickerTap == null
-                                  ? null
-                                  : () => onTickerTap!(t),
-                            ),
-                          ),
-                      ],
+                      for (final String t in insight.tickers)
+                        UiBadge(
+                          label: '\$$t',
+                          intent: UiIntent.primary,
+                          onTap: onTickerTap == null
+                              ? null
+                              : () => onTickerTap!(t),
+                        ),
                     ],
                   ),
                 ],

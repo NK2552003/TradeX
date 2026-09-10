@@ -10,6 +10,8 @@ class UiDrawer extends StatelessWidget {
     super.key,
     required this.title,
     required this.child,
+    this.isOpen = true,
+    this.onClose,
     this.footer,
     this.scrollable = true,
     this.showHeader = true,
@@ -18,6 +20,8 @@ class UiDrawer extends StatelessWidget {
 
   final String title;
   final Widget child;
+  final bool isOpen;
+  final VoidCallback? onClose;
   final Widget? footer;
   final bool scrollable;
   final bool showHeader;
@@ -98,6 +102,7 @@ class UiDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!isOpen) return const SizedBox.shrink();
     final theme = context.ui;
     return Column(
       children: <Widget>[
@@ -117,7 +122,7 @@ class UiDrawer extends StatelessWidget {
                 UiIconButton(
                   icon: Icons.close,
                   tooltip: 'Close',
-                  onPressed: () => Navigator.of(context).maybePop(),
+                  onPressed: onClose ?? () => Navigator.of(context).maybePop(),
                 ),
               ],
             ),

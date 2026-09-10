@@ -45,7 +45,8 @@ class UiButton extends StatelessWidget {
     this.size = UiSize.md,
     this.intent,
     this.density = UiDensity.comfortable,
-    this.leadingIcon,
+    IconData? icon,
+    IconData? leadingIcon,
     this.trailingIcon,
     this.leading,
     this.trailing,
@@ -66,7 +67,7 @@ class UiButton extends StatelessWidget {
     this.splitAction,
     this.splitIcon = Icons.expand_more,
     this.hideLabelOnMobile = false,
-  });
+  }) : leadingIcon = icon ?? leadingIcon;
 
   /// Icon-only shorthand that keeps an accessible label.
   const UiButton.icon({
@@ -353,9 +354,12 @@ class UiButton extends StatelessWidget {
     final bool on = selected;
     switch (variant) {
       case UiVariant.primary:
+      case UiVariant.solid:
+        final Color fill = intent != null ? intent!.color(context) : c.primary;
+        final Color textCol = intent != null ? intent!.onColor(context) : c.onPrimary;
         return _ButtonStyle(
-          background: hoverMix(c.primary, c.primaryHover),
-          foreground: c.onPrimary,
+          background: hoverMix(fill, fill.withValues(alpha: 0.88)),
+          foreground: textCol,
           elevated: elevate ?? true,
         );
       case UiVariant.secondary:

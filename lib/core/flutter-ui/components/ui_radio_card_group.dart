@@ -93,8 +93,15 @@ class UiRadioCardGroup<T> extends StatelessWidget {
 
     final Widget grid = LayoutBuilder(
       builder: (BuildContext ctx, BoxConstraints constraints) {
-        final double itemWidth =
-            (constraints.maxWidth - gap * (cols - 1)) / cols;
+        final double availableWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 360.0;
+        final int effectiveCols =
+            (availableWidth < 380 && cols > 1) ? 1 : cols;
+        final double itemWidth = effectiveCols <= 1
+            ? availableWidth
+            : ((availableWidth - gap * (effectiveCols - 1)) / effectiveCols)
+                .clamp(40.0, availableWidth);
         return Wrap(
           spacing: gap,
           runSpacing: gap,

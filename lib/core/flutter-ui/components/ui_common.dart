@@ -15,6 +15,8 @@ class UiOption<T> {
     this.trailingLabel,
     this.badge,
     this.group,
+    this.intent,
+    this.tooltip,
     this.enabled = true,
   });
 
@@ -31,6 +33,12 @@ class UiOption<T> {
 
   /// Optional group header this option belongs to.
   final String? group;
+
+  /// Semantic intent color override (e.g. bullish, bearish).
+  final UiIntent? intent;
+
+  /// Tooltip message shown on hover or long press.
+  final String? tooltip;
   final bool enabled;
 
   UiOption<T> copyWith({
@@ -41,6 +49,8 @@ class UiOption<T> {
     String? trailingLabel,
     String? badge,
     String? group,
+    UiIntent? intent,
+    String? tooltip,
     bool? enabled,
   }) => UiOption<T>(
     value: value ?? this.value,
@@ -50,6 +60,8 @@ class UiOption<T> {
     trailingLabel: trailingLabel ?? this.trailingLabel,
     badge: badge ?? this.badge,
     group: group ?? this.group,
+    intent: intent ?? this.intent,
+    tooltip: tooltip ?? this.tooltip,
     enabled: enabled ?? this.enabled,
   );
 }
@@ -61,6 +73,9 @@ enum UiSize { xs, sm, md, lg, xl }
 /// Visual treatments available to actionable / container components.
 enum UiVariant {
   primary,
+
+  /// Solid filled background matching intent color (alias for primary solid treatment).
+  solid,
   secondary,
   ghost,
   outline,

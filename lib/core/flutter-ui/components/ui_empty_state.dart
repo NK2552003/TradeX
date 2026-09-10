@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
+import 'ui_button.dart';
+import 'ui_common.dart';
 
 /// Empty state block used by feeds, watchlists and search results.
 class UiEmptyState extends StatelessWidget {
@@ -10,12 +12,16 @@ class UiEmptyState extends StatelessWidget {
     this.message,
     this.icon = Icons.inbox_outlined,
     this.action,
+    this.actionLabel,
+    this.onActionPressed,
   });
 
   final String title;
   final String? message;
   final IconData icon;
   final Widget? action;
+  final String? actionLabel;
+  final VoidCallback? onActionPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -56,9 +62,15 @@ class UiEmptyState extends StatelessWidget {
                 ),
               ),
             ],
-            if (action != null) ...<Widget>[
+            if (action != null || actionLabel != null) ...<Widget>[
               SizedBox(height: context.sp(theme.spacing.lg)),
-              action!,
+              action ??
+                  UiButton(
+                    label: actionLabel!,
+                    onPressed: onActionPressed ?? () {},
+                    variant: UiVariant.solid,
+                    intent: UiIntent.primary,
+                  ),
             ],
           ],
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
+import 'ui_button.dart';
 import 'ui_dialog.dart';
 import 'ui_common.dart';
 import 'ui_input.dart';
@@ -71,7 +72,69 @@ class UiSelect<T> extends StatelessWidget {
     return null;
   }
 
+  Future<void> _openMulti(BuildContext context) async {
+    final List<T> current = List<T>.from(values ?? <T>[]);
+    final List<T>? picked = await UiDialog.show<List<T>>(
+      context,
+      child: StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setStateDialog) {
+          return UiDialog(
+            title: label ?? hintText,
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(ctx).height * .55,
+              ),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (BuildContext c2, int i) {
+                  final UiOption<T> opt = options[i];
+                  final bool isSelected = current.contains(opt.value);
+                  return CheckboxListTile(
+                    title: Text(opt.label),
+                    value: isSelected,
+                    onChanged: opt.enabled
+                        ? (bool? v) {
+                            setStateDialog(() {
+                              if (v == true) {
+                                current.add(opt.value);
+                              } else {
+                                current.remove(opt.value);
+                              }
+                            });
+                          }
+                        : null,
+                  );
+                },
+              ),
+            ),
+            actions: <Widget>[
+              UiButton(
+                label: 'Cancel',
+                variant: UiVariant.ghost,
+                onPressed: () => Navigator.of(ctx).pop(null),
+              ),
+              UiButton(
+                label: 'Done',
+                variant: UiVariant.solid,
+                intent: UiIntent.primary,
+                onPressed: () => Navigator.of(ctx).pop(current),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (picked != null) {
+      onValuesChanged?.call(picked);
+    }
+  }
+
   Future<void> _open(BuildContext context) async {
+    if (multiple) {
+      await _openMulti(context);
+      return;
+    }
     final T? picked = context.uiRes.isMobile
         ? await _showSheet(context)
         : await _showMenu(context);
@@ -144,24 +207,43 @@ class UiSelect<T> extends StatelessWidget {
     final UiOption<T>? sel = _selected;
     final bool explicitlySized = expand || width != null || maxWidth != null;
 
-    final Widget selectedLabel = Text(
-      sel?.label ?? hintText,
-      overflow: TextOverflow.ellipsis,
-      style: context.uiText.body.copyWith(
-        color: sel == null
-            ? c.foregroundSubtle
-            : enabled
-            ? c.foreground
-            : c.disabledForeground,
-      ),
-    );
+    final Widget selectedLabel;
+    if (multiple && values != null && values!.isNotEmpty) {
+      final List<String> selectedLabels = options
+          .where((UiOption<T> o) => values!.contains(o.value))
+          .map((UiOption<T> o) => o.label)
+          .toList();
+      selectedLabel = Text(
+        selectedLabels.isEmpty ? hintText : selectedLabels.join(', '),
+        overflow: TextOverflow.ellipsis,
+        style: context.uiText.body.copyWith(
+          color: selectedLabels.isEmpty
+              ? c.foregroundSubtle
+              : enabled
+              ? c.foreground
+              : c.disabledForeground,
+        ),
+      );
+    } else {
+      selectedLabel = Text(
+        sel?.label ?? hintText,
+        overflow: TextOverflow.ellipsis,
+        style: context.uiText.body.copyWith(
+          color: sel == null
+              ? c.foregroundSubtle
+              : enabled
+              ? c.foreground
+              : c.disabledForeground,
+        ),
+      );
+    }
 
-    return LayoutBuilder(
+    final Widget selectBox = LayoutBuilder(
       builder: (BuildContext layoutContext, BoxConstraints available) {
         final bool fillsAvailableWidth =
             explicitlySized || available.hasBoundedWidth;
         return UiInteractive(
-          enabled: enabled && onChanged != null,
+          enabled: enabled && (onChanged != null || onValuesChanged != null),
           onTap: () => _open(layoutContext),
           semanticLabel: label ?? hintText,
           builder: (BuildContext ctx, UiInteractiveState s) =>
@@ -186,7 +268,7 @@ class UiSelect<T> extends StatelessWidget {
                   color: enabled ? c.surface : c.disabledBackground,
                   borderRadius: ctx.radius(theme.radii.lg),
                   border: Border.all(
-                    color: error
+                    color: (error || errorText != null)
                         ? c.destructive
                         : s.hovered
                         ? c.borderStrong
@@ -222,6 +304,37 @@ class UiSelect<T> extends StatelessWidget {
               ),
         );
       },
+    );
+
+    if (label == null && helperText == null && errorText == null) {
+      return selectBox;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        if (label != null) ...<Widget>[
+          Text(
+            label!,
+            style: context.uiText.label.copyWith(
+              color: c.foregroundMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: context.sp(theme.spacing.xxs)),
+        ],
+        selectBox,
+        if (errorText != null || helperText != null) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.xxs)),
+          Text(
+            errorText ?? helperText!,
+            style: context.uiText.caption.copyWith(
+              color: errorText != null ? c.destructive : c.foregroundSubtle,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

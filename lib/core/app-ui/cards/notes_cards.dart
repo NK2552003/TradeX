@@ -370,11 +370,13 @@ class _Footer extends StatelessWidget {
       ],
     );
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: context.sp(theme.spacing.sm),
+      runSpacing: context.sp(theme.spacing.xxs),
       children: <Widget>[
-        Expanded(child: metadata),
-        SizedBox(width: context.sp(theme.spacing.sm)),
+        metadata,
         engagement,
       ],
     );
@@ -472,6 +474,107 @@ class AppNoteStatRow extends StatelessWidget {
         hint: notes.isEmpty
             ? '0 avg / note'
             : '${(words / notes.length).round()} avg / note',
+        intent: UiIntent.neutral,
+      ),
+    ];
+
+    return UiDataPanel(
+      padding: EdgeInsets.zero,
+      child: UiStatStrip(
+        stats: stats,
+        columns: context.uiRes.isMobile ? 2 : 4,
+        minCellWidth: context.uiRes.isMobile ? 108 : 132,
+        density: UiDensity.compact,
+      ),
+    );
+  }
+}
+
+/// Engagement analytics for a set of *public* notes — reach and interaction
+/// totals rather than authoring counts. Meant to sit above a public-only note
+/// list, where views/likes/comments are the figures that matter.
+class AppNoteEngagementRow extends StatelessWidget {
+  const AppNoteEngagementRow({
+    super.key,
+    required this.notes,
+    this.loading = false,
+  });
+
+  /// The notes to summarise. Non-public notes are ignored, so callers can pass
+  /// an unfiltered list and still get public-only engagement.
+  final List<AppNote> notes;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    if (loading) {
+      return UiDataPanel(
+        padding: EdgeInsets.zero,
+        child: Padding(
+          padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+          child: Row(
+            children: List<Widget>.generate(
+              4,
+              (int index) => Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(theme.spacing.xs),
+                  ),
+                  child: UiSkeleton(
+                    key: ValueKey<String>('note_engagement_skeleton_$index'),
+                    height: context.sz(54),
+                    borderRadius: context.radius(theme.radii.md),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final List<AppNote> public = notes
+        .where((AppNote n) => n.isPublic)
+        .toList(growable: false);
+    final int views = public.fold<int>(
+      0,
+      (int sum, AppNote n) => sum + n.viewCount,
+    );
+    final int likes = public.fold<int>(
+      0,
+      (int sum, AppNote n) => sum + n.likeCount,
+    );
+    final int comments = public.fold<int>(
+      0,
+      (int sum, AppNote n) => sum + n.comments.length,
+    );
+
+    final List<UiStat> stats = <UiStat>[
+      UiStat(
+        icon: Icons.public_rounded,
+        label: 'Published',
+        value: '${public.length}',
+        hint: public.length == 1 ? 'note' : 'notes',
+        intent: UiIntent.primary,
+      ),
+      UiStat(
+        icon: Icons.visibility_outlined,
+        label: 'Views',
+        value: AppTokens.count(views),
+        hint: public.isEmpty ? '0 avg' : '${(views / public.length).round()} avg',
+        intent: views > 0 ? UiIntent.bullish : UiIntent.neutral,
+      ),
+      UiStat(
+        icon: Icons.favorite_border_rounded,
+        label: 'Likes',
+        value: AppTokens.count(likes),
+        intent: UiIntent.neutral,
+      ),
+      UiStat(
+        icon: Icons.chat_bubble_outline_rounded,
+        label: 'Comments',
+        value: AppTokens.count(comments),
         intent: UiIntent.neutral,
       ),
     ];

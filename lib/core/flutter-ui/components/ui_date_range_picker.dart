@@ -51,18 +51,25 @@ class UiDateRangePreset {
 
 /// Date range picker: a field that opens presets plus a range calendar.
 class UiDateRangePicker extends StatelessWidget {
-  const UiDateRangePicker({
+  UiDateRangePicker({
     super.key,
-    this.value,
-    this.onChanged,
+    DateTimeRange? value,
+    DateTime? startDate,
+    DateTime? endDate,
+    ValueChanged<DateTimeRange>? onChanged,
+    ValueChanged<DateTimeRange>? onRangeSelected,
     this.hintText = 'Pick a range',
     this.size = UiSize.md,
     this.enabled = true,
+    this.presets,
     this.firstDate,
     this.lastDate,
-    this.presets,
     this.showPresets = true,
-  });
+  })  : value = value ??
+            (startDate != null && endDate != null
+                ? DateTimeRange(start: startDate, end: endDate)
+                : null),
+        onChanged = onRangeSelected ?? onChanged;
 
   final DateTimeRange? value;
   final ValueChanged<DateTimeRange>? onChanged;

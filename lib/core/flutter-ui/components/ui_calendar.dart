@@ -8,7 +8,7 @@ import 'ui_icon_button.dart';
 /// Month calendar grid. Single date or range selection, fully themed.
 /// Supports Apple Crown-style wheel picker for instant year and month navigation.
 class UiCalendar extends StatefulWidget {
-  const UiCalendar({
+  UiCalendar({
     super.key,
     this.selected,
     this.range,
@@ -17,9 +17,10 @@ class UiCalendar extends StatefulWidget {
     this.firstDate,
     this.lastDate,
     this.rangeMode = false,
-    this.markedDates = const <DateTime>{},
+    Set<DateTime> markedDates = const <DateTime>{},
+    Iterable<DateTime>? events,
     this.monthCount = 1,
-  });
+  }) : markedDates = events != null ? events.toSet() : markedDates;
 
   final DateTime? selected;
   final DateTimeRange? range;

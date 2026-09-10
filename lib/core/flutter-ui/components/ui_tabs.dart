@@ -32,9 +32,10 @@ class UiTabItem {
 /// Tab bar (+ optional panel) with four variants, sizes, densities,
 /// scrollable/stretch layouts, badges, counts and disabled tabs.
 class UiTabs extends StatefulWidget {
-  const UiTabs({
+  UiTabs({
     super.key,
-    required this.items,
+    List<UiTabItem>? items,
+    List<dynamic>? tabs,
     int? index,
     int? selectedIndex,
     this.initialIndex = 0,
@@ -48,7 +49,11 @@ class UiTabs extends StatefulWidget {
     this.trailing,
     this.showPanel = true,
     this.enabled = true,
-  }) : index = index ?? selectedIndex;
+  }) : index = index ?? selectedIndex,
+       items = items ?? (tabs?.map((t) {
+         if (t is UiTabItem) return t;
+         return UiTabItem(label: t.toString());
+       }).toList() ?? const <UiTabItem>[]);
 
   final List<UiTabItem> items;
 

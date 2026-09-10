@@ -25,12 +25,14 @@ export 'cards/account_cards.dart';
 export 'cards/ai_cards.dart';
 export 'cards/notes_cards.dart';
 export 'cards/calculator_cards.dart';
+export 'cards/domain_cards.dart';
 
 // Guides
 export 'guides/feature_guide.dart';
 export 'guides/guide_steps.dart';
 
 // Blocks
+export 'blocks/canonical_blocks.dart';
 export 'blocks/dashboard_blocks.dart';
 export 'blocks/journal_blocks.dart';
 export 'blocks/community_blocks.dart';
@@ -43,6 +45,7 @@ export 'blocks/notes_blocks.dart';
 export 'blocks/calculator_blocks.dart';
 export 'blocks/workbench_blocks.dart';
 export 'blocks/research_blocks.dart';
+export 'blocks/desk_blocks.dart';
 export 'blocks/linking_blocks.dart';
 export 'blocks/journal_note_blocks.dart';
 export 'blocks/strategy_note_blocks.dart';

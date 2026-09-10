@@ -85,7 +85,6 @@ class _AppScaffoldState extends State<AppScaffold> {
   final GlobalKey _workspaceSearchKey = GlobalKey();
   final GlobalKey _workspaceFilterKey = GlobalKey();
   final GlobalKey _workspaceAddKey = GlobalKey();
-  final GlobalKey _workspaceGuideKey = GlobalKey();
 
   String _selectedId = 'overview';
   String _workspaceQuery = '';
@@ -215,10 +214,10 @@ class _AppScaffoldState extends State<AppScaffold> {
       const <String>{'journal', 'strategies', 'notes'}.contains(_selectedId);
 
   String get _writingSearchHint => switch (_selectedId) {
-    'journal' => 'Search entries, tickers, tags or notes',
-    'strategies' => 'Search playbooks, rules or instruments',
-    'notes' => 'Search notes, tags or linked records',
-    _ => 'Search Writing Desk',
+    'journal' => 'Search entries, tickers, playbooks, tags...',
+    'strategies' => 'Search playbooks, rules or instruments...',
+    'notes' => 'Search notes, tags or linked records...',
+    _ => 'Search entries, tickers, playbooks, tags...',
   };
 
   void _updateWorkspaceQuery(String value) {
@@ -258,26 +257,6 @@ class _AppScaffoldState extends State<AppScaffold> {
       size: UiSize.sm,
       onPressed: _showActiveWritingFilters,
     ),
-    UiIconButton(
-      key: _workspaceAddKey,
-      icon: Icons.add_rounded,
-      tooltip: switch (_selectedId) {
-        'journal' => 'New entry',
-        'strategies' => 'New playbook',
-        'notes' => 'New note',
-        _ => 'Create',
-      },
-      size: UiSize.sm,
-      variant: UiVariant.primary,
-      onPressed: _addActiveWriting,
-    ),
-    UiIconButton(
-      key: _workspaceGuideKey,
-      icon: Icons.help_outline_rounded,
-      tooltip: '${_navigation.labelFor(_selectedId) ?? 'Feature'} guide',
-      size: UiSize.sm,
-      onPressed: _showActiveWritingGuide,
-    ),
   ];
 
   void _showActiveWritingFilters() {
@@ -315,6 +294,14 @@ class _AppScaffoldState extends State<AppScaffold> {
         _strategiesKey.currentState?.showGuideWithTargets(targets);
       case 'notes':
         _notesKey.currentState?.showGuideWithTargets(targets);
+      default:
+        UiToast.show(
+          context,
+          title: 'TradeX Guide',
+          message:
+              'Welcome to ${AppConstants.appName}. Use ⌘K to quickly search and jump across tools.',
+          intent: UiIntent.info,
+        );
     }
   }
 
@@ -930,7 +917,24 @@ class _AppScaffoldState extends State<AppScaffold> {
             onBack: _pageBackOverride,
             pagePlaceholderBuilder: (BuildContext context, AppNavItem item) =>
                 _destinationSkeleton(item.id),
-            primaryAction: _buildDesktopPreviewControls(),
+            primaryActionLabel: switch (_selectedId) {
+              'journal' => 'Log Trade',
+              'strategies' => 'New Playbook',
+              'notes' => 'New Note',
+              _ => 'Log Trade',
+            },
+            onPrimaryAction: switch (_selectedId) {
+              'journal' => _addActiveWriting,
+              'strategies' => _addActiveWriting,
+              'notes' => _addActiveWriting,
+              _ => () => _go('journal'),
+            },
+            onHelp: _showActiveWritingGuide,
+            statusBadgeText: 'Live',
+            showStatusBadge: true,
+            sidebarFooter: widget.showDevelopmentRoleSwitcher
+                ? _buildDesktopPreviewControls()
+                : null,
             researchPanelBuilder: null,
             child: _buildActivePage(),
           ),

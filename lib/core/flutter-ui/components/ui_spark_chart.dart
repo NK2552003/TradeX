@@ -8,14 +8,15 @@ import 'ui_common.dart';
 class UiSparkChart extends StatelessWidget {
   const UiSparkChart({
     super.key,
-    required this.values,
+    List<double>? values,
+    List<double>? data,
     this.color,
     this.height,
     this.curved = true,
     this.filled = false,
     this.labels,
     this.valueFormatter,
-  });
+  }) : values = values ?? data ?? const <double>[];
 
   /// Raw series values; labels are optional because a spark has no axis.
   final List<double> values;

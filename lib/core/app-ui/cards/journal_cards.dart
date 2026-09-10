@@ -426,13 +426,10 @@ class AppScreenshotImportCard extends StatelessWidget {
           if (parsing)
             Row(
               children: <Widget>[
-                SizedBox(
-                  width: context.sz(theme.sizes.iconSm),
-                  height: context.sz(theme.sizes.iconSm),
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: theme.colors.primary,
-                  ),
+                UiProgressCircle(
+                  size: theme.sizes.iconSm,
+                  thickness: 2,
+                  intent: UiIntent.primary,
                 ),
                 SizedBox(width: context.sp(theme.spacing.sm)),
                 Expanded(

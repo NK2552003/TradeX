@@ -11,7 +11,9 @@ class UiCardGrid extends StatelessWidget {
     this.tabletColumns = 2,
     this.desktopColumns = 3,
     this.largeColumns = 4,
-    this.childAspectRatio = 1.95,
+    this.childAspectRatio,
+    this.mainAxisExtent,
+    this.adaptiveSingleColumn = true,
   });
 
   final List<Widget> children;
@@ -19,7 +21,9 @@ class UiCardGrid extends StatelessWidget {
   final int tabletColumns;
   final int desktopColumns;
   final int largeColumns;
-  final double childAspectRatio;
+  final double? childAspectRatio;
+  final double? mainAxisExtent;
+  final bool adaptiveSingleColumn;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +43,23 @@ class UiCardGrid extends StatelessWidget {
           cols = largeColumns;
         }
         final double gap = context.sp(theme.spacing.md);
+
+        if (cols == 1 && adaptiveSingleColumn) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (int i = 0; i < children.length; i++) ...<Widget>[
+                if (i > 0) SizedBox(height: gap),
+                children[i],
+              ],
+            ],
+          );
+        }
+
+        final double ratio = childAspectRatio ??
+            (cols == 2 ? 1.45 : (cols == 3 ? 1.65 : 1.95));
+
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -48,7 +69,8 @@ class UiCardGrid extends StatelessWidget {
             crossAxisCount: cols,
             mainAxisSpacing: gap,
             crossAxisSpacing: gap,
-            childAspectRatio: childAspectRatio,
+            childAspectRatio: mainAxisExtent == null ? ratio : 1.0,
+            mainAxisExtent: mainAxisExtent,
           ),
           itemBuilder: (BuildContext _, int i) => children[i],
         );

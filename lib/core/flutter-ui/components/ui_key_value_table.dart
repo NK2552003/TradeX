@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
@@ -72,6 +74,14 @@ class UiKeyValueTable extends StatelessWidget {
       trailingHeader != null ||
       rows.any((UiKeyValueRow r) => r.trailing != null);
 
+  double _valW(BuildContext context) => context.uiRes.isMobile
+      ? math.min(context.sz(valueWidth), 84.0)
+      : context.sz(valueWidth);
+
+  double _trailW(BuildContext context) => context.uiRes.isMobile
+      ? math.min(context.sz(trailingWidth), 56.0)
+      : context.sz(trailingWidth);
+
   @override
   Widget build(BuildContext context) {
     if (rows.isEmpty) return const SizedBox.shrink();
@@ -116,7 +126,7 @@ class UiKeyValueTable extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: context.sz(valueWidth),
+            width: _valW(context),
             child: Text(
               (valueHeader ?? '').toUpperCase(),
               style: uiOverline(context),
@@ -125,7 +135,7 @@ class UiKeyValueTable extends StatelessWidget {
           ),
           if (_hasTrailing)
             SizedBox(
-              width: context.sz(trailingWidth),
+              width: _trailW(context),
               child: Text(
                 (trailingHeader ?? '').toUpperCase(),
                 style: uiOverline(context),
@@ -188,7 +198,7 @@ class UiKeyValueTable extends StatelessWidget {
           ),
           SizedBox(width: context.sp(theme.spacing.xs)),
           SizedBox(
-            width: context.sz(valueWidth),
+            width: _valW(context),
             child: Text(
               row.value,
               textAlign: TextAlign.end,
@@ -203,7 +213,7 @@ class UiKeyValueTable extends StatelessWidget {
           ),
           if (_hasTrailing)
             SizedBox(
-              width: context.sz(trailingWidth),
+              width: _trailW(context),
               child: Text(
                 row.trailing ?? '',
                 textAlign: TextAlign.end,

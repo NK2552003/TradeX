@@ -13,6 +13,8 @@ class UiDonutSlice {
   final Color? color;
 }
 
+typedef DonutSlice = UiDonutSlice;
+
 /// Donut / pie chart with optional center content and responsive legend
 /// placement (below on phones, beside on wide screens).
 class UiDonutChart extends StatelessWidget {
@@ -22,6 +24,7 @@ class UiDonutChart extends StatelessWidget {
     this.size,
     this.thickness,
     this.center,
+    this.centerLabel,
     this.showLegend = true,
     this.valueFormatter,
   });
@@ -30,13 +33,14 @@ class UiDonutChart extends StatelessWidget {
   final double? size;
   final double? thickness;
   final Widget? center;
+  final String? centerLabel;
   final bool showLegend;
   final UiValueFormatter? valueFormatter;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    final double dim = context.sz(size ?? 180);
+    final double defaultDim = context.sz(size ?? 180);
     final double total = slices.fold<double>(
       0,
       (double a, UiDonutSlice s) => a + s.value,
@@ -46,7 +50,24 @@ class UiDonutChart extends StatelessWidget {
         slices[i].color ?? theme.colors.series[i % theme.colors.series.length],
     ];
 
-    final Widget donut = SizedBox(
+    Widget? centerWidget = center;
+    if (centerWidget == null && centerLabel != null) {
+      centerWidget = Padding(
+        padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+        child: Text(
+          centerLabel!,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: context.uiText.subheading.copyWith(
+            fontWeight: FontWeight.w700,
+            color: theme.colors.foreground,
+          ),
+        ),
+      );
+    }
+
+    Widget buildDonut(double dim) => SizedBox(
       width: dim,
       height: dim,
       child: Stack(
@@ -62,12 +83,10 @@ class UiDonutChart extends StatelessWidget {
               gap: 0.02,
             ),
           ),
-          ?center,
+          ?centerWidget,
         ],
       ),
     );
-
-    if (!showLegend) return donut;
 
     final Widget legend = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,6 +139,17 @@ class UiDonutChart extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final double maxAvailable = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : double.infinity;
+        final double dim = math.min(
+          defaultDim,
+          maxAvailable > 40 ? maxAvailable - 16 : defaultDim,
+        );
+        final Widget donut = buildDonut(dim);
+
+        if (!showLegend) return Center(child: donut);
+
         final bool isCompact =
             constraints.maxWidth < 360 || context.uiRes.isMobile;
         if (isCompact) {

@@ -34,6 +34,12 @@ class AppShell extends StatefulWidget {
     this.onAi,
     this.unreadNotifications = 0,
     this.primaryAction,
+    this.primaryActionLabel,
+    this.onPrimaryAction,
+    this.onHelp,
+    this.statusBadgeText = 'Live',
+    this.showStatusBadge = true,
+    this.sidebarFooter,
     this.mobilePrimaryItems,
     this.mobileMoreItems = const <AppNavItem>[],
     this.userMenuItems = const <AppNavItem>[],
@@ -69,8 +75,14 @@ class AppShell extends StatefulWidget {
   final VoidCallback? onNotifications;
   final VoidCallback? onSettings;
   final VoidCallback? onAi;
+  final VoidCallback? onHelp;
   final int unreadNotifications;
   final Widget? primaryAction;
+  final String? primaryActionLabel;
+  final VoidCallback? onPrimaryAction;
+  final String statusBadgeText;
+  final bool showStatusBadge;
+  final Widget? sidebarFooter;
   final List<AppNavItem>? mobilePrimaryItems;
   final List<AppNavItem> mobileMoreItems;
   final List<AppNavItem> userMenuItems;
@@ -267,11 +279,18 @@ class _AppShellState extends State<AppShell> {
           onSearchChanged: widget.onSearchChanged,
           searchTargetKey: widget.searchTargetKey,
           headerActions: widget.headerActions,
+          primaryAction: widget.primaryAction,
+          primaryActionLabel: widget.primaryActionLabel,
+          onPrimaryAction: widget.onPrimaryAction,
+          onHelp: widget.onHelp,
+          onLogout: widget.onLogout,
+          statusBadgeText: widget.statusBadgeText,
+          showStatusBadge: widget.showStatusBadge,
           onNotifications: widget.onNotifications,
           onSettings: widget.onSettings,
           onAi: widget.onAi,
           unread: widget.unreadNotifications,
-          showLogo: r.isMobile,
+          showLogo: false,
           title: widget.pageTitle,
           sectionTitle: widget.pageSectionTitle,
           selectedId: widget.selectedId,
@@ -285,7 +304,7 @@ class _AppShellState extends State<AppShell> {
               : UiIconButton(
                   icon: _collapsed
                       ? Icons.menu_open_rounded
-                      : Icons.menu_rounded,
+                      : Icons.notes_rounded,
                   size: UiSize.sm,
                   tooltip: 'Toggle sidebar',
                   onPressed: _toggleDesktopSidebar,
@@ -366,7 +385,7 @@ class _AppShellState extends State<AppShell> {
               .toList(),
         ),
         centerActionActive: moreRouteSelected,
-        swipeEnabled: true,
+        swipeEnabled: false,
         lazy: true,
         keepAlive: false,
         useRail: false,
@@ -410,7 +429,7 @@ class _AppShellState extends State<AppShell> {
           iconSize: keyboardVisible ? 0 : 22,
           frosted: !keyboardVisible,
           showLabels: false,
-          pageDuration: const Duration(milliseconds: 200),
+          pageDuration: Duration.zero,
         ),
       );
       Widget dockLayer = dockScaffold;
@@ -466,6 +485,9 @@ class _AppShellState extends State<AppShell> {
         color: theme.colors.background,
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
+            if (constraints.maxHeight < 80.0) {
+              return const SizedBox.shrink();
+            }
             final double keyboardTop =
                 mediaQuery.size.height - mediaQuery.viewInsets.bottom;
             final double visibleHeight = keyboardVisible
@@ -493,7 +515,7 @@ class _AppShellState extends State<AppShell> {
       trader: widget.trader,
       workspaceName: widget.workspaceName,
       tierLabel: widget.tierLabel,
-      footer: widget.primaryAction,
+      footer: widget.sidebarFooter,
       onNavigate: widget.onSelect,
       onUserLogout: widget.onLogout,
       userMenuItems: widget.userMenuItems,
@@ -508,6 +530,7 @@ class _AppShellState extends State<AppShell> {
             trader: widget.trader,
             workspaceName: widget.workspaceName,
             tierLabel: widget.tierLabel,
+            footer: widget.sidebarFooter,
             onNavigate: widget.onSelect,
             onUserLogout: widget.onLogout,
             userMenuItems: widget.userMenuItems,
@@ -1236,7 +1259,7 @@ class _AppNavTileState extends State<AppNavTile> {
   }
 }
 
-/// Top app bar: search, notifications, avatar and tier chip.
+/// Top app bar: breadcrumb with Live badge, centered wide search, primary action, notifications, help and user avatar.
 class AppTopBar extends StatelessWidget {
   const AppTopBar({
     super.key,
@@ -1248,9 +1271,14 @@ class AppTopBar extends StatelessWidget {
     this.onSearchChanged,
     this.searchTargetKey,
     this.headerActions = const <Widget>[],
+    this.primaryAction,
+    this.primaryActionLabel,
+    this.onPrimaryAction,
     this.onNotifications,
     this.onSettings,
     this.onAi,
+    this.onHelp,
+    this.onLogout,
     this.unread = 0,
     this.leading,
     this.showLogo = false,
@@ -1264,6 +1292,8 @@ class AppTopBar extends StatelessWidget {
     this.onBack,
     this.onResearch,
     this.researchVisible = false,
+    this.statusBadgeText = 'Live',
+    this.showStatusBadge = true,
   });
 
   final AppTrader? trader;
@@ -1274,9 +1304,14 @@ class AppTopBar extends StatelessWidget {
   final ValueChanged<String>? onSearchChanged;
   final GlobalKey? searchTargetKey;
   final List<Widget> headerActions;
+  final Widget? primaryAction;
+  final String? primaryActionLabel;
+  final VoidCallback? onPrimaryAction;
   final VoidCallback? onNotifications;
   final VoidCallback? onSettings;
   final VoidCallback? onAi;
+  final VoidCallback? onHelp;
+  final VoidCallback? onLogout;
   final int unread;
   final Widget? leading;
   final bool showLogo;
@@ -1290,6 +1325,8 @@ class AppTopBar extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback? onResearch;
   final bool researchVisible;
+  final String statusBadgeText;
+  final bool showStatusBadge;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -1303,12 +1340,7 @@ class AppTopBar extends StatelessWidget {
     final bool isCompactHeader =
         isMobile ||
         context.uiRes.isTablet ||
-        availableWidth <
-            context.sz(
-              onSearchChanged != null
-                  ? 760
-                  : (onResearch == null ? 1000 : 1200),
-            );
+        availableWidth < context.sz(860);
     final researchLabelVisible = availableWidth >= context.sz(600);
 
     String sectionTitle = this.sectionTitle ?? 'Terminal';
@@ -1375,15 +1407,22 @@ class AppTopBar extends StatelessWidget {
       };
     }
 
-    final Widget breadcrumbWidget =
-        (sections != null && selectedId != null && !isMobile)
-        ? UiBreadcrumbs(
-            crumbs: <UiCrumb>[
-              UiCrumb(label: sectionTitle),
-              UiCrumb(label: pageTitle),
-            ],
-          )
-        : Text(
+    final Widget breadcrumbWidget = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        if (!isMobile && sectionTitle.isNotEmpty) ...<Widget>[
+          Text(
+            '$sectionTitle / ',
+            style: context.uiText.body.copyWith(
+              color: theme.colors.foregroundSubtle,
+              fontSize: context.fs(13.0),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+        Flexible(
+          child: Text(
             pageTitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -1394,8 +1433,41 @@ class AppTopBar extends StatelessWidget {
                     decoration: TextDecoration.none,
                     decorationColor: Colors.transparent,
                   )
-                : context.uiText.subheading,
-          );
+                : context.uiText.bodyStrong.copyWith(
+                    color: theme.colors.foreground,
+                    fontSize: context.fs(13.0),
+                    fontWeight: FontWeight.w700,
+                  ),
+          ),
+        ),
+        if (showStatusBadge && statusBadgeText.isNotEmpty) ...<Widget>[
+          SizedBox(width: context.sp(theme.spacing.xs)),
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.xs),
+              vertical: context.sp(theme.spacing.xxs * 0.75),
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: context.radius(theme.radii.pill),
+              border: Border.all(
+                color: const Color(0xFF334155),
+                width: theme.borders.hairline,
+              ),
+            ),
+            child: Text(
+              statusBadgeText,
+              style: context.uiText.caption.copyWith(
+                color: const Color(0xFF94A3B8),
+                fontSize: context.fs(11.0),
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
 
     return SafeArea(
       bottom: false,
@@ -1410,7 +1482,7 @@ class AppTopBar extends StatelessWidget {
               ),
         child: Container(
           key: const ValueKey<String>('app-header-surface'),
-          height: context.sz(isMobile ? 56 : 50),
+          height: context.sz(isMobile ? 54 : 50),
           padding: isMobile
               ? EdgeInsets.symmetric(
                   horizontal: context.sp(theme.spacing.xs + 2),
@@ -1440,13 +1512,12 @@ class AppTopBar extends StatelessWidget {
                 ),
                 SizedBox(width: context.sp(theme.spacing.sm)),
               ],
-              Expanded(
+              Flexible(
                 child: ClipRect(
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: PageTransitionSwitcher(
-                      duration: const Duration(milliseconds: 220),
-                      reverse: onBack == null,
+                      duration: const Duration(milliseconds: 150),
                       layoutBuilder: (List<Widget> entries) => Stack(
                         alignment: Alignment.centerLeft,
                         children: entries,
@@ -1457,12 +1528,8 @@ class AppTopBar extends StatelessWidget {
                             Animation<double> primaryAnimation,
                             Animation<double> secondaryAnimation,
                           ) {
-                            return SharedAxisTransition(
-                              animation: primaryAnimation,
-                              secondaryAnimation: secondaryAnimation,
-                              transitionType:
-                                  SharedAxisTransitionType.horizontal,
-                              fillColor: Colors.transparent,
+                            return FadeTransition(
+                              opacity: primaryAnimation,
                               child: child,
                             );
                           },
@@ -1503,13 +1570,192 @@ class AppTopBar extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(width: context.sp(theme.spacing.md)),
+              // Center: Search Command Pill (Desktop)
+              if (!isCompactHeader)
+                Expanded(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: context.sz(460)),
+                      child: (onSearchChanged != null)
+                          ? Container(
+                              key: searchTargetKey,
+                              height: context.sz(34),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: context.sp(theme.spacing.sm),
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colors.background.withValues(
+                                  alpha: 0.75,
+                                ),
+                                borderRadius: context.radius(theme.radii.md),
+                                border: Border.all(
+                                  color: theme.colors.border,
+                                  width: theme.borders.hairline,
+                                ),
+                              ),
+                              child: Row(
+                                children: <Widget>[
+                                  Icon(
+                                    Icons.search_rounded,
+                                    size: context.sz(15),
+                                    color: theme.colors.foregroundSubtle,
+                                  ),
+                                  SizedBox(width: context.sp(theme.spacing.xs)),
+                                  Expanded(
+                                    child: UiInput(
+                                      value: searchQuery ?? '',
+                                      hintText: searchHint ??
+                                          'Search entries, tickers, playbooks, tags...',
+                                      onChanged: onSearchChanged,
+                                      variant: UiInputVariant.ghost,
+                                      size: UiSize.sm,
+                                      density: UiDensity.compact,
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: context.sp(theme.spacing.xs),
+                                      vertical: context.sp(
+                                        theme.spacing.xxs * 0.5,
+                                      ),
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: theme.colors.surface.withValues(
+                                        alpha: 0.6,
+                                      ),
+                                      borderRadius: context.radius(
+                                        theme.radii.sm,
+                                      ),
+                                      border: Border.all(
+                                        color: theme.colors.border,
+                                        width: theme.borders.hairline,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '⌘K',
+                                      style: context.uiText.caption.copyWith(
+                                        fontSize: context.fs(10),
+                                        fontWeight: FontWeight.w600,
+                                        color: theme.colors.foregroundMuted,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : UiInteractive(
+                              key: searchTargetKey,
+                              onTap: onSearch,
+                              builder:
+                                  (
+                                    BuildContext ctx,
+                                    UiInteractiveState s,
+                                  ) => AnimatedContainer(
+                                    duration: theme.motion.fast,
+                                    height: ctx.sz(34),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: ctx.sp(theme.spacing.sm),
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: s.hovered
+                                          ? theme.colors.surfaceHover
+                                          : theme.colors.background
+                                              .withValues(alpha: 0.75),
+                                      borderRadius: ctx.radius(theme.radii.md),
+                                      border: Border.all(
+                                        color: s.hovered
+                                            ? theme.colors.borderStrong
+                                            : theme.colors.border,
+                                        width: theme.borders.hairline,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: <Widget>[
+                                        Icon(
+                                          Icons.search_rounded,
+                                          size: ctx.sz(15),
+                                          color:
+                                              theme.colors.foregroundSubtle,
+                                        ),
+                                        SizedBox(
+                                          width: ctx.sp(theme.spacing.xs),
+                                        ),
+                                        Expanded(
+                                          child: Text(
+                                            searchHint ??
+                                                'Search entries, tickers, playbooks, tags...',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: ctx.uiText.caption
+                                                .copyWith(
+                                                  color: theme
+                                                      .colors
+                                                      .foregroundSubtle,
+                                                  fontSize: ctx.fs(12.0),
+                                                ),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: ctx.sp(
+                                              theme.spacing.xs,
+                                            ),
+                                            vertical: ctx.sp(
+                                              theme.spacing.xxs * 0.5,
+                                            ),
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: theme.colors.surface
+                                                .withValues(alpha: 0.6),
+                                            borderRadius: ctx.radius(
+                                              theme.radii.sm,
+                                            ),
+                                            border: Border.all(
+                                              color: theme.colors.border,
+                                              width: theme.borders.hairline,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            '⌘K',
+                                            style: ctx.uiText.caption
+                                                .copyWith(
+                                                  fontSize: ctx.fs(10),
+                                                  fontWeight: FontWeight.w600,
+                                                  color: theme
+                                                      .colors
+                                                      .foregroundMuted,
+                                                ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                            ),
+                    ),
+                  ),
+                )
+              else
+                const Spacer(),
+
+              SizedBox(width: context.sp(theme.spacing.sm)),
+
+              // Right: Action button, Notifications, Help, User Avatar
               Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
-                  if (onResearch != null) ...[
+                  if (isCompactHeader && onSearch != null) ...<Widget>[
+                    UiIconButton(
+                      key: searchTargetKey,
+                      icon: Icons.search_rounded,
+                      size: UiSize.sm,
+                      tooltip: 'Search',
+                      onPressed: onSearch,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xxs)),
+                  ],
+                  if (onResearch != null) ...<Widget>[
                     if (researchLabelVisible)
                       UiButton(
                         label: researchVisible ? 'Focus mode' : 'Research desk',
@@ -1533,97 +1779,34 @@ class AppTopBar extends StatelessWidget {
                       ),
                     UiGap.h(theme.spacing.xxs),
                   ],
-                  // Center-Right: Search Command Pill (Desktop)
-                  if (!isCompactHeader) ...<Widget>[
-                    if (onSearchChanged != null)
-                      SizedBox(
-                        key: searchTargetKey,
-                        width: context.sz(280),
-                        child: UiInput.search(
-                          value: searchQuery ?? '',
-                          hintText: searchHint ?? 'Search this workspace',
-                          size: UiSize.sm,
-                          density: UiDensity.compact,
-                          semanticLabel: searchHint ?? 'Search this workspace',
-                          onChanged: onSearchChanged,
-                        ),
-                      )
-                    else
-                      UiInteractive(
-                        key: searchTargetKey,
-                        onTap: onSearch,
-                        builder: (BuildContext ctx, UiInteractiveState s) =>
-                            AnimatedContainer(
-                              duration: theme.motion.fast,
-                              width: ctx.sz(250),
-                              height: ctx.sz(32),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: ctx.sp(theme.spacing.sm),
-                              ),
-                              decoration: BoxDecoration(
-                                color: s.hovered
-                                    ? theme.colors.surfaceHover
-                                    : theme.colors.background.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                borderRadius: ctx.radius(theme.radii.md),
-                                border: Border.all(
-                                  color: s.hovered
-                                      ? theme.colors.borderStrong
-                                      : theme.colors.border,
-                                  width: theme.borders.hairline,
-                                ),
-                              ),
-                              child: Row(
-                                children: <Widget>[
-                                  Icon(
-                                    Icons.search_rounded,
-                                    size: ctx.sz(15),
-                                    color: theme.colors.foregroundSubtle,
-                                  ),
-                                  SizedBox(width: ctx.sp(theme.spacing.xs)),
-                                  Expanded(
-                                    child: Text(
-                                      'Search symbols, orders...',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: ctx.uiText.caption.copyWith(
-                                        color: theme.colors.foregroundSubtle,
-                                        fontSize: ctx.fs(12.0),
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    '⌘K',
-                                    style: ctx.uiText.caption.copyWith(
-                                      fontSize: ctx.fs(10),
-                                      fontWeight: FontWeight.w600,
-                                      color: theme.colors.foregroundMuted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                      ),
-                    SizedBox(width: context.sp(theme.spacing.sm)),
-                  ],
-
-                  // Search Icon on Mobile
-                  if (isCompactHeader)
-                    UiIconButton(
-                      key: searchTargetKey,
-                      icon: Icons.search_rounded,
-                      size: UiSize.sm,
-                      tooltip: 'Search',
-                      onPressed: onSearch,
-                    ),
 
                   if (headerActions.isNotEmpty) ...<Widget>[
                     ...headerActions,
                     SizedBox(width: context.sp(theme.spacing.xxs)),
                   ],
 
-                  // Notifications Icon with perfectly positioned badge
+                  // Primary Action Button (e.g. + Log Trade)
+                  if (primaryAction != null)
+                    primaryAction!
+                  else if (primaryActionLabel != null || onPrimaryAction != null)
+                    UiButton(
+                      label: primaryActionLabel ?? 'Log Trade',
+                      leadingIcon: Icons.add_rounded,
+                      variant: UiVariant.primary,
+                      size: UiSize.sm,
+                      hideLabelOnMobile: true,
+                      onPressed: onPrimaryAction ?? onSearch,
+                    ),
+
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  Container(
+                    width: theme.borders.hairline,
+                    height: context.sz(16),
+                    color: theme.colors.border.withValues(alpha: 0.6),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+
+                  // Notifications Icon with emerald badge
                   Stack(
                     clipBehavior: Clip.none,
                     children: <Widget>[
@@ -1642,7 +1825,7 @@ class AppTopBar extends StatelessWidget {
                             height: context.sz(7),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: theme.colors.bearish,
+                              color: theme.colors.primary,
                               border: Border.all(
                                 color: theme.colors.surface,
                                 width: theme.borders.thick,
@@ -1654,21 +1837,80 @@ class AppTopBar extends StatelessWidget {
                   ),
                   SizedBox(width: context.sp(theme.spacing.xxs)),
 
-                  if (isMobile && headerActions.isEmpty)
-                    UiIconButton(
-                      icon: Icons.auto_awesome_rounded,
-                      size: UiSize.sm,
-                      tooltip: 'AI Assistant',
-                      onPressed: onAi,
-                    )
-                  else
-                    const SizedBox.shrink(),
+                  // Help Icon (?)
+                  UiIconButton(
+                    icon: Icons.help_outline_rounded,
+                    size: UiSize.sm,
+                    tooltip: 'Help & Guides',
+                    onPressed: onHelp ?? onAi,
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+
+                  // User Avatar with profile dropdown
+                  _buildUserAvatar(context),
                 ],
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildUserAvatar(BuildContext context) {
+    final String displayName = trader?.displayName?.trim() ?? '';
+    final String handle = trader?.handle.trim() ?? '';
+    final String name = displayName.isNotEmpty
+        ? displayName
+        : (handle.contains('@') ? handle.split('@').first : handle);
+    final String initials = (name.isNotEmpty)
+        ? (name.length >= 2 ? name.substring(0, 2).toUpperCase() : name.toUpperCase())
+        : 'AR';
+
+    final Widget avatarWidget = UiAvatar(
+      name: initials,
+      imageUrl: trader?.avatarUrl,
+      size: UiSize.sm,
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: <Color>[Color(0xFF2563EB), Color(0xFF7C3AED)],
+      ),
+      textColor: Colors.white,
+      textStyle: context.uiText.label.copyWith(
+        fontWeight: FontWeight.w700,
+        fontSize: context.fs(11),
+      ),
+    );
+
+    return UiDropdownMenu(
+      actions: <UiMenuItem>[
+        UiMenuItem(
+          label: name.isNotEmpty ? name : 'Alex Rivers',
+          icon: Icons.person_rounded,
+          onTap: onSettings,
+        ),
+        if (onSettings != null)
+          UiMenuItem(
+            label: 'Settings',
+            icon: Icons.settings_outlined,
+            onTap: onSettings,
+          ),
+        if (onAi != null)
+          UiMenuItem(
+            label: 'AI Copilot',
+            icon: Icons.auto_awesome_outlined,
+            onTap: onAi,
+          ),
+        if (onLogout != null)
+          UiMenuItem(
+            label: 'Log out',
+            icon: Icons.logout_rounded,
+            intent: UiIntent.danger,
+            onTap: onLogout,
+          ),
+      ],
+      child: avatarWidget,
     );
   }
 }

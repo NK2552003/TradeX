@@ -101,12 +101,12 @@ class AppStrategyPerformanceCard extends StatelessWidget {
       onTap: onTap,
       title: strategy.name,
       subtitle: '${strategy.trades} trades',
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          UiProgressCircle(
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final bool narrow = constraints.maxWidth < 260;
+          final Widget circle = UiProgressCircle(
             value: (strategy.winRate / 100).clamp(0, 1),
-            size: 76,
+            size: narrow ? 68 : 76,
             intent: strategy.winRate >= 50
                 ? UiIntent.bullish
                 : UiIntent.bearish,
@@ -114,36 +114,54 @@ class AppStrategyPerformanceCard extends StatelessWidget {
               '${strategy.winRate.toStringAsFixed(0)}%',
               style: context.uiText.bodyStrong,
             ),
-          ),
-          SizedBox(width: context.sp(theme.spacing.md)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                AppCountUp(
-                  value: strategy.netPnl,
-                  formatter: (num v) => AppTokens.signedMoney(v),
-                  style: context.uiText.heading.copyWith(color: pl),
+          );
+
+          final Widget details = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              AppCountUp(
+                value: strategy.netPnl,
+                formatter: (num v) => AppTokens.signedMoney(v),
+                style: context.uiText.heading.copyWith(color: pl),
+              ),
+              SizedBox(height: context.sp(theme.spacing.xs)),
+              Text(
+                'Avg ${AppTokens.rr(strategy.avgR)} per trade',
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
                 ),
+              ),
+              if (strategy.equityCurve.isNotEmpty) ...<Widget>[
                 SizedBox(height: context.sp(theme.spacing.xs)),
-                Text(
-                  'Avg ${AppTokens.rr(strategy.avgR)} per trade',
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundMuted,
-                  ),
+                UiSparkChart(
+                  values: strategy.equityCurve,
+                  color: pl,
+                  filled: true,
                 ),
-                if (strategy.equityCurve.isNotEmpty) ...<Widget>[
-                  SizedBox(height: context.sp(theme.spacing.xs)),
-                  UiSparkChart(
-                    values: strategy.equityCurve,
-                    color: pl,
-                    filled: true,
-                  ),
-                ],
               ],
-            ),
-          ),
-        ],
+            ],
+          );
+
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Center(child: circle),
+                SizedBox(height: context.sp(theme.spacing.md)),
+                details,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              circle,
+              SizedBox(width: context.sp(theme.spacing.md)),
+              Expanded(child: details),
+            ],
+          );
+        },
       ),
     );
   }

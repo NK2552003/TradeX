@@ -8,17 +8,24 @@ import 'ui_common.dart';
 class UiMetricCard extends StatelessWidget {
   const UiMetricCard({
     super.key,
-    required this.label,
+    String? label,
+    String? title,
     required this.value,
     this.delta,
+    this.change,
+    this.isPositive,
+    this.subtitle,
     this.icon,
     this.chart,
     this.onTap,
-  });
+  }) : label = title ?? label ?? '';
 
   final String label;
   final String value;
   final num? delta;
+  final String? change;
+  final bool? isPositive;
+  final String? subtitle;
   final IconData? icon;
   final Widget? chart;
   final VoidCallback? onTap;
@@ -27,9 +34,14 @@ class UiMetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final r = context.uiRes;
-    final Color deltaColor = delta == null
-        ? theme.colors.foregroundMuted
-        : (delta! >= 0 ? theme.colors.bullish : theme.colors.bearish);
+
+    final String? effectiveChange = change ?? (delta != null ? uiSignedPercent(delta!) : null);
+    final Color deltaColor = isPositive != null
+        ? (isPositive! ? theme.colors.bullish : theme.colors.bearish)
+        : (delta == null
+            ? theme.colors.foregroundMuted
+            : (delta! >= 0 ? theme.colors.bullish : theme.colors.bearish));
+
     return UiCard(
       onTap: onTap,
       padding: EdgeInsets.symmetric(
@@ -62,35 +74,54 @@ class UiMetricCard extends StatelessWidget {
               ),
             ],
           ),
+          if (subtitle != null) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.xxs)),
+            Text(
+              subtitle!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundSubtle,
+              ),
+            ),
+          ],
           SizedBox(height: context.sp(theme.spacing.xs)),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xxs),
             children: <Widget>[
-              Expanded(
-                child: Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.uiText.title.copyWith(
-                    color: theme.colors.foreground,
-                    fontWeight: FontWeight.w700,
-                    fontSize: context.fs(r.isMobile ? 16 : 18),
-                  ),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.uiText.title.copyWith(
+                  color: theme.colors.foreground,
+                  fontWeight: FontWeight.w700,
+                  fontSize: context.fs(r.isMobile ? 16 : 18),
                 ),
               ),
-              if (delta != null) ...<Widget>[
-                const SizedBox(width: 4),
-                Text(
-                  uiSignedPercent(delta!),
-                  maxLines: 1,
-                  style: context.uiText.caption.copyWith(
-                    color: deltaColor,
-                    fontWeight: FontWeight.w700,
-                    fontSize: context.fs(r.isMobile ? 11 : 12),
+              if (effectiveChange != null)
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(theme.spacing.xs),
+                    vertical: context.sp(theme.spacing.xxs * 0.5),
+                  ),
+                  decoration: BoxDecoration(
+                    color: deltaColor.withValues(alpha: 0.12),
+                    borderRadius: context.radius(theme.radii.sm),
+                  ),
+                  child: Text(
+                    effectiveChange,
+                    maxLines: 1,
+                    style: context.uiText.caption.copyWith(
+                      color: deltaColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: context.fs(r.isMobile ? 11 : 12),
+                    ),
                   ),
                 ),
-              ],
             ],
           ),
           if (chart != null) ...<Widget>[

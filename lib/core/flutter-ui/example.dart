@@ -347,8 +347,8 @@ class _FlutterUiExampleAppState extends State<FlutterUiExampleApp> {
                     ],
                   ),
                   SizedBox(height: context.sp(theme.spacing.md)),
-                  const UiTracker(
-                    blocks: <UiTrackerBlock>[
+                  UiTracker(
+                    blocks: const <UiTrackerBlock>[
                       UiTrackerBlock(intent: UiIntent.bullish),
                       UiTrackerBlock(intent: UiIntent.bullish),
                       UiTrackerBlock(intent: UiIntent.bearish),

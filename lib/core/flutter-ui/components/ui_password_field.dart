@@ -28,6 +28,8 @@ class UiPasswordField extends StatefulWidget {
   const UiPasswordField({
     super.key,
     this.controller,
+    this.value,
+    this.label,
     this.hintText = 'Password',
     this.onChanged,
     this.showStrength = true,
@@ -36,6 +38,8 @@ class UiPasswordField extends StatefulWidget {
   });
 
   final TextEditingController? controller;
+  final String? value;
+  final String? label;
   final String hintText;
   final ValueChanged<String>? onChanged;
   final bool showStrength;
@@ -47,8 +51,27 @@ class UiPasswordField extends StatefulWidget {
 }
 
 class _UiPasswordFieldState extends State<UiPasswordField> {
-  String _value = '';
+  late final TextEditingController _internalController =
+      TextEditingController(text: widget.value ?? '');
+  TextEditingController get _controller =>
+      widget.controller ?? _internalController;
+  late String _value = widget.value ?? _controller.text;
   bool _obscure = true;
+
+  @override
+  void didUpdateWidget(UiPasswordField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != null && widget.value != _controller.text) {
+      _controller.text = widget.value!;
+      _value = widget.value!;
+    }
+  }
+
+  @override
+  void dispose() {
+    _internalController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +106,8 @@ class _UiPasswordFieldState extends State<UiPasswordField> {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         UiInput(
-          controller: widget.controller,
+          controller: _controller,
+          label: widget.label,
           hintText: widget.hintText,
           leadingIcon: Icons.lock_outline,
           trailingIcon: _obscure

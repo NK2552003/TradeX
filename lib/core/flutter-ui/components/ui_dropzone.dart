@@ -10,9 +10,10 @@ import 'ui_remote_image.dart';
 /// Presentation-only: the caller wires [onPick] to its own file picker and
 /// passes back a preview URL through [previewUrls].
 class UiDropzone extends StatelessWidget {
-  const UiDropzone({
+  UiDropzone({
     super.key,
-    this.onPick,
+    VoidCallback? onPick,
+    this.onFilesDropped,
     this.previewUrls = const <String>[],
     this.onRemove,
     this.title = 'Upload a screenshot',
@@ -22,9 +23,10 @@ class UiDropzone extends StatelessWidget {
     this.progress,
     this.error,
     this.height,
-  });
+  }) : onPick = onPick ?? (onFilesDropped != null ? () => onFilesDropped(const <String>[]) : null);
 
   final VoidCallback? onPick;
+  final ValueChanged<List<String>>? onFilesDropped;
   final List<String> previewUrls;
   final ValueChanged<String>? onRemove;
   final String title;

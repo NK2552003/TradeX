@@ -33,6 +33,8 @@ class UiSelectNative<T> extends StatelessWidget {
     final theme = context.ui;
     final c = theme.colors;
     final bool disabled = !enabled || onChanged == null;
+    final bool hasValue =
+        value != null && options.any((UiOption<T> o) => o.value == value);
 
     final Widget field = Container(
       height: size.height(context),
@@ -47,7 +49,7 @@ class UiSelectNative<T> extends StatelessWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<T>(
-          value: value,
+          value: hasValue ? value : null,
           isExpanded: true,
           isDense: true,
           borderRadius: context.radius(theme.radii.lg),

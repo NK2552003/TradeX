@@ -247,4 +247,37 @@ class AppTokens {
   /// which day an entry belongs to.
   static String stamp(DateTime time) =>
       '${shortDate(time)} · ${clockTime(time)}';
+
+  // -------------------------------------------------------------- Weekdays
+  //
+  // TradeX deliberately keeps `intl` out of the UI layer (see the pubspec
+  // note), so weekday names live here alongside [monthLabels] rather than
+  // going through `DateFormat`.
+
+  /// Monday-first, matching Dart's `DateTime.weekday` (Mon = 1 … Sun = 7).
+  static const List<String> weekdayLabels = <String>[
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun',
+  ];
+
+  /// Three-letter weekday, e.g. "Mon".
+  static String weekdayShort(DateTime date) => weekdayLabels[date.weekday - 1];
+
+  /// Single-letter weekday for dense date chips, e.g. "M".
+  static String weekdayInitial(DateTime date) =>
+      weekdayLabels[date.weekday - 1].substring(0, 1);
+
+  /// Midnight of [date] in local time — strips the wall clock so two moments
+  /// on the same calendar day compare equal.
+  static DateTime dateOnly(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  /// Whether [a] and [b] fall on the same calendar day.
+  static bool isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 }

@@ -121,8 +121,10 @@ class UiRangeMeter extends StatelessWidget {
                   for (final UiRangeZone z in zones)
                     Positioned(
                       left: w * _f(z.start < z.end ? z.start : z.end),
-                      width: (w * (_f(z.end) - _f(z.start)).abs())
-                          .clamp(1.0, w),
+                      width: w <= 0
+                          ? 0.0
+                          : (w * (_f(z.end) - _f(z.start)).abs())
+                              .clamp(0.0, w),
                       top: (track * 1.9 - track) / 2,
                       height: track,
                       child: DecoratedBox(

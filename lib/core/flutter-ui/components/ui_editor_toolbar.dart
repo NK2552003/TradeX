@@ -67,7 +67,7 @@ extension UiEditorActionX on UiEditorAction {
 class UiEditorToolbar extends StatelessWidget {
   const UiEditorToolbar({
     super.key,
-    required this.onAction,
+    this.onAction,
     this.actions = const <UiEditorAction>[
       UiEditorAction.bold,
       UiEditorAction.italic,
@@ -85,7 +85,7 @@ class UiEditorToolbar extends StatelessWidget {
     this.trailing,
   });
 
-  final ValueChanged<UiEditorAction> onAction;
+  final ValueChanged<UiEditorAction>? onAction;
   final List<UiEditorAction> actions;
   final Set<UiEditorAction> activeActions;
   final Widget? trailing;
@@ -119,7 +119,7 @@ class UiEditorToolbar extends StatelessWidget {
                 variant: activeActions.contains(action)
                     ? UiVariant.soft
                     : UiVariant.ghost,
-                onPressed: () => onAction(action),
+                onPressed: onAction != null ? () => onAction!(action) : null,
               ),
             if (trailing != null) ...[
               const UiDivider(vertical: true, spacing: 4),

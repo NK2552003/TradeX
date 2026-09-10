@@ -188,7 +188,8 @@ class _UiGraphCanvasState extends State<UiGraphCanvas> {
                   onTapUp: (TapUpDetails d) {
                     UiGraphNode? hit;
                     for (final UiGraphNode n in widget.nodes) {
-                      final Offset p = _positions[n.id]!;
+                      final Offset? p = _positions[n.id];
+                      if (p == null) continue;
                       if ((p - d.localPosition).distance <=
                           _nodeRadius(ctx, n) + 6) {
                         hit = n;

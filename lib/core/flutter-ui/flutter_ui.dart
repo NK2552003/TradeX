@@ -71,6 +71,7 @@ export 'components/ui_progress_circle.dart';
 export 'components/ui_category_bar.dart';
 export 'components/ui_bar_list.dart';
 export 'components/ui_tracker.dart';
+export 'components/ui_marquee.dart';
 export 'components/ui_data_panel.dart';
 export 'components/ui_stat_strip.dart';
 export 'components/ui_key_value_table.dart';

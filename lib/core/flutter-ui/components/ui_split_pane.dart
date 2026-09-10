@@ -11,16 +11,21 @@ import 'ui_common.dart';
 class UiSplitPane extends StatefulWidget {
   const UiSplitPane({
     super.key,
-    required this.primary,
-    required this.detail,
-    this.initialRatio = 0.35,
+    Widget? primary,
+    Widget? detail,
+    Widget? left,
+    Widget? right,
+    double? initialRatio,
+    double? splitRatio,
     this.minRatio = 0.2,
     this.maxRatio = 0.6,
     this.detailVisible = false,
     this.showDetail = true,
     this.resizable = true,
     this.splitFrom = UiDeviceType.tablet,
-  });
+  })  : primary = primary ?? left ?? const SizedBox.shrink(),
+        detail = detail ?? right ?? const SizedBox.shrink(),
+        initialRatio = splitRatio ?? initialRatio ?? 0.35;
 
   final Widget primary;
   final Widget detail;
