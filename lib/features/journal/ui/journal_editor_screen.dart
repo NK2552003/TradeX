@@ -176,9 +176,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
     _strategyId = _entry.strategyId;
     _discipline = _entry.psychologyScore;
     _closed = _entry.exit != null;
-    // An entry that has no price yet is one nobody has filled in, so the phone
-    // opens on the numbers instead of hiding them behind a tap.
-    _detailsOpen = _entry.id.isEmpty || _entry.entry == 0;
+    _detailsOpen = false;
 
     _body.addListener(_onBodyChanged);
     for (final TextEditingController c in _numericControllers) {
@@ -977,78 +975,83 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      if (widget.detailsOnly) {
-        return PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, _) {
-            if (!didPop) _closeAndSave();
-          },
-          child: AppRecordDetailsForm(
-            title: 'Trade details',
-            description:
-                'Execution, risk and classification. Write the review from Notes.',
-            saving: _saving,
-            onBack: _closeAndSave,
-            onSave: () async {
-              final saved = await _save();
-              if (saved != null && mounted) widget.onClose(saved);
-            },
-            onDelete: _entry.id.isEmpty ? null : _delete,
-            fields: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _titleField(context),
-                const UiGap.v(16),
-                _tradeFields(
-                  context,
-                  twoColumn: constraints.maxWidth >= context.sz(580),
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    return Material(
+      color: theme.colors.background,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (widget.detailsOnly) {
+            return PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (didPop, _) {
+                if (!didPop) _closeAndSave();
+              },
+              child: AppRecordDetailsForm(
+                title: 'Trade details',
+                description:
+                    'Execution, risk and classification. Write the review from Notes.',
+                saving: _saving,
+                onBack: _closeAndSave,
+                onSave: () async {
+                  final saved = await _save();
+                  if (saved != null && mounted) widget.onClose(saved);
+                },
+                onDelete: _entry.id.isEmpty ? null : _delete,
+                fields: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _titleField(context),
+                    const UiGap.v(16),
+                    _tradeFields(
+                      context,
+                      twoColumn: constraints.maxWidth >= context.sz(580),
+                    ),
+                    const UiGap.v(16),
+                    _liveNumbers(context),
+                  ],
                 ),
-                const UiGap.v(16),
-                _liveNumbers(context),
+              ),
+            );
+          }
+
+          // The trade rail and the split preview need real working room. Tablets use
+          // the same scrollable composition as phones instead of squeezing three
+          // independently scrolling regions into one short viewport.
+          final bool wide = constraints.maxWidth >= context.sz(980);
+
+          return PopScope(
+            // Back is a save, not a discard, and it has to unwind the host's own
+            // list/editor switch rather than the enclosing route.
+            canPop: false,
+            onPopInvokedWithResult: (bool didPop, Object? _) {
+              if (!didPop) _closeAndSave();
+            },
+            child: Stack(
+              children: <Widget>[
+                UiPage(
+                  maxWidth: 1440,
+                  scrollable: !wide,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _commandBar(context, wide: wide),
+                      SizedBox(height: context.sp(theme.spacing.sm)),
+                      if (wide)
+                        Expanded(child: _wideBody(context))
+                      else
+                        _narrowBody(context),
+                    ],
+                  ),
+                ),
+                ..._overlays(context, wide: wide),
               ],
             ),
-          ),
-        );
-      }
-
-      // The trade rail and the split preview need real working room. Tablets use
-      // the same scrollable composition as phones instead of squeezing three
-      // independently scrolling regions into one short viewport.
-      final bool wide = constraints.maxWidth >= context.sz(980);
-      final UiTheme theme = context.ui;
-
-      return PopScope(
-        // Back is a save, not a discard, and it has to unwind the host's own
-        // list/editor switch rather than the enclosing route.
-        canPop: false,
-        onPopInvokedWithResult: (bool didPop, Object? _) {
-          if (!didPop) _closeAndSave();
+          );
         },
-        child: Stack(
-          children: <Widget>[
-            UiPage(
-              maxWidth: 1440,
-              scrollable: !wide,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  _commandBar(context, wide: wide),
-                  SizedBox(height: context.sp(theme.spacing.sm)),
-                  if (wide)
-                    Expanded(child: _wideBody(context))
-                  else
-                    _narrowBody(context),
-                ],
-              ),
-            ),
-            ..._overlays(context, wide: wide),
-          ],
-        ),
-      );
-    },
-  );
+      ),
+    );
+  }
 
   /// Back, the mode switch, delete and save — everything that is true of the
   /// whole screen. Wrapped in the revision listener so the save button enables
@@ -1059,7 +1062,8 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
       valueListenable: _revision,
       builder: (BuildContext ctx, int _, Widget? _) {
         final bool isMobile = context.uiRes.isMobile;
-        final Widget? back = isMobile
+        final bool inWorkbench = AppWorkbenchScope.of(context);
+        final Widget? back = isMobile || inWorkbench
             ? null
             : UiIconButton(
                 icon: Icons.arrow_back_rounded,
@@ -1318,13 +1322,18 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
           subtitle: _tradeSummary,
           leadingIcon: Icons.candlestick_chart_outlined,
           intent: _gaps.isEmpty ? UiIntent.success : UiIntent.warning,
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _tradeFields(ctx, twoColumn: true),
-              SizedBox(height: ctx.sp(ctx.ui.spacing.md)),
-              _liveNumbers(ctx),
-            ],
+          content: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: ctx.sz(320)),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  _tradeFields(ctx, twoColumn: true),
+                  SizedBox(height: ctx.sp(ctx.ui.spacing.md)),
+                  _liveNumbers(ctx),
+                ],
+              ),
+            ),
           ),
         ),
       ],

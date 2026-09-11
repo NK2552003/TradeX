@@ -678,44 +678,49 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      // The metadata rail and split preview need real working room. Tablets use
-      // the same scrollable composition as phones instead of squeezing three
-      // independently scrolling regions into one short viewport.
-      final bool wide = constraints.maxWidth >= context.sz(980);
-      final UiTheme theme = context.ui;
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    return Material(
+      color: theme.colors.background,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // The metadata rail and split preview need real working room. Tablets use
+          // the same scrollable composition as phones instead of squeezing three
+          // independently scrolling regions into one short viewport.
+          final bool wide = constraints.maxWidth >= context.sz(980);
 
-      return PopScope(
-        // Back is a save, not a discard, and it has to unwind the host's own
-        // list/editor switch rather than the enclosing route.
-        canPop: false,
-        onPopInvokedWithResult: (bool didPop, Object? _) {
-          if (!didPop) _closeAndSave();
-        },
-        child: Stack(
-          children: <Widget>[
-            UiPage(
-              maxWidth: 1440,
-              scrollable: !wide,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  _editorCommandBar(context, wide: wide),
-                  SizedBox(height: context.sp(theme.spacing.sm)),
-                  if (wide)
-                    Expanded(child: _wideBody(context))
-                  else
-                    _narrowBody(context),
-                ],
-              ),
+          return PopScope(
+            // Back is a save, not a discard, and it has to unwind the host's own
+            // list/editor switch rather than the enclosing route.
+            canPop: false,
+            onPopInvokedWithResult: (bool didPop, Object? _) {
+              if (!didPop) _closeAndSave();
+            },
+            child: Stack(
+              children: <Widget>[
+                UiPage(
+                  maxWidth: 1440,
+                  scrollable: !wide,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _editorCommandBar(context, wide: wide),
+                      SizedBox(height: context.sp(theme.spacing.sm)),
+                      if (wide)
+                        Expanded(child: _wideBody(context))
+                      else
+                        _narrowBody(context),
+                    ],
+                  ),
+                ),
+                ..._overlays(context, wide: wide),
+              ],
             ),
-            ..._overlays(context, wide: wide),
-          ],
-        ),
-      );
-    },
-  );
+          );
+        },
+      ),
+    );
+  }
 
   Widget _editorCommandBar(BuildContext context, {required bool wide}) {
     final UiTheme theme = context.ui;
@@ -723,7 +728,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       valueListenable: _revision,
       builder: (BuildContext ctx, int _, Widget? _) {
         final bool isMobile = context.uiRes.isMobile;
-        final Widget? back = isMobile
+        final bool inWorkbench = AppWorkbenchScope.of(context);
+        final Widget? back = isMobile || inWorkbench
             ? null
             : UiIconButton(
                 icon: Icons.arrow_back_rounded,

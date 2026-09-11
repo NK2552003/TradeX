@@ -153,9 +153,7 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
     _tickers = List<String>.of(_strategy.linkedTickers);
     _linkedNoteIds = List<String>.of(_strategy.linkedNoteIds);
     _linkedJournalIds = List<String>.of(_strategy.linkedJournalIds);
-    // A playbook with no instruments and no name is one nobody has set up, so
-    // the phone opens on the contract instead of hiding it behind a tap.
-    _detailsOpen = _strategy.id.isEmpty;
+    _detailsOpen = false;
 
     _body.addListener(_onBodyChanged);
     _name.addListener(_bumpRevision);
@@ -996,76 +994,81 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      if (widget.detailsOnly) {
-        return PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, _) {
-            if (!didPop) _closeAndSave();
-          },
-          child: AppRecordDetailsForm(
-            title: 'Strategy details',
-            description:
-                'Status, instruments and classification. Write the playbook from Notes.',
-            saving: _saving,
-            onBack: _closeAndSave,
-            onSave: () async {
-              final saved = await _save();
-              if (saved != null && mounted) widget.onClose(saved);
-            },
-            onDelete: _strategy.id.isEmpty ? null : _delete,
-            fields: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _nameField(context),
-                const UiGap.v(16),
-                _contractFields(
-                  context,
-                  twoColumn: constraints.maxWidth >= context.sz(580),
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    return Material(
+      color: theme.colors.background,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (widget.detailsOnly) {
+            return PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (didPop, _) {
+                if (!didPop) _closeAndSave();
+              },
+              child: AppRecordDetailsForm(
+                title: 'Strategy details',
+                description:
+                    'Status, instruments and classification. Write the playbook from Notes.',
+                saving: _saving,
+                onBack: _closeAndSave,
+                onSave: () async {
+                  final saved = await _save();
+                  if (saved != null && mounted) widget.onClose(saved);
+                },
+                onDelete: _strategy.id.isEmpty ? null : _delete,
+                fields: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _nameField(context),
+                    const UiGap.v(16),
+                    _contractFields(
+                      context,
+                      twoColumn: constraints.maxWidth >= context.sz(580),
+                    ),
+                  ],
                 ),
+              ),
+            );
+          }
+
+          // The rail and the split preview need real working room. Tablets use the
+          // same scrollable composition as phones instead of squeezing three
+          // independently scrolling regions into one short viewport.
+          final bool wide = constraints.maxWidth >= context.sz(980);
+
+          return PopScope(
+            // Back is a save, not a discard, and it has to unwind the host's own
+            // list/editor switch rather than the enclosing route.
+            canPop: false,
+            onPopInvokedWithResult: (bool didPop, Object? _) {
+              if (!didPop) _closeAndSave();
+            },
+            child: Stack(
+              children: <Widget>[
+                UiPage(
+                  maxWidth: 1440,
+                  scrollable: !wide,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _commandBar(context, wide: wide),
+                      SizedBox(height: context.sp(theme.spacing.sm)),
+                      if (wide)
+                        Expanded(child: _wideBody(context))
+                      else
+                        _narrowBody(context),
+                    ],
+                  ),
+                ),
+                ..._overlays(context, wide: wide),
               ],
             ),
-          ),
-        );
-      }
-
-      // The rail and the split preview need real working room. Tablets use the
-      // same scrollable composition as phones instead of squeezing three
-      // independently scrolling regions into one short viewport.
-      final bool wide = constraints.maxWidth >= context.sz(980);
-      final UiTheme theme = context.ui;
-
-      return PopScope(
-        // Back is a save, not a discard, and it has to unwind the host's own
-        // list/editor switch rather than the enclosing route.
-        canPop: false,
-        onPopInvokedWithResult: (bool didPop, Object? _) {
-          if (!didPop) _closeAndSave();
+          );
         },
-        child: Stack(
-          children: <Widget>[
-            UiPage(
-              maxWidth: 1440,
-              scrollable: !wide,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  _commandBar(context, wide: wide),
-                  SizedBox(height: context.sp(theme.spacing.sm)),
-                  if (wide)
-                    Expanded(child: _wideBody(context))
-                  else
-                    _narrowBody(context),
-                ],
-              ),
-            ),
-            ..._overlays(context, wide: wide),
-          ],
-        ),
-      );
-    },
-  );
+      ),
+    );
+  }
 
   /// Back, the mode switch, the two saves and the overflow — everything that is
   /// true of the whole screen. Wrapped in the revision listener so the save
@@ -1076,8 +1079,9 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
       valueListenable: _revision,
       builder: (BuildContext ctx, int _, Widget? _) {
         final bool isMobile = context.uiRes.isMobile;
+        final bool inWorkbench = AppWorkbenchScope.of(context);
         final bool savable = !_saving && (_dirty || _strategy.id.isEmpty);
-        final Widget? back = isMobile
+        final Widget? back = isMobile || inWorkbench
             ? null
             : UiIconButton(
                 icon: Icons.arrow_back_rounded,
@@ -1107,6 +1111,7 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
         // thumb can hit by accident.
         final Widget more = UiDropdownMenu(
           alignRight: true,
+          width: 280,
           items: <UiMenuItem>[
             UiMenuItem(
               label: 'Save as revision…',
@@ -1370,7 +1375,12 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
           subtitle: _contractSummary,
           leadingIcon: _status.icon,
           intent: _gaps.isEmpty ? UiIntent.success : _status.intent,
-          content: _contractFields(ctx, twoColumn: true),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: ctx.sz(320)),
+            child: SingleChildScrollView(
+              child: _contractFields(ctx, twoColumn: true),
+            ),
+          ),
         ),
       ],
     ),

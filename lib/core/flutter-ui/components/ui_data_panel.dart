@@ -107,57 +107,140 @@ class UiDataPanel extends StatelessWidget {
   Widget _caption(BuildContext context, double pad) {
     final theme = context.ui;
     final c = theme.colors;
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: pad,
-        vertical: context.sp(theme.spacing.sm) * 0.7,
-      ),
-      decoration: BoxDecoration(
-        color: filled ? c.surface : c.surfaceMuted,
-        border: Border(
-          bottom: BorderSide(
-            color: accent ?? c.border,
-            width: theme.borders.hairline,
-          ),
-        ),
-      ),
-      child: Row(
-        children: <Widget>[
-          if (leadingIcon != null) ...<Widget>[
-            Icon(
-              leadingIcon,
-              size: context.sz(theme.sizes.iconXs),
-              color: accent ?? c.foregroundSubtle,
-            ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-          ],
-          if (label != null)
-            Expanded(
-              child: Text(
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool isNarrow =
+            constraints.maxWidth < context.sz(520) || context.uiRes.isMobile;
+
+        final Widget iconWidget = leadingIcon != null
+            ? Padding(
+                padding: EdgeInsets.only(right: context.sp(theme.spacing.xs)),
+                child: Icon(
+                  leadingIcon,
+                  size: context.sz(theme.sizes.iconXs),
+                  color: accent ?? c.foregroundSubtle,
+                ),
+              )
+            : const SizedBox.shrink();
+
+        final Widget? labelWidget = label != null
+            ? Text(
                 label!.toUpperCase(),
                 style: uiOverline(context),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-              ),
-            )
-          else
-            const Spacer(),
-          if (hint != null) ...<Widget>[
-            SizedBox(width: context.sp(theme.spacing.sm)),
-            Text(
-              hint!,
-              style: context.uiText.caption.copyWith(
-                color: c.foregroundSubtle,
-                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+              )
+            : null;
+
+        final Widget? trailingWidget = trailing != null
+            ? Padding(
+                padding: EdgeInsets.only(left: context.sp(theme.spacing.xs)),
+                child: trailing!,
+              )
+            : null;
+
+        final Widget content;
+
+        if (isNarrow) {
+          if (label != null && hint != null) {
+            content = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    if (leadingIcon != null) iconWidget,
+                    Expanded(child: labelWidget!),
+                    if (trailingWidget != null) trailingWidget,
+                  ],
+                ),
+                SizedBox(height: context.sp(theme.spacing.xxs)),
+                Text(
+                  hint!,
+                  style: context.uiText.caption.copyWith(
+                    color: c.foregroundSubtle,
+                    height: 1.3,
+                  ),
+                  softWrap: true,
+                ),
+              ],
+            );
+          } else {
+            content = Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                if (leadingIcon != null) iconWidget,
+                if (labelWidget != null)
+                  Expanded(child: labelWidget)
+                else if (hint != null)
+                  Expanded(
+                    child: Text(
+                      hint!,
+                      style: context.uiText.caption.copyWith(
+                        color: c.foregroundSubtle,
+                        height: 1.3,
+                      ),
+                      softWrap: true,
+                    ),
+                  )
+                else
+                  const Spacer(),
+                if (trailingWidget != null) trailingWidget,
+              ],
+            );
+          }
+        } else {
+          content = Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              if (leadingIcon != null) iconWidget,
+              if (labelWidget != null)
+                Text(
+                  label!.toUpperCase(),
+                  style: uiOverline(context),
+                ),
+              if (hint != null) ...<Widget>[
+                SizedBox(width: context.sp(theme.spacing.sm)),
+                Expanded(
+                  child: Text(
+                    hint!,
+                    textAlign: label != null ? TextAlign.end : TextAlign.start,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.caption.copyWith(
+                      color: c.foregroundSubtle,
+                      fontFeatures: const <FontFeature>[
+                        FontFeature.tabularFigures(),
+                      ],
+                    ),
+                  ),
+                ),
+              ] else ...<Widget>[
+                const Spacer(),
+              ],
+              if (trailingWidget != null) trailingWidget,
+            ],
+          );
+        }
+
+        return Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: pad,
+            vertical: context.sp(theme.spacing.sm) * 0.7,
+          ),
+          decoration: BoxDecoration(
+            color: filled ? c.surface : c.surfaceMuted,
+            border: Border(
+              bottom: BorderSide(
+                color: accent ?? c.border,
+                width: theme.borders.hairline,
               ),
             ),
-          ],
-          if (trailing != null) ...<Widget>[
-            SizedBox(width: context.sp(theme.spacing.xs)),
-            trailing!,
-          ],
-        ],
-      ),
+          ),
+          child: content,
+        );
+      },
     );
   }
 }

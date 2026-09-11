@@ -32,6 +32,8 @@ abstract class NotesRepository {
 
   Future<AppNote> toggleLike(String id);
 
+  Future<AppNote> toggleFavorite(String id);
+
   Future<AppNote> addComment(String id, String body);
 
   /// Stores an attachment and returns the storage reference to embed in the
@@ -180,6 +182,10 @@ class NotesRepositoryImpl implements NotesRepository {
       likeCount: (note.likeCount + (note.liked ? -1 : 1)).clamp(0, 1 << 30),
     );
   });
+
+  @override
+  Future<AppNote> toggleFavorite(String id) async =>
+      _mutate(id, (AppNote note) => note.copyWith(isFavorite: !note.isFavorite));
 
   @override
   Future<AppNote> addComment(String id, String body) async =>

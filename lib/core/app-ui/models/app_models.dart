@@ -1067,6 +1067,7 @@ class AppNote {
     this.viewCount = 0,
     this.likeCount = 0,
     this.liked = false,
+    this.isFavorite = false,
     this.comments = const <AppNoteComment>[],
   });
 
@@ -1094,6 +1095,7 @@ class AppNote {
   final int viewCount;
   final int likeCount;
   final bool liked;
+  final bool isFavorite;
   final List<AppNoteComment> comments;
 
   bool get hasChecklist => checklistTotal > 0;
@@ -1137,6 +1139,7 @@ class AppNote {
     int? viewCount,
     int? likeCount,
     bool? liked,
+    bool? isFavorite,
     List<AppNoteComment>? comments,
   }) => AppNote(
     id: id ?? this.id,
@@ -1162,6 +1165,7 @@ class AppNote {
     viewCount: viewCount ?? this.viewCount,
     likeCount: likeCount ?? this.likeCount,
     liked: liked ?? this.liked,
+    isFavorite: isFavorite ?? this.isFavorite,
     comments: comments ?? this.comments,
   );
 }

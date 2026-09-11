@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
 import '../theme/app_tokens.dart';
+import 'desk_record_card.dart';
 
 /// Note cards — pure presentation over [AppNote], composing UiCard.
 
@@ -87,135 +88,160 @@ class AppNoteCard extends StatelessWidget {
     final List<String> tickers = note.linkedTickers;
     final int overflow = tickers.length - _maxTickerBadges;
 
-    return UiCard(
-      onTap: onTap,
-      variant: UiCardVariant.outlined,
+    return AppDeskRecordCard(
+      category: note.noteType.label,
+      accentColor: accent,
+      title: note.title.trim().isEmpty ? 'Untitled note' : note.title,
+      preview: showPreview ? _Preview(note: note, highlight: highlight) : null,
+      showPreview: showPreview,
+      density: density,
       selected: selected,
-      hoverLift: false,
-      motion: false,
-      minHeight: context.sz(switch (density) {
-        AppNoteDensity.titleOnly => 108,
-        AppNoteDensity.comfortable => 140,
-        AppNoteDensity.full => 182,
-      }),
+      onTap: onTap,
       semanticLabel: '${note.noteType.label}: ${note.title}',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      trailingHeader: Row(
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              Icon(Icons.circle, size: context.sz(8), color: accent),
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              Expanded(
-                child: Text(
-                  note.noteType.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.uiText.label.copyWith(
-                    color: accent,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+          if (note.isPublic)
+            Padding(
+              padding: EdgeInsets.only(
+                right: context.sp(theme.spacing.xxs),
               ),
-              if (note.isPublic)
-                Padding(
-                  padding: EdgeInsets.only(
-                    right: context.sp(theme.spacing.xxs),
-                  ),
-                  child: Icon(
-                    Icons.public_rounded,
-                    size: context.sz(theme.sizes.iconXs),
-                    color: theme.colors.foregroundSubtle,
-                  ),
-                ),
-              if (onDelete != null)
-                UiIconButton(
-                  icon: Icons.delete_outline_rounded,
-                  tooltip: 'Delete note',
-                  size: UiSize.sm,
-                  onPressed: onDelete,
-                ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Text(
-            note.title.trim().isEmpty ? 'Untitled note' : note.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: context.uiText.bodyStrong.copyWith(
-              color: note.title.trim().isEmpty
-                  ? theme.colors.foregroundSubtle
-                  : theme.colors.foreground,
+              child: Icon(
+                Icons.public_rounded,
+                size: context.sz(theme.sizes.iconXs),
+                color: theme.colors.foregroundSubtle,
+              ),
             ),
-          ),
-          if (showPreview) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.xxs)),
-            _Preview(note: note, highlight: highlight),
-          ],
-          if (note.strategyName != null ||
-              note.linkedJournalIds.isNotEmpty ||
-              tickers.isNotEmpty) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            Wrap(
-              spacing: context.sp(theme.spacing.xs),
-              runSpacing: context.sp(theme.spacing.xxs),
-              children: <Widget>[
-                if (note.strategyName != null)
-                  UiBadge(
-                    label: note.strategyName!,
-                    intent: UiIntent.primary,
-                    icon: Icons.account_tree_outlined,
-                    size: UiSize.xs,
-                    maxWidth: context.sz(160),
-                  ),
-                if (note.linkedJournalIds.isNotEmpty)
-                  UiBadge(
-                    label: note.linkedJournalIds.length == 1
-                        ? '1 journal'
-                        : '${note.linkedJournalIds.length} journals',
-                    intent: UiIntent.info,
-                    icon: Icons.receipt_long_outlined,
-                    size: UiSize.xs,
-                  ),
-                ...tickers
-                    .take(_maxTickerBadges)
-                    .map(
-                      (String symbol) => UiBadge(
-                        label: symbol,
-                        variant: UiBadgeVariant.outline,
-                        size: UiSize.xs,
-                      ),
-                    ),
-                if (overflow > 0)
-                  UiBadge(
-                    label: '+$overflow',
-                    variant: UiBadgeVariant.ghost,
-                    size: UiSize.xs,
-                    tooltip: tickers.skip(_maxTickerBadges).join(' · '),
-                  ),
-              ],
+          if (onDelete != null)
+            UiIconButton(
+              icon: Icons.delete_outline_rounded,
+              tooltip: 'Delete note',
+              size: UiSize.sm,
+              onPressed: onDelete,
             ),
-          ],
-          if (showTags) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            Wrap(
-              spacing: context.sp(theme.spacing.xxs),
-              runSpacing: context.sp(theme.spacing.xxs),
-              children: note.tags
-                  .map(
-                    (String tag) => UiBadge(
-                      label: '#$tag',
-                      variant: UiBadgeVariant.ghost,
-                      size: UiSize.xs,
-                    ),
-                  )
-                  .toList(growable: false),
-            ),
-          ],
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          _Footer(note: note),
         ],
       ),
+      badges: <Widget>[
+        if (note.strategyName != null)
+          UiBadge(
+            label: note.strategyName!,
+            intent: UiIntent.primary,
+            icon: Icons.account_tree_outlined,
+            size: UiSize.xs,
+            maxWidth: context.sz(160),
+          ),
+        if (note.linkedJournalIds.isNotEmpty)
+          UiBadge(
+            label: note.linkedJournalIds.length == 1
+                ? '1 journal'
+                : '${note.linkedJournalIds.length} journals',
+            intent: UiIntent.info,
+            icon: Icons.receipt_long_outlined,
+            size: UiSize.xs,
+          ),
+        ...tickers
+            .take(_maxTickerBadges)
+            .map(
+              (String symbol) => UiBadge(
+                label: symbol,
+                variant: UiBadgeVariant.outline,
+                size: UiSize.xs,
+              ),
+            ),
+        if (overflow > 0)
+          UiBadge(
+            label: '+$overflow',
+            variant: UiBadgeVariant.ghost,
+            size: UiSize.xs,
+            tooltip: tickers.skip(_maxTickerBadges).join(' · '),
+          ),
+      ],
+      tags: () {
+        if (!showTags) return const <Widget>[];
+        final Set<String> seenTags = <String>{};
+        final String lowerTitle = note.title.trim().toLowerCase();
+        final String lowerStrategy = (note.strategyName ?? '').trim().toLowerCase();
+        final Set<String> lowerTickers = tickers.map((String t) => t.toLowerCase()).toSet();
+
+        final List<Widget> uniqueTags = <Widget>[];
+        for (final String rawTag in note.tags) {
+          final String clean = rawTag.replaceAll('#', '').trim();
+          final String lower = clean.toLowerCase();
+          if (clean.isEmpty) continue;
+          if (lower == lowerTitle ||
+              lower == lowerStrategy ||
+              lowerTickers.contains(lower)) {
+            continue;
+          }
+          if (seenTags.add(lower)) {
+            uniqueTags.add(
+              UiBadge(
+                label: '#$clean',
+                variant: UiBadgeVariant.ghost,
+                size: UiSize.xs,
+              ),
+            );
+          }
+        }
+        return uniqueTags;
+      }(),
+      footerMetadata: _buildNoteMetadata(context, note),
+      footerEngagement:
+          note.isPublic ? _buildNoteEngagement(context, note) : null,
+    );
+  }
+
+  static List<Widget> _buildNoteMetadata(BuildContext context, AppNote note) {
+    final UiTheme theme = context.ui;
+    final TextStyle style = context.uiText.caption.copyWith(
+      color: theme.colors.foregroundSubtle,
+    );
+    return <Widget>[
+      Text(AppTokens.relativeTime(note.updatedAt), style: style),
+      Text('·', style: style),
+      Text('${note.wordCount} words', style: style),
+      if (note.hasChecklist) ...<Widget>[
+        Text('·', style: style),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              note.checklistDone == note.checklistTotal
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              size: context.sz(theme.sizes.iconXs),
+              color: note.checklistDone == note.checklistTotal
+                  ? theme.colors.bullish
+                  : theme.colors.foregroundSubtle,
+            ),
+            SizedBox(width: context.sp(theme.spacing.xxs)),
+            Text(
+              '${note.checklistDone}/${note.checklistTotal}',
+              style: style,
+            ),
+          ],
+        ),
+      ],
+      if (note.hasImages)
+        Icon(
+          Icons.image_outlined,
+          size: context.sz(theme.sizes.iconXs),
+          color: theme.colors.foregroundSubtle,
+        ),
+      if (note.hasCode)
+        Icon(
+          Icons.code_rounded,
+          size: context.sz(theme.sizes.iconXs),
+          color: theme.colors.foregroundSubtle,
+        ),
+    ];
+  }
+
+  static Widget _buildNoteEngagement(BuildContext context, AppNote note) {
+    return AppDeskEngagementRow(
+      views: note.viewCount,
+      likes: note.likeCount,
+      comments: note.comments.length,
     );
   }
 }
@@ -279,106 +305,6 @@ class _Preview extends StatelessWidget {
       TextSpan(style: style, children: spans),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
-    );
-  }
-}
-
-class _Footer extends StatelessWidget {
-  const _Footer({required this.note});
-
-  final AppNote note;
-
-  @override
-  Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
-    final TextStyle style = context.uiText.caption.copyWith(
-      color: theme.colors.foregroundSubtle,
-    );
-    final Widget metadata = Wrap(
-      spacing: context.sp(theme.spacing.xs),
-      runSpacing: context.sp(theme.spacing.xxs),
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: <Widget>[
-        Text(AppTokens.relativeTime(note.updatedAt), style: style),
-        Text('·', style: style),
-        Text('${note.wordCount} words', style: style),
-        if (note.hasChecklist) ...<Widget>[
-          Text('·', style: style),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(
-                note.checklistDone == note.checklistTotal
-                    ? Icons.check_circle_outline_rounded
-                    : Icons.radio_button_unchecked_rounded,
-                size: context.sz(theme.sizes.iconXs),
-                color: note.checklistDone == note.checklistTotal
-                    ? theme.colors.bullish
-                    : theme.colors.foregroundSubtle,
-              ),
-              SizedBox(width: context.sp(theme.spacing.xxs)),
-              Text(
-                '${note.checklistDone}/${note.checklistTotal}',
-                style: style,
-              ),
-            ],
-          ),
-        ],
-        if (note.hasImages)
-          Icon(
-            Icons.image_outlined,
-            size: context.sz(theme.sizes.iconXs),
-            color: theme.colors.foregroundSubtle,
-          ),
-        if (note.hasCode)
-          Icon(
-            Icons.code_rounded,
-            size: context.sz(theme.sizes.iconXs),
-            color: theme.colors.foregroundSubtle,
-          ),
-      ],
-    );
-
-    if (!note.isPublic) return metadata;
-
-    final Widget engagement = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Icon(
-          Icons.visibility_outlined,
-          size: context.sz(14),
-          color: style.color,
-        ),
-        SizedBox(width: context.sp(theme.spacing.xxs)),
-        Text('${note.viewCount}', style: style),
-        SizedBox(width: context.sp(theme.spacing.xs)),
-        Icon(
-          Icons.favorite_border_rounded,
-          size: context.sz(14),
-          color: style.color,
-        ),
-        SizedBox(width: context.sp(theme.spacing.xxs)),
-        Text('${note.likeCount}', style: style),
-        SizedBox(width: context.sp(theme.spacing.xs)),
-        Icon(
-          Icons.chat_bubble_outline_rounded,
-          size: context.sz(14),
-          color: style.color,
-        ),
-        SizedBox(width: context.sp(theme.spacing.xxs)),
-        Text('${note.comments.length}', style: style),
-      ],
-    );
-
-    return Wrap(
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: context.sp(theme.spacing.sm),
-      runSpacing: context.sp(theme.spacing.xxs),
-      children: <Widget>[
-        metadata,
-        engagement,
-      ],
     );
   }
 }

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
-import '../motion/app_motion.dart';
 import '../theme/app_tokens.dart';
+import '../cards/desk_record_card.dart';
 import 'workbench_blocks.dart';
 
 /// Journal-note blocks — the presentation half of the trade journal.
@@ -659,6 +659,8 @@ class AppJournalNoteCard extends StatelessWidget {
     this.showExcerpt = true,
     this.trailing,
     this.linkedNoteCount,
+    this.footerEngagement,
+    this.density = AppNoteDensity.comfortable,
   });
 
   final AppTrade entry;
@@ -673,6 +675,11 @@ class AppJournalNoteCard extends StatelessWidget {
   /// graph and knows about edges stored on the note side too.
   final int? linkedNoteCount;
 
+  /// Optional engagement row (views, likes, comments, post link).
+  final Widget? footerEngagement;
+
+  final AppNoteDensity density;
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
@@ -684,117 +691,150 @@ class AppJournalNoteCard extends StatelessWidget {
     );
     final int notes = linkedNoteCount ?? entry.linkedNoteIds.length;
     final bool unfiled = entry.strategyId == null || entry.strategyId!.isEmpty;
+    final TextStyle metaStyle = context.uiText.caption.copyWith(
+      color: c.foregroundSubtle,
+    );
 
-    return AppHoverLift(
-      child: UiCard(
-        onTap: onTap,
-        selected: selected,
-        accentColor: pl,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    entry.displayTitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.uiText.subheading.copyWith(
-                      color: c.foreground,
-                    ),
-                  ),
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Text(
-                  entry.isOpen
-                      ? 'Open'
-                      : AppTokens.signedMoney(entry.pnl, decimals: 0),
-                  style: context.uiText.bodyStrong.copyWith(color: pl),
-                ),
-                if (trailing != null) ...<Widget>[
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  trailing!,
-                ],
-              ],
-            ),
-            SizedBox(height: context.sp(theme.spacing.xxs)),
-            Text(
-              <String>[
-                entry.ticker,
-                AppTokens.sideLabel(entry.side),
-                AppTokens.shortDate(entry.sortDate),
-                if (entry.strategy != null) entry.strategy!,
-              ].join(' · '),
-              maxLines: 1,
+    final Set<String> seenTags = <String>{};
+    final String lowerTitle = entry.displayTitle.trim().toLowerCase();
+    final String lowerTicker = entry.ticker.trim().toLowerCase();
+    final String lowerStrategy = (entry.strategy ?? '').trim().toLowerCase();
+    final String lowerSide = AppTokens.sideLabel(entry.side).toLowerCase();
+    final String lowerOutcome = AppTokens.outcomeLabel(entry.outcome).toLowerCase();
+
+    final List<Widget> uniqueTags = <Widget>[];
+    for (final String rawTag in entry.tags) {
+      final String clean = rawTag.replaceAll('#', '').trim();
+      final String lower = clean.toLowerCase();
+      if (clean.isEmpty) continue;
+      if (lower == lowerTitle ||
+          lower == lowerTicker ||
+          lower == lowerStrategy ||
+          lower == lowerSide ||
+          lower == lowerOutcome ||
+          lower == 'open' ||
+          lower == 'closed') {
+        continue;
+      }
+      if (seenTags.add(lower)) {
+        uniqueTags.add(
+          UiBadge(
+            label: '#$clean',
+            variant: UiBadgeVariant.ghost,
+            size: UiSize.xs,
+          ),
+        );
+      }
+    }
+
+    final bool showStrategyBadge = entry.strategy != null &&
+        entry.strategy!.isNotEmpty &&
+        lowerStrategy != lowerTitle;
+
+    return AppDeskRecordCard(
+      category: '${entry.ticker} · ${AppTokens.sideLabel(entry.side).toUpperCase()}',
+      accentColor: pl,
+      title: entry.displayTitle,
+      preview: showExcerpt && excerpt.isNotEmpty
+          ? Text(
+              excerpt,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: context.uiText.caption.copyWith(color: c.foregroundMuted),
-            ),
-            if (showExcerpt && excerpt.isNotEmpty) ...<Widget>[
-              SizedBox(height: context.sp(theme.spacing.xs)),
-              Text(
-                excerpt,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.body.copyWith(color: c.foregroundMuted),
+              style: context.uiText.caption.copyWith(
+                color: c.foregroundMuted,
+                height: 1.45,
               ),
-            ],
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            Wrap(
-              spacing: context.sp(theme.spacing.xs),
-              runSpacing: context.sp(theme.spacing.xs),
-              children: <Widget>[
-                UiBadge(
-                  label: AppTokens.outcomeLabel(entry.outcome),
-                  size: UiSize.xs,
-                  icon: _outcomeIcon(entry.outcome),
-                  intent: AppTokens.outcomeIntent(entry.outcome),
-                  variant: UiBadgeVariant.soft,
-                ),
-                if (entry.rMultiple != null)
-                  UiBadge(
-                    label: AppTokens.rr(entry.rMultiple!),
-                    size: UiSize.xs,
-                    intent: AppTokens.plIntent(entry.rMultiple!),
-                    variant: UiBadgeVariant.soft,
-                  ),
-                if (!entry.hasStory)
-                  const UiBadge(
-                    label: 'Needs write-up',
-                    size: UiSize.xs,
-                    icon: Icons.edit_note_rounded,
-                    intent: UiIntent.warning,
-                    variant: UiBadgeVariant.soft,
-                  ),
-                if (unfiled)
-                  const UiBadge(
-                    label: 'Unfiled',
-                    size: UiSize.xs,
-                    icon: Icons.folder_off_outlined,
-                    intent: UiIntent.info,
-                    variant: UiBadgeVariant.soft,
-                  ),
-                if (notes > 0)
-                  UiBadge(
-                    label: '$notes note${notes == 1 ? '' : 's'}',
-                    size: UiSize.xs,
-                    icon: Icons.link_rounded,
-                    variant: UiBadgeVariant.outline,
-                  ),
-                if (entry.checklistTotal > 0)
-                  UiBadge(
-                    label:
-                        '${entry.checklistDone}/${entry.checklistTotal} checks',
-                    size: UiSize.xs,
-                    icon: Icons.checklist_rounded,
-                    variant: UiBadgeVariant.outline,
-                  ),
-              ],
-            ),
+            )
+          : null,
+      showPreview: showExcerpt,
+      density: density,
+      selected: selected,
+      onTap: onTap,
+      semanticLabel: 'Trade: ${entry.displayTitle}',
+      trailingHeader: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            entry.isOpen
+                ? 'Open'
+                : AppTokens.signedMoney(entry.pnl, decimals: 0),
+            style: context.uiText.bodyStrong.copyWith(color: pl),
+          ),
+          if (trailing != null) ...<Widget>[
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            trailing!,
           ],
-        ),
+        ],
       ),
+      badges: <Widget>[
+        if (!entry.isOpen)
+          UiBadge(
+            label: AppTokens.outcomeLabel(entry.outcome),
+            size: UiSize.xs,
+            icon: _outcomeIcon(entry.outcome),
+            intent: AppTokens.outcomeIntent(entry.outcome),
+            variant: UiBadgeVariant.soft,
+          ),
+        if (entry.rMultiple != null)
+          UiBadge(
+            label: AppTokens.rr(entry.rMultiple!),
+            size: UiSize.xs,
+            intent: AppTokens.plIntent(entry.rMultiple!),
+            variant: UiBadgeVariant.soft,
+          ),
+        if (showStrategyBadge)
+          UiBadge(
+            label: entry.strategy!,
+            icon: Icons.account_tree_outlined,
+            size: UiSize.xs,
+            intent: UiIntent.primary,
+            maxWidth: context.sz(160),
+          ),
+        if (!entry.hasStory)
+          const UiBadge(
+            label: 'Needs write-up',
+            size: UiSize.xs,
+            icon: Icons.edit_note_rounded,
+            intent: UiIntent.warning,
+            variant: UiBadgeVariant.soft,
+          ),
+        if (unfiled)
+          const UiBadge(
+            label: 'Unfiled',
+            size: UiSize.xs,
+            icon: Icons.folder_off_outlined,
+            intent: UiIntent.info,
+            variant: UiBadgeVariant.soft,
+          ),
+        if (notes > 0)
+          UiBadge(
+            label: '$notes note${notes == 1 ? '' : 's'}',
+            size: UiSize.xs,
+            icon: Icons.link_rounded,
+            variant: UiBadgeVariant.outline,
+          ),
+        if (entry.checklistTotal > 0)
+          UiBadge(
+            label: '${entry.checklistDone}/${entry.checklistTotal} checks',
+            size: UiSize.xs,
+            icon: Icons.checklist_rounded,
+            variant: UiBadgeVariant.outline,
+          ),
+      ],
+      tags: uniqueTags,
+      footerMetadata: <Widget>[
+        Text(AppTokens.relativeTime(entry.sortDate), style: metaStyle),
+        Text('·', style: metaStyle),
+        Text(
+          '${entry.size.toStringAsFixed(0)} shares @ ${AppTokens.money(entry.entry)}',
+          style: metaStyle,
+        ),
+        if (entry.wordCount > 0) ...<Widget>[
+          Text('·', style: metaStyle),
+          Text('${entry.wordCount} words', style: metaStyle),
+        ],
+      ],
+      footerEngagement: footerEngagement,
     );
   }
 }
@@ -990,8 +1030,9 @@ class AppJournalNoteHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final embedded = AppWorkbenchScope.hasEmbeddedHeader(context);
     final inWorkbench = AppWorkbenchScope.of(context);
-    final bool showBackButton = !embedded && !inWorkbench && onBack != null;
-    final bool shouldDisplayTitle = showTitle && !embedded;
+    final bool isDesktop = context.uiRes.isDesktop;
+    final bool showBackButton = !isDesktop && !embedded && !inWorkbench && onBack != null;
+    final bool shouldDisplayTitle = showTitle;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

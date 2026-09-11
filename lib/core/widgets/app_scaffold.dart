@@ -374,12 +374,14 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// Role permissions still govern the destination. Writing screens handle
   /// same-kind links locally; ticker links arrive at the matching Markets detail.
   void _openLinkRef(AppLinkRef ref, {bool writing = false}) {
-    final String? destination = switch (ref.kind) {
-      AppLinkKind.journal => 'journal',
-      AppLinkKind.strategy => 'strategies',
-      AppLinkKind.note => 'notes',
-      _ => ref.kind.destinationId,
-    };
+    final String? destination = writing
+        ? 'notes'
+        : switch (ref.kind) {
+            AppLinkKind.journal => 'journal',
+            AppLinkKind.strategy => 'strategies',
+            AppLinkKind.note => 'notes',
+            _ => ref.kind.destinationId,
+          };
     if (destination == null || !_canReach(destination)) return;
     setState(() {
       _selectedId = destination;
@@ -543,7 +545,12 @@ class _AppScaffoldState extends State<AppScaffold> {
     // `onOpenRef` to leave, `openRequest` to arrive, and — for the two that put
     // a document behind a real back step on a phone — `onSubpageChanged` so the
     // app bar names what is open.
-    'workspace' => WorkspaceScreen(onOpenFeature: _go),
+    'workspace' => WorkspaceScreen(
+      onOpenFeature: _go,
+      onOpenRef: _openLinkRef,
+      onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
+      onSubpageChanged: _onSubpageChanged,
+    ),
     'journal' => AppWritingDeskScope(
       child: JournalScreen(
         key: _journalKey,
@@ -921,17 +928,16 @@ class _AppScaffoldState extends State<AppScaffold> {
               'journal' => 'Log Trade',
               'strategies' => 'New Playbook',
               'notes' => 'New Note',
-              _ => 'Log Trade',
+              _ => null,
             },
             onPrimaryAction: switch (_selectedId) {
               'journal' => _addActiveWriting,
               'strategies' => _addActiveWriting,
               'notes' => _addActiveWriting,
-              _ => () => _go('journal'),
+              _ => null,
             },
             onHelp: _showActiveWritingGuide,
-            statusBadgeText: 'Live',
-            showStatusBadge: true,
+            showStatusBadge: false,
             sidebarFooter: widget.showDevelopmentRoleSwitcher
                 ? _buildDesktopPreviewControls()
                 : null,

@@ -642,8 +642,20 @@ class JournalScreenState extends State<JournalScreen> {
     key: ValueKey<String>('journal_document_${entry.id}'),
     entry: entry,
     onClose: _backToIndex,
-    onEdit: () => _edit(entry),
-    onEditWriting: () => _edit(entry, mode: JournalEditorMode.write),
+    onEdit: () => _edit(entry, mode: JournalEditorMode.write),
+    onEditWriting: () {
+      if (widget.onOpenWriting != null) {
+        widget.onOpenWriting!(
+          AppLinkRef(
+            kind: AppLinkKind.journal,
+            id: entry.id,
+            title: entry.displayTitle,
+          ),
+        );
+      } else {
+        _edit(entry, mode: JournalEditorMode.write);
+      }
+    },
     onOpenLink: _openRef,
     onAttachToPost: widget.onAttachToPost,
   );

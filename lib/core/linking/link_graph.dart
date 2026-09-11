@@ -215,18 +215,21 @@ class AppLinkGraph {
 
   /// Notes, journal entries, strategies and tickers attached to [note].
   AppLinkBundle bundleForNote(AppNote note) {
+    final bool isPub = note.isPublic;
     final Set<String> journalIds = <String>{
-      ...note.linkedJournalIds,
+      for (final String id in note.linkedJournalIds)
+        if (!isPub || (entry(id)?.isPublic ?? false)) id,
       for (final AppTrade t in journalList)
-        if (t.linkedNoteIds.contains(note.id)) t.id,
+        if (t.linkedNoteIds.contains(note.id) && (!isPub || t.isPublic)) t.id,
     };
     final Set<String> strategyIds = <String>{
       if (note.strategyId != null && note.strategyId!.isNotEmpty)
-        note.strategyId!,
+        if (!isPub || (strategy(note.strategyId!)?.isPublic ?? false))
+          note.strategyId!,
       for (final AppStrategy s in strategyList)
-        if (s.linkedNoteIds.contains(note.id)) s.id,
+        if (s.linkedNoteIds.contains(note.id) && (!isPub || s.isPublic)) s.id,
     };
-    return _withInline(
+    final AppLinkBundle bundle = _withInline(
       AppLinkKind.note,
       note.id,
       AppLinkBundle(
@@ -239,22 +242,38 @@ class AppLinkGraph {
         ],
       ),
     );
+    if (!isPub) return bundle;
+    return AppLinkBundle(
+      strategies: bundle.strategies
+          .where((AppLinkRef r) => strategy(r.id)?.isPublic ?? false)
+          .toList(growable: false),
+      journal: bundle.journal
+          .where((AppLinkRef r) => entry(r.id)?.isPublic ?? false)
+          .toList(growable: false),
+      notes: bundle.notes
+          .where((AppLinkRef r) => this.note(r.id)?.isPublic ?? false)
+          .toList(growable: false),
+      tickers: bundle.tickers,
+    );
   }
 
   /// Notes, strategies and tickers attached to a journal [entry].
   AppLinkBundle bundleForJournal(AppTrade entry) {
+    final bool isPub = entry.isPublic;
     final Set<String> noteIds = <String>{
-      ...entry.linkedNoteIds,
+      for (final String id in entry.linkedNoteIds)
+        if (!isPub || (note(id)?.isPublic ?? false)) id,
       for (final AppNote n in noteList)
-        if (n.linkedJournalIds.contains(entry.id)) n.id,
+        if (n.linkedJournalIds.contains(entry.id) && (!isPub || n.isPublic)) n.id,
     };
     final Set<String> strategyIds = <String>{
       if (entry.strategyId != null && entry.strategyId!.isNotEmpty)
-        entry.strategyId!,
+        if (!isPub || (strategy(entry.strategyId!)?.isPublic ?? false))
+          entry.strategyId!,
       for (final AppStrategy s in strategyList)
-        if (s.linkedJournalIds.contains(entry.id)) s.id,
+        if (s.linkedJournalIds.contains(entry.id) && (!isPub || s.isPublic)) s.id,
     };
-    return _withInline(
+    final AppLinkBundle bundle = _withInline(
       AppLinkKind.journal,
       entry.id,
       AppLinkBundle(
@@ -265,6 +284,19 @@ class AppLinkGraph {
         tickers: <AppLinkRef>[tickerRef(entry.ticker)],
       ),
     );
+    if (!isPub) return bundle;
+    return AppLinkBundle(
+      strategies: bundle.strategies
+          .where((AppLinkRef r) => strategy(r.id)?.isPublic ?? false)
+          .toList(growable: false),
+      journal: bundle.journal
+          .where((AppLinkRef r) => this.entry(r.id)?.isPublic ?? false)
+          .toList(growable: false),
+      notes: bundle.notes
+          .where((AppLinkRef r) => note(r.id)?.isPublic ?? false)
+          .toList(growable: false),
+      tickers: bundle.tickers,
+    );
   }
 
   /// Notes, journal entries and tickers attached to [strategy]. Tickers are the
@@ -272,22 +304,25 @@ class AppLinkGraph {
   /// traded on — a playbook written for the index that keeps getting traded on
   /// bank futures is worth seeing.
   AppLinkBundle bundleForStrategy(AppStrategy strategy) {
+    final bool isPub = strategy.isPublic;
     final Set<String> noteIds = <String>{
-      ...strategy.linkedNoteIds,
+      for (final String id in strategy.linkedNoteIds)
+        if (!isPub || (note(id)?.isPublic ?? false)) id,
       for (final AppNote n in noteList)
-        if (n.strategyId == strategy.id) n.id,
+        if (n.strategyId == strategy.id && (!isPub || n.isPublic)) n.id,
     };
     final Set<String> journalIds = <String>{
-      ...strategy.linkedJournalIds,
+      for (final String id in strategy.linkedJournalIds)
+        if (!isPub || (entry(id)?.isPublic ?? false)) id,
       for (final AppTrade t in journalList)
-        if (t.strategyId == strategy.id) t.id,
+        if (t.strategyId == strategy.id && (!isPub || t.isPublic)) t.id,
     };
     final Set<String> symbols = <String>{
       for (final String s in strategy.linkedTickers) s.toUpperCase(),
       for (final String id in journalIds)
         if (entry(id) != null) entry(id)!.ticker.toUpperCase(),
     };
-    return _withInline(
+    final AppLinkBundle bundle = _withInline(
       AppLinkKind.strategy,
       strategy.id,
       AppLinkBundle(
@@ -295,6 +330,19 @@ class AppLinkGraph {
         notes: _sortedNotes(noteIds),
         tickers: <AppLinkRef>[for (final String s in symbols) tickerRef(s)],
       ),
+    );
+    if (!isPub) return bundle;
+    return AppLinkBundle(
+      strategies: bundle.strategies
+          .where((AppLinkRef r) => this.strategy(r.id)?.isPublic ?? false)
+          .toList(growable: false),
+      journal: bundle.journal
+          .where((AppLinkRef r) => entry(r.id)?.isPublic ?? false)
+          .toList(growable: false),
+      notes: bundle.notes
+          .where((AppLinkRef r) => note(r.id)?.isPublic ?? false)
+          .toList(growable: false),
+      tickers: bundle.tickers,
     );
   }
 

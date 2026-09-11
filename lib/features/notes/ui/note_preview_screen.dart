@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
@@ -59,8 +60,10 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   final NotesRepository _repo = NotesRepositoryScope.repository;
   final AppLinkGraphService _links = AppLinkGraphScope.service;
 
+  late AppNote _activeNote = widget.note;
   late AppLinkGraph _graph = _links.current;
   StreamSubscription<AppLinkGraph>? _graphSub;
+  StreamSubscription<List<AppNote>>? _notesSub;
   String _commentDraft = '';
 
   @override
@@ -68,6 +71,13 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
     super.initState();
     _graphSub = _links.watch().listen((AppLinkGraph graph) {
       if (mounted) setState(() => _graph = graph);
+    });
+    _notesSub = _repo.watchAll().listen((List<AppNote> notes) {
+      final AppNote? match =
+          notes.where((AppNote n) => n.id == _activeNote.id).firstOrNull;
+      if (match != null && mounted) {
+        setState(() => _activeNote = match);
+      }
     });
     if (widget.note.isPublic && widget.note.id.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -77,13 +87,22 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   }
 
   @override
+  void didUpdateWidget(NotePreviewScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.note.id != widget.note.id) {
+      _activeNote = widget.note;
+    }
+  }
+
+  @override
   void dispose() {
     _graphSub?.cancel();
+    _notesSub?.cancel();
     _outline.dispose();
     super.dispose();
   }
 
-  AppNote get _note => widget.note;
+  AppNote get _note => _activeNote;
 
   /// Roughly 220 words a minute, floored at a minute so a two-line note does
   /// not claim to take zero.
@@ -131,6 +150,30 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
         message: 'The note could not be turned into a PDF',
       );
     }
+  }
+
+  Future<void> _shareNote() async {
+    final String shareUrl = 'https://tradex.app/p/notes/${_note.id}';
+    await Clipboard.setData(ClipboardData(text: shareUrl));
+    if (!mounted) return;
+    UiToast.success(
+      context,
+      title: 'Link copied',
+      message: 'Share URL copied to clipboard',
+    );
+  }
+
+  Future<void> _toggleSaveNote() async {
+    final bool wasFavorite = _note.isFavorite;
+    await _repo.toggleFavorite(_note.id);
+    if (!mounted) return;
+    UiToast.success(
+      context,
+      title: wasFavorite ? 'Removed from saved' : 'Saved note',
+      message: wasFavorite
+          ? 'Note removed from bookmarks'
+          : 'Note saved to your bookmarks',
+    );
   }
 
   String get _title =>
@@ -255,6 +298,23 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           ),
         ),
         UiIconButton(
+          icon: _note.isFavorite
+              ? Icons.bookmark_rounded
+              : Icons.bookmark_outline_rounded,
+          variant: _note.isFavorite ? UiVariant.soft : UiVariant.ghost,
+          intent: _note.isFavorite ? UiIntent.primary : UiIntent.neutral,
+          tooltip: _note.isFavorite ? 'Remove from saved' : 'Save note',
+          onPressed: _toggleSaveNote,
+        ),
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        UiIconButton(
+          icon: Icons.share_outlined,
+          variant: UiVariant.ghost,
+          tooltip: 'Share note',
+          onPressed: _shareNote,
+        ),
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        UiIconButton(
           icon: Icons.picture_as_pdf_outlined,
           variant: UiVariant.ghost,
           tooltip: 'Export as PDF',
@@ -378,15 +438,46 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          UiButton(
-            label: _note.liked ? 'Liked' : 'Like note',
-            leadingIcon: _note.liked
-                ? Icons.favorite_rounded
-                : Icons.favorite_border_rounded,
-            variant: _note.liked ? UiVariant.soft : UiVariant.outline,
-            intent: UiIntent.danger,
-            size: UiSize.sm,
-            onPressed: () => _repo.toggleLike(_note.id),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: UiButton(
+                  label: _note.liked ? 'Liked' : 'Like',
+                  leadingIcon: _note.liked
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  variant: _note.liked ? UiVariant.soft : UiVariant.outline,
+                  intent: UiIntent.danger,
+                  size: UiSize.sm,
+                  onPressed: () => _repo.toggleLike(_note.id),
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              Expanded(
+                child: UiButton(
+                  label: _note.isFavorite ? 'Saved' : 'Save',
+                  leadingIcon: _note.isFavorite
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
+                  variant:
+                      _note.isFavorite ? UiVariant.soft : UiVariant.outline,
+                  intent: UiIntent.primary,
+                  size: UiSize.sm,
+                  onPressed: _toggleSaveNote,
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              Expanded(
+                child: UiButton(
+                  label: 'Share',
+                  leadingIcon: Icons.share_outlined,
+                  variant: UiVariant.outline,
+                  intent: UiIntent.neutral,
+                  size: UiSize.sm,
+                  onPressed: _shareNote,
+                ),
+              ),
+            ],
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
           UiField(

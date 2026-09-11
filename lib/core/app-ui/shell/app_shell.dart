@@ -37,8 +37,8 @@ class AppShell extends StatefulWidget {
     this.primaryActionLabel,
     this.onPrimaryAction,
     this.onHelp,
-    this.statusBadgeText = 'Live',
-    this.showStatusBadge = true,
+    this.statusBadgeText = '',
+    this.showStatusBadge = false,
     this.sidebarFooter,
     this.mobilePrimaryItems,
     this.mobileMoreItems = const <AppNavItem>[],
@@ -1292,8 +1292,8 @@ class AppTopBar extends StatelessWidget {
     this.onBack,
     this.onResearch,
     this.researchVisible = false,
-    this.statusBadgeText = 'Live',
-    this.showStatusBadge = true,
+    this.statusBadgeText = '',
+    this.showStatusBadge = false,
   });
 
   final AppTrader? trader;

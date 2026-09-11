@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -184,6 +186,7 @@ class AppWeekStrip extends StatefulWidget {
     required this.selected,
     required this.onSelect,
     this.markers = const <DateTime>{},
+    this.coloredMarkers,
     this.daysBefore = 7,
     this.daysAfter = 27,
   });
@@ -194,6 +197,9 @@ class AppWeekStrip extends StatefulWidget {
 
   /// Calendar days that should show an activity dot.
   final Set<DateTime> markers;
+
+  /// Optional map of calendar day to list of activity dot colors (e.g. note, trade, strategy).
+  final Map<DateTime, List<Color>>? coloredMarkers;
 
   /// How many days to render either side of today.
   final int daysBefore;
@@ -207,6 +213,7 @@ class _AppWeekStripState extends State<AppWeekStrip> {
   final ScrollController _scrollCtrl = ScrollController();
   late List<DateTime> _days;
   late Set<DateTime> _markerDays;
+  late Map<DateTime, List<Color>> _coloredMap;
 
   @override
   void initState() {
@@ -230,11 +237,20 @@ class _AppWeekStripState extends State<AppWeekStrip> {
     if (!AppTokens.isSameDay(oldWidget.selected, widget.selected)) {
       _scrollToSelected(animate: true);
     }
-    if (oldWidget.markers != widget.markers) _rebuildMarkers();
+    if (oldWidget.markers != widget.markers ||
+        oldWidget.coloredMarkers != widget.coloredMarkers) {
+      _rebuildMarkers();
+    }
   }
 
   void _rebuildMarkers() {
     _markerDays = widget.markers.map(AppTokens.dateOnly).toSet();
+    _coloredMap = <DateTime, List<Color>>{};
+    if (widget.coloredMarkers != null) {
+      widget.coloredMarkers!.forEach((DateTime key, List<Color> colors) {
+        _coloredMap[AppTokens.dateOnly(key)] = colors;
+      });
+    }
   }
 
   @override
@@ -290,7 +306,9 @@ class _AppWeekStripState extends State<AppWeekStrip> {
           final DateTime d = _days[index];
           final bool isSelected = AppTokens.isSameDay(d, widget.selected);
           final bool isToday = AppTokens.isSameDay(d, today);
-          final bool hasMarker = _markerDays.contains(d);
+          final List<Color>? dayDots = _coloredMap[d];
+          final bool hasCustomDots = dayDots != null && dayDots.isNotEmpty;
+          final bool hasMarker = hasCustomDots || _markerDays.contains(d);
 
           final Color dayColor = isSelected ? c.onPrimary : c.foreground;
           final Color dowColor = isSelected
@@ -336,15 +354,40 @@ class _AppWeekStripState extends State<AppWeekStrip> {
                   SizedBox(height: context.sp(theme.spacing.xxs)),
                   // Reserve the dot's row height at all times so day numbers
                   // stay vertically aligned whether or not a day is flagged.
-                  Container(
-                    width: context.sz(4),
+                  SizedBox(
                     height: context.sz(4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: hasMarker
-                          ? (isSelected ? c.onPrimary : c.primary)
-                          : Colors.transparent,
-                    ),
+                    child: hasCustomDots
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: <Widget>[
+                              for (int dotIdx = 0;
+                                  dotIdx < dayDots.length && dotIdx < 3;
+                                  dotIdx++) ...<Widget>[
+                                if (dotIdx > 0) SizedBox(width: context.sz(2)),
+                                Container(
+                                  width: context.sz(4),
+                                  height: context.sz(4),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isSelected
+                                        ? c.onPrimary
+                                        : dayDots[dotIdx],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          )
+                        : Container(
+                            width: context.sz(4),
+                            height: context.sz(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: hasMarker
+                                  ? (isSelected ? c.onPrimary : c.primary)
+                                  : Colors.transparent,
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -530,3 +573,667 @@ class _QuickLinkCell extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Workspace calendar controls: Bar, Month Calendar, and Carousel
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Header above the workspace calendar strip / month grid that displays the
+/// focused month/year label, a "Today" quick jump button, and a view toggler
+/// between the 7-day horizontal strip and the full month grid.
+class AppWorkspaceCalendarBar extends StatelessWidget {
+  const AppWorkspaceCalendarBar({
+    super.key,
+    required this.selectedDay,
+    required this.isMonthView,
+    required this.onToggleView,
+    required this.onJumpToday,
+  });
+
+  final DateTime selectedDay;
+  final bool isMonthView;
+  final ValueChanged<bool> onToggleView;
+  final VoidCallback onJumpToday;
+
+  static const List<String> _fullMonths = <String>[
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final bool isToday = AppTokens.isSameDay(selectedDay, DateTime.now());
+    final String monthLabel =
+        '${_fullMonths[selectedDay.month - 1]} ${selectedDay.year}';
+
+    return Row(
+      children: <Widget>[
+        Icon(
+          Icons.calendar_today_rounded,
+          size: context.sz(theme.sizes.iconSm),
+          color: theme.colors.primary,
+        ),
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        Text(
+          monthLabel,
+          style: context.uiText.bodyStrong.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        if (!isToday)
+          UiButton(
+            label: 'Today',
+            variant: UiVariant.ghost,
+            size: UiSize.xs,
+            expandOnMobile: false,
+            leadingIcon: Icons.my_location_rounded,
+            onPressed: onJumpToday,
+          ),
+        const Spacer(),
+        UiToggleGroup<bool>(
+          value: isMonthView,
+          size: UiSize.xs,
+          onChanged: onToggleView,
+          options: const <UiToggleOption<bool>>[
+            UiToggleOption<bool>(
+              value: false,
+              label: 'Week',
+              icon: Icons.view_week_outlined,
+            ),
+            UiToggleOption<bool>(
+              value: true,
+              label: 'Month',
+              icon: Icons.calendar_month_outlined,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Month view calendar grid displaying colored activity dots under each day.
+class AppWorkspaceMonthCalendar extends StatefulWidget {
+  const AppWorkspaceMonthCalendar({
+    super.key,
+    required this.selected,
+    required this.onSelect,
+    this.coloredMarkers = const <DateTime, List<Color>>{},
+  });
+
+  final DateTime selected;
+  final ValueChanged<DateTime> onSelect;
+  final Map<DateTime, List<Color>> coloredMarkers;
+
+  @override
+  State<AppWorkspaceMonthCalendar> createState() =>
+      _AppWorkspaceMonthCalendarState();
+}
+
+class _AppWorkspaceMonthCalendarState extends State<AppWorkspaceMonthCalendar> {
+  late DateTime _displayedMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayedMonth = DateTime(widget.selected.year, widget.selected.month);
+  }
+
+  @override
+  void didUpdateWidget(covariant AppWorkspaceMonthCalendar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selected.month != widget.selected.month ||
+        oldWidget.selected.year != widget.selected.year) {
+      _displayedMonth = DateTime(widget.selected.year, widget.selected.month);
+    }
+  }
+
+  static const List<String> _weekdays = <String>[
+    'Mo',
+    'Tu',
+    'We',
+    'Th',
+    'Fr',
+    'Sa',
+    'Su',
+  ];
+
+  static const List<String> _fullMonths = <String>[
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final UiColors c = theme.colors;
+    final DateTime today = AppTokens.dateOnly(DateTime.now());
+
+    final DateTime firstDayOfMonth =
+        DateTime(_displayedMonth.year, _displayedMonth.month, 1);
+    final int daysInMonth =
+        DateTime(_displayedMonth.year, _displayedMonth.month + 1, 0).day;
+    final int leadingEmptyDays = (firstDayOfMonth.weekday - 1) % 7;
+
+    final Map<DateTime, List<Color>> normalizedMarkers =
+        <DateTime, List<Color>>{};
+    widget.coloredMarkers.forEach((DateTime key, List<Color> val) {
+      normalizedMarkers[AppTokens.dateOnly(key)] = val;
+    });
+
+    return UiCard(
+      variant: UiCardVariant.surface,
+      padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          // Month navigation bar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              UiIconButton(
+                icon: Icons.chevron_left_rounded,
+                size: UiSize.sm,
+                tooltip: 'Previous month',
+                onPressed: () => setState(() {
+                  _displayedMonth = DateTime(
+                    _displayedMonth.year,
+                    _displayedMonth.month - 1,
+                  );
+                }),
+              ),
+              Text(
+                '${_fullMonths[_displayedMonth.month - 1]} ${_displayedMonth.year}',
+                style: context.uiText.bodyStrong,
+              ),
+              UiIconButton(
+                icon: Icons.chevron_right_rounded,
+                size: UiSize.sm,
+                tooltip: 'Next month',
+                onPressed: () => setState(() {
+                  _displayedMonth = DateTime(
+                    _displayedMonth.year,
+                    _displayedMonth.month + 1,
+                  );
+                }),
+              ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.xs)),
+          // Weekday initials
+          Row(
+            children: <Widget>[
+              for (final String day in _weekdays)
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      day,
+                      style: context.uiText.caption.copyWith(
+                        color: c.foregroundMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.xxs)),
+          // Calendar days grid
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: leadingEmptyDays + daysInMonth,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              childAspectRatio: 1.15,
+              mainAxisSpacing: 2,
+              crossAxisSpacing: 2,
+            ),
+            itemBuilder: (BuildContext ctx, int index) {
+              if (index < leadingEmptyDays) {
+                return const SizedBox.shrink();
+              }
+              final int dayNum = index - leadingEmptyDays + 1;
+              final DateTime date =
+                  DateTime(_displayedMonth.year, _displayedMonth.month, dayNum);
+              final bool isSelected = AppTokens.isSameDay(date, widget.selected);
+              final bool isCurrentDay = AppTokens.isSameDay(date, today);
+              final List<Color>? dots = normalizedMarkers[date];
+              final bool hasDots = dots != null && dots.isNotEmpty;
+
+              final Color textColor = isSelected
+                  ? c.onPrimary
+                  : isCurrentDay
+                      ? c.primary
+                      : c.foreground;
+
+              return UiInteractive(
+                onTap: () => widget.onSelect(date),
+                builder: (BuildContext itemCtx, UiInteractiveState state) {
+                  return AnimatedContainer(
+                    duration: theme.motion.fast,
+                    curve: theme.motion.curve,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? c.primary
+                          : state.hovered
+                              ? c.surfaceHover
+                              : Colors.transparent,
+                      borderRadius: context.radius(theme.radii.sm),
+                      border: isCurrentDay && !isSelected
+                          ? Border.all(
+                              color: c.borderStrong,
+                              width: theme.borders.hairline,
+                            )
+                          : null,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        Text(
+                          '$dayNum',
+                          style: context.uiText.caption.copyWith(
+                            color: textColor,
+                            fontWeight: isSelected || isCurrentDay
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.xxs)),
+                        SizedBox(
+                          height: context.sz(4),
+                          child: hasDots
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: <Widget>[
+                                    for (int d = 0;
+                                        d < dots.length && d < 3;
+                                        d++) ...<Widget>[
+                                      if (d > 0)
+                                        SizedBox(width: context.sz(2)),
+                                      Container(
+                                        width: context.sz(4),
+                                        height: context.sz(4),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: isSelected
+                                              ? c.onPrimary
+                                              : dots[d],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Responsive horizontal card carousel for the Writing Desk.
+///
+/// Lays out max 6 items:
+/// - Desktop: 3 cards per page
+/// - Tablet: 2 cards per page
+/// - Mobile: 1 card per page
+///
+/// Features Left and Right arrow buttons to flip pages with smooth animated transitions.
+/// Responsive horizontal card carousel for the Writing Desk.
+///
+/// Lays out max 6 items:
+/// - Desktop: 3 cards visible per view
+/// - Tablet: 2 cards visible per view
+/// - Mobile: 1 card visible per view
+///
+/// Features fluid horizontal touch/drag/trackpad scrolling, snapping,
+/// and Left & Right arrow buttons to smoothly slide across pages.
+class AppWorkspaceSectionCarousel extends StatefulWidget {
+  const AppWorkspaceSectionCarousel({
+    super.key,
+    required this.cards,
+    this.maxCards = 6,
+    this.height,
+    this.title,
+    this.subtitle,
+    this.icon,
+    this.trailing,
+    this.emptyPlaceholder,
+  });
+
+  final List<Widget> cards;
+  final int maxCards;
+  final double? height;
+  final String? title;
+  final String? subtitle;
+  final IconData? icon;
+  final Widget? trailing;
+  final Widget? emptyPlaceholder;
+
+  @override
+  State<AppWorkspaceSectionCarousel> createState() =>
+      _AppWorkspaceSectionCarouselState();
+}
+
+class _AppWorkspaceSectionCarouselState
+    extends State<AppWorkspaceSectionCarousel> {
+  late final ScrollController _scrollController;
+  int _currentPage = 0;
+  bool _canScrollLeft = false;
+  bool _canScrollRight = false;
+  double _lastWidth = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  int _calcColumns(BuildContext context) =>
+      context.uiRes.pick<int>(mobile: 1, tablet: 2, desktop: 3);
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final ScrollPosition position = _scrollController.position;
+    final bool canLeft = position.pixels > 4;
+    final bool canRight = position.pixels < position.maxScrollExtent - 4;
+
+    final int columns = _calcColumns(context);
+    final double gap = context.sp(context.ui.spacing.md);
+    final double cardWidth = _lastWidth > 0
+        ? (_lastWidth - (columns - 1) * gap) / columns
+        : 1.0;
+    final double pageStep = (cardWidth + gap) * columns;
+    final int page = pageStep > 0 ? (position.pixels / pageStep).round() : 0;
+
+    if (canLeft != _canScrollLeft ||
+        canRight != _canScrollRight ||
+        page != _currentPage) {
+      setState(() {
+        _canScrollLeft = canLeft;
+        _canScrollRight = canRight;
+        _currentPage = page;
+      });
+    }
+  }
+
+  void _scrollToPage(int page, double pageStep) {
+    if (!_scrollController.hasClients) return;
+    final double target = (page * pageStep).clamp(
+      0.0,
+      _scrollController.position.maxScrollExtent,
+    );
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final List<Widget> limited = widget.cards.take(widget.maxCards).toList();
+    final bool isEmpty = limited.isEmpty;
+
+    if (isEmpty && widget.title == null && widget.emptyPlaceholder == null) {
+      return const SizedBox.shrink();
+    }
+
+    final int columns = _calcColumns(context);
+    final int totalPages = isEmpty ? 0 : (limited.length / columns).ceil();
+    final double gap = context.sp(theme.spacing.md);
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double width = constraints.maxWidth;
+        _lastWidth = width;
+        final double cardWidth = (width - (columns - 1) * gap) / columns;
+        final double pageStep = (cardWidth + gap) * columns;
+
+        // Schedule check after layout in case scroll extent changed
+        if (!isEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || !_scrollController.hasClients) return;
+            final ScrollPosition position = _scrollController.position;
+            final bool canLeft = position.pixels > 4;
+            final bool canRight = position.pixels < position.maxScrollExtent - 4;
+            if (canLeft != _canScrollLeft || canRight != _canScrollRight) {
+              setState(() {
+                _canScrollLeft = canLeft;
+                _canScrollRight = canRight;
+              });
+            }
+          });
+        }
+
+        Widget? carouselTrack;
+        if (!isEmpty) {
+          carouselTrack = SingleChildScrollView(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  for (int i = 0; i < limited.length; i++) ...<Widget>[
+                    if (i > 0) SizedBox(width: gap),
+                    SizedBox(
+                      width: cardWidth,
+                      child: limited[i],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+
+          // Allow desktop mouse click-and-drag as well as trackpad and touch
+          carouselTrack = ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: <PointerDeviceKind>{
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.trackpad,
+                PointerDeviceKind.stylus,
+              },
+            ),
+            child: carouselTrack,
+          );
+
+          if (widget.height != null) {
+            carouselTrack = SizedBox(height: widget.height, child: carouselTrack);
+          }
+        }
+
+        Widget? paginationControls;
+        if (totalPages > 1) {
+          paginationControls = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              UiBadge(
+                label:
+                    '${(_currentPage + 1).clamp(1, totalPages)} / $totalPages',
+                size: UiSize.xs,
+                variant: UiBadgeVariant.ghost,
+              ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              UiIconButton(
+                icon: Icons.chevron_left_rounded,
+                size: UiSize.xs,
+                tooltip: 'Previous cards',
+                onPressed: _canScrollLeft || _currentPage > 0
+                    ? () => _scrollToPage(_currentPage - 1, pageStep)
+                    : null,
+              ),
+              SizedBox(width: context.sp(theme.spacing.xxs)),
+              UiIconButton(
+                icon: Icons.chevron_right_rounded,
+                size: UiSize.xs,
+                tooltip: 'Next cards',
+                onPressed: _canScrollRight || _currentPage < totalPages - 1
+                    ? () => _scrollToPage(_currentPage + 1, pageStep)
+                    : null,
+              ),
+            ],
+          );
+        }
+
+        Widget? headerWidget;
+        if (widget.title != null) {
+          final Widget identity = Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              if (widget.icon != null) ...<Widget>[
+                Icon(
+                  widget.icon,
+                  size: context.sz(theme.sizes.iconMd),
+                  color: theme.colors.foregroundMuted,
+                ),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+              ],
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      widget.title!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.uiText.subheading.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (widget.subtitle != null) ...<Widget>[
+                      SizedBox(height: context.sp(theme.spacing.xxs)),
+                      Text(
+                        widget.subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          );
+
+          final bool isMobile = width < context.sz(520);
+          if (isMobile) {
+            headerWidget = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(child: identity),
+                    if (paginationControls != null) ...<Widget>[
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      paginationControls,
+                    ],
+                  ],
+                ),
+                if (widget.trailing != null) ...<Widget>[
+                  SizedBox(height: context.sp(theme.spacing.sm)),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: widget.trailing!,
+                  ),
+                ],
+              ],
+            );
+          } else {
+            headerWidget = Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(child: identity),
+                if (paginationControls != null) ...<Widget>[
+                  paginationControls,
+                  SizedBox(width: context.sp(theme.spacing.sm)),
+                ],
+                if (widget.trailing != null) widget.trailing!,
+              ],
+            );
+          }
+        }
+
+        final List<Widget> children = <Widget>[];
+
+        if (headerWidget != null) {
+          children.add(headerWidget);
+          children.add(SizedBox(height: context.sp(theme.spacing.md)));
+        } else if (paginationControls != null) {
+          children.add(
+            Padding(
+              padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[paginationControls],
+              ),
+            ),
+          );
+        }
+
+        if (isEmpty) {
+          if (widget.emptyPlaceholder != null) {
+            children.add(widget.emptyPlaceholder!);
+          }
+        } else if (carouselTrack != null) {
+          children.add(carouselTrack);
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: children,
+        );
+      },
+    );
+  }
+}
+

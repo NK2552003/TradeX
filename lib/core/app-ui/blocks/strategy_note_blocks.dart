@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
-import '../motion/app_motion.dart';
 import '../theme/app_tokens.dart';
+import '../cards/desk_record_card.dart';
 import 'workbench_blocks.dart';
 
 /// Strategy-note blocks — the presentation half of the playbook library.
@@ -607,6 +607,8 @@ class AppStrategyNoteCard extends StatelessWidget {
     this.selected = false,
     this.showExcerpt = true,
     this.linkedNoteCount,
+    this.footerEngagement,
+    this.density = AppNoteDensity.comfortable,
   });
 
   final AppStrategy strategy;
@@ -619,14 +621,17 @@ class AppStrategyNoteCard extends StatelessWidget {
   /// stored on the note side.
   final int? linkedNoteCount;
 
+  /// Optional engagement row (views, likes, comments, post link).
+  final Widget? footerEngagement;
+
+  final AppNoteDensity density;
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final UiColors c = theme.colors;
     final bool untested = strategy.trades == 0;
-    final Color pl = untested
-        ? c.foregroundMuted
-        : AppTokens.pl(context, strategy.netPnl);
+    final Color accent = strategy.status.intent.color(context);
     final String excerpt = AppMarkdownStats.excerpt(
       strategy.content.trim().isEmpty
           ? (strategy.summary ?? '')
@@ -634,109 +639,139 @@ class AppStrategyNoteCard extends StatelessWidget {
       maxChars: 160,
     );
     final int notes = linkedNoteCount ?? strategy.linkedNoteIds.length;
+    final TextStyle metaStyle = context.uiText.caption.copyWith(
+      color: c.foregroundSubtle,
+    );
 
-    return AppHoverLift(
-      child: UiCard(
-        onTap: onTap,
-        selected: selected,
-        accentColor: untested ? null : pl,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Icon(
-                  strategy.status.icon,
-                  size: context.sz(16),
-                  color: strategy.status.intent.color(context),
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Expanded(
-                  child: Text(
-                    strategy.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.uiText.subheading.copyWith(
-                      color: c.foreground,
-                    ),
-                  ),
-                ),
-                if (onToggleFavorite != null)
-                  UiIconButton(
-                    icon: strategy.isFavorite
-                        ? Icons.star_rounded
-                        : Icons.star_outline_rounded,
-                    size: UiSize.xs,
-                    tooltip: strategy.isFavorite
-                        ? 'Remove from favourites'
-                        : 'Add to favourites',
-                    onPressed: onToggleFavorite,
-                  ),
-              ],
-            ),
-            if (showExcerpt && excerpt.isNotEmpty) ...<Widget>[
-              SizedBox(height: context.sp(theme.spacing.xs)),
-              Text(
-                excerpt,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.body.copyWith(color: c.foregroundMuted),
+    final Set<String> seenTags = <String>{};
+    final String lowerName = strategy.name.trim().toLowerCase();
+    final String lowerStatus = strategy.status.label.toLowerCase();
+    final String lowerCategory = (strategy.category ?? '').trim().toLowerCase();
+
+    final List<Widget> uniqueTags = <Widget>[];
+    for (final String rawTag in strategy.tags) {
+      final String clean = rawTag.replaceAll('#', '').trim();
+      final String lower = clean.toLowerCase();
+      if (clean.isEmpty) continue;
+      if (lower == lowerName ||
+          lower == lowerStatus ||
+          lower == lowerCategory) {
+        continue;
+      }
+      if (seenTags.add(lower)) {
+        uniqueTags.add(
+          UiBadge(
+            label: '#$clean',
+            variant: UiBadgeVariant.ghost,
+            size: UiSize.xs,
+          ),
+        );
+      }
+    }
+
+    final double effectiveWinRate = strategy.winRate > 1
+        ? strategy.winRate
+        : strategy.winRate * 100;
+
+    return AppDeskRecordCard(
+      category: null,
+      accentColor: accent,
+      title: strategy.name,
+      preview: showExcerpt && excerpt.isNotEmpty
+          ? Text(
+              excerpt,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: context.uiText.caption.copyWith(
+                color: c.foregroundMuted,
+                height: 1.45,
               ),
-            ],
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            Wrap(
-              spacing: context.sp(theme.spacing.xs),
-              runSpacing: context.sp(theme.spacing.xs),
-              children: <Widget>[
-                UiBadge(
-                  label: strategy.status.label,
-                  size: UiSize.xs,
-                  icon: strategy.status.icon,
-                  intent: strategy.status.intent,
-                  variant: UiBadgeVariant.soft,
-                ),
-                if (!strategy.hasPlaybook)
-                  const UiBadge(
-                    label: 'No rules written',
-                    size: UiSize.xs,
-                    icon: Icons.edit_note_rounded,
-                    intent: UiIntent.warning,
-                    variant: UiBadgeVariant.soft,
-                  ),
-                if (untested)
-                  const UiBadge(
-                    label: 'Untested',
-                    size: UiSize.xs,
-                    intent: UiIntent.info,
-                    variant: UiBadgeVariant.soft,
-                  ),
-                if (notes > 0)
-                  UiBadge(
-                    label: '$notes note${notes == 1 ? '' : 's'}',
-                    size: UiSize.xs,
-                    icon: Icons.link_rounded,
-                    variant: UiBadgeVariant.outline,
-                  ),
-                if (strategy.versionCount > 1)
-                  UiBadge(
-                    label: '${strategy.versionCount} revisions',
-                    size: UiSize.xs,
-                    icon: Icons.history_rounded,
-                    variant: UiBadgeVariant.outline,
-                  ),
-                for (final String tag in strategy.tags.take(3))
-                  UiBadge(
-                    label: '#$tag',
-                    size: UiSize.xs,
-                    intent: UiIntent.primary,
-                    variant: UiBadgeVariant.outline,
-                  ),
-              ],
-            ),
-          ],
+            )
+          : null,
+      showPreview: showExcerpt,
+      density: density,
+      selected: selected,
+      onTap: onTap,
+      semanticLabel: 'Playbook: ${strategy.name}',
+      trailingHeader: onToggleFavorite != null
+          ? UiIconButton(
+              icon: strategy.isFavorite
+                  ? Icons.star_rounded
+                  : Icons.star_outline_rounded,
+              size: UiSize.xs,
+              tooltip: strategy.isFavorite
+                  ? 'Remove from favourites'
+                  : 'Add to favourites',
+              onPressed: onToggleFavorite,
+            )
+          : null,
+      badges: <Widget>[
+        UiBadge(
+          label: strategy.status.label,
+          size: UiSize.xs,
+          icon: strategy.status.icon,
+          intent: strategy.status.intent,
+          variant: UiBadgeVariant.soft,
         ),
-      ),
+        if (!untested) ...<Widget>[
+          UiBadge(
+            label: '${effectiveWinRate.toStringAsFixed(0)}% win',
+            size: UiSize.xs,
+            intent: effectiveWinRate >= 50
+                ? UiIntent.success
+                : UiIntent.warning,
+            variant: UiBadgeVariant.soft,
+          ),
+          UiBadge(
+            label: AppTokens.signedMoney(strategy.netPnl, decimals: 0),
+            size: UiSize.xs,
+            intent: AppTokens.plIntent(strategy.netPnl),
+            variant: UiBadgeVariant.soft,
+          ),
+        ],
+        if (!strategy.hasPlaybook)
+          const UiBadge(
+            label: 'No rules written',
+            size: UiSize.xs,
+            icon: Icons.edit_note_rounded,
+            intent: UiIntent.warning,
+            variant: UiBadgeVariant.soft,
+          ),
+        if (untested)
+          const UiBadge(
+            label: 'Untested',
+            size: UiSize.xs,
+            intent: UiIntent.info,
+            variant: UiBadgeVariant.soft,
+          ),
+        if (notes > 0)
+          UiBadge(
+            label: '$notes note${notes == 1 ? '' : 's'}',
+            size: UiSize.xs,
+            icon: Icons.link_rounded,
+            variant: UiBadgeVariant.outline,
+          ),
+        if (strategy.versionCount > 1)
+          UiBadge(
+            label: '${strategy.versionCount} revisions',
+            size: UiSize.xs,
+            icon: Icons.history_rounded,
+            variant: UiBadgeVariant.outline,
+          ),
+      ],
+      tags: uniqueTags,
+      footerMetadata: <Widget>[
+        Text(
+          AppTokens.relativeTime(strategy.updatedAt ?? DateTime.now()),
+          style: metaStyle,
+        ),
+        Text('·', style: metaStyle),
+        Text(
+          untested ? 'No trades logged' : '${strategy.trades} trades logged',
+          style: metaStyle,
+        ),
+      ],
+      footerEngagement: footerEngagement,
     );
   }
 }
@@ -1031,8 +1066,9 @@ class AppStrategyNoteHeader extends StatelessWidget {
     final UiColors c = theme.colors;
     final bool embedded = AppWorkbenchScope.hasEmbeddedHeader(context);
     final bool inWorkbench = AppWorkbenchScope.of(context);
-    final bool showBackButton = !embedded && !inWorkbench && onBack != null;
-    final bool shouldDisplayTitle = showTitle && !embedded;
+    final bool isDesktop = context.uiRes.isDesktop;
+    final bool showBackButton = !isDesktop && !embedded && !inWorkbench && onBack != null;
+    final bool shouldDisplayTitle = showTitle;
 
     final List<Widget> allActions = [
       if (onToggleFavorite != null)

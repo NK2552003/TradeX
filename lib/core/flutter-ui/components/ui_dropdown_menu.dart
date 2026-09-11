@@ -141,7 +141,7 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
         _triggerKey.currentContext?.findRenderObject() as RenderBox?;
     final double triggerWidth = box?.size.width ?? 160;
     final double width =
-        widget.width ?? (triggerWidth < 150 ? 150 : triggerWidth);
+        widget.width ?? (triggerWidth < 220 ? 220 : triggerWidth);
 
     final Offset triggerPos = box?.localToGlobal(Offset.zero) ?? Offset.zero;
     final double screenHeight = MediaQuery.sizeOf(context).height;
@@ -432,6 +432,9 @@ class _MenuRow extends StatelessWidget {
                   if (item.description != null)
                     Text(
                       item.description!,
+                      softWrap: true,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                       style: ctx.uiText.caption.copyWith(
                         color: c.foregroundSubtle,
                         fontSize: ctx.fs(11.0),

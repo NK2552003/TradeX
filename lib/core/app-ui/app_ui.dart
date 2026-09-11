@@ -26,6 +26,7 @@ export 'cards/ai_cards.dart';
 export 'cards/notes_cards.dart';
 export 'cards/calculator_cards.dart';
 export 'cards/domain_cards.dart';
+export 'cards/desk_record_card.dart';
 
 // Guides
 export 'guides/feature_guide.dart';

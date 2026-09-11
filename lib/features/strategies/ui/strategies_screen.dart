@@ -654,8 +654,20 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     strategy: strategy,
     initialTab: _initialDetailTab,
     onClose: _backToIndex,
-    onEdit: () => _edit(strategy),
-    onEditWriting: () => _edit(strategy, mode: StrategyEditorMode.write),
+    onEdit: () => _edit(strategy, mode: StrategyEditorMode.write),
+    onEditWriting: () {
+      if (widget.onOpenWriting != null) {
+        widget.onOpenWriting!(
+          AppLinkRef(
+            kind: AppLinkKind.strategy,
+            id: strategy.id,
+            title: strategy.name,
+          ),
+        );
+      } else {
+        _edit(strategy, mode: StrategyEditorMode.write);
+      }
+    },
     onOpenLink: _openRef,
     onAttachToPost: widget.onAttachToPost,
   );
