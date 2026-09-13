@@ -1048,7 +1048,10 @@ class _AppWorkspaceSectionCarouselState
 
         Widget? carouselTrack;
         if (!isEmpty) {
+          final double vertPad = context.sp(theme.spacing.sm);
           carouselTrack = SingleChildScrollView(
+            clipBehavior: Clip.none,
+            padding: EdgeInsets.symmetric(vertical: vertPad),
             controller: _scrollController,
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(
@@ -1084,7 +1087,10 @@ class _AppWorkspaceSectionCarouselState
           );
 
           if (widget.height != null) {
-            carouselTrack = SizedBox(height: widget.height, child: carouselTrack);
+            carouselTrack = SizedBox(
+              height: widget.height! + vertPad * 2,
+              child: carouselTrack,
+            );
           }
         }
 
@@ -1206,7 +1212,7 @@ class _AppWorkspaceSectionCarouselState
 
         if (headerWidget != null) {
           children.add(headerWidget);
-          children.add(SizedBox(height: context.sp(theme.spacing.md)));
+          children.add(SizedBox(height: context.sp(theme.spacing.xs)));
         } else if (paginationControls != null) {
           children.add(
             Padding(

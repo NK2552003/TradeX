@@ -289,7 +289,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     ];
     switch (_selectedId) {
       case 'journal':
-        _journalKey.currentState?.showGuideWithTargets(targets);
+        _journalKey.currentState?.showGuide();
       case 'strategies':
         _strategiesKey.currentState?.showGuideWithTargets(targets);
       case 'notes':
@@ -925,13 +925,11 @@ class _AppScaffoldState extends State<AppScaffold> {
             pagePlaceholderBuilder: (BuildContext context, AppNavItem item) =>
                 _destinationSkeleton(item.id),
             primaryActionLabel: switch (_selectedId) {
-              'journal' => 'Log Trade',
               'strategies' => 'New Playbook',
               'notes' => 'New Note',
               _ => null,
             },
             onPrimaryAction: switch (_selectedId) {
-              'journal' => _addActiveWriting,
               'strategies' => _addActiveWriting,
               'notes' => _addActiveWriting,
               _ => null,

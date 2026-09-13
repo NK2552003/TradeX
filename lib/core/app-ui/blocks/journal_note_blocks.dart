@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
 import '../theme/app_tokens.dart';
-import '../cards/desk_record_card.dart';
+import '../motion/app_motion.dart';
 import 'workbench_blocks.dart';
 
 /// Journal-note blocks — the presentation half of the trade journal.
@@ -683,158 +683,199 @@ class AppJournalNoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final UiColors c = theme.colors;
-    final Color pl = entry.isOpen ? c.info : AppTokens.pl(context, entry.pnl);
-    final String excerpt = AppMarkdownStats.excerpt(
-      entry.content.trim().isEmpty ? (entry.notes ?? '') : entry.content,
-      maxChars: 160,
-    );
+    final UiColors colors = theme.colors;
+    final Color plColor = entry.isOpen
+        ? colors.info
+        : AppTokens.pl(context, entry.pnl);
     final int notes = linkedNoteCount ?? entry.linkedNoteIds.length;
     final bool unfiled = entry.strategyId == null || entry.strategyId!.isEmpty;
-    final TextStyle metaStyle = context.uiText.caption.copyWith(
-      color: c.foregroundSubtle,
+
+    final String excerpt = AppMarkdownStats.excerpt(
+      entry.content.trim().isEmpty ? (entry.notes ?? '') : entry.content,
+      maxChars: 130,
     );
 
-    final Set<String> seenTags = <String>{};
-    final String lowerTitle = entry.displayTitle.trim().toLowerCase();
-    final String lowerTicker = entry.ticker.trim().toLowerCase();
-    final String lowerStrategy = (entry.strategy ?? '').trim().toLowerCase();
-    final String lowerSide = AppTokens.sideLabel(entry.side).toLowerCase();
-    final String lowerOutcome = AppTokens.outcomeLabel(entry.outcome).toLowerCase();
+    final String subtitle =
+        '${entry.ticker} · ${AppTokens.sideLabel(entry.side)} · ${AppTokens.shortDate(entry.sortDate)}${entry.strategy != null ? ' · ${entry.strategy!}' : ''}';
 
-    final List<Widget> uniqueTags = <Widget>[];
-    for (final String rawTag in entry.tags) {
-      final String clean = rawTag.replaceAll('#', '').trim();
-      final String lower = clean.toLowerCase();
-      if (clean.isEmpty) continue;
-      if (lower == lowerTitle ||
-          lower == lowerTicker ||
-          lower == lowerStrategy ||
-          lower == lowerSide ||
-          lower == lowerOutcome ||
-          lower == 'open' ||
-          lower == 'closed') {
-        continue;
-      }
-      if (seenTags.add(lower)) {
-        uniqueTags.add(
-          UiBadge(
-            label: '#$clean',
-            variant: UiBadgeVariant.ghost,
-            size: UiSize.xs,
-          ),
-        );
-      }
-    }
-
-    final bool showStrategyBadge = entry.strategy != null &&
-        entry.strategy!.isNotEmpty &&
-        lowerStrategy != lowerTitle;
-
-    return AppDeskRecordCard(
-      category: '${entry.ticker} · ${AppTokens.sideLabel(entry.side).toUpperCase()}',
-      accentColor: pl,
-      title: entry.displayTitle,
-      preview: showExcerpt && excerpt.isNotEmpty
-          ? Text(
-              excerpt,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: context.uiText.caption.copyWith(
-                color: c.foregroundMuted,
-                height: 1.45,
-              ),
-            )
-          : null,
-      showPreview: showExcerpt,
-      density: density,
-      selected: selected,
+    final Widget cardBody = UiCard(
       onTap: onTap,
-      semanticLabel: 'Trade: ${entry.displayTitle}',
-      trailingHeader: Row(
-        mainAxisSize: MainAxisSize.min,
+      selected: selected,
+      variant: UiCardVariant.surface,
+      accentColor: entry.isOpen ? colors.info : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          Text(
-            entry.isOpen
-                ? 'Open'
-                : AppTokens.signedMoney(entry.pnl, decimals: 0),
-            style: context.uiText.bodyStrong.copyWith(color: pl),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              // Header Row: Title & Subtitle + Status / PnL + Trailing
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          entry.displayTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.uiText.bodyStrong.copyWith(
+                            color: colors.foreground,
+                          ),
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.xxs)),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.uiText.caption.copyWith(
+                            color: colors.foregroundMuted,
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  if (entry.isOpen)
+                    const UiBadge(
+                      label: 'Open',
+                      size: UiSize.xs,
+                      intent: UiIntent.info,
+                      variant: UiBadgeVariant.outline,
+                    )
+                  else
+                    Text(
+                      AppTokens.signedMoney(entry.pnl, decimals: 0),
+                      style: context.uiText.bodyStrong.copyWith(
+                        color: plColor,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  if (trailing != null) ...<Widget>[
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    trailing!,
+                  ],
+                ],
+              ),
+              if (showExcerpt) ...<Widget>[
+                SizedBox(height: context.sp(theme.spacing.sm)),
+                // Excerpt / Story
+                if (excerpt.isNotEmpty)
+                  Text(
+                    excerpt,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.caption.copyWith(
+                      color: colors.foregroundSubtle,
+                      height: 1.45,
+                    ),
+                  )
+                else
+                  Text(
+                    'No thesis or notes recorded for this execution yet.',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.caption.copyWith(
+                      color: colors.foregroundMuted.withValues(alpha: 0.6),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+              ],
+            ],
           ),
-          if (trailing != null) ...<Widget>[
-            SizedBox(width: context.sp(theme.spacing.xs)),
-            trailing!,
-          ],
+          // Footer Divider & Badges
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              SizedBox(height: context.sp(theme.spacing.sm)),
+              Container(
+                height: theme.borders.hairline,
+                color: colors.border.withValues(alpha: 0.6),
+              ),
+              SizedBox(height: context.sp(theme.spacing.xs)),
+              Wrap(
+                spacing: context.sp(theme.spacing.xs),
+                runSpacing: context.sp(theme.spacing.xxs),
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: <Widget>[
+                  if (entry.isOpen)
+                    const UiBadge(
+                      label: 'Open',
+                      icon: Icons.schedule_rounded,
+                      size: UiSize.xs,
+                      intent: UiIntent.info,
+                      variant: UiBadgeVariant.soft,
+                    )
+                  else
+                    UiBadge(
+                      label: AppTokens.outcomeLabel(entry.outcome),
+                      icon: _outcomeIcon(entry.outcome),
+                      size: UiSize.xs,
+                      intent: AppTokens.outcomeIntent(entry.outcome),
+                      variant: UiBadgeVariant.soft,
+                    ),
+                  if (entry.rMultiple != null)
+                    UiBadge(
+                      label: AppTokens.rr(entry.rMultiple!),
+                      size: UiSize.xs,
+                      intent: AppTokens.plIntent(entry.rMultiple!),
+                      variant: UiBadgeVariant.soft,
+                    ),
+                  if (notes > 0)
+                    UiBadge(
+                      label: '$notes note${notes == 1 ? '' : 's'}',
+                      icon: Icons.link_rounded,
+                      size: UiSize.xs,
+                      variant: UiBadgeVariant.outline,
+                    ),
+                  if (entry.checklistTotal > 0)
+                    UiBadge(
+                      label:
+                          '${entry.checklistDone}/${entry.checklistTotal} checks',
+                      icon: Icons.checklist_rounded,
+                      size: UiSize.xs,
+                      intent:
+                          entry.checklistDone == entry.checklistTotal
+                          ? UiIntent.bullish
+                          : (entry.checklistDone == 0
+                                ? UiIntent.bearish
+                                : UiIntent.warning),
+                      variant: UiBadgeVariant.outline,
+                    ),
+                  if (!entry.hasStory)
+                    const UiBadge(
+                      label: 'Needs write-up',
+                      icon: Icons.edit_note_rounded,
+                      size: UiSize.xs,
+                      intent: UiIntent.warning,
+                      variant: UiBadgeVariant.soft,
+                    ),
+                  if (unfiled)
+                    const UiBadge(
+                      label: 'Unfiled',
+                      icon: Icons.folder_off_outlined,
+                      size: UiSize.xs,
+                      intent: UiIntent.info,
+                      variant: UiBadgeVariant.outline,
+                    ),
+                  if (footerEngagement != null) ...<Widget>[
+                    footerEngagement!,
+                  ],
+                ],
+              ),
+            ],
+          ),
         ],
       ),
-      badges: <Widget>[
-        if (!entry.isOpen)
-          UiBadge(
-            label: AppTokens.outcomeLabel(entry.outcome),
-            size: UiSize.xs,
-            icon: _outcomeIcon(entry.outcome),
-            intent: AppTokens.outcomeIntent(entry.outcome),
-            variant: UiBadgeVariant.soft,
-          ),
-        if (entry.rMultiple != null)
-          UiBadge(
-            label: AppTokens.rr(entry.rMultiple!),
-            size: UiSize.xs,
-            intent: AppTokens.plIntent(entry.rMultiple!),
-            variant: UiBadgeVariant.soft,
-          ),
-        if (showStrategyBadge)
-          UiBadge(
-            label: entry.strategy!,
-            icon: Icons.account_tree_outlined,
-            size: UiSize.xs,
-            intent: UiIntent.primary,
-            maxWidth: context.sz(160),
-          ),
-        if (!entry.hasStory)
-          const UiBadge(
-            label: 'Needs write-up',
-            size: UiSize.xs,
-            icon: Icons.edit_note_rounded,
-            intent: UiIntent.warning,
-            variant: UiBadgeVariant.soft,
-          ),
-        if (unfiled)
-          const UiBadge(
-            label: 'Unfiled',
-            size: UiSize.xs,
-            icon: Icons.folder_off_outlined,
-            intent: UiIntent.info,
-            variant: UiBadgeVariant.soft,
-          ),
-        if (notes > 0)
-          UiBadge(
-            label: '$notes note${notes == 1 ? '' : 's'}',
-            size: UiSize.xs,
-            icon: Icons.link_rounded,
-            variant: UiBadgeVariant.outline,
-          ),
-        if (entry.checklistTotal > 0)
-          UiBadge(
-            label: '${entry.checklistDone}/${entry.checklistTotal} checks',
-            size: UiSize.xs,
-            icon: Icons.checklist_rounded,
-            variant: UiBadgeVariant.outline,
-          ),
-      ],
-      tags: uniqueTags,
-      footerMetadata: <Widget>[
-        Text(AppTokens.relativeTime(entry.sortDate), style: metaStyle),
-        Text('·', style: metaStyle),
-        Text(
-          '${entry.size.toStringAsFixed(0)} shares @ ${AppTokens.money(entry.entry)}',
-          style: metaStyle,
-        ),
-        if (entry.wordCount > 0) ...<Widget>[
-          Text('·', style: metaStyle),
-          Text('${entry.wordCount} words', style: metaStyle),
-        ],
-      ],
-      footerEngagement: footerEngagement,
+    );
+
+    return AppHoverLift(
+      child: cardBody,
     );
   }
 }

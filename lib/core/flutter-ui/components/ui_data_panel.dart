@@ -152,7 +152,7 @@ class UiDataPanel extends StatelessWidget {
                   children: <Widget>[
                     if (leadingIcon != null) iconWidget,
                     Expanded(child: labelWidget!),
-                    if (trailingWidget != null) trailingWidget,
+                    ?trailingWidget,
                   ],
                 ),
                 SizedBox(height: context.sp(theme.spacing.xxs)),
@@ -186,7 +186,7 @@ class UiDataPanel extends StatelessWidget {
                   )
                 else
                   const Spacer(),
-                if (trailingWidget != null) trailingWidget,
+                ?trailingWidget,
               ],
             );
           }
@@ -219,7 +219,7 @@ class UiDataPanel extends StatelessWidget {
               ] else ...<Widget>[
                 const Spacer(),
               ],
-              if (trailingWidget != null) trailingWidget,
+              ?trailingWidget,
             ],
           );
         }

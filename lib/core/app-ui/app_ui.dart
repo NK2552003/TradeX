@@ -47,6 +47,7 @@ export 'blocks/calculator_blocks.dart';
 export 'blocks/workbench_blocks.dart';
 export 'blocks/research_blocks.dart';
 export 'blocks/desk_blocks.dart';
+export 'blocks/desk_feature_scaffold.dart';
 export 'blocks/linking_blocks.dart';
 export 'blocks/journal_note_blocks.dart';
 export 'blocks/strategy_note_blocks.dart';

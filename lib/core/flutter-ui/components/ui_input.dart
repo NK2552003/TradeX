@@ -357,8 +357,9 @@ class _UiInputState extends State<UiInput> {
         borderColor = _hovered ? c.borderStrong : c.border;
         break;
     }
+    final bool isGhost = widget.variant == UiInputVariant.ghost;
     if (_validation != UiValidationState.none) borderColor = accent;
-    if (_focused) borderColor = accent;
+    if (_focused && !isGhost) borderColor = accent;
 
     final Widget field = AnimatedContainer(
       duration: theme.motion.fast,
@@ -367,7 +368,7 @@ class _UiInputState extends State<UiInput> {
         minHeight: multiline ? 0 : widget.size.height(context) * f,
       ),
       padding: EdgeInsets.symmetric(
-        horizontal: underline ? 0 : context.sp(theme.spacing.md) * f,
+        horizontal: underline || isGhost ? 0 : context.sp(theme.spacing.md) * f,
         vertical: multiline ? context.sp(theme.spacing.md) * f : 0,
       ),
       decoration: BoxDecoration(
@@ -384,11 +385,15 @@ class _UiInputState extends State<UiInput> {
                       : theme.borders.hairline,
                 ),
               )
-            : Border.all(
-                color: borderColor,
-                width: _focused ? theme.borders.thick : theme.borders.hairline,
-              ),
-        boxShadow: _focused && !underline
+            : isGhost
+                ? null
+                : Border.all(
+                    color: borderColor,
+                    width: _focused
+                        ? theme.borders.thick
+                        : theme.borders.hairline,
+                  ),
+        boxShadow: _focused && !underline && !isGhost
             ? uiGlow(context, accent, alpha: 0.18)
             : null,
       ),

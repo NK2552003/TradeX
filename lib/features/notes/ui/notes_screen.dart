@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-// Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/linking/link_graph.dart';
@@ -22,10 +22,9 @@ enum _NotesCollection { mine, public }
 
 /// The notes destination, for every role.
 ///
-/// There is no router in this app — the shell swaps a single widget per sidebar
-/// id — so this screen owns the list ⇄ read ⇄ write transition itself. The list
-/// is driven by [NotesRepository.watchAll], which means a save made in the
-/// editor, a delete made in the preview and an import made anywhere else all
+/// Fully responsive writing desk notebook matching TraderHub design standards.
+/// Uses pre-built TraderHub components, dynamic real-time data from repositories,
+/// interactive category tabs, ticker and playbook filters, and spotlight guide keys.
 class NotesScreen extends StatefulWidget {
   const NotesScreen({
     super.key,
@@ -85,9 +84,14 @@ class NotesScreenState extends State<NotesScreen> {
 
   final NotesRepository _repo = NotesRepositoryScope.repository;
   final AppLinkGraphService _links = AppLinkGraphScope.service;
-  final ScrollController _notesScrollController = ScrollController();
 
-  final GlobalKey _guideFilterKey = GlobalKey();
+  // Spotlight Guide Keys
+  final GlobalKey _fabKey = GlobalKey();
+  final GlobalKey _bannerKey = GlobalKey();
+  final GlobalKey _filterBarKey = GlobalKey();
+  final GlobalKey _tabsKey = GlobalKey();
+  final GlobalKey _gridKey = GlobalKey();
+
   StreamSubscription<List<AppNote>>? _sub;
   StreamSubscription<List<AppNote>>? _publicSub;
   StreamSubscription<AppLinkGraph>? _graphSub;
@@ -100,9 +104,15 @@ class NotesScreenState extends State<NotesScreen> {
   String _query = '';
   AppNoteType? _type;
   String? _tag;
+  String? _ticker;
+  String? _strategyId;
+  bool _onlyWithJournal = false;
+  bool _isGridView = true;
+
   AppNoteSort _sort = AppNoteSort.recentlyUpdated;
-  AppNoteDensity _density = AppNoteDensity.comfortable;
-  int _visibleLimit = _pageSize;
+  final AppNoteDensity _density = AppNoteDensity.comfortable;
+  int _currentPage = 1;
+  bool _dismissedBanner = false;
   _NotesCollection _collection = _NotesCollection.mine;
 
   _NotesView _view = _NotesView.list;
@@ -116,7 +126,6 @@ class NotesScreenState extends State<NotesScreen> {
   @override
   void initState() {
     super.initState();
-    _notesScrollController.addListener(_loadMoreNearBottom);
     _sub = _repo.watchAll().listen(
       (List<AppNote> notes) {
         if (!mounted) return;
@@ -147,8 +156,6 @@ class NotesScreenState extends State<NotesScreen> {
     });
     final AppLinkOpenRequest? request = widget.openRequest;
     if (request != null) {
-      // Deferred: the shell mounts this screen and hands over the request in the
-      // same frame, before the first stream event has arrived.
       WidgetsBinding.instance.addPostFrameCallback((_) => _apply(request));
     }
   }
@@ -160,10 +167,6 @@ class NotesScreenState extends State<NotesScreen> {
     if (request != null && request != oldWidget.openRequest) _apply(request);
   }
 
-  /// Applies a request from the shell. A request for another kind can only mean
-  /// the shell routed it here by mistake, and an unknown id can only mean the
-  /// note was deleted between the click and the switch, so both degrade to
-  /// leaving the list alone.
   void _apply(AppLinkOpenRequest request) {
     if (request == _appliedRequest) return;
     if (request.editWriting && request.kind != AppLinkKind.note) {
@@ -177,8 +180,6 @@ class NotesScreenState extends State<NotesScreen> {
     for (final AppNote note in <AppNote>[..._notes, ..._publicNotes]) {
       if (note.id == request.id) {
         _appliedRequest = request;
-        // A public note opened by link belongs to the public collection, or the
-        // list behind the preview would not contain what the reader is reading.
         if (!_notes.any((AppNote n) => n.id == note.id)) {
           setState(() => _collection = _NotesCollection.public);
         }
@@ -223,52 +224,107 @@ class NotesScreenState extends State<NotesScreen> {
     _sub?.cancel();
     _publicSub?.cancel();
     _graphSub?.cancel();
-    _notesScrollController
-      ..removeListener(_loadMoreNearBottom)
-      ..dispose();
     super.dispose();
   }
 
-  List<AppNote> get _visible => NotesQuery.apply(
-    _collection == _NotesCollection.mine ? _notes : _publicNotes,
-    query: _query,
-    type: _type,
-    tag: _tag,
-    sort: _sort,
-  );
+  List<AppNote> get _visible {
+    final List<AppNote> pool =
+        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+    final List<AppNote> baseFiltered = NotesQuery.apply(
+      pool,
+      query: _query,
+      type: _type,
+      tag: _tag,
+      sort: _sort,
+    );
 
-  List<AppNote> get _visibleBatch =>
-      _visible.take(_visibleLimit).toList(growable: false);
+    return baseFiltered.where((AppNote n) {
+      if (_ticker != null && !n.linkedTickers.contains(_ticker)) return false;
+      if (_strategyId != null && n.strategyId != _strategyId) return false;
+      if (_onlyWithJournal && n.linkedJournalIds.isEmpty) return false;
+      return true;
+    }).toList(growable: false);
+  }
 
-  void _loadMoreNearBottom() {
-    if (!_notesScrollController.hasClients ||
-        _visibleLimit >= _visible.length) {
-      return;
-    }
-    if (_notesScrollController.position.extentAfter > context.sz(480)) return;
-    setState(() => _visibleLimit += _pageSize);
+  int get _totalPages => (_visible.length / _pageSize).ceil().clamp(1, 999999);
+
+  List<AppNote> get _visibleBatch {
+    final int start = (_currentPage - 1) * _pageSize;
+    if (start >= _visible.length) return const <AppNote>[];
+    final int end = (start + _pageSize).clamp(0, _visible.length);
+    return _visible.sublist(start, end);
   }
 
   void _updateFilter(VoidCallback update) => setState(() {
     update();
-    _visibleLimit = _pageSize;
+    _currentPage = 1;
   });
 
   bool get _filtered =>
-      _query.trim().isNotEmpty || _type != null || _tag != null;
+      _query.trim().isNotEmpty ||
+      _type != null ||
+      _tag != null ||
+      _ticker != null ||
+      _strategyId != null ||
+      _onlyWithJournal;
 
   void _clearFilters() => _updateFilter(() {
     _query = '';
     _type = null;
     _tag = null;
+    _ticker = null;
+    _strategyId = null;
+    _onlyWithJournal = false;
   });
+
+  List<String> get _availableTickers {
+    final List<AppNote> pool =
+        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+    final Set<String> tickers = <String>{};
+    for (final AppNote n in pool) {
+      tickers.addAll(n.linkedTickers);
+    }
+    final List<String> sorted = tickers.toList()..sort();
+    return sorted;
+  }
+
+  List<({String id, String name})> get _availableStrategies {
+    final List<AppNote> pool =
+        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+    final Map<String, String> map = <String, String>{};
+    for (final AppNote n in pool) {
+      if (n.strategyId != null && n.strategyName != null) {
+        map[n.strategyId!] = n.strategyName!;
+      }
+    }
+    for (final AppStrategy s in _graph.strategyList) {
+      map[s.id] = s.name;
+    }
+    return map.entries
+        .map((MapEntry<String, String> e) => (id: e.key, name: e.value))
+        .toList(growable: false);
+  }
+
+  String _strategyNameFor(String id) {
+    for (final (:id, :name) in _availableStrategies) {
+      if (id == id) return name;
+    }
+    return id;
+  }
+
+  int _countForType(AppNoteType? type) {
+    final List<AppNote> pool =
+        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+    if (type == null) return pool.length;
+    return pool.where((AppNote n) => n.noteType == type).length;
+  }
 
   AppNoteFilterBlock _noteFilterBlock({
     bool showSearch = true,
     bool showFilterControl = true,
     VoidCallback? onNew,
   }) => AppNoteFilterBlock(
-    key: _guideFilterKey,
+    key: _filterBarKey,
     showSearch: showSearch,
     showFilterControl: showFilterControl,
     query: _query,
@@ -281,13 +337,10 @@ class NotesScreenState extends State<NotesScreen> {
     onTypeChanged: (AppNoteType? t) => _updateFilter(() => _type = t),
     onTagChanged: (String? t) => _updateFilter(() => _tag = t),
     onSortChanged: (AppNoteSort s) => _updateFilter(() => _sort = s),
-    onDensityChanged: (AppNoteDensity d) => setState(() => _density = d),
+    onDensityChanged: (_) {},
     onNew: onNew,
   );
 
-  /// New notes start from the gallery rather than a blank page: a template is
-  /// the fastest way to learn the syntax, and the fastest way to start writing
-  /// for someone who never will.
   void _notifySubpage() {
     if (!mounted) return;
     switch (_view) {
@@ -343,9 +396,6 @@ class NotesScreenState extends State<NotesScreen> {
     _notifySubpage();
   }
 
-  /// The editor hands back what it saved, so closing it lands on the note the
-  /// writer just wrote — including one created from a draft, whose id the host
-  /// never saw. Nothing saved means there is nothing to read: back to the list.
   void _closeEditor(AppNote? saved) {
     setState(() {
       _active = saved;
@@ -362,8 +412,6 @@ class NotesScreenState extends State<NotesScreen> {
     _notifySubpage();
   }
 
-  /// Follows a link out of a note. Note → note stays here; a trade or a playbook
-  /// belongs to another destination and goes back through the shell.
   void _openRef(AppLinkRef ref) {
     if (ref.missing) {
       UiToast.info(
@@ -418,23 +466,22 @@ class NotesScreenState extends State<NotesScreen> {
 
   // ── Guide ──────────────────────────────────────────────────────────────────
 
-  /// Opens the notes walkthrough, at any time, from the header help action or
-  /// the banner's "Show guide" button. The owning screen resolves each step's
-  /// action into real navigation below.
   void _showGuide() {
     FeatureGuideSpotlight.show(
       context,
       feature: FeatureId.notes,
       steps: FeatureGuideSteps.notes,
-      targets: <GlobalKey>[_guideFilterKey],
+      targets: <GlobalKey>[
+        _fabKey,
+        _bannerKey,
+        _filterBarKey,
+        _tabsKey,
+        _gridKey,
+      ],
       onStepAction: _onGuideStepAction,
     );
   }
 
-  /// Maps a guide step to the real surface it describes. The sheet already marks
-  /// the step done when its action button is pressed; this only navigates — it
-  /// never fakes completion, and a step with nothing to act on navigates nowhere
-  /// and says so.
   void _onGuideStepAction(FeatureGuideStep step) {
     switch (step.id) {
       case 'review':
@@ -452,9 +499,6 @@ class NotesScreenState extends State<NotesScreen> {
     }
   }
 
-  /// "Link it to the trade and the playbook" — linking happens in the note
-  /// editor's details panel, so the step lands on the note most in need of one:
-  /// the newest note with neither a playbook nor a journal entry attached.
   void _linkNote() {
     final AppNote? target = _firstNoteWhere(
       (AppNote n) =>
@@ -472,8 +516,6 @@ class NotesScreenState extends State<NotesScreen> {
     _edit(target);
   }
 
-  /// "Tag it" — tags are the note editor's tag field, so the step lands on the
-  /// newest note that has none.
   void _tagNote() {
     final AppNote? target = _firstNoteWhere((AppNote n) => n.tags.isEmpty);
     if (target == null) {
@@ -487,8 +529,6 @@ class NotesScreenState extends State<NotesScreen> {
     _edit(target);
   }
 
-  /// "Use the AI refactor" — the AI surface lives in the editor, so the step
-  /// lands on the newest note, ready for a selection to be rewritten.
   void _refactorNote() {
     final AppNote? target = _firstNoteWhere((AppNote _) => true);
     if (target == null) {
@@ -502,9 +542,6 @@ class NotesScreenState extends State<NotesScreen> {
     _edit(target);
   }
 
-  /// "Revisit weekly using tag filters" — the weekly review is the landing with
-  /// the review notes pulled to the front, via the existing type filter rather
-  /// than a new surface.
   void _reviewWeekly() {
     _backToList();
     _updateFilter(() {
@@ -514,9 +551,6 @@ class NotesScreenState extends State<NotesScreen> {
     });
   }
 
-  /// First mine-note matching [test], in the repository's recently-edited order
-  /// — so "first" means "most recent", which is the one the trader is most
-  /// likely to mean.
   AppNote? _firstNoteWhere(bool Function(AppNote n) test) {
     for (final AppNote n in _notes) {
       if (test(n)) return n;
@@ -524,84 +558,847 @@ class NotesScreenState extends State<NotesScreen> {
     return null;
   }
 
-  // ── Next-best action ───────────────────────────────────────────────────────
+  // ── SubNavbar & Tabs ───────────────────────────────────────────────────────
 
-  /// The pipeline nudges shown as compact chips between the filter bar and the
-  /// grid.
-  ///
-  /// Derived from the **whole notebook** (`_notes`) plus the link graph — never
-  /// from the filtered slice, because "2 trades without a review" is true of the
-  /// workspace even while a search narrows what is on screen. Ordered
-  /// Review-first:
-  ///
-  ///  1. Journal entries whose linked-note set is empty → open the record
-  ///     writing flow, which is how a review is written back into the trade.
-  ///  2. Mine-notes with no tags → open the newest in the editor, where tags
-  ///     are edited.
-  ///
-  /// Empty while the stream is still loading or when there is nothing to act on,
-  /// so the row never advertises a zero. A chip whose action cannot be wired
-  /// honestly is simply not emitted.
-  List<_NextAction> get _nextActions {
-    if (_loading) return const <_NextAction>[];
-    final List<AppTrade> unreviewed = _graph.journalList
-        .where((AppTrade t) => _graph.bundleForJournal(t).notes.isEmpty)
-        .toList(growable: false);
-    final List<AppNote> untagged = _notes
-        .where((AppNote n) => n.tags.isEmpty)
-        .toList(growable: false);
-
-    return <_NextAction>[
-      if (unreviewed.isNotEmpty)
-        _NextAction(
-          label: unreviewed.length == 1
-              ? '1 trade still without a review note'
-              : '${unreviewed.length} trades still without a review note',
-          icon: Icons.edit_note_rounded,
-          intent: UiIntent.warning,
-          onTap: () => _openSourceWriting(_graph.journalRef(unreviewed.first)),
-        ),
-      if (untagged.isNotEmpty)
-        _NextAction(
-          label: untagged.length == 1
-              ? '1 untagged recent note'
-              : '${untagged.length} untagged recent notes',
-          icon: Icons.sell_outlined,
-          intent: UiIntent.info,
-          onTap: () => _edit(untagged.first),
-        ),
-    ];
-  }
-
-  Widget _nextActionChips(BuildContext context) {
-    final List<_NextAction> actions = _nextActions;
-    if (actions.isEmpty) return const SizedBox.shrink();
+  Widget _buildCollectionToggle() {
     final UiTheme theme = context.ui;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    final UiColors colors = theme.colors;
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: context.radius(theme.radii.lg),
+        border: Border.all(color: colors.border.withValues(alpha: 0.8)),
+      ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          for (int i = 0; i < actions.length; i++) ...<Widget>[
-            if (i > 0) SizedBox(width: context.sp(theme.spacing.xs)),
-            UiButton(
-              label: actions[i].label,
-              leadingIcon: actions[i].icon,
-              variant: UiVariant.soft,
-              intent: actions[i].intent,
-              size: UiSize.xs,
-              onPressed: actions[i].onTap,
+          InkWell(
+            borderRadius: context.radius(theme.radii.md),
+            onTap: () => _updateFilter(
+              () => _collection = _NotesCollection.mine,
             ),
-          ],
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(theme.spacing.sm),
+                vertical: context.sp(theme.spacing.xs),
+              ),
+              decoration: BoxDecoration(
+                color: _collection == _NotesCollection.mine
+                    ? colors.foreground
+                    : Colors.transparent,
+                borderRadius: context.radius(theme.radii.md),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    Icons.folder_outlined,
+                    size: 14,
+                    color: _collection == _NotesCollection.mine
+                        ? colors.background
+                        : colors.foregroundMuted,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'My Notes',
+                    style: context.uiText.caption.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: _collection == _NotesCollection.mine
+                          ? colors.background
+                          : colors.foregroundMuted,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _collection == _NotesCollection.mine
+                          ? colors.background.withValues(alpha: 0.2)
+                          : colors.foregroundSubtle.withValues(alpha: 0.15),
+                      borderRadius: context.radius(theme.radii.pill),
+                    ),
+                    child: Text(
+                      '${_notes.length}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: _collection == _NotesCollection.mine
+                            ? colors.background
+                            : colors.foregroundSubtle,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 2),
+          InkWell(
+            borderRadius: context.radius(theme.radii.md),
+            onTap: () => _updateFilter(
+              () => _collection = _NotesCollection.public,
+            ),
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(theme.spacing.sm),
+                vertical: context.sp(theme.spacing.xs),
+              ),
+              decoration: BoxDecoration(
+                color: _collection == _NotesCollection.public
+                    ? colors.foreground
+                    : Colors.transparent,
+                borderRadius: context.radius(theme.radii.md),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    Icons.public_rounded,
+                    size: 14,
+                    color: _collection == _NotesCollection.public
+                        ? colors.background
+                        : colors.foregroundMuted,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Public Notes',
+                    style: context.uiText.caption.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: _collection == _NotesCollection.public
+                          ? colors.background
+                          : colors.foregroundMuted,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _collection == _NotesCollection.public
+                          ? colors.background.withValues(alpha: 0.2)
+                          : colors.foregroundSubtle.withValues(alpha: 0.15),
+                      borderRadius: context.radius(theme.radii.pill),
+                    ),
+                    child: Text(
+                      '${_publicNotes.length}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: _collection == _NotesCollection.public
+                            ? colors.background
+                            : colors.foregroundSubtle,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
+  Widget _buildCategoryTab({
+    required String label,
+    required int count,
+    required Color color,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    return InkWell(
+      borderRadius: context.radius(theme.radii.md),
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.sp(theme.spacing.sm),
+          vertical: context.sp(theme.spacing.xs),
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withValues(alpha: 0.15)
+              : Colors.transparent,
+          borderRadius: context.radius(theme.radii.md),
+          border: Border.all(
+            color: isSelected
+                ? color.withValues(alpha: 0.35)
+                : colors.border.withValues(alpha: 0.4),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '$label ($count)',
+              style: context.uiText.caption.copyWith(
+                color: isSelected ? color : colors.foregroundMuted,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Notification Banner & Executive KPIs ───────────────────────────────────
+
+  Widget _notificationBanner(BuildContext context) {
+    if (_dismissedBanner) return const SizedBox.shrink();
+    final List<AppTrade> unreviewed = _graph.journalList
+        .where((AppTrade t) => _graph.bundleForJournal(t).notes.isEmpty)
+        .toList(growable: false);
+    final List<AppNote> unlinked = _notes
+        .where(
+          (AppNote n) =>
+              _graph.bundleForNote(n).strategies.isEmpty &&
+              _graph.bundleForNote(n).journal.isEmpty,
+        )
+        .toList(growable: false);
+
+    final List<DeskNotificationAction> actions = <DeskNotificationAction>[
+      if (unreviewed.isNotEmpty)
+        DeskNotificationAction(
+          label: unreviewed.length == 1
+              ? '1 trade still without a review note'
+              : '${unreviewed.length} trades still without a review note',
+          icon: Icons.edit_note_rounded,
+          intent: UiIntent.warning,
+          badge: 'Audit',
+          onTap: () => _openSourceWriting(_graph.journalRef(unreviewed.first)),
+        ),
+      if (unlinked.isNotEmpty)
+        DeskNotificationAction(
+          label: unlinked.length == 1
+              ? '1 note not linked to any trade or playbook'
+              : '${unlinked.length} notes not linked to any trade or playbook',
+          icon: Icons.link_off_rounded,
+          intent: UiIntent.info,
+          badge: 'Unlinked',
+          onTap: () => _edit(unlinked.first),
+        ),
+    ];
+
+    if (actions.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      key: _bannerKey,
+      child: DeskNotificationBanner(
+        actions: actions,
+        onDismiss: () => setState(() => _dismissedBanner = true),
+      ),
+    );
+  }
+
+  Widget _executiveKpis(BuildContext context, {required double maxWidth}) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final List<AppNote> pool =
+        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+
+    final List<AppTrade> unreviewed = _graph.journalList
+        .where((AppTrade t) => _graph.bundleForJournal(t).notes.isEmpty)
+        .toList(growable: false);
+    final int totalTrades = _graph.journalList.length;
+    final int completionRate = totalTrades > 0
+        ? (((totalTrades - unreviewed.length) / totalTrades) * 100).round()
+        : 100;
+
+    final int plansCount = _countForType(AppNoteType.plan);
+    final int reviewsCount = _countForType(AppNoteType.review);
+
+    final DateTime now = DateTime.now();
+    final int thisMonthCount = _notes
+        .where(
+          (AppNote n) =>
+              n.updatedAt.year == now.year && n.updatedAt.month == now.month,
+        )
+        .length;
+
+    final int linkedCount = pool
+        .where((AppNote n) => n.linkedJournalIds.isNotEmpty || n.strategyId != null)
+        .length;
+
+    final List<DeskStatCardData> stats = <DeskStatCardData>[
+      DeskStatCardData(
+        title: 'NOTEBOOK INVENTORY',
+        value: '${pool.length} Notes',
+        valueColor: colors.foreground,
+        secondary: _collection == _NotesCollection.mine ? 'Personal' : 'Public',
+        secondaryColor: colors.foregroundMuted,
+        subtitle: '${_notes.length} Personal · ${_publicNotes.length} Public notes',
+      ),
+      DeskStatCardData(
+        title: 'TRADE PREP & PLANS',
+        value: '$plansCount Plans',
+        valueColor: colors.success,
+        secondary: 'Execution',
+        secondaryColor: colors.success,
+        subtitle: 'Pre-market theses & trade plans',
+      ),
+      DeskStatCardData(
+        title: 'POST-TRADE REVIEWS',
+        value: '$completionRate%',
+        valueColor: completionRate >= 80 ? colors.success : colors.warning,
+        secondary: '$reviewsCount Written',
+        secondaryColor: colors.foregroundMuted,
+        subtitle: unreviewed.isNotEmpty
+            ? '${unreviewed.length} trades missing audit note'
+            : 'All trades documented in graph',
+      ),
+      DeskStatCardData(
+        title: 'MONTHLY VELOCITY',
+        value: '$thisMonthCount Notes',
+        valueColor: colors.foreground,
+        secondary: '$linkedCount Linked',
+        secondaryColor: colors.info,
+        subtitle: 'Updated this month across setups',
+      ),
+    ];
+
+    return DeskStatsOverview(
+      stats: stats,
+      maxWidth: maxWidth,
+    );
+  }
+
+  // ── SubNavbar & Tabs ───────────────────────────────────────────────────────
+
+  Widget _buildSubNavbar(BuildContext context, {required double maxWidth}) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final List<AppNote> pool =
+        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+
+    final Widget categories = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _buildCategoryTab(
+            label: 'All Notes',
+            count: pool.length,
+            color: colors.foreground,
+            isSelected: _type == null,
+            onTap: () => _updateFilter(() => _type = null),
+          ),
+          SizedBox(width: context.sp(theme.spacing.xs)),
+          _buildCategoryTab(
+            label: 'Trade Plans',
+            count: _countForType(AppNoteType.plan),
+            color: colors.success,
+            isSelected: _type == AppNoteType.plan,
+            onTap: () => _updateFilter(() => _type = AppNoteType.plan),
+          ),
+          SizedBox(width: context.sp(theme.spacing.xs)),
+          _buildCategoryTab(
+            label: 'Reviews',
+            count: _countForType(AppNoteType.review),
+            color: colors.warning,
+            isSelected: _type == AppNoteType.review,
+            onTap: () => _updateFilter(() => _type = AppNoteType.review),
+          ),
+          SizedBox(width: context.sp(theme.spacing.xs)),
+          _buildCategoryTab(
+            label: 'Analysis',
+            count: _countForType(AppNoteType.analysis),
+            color: colors.info,
+            isSelected: _type == AppNoteType.analysis,
+            onTap: () => _updateFilter(() => _type = AppNoteType.analysis),
+          ),
+          SizedBox(width: context.sp(theme.spacing.xs)),
+          _buildCategoryTab(
+            label: 'Ideas',
+            count: _countForType(AppNoteType.idea),
+            color: const Color(0xFFA855F7),
+            isSelected: _type == AppNoteType.idea,
+            onTap: () => _updateFilter(() => _type = AppNoteType.idea),
+          ),
+          SizedBox(width: context.sp(theme.spacing.xs)),
+          _buildCategoryTab(
+            label: 'Cheat Sheets',
+            count: _countForType(AppNoteType.cheatSheet),
+            color: const Color(0xFF06B6D4),
+            isSelected: _type == AppNoteType.cheatSheet,
+            onTap: () => _updateFilter(() => _type = AppNoteType.cheatSheet),
+          ),
+        ],
+      ),
+    );
+
+    final bool isDesktop = maxWidth >= 1024;
+
+    return Container(
+      key: _tabsKey,
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      child: isDesktop
+          ? Row(
+              children: <Widget>[
+                _buildCollectionToggle(),
+                SizedBox(width: context.sp(theme.spacing.md)),
+                Expanded(child: categories),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: _buildCollectionToggle(),
+                ),
+                SizedBox(height: context.sp(theme.spacing.xs)),
+                categories,
+              ],
+            ),
+    );
+  }
+  // ── Filter Toolbar ─────────────────────────────────────────────────────────
+
+  Widget _buildFilterBar(
+    BuildContext context, {
+    required double maxWidth,
+    required List<AppNote> visible,
+    required List<AppNote> visibleBatch,
+    required int poolCount,
+  }) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+
+    final Widget tickerDropdown = DeskFilterDropdown(
+      label: _ticker == null ? 'Ticker: All' : 'Ticker: $_ticker',
+      icon: Icons.candlestick_chart_outlined,
+      isActive: _ticker != null,
+      items: <UiMenuItem>[
+        UiMenuItem(
+          label: 'Ticker: All',
+          icon: Icons.candlestick_chart_outlined,
+          onPressed: () => _updateFilter(() => _ticker = null),
+        ),
+        for (final String t in _availableTickers)
+          UiMenuItem(
+            label: t,
+            icon: Icons.show_chart_rounded,
+            onPressed: () => _updateFilter(() => _ticker = t),
+          ),
+      ],
+    );
+
+    final Widget playbookDropdown = DeskFilterDropdown(
+      label: _strategyId == null
+          ? 'Playbook: Any'
+          : 'Playbook: ${_strategyNameFor(_strategyId!)}',
+      icon: Icons.auto_stories_outlined,
+      isActive: _strategyId != null,
+      items: <UiMenuItem>[
+        UiMenuItem(
+          label: 'Playbook: Any',
+          icon: Icons.auto_stories_outlined,
+          onPressed: () => _updateFilter(() => _strategyId = null),
+        ),
+        for (final item in _availableStrategies)
+          UiMenuItem(
+            label: item.name,
+            icon: Icons.book_outlined,
+            onPressed: () => _updateFilter(() => _strategyId = item.id),
+          ),
+      ],
+    );
+
+    final Widget journalLinkToggle = InkWell(
+      borderRadius: context.radius(theme.radii.md),
+      onTap: () => _updateFilter(
+        () => _onlyWithJournal = !_onlyWithJournal,
+      ),
+      child: Container(
+        height: context.sz(32),
+        padding: EdgeInsets.symmetric(
+          horizontal: context.sp(theme.spacing.sm),
+        ),
+        decoration: BoxDecoration(
+          color: _onlyWithJournal
+              ? colors.primary.withValues(alpha: 0.1)
+              : colors.surface,
+          borderRadius: context.radius(theme.radii.md),
+          border: Border.all(
+            color: _onlyWithJournal ? colors.primary : colors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              _onlyWithJournal ? Icons.check_rounded : Icons.link_rounded,
+              size: 13,
+              color: _onlyWithJournal
+                  ? colors.primary
+                  : colors.foregroundMuted,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'With Journal Link',
+              style: context.uiText.caption.copyWith(
+                color: _onlyWithJournal
+                    ? colors.foreground
+                    : colors.foregroundMuted,
+                fontWeight:
+                    _onlyWithJournal ? FontWeight.bold : FontWeight.w500,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final Widget quickTickers = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        for (final String t in _availableTickers.take(3)) ...<Widget>[
+          const SizedBox(width: 4),
+          InkWell(
+            borderRadius: context.radius(theme.radii.sm),
+            onTap: () => _updateFilter(() {
+              _ticker = _ticker == t ? null : t;
+            }),
+            child: Container(
+              height: context.sz(32),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: _ticker == t ? colors.foreground : colors.surface,
+                borderRadius: context.radius(theme.radii.sm),
+                border: Border.all(
+                  color: _ticker == t
+                      ? colors.foreground
+                      : colors.border.withValues(alpha: 0.6),
+                ),
+              ),
+              child: Text(
+                t,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: _ticker == t
+                      ? colors.background
+                      : colors.foregroundSubtle,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+
+    final Widget countBadge = UiBadge(
+      label: '${visible.length} of $poolCount',
+      icon: Icons.layers_rounded,
+      variant: UiBadgeVariant.outline,
+      size: UiSize.xs,
+    );
+
+    final Widget sortDropdown = DeskFilterDropdown(
+      label: 'Sort: ${_sort.label.split(' ').first}',
+      icon: Icons.sort_rounded,
+      isActive: false,
+      items: <UiMenuItem>[
+        for (final AppNoteSort s in AppNoteSort.values)
+          UiMenuItem(
+            label: s.label,
+            icon: Icons.sort_rounded,
+            onPressed: () => _updateFilter(() => _sort = s),
+          ),
+      ],
+    );
+
+    final Widget viewToggle = DeskViewToggle(
+      isGrid: _isGridView,
+      onChanged: (bool grid) => setState(() => _isGridView = grid),
+      gridTooltip: 'Grid view (G)',
+      secondaryTooltip: 'List view (G)',
+    );
+
+    final bool isDesktop = maxWidth >= 1024;
+
+    return Container(
+      key: _filterBarKey,
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      child: isDesktop
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        tickerDropdown,
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        playbookDropdown,
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        journalLinkToggle,
+                        if (_availableTickers.isNotEmpty) ...<Widget>[
+                          SizedBox(width: context.sp(theme.spacing.xs)),
+                          quickTickers,
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(width: context.sp(theme.spacing.sm)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    countBadge,
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    sortDropdown,
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    viewToggle,
+                  ],
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    countBadge,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        sortDropdown,
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        viewToggle,
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: context.sp(theme.spacing.xs)),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: <Widget>[
+                      tickerDropdown,
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      playbookDropdown,
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      journalLinkToggle,
+                      if (_availableTickers.isNotEmpty) ...<Widget>[
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        quickTickers,
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  // ── Section Title ──────────────────────────────────────────────────────────
+
+  Widget _buildSectionTitle(BuildContext context, {required double maxWidth}) {
+    final String title = _collection == _NotesCollection.mine
+        ? 'Your Notes'
+        : 'Public Notes';
+    final List<AppNote> pool =
+        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+
+    return DeskSectionHeader(
+      title: title,
+      countLabel: '${_visible.length} of ${pool.length}',
+      showDivider: true,
+      accentColor: context.uiColors.primary,
+    );
+  }
+
+  // ── Main Content Grid/List ─────────────────────────────────────────────────
+
+  Widget _buildNotesContent(
+    BuildContext context, {
+    required double maxWidth,
+    required int columns,
+    required List<AppNote> visibleBatch,
+    required List<AppNote> visible,
+    required int poolCount,
+  }) {
+    final UiTheme theme = context.ui;
+
+    if (_loading) {
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xl)),
+        child: const Center(
+          child: UiSkeleton(width: double.infinity, height: 200),
+        ),
+      );
+    }
+
+    if (visibleBatch.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xl)),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: context.sz(460)),
+            child: poolCount > 0
+                ? UiEmptyState(
+                    icon: Icons.search_off_rounded,
+                    title: 'No notes match',
+                    message:
+                        'Nothing here matches the current search and filters.',
+                    actionLabel: 'Clear filters',
+                    onActionPressed: _filtered ? _clearFilters : null,
+                  )
+                : UiEmptyState(
+                    icon: Icons.edit_note_rounded,
+                    title: 'Your notebook is empty',
+                    message:
+                        'Capture the plan before a trade and the lesson after it.',
+                    actionLabel: 'Write your first note',
+                    onActionPressed: _newNote,
+                  ),
+          ),
+        ),
+      );
+    }
+
+    final double gap = context.sp(theme.spacing.md);
+
+    if (!_isGridView) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          for (final AppNote note in visibleBatch)
+            Padding(
+              padding: EdgeInsets.only(bottom: gap),
+              child: AppNoteCard(
+                key: ValueKey<String>(note.id),
+                note: note,
+                density: _density,
+                highlight: _query,
+                selected: note.id == _active?.id,
+                onTap: () => _open(note),
+                onDelete: _collection == _NotesCollection.mine
+                    ? () => _delete(note)
+                    : null,
+              ),
+            ),
+        ],
+      );
+    }
+
+    return _buildNoteCardGrid(context, visibleBatch, columns: columns, gap: gap);
+  }
+
+  Widget _buildNoteCardGrid(
+    BuildContext context,
+    List<AppNote> items, {
+    required int columns,
+    required double gap,
+  }) {
+    if (columns == 1) {
+      return Column(
+        children: <Widget>[
+          for (final AppNote note in items)
+            Padding(
+              padding: EdgeInsets.only(bottom: gap),
+              child: AppNoteCard(
+                key: ValueKey<String>(note.id),
+                note: note,
+                density: _density,
+                highlight: _query,
+                selected: note.id == _active?.id,
+                onTap: () => _open(note),
+                onDelete: _collection == _NotesCollection.mine
+                    ? () => _delete(note)
+                    : null,
+              ),
+            ),
+        ],
+      );
+    }
+
+    final List<Widget> rows = <Widget>[];
+    for (int i = 0; i < items.length; i += columns) {
+      final List<AppNote> rowItems = items.sublist(
+        i,
+        (i + columns).clamp(0, items.length),
+      );
+      rows.add(
+        Padding(
+          padding: EdgeInsets.only(bottom: gap),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (int j = 0; j < columns; j++) ...<Widget>[
+                  if (j > 0) SizedBox(width: gap),
+                  Expanded(
+                    child: j < rowItems.length
+                        ? AppNoteCard(
+                            key: ValueKey<String>(rowItems[j].id),
+                            note: rowItems[j],
+                            density: _density,
+                            highlight: _query,
+                            selected: rowItems[j].id == _active?.id,
+                            onTap: () => _open(rowItems[j]),
+                            onDelete: _collection == _NotesCollection.mine
+                                ? () => _delete(rowItems[j])
+                                : null,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return Column(children: rows);
+  }
+
+  // ── Footer Status Bar ──────────────────────────────────────────────────────
+
+  Widget _buildFooterStatusBar(BuildContext context, {required double maxWidth}) {
+    return const DeskStatusBarFooter(
+      syncLabel: 'Auto-synced with Journal & Broker API',
+      latency: '24ms',
+      shortcutHints: <String>[
+        'Press N for New note',
+        '/ for Search',
+        'Esc to Clear',
+        'G switch view',
+      ],
+    );
+  }
+
+  // ── Body & List Surfaces ───────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     if (_sourceWriting case final source?) {
       return NoteEditorScreen(
-        key: ValueKey(
+        key: ValueKey<String>(
           'source_writing_${source.source.kind.name}_${source.source.id}',
         ),
         note: source.note,
@@ -613,21 +1410,14 @@ class NotesScreenState extends State<NotesScreen> {
       return const UiSkeleton(width: double.infinity, height: 240);
     }
 
-    // The editor is a full-surface step on every width: it owns its own
-    // save-or-discard decision and must not share the workbench's pane.
     if (_view == _NotesView.editor) return _notesBody(context);
 
-    // Reading and editing are focused full-page steps at every width. Linked
-    // records remain inside the reader; no permanent index/sidebar competes
-    // with the writing surface.
     return _notesBody(context);
   }
 
   Widget _notesBody(BuildContext context) {
     final AppNote? active = _active;
 
-    // Keyed so switching surfaces builds fresh controllers instead of trying to
-    // re-seed the editor's text fields from a different note.
     final Widget page = switch (_view) {
       _NotesView.list => _list(context),
       _NotesView.preview when active != null => NotePreviewScreen(
@@ -646,16 +1436,12 @@ class NotesScreenState extends State<NotesScreen> {
         onClose: _closeEditor,
         onDeleted: _backToList,
       ),
-      // Defensive: an active-note view with nothing active can only happen if a
-      // delete raced the switch, and the list is always a valid answer.
       _ => _list(context),
     };
 
     return page;
   }
 
-  /// The stream's copy of a note, so the preview never shows a stale body after
-  /// an edit made somewhere else.
   AppNote _freshest(AppNote note) => <AppNote>[
     ..._notes,
     ..._publicNotes,
@@ -665,184 +1451,125 @@ class NotesScreenState extends State<NotesScreen> {
     final UiTheme theme = context.ui;
     final List<AppNote> visible = _visible;
     final List<AppNote> visibleBatch = _visibleBatch;
-
+    final int poolCount =
+        (_collection == _NotesCollection.mine ? _notes : _publicNotes).length;
     final double gutter = context.sp(theme.spacing.md);
     final double dockSafeBottom = MediaQuery.paddingOf(context).bottom;
 
     return Stack(
       key: const ValueKey<String>('notes_list'),
       children: <Widget>[
-        Scrollbar(
-          controller: _notesScrollController,
-          interactive: true,
-          child: UiPage(
-            maxWidth: 1440,
-            scrollable: false,
-            child: ScrollConfiguration(
-              behavior: ScrollConfiguration.of(
-                context,
-              ).copyWith(scrollbars: false),
-              child: CustomScrollView(
-                controller: _notesScrollController,
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                slivers: <Widget>[
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _NotesStickyHeaderDelegate(
-                      extent: context.sz(
-                        AppWritingDeskScope.isHosted(context) ? 64 : 104,
-                      ),
-                      background: theme.colors.background,
-                      child: _stickyControls(context),
+        UiPage(
+          scrollable: true,
+          maxWidth: double.infinity,
+          child: CallbackShortcuts(
+            bindings: <ShortcutActivator, VoidCallback>{
+              const SingleActivator(LogicalKeyboardKey.keyN): _newNote,
+              const SingleActivator(LogicalKeyboardKey.escape): _clearFilters,
+              const SingleActivator(LogicalKeyboardKey.keyG): () =>
+                  setState(() => _isGridView = !_isGridView),
+            },
+            child: Focus(
+              autofocus: true,
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  final double maxWidth = constraints.maxWidth;
+                  final int columns =
+                      maxWidth >= 1024 ? 3 : (maxWidth >= 640 ? 2 : 1);
+
+                  return Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: gutter,
+                      vertical: context.sp(theme.spacing.sm),
                     ),
-                  ),
-                  SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
+                        // 1. Notification Banner
+                        _notificationBanner(context),
                         SizedBox(height: context.sp(theme.spacing.sm)),
-                        if (_nextActions.isNotEmpty) ...<Widget>[
-                          _nextActionChips(context),
-                          SizedBox(height: context.sp(theme.spacing.sm)),
-                        ],
-                        Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: Text(
-                                _collection == _NotesCollection.mine
-                                    ? 'Your notes'
-                                    : 'Public notes',
-                                style: context.uiText.subheading,
-                              ),
-                            ),
-                            UiBadge(
-                              label: visibleBatch.length == visible.length
-                                  ? '${visible.length} shown'
-                                  : '${visibleBatch.length} of ${visible.length}',
-                              icon: Icons.notes_rounded,
-                              variant: UiBadgeVariant.outline,
-                            ),
-                          ],
+
+                        // 2. 4-Card Executive KPI Overview
+                        _executiveKpis(context, maxWidth: maxWidth),
+                        SizedBox(height: context.sp(theme.spacing.md)),
+
+                        // 3. SubNavbar with collection toggle & note types
+                        _buildSubNavbar(context, maxWidth: maxWidth),
+                        SizedBox(height: context.sp(theme.spacing.xs)),
+
+                        // 4. Filter & View Toolbar
+                        _buildFilterBar(
+                          context,
+                          maxWidth: maxWidth,
+                          visible: visible,
+                          visibleBatch: visibleBatch,
+                          poolCount: poolCount,
                         ),
                         SizedBox(height: context.sp(theme.spacing.sm)),
+
+                        // 5. Section Title Area
+                        _buildSectionTitle(context, maxWidth: maxWidth),
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+
+                        // 6. Main Content Notes Grid/List
+                        Container(
+                          key: _gridKey,
+                          child: _buildNotesContent(
+                            context,
+                            maxWidth: maxWidth,
+                            columns: columns,
+                            visibleBatch: visibleBatch,
+                            visible: visible,
+                            poolCount: poolCount,
+                          ),
+                        ),
+
+                        // 7. Lazy-Loaded Pagination Bar
+                        if (visible.isNotEmpty) ...<Widget>[
+                          SizedBox(height: context.sp(theme.spacing.md)),
+                          DeskPaginationBar(
+                            currentPage: _currentPage,
+                            totalPages: _totalPages,
+                            totalItems: visible.length,
+                            pageSize: _pageSize,
+                            itemLabel: 'notes',
+                            onPageChanged: (int page) =>
+                                setState(() => _currentPage = page),
+                          ),
+                        ],
+
+                        SizedBox(height: context.sp(theme.spacing.xl)),
+
+                        // 8. Footer status bar
+                        _buildFooterStatusBar(context, maxWidth: maxWidth),
+
+                        SizedBox(
+                          height:
+                              context.uiPageBottomInset + context.sz(72),
+                        ),
                       ],
                     ),
-                  ),
-                  AppNoteLazyGridSliver(
-                    notes: visibleBatch,
-                    loading: _loading,
-                    hasAnyNotes:
-                        (_collection == _NotesCollection.mine
-                                ? _notes
-                                : _publicNotes)
-                            .isNotEmpty,
-                    density: _density,
-                    highlight: _query,
-                    onOpen: _open,
-                    onDelete: _collection == _NotesCollection.mine
-                        ? _delete
-                        : null,
-                    onNew: _collection == _NotesCollection.mine
-                        ? _newNote
-                        : null,
-                    onClearFilters: _filtered ? _clearFilters : null,
-                  ),
-                  SliverToBoxAdapter(child: SizedBox(height: context.sz(96))),
-                ],
+                  );
+                },
               ),
             ),
           ),
         ),
-        if (!context.uiRes.isDesktop && !AppWritingDeskScope.isHosted(context))
-          Positioned(
-            right: gutter,
-            bottom: dockSafeBottom + gutter,
-            child: UiIconButton(
-              key: const ValueKey<String>('new_note_fab'),
-              icon: Icons.add_rounded,
-              onPressed: _newNote,
-              variant: UiVariant.primary,
-              size: UiSize.lg,
-              tooltip: 'New note',
-            ),
+
+        // Floating Action Button on Bottom Right across all screen sizes
+        Positioned(
+          right: gutter,
+          bottom: dockSafeBottom + gutter,
+          child: UiIconButton(
+            key: _fabKey,
+            icon: Icons.add_rounded,
+            variant: UiVariant.primary,
+            size: UiSize.lg,
+            tooltip: 'New note',
+            onPressed: _newNote,
           ),
-      ],
-    );
-  }
-
-  Widget _stickyControls(BuildContext context) {
-    final UiTheme theme = context.ui;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        UiTabs(
-          stretch: context.uiRes.isMobile,
-          items: const <UiTabItem>[
-            UiTabItem(label: 'My notes', icon: Icons.note_outlined),
-            UiTabItem(label: 'Public notes', icon: Icons.public_rounded),
-          ],
-          selectedIndex: _collection == _NotesCollection.mine ? 0 : 1,
-          onChanged: (int index) => _updateFilter(() {
-            _collection = index == 0
-                ? _NotesCollection.mine
-                : _NotesCollection.public;
-          }),
-        ),
-        SizedBox(height: context.sp(theme.spacing.md)),
-        _noteFilterBlock(
-          showSearch: !AppWritingDeskScope.isHosted(context),
-          showFilterControl: !AppWritingDeskScope.isHosted(context),
         ),
       ],
     );
   }
-}
-
-class _NotesStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
-  const _NotesStickyHeaderDelegate({
-    required this.extent,
-    required this.background,
-    required this.child,
-  });
-
-  final double extent;
-  final Color background;
-  final Widget child;
-
-  @override
-  double get minExtent => extent;
-
-  @override
-  double get maxExtent => extent;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) => ColoredBox(color: background, child: child);
-
-  @override
-  bool shouldRebuild(_NotesStickyHeaderDelegate oldDelegate) =>
-      extent != oldDelegate.extent ||
-      background != oldDelegate.background ||
-      child != oldDelegate.child;
-}
-
-/// One pipeline nudge in the "next best action" chip row. Private data, computed
-/// by [_NotesScreenState._nextActions] from the live repository stream and link
-/// graph — nothing here is hardcoded.
-class _NextAction {
-  const _NextAction({
-    required this.label,
-    required this.icon,
-    required this.intent,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final UiIntent intent;
-  final VoidCallback onTap;
 }

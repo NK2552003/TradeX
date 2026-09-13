@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
@@ -89,11 +90,19 @@ class StrategiesScreenState extends State<StrategiesScreen> {
 
   void performGuideStep(FeatureGuideStep step) => _onGuideStepAction(step);
 
-  static const int _pageSize = 8;
+  static const int _pageSize = 12;
 
   final StrategiesRepository _repo = StrategiesRepositoryScope.repository;
   final AppLinkGraphService _links = AppLinkGraphScope.service;
   final GlobalKey _guideFilterKey = GlobalKey();
+  final GlobalKey _fabKey = GlobalKey();
+  final GlobalKey _bannerKey = GlobalKey();
+  final GlobalKey _kpiBarKey = GlobalKey();
+  final GlobalKey _filterBarKey = GlobalKey();
+  final GlobalKey _gridKey = GlobalKey();
+
+  bool _dismissedBanner = false;
+  bool _isGridView = true;
 
   StreamSubscription<List<AppStrategy>>? _sub;
   StreamSubscription<AppLinkGraph>? _graphSub;
@@ -108,7 +117,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   String? _ticker;
   bool _onlyFavorites = false;
   AppStrategySort _sort = AppStrategySort.recentlyUpdated;
-  int _visibleLimit = _pageSize;
+  int _currentPage = 1;
 
   _StrategyView _view = _StrategyView.list;
 
@@ -192,14 +201,12 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     sort: _sort,
   );
 
-  /// What the phone has actually built. The rail renders the whole slice — a
-  /// desktop list view is cheap — but a phone grid of document cards is not, so
-  /// it grows a page at a time as the trader scrolls.
+  /// What the phone or grid has actually built for the current page slice.
   List<AppStrategy> get _visibleBatch {
     final List<AppStrategy> visible = _visible;
-    return visible.length <= _visibleLimit
-        ? visible
-        : visible.sublist(0, _visibleLimit);
+    if (visible.isEmpty) return const <AppStrategy>[];
+    final int start = ((_currentPage - 1) * _pageSize).clamp(0, visible.length);
+    return visible.skip(start).take(_pageSize).toList(growable: false);
   }
 
   AppStrategy? get _active {
@@ -227,7 +234,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
 
   void _updateFilter(VoidCallback update) => setState(() {
     update();
-    _visibleLimit = _pageSize;
+    _currentPage = 1;
   });
 
   AppStrategyNoteFilterBar _strategyFilterBar({
@@ -423,7 +430,13 @@ class StrategiesScreenState extends State<StrategiesScreen> {
       context,
       feature: FeatureId.strategies,
       steps: FeatureGuideSteps.strategies,
-      targets: <GlobalKey>[_guideFilterKey],
+      targets: <GlobalKey>[
+        _fabKey,
+        _bannerKey,
+        _kpiBarKey,
+        _filterBarKey,
+        _gridKey,
+      ],
       onStepAction: _onGuideStepAction,
     );
   }
@@ -560,20 +573,12 @@ class StrategiesScreenState extends State<StrategiesScreen> {
       if (drafts.isNotEmpty)
         _NextAction(
           label: drafts.length == 1
-              ? '1 draft to finish'
-              : '${drafts.length} drafts to finish',
+              ? '1 draft playbook to finish'
+              : '${drafts.length} draft playbooks to finish',
           icon: Icons.edit_note_rounded,
           intent: UiIntent.primary,
+          badge: 'Draft',
           onTap: () => _edit(drafts.first),
-        ),
-      if (untested.isNotEmpty)
-        _NextAction(
-          label: untested.length == 1
-              ? '1 playbook has no trades — file one'
-              : '${untested.length} playbooks have no trades — file one',
-          icon: Icons.add_link_rounded,
-          intent: UiIntent.warning,
-          onTap: () => _openWithTab(untested.first.id, StrategyDetailTab.links),
         ),
       if (ready.isNotEmpty)
         _NextAction(
@@ -582,33 +587,1095 @@ class StrategiesScreenState extends State<StrategiesScreen> {
               : '${ready.length} testing playbooks ready for review',
           icon: Icons.insights_rounded,
           intent: UiIntent.bullish,
+          badge: 'Ready',
           onTap: () => _openWithTab(ready.first.id, StrategyDetailTab.playbook),
+        ),
+      if (untested.isNotEmpty)
+        _NextAction(
+          label: untested.length == 1
+              ? '1 playbook has no trades — file one'
+              : '${untested.length} playbooks have no trades — file one',
+          icon: Icons.add_link_rounded,
+          intent: UiIntent.warning,
+          badge: 'Untested',
+          onTap: () => _openWithTab(untested.first.id, StrategyDetailTab.links),
         ),
     ];
   }
 
-  Widget _nextActionChips(BuildContext context) {
+  Widget _notificationBannerStrip(BuildContext context) {
+    if (_dismissedBanner) return const SizedBox.shrink();
     final List<_NextAction> actions = _nextActions;
     if (actions.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      key: _bannerKey,
+      child: DeskNotificationBanner(
+        actions: <DeskNotificationAction>[
+          for (final _NextAction a in actions)
+            DeskNotificationAction(
+              label: a.label,
+              icon: a.icon,
+              intent: a.intent,
+              badge: a.badge,
+              onTap: a.onTap,
+            ),
+        ],
+        onDismiss: () => setState(() => _dismissedBanner = true),
+        dismissLabel: 'Dismiss suggestions',
+      ),
+    );
+  }
+
+  Widget _executiveKpis(BuildContext context, {required double maxWidth}) {
     final UiTheme theme = context.ui;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
+    final UiColors colors = theme.colors;
+
+    final int totalCount = _strategies.length;
+    final int liveCount = _strategies
+        .where((AppStrategy s) => s.status == AppStrategyStatus.live)
+        .length;
+    final int testingCount = _strategies
+        .where((AppStrategy s) => s.status == AppStrategyStatus.testing)
+        .length;
+    final int draftCount = _strategies
+        .where((AppStrategy s) => s.status == AppStrategyStatus.draft)
+        .length;
+    final int activeCount = liveCount + testingCount;
+
+    final List<AppStrategy> traded = _strategies
+        .where((AppStrategy s) => s.trades > 0)
+        .toList();
+    traded.sort((AppStrategy a, AppStrategy b) => b.netPnl.compareTo(a.netPnl));
+    final AppStrategy? topSetup = traded.isNotEmpty ? traded.first : null;
+
+    int checklistDoneTotal = 0;
+    int checklistItemsTotal = 0;
+    int totalTrades = 0;
+    for (final AppStrategy s in _strategies) {
+      checklistDoneTotal += s.checklistDone;
+      checklistItemsTotal += s.checklistTotal;
+      totalTrades += s.trades;
+    }
+    final double adherenceRate = checklistItemsTotal > 0
+        ? (checklistDoneTotal / checklistItemsTotal) * 100
+        : (traded.isNotEmpty
+            ? (traded
+                    .map((AppStrategy s) =>
+                        s.winRate > 1 ? s.winRate : s.winRate * 100)
+                    .reduce((double a, double b) => a + b) /
+                traded.length)
+            : 100.0);
+
+    final double avgTargetR = traded.isNotEmpty
+        ? traded
+                .map((AppStrategy s) => s.avgR)
+                .reduce((double a, double b) => a + b) /
+            traded.length
+        : 2.4;
+
+    final DeskStatCardData kpi1 = DeskStatCardData(
+      title: 'PLAYBOOK INVENTORY',
+      customMetric: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
         children: <Widget>[
-          for (int i = 0; i < actions.length; i++) ...<Widget>[
-            if (i > 0) SizedBox(width: context.sp(theme.spacing.xs)),
-            UiButton(
-              label: actions[i].label,
-              leadingIcon: actions[i].icon,
-              variant: UiVariant.soft,
-              intent: actions[i].intent,
-              size: UiSize.xs,
-              onPressed: actions[i].onTap,
+          Text(
+            '$activeCount Active',
+            style: context.uiText.heading.copyWith(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: colors.foreground,
+            ),
+          ),
+          SizedBox(width: context.sp(theme.spacing.xs)),
+          Text(
+            'of $totalCount total',
+            style: context.uiText.caption.copyWith(
+              color: colors.foregroundSubtle,
+            ),
+          ),
+        ],
+      ),
+      customBottom: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: colors.success,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '$liveCount Live',
+              style: TextStyle(
+                fontSize: 11,
+                color: colors.success,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              ' • ',
+              style: TextStyle(color: colors.foregroundSubtle, fontSize: 11),
+            ),
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: colors.warning,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '$testingCount Testing',
+              style: TextStyle(
+                fontSize: 11,
+                color: colors.warning,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              ' • ',
+              style: TextStyle(color: colors.foregroundSubtle, fontSize: 11),
+            ),
+            Text(
+              '$draftCount Draft',
+              style: TextStyle(fontSize: 11, color: colors.foregroundSubtle),
             ),
           ],
+        ),
+      ),
+    );
+
+    final DeskStatCardData kpi2 = DeskStatCardData(
+      title: 'BEST PERFORMING SETUP',
+      customMetric: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              topSetup?.name ?? 'None yet',
+              style: context.uiText.heading.copyWith(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: colors.foreground,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Text(
+            topSetup != null
+                ? AppTokens.signedMoney(topSetup.netPnl, decimals: 0)
+                : '—',
+            style: context.uiText.caption.copyWith(
+              fontWeight: FontWeight.bold,
+              color: topSetup != null
+                  ? AppTokens.pl(context, topSetup.netPnl)
+                  : colors.foregroundSubtle,
+            ),
+          ),
+        ],
+      ),
+      customBottom: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
+          Flexible(
+            child: Text(
+              'Win Rate: ${topSetup != null ? AppTokens.percent(topSetup.winRate > 1 ? topSetup.winRate : topSetup.winRate * 100, decimals: 0) : '—'}',
+              style: context.uiText.caption.copyWith(
+                color: colors.foregroundMuted,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+            decoration: BoxDecoration(
+              color: colors.success.withValues(alpha: 0.12),
+              borderRadius: context.radius(theme.radii.sm),
+              border: Border.all(
+                color: colors.success.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Text(
+              topSetup != null ? AppTokens.rr(topSetup.avgR) : '—',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: colors.success,
+              ),
+            ),
+          ),
         ],
       ),
     );
+
+    final DeskStatCardData kpi3 = DeskStatCardData(
+      title: 'DISCIPLINE / RULE ADHERENCE',
+      customMetric: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: <Widget>[
+          Text(
+            '${adherenceRate.toStringAsFixed(1)}%',
+            style: context.uiText.heading.copyWith(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: colors.warning,
+            ),
+          ),
+          SizedBox(width: context.sp(theme.spacing.xs)),
+          Text(
+            'Follow-through',
+            style: context.uiText.caption.copyWith(
+              color: colors.foregroundSubtle,
+            ),
+          ),
+        ],
+      ),
+      customBottom: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
+          Flexible(
+            child: Text(
+              'Checklist logged',
+              style: context.uiText.caption.copyWith(
+                color: colors.foregroundMuted,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              checklistItemsTotal > 0
+                  ? '$checklistDoneTotal / $checklistItemsTotal checks'
+                  : '$totalTrades trades logged',
+              style: context.uiText.caption.copyWith(
+                fontWeight: FontWeight.bold,
+                color: colors.foreground,
+              ),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final DeskStatCardData kpi4 = DeskStatCardData(
+      title: 'ALLOCATED CAPITAL & TARGET R:R',
+      customMetric: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: <Widget>[
+          Text(
+            '$totalTrades Trades',
+            style: context.uiText.heading.copyWith(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: colors.foreground,
+            ),
+          ),
+          SizedBox(width: context.sp(theme.spacing.xs)),
+          Text(
+            'in active play',
+            style: context.uiText.caption.copyWith(
+              color: colors.foregroundSubtle,
+            ),
+          ),
+        ],
+      ),
+      customBottom: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
+          Flexible(
+            child: Text(
+              'Target Reward / Risk',
+              style: context.uiText.caption.copyWith(
+                color: colors.foregroundMuted,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              '1 : ${avgTargetR.toStringAsFixed(1)} Avg R:R',
+              style: context.uiText.caption.copyWith(
+                fontWeight: FontWeight.bold,
+                color: colors.success,
+              ),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Container(
+      key: _kpiBarKey,
+      child: DeskStatsOverview(
+        maxWidth: maxWidth,
+        stats: <DeskStatCardData>[kpi1, kpi2, kpi3, kpi4],
+      ),
+    );
+  }
+
+  Widget _buildStatusSegmentButton({
+    required String label,
+    required int count,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    return InkWell(
+      borderRadius: context.radius(theme.radii.sm),
+      onTap: onTap,
+      child: Container(
+        height: context.sz(28),
+        alignment: Alignment.center,
+        padding: EdgeInsets.symmetric(
+          horizontal: context.sp(theme.spacing.sm),
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? colors.foreground : Colors.transparent,
+          borderRadius: context.radius(theme.radii.sm),
+        ),
+        child: Text(
+          '$label ($count)',
+          style: context.uiText.caption.copyWith(
+            color: isSelected ? colors.background : colors.foregroundMuted,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _controlsAndFiltersBar(
+    BuildContext context, {
+    required List<AppStrategy> batch,
+    required List<AppStrategy> visible,
+    required double maxWidth,
+  }) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+
+    final int totalCount = _strategies.length;
+    final int liveCount = _strategies
+        .where((AppStrategy s) => s.status == AppStrategyStatus.live)
+        .length;
+    final int testingCount = _strategies
+        .where((AppStrategy s) => s.status == AppStrategyStatus.testing)
+        .length;
+    final int draftCount = _strategies
+        .where((AppStrategy s) => s.status == AppStrategyStatus.draft)
+        .length;
+    final int retiredCount = _strategies
+        .where((AppStrategy s) => s.status == AppStrategyStatus.retired)
+        .length;
+
+    final Widget titleAndCount = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text('Playbooks', style: context.uiText.subheading),
+        SizedBox(width: context.sp(theme.spacing.sm)),
+        UiBadge(
+          label: '${visible.length} total',
+          variant: UiBadgeVariant.outline,
+          size: UiSize.xs,
+        ),
+      ],
+    );
+
+    final Widget filterSegments = Container(
+      height: context.sz(32),
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: context.radius(theme.radii.md),
+        border: Border.all(color: colors.border.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _buildStatusSegmentButton(
+            label: 'All',
+            count: totalCount,
+            isSelected: _status == null,
+            onTap: () => _updateFilter(() => _status = null),
+          ),
+          _buildStatusSegmentButton(
+            label: 'Live',
+            count: liveCount,
+            isSelected: _status == AppStrategyStatus.live,
+            onTap: () => _updateFilter(() => _status = AppStrategyStatus.live),
+          ),
+          _buildStatusSegmentButton(
+            label: 'Testing',
+            count: testingCount,
+            isSelected: _status == AppStrategyStatus.testing,
+            onTap: () =>
+                _updateFilter(() => _status = AppStrategyStatus.testing),
+          ),
+          _buildStatusSegmentButton(
+            label: 'Draft',
+            count: draftCount,
+            isSelected: _status == AppStrategyStatus.draft,
+            onTap: () => _updateFilter(() => _status = AppStrategyStatus.draft),
+          ),
+          if (retiredCount > 0)
+            _buildStatusSegmentButton(
+              label: 'Archived',
+              count: retiredCount,
+              isSelected: _status == AppStrategyStatus.retired,
+              onTap: () =>
+                  _updateFilter(() => _status = AppStrategyStatus.retired),
+            ),
+        ],
+      ),
+    );
+
+    final Widget tagsDropdown = DeskFilterDropdown(
+      label: _tag == null ? 'All Tags' : '#$_tag',
+      icon: Icons.tag_rounded,
+      isActive: _tag != null,
+      items: <UiMenuItem>[
+        UiMenuItem(
+          label: 'All Tags',
+          icon: Icons.tag_rounded,
+          onPressed: () => _updateFilter(() => _tag = null),
+        ),
+        for (final String t in StrategiesQuery.tagsOf(_strategies))
+          UiMenuItem(
+            label: '#$t',
+            icon: Icons.tag_rounded,
+            onPressed: () => _updateFilter(() => _tag = t),
+          ),
+      ],
+    );
+
+    final Widget tickersDropdown = DeskFilterDropdown(
+      label: _ticker == null ? 'All Assets' : _ticker!,
+      icon: Icons.candlestick_chart_outlined,
+      isActive: _ticker != null,
+      items: <UiMenuItem>[
+        UiMenuItem(
+          label: 'All Assets',
+          icon: Icons.candlestick_chart_outlined,
+          onPressed: () => _updateFilter(() => _ticker = null),
+        ),
+        for (final String tick in StrategiesQuery.tickersOf(_strategies))
+          UiMenuItem(
+            label: tick,
+            icon: Icons.show_chart_rounded,
+            onPressed: () => _updateFilter(() => _ticker = tick),
+          ),
+      ],
+    );
+
+    final Widget sortDropdown = DeskFilterDropdown(
+      label: 'Sort: ${_sort.label.split(' ').first}',
+      icon: Icons.sort_rounded,
+      items: <UiMenuItem>[
+        for (final AppStrategySort s in AppStrategySort.values)
+          UiMenuItem(
+            label: s.label,
+            icon: Icons.sort_rounded,
+            onPressed: () => _updateFilter(() => _sort = s),
+          ),
+      ],
+    );
+
+    final Widget viewToggle = DeskViewToggle(
+      isGrid: _isGridView,
+      onChanged: (bool grid) => setState(() => _isGridView = grid),
+    );
+
+    final bool isDesktop = maxWidth >= 1024;
+
+    return Container(
+      key: _filterBarKey,
+      child: isDesktop
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        titleAndCount,
+                        SizedBox(width: context.sp(theme.spacing.md)),
+                        filterSegments,
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(width: context.sp(theme.spacing.sm)),
+                Wrap(
+                  spacing: context.sp(theme.spacing.xs),
+                  runSpacing: context.sp(theme.spacing.xs),
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: <Widget>[
+                    tagsDropdown,
+                    tickersDropdown,
+                    sortDropdown,
+                    viewToggle,
+                  ],
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    titleAndCount,
+                    viewToggle,
+                  ],
+                ),
+                SizedBox(height: context.sp(theme.spacing.xs)),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: <Widget>[
+                      filterSegments,
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      tagsDropdown,
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      tickersDropdown,
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      sortDropdown,
+                    ],
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildSectionHeader({
+    required String label,
+    required int count,
+    required Color accentColor,
+    required IconData icon,
+    bool isLive = false,
+  }) {
+    return DeskSectionHeader(
+      title: label,
+      countLabel: '$count',
+      accentColor: accentColor,
+    );
+  }
+
+  Widget _buildPlaybookCard(BuildContext context, AppStrategy strategy) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final bool untested = strategy.trades == 0;
+    final int notes =
+        _linkedNoteCounts[strategy.id] ?? strategy.linkedNoteIds.length;
+    final String excerpt = AppMarkdownStats.excerpt(
+      strategy.content.trim().isEmpty
+          ? (strategy.summary ?? '')
+          : strategy.content,
+      maxChars: 160,
+    );
+    final double effectiveWinRate = strategy.winRate > 1
+        ? strategy.winRate
+        : strategy.winRate * 100;
+
+    return UiCard(
+      variant: UiCardVariant.surface,
+      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+      child: InkWell(
+        borderRadius: context.radius(theme.radii.lg),
+        onTap: () => _open(strategy.id),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // Header: Icon + Title + Favorite star
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Container(
+                  padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
+                  decoration: BoxDecoration(
+                    color: strategy.status.intent
+                        .color(context)
+                        .withValues(alpha: 0.12),
+                    borderRadius: context.radius(theme.radii.sm),
+                  ),
+                  child: Icon(
+                    strategy.status == AppStrategyStatus.draft
+                        ? Icons.edit_note_rounded
+                        : Icons.play_arrow_rounded,
+                    size: context.sz(18),
+                    color: strategy.status.intent.color(context),
+                  ),
+                ),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                Expanded(
+                  child: Text(
+                    strategy.name,
+                    style: context.uiText.heading.copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                UiIconButton(
+                  icon: strategy.isFavorite
+                      ? Icons.star_rounded
+                      : Icons.star_outline_rounded,
+                  size: UiSize.xs,
+                  intent: strategy.isFavorite
+                      ? UiIntent.warning
+                      : UiIntent.neutral,
+                  tooltip: strategy.isFavorite
+                      ? 'Remove from favorites'
+                      : 'Mark favorite',
+                  onPressed: () => _toggleFavorite(strategy),
+                ),
+              ],
+            ),
+            SizedBox(height: context.sp(theme.spacing.xs)),
+
+            // Thesis description
+            if (excerpt.isNotEmpty) ...<Widget>[
+              Text.rich(
+                TextSpan(
+                  children: <InlineSpan>[
+                    TextSpan(
+                      text: 'Thesis: ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                      ),
+                    ),
+                    TextSpan(
+                      text: excerpt,
+                      style: TextStyle(color: colors.foregroundMuted),
+                    ),
+                  ],
+                ),
+                style: context.uiText.caption.copyWith(height: 1.4),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+            ],
+
+            // Metrics Highlight Ribbon or Prompt Box
+            if (!untested)
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.sm),
+                  vertical: context.sp(theme.spacing.xs),
+                ),
+                decoration: BoxDecoration(
+                  color: colors.background,
+                  borderRadius: context.radius(theme.radii.sm),
+                  border: Border.all(
+                    color: colors.border.withValues(alpha: 0.6),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          strategy.status == AppStrategyStatus.testing
+                              ? 'SIMULATED P&L'
+                              : 'REALIZED P&L',
+                          style: context.uiText.caption.copyWith(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: colors.foregroundSubtle,
+                          ),
+                        ),
+                        Text(
+                          AppTokens.signedMoney(strategy.netPnl, decimals: 0),
+                          style: context.uiText.caption.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTokens.pl(context, strategy.netPnl),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        Text(
+                          'WIN RATE',
+                          style: context.uiText.caption.copyWith(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: colors.foregroundSubtle,
+                          ),
+                        ),
+                        Text(
+                          '${effectiveWinRate.toStringAsFixed(0)}% (${strategy.trades} trades)',
+                          style: context.uiText.caption.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        Text(
+                          'AVG R',
+                          style: context.uiText.caption.copyWith(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: colors.foregroundSubtle,
+                          ),
+                        ),
+                        Text(
+                          AppTokens.rr(strategy.avgR),
+                          style: context.uiText.caption.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTokens.pl(context, strategy.avgR),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              )
+            else if (strategy.status == AppStrategyStatus.draft)
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.sm),
+                  vertical: context.sp(theme.spacing.xs),
+                ),
+                decoration: BoxDecoration(
+                  color: colors.background,
+                  borderRadius: context.radius(theme.radii.sm),
+                  border: Border.all(
+                    color: colors.border.withValues(alpha: 0.6),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'Missing Exit Rule Criteria',
+                            style: context.uiText.caption.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colors.foreground,
+                            ),
+                          ),
+                          Text(
+                            'Add invalidation & trailing logic',
+                            style: context.uiText.caption.copyWith(
+                              fontSize: 10,
+                              color: colors.foregroundSubtle,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    UiButton(
+                      label: 'Continue →',
+                      variant: UiVariant.ghost,
+                      size: UiSize.xs,
+                      intent: UiIntent.success,
+                      onPressed: () => _edit(strategy),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.sm),
+                  vertical: context.sp(theme.spacing.xs),
+                ),
+                decoration: BoxDecoration(
+                  color: colors.background,
+                  borderRadius: context.radius(theme.radii.sm),
+                  border: Border.all(
+                    color: colors.border.withValues(alpha: 0.6),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        'Untested · No trades filed yet',
+                        style: context.uiText.caption.copyWith(
+                          color: colors.foregroundSubtle,
+                        ),
+                      ),
+                    ),
+                    UiButton(
+                      label: 'File Trade →',
+                      variant: UiVariant.ghost,
+                      size: UiSize.xs,
+                      intent: UiIntent.primary,
+                      onPressed: () => _openWithTab(
+                        strategy.id,
+                        StrategyDetailTab.links,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            SizedBox(height: context.sp(theme.spacing.sm)),
+
+            // Status Pills & Metadata Badges
+            Wrap(
+              spacing: context.sp(theme.spacing.xs),
+              runSpacing: context.sp(theme.spacing.xs),
+              children: <Widget>[
+                UiBadge(
+                  label: strategy.status.label,
+                  size: UiSize.xs,
+                  intent: strategy.status.intent,
+                  variant: UiBadgeVariant.soft,
+                ),
+                if (notes > 0)
+                  UiBadge(
+                    label: '$notes note${notes == 1 ? '' : 's'}',
+                    size: UiSize.xs,
+                    icon: Icons.link_rounded,
+                    variant: UiBadgeVariant.outline,
+                  ),
+                if (strategy.versionCount > 1)
+                  UiBadge(
+                    label: '${strategy.versionCount} revisions',
+                    size: UiSize.xs,
+                    icon: Icons.history_rounded,
+                    variant: UiBadgeVariant.outline,
+                  ),
+                if (strategy.checklistTotal > 0)
+                  UiBadge(
+                    label: '${strategy.checklistTotal} rules',
+                    size: UiSize.xs,
+                    icon: Icons.checklist_rounded,
+                    variant: UiBadgeVariant.outline,
+                  ),
+              ],
+            ),
+            SizedBox(height: context.sp(theme.spacing.sm)),
+
+            // Divider and Tags
+            Container(
+              height: 1,
+              color: colors.border.withValues(alpha: 0.6),
+            ),
+            SizedBox(height: context.sp(theme.spacing.xs)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Expanded(
+                  child: Wrap(
+                    spacing: 4,
+                    children: <Widget>[
+                      for (final String t in strategy.tags.take(3))
+                        Text(
+                          t.startsWith('#') ? t : '#$t',
+                          style: context.uiText.caption.copyWith(
+                            fontSize: 11,
+                            color: colors.foregroundSubtle,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: colors.foregroundSubtle,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaybooksContent(
+    BuildContext context, {
+    required List<AppStrategy> batch,
+    required int columns,
+    required double gap,
+  }) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+
+    if (batch.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xl)),
+        child: const UiEmptyState(
+          icon: Icons.auto_awesome_mosaic_outlined,
+          title: 'No strategies found',
+          message: 'Try adjusting your filters or create a new strategy.',
+        ),
+      );
+    }
+
+    if (!_isGridView) {
+      return Column(
+        children: <Widget>[
+          for (final AppStrategy s in batch)
+            Padding(
+              padding: EdgeInsets.only(bottom: gap),
+              child: AppStrategyNoteIndexRow(
+                strategy: s,
+                selected: s.id == _activeId,
+                onTap: () => _open(s.id),
+                onToggleFavorite: () => _toggleFavorite(s),
+              ),
+            ),
+        ],
+      );
+    }
+
+    if (_grouped && _status == null) {
+      final List<AppStrategy> live = batch
+          .where((AppStrategy s) => s.status == AppStrategyStatus.live)
+          .toList();
+      final List<AppStrategy> testing = batch
+          .where((AppStrategy s) => s.status == AppStrategyStatus.testing)
+          .toList();
+      final List<AppStrategy> drafts = batch
+          .where((AppStrategy s) => s.status == AppStrategyStatus.draft)
+          .toList();
+      final List<AppStrategy> retired = batch
+          .where((AppStrategy s) => s.status == AppStrategyStatus.retired)
+          .toList();
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (live.isNotEmpty) ...<Widget>[
+            _buildSectionHeader(
+              label: 'Live Playbooks',
+              count: live.length,
+              accentColor: colors.success,
+              icon: Icons.play_arrow_rounded,
+              isLive: true,
+            ),
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            _buildPlaybookCardGrid(context, live, columns: columns, gap: gap),
+            SizedBox(height: context.sp(theme.spacing.lg)),
+          ],
+          if (testing.isNotEmpty) ...<Widget>[
+            _buildSectionHeader(
+              label: 'Testing / Forward Testing',
+              count: testing.length,
+              accentColor: colors.warning,
+              icon: Icons.science_outlined,
+            ),
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            _buildPlaybookCardGrid(context, testing, columns: columns, gap: gap),
+            SizedBox(height: context.sp(theme.spacing.lg)),
+          ],
+          if (drafts.isNotEmpty) ...<Widget>[
+            _buildSectionHeader(
+              label: 'Drafts / Work In Progress',
+              count: drafts.length,
+              accentColor: colors.foregroundMuted,
+              icon: Icons.edit_note_rounded,
+            ),
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            _buildPlaybookCardGrid(context, drafts, columns: columns, gap: gap),
+            SizedBox(height: context.sp(theme.spacing.lg)),
+          ],
+          if (retired.isNotEmpty) ...<Widget>[
+            _buildSectionHeader(
+              label: 'Archived / Retired',
+              count: retired.length,
+              accentColor: colors.foregroundSubtle,
+              icon: Icons.inventory_2_outlined,
+            ),
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            _buildPlaybookCardGrid(context, retired, columns: columns, gap: gap),
+            SizedBox(height: context.sp(theme.spacing.lg)),
+          ],
+        ],
+      );
+    }
+
+    return _buildPlaybookCardGrid(context, batch, columns: columns, gap: gap);
+  }
+
+  Widget _buildPlaybookCardGrid(
+    BuildContext context,
+    List<AppStrategy> items, {
+    required int columns,
+    required double gap,
+  }) {
+    if (columns == 1) {
+      return Column(
+        children: <Widget>[
+          for (final AppStrategy s in items)
+            Padding(
+              padding: EdgeInsets.only(bottom: gap),
+              child: _buildPlaybookCard(context, s),
+            ),
+        ],
+      );
+    }
+
+    final List<Widget> rows = <Widget>[];
+    for (int i = 0; i < items.length; i += columns) {
+      final List<AppStrategy> rowItems = items.sublist(
+        i,
+        (i + columns).clamp(0, items.length),
+      );
+      rows.add(
+        Padding(
+          padding: EdgeInsets.only(bottom: gap),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (int j = 0; j < columns; j++) ...<Widget>[
+                  if (j > 0) SizedBox(width: gap),
+                  Expanded(
+                    child: j < rowItems.length
+                        ? _buildPlaybookCard(context, rowItems[j])
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return Column(children: rows);
   }
 
   // ── Surfaces ───────────────────────────────────────────────────────────────
@@ -681,8 +1748,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     onDeleted: _backToIndex,
   );
 
-  /// The library: the record, then one search field, then the playbooks.
-  /// The stat strip and filters scroll away with the list.
+  /// The redesigned strategies dashboard.
   Widget _index(BuildContext context) {
     final UiTheme theme = context.ui;
     final List<AppStrategy> visible = _visible;
@@ -690,102 +1756,101 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     final double gutter = context.sp(theme.spacing.md);
 
     return Stack(
-      key: const ValueKey<String>('strategy_index_mobile'),
+      key: const ValueKey<String>('strategy_index_root'),
       children: <Widget>[
         UiPage(
-          scrollable: false,
-          child: NotificationListener<ScrollNotification>(
-            // The grid owns its own ListView, so paging reads the metrics of
-            // whatever scrolled rather than driving a controller from here.
-            onNotification: (ScrollNotification notification) {
-              if (notification is! ScrollUpdateNotification) return false;
-              if (_visibleLimit >= visible.length) return false;
-              if (notification.metrics.extentAfter > context.sz(560)) {
-                return false;
-              }
-              setState(() => _visibleLimit += _pageSize);
-              return false;
+          scrollable: true,
+          maxWidth: double.infinity,
+          child: CallbackShortcuts(
+            bindings: <ShortcutActivator, VoidCallback>{
+              const SingleActivator(LogicalKeyboardKey.keyP): _newPlaybook,
+              const SingleActivator(LogicalKeyboardKey.keyG): () =>
+                  setState(() => _isGridView = !_isGridView),
             },
-            child: AppStrategyNoteGrid(
-              strategies: batch,
-              onOpen: (AppStrategy s) => _open(s.id),
-              onToggleFavorite: _toggleFavorite,
-              groupByStatus: _grouped,
-              linkedNoteCounts: _linkedNoteCounts,
-              padding: EdgeInsets.only(
-                top: context.sp(theme.spacing.xs),
-                bottom: context.uiPageBottomInset + context.sz(72),
-              ),
-              header: _indexHeader(context, batch: batch, visible: visible),
-              emptyState: Padding(
-                padding: EdgeInsets.symmetric(vertical: gutter * 2),
-                child: const UiEmptyState(
-                  title: 'No strategies found',
-                  message:
-                      'Try adjusting your filters or create a new strategy.',
-                  icon: Icons.lightbulb_outline,
-                ),
-              ),
-            ),
-          ),
-        ),
-        if (!context.uiRes.isDesktop && !AppWritingDeskScope.isHosted(context))
-          Positioned(
-            right: gutter,
-            bottom: MediaQuery.paddingOf(context).bottom + gutter,
-            child: UiIconButton(
-              key: const ValueKey<String>('strategy_new_fab'),
-              icon: Icons.add_rounded,
-              variant: UiVariant.primary,
-              size: UiSize.lg,
-              tooltip: 'New playbook',
-              onPressed: _newPlaybook,
-            ),
-          ),
-      ],
-    );
-  }
+            child: Focus(
+              autofocus: true,
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  final double maxWidth = constraints.maxWidth;
+                  final int columns =
+                      maxWidth >= 1024 ? 3 : (maxWidth >= 640 ? 2 : 1);
+                  final double gap = context.sp(theme.spacing.md);
 
-  Widget _indexHeader(
-    BuildContext context, {
-    required List<AppStrategy> batch,
-    required List<AppStrategy> visible,
-  }) {
-    final UiTheme theme = context.ui;
-    final double gutter = context.sp(theme.spacing.md);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        SizedBox(height: context.sp(theme.spacing.xs)),
-        _strategyFilterBar(
-          showSearch: !AppWritingDeskScope.isHosted(context),
-          showFilterControl: !AppWritingDeskScope.isHosted(context),
-          onNew:
-              context.uiRes.isDesktop && !AppWritingDeskScope.isHosted(context)
-              ? _newPlaybook
-              : null,
-        ),
-        SizedBox(height: gutter),
-        _nextActionChips(context),
-        SizedBox(height: gutter),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: Text(
-                _loading ? 'Loading…' : 'Playbooks',
-                style: context.uiText.subheading,
+                  return Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: gutter,
+                      vertical: context.sp(theme.spacing.sm),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        _notificationBannerStrip(context),
+                        SizedBox(height: context.sp(theme.spacing.md)),
+                        _executiveKpis(context, maxWidth: maxWidth),
+                        SizedBox(height: context.sp(theme.spacing.md)),
+                        _controlsAndFiltersBar(
+                          context,
+                          batch: batch,
+                          visible: visible,
+                          maxWidth: maxWidth,
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.md)),
+                        Container(
+                          key: _gridKey,
+                          child: _buildPlaybooksContent(
+                            context,
+                            batch: batch,
+                            columns: columns,
+                            gap: gap,
+                          ),
+                        ),
+                        if (visible.isNotEmpty) ...<Widget>[
+                          SizedBox(height: context.sp(theme.spacing.md)),
+                          DeskPaginationBar(
+                            currentPage: _currentPage,
+                            totalPages:
+                                (visible.length / _pageSize).ceil().clamp(1, 9999),
+                            totalItems: visible.length,
+                            pageSize: _pageSize,
+                            itemLabel: 'playbooks',
+                            onPageChanged: (int page) =>
+                                setState(() => _currentPage = page),
+                          ),
+                        ],
+                        SizedBox(height: context.sp(theme.spacing.xl)),
+                        const DeskStatusBarFooter(
+                          syncLabel: 'Connected to Zerodha Kite Broker API',
+                          shortcutHints: <String>[
+                            'Press P for new playbook',
+                            '/ to search',
+                            'G switch view',
+                          ],
+                        ),
+                        SizedBox(
+                          height:
+                              context.uiPageBottomInset + context.sz(72),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
-            UiBadge(
-              label: batch.length == visible.length
-                  ? '${visible.length} shown'
-                  : '${batch.length} of ${visible.length}',
-              icon: Icons.account_tree_outlined,
-              variant: UiBadgeVariant.outline,
-            ),
-          ],
+          ),
         ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
+        // Floating Action Button on Bottom Right
+        Positioned(
+          right: gutter,
+          bottom: MediaQuery.paddingOf(context).bottom + gutter,
+          child: UiIconButton(
+            key: _fabKey,
+            icon: Icons.add_rounded,
+            variant: UiVariant.primary,
+            size: UiSize.lg,
+            tooltip: 'New playbook',
+            onPressed: _newPlaybook,
+          ),
+        ),
       ],
     );
   }
@@ -800,10 +1865,13 @@ class _NextAction {
     required this.icon,
     required this.intent,
     required this.onTap,
+    this.badge,
   });
 
   final String label;
   final IconData icon;
   final UiIntent intent;
   final VoidCallback onTap;
+  final String? badge;
 }
+

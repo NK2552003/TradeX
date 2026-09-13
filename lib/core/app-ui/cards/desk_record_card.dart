@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
+import '../motion/app_motion.dart';
 
 /// Universal desk record card component — the unified card pattern for
 /// Notes, Journal trades, and Strategy playbooks across TradeX.
@@ -116,121 +117,127 @@ class AppDeskRecordCard extends StatelessWidget {
           )
         : metadataWidget;
 
-    return UiCard(
-      onTap: onTap,
-      variant: UiCardVariant.outlined,
-      selected: selected,
-      hoverLift: false,
-      motion: false,
-      minHeight: effectiveMinHeight,
-      semanticLabel: semanticLabel ??
-          ((category != null && category!.trim().isNotEmpty)
-              ? '$category: $title'
-              : title),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          // ── Top Section: Eyebrow header, title, and body preview ──────
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              // Header row
-              if ((category != null && category!.trim().isNotEmpty) ||
-                  trailingHeader != null) ...<Widget>[
-                Row(
-                  children: <Widget>[
-                    if (category != null && category!.trim().isNotEmpty) ...<Widget>[
-                      if (leadingIcon != null)
-                        Padding(
-                          padding: EdgeInsets.only(
-                            right: context.sp(theme.spacing.xs),
-                          ),
-                          child: Icon(
-                            leadingIcon,
-                            size: context.sz(14),
-                            color: accent,
-                          ),
-                        )
-                      else if (leadingDot)
-                        Padding(
-                          padding: EdgeInsets.only(
-                            right: context.sp(theme.spacing.xs),
-                          ),
-                          child: Icon(
-                            Icons.circle,
-                            size: context.sz(8),
-                            color: accent,
-                          ),
-                        ),
-                      Expanded(
-                        child: Text(
-                          category!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.uiText.label.copyWith(
-                            color: accent,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ] else
-                      const Spacer(),
-                    ?trailingHeader,
-                  ],
-                ),
-                SizedBox(height: context.sp(theme.spacing.xs)),
-              ],
-
-              // Title
-              Text(
-                title.trim().isEmpty ? 'Untitled' : title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.bodyStrong.copyWith(
-                  color: title.trim().isEmpty
-                      ? theme.colors.foregroundSubtle
-                      : theme.colors.foreground,
-                ),
-              ),
-
-              // Excerpt preview
-              if (showPreview && preview != null) ...<Widget>[
-                SizedBox(height: context.sp(theme.spacing.xxs)),
-                preview!,
-              ],
-            ],
-          ),
-
-          // ── Bottom Section: Badges, tags, and footer ──────────────────
-          Padding(
-            padding: EdgeInsets.only(top: context.sp(theme.spacing.xs)),
-            child: Column(
+    return AppHoverLift(
+      child: UiCard(
+        onTap: onTap,
+        variant: UiCardVariant.surface,
+        selected: selected,
+        accentColor: accentColor,
+        minHeight: effectiveMinHeight,
+        semanticLabel: semanticLabel ??
+            ((category != null && category!.trim().isNotEmpty)
+                ? '$category: $title'
+                : title),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            // ── Top Section: Eyebrow header, title, and body preview ──────
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                if (badges.isNotEmpty) ...<Widget>[
-                  Wrap(
-                    spacing: context.sp(theme.spacing.xs),
-                    runSpacing: context.sp(theme.spacing.xxs),
-                    children: badges,
+                // Header row
+                if ((category != null && category!.trim().isNotEmpty) ||
+                    trailingHeader != null) ...<Widget>[
+                  Row(
+                    children: <Widget>[
+                      if (category != null && category!.trim().isNotEmpty) ...<Widget>[
+                        if (leadingIcon != null)
+                          Padding(
+                            padding: EdgeInsets.only(
+                              right: context.sp(theme.spacing.xs),
+                            ),
+                            child: Icon(
+                              leadingIcon,
+                              size: context.sz(14),
+                              color: accent,
+                            ),
+                          )
+                        else if (leadingDot)
+                          Padding(
+                            padding: EdgeInsets.only(
+                              right: context.sp(theme.spacing.xs),
+                            ),
+                            child: Icon(
+                              Icons.circle,
+                              size: context.sz(8),
+                              color: accent,
+                            ),
+                          ),
+                        Expanded(
+                          child: Text(
+                            category!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.uiText.label.copyWith(
+                              color: accent,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ] else
+                        const Spacer(),
+                      ?trailingHeader,
+                    ],
                   ),
                   SizedBox(height: context.sp(theme.spacing.xs)),
                 ],
-                if (tags.isNotEmpty) ...<Widget>[
-                  Wrap(
-                    spacing: context.sp(theme.spacing.xxs),
-                    runSpacing: context.sp(theme.spacing.xxs),
-                    children: tags,
+
+                // Title
+                Text(
+                  title.trim().isEmpty ? 'Untitled' : title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.bodyStrong.copyWith(
+                    color: title.trim().isEmpty
+                        ? theme.colors.foregroundSubtle
+                        : theme.colors.foreground,
                   ),
-                  SizedBox(height: context.sp(theme.spacing.xs)),
+                ),
+
+                // Excerpt preview
+                if (showPreview && preview != null) ...<Widget>[
+                  SizedBox(height: context.sp(theme.spacing.xxs)),
+                  preview!,
                 ],
-                footerWidget,
               ],
             ),
-          ),
-        ],
+
+            // ── Bottom Section: Badges, tags, and footer ──────────────────
+            Padding(
+              padding: EdgeInsets.only(top: context.sp(theme.spacing.xs)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Container(
+                    height: theme.borders.hairline,
+                    color: theme.colors.border.withValues(alpha: 0.6),
+                  ),
+                  SizedBox(height: context.sp(theme.spacing.xs)),
+                  if (badges.isNotEmpty) ...<Widget>[
+                    Wrap(
+                      spacing: context.sp(theme.spacing.xs),
+                      runSpacing: context.sp(theme.spacing.xxs),
+                      children: badges,
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.xs)),
+                  ],
+                  if (tags.isNotEmpty) ...<Widget>[
+                    Wrap(
+                      spacing: context.sp(theme.spacing.xxs),
+                      runSpacing: context.sp(theme.spacing.xxs),
+                      children: tags,
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.xs)),
+                  ],
+                  footerWidget,
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
