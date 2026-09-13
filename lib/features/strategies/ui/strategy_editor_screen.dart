@@ -1079,9 +1079,8 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
       valueListenable: _revision,
       builder: (BuildContext ctx, int _, Widget? _) {
         final bool isMobile = context.uiRes.isMobile;
-        final bool inWorkbench = AppWorkbenchScope.of(context);
         final bool savable = !_saving && (_dirty || _strategy.id.isEmpty);
-        final Widget? back = isMobile || inWorkbench
+        final Widget? back = isMobile
             ? null
             : UiIconButton(
                 icon: Icons.arrow_back_rounded,

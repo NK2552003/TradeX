@@ -295,6 +295,7 @@ class DemoDataSource {
           strategy: unfiled ? null : setup,
           strategyId: unfiled ? null : 'stg_${_setups.indexOf(setup) + 1}',
           isPublic: i % 5 == 0,
+          isFavorite: i < 3,
           tags: unfiled
               ? <String>[emotion, instrument.sector]
               : <String>[setup, emotion, instrument.sector],

@@ -1798,13 +1798,18 @@ class AppTopBar extends StatelessWidget {
                       onPressed: onPrimaryAction ?? onSearch,
                     ),
 
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  Container(
-                    width: theme.borders.hairline,
-                    height: context.sz(16),
-                    color: theme.colors.border.withValues(alpha: 0.6),
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  if (headerActions.isNotEmpty ||
+                      primaryAction != null ||
+                      primaryActionLabel != null ||
+                      onPrimaryAction != null) ...<Widget>[
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Container(
+                      width: theme.borders.hairline,
+                      height: context.sz(16),
+                      color: theme.colors.border.withValues(alpha: 0.6),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                  ],
 
                   // Notifications Icon with emerald badge
                   Stack(

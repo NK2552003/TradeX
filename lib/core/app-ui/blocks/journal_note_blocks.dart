@@ -1052,6 +1052,7 @@ class AppJournalNoteHeader extends StatelessWidget {
     this.actions = const <Widget>[],
     this.onOpenStrategy,
     this.onOpenTicker,
+    this.onToggleFavorite,
     this.showTitle = true,
   });
 
@@ -1065,15 +1066,27 @@ class AppJournalNoteHeader extends StatelessWidget {
   /// plain text.
   final VoidCallback? onOpenStrategy;
   final VoidCallback? onOpenTicker;
+  final VoidCallback? onToggleFavorite;
   final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
-    final embedded = AppWorkbenchScope.hasEmbeddedHeader(context);
-    final inWorkbench = AppWorkbenchScope.of(context);
-    final bool isDesktop = context.uiRes.isDesktop;
-    final bool showBackButton = !isDesktop && !embedded && !inWorkbench && onBack != null;
+    final bool showBackButton = onBack != null;
     final bool shouldDisplayTitle = showTitle;
+
+    final List<Widget> allActions = [
+      if (onToggleFavorite != null)
+        UiIconButton(
+          icon: entry.isFavorite
+              ? Icons.star_rounded
+              : Icons.star_outline_rounded,
+          tooltip: entry.isFavorite
+              ? 'Remove from favourites'
+              : 'Add to favourites',
+          onPressed: onToggleFavorite,
+        ),
+      ...actions,
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1088,9 +1101,9 @@ class AppJournalNoteHeader extends StatelessWidget {
                     onPressed: onBack,
                   )
                 : null,
-            actions: actions,
+            actions: allActions,
           )
-        else if (actions.isNotEmpty || showBackButton)
+        else if (allActions.isNotEmpty || showBackButton)
           Padding(
             padding: EdgeInsets.only(bottom: context.sp(context.uiSpace.xs)),
             child: Row(
@@ -1104,7 +1117,7 @@ class AppJournalNoteHeader extends StatelessWidget {
                   )
                 else
                   const SizedBox.shrink(),
-                Row(mainAxisSize: MainAxisSize.min, children: actions),
+                Row(mainAxisSize: MainAxisSize.min, children: allActions),
               ],
             ),
           ),

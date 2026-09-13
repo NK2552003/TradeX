@@ -128,6 +128,7 @@ class JournalScreenState extends State<JournalScreen> {
   String? _activeId;
   AppTrade? _draft;
   JournalEditorMode _editorMode = JournalEditorMode.write;
+  bool _editorDetailsOnly = false;
 
   GlobalKey<JournalEditorScreenState> _editorKey =
       GlobalKey<JournalEditorScreenState>();
@@ -379,9 +380,11 @@ class JournalScreenState extends State<JournalScreen> {
   void _edit(
     AppTrade entry, {
     JournalEditorMode mode = JournalEditorMode.write,
+    bool detailsOnly = false,
   }) {
     setState(() {
       _editorMode = mode;
+      _editorDetailsOnly = detailsOnly;
       _editorKey = GlobalKey<JournalEditorScreenState>();
       _draft = entry.id.isEmpty ? entry : null;
       _activeId = entry.id.isEmpty ? null : entry.id;
@@ -395,6 +398,7 @@ class JournalScreenState extends State<JournalScreen> {
     setState(() {
       _draft = null;
       _activeId = null;
+      _editorDetailsOnly = false;
       _view = _JournalView.list;
     });
     _announce();
@@ -406,6 +410,7 @@ class JournalScreenState extends State<JournalScreen> {
     if (!mounted) return;
     setState(() {
       _draft = null;
+      _editorDetailsOnly = false;
       if (saved != null) _activeId = saved.id;
       _view = saved == null && _activeId == null
           ? _JournalView.list
@@ -720,7 +725,7 @@ class JournalScreenState extends State<JournalScreen> {
     key: ValueKey<String>('journal_document_${entry.id}'),
     entry: entry,
     onClose: _backToIndex,
-    onEdit: () => _edit(entry, mode: JournalEditorMode.write),
+    onEdit: () => _edit(entry, mode: JournalEditorMode.write, detailsOnly: true),
     onEditWriting: () {
       if (widget.onOpenWriting != null) {
         widget.onOpenWriting!(
@@ -731,7 +736,7 @@ class JournalScreenState extends State<JournalScreen> {
           ),
         );
       } else {
-        _edit(entry, mode: JournalEditorMode.write);
+        _edit(entry, mode: JournalEditorMode.write, detailsOnly: false);
       }
     },
     onOpenLink: _openRef,
@@ -742,7 +747,7 @@ class JournalScreenState extends State<JournalScreen> {
     key: _editorKey,
     entry: entry,
     initialMode: _editorMode,
-    detailsOnly: false,
+    detailsOnly: _editorDetailsOnly,
     onClose: _closeEditor,
     onDeleted: _backToIndex,
   );
@@ -1042,7 +1047,7 @@ class JournalScreenState extends State<JournalScreen> {
         .where((AppTrade t) => t.outcome == AppOutcome.loss)
         .length;
 
-    Widget buildOutcomePill({
+    Widget buildOutcomeSegment({
       required String label,
       required int count,
       required bool isSelected,
@@ -1052,17 +1057,14 @@ class JournalScreenState extends State<JournalScreen> {
         borderRadius: context.radius(theme.radii.sm),
         onTap: onTap,
         child: Container(
-          height: context.sz(32),
+          height: context.sz(28),
           alignment: Alignment.center,
           padding: EdgeInsets.symmetric(
             horizontal: context.sp(theme.spacing.sm),
           ),
           decoration: BoxDecoration(
+            color: isSelected ? colors.foreground : Colors.transparent,
             borderRadius: context.radius(theme.radii.sm),
-            color: isSelected ? colors.foreground : colors.surface,
-            border: Border.all(
-              color: isSelected ? colors.foreground : colors.border,
-            ),
           ),
           child: Text(
             '$label ($count)',
@@ -1094,9 +1096,9 @@ class JournalScreenState extends State<JournalScreen> {
         height: context.sz(32),
         padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
-          color: colors.surface,
+          color: Colors.transparent,
           borderRadius: context.radius(theme.radii.md),
-          border: Border.all(color: colors.border),
+          border: Border.all(color: colors.border.withValues(alpha: 0.6)),
         ),
         child: Row(
           mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
@@ -1226,37 +1228,43 @@ class JournalScreenState extends State<JournalScreen> {
 
     final bool isDesktop = !context.uiRes.isMobile && maxWidth >= 680;
 
-    final Widget outcomePills = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        buildOutcomePill(
-          label: 'All',
-          count: allCount,
-          isSelected: _outcome == null,
-          onTap: () => _updateFilter(() => _outcome = null),
-        ),
-        SizedBox(width: context.sp(theme.spacing.xs)),
-        buildOutcomePill(
-          label: 'Open',
-          count: openCount,
-          isSelected: _outcome == AppOutcome.open,
-          onTap: () => _updateFilter(() => _outcome = AppOutcome.open),
-        ),
-        SizedBox(width: context.sp(theme.spacing.xs)),
-        buildOutcomePill(
-          label: 'Wins',
-          count: winsCount,
-          isSelected: _outcome == AppOutcome.win,
-          onTap: () => _updateFilter(() => _outcome = AppOutcome.win),
-        ),
-        SizedBox(width: context.sp(theme.spacing.xs)),
-        buildOutcomePill(
-          label: 'Losses',
-          count: lossesCount,
-          isSelected: _outcome == AppOutcome.loss,
-          onTap: () => _updateFilter(() => _outcome = AppOutcome.loss),
-        ),
-      ],
+    final Widget outcomePills = Container(
+      height: context.sz(32),
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: context.radius(theme.radii.md),
+        border: Border.all(color: colors.border.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          buildOutcomeSegment(
+            label: 'All',
+            count: allCount,
+            isSelected: _outcome == null,
+            onTap: () => _updateFilter(() => _outcome = null),
+          ),
+          buildOutcomeSegment(
+            label: 'Open',
+            count: openCount,
+            isSelected: _outcome == AppOutcome.open,
+            onTap: () => _updateFilter(() => _outcome = AppOutcome.open),
+          ),
+          buildOutcomeSegment(
+            label: 'Wins',
+            count: winsCount,
+            isSelected: _outcome == AppOutcome.win,
+            onTap: () => _updateFilter(() => _outcome = AppOutcome.win),
+          ),
+          buildOutcomeSegment(
+            label: 'Losses',
+            count: lossesCount,
+            isSelected: _outcome == AppOutcome.loss,
+            onTap: () => _updateFilter(() => _outcome = AppOutcome.loss),
+          ),
+        ],
+      ),
     );
 
     final Widget dropdownFilters = Row(

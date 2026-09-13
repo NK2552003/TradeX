@@ -31,6 +31,7 @@ class WorkspaceScreen extends StatefulWidget {
     this.onOpenRef,
     this.onOpenWriting,
     this.onSubpageChanged,
+    this.searchQuery = '',
   });
 
   final ValueChanged<String> onOpenFeature;
@@ -38,6 +39,7 @@ class WorkspaceScreen extends StatefulWidget {
   final void Function(AppLinkRef ref)? onOpenWriting;
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
       onSubpageChanged;
+  final String searchQuery;
 
   @override
   State<WorkspaceScreen> createState() => WorkspaceScreenState();
@@ -58,6 +60,13 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
   List<AppStrategy> _playbooks = const <AppStrategy>[];
   List<AppNote> _allNotes = const <AppNote>[];
   List<AppPostLinkInfo> _postLinks = const <AppPostLinkInfo>[];
+
+  String _searchQuery = '';
+
+  void setSearchQuery(String query) {
+    if (_searchQuery == query) return;
+    setState(() => _searchQuery = query);
+  }
 
   /// The day the calendar / week strip is focused on.
   DateTime _selectedDay = AppTokens.dateOnly(DateTime.now());
@@ -93,6 +102,7 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
   @override
   void initState() {
     super.initState();
+    _searchQuery = widget.searchQuery;
     _journalSub = _journal.watchAll().listen((List<AppTrade> value) {
       if (!mounted) return;
       setState(() {
@@ -109,6 +119,14 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
       if (mounted) setState(() => _postLinks = value);
     });
     _postLinks = _postService.allLinks;
+  }
+
+  @override
+  void didUpdateWidget(WorkspaceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.searchQuery != widget.searchQuery) {
+      _searchQuery = widget.searchQuery;
+    }
   }
 
   @override
@@ -261,6 +279,22 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
     );
   }
 
+  void _handleEditPlaybook(AppStrategy strategy) {
+    setState(() {
+      _activeEditor = StrategyEditorScreen(
+        strategy: strategy,
+        onClose: (AppStrategy? saved) {
+          _closeEditor();
+        },
+      );
+    });
+    widget.onSubpageChanged?.call(
+      strategy.name,
+      Icons.auto_stories_outlined,
+      _closeEditor,
+    );
+  }
+
   // ─── Derived Data & Filters ─────────────────────────────────────────
 
   bool get _isToday =>
@@ -360,20 +394,33 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
     }
     scoped.sort((AppNote a, AppNote b) => b.updatedAt.compareTo(a.updatedAt));
 
-    if (!_filterByDate) return scoped;
+    List<AppNote> list = scoped;
+    if (_filterByDate && _searchQuery.trim().isEmpty) {
+      list = list.where((AppNote n) {
+        final DateTime cDate = AppTokens.dateOnly(n.createdAt);
+        final DateTime uDate = AppTokens.dateOnly(n.updatedAt);
+        return AppTokens.isSameDay(cDate, _selectedDay) ||
+            AppTokens.isSameDay(uDate, _selectedDay);
+      }).toList();
+    }
 
-    return scoped.where((AppNote n) {
-      final DateTime cDate = AppTokens.dateOnly(n.createdAt);
-      final DateTime uDate = AppTokens.dateOnly(n.updatedAt);
-      return AppTokens.isSameDay(cDate, _selectedDay) ||
-          AppTokens.isSameDay(uDate, _selectedDay);
-    }).toList(growable: false);
+    if (_searchQuery.trim().isNotEmpty) {
+      final String q = _searchQuery.trim().toLowerCase();
+      list = list.where((AppNote n) {
+        return n.title.toLowerCase().contains(q) ||
+            n.content.toLowerCase().contains(q) ||
+            n.noteType.label.toLowerCase().contains(q) ||
+            n.tags.any((String t) => t.toLowerCase().contains(q));
+      }).toList();
+    }
+
+    return list;
   }
 
   /// Filtered journal trades respecting the selected date and outcome filter.
   List<AppTrade> get _displayTrades {
     List<AppTrade> list = _entries;
-    if (_filterByDate) {
+    if (_filterByDate && _searchQuery.trim().isEmpty) {
       list = list
           .where((AppTrade t) => AppTokens.isSameDay(_tradeDay(t), _selectedDay))
           .toList();
@@ -392,13 +439,25 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
                   t.outcome == AppOutcome.breakeven))
           .toList();
     }
+
+    if (_searchQuery.trim().isNotEmpty) {
+      final String q = _searchQuery.trim().toLowerCase();
+      list = list.where((AppTrade t) {
+        return t.ticker.toLowerCase().contains(q) ||
+            t.displayTitle.toLowerCase().contains(q) ||
+            (t.notes != null && t.notes!.toLowerCase().contains(q)) ||
+            (t.strategy != null && t.strategy!.toLowerCase().contains(q)) ||
+            t.tags.any((String tag) => tag.toLowerCase().contains(q));
+      }).toList();
+    }
+
     return list;
   }
 
   /// Filtered playbooks respecting the selected date and status filter.
   List<AppStrategy> get _displayStrategies {
     List<AppStrategy> list;
-    if (!_filterByDate) {
+    if (!_filterByDate || _searchQuery.trim().isNotEmpty) {
       final DateTime epoch = DateTime.fromMillisecondsSinceEpoch(0);
       list = List<AppStrategy>.of(_playbooks)
         ..sort((AppStrategy a, AppStrategy b) =>
@@ -431,6 +490,18 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
           .where((AppStrategy s) => s.status == AppStrategyStatus.retired)
           .toList();
     }
+
+    if (_searchQuery.trim().isNotEmpty) {
+      final String q = _searchQuery.trim().toLowerCase();
+      list = list.where((AppStrategy s) {
+        return s.name.toLowerCase().contains(q) ||
+            (s.summary != null && s.summary!.toLowerCase().contains(q)) ||
+            s.content.toLowerCase().contains(q) ||
+            (s.category != null && s.category!.toLowerCase().contains(q)) ||
+            s.tags.any((String t) => t.toLowerCase().contains(q));
+      }).toList();
+    }
+
     return list;
   }
 
@@ -640,15 +711,17 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
     final String dayLabel =
         _isToday ? 'Today' : AppTokens.shortDate(_selectedDay);
 
-    final String subtitle = _filterByDate
-        ? '$dayLabel · ${notes.length} ${notes.length == 1 ? 'note' : 'notes'}'
-        : switch (_notesFilter) {
-            'public' =>
-              '$_publicNoteCount published · $_totalNoteComments comments',
-            'private' =>
-              '${_allNotes.length - _publicNoteCount} private · $_notesLinkedToPostCount linked to post',
-            _ => '${_allNotes.length} total notes · $_publicNoteCount published',
-          };
+    final String subtitle = _searchQuery.isNotEmpty
+        ? '${notes.length} ${notes.length == 1 ? 'note' : 'notes'} matching "$_searchQuery"'
+        : (_filterByDate
+            ? '$dayLabel · ${notes.length} ${notes.length == 1 ? 'note' : 'notes'}'
+            : switch (_notesFilter) {
+                'public' =>
+                  '$_publicNoteCount published · $_totalNoteComments comments',
+                'private' =>
+                  '${_allNotes.length - _publicNoteCount} private · $_notesLinkedToPostCount linked to post',
+                _ => '${_allNotes.length} total notes · $_publicNoteCount published',
+              });
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -707,27 +780,33 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
             ],
           ),
           emptyPlaceholder: UiEmptyState(
-            title: _filterByDate
-                ? (_isToday ? 'No notes today' : 'No notes on $dayLabel')
-                : switch (_notesFilter) {
-                    'public' => 'No published notes',
-                    'private' => 'No private notes',
-                    _ => 'No notes yet',
-                  },
-            message: _filterByDate
-                ? (_isToday
-                    ? 'Capture market observations or analysis for today.'
-                    : 'Pick another day on the calendar or create a new note.')
-                : switch (_notesFilter) {
-                    'public' =>
-                      'Publish a note to share your research with the community.',
-                    'private' =>
-                      'Create your first private note to capture market observations.',
-                    _ =>
-                      'Create your first note to build your trading playbook.',
-                  },
-            icon: Icons.edit_note_rounded,
-            action: _isToday
+            title: _searchQuery.isNotEmpty
+                ? 'No notes match "$_searchQuery"'
+                : (_filterByDate
+                    ? (_isToday ? 'No notes today' : 'No notes on $dayLabel')
+                    : switch (_notesFilter) {
+                        'public' => 'No published notes',
+                        'private' => 'No private notes',
+                        _ => 'No notes yet',
+                      }),
+            message: _searchQuery.isNotEmpty
+                ? 'Try searching with different keywords or clear the search query.'
+                : (_filterByDate
+                    ? (_isToday
+                        ? 'Capture market observations or analysis for today.'
+                        : 'Pick another day on the calendar or create a new note.')
+                    : switch (_notesFilter) {
+                        'public' =>
+                          'Publish a note to share your research with the community.',
+                        'private' =>
+                          'Create your first private note to capture market observations.',
+                        _ =>
+                          'Create your first note to build your trading playbook.',
+                      }),
+            icon: _searchQuery.isNotEmpty
+                ? Icons.search_off_rounded
+                : Icons.edit_note_rounded,
+            action: _isToday && _searchQuery.isEmpty
                 ? UiButton(
                     label: 'New note',
                     leadingIcon: Icons.add_rounded,
@@ -757,9 +836,11 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
     final String dayLabel =
         _isToday ? 'Today' : AppTokens.shortDate(_selectedDay);
 
-    final String subtitle = _filterByDate
-        ? '$dayLabel · ${trades.length} ${trades.length == 1 ? 'entry' : 'entries'}'
-        : '${_entries.length} total entries · $_tradesLinkedToPostCount linked to post';
+    final String subtitle = _searchQuery.isNotEmpty
+        ? '${trades.length} ${trades.length == 1 ? 'entry' : 'entries'} matching "$_searchQuery"'
+        : (_filterByDate
+            ? '$dayLabel · ${trades.length} ${trades.length == 1 ? 'entry' : 'entries'}'
+            : '${_entries.length} total entries · $_tradesLinkedToPostCount linked to post');
 
     return AppWorkspaceSectionCarousel(
       title: 'Journal',
@@ -783,16 +864,22 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
         ],
       ),
       emptyPlaceholder: UiEmptyState(
-        title: _filterByDate
-            ? (_isToday ? 'No entries today' : 'No trades on $dayLabel')
-            : 'No entries yet',
-        message: _filterByDate
-            ? (_isToday
-                ? 'Log a trade executed today to record entry, exit, and thesis.'
-                : 'Pick another day on the calendar above to review logged trades.')
-            : 'Log your first trade to begin tracking performance and PnL.',
-        icon: Icons.event_busy_rounded,
-        action: _isToday
+        title: _searchQuery.isNotEmpty
+            ? 'No trades match "$_searchQuery"'
+            : (_filterByDate
+                ? (_isToday ? 'No entries today' : 'No trades on $dayLabel')
+                : 'No entries yet'),
+        message: _searchQuery.isNotEmpty
+            ? 'Try searching with different symbols, tags, or clear the search.'
+            : (_filterByDate
+                ? (_isToday
+                    ? 'Log a trade executed today to record entry, exit, and thesis.'
+                    : 'Pick another day on the calendar above to review logged trades.')
+                : 'Log your first trade to begin tracking performance and PnL.'),
+        icon: _searchQuery.isNotEmpty
+            ? Icons.search_off_rounded
+            : Icons.event_busy_rounded,
+        action: _isToday && _searchQuery.isEmpty
             ? UiButton(
                 label: 'New trade',
                 leadingIcon: Icons.add_chart_rounded,
@@ -841,9 +928,11 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
     final String dayLabel =
         _isToday ? 'Today' : AppTokens.shortDate(_selectedDay);
 
-    final String subtitle = _filterByDate
-        ? '$dayLabel · ${strategies.length} ${strategies.length == 1 ? 'playbook' : 'playbooks'}'
-        : '${_livePlaybooks.length} live · $_strategiesLinkedToPostCount linked to post';
+    final String subtitle = _searchQuery.isNotEmpty
+        ? '${strategies.length} ${strategies.length == 1 ? 'playbook' : 'playbooks'} matching "$_searchQuery"'
+        : (_filterByDate
+            ? '$dayLabel · ${strategies.length} ${strategies.length == 1 ? 'playbook' : 'playbooks'}'
+            : '${_livePlaybooks.length} live · $_strategiesLinkedToPostCount linked to post');
 
     return AppWorkspaceSectionCarousel(
       title: 'Strategy notes',
@@ -868,16 +957,22 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
         ],
       ),
       emptyPlaceholder: UiEmptyState(
-        title: _filterByDate
-            ? (_isToday ? 'No playbooks today' : 'No playbooks on $dayLabel')
-            : 'No playbooks yet',
-        message: _filterByDate
-            ? (_isToday
-                ? 'Document or update a quantitative trading playbook for today.'
-                : 'Select another date on the calendar or view all strategies.')
-            : 'Document your first strategy so trades can be filed against it.',
-        icon: Icons.account_tree_outlined,
-        action: _isToday
+        title: _searchQuery.isNotEmpty
+            ? 'No playbooks match "$_searchQuery"'
+            : (_filterByDate
+                ? (_isToday ? 'No playbooks today' : 'No playbooks on $dayLabel')
+                : 'No playbooks yet'),
+        message: _searchQuery.isNotEmpty
+            ? 'Try searching with different strategy names or clear the search.'
+            : (_filterByDate
+                ? (_isToday
+                    ? 'Document or update a quantitative trading playbook for today.'
+                    : 'Select another date on the calendar or view all strategies.')
+                : 'Document your first strategy so trades can be filed against it.'),
+        icon: _searchQuery.isNotEmpty
+            ? Icons.search_off_rounded
+            : Icons.account_tree_outlined,
+        action: _isToday && _searchQuery.isEmpty
             ? UiButton(
                 label: 'New playbook',
                 leadingIcon: Icons.add_rounded,
@@ -888,11 +983,15 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
       maxCards: 6,
       cards: <Widget>[
         for (final AppStrategy strategy in strategies)
-          AppStrategyNoteCard(
+          PlaybookCard(
             key: ValueKey<String>(strategy.id),
             strategy: strategy,
-            showExcerpt: true,
             onTap: () => _openStrategy(strategy),
+            onToggleFavorite: () async {
+              await _strategies.toggleFavorite(strategy.id);
+            },
+            onEdit: () => _handleEditPlaybook(strategy),
+            onFileTrade: () => _openStrategy(strategy),
             footerEngagement:
                 _postService.isLinked(AppLinkKind.strategy, strategy.id)
                     ? Builder(

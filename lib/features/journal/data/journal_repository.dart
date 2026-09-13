@@ -32,6 +32,8 @@ abstract class JournalRepository {
 
   Future<AppTrade> update(AppTrade entry);
 
+  Future<AppTrade> toggleFavorite(String id);
+
   Future<AppTrade> setVisibility(String id, bool isPublic);
 
   Future<void> delete(String id);
@@ -164,6 +166,10 @@ class JournalRepositoryImpl implements JournalRepository {
     _publish();
     return saved;
   }
+
+  @override
+  Future<AppTrade> toggleFavorite(String id) async =>
+      _mutate(id, (AppTrade entry) => entry.copyWith(isFavorite: !entry.isFavorite));
 
   @override
   Future<AppTrade> setVisibility(String id, bool isPublic) async =>

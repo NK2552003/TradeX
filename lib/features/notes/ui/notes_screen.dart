@@ -122,6 +122,7 @@ class NotesScreenState extends State<NotesScreen> {
   bool _openingWriting = false;
 
   NoteEditorMode _editorMode = NoteEditorMode.write;
+  bool _editorDetailsOnly = false;
 
   @override
   void initState() {
@@ -387,10 +388,15 @@ class NotesScreenState extends State<NotesScreen> {
     _notifySubpage();
   }
 
-  void _edit(AppNote note, {NoteEditorMode mode = NoteEditorMode.write}) {
+  void _edit(
+    AppNote note, {
+    NoteEditorMode mode = NoteEditorMode.write,
+    bool detailsOnly = false,
+  }) {
     setState(() {
       _active = note;
       _editorMode = mode;
+      _editorDetailsOnly = detailsOnly;
       _view = _NotesView.editor;
     });
     _notifySubpage();
@@ -564,30 +570,32 @@ class NotesScreenState extends State<NotesScreen> {
     final UiTheme theme = context.ui;
     final UiColors colors = theme.colors;
     return Container(
-      padding: const EdgeInsets.all(3),
+      height: context.sz(32),
+      padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: context.radius(theme.radii.lg),
-        border: Border.all(color: colors.border.withValues(alpha: 0.8)),
+        color: Colors.transparent,
+        borderRadius: context.radius(theme.radii.md),
+        border: Border.all(color: colors.border.withValues(alpha: 0.6)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           InkWell(
-            borderRadius: context.radius(theme.radii.md),
+            borderRadius: context.radius(theme.radii.sm),
             onTap: () => _updateFilter(
               () => _collection = _NotesCollection.mine,
             ),
             child: Container(
+              height: context.sz(28),
+              alignment: Alignment.center,
               padding: EdgeInsets.symmetric(
                 horizontal: context.sp(theme.spacing.sm),
-                vertical: context.sp(theme.spacing.xs),
               ),
               decoration: BoxDecoration(
                 color: _collection == _NotesCollection.mine
                     ? colors.foreground
                     : Colors.transparent,
-                borderRadius: context.radius(theme.radii.md),
+                borderRadius: context.radius(theme.radii.sm),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -624,8 +632,9 @@ class NotesScreenState extends State<NotesScreen> {
                     child: Text(
                       '${_notes.length}',
                       style: TextStyle(
+                        fontFamily: 'monospace',
                         fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         color: _collection == _NotesCollection.mine
                             ? colors.background
                             : colors.foregroundSubtle,
@@ -636,22 +645,22 @@ class NotesScreenState extends State<NotesScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 2),
           InkWell(
-            borderRadius: context.radius(theme.radii.md),
+            borderRadius: context.radius(theme.radii.sm),
             onTap: () => _updateFilter(
               () => _collection = _NotesCollection.public,
             ),
             child: Container(
+              height: context.sz(28),
+              alignment: Alignment.center,
               padding: EdgeInsets.symmetric(
                 horizontal: context.sp(theme.spacing.sm),
-                vertical: context.sp(theme.spacing.xs),
               ),
               decoration: BoxDecoration(
                 color: _collection == _NotesCollection.public
                     ? colors.foreground
                     : Colors.transparent,
-                borderRadius: context.radius(theme.radii.md),
+                borderRadius: context.radius(theme.radii.sm),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -688,8 +697,9 @@ class NotesScreenState extends State<NotesScreen> {
                     child: Text(
                       '${_publicNotes.length}',
                       style: TextStyle(
+                        fontFamily: 'monospace',
                         fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         color: _collection == _NotesCollection.public
                             ? colors.background
                             : colors.foregroundSubtle,
@@ -705,54 +715,34 @@ class NotesScreenState extends State<NotesScreen> {
     );
   }
 
-  Widget _buildCategoryTab({
+  Widget _buildCategorySegmentButton({
     required String label,
     required int count,
-    required Color color,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
     final UiTheme theme = context.ui;
     final UiColors colors = theme.colors;
     return InkWell(
-      borderRadius: context.radius(theme.radii.md),
+      borderRadius: context.radius(theme.radii.sm),
       onTap: onTap,
       child: Container(
+        height: context.sz(28),
+        alignment: Alignment.center,
         padding: EdgeInsets.symmetric(
           horizontal: context.sp(theme.spacing.sm),
-          vertical: context.sp(theme.spacing.xs),
         ),
         decoration: BoxDecoration(
-          color: isSelected
-              ? color.withValues(alpha: 0.15)
-              : Colors.transparent,
-          borderRadius: context.radius(theme.radii.md),
-          border: Border.all(
-            color: isSelected
-                ? color.withValues(alpha: 0.35)
-                : colors.border.withValues(alpha: 0.4),
-          ),
+          color: isSelected ? colors.foreground : Colors.transparent,
+          borderRadius: context.radius(theme.radii.sm),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              '$label ($count)',
-              style: context.uiText.caption.copyWith(
-                color: isSelected ? color : colors.foregroundMuted,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              ),
-            ),
-          ],
+        child: Text(
+          '$label ($count)',
+          style: context.uiText.caption.copyWith(
+            color: isSelected ? colors.background : colors.foregroundMuted,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            fontSize: 12,
+          ),
         ),
       ),
     );
@@ -889,78 +879,77 @@ class NotesScreenState extends State<NotesScreen> {
 
     final Widget categories = SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          _buildCategoryTab(
-            label: 'All Notes',
-            count: pool.length,
-            color: colors.foreground,
-            isSelected: _type == null,
-            onTap: () => _updateFilter(() => _type = null),
-          ),
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          _buildCategoryTab(
-            label: 'Trade Plans',
-            count: _countForType(AppNoteType.plan),
-            color: colors.success,
-            isSelected: _type == AppNoteType.plan,
-            onTap: () => _updateFilter(() => _type = AppNoteType.plan),
-          ),
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          _buildCategoryTab(
-            label: 'Reviews',
-            count: _countForType(AppNoteType.review),
-            color: colors.warning,
-            isSelected: _type == AppNoteType.review,
-            onTap: () => _updateFilter(() => _type = AppNoteType.review),
-          ),
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          _buildCategoryTab(
-            label: 'Analysis',
-            count: _countForType(AppNoteType.analysis),
-            color: colors.info,
-            isSelected: _type == AppNoteType.analysis,
-            onTap: () => _updateFilter(() => _type = AppNoteType.analysis),
-          ),
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          _buildCategoryTab(
-            label: 'Ideas',
-            count: _countForType(AppNoteType.idea),
-            color: const Color(0xFFA855F7),
-            isSelected: _type == AppNoteType.idea,
-            onTap: () => _updateFilter(() => _type = AppNoteType.idea),
-          ),
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          _buildCategoryTab(
-            label: 'Cheat Sheets',
-            count: _countForType(AppNoteType.cheatSheet),
-            color: const Color(0xFF06B6D4),
-            isSelected: _type == AppNoteType.cheatSheet,
-            onTap: () => _updateFilter(() => _type = AppNoteType.cheatSheet),
-          ),
-        ],
+      child: Container(
+        height: context.sz(32),
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: context.radius(theme.radii.md),
+          border: Border.all(color: colors.border.withValues(alpha: 0.6)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            _buildCategorySegmentButton(
+              label: 'All Notes',
+              count: pool.length,
+              isSelected: _type == null,
+              onTap: () => _updateFilter(() => _type = null),
+            ),
+            _buildCategorySegmentButton(
+              label: 'Trade Plans',
+              count: _countForType(AppNoteType.plan),
+              isSelected: _type == AppNoteType.plan,
+              onTap: () => _updateFilter(() => _type = AppNoteType.plan),
+            ),
+            _buildCategorySegmentButton(
+              label: 'Reviews',
+              count: _countForType(AppNoteType.review),
+              isSelected: _type == AppNoteType.review,
+              onTap: () => _updateFilter(() => _type = AppNoteType.review),
+            ),
+            _buildCategorySegmentButton(
+              label: 'Analysis',
+              count: _countForType(AppNoteType.analysis),
+              isSelected: _type == AppNoteType.analysis,
+              onTap: () => _updateFilter(() => _type = AppNoteType.analysis),
+            ),
+            _buildCategorySegmentButton(
+              label: 'Ideas',
+              count: _countForType(AppNoteType.idea),
+              isSelected: _type == AppNoteType.idea,
+              onTap: () => _updateFilter(() => _type = AppNoteType.idea),
+            ),
+            _buildCategorySegmentButton(
+              label: 'Cheat Sheets',
+              count: _countForType(AppNoteType.cheatSheet),
+              isSelected: _type == AppNoteType.cheatSheet,
+              onTap: () => _updateFilter(() => _type = AppNoteType.cheatSheet),
+            ),
+          ],
+        ),
       ),
     );
 
-    final bool isDesktop = maxWidth >= 1024;
+    final bool isDesktop = maxWidth >= 900;
 
     return Container(
       key: _tabsKey,
       padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
       child: isDesktop
           ? Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
-                _buildCollectionToggle(),
-                SizedBox(width: context.sp(theme.spacing.md)),
                 Expanded(child: categories),
+                SizedBox(width: context.sp(theme.spacing.md)),
+                _buildCollectionToggle(),
               ],
             )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Align(
-                  alignment: Alignment.centerLeft,
+                  alignment: Alignment.centerRight,
                   child: _buildCollectionToggle(),
                 ),
                 SizedBox(height: context.sp(theme.spacing.xs)),
@@ -1034,7 +1023,7 @@ class NotesScreenState extends State<NotesScreen> {
         decoration: BoxDecoration(
           color: _onlyWithJournal
               ? colors.primary.withValues(alpha: 0.1)
-              : colors.surface,
+              : Colors.transparent,
           borderRadius: context.radius(theme.radii.md),
           border: Border.all(
             color: _onlyWithJournal ? colors.primary : colors.border,
@@ -1082,7 +1071,7 @@ class NotesScreenState extends State<NotesScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: _ticker == t ? colors.foreground : colors.surface,
+                color: _ticker == t ? colors.foreground : Colors.transparent,
                 borderRadius: context.radius(theme.radii.sm),
                 border: Border.all(
                   color: _ticker == t
@@ -1424,7 +1413,20 @@ class NotesScreenState extends State<NotesScreen> {
         key: ValueKey<String>('note_preview_${active.id}'),
         note: _freshest(active),
         onClose: _backToList,
-        onEdit: () => _edit(_freshest(active)),
+        onEdit: () => _edit(_freshest(active), detailsOnly: true),
+        onEditWriting: () {
+          if (widget.onOpenWriting != null) {
+            widget.onOpenWriting!(
+              AppLinkRef(
+                kind: AppLinkKind.note,
+                id: active.id,
+                title: active.title,
+              ),
+            );
+          } else {
+            _edit(_freshest(active), detailsOnly: false);
+          }
+        },
         onOpenLink: _openRef,
         onAttachToPost: widget.onAttachToPost,
         canEdit: _collection == _NotesCollection.mine,
@@ -1433,6 +1435,7 @@ class NotesScreenState extends State<NotesScreen> {
         key: ValueKey<String>('note_editor_${active.id}'),
         note: active,
         initialMode: _editorMode,
+        detailsOnly: _editorDetailsOnly,
         onClose: _closeEditor,
         onDeleted: _backToList,
       ),

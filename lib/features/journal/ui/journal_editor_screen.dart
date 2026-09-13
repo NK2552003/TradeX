@@ -1062,8 +1062,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
       valueListenable: _revision,
       builder: (BuildContext ctx, int _, Widget? _) {
         final bool isMobile = context.uiRes.isMobile;
-        final bool inWorkbench = AppWorkbenchScope.of(context);
-        final Widget? back = isMobile || inWorkbench
+        final Widget? back = isMobile
             ? null
             : UiIconButton(
                 icon: Icons.arrow_back_rounded,

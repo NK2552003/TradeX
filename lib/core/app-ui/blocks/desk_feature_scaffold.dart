@@ -376,12 +376,12 @@ class DeskFilterDropdown extends StatelessWidget {
       decoration: BoxDecoration(
         color: isActive
             ? colors.primary.withValues(alpha: 0.08)
-            : colors.surface,
+            : Colors.transparent,
         borderRadius: context.radius(theme.radii.md),
         border: Border.all(
           color: isActive
               ? colors.primary.withValues(alpha: 0.4)
-              : colors.border,
+              : colors.border.withValues(alpha: 0.6),
         ),
       ),
       child: Row(
@@ -456,9 +456,9 @@ class DeskViewToggle extends StatelessWidget {
     return Container(
       height: context.sz(32),
       decoration: BoxDecoration(
-        color: colors.surface,
+        color: Colors.transparent,
         borderRadius: context.radius(theme.radii.md),
-        border: Border.all(color: colors.border),
+        border: Border.all(color: colors.border.withValues(alpha: 0.6)),
       ),
       padding: const EdgeInsets.all(2),
       child: Row(
@@ -639,7 +639,7 @@ class DeskPaginationBar extends StatelessWidget {
           vertical: context.sp(theme.spacing.xs),
         ),
         decoration: BoxDecoration(
-          color: colors.surface,
+          color: Colors.transparent,
           borderRadius: context.radius(theme.radii.md),
           border: Border.all(color: colors.border.withValues(alpha: 0.6)),
         ),
@@ -696,7 +696,7 @@ class DeskPaginationBar extends StatelessWidget {
         vertical: context.sp(theme.spacing.xs),
       ),
       decoration: BoxDecoration(
-        color: colors.surface,
+        color: Colors.transparent,
         borderRadius: context.radius(theme.radii.md),
         border: Border.all(color: colors.border.withValues(alpha: 0.6)),
       ),
@@ -779,7 +779,7 @@ class DeskStatusBarFooter extends StatelessWidget {
         vertical: context.sp(theme.spacing.sm),
       ),
       decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.5),
+        color: Colors.transparent,
         border: Border(
           top: BorderSide(
             color: colors.border.withValues(alpha: 0.6),

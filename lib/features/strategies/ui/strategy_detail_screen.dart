@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
@@ -426,6 +427,17 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
     }
   }
 
+  Future<void> _shareStrategy() async {
+    final String shareUrl = 'https://tradex.app/p/strategies/${_strategy.id}';
+    await Clipboard.setData(ClipboardData(text: shareUrl));
+    if (!mounted) return;
+    UiToast.success(
+      context,
+      title: 'Link copied',
+      message: 'Share URL copied to clipboard',
+    );
+  }
+
   /// The playbook as one self-contained markdown document.
   ///
   /// The rules alone are not the whole picture: a printed playbook handed to
@@ -480,9 +492,10 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
     final double gutter = context.sp(theme.spacing.md);
 
     return UiPage(
-      maxWidth: 1200,
+      maxWidth: double.infinity,
       scrollable: false,
       child: Stack(
+        fit: StackFit.expand,
         children: <Widget>[
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -526,6 +539,13 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
   List<Widget> _headerActions(BuildContext context) {
     final UiTheme theme = context.ui;
     return <Widget>[
+      SizedBox(width: context.sp(theme.spacing.xs)),
+      UiIconButton(
+        icon: Icons.share_outlined,
+        variant: UiVariant.ghost,
+        tooltip: 'Share strategy',
+        onPressed: _busy ? null : _shareStrategy,
+      ),
       SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: Icons.picture_as_pdf_outlined,

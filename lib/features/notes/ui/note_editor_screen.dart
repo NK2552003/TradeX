@@ -57,6 +57,7 @@ class NoteEditorScreen extends StatefulWidget {
     this.onDeleted,
     this.sourceDocument,
     this.initialMode = NoteEditorMode.write,
+    this.detailsOnly = false,
   });
 
   /// The note being edited. An empty [AppNote.id] means an unsaved draft, which
@@ -76,6 +77,7 @@ class NoteEditorScreen extends StatefulWidget {
   final VoidCallback? onDeleted;
 
   final NoteEditorMode initialMode;
+  final bool detailsOnly;
 
   @override
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
@@ -684,6 +686,38 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       color: theme.colors.background,
       child: LayoutBuilder(
         builder: (context, constraints) {
+          if (widget.detailsOnly) {
+            return PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (bool didPop, Object? _) {
+                if (!didPop) _closeAndSave();
+              },
+              child: AppRecordDetailsForm(
+                title: 'Note details',
+                description:
+                    'Type, tags, tickers and visibility. Write the note content from Notes.',
+                saving: _saving,
+                onBack: _closeAndSave,
+                onSave: () async {
+                  final saved = await _save();
+                  if (saved != null && mounted) widget.onClose(saved);
+                },
+                onDelete: widget.note.id.isEmpty ? null : _delete,
+                fields: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _titleField(context),
+                    const UiGap.v(16),
+                    _detailsFields(
+                      context,
+                      twoColumn: constraints.maxWidth >= context.sz(580),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
           // The metadata rail and split preview need real working room. Tablets use
           // the same scrollable composition as phones instead of squeezing three
           // independently scrolling regions into one short viewport.
@@ -728,8 +762,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       valueListenable: _revision,
       builder: (BuildContext ctx, int _, Widget? _) {
         final bool isMobile = context.uiRes.isMobile;
-        final bool inWorkbench = AppWorkbenchScope.of(context);
-        final Widget? back = isMobile || inWorkbench
+        final Widget? back = isMobile
             ? null
             : UiIconButton(
                 icon: Icons.arrow_back_rounded,

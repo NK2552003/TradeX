@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
@@ -13,6 +14,7 @@ import 'package:tradex/core/utils/pdf_export_options.dart';
 import 'package:tradex/features/linking/link_graph_service.dart';
 
 import '../data/journal_attachments.dart';
+import '../data/journal_repository.dart';
 
 /// Read-only view of one journal entry: the write-up, then the numbers behind
 /// it, then everything it is attached to.
@@ -57,10 +59,21 @@ class JournalEntryScreen extends StatefulWidget {
 class _JournalEntryScreenState extends State<JournalEntryScreen> {
   final MarkdownOutlineController _outline = MarkdownOutlineController();
   final AppLinkGraphService _links = AppLinkGraphScope.service;
+  final JournalRepository _repo = JournalRepositoryScope.repository;
 
   StreamSubscription<AppLinkGraph>? _graphSub;
   late AppLinkGraph _graph = _links.current;
   bool _busy = false;
+
+  Future<void> _guard(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await action();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   void initState() {
@@ -240,6 +253,20 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     }
   }
 
+  Future<void> _toggleFavorite() =>
+      _guard(() => _repo.toggleFavorite(_entry.id));
+
+  Future<void> _shareTrade() async {
+    final String shareUrl = 'https://tradex.app/p/journal/${_entry.id}';
+    await Clipboard.setData(ClipboardData(text: shareUrl));
+    if (!mounted) return;
+    UiToast.success(
+      context,
+      title: 'Link copied',
+      message: 'Share URL copied to clipboard',
+    );
+  }
+
   /// The entry as one self-contained markdown document.
   ///
   /// The body alone is not a record of a trade — six months later a page of
@@ -303,9 +330,10 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     final AppLinkBundle bundle = _bundle;
 
     return UiPage(
-      maxWidth: 1200,
+      maxWidth: double.infinity,
       scrollable: false,
       child: Stack(
+        fit: StackFit.expand,
         children: <Widget>[
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -313,6 +341,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
               AppJournalNoteHeader(
                 entry: _entry,
                 onBack: widget.onClose,
+                onToggleFavorite: _busy ? null : _toggleFavorite,
                 onOpenStrategy:
                     widget.onOpenLink == null || bundle.strategies.isEmpty
                     ? null
@@ -376,6 +405,13 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
   List<Widget> _headerActions(BuildContext context) {
     final UiTheme theme = context.ui;
     return <Widget>[
+      SizedBox(width: context.sp(theme.spacing.xs)),
+      UiIconButton(
+        icon: Icons.share_outlined,
+        variant: UiVariant.ghost,
+        tooltip: 'Share trade',
+        onPressed: _busy ? null : _shareTrade,
+      ),
       SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: Icons.picture_as_pdf_outlined,

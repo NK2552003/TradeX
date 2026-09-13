@@ -1064,10 +1064,7 @@ class AppStrategyNoteHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final UiColors c = theme.colors;
-    final bool embedded = AppWorkbenchScope.hasEmbeddedHeader(context);
-    final bool inWorkbench = AppWorkbenchScope.of(context);
-    final bool isDesktop = context.uiRes.isDesktop;
-    final bool showBackButton = !isDesktop && !embedded && !inWorkbench && onBack != null;
+    final bool showBackButton = onBack != null;
     final bool shouldDisplayTitle = showTitle;
 
     final List<Widget> allActions = [
@@ -1125,52 +1122,46 @@ class AppStrategyNoteHeader extends StatelessWidget {
           ),
         ],
         SizedBox(height: context.sp(theme.spacing.xs)),
-        if (onStatusChanged == null)
-          SizedBox(
-            width: double.infinity,
-            child: Wrap(
-              spacing: context.sp(theme.spacing.xs),
-              runSpacing: context.sp(theme.spacing.xs),
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: <Widget>[
+        SizedBox(
+          width: double.infinity,
+          child: Wrap(
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xs),
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: <Widget>[
+              if (onStatusChanged == null)
                 UiBadge(
                   label: strategy.status.label,
                   size: UiSize.xs,
                   icon: strategy.status.icon,
                   intent: strategy.status.intent,
                   variant: UiBadgeVariant.soft,
+                )
+              else
+                UiDropdownMenu(
+                  width: context.sz(160),
+                  items: <UiMenuItem>[
+                    for (final AppStrategyStatus s in AppStrategyStatus.values)
+                      UiMenuItem(
+                        label: s.label,
+                        icon: s.icon,
+                        selected: s == strategy.status,
+                        onTap: () => onStatusChanged!(s),
+                      ),
+                  ],
+                  child: UiBadge(
+                    label: strategy.status.label,
+                    size: UiSize.xs,
+                    icon: strategy.status.icon,
+                    trailingIcon: Icons.keyboard_arrow_down_rounded,
+                    intent: strategy.status.intent,
+                    variant: UiBadgeVariant.soft,
+                  ),
                 ),
-                ..._metaBadges(context, theme, c),
-              ],
-            ),
-          )
-        else ...<Widget>[
-          UiSelect<AppStrategyStatus>(
-            value: strategy.status,
-            size: UiSize.sm,
-            expand: true,
-            leadingIcon: strategy.status.icon,
-            onChanged: onStatusChanged,
-            options: <UiOption<AppStrategyStatus>>[
-              for (final AppStrategyStatus s in AppStrategyStatus.values)
-                UiOption<AppStrategyStatus>(
-                  value: s,
-                  label: s.label,
-                  icon: s.icon,
-                ),
+              ..._metaBadges(context, theme, c),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          SizedBox(
-            width: double.infinity,
-            child: Wrap(
-              spacing: context.sp(theme.spacing.xs),
-              runSpacing: context.sp(theme.spacing.xs),
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: _metaBadges(context, theme, c),
-            ),
-          ),
-        ],
+        ),
       ],
     );
   }

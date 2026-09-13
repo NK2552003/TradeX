@@ -77,14 +77,14 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   final AppSession _session = AppSession.instance;
   final ProfileSettingsRepository _profiles = ProfileSettingsRepositoryImpl();
+  final GlobalKey<WorkspaceScreenState> _workspaceKey =
+      GlobalKey<WorkspaceScreenState>();
   final GlobalKey<JournalScreenState> _journalKey =
       GlobalKey<JournalScreenState>();
   final GlobalKey<StrategiesScreenState> _strategiesKey =
       GlobalKey<StrategiesScreenState>();
   final GlobalKey<NotesScreenState> _notesKey = GlobalKey<NotesScreenState>();
   final GlobalKey _workspaceSearchKey = GlobalKey();
-  final GlobalKey _workspaceFilterKey = GlobalKey();
-  final GlobalKey _workspaceAddKey = GlobalKey();
 
   String _selectedId = 'overview';
   String _workspaceQuery = '';
@@ -211,9 +211,11 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   bool get _isWritingFeature =>
-      const <String>{'journal', 'strategies', 'notes'}.contains(_selectedId);
+      const <String>{'workspace', 'journal', 'strategies', 'notes'}
+          .contains(_selectedId);
 
   String get _writingSearchHint => switch (_selectedId) {
+    'workspace' => 'Search desk records, notes, trades, playbooks...',
     'journal' => 'Search entries, tickers, playbooks, tags...',
     'strategies' => 'Search playbooks, rules or instruments...',
     'notes' => 'Search notes, tags or linked records...',
@@ -223,6 +225,8 @@ class _AppScaffoldState extends State<AppScaffold> {
   void _updateWorkspaceQuery(String value) {
     setState(() => _workspaceQuery = value);
     switch (_selectedId) {
+      case 'workspace':
+        _workspaceKey.currentState?.setSearchQuery(value);
       case 'journal':
         _journalKey.currentState?.setSearchQuery(value);
       case 'strategies':
@@ -249,42 +253,9 @@ class _AppScaffoldState extends State<AppScaffold> {
     ),
   );
 
-  List<Widget> _writingDeskHeaderActions() => <Widget>[
-    UiIconButton(
-      key: _workspaceFilterKey,
-      icon: Icons.tune_rounded,
-      tooltip: 'Filter $_selectedId',
-      size: UiSize.sm,
-      onPressed: _showActiveWritingFilters,
-    ),
-  ];
-
-  void _showActiveWritingFilters() {
-    switch (_selectedId) {
-      case 'journal':
-        _journalKey.currentState?.showFilters();
-      case 'strategies':
-        _strategiesKey.currentState?.showFilters();
-      case 'notes':
-        _notesKey.currentState?.showFilters();
-    }
-  }
-
-  void _addActiveWriting() {
-    switch (_selectedId) {
-      case 'journal':
-        _journalKey.currentState?.newEntry();
-      case 'strategies':
-        _strategiesKey.currentState?.newPlaybook();
-      case 'notes':
-        _notesKey.currentState?.newNote();
-    }
-  }
 
   void _showActiveWritingGuide() {
     final List<GlobalKey> targets = <GlobalKey>[
-      _workspaceAddKey,
-      _workspaceFilterKey,
       _workspaceSearchKey,
     ];
     switch (_selectedId) {
@@ -546,10 +517,12 @@ class _AppScaffoldState extends State<AppScaffold> {
     // a document behind a real back step on a phone — `onSubpageChanged` so the
     // app bar names what is open.
     'workspace' => WorkspaceScreen(
+      key: _workspaceKey,
       onOpenFeature: _go,
       onOpenRef: _openLinkRef,
       onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
       onSubpageChanged: _onSubpageChanged,
+      searchQuery: _workspaceQuery,
     ),
     'journal' => AppWritingDeskScope(
       child: JournalScreen(
@@ -895,9 +868,7 @@ class _AppScaffoldState extends State<AppScaffold> {
             searchHint: _isWritingFeature ? _writingSearchHint : null,
             onSearchChanged: _isWritingFeature ? _updateWorkspaceQuery : null,
             searchTargetKey: _isWritingFeature ? _workspaceSearchKey : null,
-            headerActions: _isWritingFeature
-                ? _writingDeskHeaderActions()
-                : const <Widget>[],
+            headerActions: const <Widget>[],
             onSettings: () => _go('settings'),
             onAi: () => _go('ai_copilot'),
             onNotifications: () => _go('notifications'),
@@ -921,19 +892,11 @@ class _AppScaffoldState extends State<AppScaffold> {
             unreadNotifications: _unread,
             pageTitle: _pageTitleOverride,
             pageIcon: _pageIconOverride,
-            onBack: _pageBackOverride,
+            onBack: context.uiRes.isDesktop ? null : _pageBackOverride,
             pagePlaceholderBuilder: (BuildContext context, AppNavItem item) =>
                 _destinationSkeleton(item.id),
-            primaryActionLabel: switch (_selectedId) {
-              'strategies' => 'New Playbook',
-              'notes' => 'New Note',
-              _ => null,
-            },
-            onPrimaryAction: switch (_selectedId) {
-              'strategies' => _addActiveWriting,
-              'notes' => _addActiveWriting,
-              _ => null,
-            },
+            primaryActionLabel: null,
+            onPrimaryAction: null,
             onHelp: _showActiveWritingGuide,
             showStatusBadge: false,
             sidebarFooter: widget.showDevelopmentRoleSwitcher

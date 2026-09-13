@@ -131,6 +131,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   AppStrategy? _draft;
 
   StrategyEditorMode _editorMode = StrategyEditorMode.write;
+  bool _editorDetailsOnly = false;
 
   /// The tab a freshly-opened document should land on. Set by guide actions and
   /// next-best-action chips that point at a specific face of a playbook, and
@@ -311,9 +312,11 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   void _edit(
     AppStrategy strategy, {
     StrategyEditorMode mode = StrategyEditorMode.write,
+    bool detailsOnly = false,
   }) {
     setState(() {
       _editorMode = mode;
+      _editorDetailsOnly = detailsOnly;
       _editorKey = GlobalKey<StrategyEditorScreenState>();
       _draft = strategy.id.isEmpty ? strategy : null;
       _activeId = strategy.id.isEmpty ? null : strategy.id;
@@ -327,6 +330,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     setState(() {
       _draft = null;
       _activeId = null;
+      _editorDetailsOnly = false;
       _view = _StrategyView.list;
     });
     _announce();
@@ -349,6 +353,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     if (!mounted) return;
     setState(() {
       _draft = null;
+      _editorDetailsOnly = false;
       if (saved != null) _activeId = saved.id;
       // A document opened from the editor always lands on the playbook body, not
       // a stale tab left over from a guide action or a next-best-action chip.
@@ -1005,7 +1010,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
       height: context.sz(32),
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: colors.surface,
+        color: Colors.transparent,
         borderRadius: context.radius(theme.radii.md),
         border: Border.all(color: colors.border.withValues(alpha: 0.6)),
       ),
@@ -1185,341 +1190,17 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   }
 
   Widget _buildPlaybookCard(BuildContext context, AppStrategy strategy) {
-    final UiTheme theme = context.ui;
-    final UiColors colors = theme.colors;
-    final bool untested = strategy.trades == 0;
     final int notes =
         _linkedNoteCounts[strategy.id] ?? strategy.linkedNoteIds.length;
-    final String excerpt = AppMarkdownStats.excerpt(
-      strategy.content.trim().isEmpty
-          ? (strategy.summary ?? '')
-          : strategy.content,
-      maxChars: 160,
-    );
-    final double effectiveWinRate = strategy.winRate > 1
-        ? strategy.winRate
-        : strategy.winRate * 100;
-
-    return UiCard(
-      variant: UiCardVariant.surface,
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-      child: InkWell(
-        borderRadius: context.radius(theme.radii.lg),
-        onTap: () => _open(strategy.id),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            // Header: Icon + Title + Favorite star
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Container(
-                  padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
-                  decoration: BoxDecoration(
-                    color: strategy.status.intent
-                        .color(context)
-                        .withValues(alpha: 0.12),
-                    borderRadius: context.radius(theme.radii.sm),
-                  ),
-                  child: Icon(
-                    strategy.status == AppStrategyStatus.draft
-                        ? Icons.edit_note_rounded
-                        : Icons.play_arrow_rounded,
-                    size: context.sz(18),
-                    color: strategy.status.intent.color(context),
-                  ),
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Expanded(
-                  child: Text(
-                    strategy.name,
-                    style: context.uiText.heading.copyWith(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                UiIconButton(
-                  icon: strategy.isFavorite
-                      ? Icons.star_rounded
-                      : Icons.star_outline_rounded,
-                  size: UiSize.xs,
-                  intent: strategy.isFavorite
-                      ? UiIntent.warning
-                      : UiIntent.neutral,
-                  tooltip: strategy.isFavorite
-                      ? 'Remove from favorites'
-                      : 'Mark favorite',
-                  onPressed: () => _toggleFavorite(strategy),
-                ),
-              ],
-            ),
-            SizedBox(height: context.sp(theme.spacing.xs)),
-
-            // Thesis description
-            if (excerpt.isNotEmpty) ...<Widget>[
-              Text.rich(
-                TextSpan(
-                  children: <InlineSpan>[
-                    TextSpan(
-                      text: 'Thesis: ',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: colors.foreground,
-                      ),
-                    ),
-                    TextSpan(
-                      text: excerpt,
-                      style: TextStyle(color: colors.foregroundMuted),
-                    ),
-                  ],
-                ),
-                style: context.uiText.caption.copyWith(height: 1.4),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-              SizedBox(height: context.sp(theme.spacing.sm)),
-            ],
-
-            // Metrics Highlight Ribbon or Prompt Box
-            if (!untested)
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.sm),
-                  vertical: context.sp(theme.spacing.xs),
-                ),
-                decoration: BoxDecoration(
-                  color: colors.background,
-                  borderRadius: context.radius(theme.radii.sm),
-                  border: Border.all(
-                    color: colors.border.withValues(alpha: 0.6),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          strategy.status == AppStrategyStatus.testing
-                              ? 'SIMULATED P&L'
-                              : 'REALIZED P&L',
-                          style: context.uiText.caption.copyWith(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: colors.foregroundSubtle,
-                          ),
-                        ),
-                        Text(
-                          AppTokens.signedMoney(strategy.netPnl, decimals: 0),
-                          style: context.uiText.caption.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTokens.pl(context, strategy.netPnl),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: <Widget>[
-                        Text(
-                          'WIN RATE',
-                          style: context.uiText.caption.copyWith(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: colors.foregroundSubtle,
-                          ),
-                        ),
-                        Text(
-                          '${effectiveWinRate.toStringAsFixed(0)}% (${strategy.trades} trades)',
-                          style: context.uiText.caption.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: colors.foreground,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: <Widget>[
-                        Text(
-                          'AVG R',
-                          style: context.uiText.caption.copyWith(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: colors.foregroundSubtle,
-                          ),
-                        ),
-                        Text(
-                          AppTokens.rr(strategy.avgR),
-                          style: context.uiText.caption.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTokens.pl(context, strategy.avgR),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              )
-            else if (strategy.status == AppStrategyStatus.draft)
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.sm),
-                  vertical: context.sp(theme.spacing.xs),
-                ),
-                decoration: BoxDecoration(
-                  color: colors.background,
-                  borderRadius: context.radius(theme.radii.sm),
-                  border: Border.all(
-                    color: colors.border.withValues(alpha: 0.6),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            'Missing Exit Rule Criteria',
-                            style: context.uiText.caption.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: colors.foreground,
-                            ),
-                          ),
-                          Text(
-                            'Add invalidation & trailing logic',
-                            style: context.uiText.caption.copyWith(
-                              fontSize: 10,
-                              color: colors.foregroundSubtle,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    UiButton(
-                      label: 'Continue →',
-                      variant: UiVariant.ghost,
-                      size: UiSize.xs,
-                      intent: UiIntent.success,
-                      onPressed: () => _edit(strategy),
-                    ),
-                  ],
-                ),
-              )
-            else
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.sm),
-                  vertical: context.sp(theme.spacing.xs),
-                ),
-                decoration: BoxDecoration(
-                  color: colors.background,
-                  borderRadius: context.radius(theme.radii.sm),
-                  border: Border.all(
-                    color: colors.border.withValues(alpha: 0.6),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        'Untested · No trades filed yet',
-                        style: context.uiText.caption.copyWith(
-                          color: colors.foregroundSubtle,
-                        ),
-                      ),
-                    ),
-                    UiButton(
-                      label: 'File Trade →',
-                      variant: UiVariant.ghost,
-                      size: UiSize.xs,
-                      intent: UiIntent.primary,
-                      onPressed: () => _openWithTab(
-                        strategy.id,
-                        StrategyDetailTab.links,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            SizedBox(height: context.sp(theme.spacing.sm)),
-
-            // Status Pills & Metadata Badges
-            Wrap(
-              spacing: context.sp(theme.spacing.xs),
-              runSpacing: context.sp(theme.spacing.xs),
-              children: <Widget>[
-                UiBadge(
-                  label: strategy.status.label,
-                  size: UiSize.xs,
-                  intent: strategy.status.intent,
-                  variant: UiBadgeVariant.soft,
-                ),
-                if (notes > 0)
-                  UiBadge(
-                    label: '$notes note${notes == 1 ? '' : 's'}',
-                    size: UiSize.xs,
-                    icon: Icons.link_rounded,
-                    variant: UiBadgeVariant.outline,
-                  ),
-                if (strategy.versionCount > 1)
-                  UiBadge(
-                    label: '${strategy.versionCount} revisions',
-                    size: UiSize.xs,
-                    icon: Icons.history_rounded,
-                    variant: UiBadgeVariant.outline,
-                  ),
-                if (strategy.checklistTotal > 0)
-                  UiBadge(
-                    label: '${strategy.checklistTotal} rules',
-                    size: UiSize.xs,
-                    icon: Icons.checklist_rounded,
-                    variant: UiBadgeVariant.outline,
-                  ),
-              ],
-            ),
-            SizedBox(height: context.sp(theme.spacing.sm)),
-
-            // Divider and Tags
-            Container(
-              height: 1,
-              color: colors.border.withValues(alpha: 0.6),
-            ),
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                Expanded(
-                  child: Wrap(
-                    spacing: 4,
-                    children: <Widget>[
-                      for (final String t in strategy.tags.take(3))
-                        Text(
-                          t.startsWith('#') ? t : '#$t',
-                          style: context.uiText.caption.copyWith(
-                            fontSize: 11,
-                            color: colors.foregroundSubtle,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 16,
-                  color: colors.foregroundSubtle,
-                ),
-              ],
-            ),
-          ],
-        ),
+    return PlaybookCard(
+      strategy: strategy,
+      linkedNoteCount: notes,
+      onTap: () => _open(strategy.id),
+      onToggleFavorite: () => _toggleFavorite(strategy),
+      onEdit: () => _edit(strategy),
+      onFileTrade: () => _openWithTab(
+        strategy.id,
+        StrategyDetailTab.links,
       ),
     );
   }
@@ -1721,7 +1402,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     strategy: strategy,
     initialTab: _initialDetailTab,
     onClose: _backToIndex,
-    onEdit: () => _edit(strategy, mode: StrategyEditorMode.write),
+    onEdit: () => _edit(strategy, mode: StrategyEditorMode.write, detailsOnly: true),
     onEditWriting: () {
       if (widget.onOpenWriting != null) {
         widget.onOpenWriting!(
@@ -1732,7 +1413,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
           ),
         );
       } else {
-        _edit(strategy, mode: StrategyEditorMode.write);
+        _edit(strategy, mode: StrategyEditorMode.write, detailsOnly: false);
       }
     },
     onOpenLink: _openRef,
@@ -1743,7 +1424,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     key: _editorKey,
     strategy: strategy,
     initialMode: _editorMode,
-    detailsOnly: false,
+    detailsOnly: _editorDetailsOnly,
     onClose: _closeEditor,
     onDeleted: _backToIndex,
   );

@@ -29,6 +29,7 @@ class NotePreviewScreen extends StatefulWidget {
     required this.note,
     required this.onClose,
     required this.onEdit,
+    this.onEditWriting,
     this.onOpenLink,
     this.onAttachToPost,
     this.canEdit = true,
@@ -41,6 +42,7 @@ class NotePreviewScreen extends StatefulWidget {
 
   /// Hands the note to the editor.
   final VoidCallback onEdit;
+  final VoidCallback? onEditWriting;
 
   /// Follows a link out of this note. Null renders the links as plain rows,
   /// which is how a preview embedded somewhere without a navigator behaves.
@@ -185,9 +187,10 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
     final double gutter = context.sp(theme.spacing.md);
 
     return UiPage(
-      maxWidth: 1200,
+      maxWidth: double.infinity,
       scrollable: false,
       child: Stack(
+        fit: StackFit.expand,
         children: <Widget>[
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -246,100 +249,93 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
 
   Widget _previewCommandBar(BuildContext context) {
     final UiTheme theme = context.ui;
-    final bool isMobile = context.uiRes.isMobile;
-    // Inside the desktop workbench the shell already draws the note title and a
-    // back control; a second title and back button here would read as two
-    // headers stacked. Off the workbench (a phone, a future full window) we own
-    // that chrome and draw it ourselves.
-    final bool inWorkbench = AppWorkbenchScope.of(context);
-    final bool showChrome = !isMobile && !inWorkbench;
-    return Row(
+    final List<Widget> actions = <Widget>[
+      UiIconButton(
+        icon: _note.isFavorite
+            ? Icons.bookmark_rounded
+            : Icons.bookmark_outline_rounded,
+        variant: _note.isFavorite ? UiVariant.soft : UiVariant.ghost,
+        intent: _note.isFavorite ? UiIntent.primary : UiIntent.neutral,
+        tooltip: _note.isFavorite ? 'Remove from saved' : 'Save note',
+        onPressed: _toggleSaveNote,
+      ),
+      SizedBox(width: context.sp(theme.spacing.xs)),
+      UiIconButton(
+        icon: Icons.share_outlined,
+        variant: UiVariant.ghost,
+        tooltip: 'Share note',
+        onPressed: _shareNote,
+      ),
+      SizedBox(width: context.sp(theme.spacing.xs)),
+      UiIconButton(
+        icon: Icons.picture_as_pdf_outlined,
+        variant: UiVariant.ghost,
+        tooltip: 'Export as PDF',
+        onPressed: _exportPdf,
+      ),
+      if (widget.onAttachToPost != null) ...<Widget>[
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        UiIconButton(
+          icon: Icons.add_comment_outlined,
+          variant: UiVariant.ghost,
+          tooltip: 'Attach note to a post',
+          onPressed: () =>
+              widget.onAttachToPost!(AppWritingPostAttachment.note(_note)),
+        ),
+      ],
+      if (widget.canEdit) ...<Widget>[
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        UiIconButton(
+          icon: Icons.edit_note_rounded,
+          tooltip: 'Edit note',
+          size: UiSize.sm,
+          variant: UiVariant.outline,
+          onPressed: widget.onEditWriting ?? widget.onEdit,
+        ),
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        UiIconButton(
+          icon: Icons.edit_outlined,
+          tooltip: 'Edit details',
+          size: UiSize.sm,
+          variant: UiVariant.primary,
+          onPressed: widget.onEdit,
+        ),
+      ],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (showChrome) ...<Widget>[
-          UiIconButton(
+        UiHeader(
+          title: _title,
+          leading: UiIconButton(
             icon: Icons.arrow_back_rounded,
             variant: UiVariant.ghost,
             tooltip: 'Back to notes',
             onPressed: widget.onClose,
           ),
-          SizedBox(width: context.sp(theme.spacing.sm)),
-        ],
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              if (showChrome)
-                Text(
-                  _title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.uiText.bodyStrong,
-                ),
-              Wrap(
-                spacing: context.sp(theme.spacing.xs),
-                runSpacing: context.sp(theme.spacing.xxs),
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  UiBadge(
-                    label: _note.noteType.label,
-                    size: UiSize.xs,
-                    variant: UiBadgeVariant.soft,
-                    intent: UiIntent.primary,
-                  ),
-                  Text(
-                    '${AppTokens.fullDate(_note.updatedAt)} · ${_note.wordCount} words · $_readMinutes min read',
-                    style: context.uiText.caption.copyWith(
-                      color: theme.colors.foregroundMuted,
-                    ),
-                  ),
-                ],
+          actions: actions,
+        ),
+        UiGap.v(context.uiSpace.sm),
+        Wrap(
+          spacing: context.sp(theme.spacing.xs),
+          runSpacing: context.sp(theme.spacing.xxs),
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            UiBadge(
+              label: _note.noteType.label,
+              size: UiSize.xs,
+              variant: UiBadgeVariant.soft,
+              intent: UiIntent.primary,
+            ),
+            Text(
+              '${AppTokens.fullDate(_note.updatedAt)} · ${_note.wordCount} words · $_readMinutes min read',
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        UiIconButton(
-          icon: _note.isFavorite
-              ? Icons.bookmark_rounded
-              : Icons.bookmark_outline_rounded,
-          variant: _note.isFavorite ? UiVariant.soft : UiVariant.ghost,
-          intent: _note.isFavorite ? UiIntent.primary : UiIntent.neutral,
-          tooltip: _note.isFavorite ? 'Remove from saved' : 'Save note',
-          onPressed: _toggleSaveNote,
-        ),
-        SizedBox(width: context.sp(theme.spacing.xs)),
-        UiIconButton(
-          icon: Icons.share_outlined,
-          variant: UiVariant.ghost,
-          tooltip: 'Share note',
-          onPressed: _shareNote,
-        ),
-        SizedBox(width: context.sp(theme.spacing.xs)),
-        UiIconButton(
-          icon: Icons.picture_as_pdf_outlined,
-          variant: UiVariant.ghost,
-          tooltip: 'Export as PDF',
-          onPressed: _exportPdf,
-        ),
-        if (widget.onAttachToPost != null) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          UiIconButton(
-            icon: Icons.add_comment_outlined,
-            variant: UiVariant.ghost,
-            tooltip: 'Attach note to a post',
-            onPressed: () =>
-                widget.onAttachToPost!(AppWritingPostAttachment.note(_note)),
-          ),
-        ],
-        if (widget.canEdit) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          UiButton(
-            label: 'Edit',
-            leadingIcon: Icons.edit_outlined,
-            size: UiSize.sm,
-            hideLabelOnMobile: true,
-            onPressed: widget.onEdit,
-          ),
-        ],
       ],
     );
   }

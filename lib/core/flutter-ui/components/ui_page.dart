@@ -45,9 +45,14 @@ class UiPage extends StatelessWidget {
       vertical: context.sp(theme.spacing.sm),
     );
 
+    final double? rawMaxWidth = maxWidth;
+    final double maxW = (rawMaxWidth == null || rawMaxWidth.isInfinite)
+        ? (rawMaxWidth ?? context.sz(theme.sizes.maxContentWidth))
+        : context.sz(rawMaxWidth);
+
     Widget body = ConstrainedBox(
       constraints: BoxConstraints(
-        maxWidth: context.sz(maxWidth ?? theme.sizes.maxContentWidth),
+        maxWidth: maxW,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -164,7 +169,7 @@ class UiHeader extends StatelessWidget {
           children: <Widget>[
             Expanded(child: identity),
             SizedBox(width: context.sp(theme.spacing.md)),
-            Flexible(child: actionRow),
+            actionRow,
           ],
         );
       },

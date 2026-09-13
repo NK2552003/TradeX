@@ -135,6 +135,7 @@ class AppTrade {
     this.checklistTotal = 0,
     this.hasImages = false,
     this.hasCode = false,
+    this.isFavorite = false,
   });
 
   final String id;
@@ -188,6 +189,7 @@ class AppTrade {
   final int checklistTotal;
   final bool hasImages;
   final bool hasCode;
+  final bool isFavorite;
 
   bool get isOpen => outcome == AppOutcome.open;
 
@@ -255,6 +257,7 @@ class AppTrade {
     int? checklistTotal,
     bool? hasImages,
     bool? hasCode,
+    bool? isFavorite,
   }) => AppTrade(
     id: id ?? this.id,
     ticker: ticker ?? this.ticker,
@@ -289,6 +292,7 @@ class AppTrade {
     checklistTotal: checklistTotal ?? this.checklistTotal,
     hasImages: hasImages ?? this.hasImages,
     hasCode: hasCode ?? this.hasCode,
+    isFavorite: isFavorite ?? this.isFavorite,
   );
 }
 
