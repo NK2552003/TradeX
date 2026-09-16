@@ -181,8 +181,19 @@ CREATE TABLE IF NOT EXISTS posts (
   image_url TEXT,
   ticker TEXT,
   content_type TEXT NOT NULL DEFAULT 'market_discussion',
+  likes_count INTEGER NOT NULL DEFAULT 0,
+  comments_count INTEGER NOT NULL DEFAULT 0,
+  views_count INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS post_views (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  viewed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (post_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS saved_posts (
@@ -537,5 +548,98 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_signup();
+
+-- Trader Preferences & Risk Checklists Table
+CREATE TABLE IF NOT EXISTS public.trader_preferences (
+  user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  default_position_size_pct NUMERIC NOT NULL DEFAULT 2.0 CHECK (default_position_size_pct > 0 AND default_position_size_pct <= 100),
+  default_r_multiple NUMERIC NOT NULL DEFAULT 2.5 CHECK (default_r_multiple > 0),
+  default_watchlist_symbols TEXT[] NOT NULL DEFAULT '{"NIFTY50","BANKNIFTY","RELIANCE","TCS","HDFCBANK"}'::text[],
+  watchlist_refresh_interval_seconds INTEGER NOT NULL DEFAULT 15 CHECK (watchlist_refresh_interval_seconds >= 1),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.trader_checklists (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  label TEXT NOT NULL,
+  description TEXT,
+  done BOOLEAN NOT NULL DEFAULT false,
+  icon_name TEXT DEFAULT 'check_box_outline_blank',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
+-- SOCIAL ANALYTICS COUNTERS, TRIGGERS & DEDUPLICATED VIEWS
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION update_post_likes_count()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF (TG_OP = 'INSERT') THEN
+    UPDATE posts SET likes_count = likes_count + 1 WHERE id = NEW.post_id;
+  ELSIF (TG_OP = 'DELETE') THEN
+    UPDATE posts SET likes_count = GREATEST(0, likes_count - 1) WHERE id = OLD.post_id;
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_likes_count ON likes;
+CREATE TRIGGER trg_likes_count
+  AFTER INSERT OR DELETE ON likes
+  FOR EACH ROW EXECUTE FUNCTION update_post_likes_count();
+
+CREATE OR REPLACE FUNCTION update_post_comments_count()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF (TG_OP = 'INSERT') THEN
+    UPDATE posts SET comments_count = comments_count + 1 WHERE id = NEW.post_id;
+  ELSIF (TG_OP = 'DELETE') THEN
+    UPDATE posts SET comments_count = GREATEST(0, comments_count - 1) WHERE id = OLD.post_id;
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_comments_count ON comments;
+CREATE TRIGGER trg_comments_count
+  AFTER INSERT OR DELETE ON comments
+  FOR EACH ROW EXECUTE FUNCTION update_post_comments_count();
+
+CREATE OR REPLACE FUNCTION increment_post_views(p_post_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id UUID;
+BEGIN
+  v_user_id := auth.uid();
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO post_views (post_id, user_id)
+    VALUES (p_post_id, v_user_id)
+    ON CONFLICT (post_id, user_id) DO NOTHING;
+
+    IF FOUND THEN
+      UPDATE posts SET views_count = views_count + 1 WHERE id = p_post_id;
+    END IF;
+  ELSE
+    UPDATE posts SET views_count = views_count + 1 WHERE id = p_post_id;
+  END IF;
+END;
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_posts_trending ON posts (likes_count DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_post_views_post_user ON post_views (post_id, user_id);
 
 COMMIT;

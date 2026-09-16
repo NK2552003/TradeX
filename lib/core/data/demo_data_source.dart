@@ -451,6 +451,7 @@ class DemoDataSource {
           ],
           likes: 24 + rng.nextInt(420),
           comments: rng.nextInt(48),
+          views: 140 + rng.nextInt(2800),
           liked: i % 3 == 0,
           saved: i % 4 == 0,
         ),

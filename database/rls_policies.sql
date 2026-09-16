@@ -24,6 +24,7 @@ ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE revenuecat_webhook_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_views ENABLE ROW LEVEL SECURITY;
 
 -- Helper function to check if current user is user_admin
 CREATE OR REPLACE FUNCTION is_user_admin()

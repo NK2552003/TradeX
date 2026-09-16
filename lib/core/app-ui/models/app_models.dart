@@ -232,6 +232,7 @@ class AppPost {
     this.attachments = const <AppPostAttachment>[],
     this.likes = 0,
     this.comments = 0,
+    this.views = 0,
     this.liked = false,
     this.saved = false,
   });
@@ -246,6 +247,7 @@ class AppPost {
   final List<AppPostAttachment> attachments;
   final int likes;
   final int comments;
+  final int views;
   final bool liked;
   final bool saved;
 }

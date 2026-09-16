@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/settings/models/org_models.dart';
 
 abstract class OrganizationSettingsRepository {
@@ -32,14 +35,6 @@ class OrganizationSettingsRepositoryImpl
       avatarUrl: null,
       joinedAt: DateTime.now().subtract(const Duration(days: 120)),
     ),
-    OrgMember(
-      userId: 'usr_org_trader_2',
-      handle: 'marcus_fx',
-      displayName: 'Marcus Vance',
-      role: 'trader',
-      avatarUrl: null,
-      joinedAt: DateTime.now().subtract(const Duration(days: 45)),
-    ),
   ];
 
   OrgBranding _branding = const OrgBranding(
@@ -48,9 +43,22 @@ class OrganizationSettingsRepositoryImpl
     primaryColor: '#00F0FF',
   );
 
+  SupabaseClient? get _client {
+    if (SupabaseConfig.isConfigured) {
+      try {
+        return SupabaseConfig.client;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  String? get _currentUserId => _client?.auth.currentUser?.id;
+
   @override
   Future<List<OrgMember>> getMembers() async {
-    await Future<void>.delayed(const Duration(milliseconds: 250));
+    await Future<void>.delayed(const Duration(milliseconds: 150));
     return List<OrgMember>.from(_members);
   }
 
@@ -59,7 +67,6 @@ class OrganizationSettingsRepositoryImpl
     required String email,
     required String role,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 400));
     final String handle = email.split('@').first;
     _members.add(
       OrgMember(
@@ -78,7 +85,6 @@ class OrganizationSettingsRepositoryImpl
     required String userId,
     required String role,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
     final index = _members.indexWhere((m) => m.userId == userId);
     if (index != -1) {
       final old = _members[index];
@@ -95,13 +101,33 @@ class OrganizationSettingsRepositoryImpl
 
   @override
   Future<void> removeMember(String userId) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
     _members.removeWhere((m) => m.userId == userId);
   }
 
   @override
   Future<OrgBranding> getBranding() async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final client = _client;
+    final userId = _currentUserId;
+    if (client != null && userId != null) {
+      try {
+        final data = await client
+            .from('organizations')
+            .select('*')
+            .eq('owner_id', userId)
+            .maybeSingle();
+
+        if (data != null) {
+          final settings = data['settings'] as Map<String, dynamic>? ?? {};
+          _branding = OrgBranding(
+            displayName: data['name'] as String? ?? 'TradeX Institutional',
+            logoUrl: settings['logo_url'] as String?,
+            primaryColor: settings['primary_color'] as String? ?? '#00F0FF',
+          );
+        }
+      } catch (e) {
+        debugPrint('OrganizationSettingsRepositoryImpl.getBranding error: $e');
+      }
+    }
     return _branding;
   }
 
@@ -111,12 +137,30 @@ class OrganizationSettingsRepositoryImpl
     String? displayName,
     String? primaryColor,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 350));
     _branding = _branding.copyWith(
       logoUrl: logoUrl ?? _branding.logoUrl,
       displayName: displayName ?? _branding.displayName,
       primaryColor: primaryColor ?? _branding.primaryColor,
     );
+
+    final client = _client;
+    final userId = _currentUserId;
+    if (client != null && userId != null) {
+      try {
+        final slug = _branding.displayName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '-');
+        await client.from('organizations').upsert({
+          'owner_id': userId,
+          'name': _branding.displayName,
+          'slug': slug,
+          'settings': {
+            'logo_url': _branding.logoUrl,
+            'primary_color': _branding.primaryColor,
+          },
+        });
+      } catch (e) {
+        debugPrint('OrganizationSettingsRepositoryImpl.updateBranding error: $e');
+      }
+    }
     return _branding;
   }
 }
