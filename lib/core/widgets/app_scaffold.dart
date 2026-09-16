@@ -12,10 +12,17 @@ import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_m
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_overview_page.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_payouts_page.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart';
+import 'package:tradex/features/ai_assistant/presentation/ai_page.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
+import 'package:tradex/features/community/presentation/community_page.dart';
+import 'package:tradex/features/journal/presentation/dashboard_page.dart';
+import 'package:tradex/features/journal/presentation/journal_page.dart';
+import 'package:tradex/features/messages/presentation/messages_page.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
+import 'package:tradex/features/strategies/presentation/strategies_page.dart';
+import 'package:tradex/features/watchlists/presentation/watchlists_page.dart';
 
 /// The signed-in application shell: chrome, navigation and the active page.
 ///
@@ -326,14 +333,14 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   Widget _traderPage() => switch (_selectedId) {
-    'overview' => UiSkeleton.dashboard(),
-    'journal' => UiSkeleton.journal(),
-    'strategies' => UiSkeleton.strategies(),
-    'watchlists' => UiSkeleton.watchlists(),
-    'portfolio' => UiSkeleton.portfolio(),
-    'community' => UiSkeleton.community(),
-    'messages' => UiSkeleton.messages(),
-    'ai_copilot' => UiSkeleton.ai(),
+    'overview' => const DashboardPage(),
+    'journal' => const JournalPage(),
+    'strategies' => const StrategiesPage(),
+    'watchlists' => const WatchlistsPage(),
+    'portfolio' => const DashboardPage(),
+    'community' => const CommunityPage(),
+    'messages' => const MessagesPage(),
+    'ai_copilot' => const AiPage(),
     _ => _unknownPage(),
   };
 

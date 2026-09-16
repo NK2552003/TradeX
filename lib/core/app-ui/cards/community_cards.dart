@@ -167,6 +167,12 @@ class AppPostCard extends StatelessWidget {
                 tooltip: 'Reply',
                 onTap: onComment,
               ),
+              _action(
+                context,
+                icon: Icons.remove_red_eye_outlined,
+                label: AppTokens.count(post.views),
+                tooltip: 'Views',
+              ),
               const Spacer(),
               UiIconButton(
                 icon: post.saved ? Icons.bookmark : Icons.bookmark_border,

@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/settings/models/billing_models.dart';
@@ -30,14 +33,6 @@ abstract class BillingSettingsRepository {
 
 /// Billing surfaces in settings: the plan chooser, the payment method, the
 /// invoice list and the cancel flow.
-///
-/// It owns none of what it reports. The plan, the cycle, the renewal dates and
-/// any coupon come from [AppSession], so a page that builds its own instance of
-/// this repository still sees the checkout another page just completed; the
-/// catalogue and the prices come from [DemoDataSource.plans] so this file cannot
-/// disagree with the plan chooser about what Premium costs; the invoices are
-/// generated from that price rather than written out, so changing the price
-/// rewrites the history that would otherwise contradict it.
 class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
   BillingSettingsRepositoryImpl({DemoDataSource? source, AppSession? session})
     : _source = source ?? DemoDataSource.instance,
@@ -45,6 +40,19 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
   final DemoDataSource _source;
   final AppSession _session;
+
+  SupabaseClient? get _client {
+    if (SupabaseConfig.isConfigured) {
+      try {
+        return SupabaseConfig.client;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  String? get _currentUserId => _client?.auth.currentUser?.id;
 
   AppTier get _tier => _session.tier.value;
 
@@ -82,13 +90,29 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
   @override
   Future<SubscriptionSummary> getSubscription() async {
-    await Future<void>.delayed(const Duration(milliseconds: 250));
+    final client = _client;
+    final userId = _currentUserId;
+    if (client != null && userId != null) {
+      try {
+        final data = await client.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+        if (data != null) {
+          final tierStr = data['tier'] as String? ?? 'free';
+          final tier = AppTier.values.firstWhere((t) => t.name == tierStr, orElse: () => AppTier.free);
+          final statusStr = data['status'] as String? ?? 'active';
+          final cycleStr = data['billing_cycle'] as String? ?? 'monthly';
+          _session.startPeriod(tier, cycleStr);
+          _session.cancelAtPeriodEnd = statusStr == 'canceled';
+        }
+      } catch (e) {
+        debugPrint('BillingSettingsRepositoryImpl.getSubscription error: $e');
+      }
+    }
     return _summary();
   }
 
   @override
   Future<List<AppPlan>> getAvailablePlans({bool annual = false}) async {
-    await Future<void>.delayed(const Duration(milliseconds: 250));
+    await Future<void>.delayed(const Duration(milliseconds: 150));
     return _source.plans(current: _tier, annual: annual);
   }
 
@@ -97,26 +121,50 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     String tierId,
     String billingCycle,
   ) async {
-    await Future<void>.delayed(const Duration(milliseconds: 600));
     final AppTier tier = AppTier.values.firstWhere(
       (AppTier value) => value.name == tierId,
       orElse: () => _tier,
     );
-    // Straight onto the session: this is the moment entitlement changes, and
-    // every gate in the app is listening to that value rather than to this page.
     _session.startPeriod(tier, billingCycle);
     if (tier == AppTier.free) {
-      // Nothing is being charged, so a coupon would have nothing to discount.
       _session.discountCode = null;
       _session.discountPercent = 0;
     }
+
+    final client = _client;
+    final userId = _currentUserId;
+    if (client != null && userId != null) {
+      try {
+        await client.from('subscriptions').upsert({
+          'user_id': userId,
+          'tier': tier.name,
+          'status': 'active',
+          'billing_cycle': billingCycle,
+          'renewed_at': DateTime.now().toIso8601String(),
+          'expires_at': DateTime.now().add(Duration(days: billingCycle == 'annual' ? 365 : 30)).toIso8601String(),
+        });
+      } catch (e) {
+        debugPrint('BillingSettingsRepositoryImpl.startCheckout error: $e');
+      }
+    }
+
     return const CheckoutSession();
   }
 
   @override
   Future<SubscriptionSummary> setCancelAtPeriodEnd(bool cancel) async {
-    await Future<void>.delayed(const Duration(milliseconds: 420));
     _session.cancelAtPeriodEnd = cancel;
+    final client = _client;
+    final userId = _currentUserId;
+    if (client != null && userId != null) {
+      try {
+        await client.from('subscriptions').update({
+          'status': cancel ? 'canceled' : 'active',
+        }).eq('user_id', userId);
+      } catch (e) {
+        debugPrint('BillingSettingsRepositoryImpl.setCancelAtPeriodEnd error: $e');
+      }
+    }
     return _summary();
   }
 

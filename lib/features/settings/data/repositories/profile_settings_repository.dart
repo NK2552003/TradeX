@@ -1,13 +1,12 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/settings/models/connected_account_model.dart';
 
 abstract class ProfileSettingsRepository {
-  /// The profile as last known, without waiting on the wire. Chrome that has to
-  /// paint on the first frame — the top-bar avatar, the sidebar footer — reads
-  /// this so it never shows a blank identity while [getProfile] is in flight.
   UserProfileModel get cachedProfile;
 
   Future<UserProfileModel> getProfile();
@@ -80,9 +79,29 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
 
   @override
   Future<UserProfileModel> getProfile() async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    // The plan is entitlement, not profile copy: read it from the shared
-    // session so a change made on the billing page is visible here too.
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        if (user != null) {
+          final res = await client
+              .from('profiles')
+              .select()
+              .eq('id', user.id)
+              .maybeSingle();
+
+          if (res != null) {
+            _profile = UserProfileModel.fromJson(res);
+            return _profile.copyWith(
+              subscriptionTier: AppSession.instance.tier.value.name,
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('[ProfileSettingsRepository] getProfile error: $e');
+      }
+    }
+
     return _profile.copyWith(
       subscriptionTier: AppSession.instance.tier.value.name,
     );
@@ -102,7 +121,6 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     String? riskMantra,
     bool? publicStatsEnabled,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 500));
     _profile = _profile.copyWith(
       displayName: displayName,
       bio: bio,
@@ -116,14 +134,48 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       riskMantra: riskMantra,
       publicJournals: publicStatsEnabled,
     );
+
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        if (user != null) {
+          final res = await client
+              .from('profiles')
+              .update(_profile.toJson())
+              .eq('id', user.id)
+              .select()
+              .single();
+
+          _profile = UserProfileModel.fromJson(res);
+        }
+      } catch (e) {
+        debugPrint('[ProfileSettingsRepository] updateProfile error: $e');
+      }
+    }
+
     return _profile;
   }
 
   @override
   Future<String> uploadAvatar(Uint8List imageBytes, String contentType) async {
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    final mockUrl =
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        if (user != null) {
+          final fileName = '${user.id}_${DateTime.now().millisecondsSinceEpoch}.png';
+          await client.storage.from('avatars').uploadBinary(fileName, imageBytes, fileOptions: FileOptions(contentType: contentType));
+          final publicUrl = client.storage.from('avatars').getPublicUrl(fileName);
+          _profile = _profile.copyWith(avatarUrl: publicUrl);
+          await client.from('profiles').update({'avatar_url': publicUrl}).eq('id', user.id);
+          return publicUrl;
+        }
+      } catch (e) {
+        debugPrint('[ProfileSettingsRepository] uploadAvatar error: $e');
+      }
+    }
+    const mockUrl = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
     _profile = _profile.copyWith(avatarUrl: mockUrl);
     return mockUrl;
   }
@@ -133,12 +185,21 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     required String newEmail,
     required String currentPassword,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 500));
     if (newEmail.isEmpty || !newEmail.contains('@')) {
       throw Exception('Please provide a valid email address.');
     }
     if (currentPassword.isEmpty) {
       throw Exception('Current password is required.');
+    }
+
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.auth.updateUser(UserAttributes(email: newEmail));
+      } catch (e) {
+        debugPrint('[ProfileSettingsRepository] requestEmailChange error: $e');
+        rethrow;
+      }
     }
     _profile = _profile.copyWith(email: newEmail);
   }
@@ -148,12 +209,21 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     required String currentPassword,
     required String newPassword,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 600));
     if (newPassword.length < 8) {
       throw Exception('New password must be at least 8 characters long.');
     }
     if (currentPassword.isEmpty) {
       throw Exception('Current password cannot be empty.');
+    }
+
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.auth.updateUser(UserAttributes(password: newPassword));
+      } catch (e) {
+        debugPrint('[ProfileSettingsRepository] changePassword error: $e');
+        rethrow;
+      }
     }
   }
 
@@ -183,6 +253,16 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
 
   @override
   Future<void> requestAccountDeletion({String? reason}) async {
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        if (user != null) {
+          await client.from('profiles').update({'status': 'pending_approval'}).eq('id', user.id);
+        }
+      } catch (e) {
+        debugPrint('[ProfileSettingsRepository] requestAccountDeletion error: $e');
+      }
+    }
   }
 }

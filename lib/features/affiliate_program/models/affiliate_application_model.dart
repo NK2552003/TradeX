@@ -122,6 +122,47 @@ class AffiliateApplicationModel {
     );
   }
 
+  factory AffiliateApplicationModel.fromJson(Map<String, dynamic> json) {
+    return AffiliateApplicationModel(
+      id: json['id'] as String? ?? '',
+      userId: json['user_id'] as String? ?? '',
+      fullName: json['full_name'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
+      city: json['city'] as String? ?? '',
+      state: json['state'] as String? ?? '',
+      dateOfBirth: json['date_of_birth'] != null
+          ? DateTime.tryParse(json['date_of_birth'] as String) ?? DateTime(2000)
+          : DateTime(2000),
+      gender: json['gender'] as String? ?? '',
+      platforms: json['platforms'] != null
+          ? List<String>.from(json['platforms'] as List)
+          : const <String>[],
+      primaryPlatform: json['primary_platform'] as String? ?? '',
+      channelHandle: json['channel_handle'] as String? ?? '',
+      audienceReach: json['audience_reach'] as String? ?? '',
+      niches: json['niches'] != null
+          ? List<String>.from(json['niches'] as List)
+          : const <String>[],
+      sampleLink: json['sample_link'] as String?,
+      accountHolder: json['account_holder'] as String? ?? '',
+      bankName: json['bank_name'] as String? ?? '',
+      accountNumber: json['account_number'] as String? ?? '',
+      ifsc: json['ifsc'] as String? ?? '',
+      accountType: json['account_type'] as String? ?? '',
+      pan: json['pan'] as String? ?? '',
+      upiId: json['upi_id'] as String?,
+      status: AffiliateApplicationStatus.fromApi(json['status'] as String?),
+      reviewNotes: json['review_notes'] as String?,
+      submittedAt: json['submitted_at'] != null
+          ? DateTime.tryParse(json['submitted_at'] as String)
+          : null,
+      reviewedAt: json['reviewed_at'] != null
+          ? DateTime.tryParse(json['reviewed_at'] as String)
+          : null,
+    );
+  }
+
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
     'user_id': userId,
