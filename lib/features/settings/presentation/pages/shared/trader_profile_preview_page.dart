@@ -1228,12 +1228,10 @@ class _TwitterFeedPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        // Pinned Post
+        // Pinned post
         _TwitterPostCard(
           displayName: displayName,
           handle: handle,
@@ -1258,9 +1256,8 @@ class _TwitterFeedPreview extends StatelessWidget {
             isWin: true,
           ),
         ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
 
-        // Thread Post 2
+        // Post 2
         _TwitterPostCard(
           displayName: displayName,
           handle: handle,
@@ -1276,9 +1273,8 @@ class _TwitterFeedPreview extends StatelessWidget {
           replies: '11',
           views: '2.1K',
         ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
 
-        // Thread Post 3
+        // Post 3
         _TwitterPostCard(
           displayName: displayName,
           handle: handle,
@@ -1351,181 +1347,224 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
 
-    return UiCard(
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          if (widget.isPinned) ...<Widget>[
-            Row(
-              children: <Widget>[
-                Icon(
-                  Icons.push_pin_rounded,
-                  size: context.sz(13),
-                  color: theme.colors.primary,
+    return InkWell(
+      onTap: () {},
+      splashColor: theme.colors.primary.withValues(alpha: 0.05),
+      highlightColor: theme.colors.surfaceMuted.withValues(alpha: 0.4),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.sp(theme.spacing.md),
+          vertical: context.sp(theme.spacing.sm),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // Pinned badge row
+            if (widget.isPinned) ...<Widget>[
+              Padding(
+                padding: EdgeInsets.only(
+                  left: context.sz(36),
+                  bottom: context.sp(theme.spacing.xs),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  'Pinned Setup',
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.primary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: context.fs(11),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: context.sp(theme.spacing.xs)),
-          ],
-
-          // Post Author Row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              UiAvatar(
-                name: widget.displayName,
-                imageUrl: widget.avatarUrl,
-                size: UiSize.sm,
-              ),
-              SizedBox(width: context.sp(theme.spacing.sm)),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: <Widget>[
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 4,
-                      children: <Widget>[
-                        Text(
-                          widget.displayName,
-                          style: context.uiText.bodyStrong.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Icon(
-                          Icons.verified_rounded,
-                          color: widget.verifiedColor,
-                          size: context.sz(15),
-                        ),
-                        Text(
-                          '@${widget.handle}',
-                          style: context.uiText.caption.copyWith(
-                            color: theme.colors.foregroundMuted,
-                          ),
-                        ),
-                        Text(
-                          '· ${widget.timestamp}',
-                          style: context.uiText.caption.copyWith(
-                            color: theme.colors.foregroundMuted,
-                          ),
-                        ),
-                      ],
+                    Icon(
+                      Icons.push_pin_rounded,
+                      size: context.sz(13),
+                      color: theme.colors.primary,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Text(
+                      'Pinned Setup',
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.primary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: context.fs(11),
+                      ),
                     ),
                   ],
                 ),
               ),
-              UiIconButton(
-                icon: Icons.more_horiz_rounded,
-                size: UiSize.xs,
-                tooltip: 'Post options',
-                onPressed: () {},
-              ),
             ],
-          ),
 
-          // Post Text Body
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          Text(
-            widget.body,
-            style: context.uiText.body.copyWith(
-              height: 1.45,
-              fontSize: context.fs(14),
-            ),
-          ),
+            // Threads-style avatar rail + content
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  // Left: avatar + vertical thread-line
+                  Column(
+                    children: <Widget>[
+                      UiAvatar(
+                        name: widget.displayName,
+                        imageUrl: widget.avatarUrl,
+                        size: UiSize.sm,
+                        verified: true,
+                        verifiedColor: widget.verifiedColor,
+                      ),
+                      const SizedBox(height: 6),
+                      Expanded(
+                        child: Container(
+                          width: 2,
+                          decoration: BoxDecoration(
+                            color: theme.colors.border.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(1),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.sm)),
 
-          // Embedded Setup Snapshot Card (if any)
-          if (widget.setupSnapshot != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.sm)),
-            widget.setupSnapshot!,
-          ],
+                  // Right: author header + body + tags + engagement bar
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        // Author row
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Expanded(
+                              child: Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 4,
+                                children: <Widget>[
+                                  Text(
+                                    widget.displayName,
+                                    style: context.uiText.bodyStrong.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.verified_rounded,
+                                    color: widget.verifiedColor,
+                                    size: context.sz(14),
+                                  ),
+                                  Text(
+                                    '@${widget.handle}',
+                                    style: context.uiText.caption.copyWith(
+                                      color: theme.colors.foregroundMuted,
+                                    ),
+                                  ),
+                                  Text(
+                                    '· ${widget.timestamp}',
+                                    style: context.uiText.caption.copyWith(
+                                      color: theme.colors.foregroundMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            UiIconButton(
+                              icon: Icons.more_horiz_rounded,
+                              size: UiSize.xs,
+                              tooltip: 'Post options',
+                              onPressed: () {},
+                            ),
+                          ],
+                        ),
 
-          // Hashtags
-          if (widget.tags.isNotEmpty) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.sm)),
-            Wrap(
-              spacing: context.sp(theme.spacing.xs),
-              runSpacing: context.sp(theme.spacing.xs),
-              children: widget.tags
-                  .map(
-                    (String tag) => UiBadge(
-                      label: '#$tag',
-                      intent: UiIntent.primary,
-                      variant: UiBadgeVariant.soft,
-                      size: UiSize.xs,
+                        // Body
+                        SizedBox(height: context.sp(theme.spacing.xs)),
+                        Text(
+                          widget.body,
+                          style: context.uiText.body.copyWith(
+                            height: 1.45,
+                            fontSize: context.fs(14),
+                          ),
+                        ),
+
+                        // Embedded trade setup card
+                        if (widget.setupSnapshot != null) ...<Widget>[
+                          SizedBox(height: context.sp(theme.spacing.sm)),
+                          widget.setupSnapshot!,
+                        ],
+
+                        // Hashtag badges
+                        if (widget.tags.isNotEmpty) ...<Widget>[
+                          SizedBox(height: context.sp(theme.spacing.sm)),
+                          Wrap(
+                            spacing: context.sp(theme.spacing.xs),
+                            runSpacing: context.sp(theme.spacing.xs),
+                            children: widget.tags
+                                .map(
+                                  (String tag) => UiBadge(
+                                    label: '#$tag',
+                                    intent: UiIntent.primary,
+                                    variant: UiBadgeVariant.soft,
+                                    size: UiSize.xs,
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ],
+
+                        // Engagement bar
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            _EngagementButton(
+                              icon: Icons.chat_bubble_outline_rounded,
+                              count: widget.replies,
+                              activeColor: theme.colors.primary,
+                              onTap: () {},
+                            ),
+                            _EngagementButton(
+                              icon: Icons.repeat_rounded,
+                              count: widget.reposts,
+                              activeColor: theme.colors.bullish,
+                              onTap: () {},
+                            ),
+                            _EngagementButton(
+                              icon: _liked
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              count: (int.tryParse(widget.likes) ?? 0) +
+                                      (_liked ? 1 : 0) ==
+                                  0
+                                  ? widget.likes
+                                  : '${(int.tryParse(widget.likes) ?? 0) + (_liked ? 1 : 0)}',
+                              isActive: _liked,
+                              activeColor: Colors.redAccent,
+                              onTap: () => setState(() => _liked = !_liked),
+                            ),
+                            _EngagementButton(
+                              icon: Icons.bar_chart_rounded,
+                              count: widget.views,
+                              activeColor: theme.colors.primary,
+                              onTap: () {},
+                            ),
+                            _EngagementButton(
+                              icon: _bookmarked
+                                  ? Icons.bookmark_rounded
+                                  : Icons.bookmark_border_rounded,
+                              count: '',
+                              isActive: _bookmarked,
+                              activeColor: theme.colors.warning,
+                              onTap: () =>
+                                  setState(() => _bookmarked = !_bookmarked),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: context.sp(theme.spacing.xs)),
+                      ],
                     ),
-                  )
-                  .toList(),
-            ),
-          ],
-
-          // Twitter Style Action Bar (Comments, Reposts, Likes, Views, Bookmark, Share)
-          SizedBox(height: context.sp(theme.spacing.md)),
-          Container(
-            padding: EdgeInsets.symmetric(
-              vertical: context.sp(theme.spacing.xxs),
-            ),
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(
-                  color: theme.colors.border.withValues(alpha: 0.5),
-                  width: theme.borders.hairline,
-                ),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                _EngagementButton(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  count: widget.replies,
-                  activeColor: theme.colors.primary,
-                  onTap: () {},
-                ),
-                _EngagementButton(
-                  icon: Icons.repeat_rounded,
-                  count: widget.reposts,
-                  activeColor: theme.colors.bullish,
-                  onTap: () {},
-                ),
-                _EngagementButton(
-                  icon: _liked
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  count: (int.tryParse(widget.likes) ?? 0 + (_liked ? 1 : 0))
-                      .toString(),
-                  isActive: _liked,
-                  activeColor: Colors.redAccent,
-                  onTap: () => setState(() => _liked = !_liked),
-                ),
-                _EngagementButton(
-                  icon: Icons.bar_chart_rounded,
-                  count: widget.views,
-                  activeColor: theme.colors.primary,
-                  onTap: () {},
-                ),
-                _EngagementButton(
-                  icon: _bookmarked
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  count: '',
-                  isActive: _bookmarked,
-                  activeColor: theme.colors.warning,
-                  onTap: () => setState(() => _bookmarked = !_bookmarked),
-                ),
-              ],
+
+            // Bottom separator hairline
+            Divider(
+              height: 1,
+              thickness: theme.borders.hairline,
+              color: theme.colors.border.withValues(alpha: 0.5),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

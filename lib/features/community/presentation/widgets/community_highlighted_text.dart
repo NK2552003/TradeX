@@ -1,0 +1,74 @@
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
+
+/// Renders post body text with highlighted and interactive `$TICKER` and `#tag` spans.
+class CommunityHighlightedText extends StatelessWidget {
+  const CommunityHighlightedText({
+    super.key,
+    required this.text,
+    this.style,
+    this.onTagTap,
+    this.selectable = false,
+  });
+
+  final String text;
+  final TextStyle? style;
+  final ValueChanged<String>? onTagTap;
+  final bool selectable;
+
+  static final RegExp _tagRegex =
+      RegExp(r'(\$[A-Za-z0-9_]+|#[A-Za-z0-9_]+|@[A-Za-z0-9_]+)');
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final TextStyle effectiveStyle =
+        (style ?? context.uiText.body.copyWith(height: 1.45)).copyWith(
+          color: style?.color ?? theme.colors.foreground,
+        );
+
+    final List<TextSpan> spans = <TextSpan>[];
+    int lastIndex = 0;
+
+    for (final Match match in _tagRegex.allMatches(text)) {
+      if (match.start > lastIndex) {
+        spans.add(
+          TextSpan(
+            text: text.substring(lastIndex, match.start),
+            style: effectiveStyle,
+          ),
+        );
+      }
+      final String tag = match.group(0)!;
+      spans.add(
+        TextSpan(
+          text: tag,
+          style: effectiveStyle.copyWith(
+            color: theme.colors.primary,
+            fontWeight: FontWeight.w600,
+          ),
+          recognizer: onTagTap == null
+              ? null
+              : (TapGestureRecognizer()..onTap = () => onTagTap!(tag)),
+        ),
+      );
+      lastIndex = match.end;
+    }
+    if (lastIndex < text.length) {
+      spans.add(
+        TextSpan(
+          text: text.substring(lastIndex),
+          style: effectiveStyle,
+        ),
+      );
+    }
+
+    final TextSpan textSpan = TextSpan(style: effectiveStyle, children: spans);
+
+    if (selectable) {
+      return SelectableText.rich(textSpan);
+    }
+    return Text.rich(textSpan);
+  }
+}

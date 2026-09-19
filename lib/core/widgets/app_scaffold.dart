@@ -23,6 +23,7 @@ import 'package:tradex/features/workspace/ui/workspace_screen.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
 import 'package:tradex/features/strategies/ui/strategies_screen.dart';
+import 'package:tradex/features/community/community.dart';
 
 /// The signed-in application shell: chrome, navigation and the active page.
 ///
@@ -554,7 +555,11 @@ class _AppScaffoldState extends State<AppScaffold> {
 
     'calculators' => CalculatorsScreen(onSubpageChanged: _onSubpageChanged),
     'portfolio' => UiSkeleton.portfolio(),
-    'community' => UiSkeleton.community(),
+    'community' => CommunityRootScreen(
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+    ),
     'messages' => UiSkeleton.messages(),
     'ai_copilot' => UiSkeleton.ai(),
     _ => _unknownPage(),
@@ -579,10 +584,10 @@ class _AppScaffoldState extends State<AppScaffold> {
       onOpenReferrals: _jump('referrals'),
       onOpenSettings: _jump('settings_affiliate'),
     ),
-    'community' => _placeholderPage(
-      'Community',
-      'This screen will feature affiliate partner forums and leaderboards.',
-      Icons.groups_outlined,
+    'community' => CommunityRootScreen(
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
     ),
     'messages' => _placeholderPage(
       'Messages',
@@ -599,6 +604,11 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   Widget _adminPage() => switch (_selectedId) {
     'notes' => const NotesScreen(),
+    'community' => CommunityRootScreen(
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+    ),
     'overview' => _placeholderPage(
       'Desk Overview',
       'This screen will display the trading firm executive summary and risk metrics.',
