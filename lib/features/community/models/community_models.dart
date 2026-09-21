@@ -249,6 +249,22 @@ class CommunityPoll {
     required this.options,
     this.expiresAt,
     this.votedOptionIndex,
+    this.votedOptionIndices = const <int>[],
+    this.allowMultiple = false,
+    this.authorId,
+    this.authorDisplayName,
+    this.authorAvatarUrl,
+    this.voterTradingStyles = const <String, int>{
+      'Scalper': 42,
+      'Day Trader': 118,
+      'Swing Trader': 204,
+      'Positional / Macro': 76,
+    },
+    this.voterWinRateTiers = const <String, int>{
+      '> 70% Win Rate': 112,
+      '50% - 70% Win Rate': 195,
+      '< 50% Win Rate': 133,
+    },
   });
 
   final String id;
@@ -256,11 +272,21 @@ class CommunityPoll {
   final List<CommunityPollOption> options;
   final DateTime? expiresAt;
   final int? votedOptionIndex;
+  final List<int> votedOptionIndices;
+  final bool allowMultiple;
+  final String? authorId;
+  final String? authorDisplayName;
+  final String? authorAvatarUrl;
+  final Map<String, int> voterTradingStyles;
+  final Map<String, int> voterWinRateTiers;
 
   int get totalVotes => options.fold(0, (sum, opt) => sum + opt.votes);
-  bool get hasVoted => votedOptionIndex != null;
+  bool get hasVoted => votedOptionIndex != null || votedOptionIndices.isNotEmpty;
   bool get isExpired =>
       expiresAt != null && DateTime.now().isAfter(expiresAt!);
+
+  bool hasVotedFor(int index) =>
+      votedOptionIndex == index || votedOptionIndices.contains(index);
 
   double percentageFor(int index) {
     final total = totalVotes;
@@ -271,12 +297,26 @@ class CommunityPoll {
   CommunityPoll copyWith({
     List<CommunityPollOption>? options,
     int? votedOptionIndex,
+    List<int>? votedOptionIndices,
+    bool? allowMultiple,
+    String? authorId,
+    String? authorDisplayName,
+    String? authorAvatarUrl,
+    Map<String, int>? voterTradingStyles,
+    Map<String, int>? voterWinRateTiers,
   }) => CommunityPoll(
     id: id,
     question: question,
     options: options ?? this.options,
     expiresAt: expiresAt,
     votedOptionIndex: votedOptionIndex ?? this.votedOptionIndex,
+    votedOptionIndices: votedOptionIndices ?? this.votedOptionIndices,
+    allowMultiple: allowMultiple ?? this.allowMultiple,
+    authorId: authorId ?? this.authorId,
+    authorDisplayName: authorDisplayName ?? this.authorDisplayName,
+    authorAvatarUrl: authorAvatarUrl ?? this.authorAvatarUrl,
+    voterTradingStyles: voterTradingStyles ?? this.voterTradingStyles,
+    voterWinRateTiers: voterWinRateTiers ?? this.voterWinRateTiers,
   );
 }
 
@@ -535,6 +575,9 @@ class CommunityComment {
     this.likes = 0,
     this.liked = false,
     this.replies = const <CommunityComment>[],
+    this.sentiment,
+    this.parentCommentId,
+    this.userReaction,
   });
 
   final String id;
@@ -545,8 +588,20 @@ class CommunityComment {
   final int likes;
   final bool liked;
   final List<CommunityComment> replies;
+  final String? sentiment;
+  final String? parentCommentId;
+  final String? userReaction;
 
-  CommunityComment copyWith({int? likes, bool? liked}) => CommunityComment(
+  bool get isLiked => liked;
+
+  CommunityComment copyWith({
+    int? likes,
+    bool? liked,
+    List<CommunityComment>? replies,
+    String? sentiment,
+    String? parentCommentId,
+    String? userReaction,
+  }) => CommunityComment(
     id: id,
     postId: postId,
     author: author,
@@ -554,7 +609,10 @@ class CommunityComment {
     createdAt: createdAt,
     likes: likes ?? this.likes,
     liked: liked ?? this.liked,
-    replies: replies,
+    replies: replies ?? this.replies,
+    sentiment: sentiment ?? this.sentiment,
+    parentCommentId: parentCommentId ?? this.parentCommentId,
+    userReaction: userReaction ?? this.userReaction,
   );
 }
 

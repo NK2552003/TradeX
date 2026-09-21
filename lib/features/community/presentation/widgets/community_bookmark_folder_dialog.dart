@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 
 /// Modal dialog for organizing saved posts into custom bookmark folders/collections.
 class CommunityBookmarkFolderDialog extends StatefulWidget {
@@ -16,18 +17,22 @@ class CommunityBookmarkFolderDialog extends StatefulWidget {
   static Future<String?> show(BuildContext context, {required String postId}) {
     return showDialog<String>(
       context: context,
-      builder: (ctx) => CommunityBookmarkFolderDialog(
-        postId: postId,
-        onFolderSelected: (folder) => Navigator.of(ctx).pop(folder),
+      builder: (ctx) => CommunityDensityScope(
+        child: CommunityBookmarkFolderDialog(
+          postId: postId,
+          onFolderSelected: (folder) => Navigator.of(ctx).pop(folder),
+        ),
       ),
     );
   }
 
   @override
-  State<CommunityBookmarkFolderDialog> createState() => _CommunityBookmarkFolderDialogState();
+  State<CommunityBookmarkFolderDialog> createState() =>
+      _CommunityBookmarkFolderDialogState();
 }
 
-class _CommunityBookmarkFolderDialogState extends State<CommunityBookmarkFolderDialog> {
+class _CommunityBookmarkFolderDialogState
+    extends State<CommunityBookmarkFolderDialog> {
   final List<String> _folders = [
     'All Bookmarks',
     'Swing Setups',
@@ -109,10 +114,14 @@ class _CommunityBookmarkFolderDialogState extends State<CommunityBookmarkFolderD
                     ),
                     margin: EdgeInsets.only(bottom: context.sp(6)),
                     decoration: BoxDecoration(
-                      color: isSelected ? colors.primary.withValues(alpha: 0.1) : Colors.transparent,
+                      color: isSelected
+                          ? colors.primary.withValues(alpha: 0.1)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(context.sz(8)),
                       border: Border.all(
-                        color: isSelected ? colors.primary.withValues(alpha: 0.5) : colors.border,
+                        color: isSelected
+                            ? colors.primary.withValues(alpha: 0.5)
+                            : colors.border,
                       ),
                     ),
                     child: Row(
@@ -120,20 +129,30 @@ class _CommunityBookmarkFolderDialogState extends State<CommunityBookmarkFolderD
                         Icon(
                           Icons.folder_outlined,
                           size: context.sz(18),
-                          color: isSelected ? colors.primary : colors.foregroundMuted,
+                          color: isSelected
+                              ? colors.primary
+                              : colors.foregroundMuted,
                         ),
                         SizedBox(width: context.sp(10)),
                         Expanded(
                           child: Text(
                             folder,
                             style: context.uiText.body.copyWith(
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                              color: isSelected ? colors.primary : colors.foreground,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: isSelected
+                                  ? colors.primary
+                                  : colors.foreground,
                             ),
                           ),
                         ),
                         if (isSelected)
-                          Icon(Icons.check, size: context.sz(16), color: colors.primary),
+                          Icon(
+                            Icons.check,
+                            size: context.sz(16),
+                            color: colors.primary,
+                          ),
                       ],
                     ),
                   ),
@@ -149,10 +168,14 @@ class _CommunityBookmarkFolderDialogState extends State<CommunityBookmarkFolderD
                       child: TextField(
                         controller: _newFolderController,
                         autofocus: true,
-                        style: context.uiText.body.copyWith(color: colors.foreground),
+                        style: context.uiText.body.copyWith(
+                          color: colors.foreground,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'New folder name...',
-                          hintStyle: context.uiText.body.copyWith(color: colors.foregroundMuted),
+                          hintStyle: context.uiText.body.copyWith(
+                            color: colors.foregroundMuted,
+                          ),
                           contentPadding: EdgeInsets.symmetric(
                             horizontal: context.sp(12),
                             vertical: context.sp(8),

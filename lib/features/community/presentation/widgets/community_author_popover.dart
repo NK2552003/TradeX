@@ -126,13 +126,17 @@ class CommunityAuthorPopover extends StatelessWidget {
               ),
             ),
             if (onFollow != null)
-              UiButton(
-                label: author.isFollowing ? 'Following' : 'Follow',
+              UiIconButton(
+                icon: author.isFollowing
+                    ? Icons.check_rounded
+                    : Icons.person_add_rounded,
                 variant: author.isFollowing
                     ? UiVariant.outline
                     : UiVariant.primary,
                 size: UiSize.sm,
-                expandOnMobile: false,
+                tooltip: author.isFollowing
+                    ? 'Following @${author.handle}'
+                    : 'Follow @${author.handle}',
                 onPressed: onFollow,
               ),
           ],

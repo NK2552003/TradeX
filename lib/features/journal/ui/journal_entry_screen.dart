@@ -15,6 +15,9 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 
 import '../data/journal_attachments.dart';
 import '../data/journal_repository.dart';
+import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
 
 /// Read-only view of one journal entry: the write-up, then the numbers behind
 /// it, then everything it is attached to.
@@ -100,6 +103,126 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
 
   /// Roughly 220 words a minute, floored at a minute.
   int get _readMinutes => (_entry.wordCount / 220).ceil().clamp(1, 999);
+
+  late List<CommunityComment> _tradeComments = <CommunityComment>[
+    CommunityComment(
+      id: 'cmt_j1',
+      postId: _entry.id,
+      author: const CommunityAuthor(
+        id: 'usr_sarah',
+        handle: 'sarah_fno',
+        displayName: 'Sarah Chen',
+        userRole: UserRole.customer,
+        avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+        verified: true,
+        followers: 3420,
+        following: 410,
+        winRate: 74.5,
+      ),
+      body: 'Clean execution on the breakout retest. Did you account for the liquidity sweep below support before entering?',
+      createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+      likes: 4,
+      sentiment: 'Insightful',
+      replies: <CommunityComment>[
+        CommunityComment(
+          id: 'cmt_j1_1',
+          postId: _entry.id,
+          parentCommentId: 'cmt_j1',
+          author: const CommunityAuthor(
+            id: 'usr_current',
+            handle: 'alex_vance',
+            displayName: 'Alex Vance',
+            userRole: UserRole.userAdmin,
+            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+            verified: true,
+            followers: 4890,
+            following: 512,
+            winRate: 71.2,
+          ),
+          body: 'Yes, waited for the 5-min candle close back inside value area before triggering sizing.',
+          createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+          likes: 2,
+        ),
+      ],
+    ),
+  ];
+
+  Future<void> _handleAddTradeComment(
+    String text, {
+    String? parentCommentId,
+    String? sentiment,
+  }) async {
+    final CommunityComment newComment = CommunityComment(
+      id: 'cmt_${DateTime.now().millisecondsSinceEpoch}',
+      postId: _entry.id,
+      parentCommentId: parentCommentId,
+      author: const CommunityAuthor(
+        id: 'usr_current',
+        handle: 'alex_vance',
+        displayName: 'Alex Vance',
+        userRole: UserRole.userAdmin,
+        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        verified: true,
+        followers: 4890,
+        following: 512,
+        winRate: 71.2,
+      ),
+      body: text,
+      createdAt: DateTime.now(),
+      likes: 0,
+      sentiment: sentiment,
+    );
+
+    setState(() {
+      if (parentCommentId == null) {
+        _tradeComments = <CommunityComment>[newComment, ..._tradeComments];
+      } else {
+        _tradeComments = _tradeComments.map((c) {
+          if (c.id == parentCommentId) {
+            return c.copyWith(
+              replies: <CommunityComment>[...c.replies, newComment],
+            );
+          }
+          return c;
+        }).toList();
+      }
+    });
+
+    if (mounted) {
+      UiToast.success(
+        context,
+        title: 'Review Posted',
+        message: 'Your critique has been added to the trade log.',
+      );
+    }
+  }
+
+  void _handleLikeTradeComment(String commentId, {String? reaction}) {
+    setState(() {
+      _tradeComments = _tradeComments.map((c) {
+        if (c.id == commentId) {
+          final bool wasLiked = c.isLiked;
+          return c.copyWith(
+            liked: !wasLiked,
+            likes: wasLiked ? (c.likes - 1).clamp(0, 9999) : c.likes + 1,
+            userReaction: wasLiked ? null : (reaction ?? '👍'),
+          );
+        }
+        final List<CommunityComment> updatedReplies = c.replies.map((r) {
+          if (r.id == commentId) {
+            final bool wasLiked = r.isLiked;
+            return r.copyWith(
+              liked: !wasLiked,
+              likes: wasLiked ? (r.likes - 1).clamp(0, 9999) : r.likes + 1,
+              userReaction: wasLiked ? null : (reaction ?? '👍'),
+            );
+          }
+          return r;
+        }).toList();
+        return c.copyWith(replies: updatedReplies);
+      }).toList();
+    });
+  }
 
   // ── Linking ────────────────────────────────────────────────────────────────
 
@@ -507,6 +630,26 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
             ),
           SizedBox(height: context.sp(theme.spacing.xl)),
           AppJournalNoteMetrics(entry: _entry),
+          SizedBox(height: context.sp(theme.spacing.xl)),
+          UniversalCommentsSection(
+            targetId: _entry.id,
+            targetType: 'trade_journal',
+            title: 'Execution Critique & Peer Discussion',
+            comments: _tradeComments,
+            currentUser: const CommunityAuthor(
+              id: 'usr_current',
+              handle: 'alex_vance',
+              displayName: 'Alex Vance',
+              userRole: UserRole.userAdmin,
+              avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+              verified: true,
+              followers: 4890,
+              following: 512,
+              winRate: 71.2,
+            ),
+            onAddComment: _handleAddTradeComment,
+            onLikeComment: _handleLikeTradeComment,
+          ),
         ],
       ),
     );

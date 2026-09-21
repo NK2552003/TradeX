@@ -193,10 +193,17 @@ class UiTheme extends ThemeExtension<UiTheme> {
 }
 
 /// Provides [UiTheme] to the widget tree.
-class UiThemeScope extends InheritedWidget {
+class UiThemeScope extends InheritedTheme {
   const UiThemeScope({super.key, required this.theme, required super.child});
 
   final UiTheme theme;
+
+  /// Lets Flutter capture this scope when a dialog, menu, or bottom sheet is
+  /// pushed onto a navigator overlay. This keeps local density overrides —
+  /// such as the compact community scale — consistent in overlay content.
+  @override
+  Widget wrap(BuildContext context, Widget child) =>
+      UiThemeScope(theme: theme, child: child);
 
   static UiTheme of(BuildContext context) {
     final UiThemeScope? scope = context
@@ -231,7 +238,8 @@ class UiApp extends StatelessWidget {
 }
 
 /// Ergonomic access to tokens + responsive helpers from any widget.
-extension UiThemeContext on BuildContext {  UiTheme get ui => UiThemeScope.of(this);
+extension UiThemeContext on BuildContext {
+  UiTheme get ui => UiThemeScope.of(this);
   UiColors get uiColors => ui.colors;
   UiSpacing get uiSpace => ui.spacing;
   UiRadii get uiRadii => ui.radii;
@@ -282,8 +290,7 @@ extension UiThemeContext on BuildContext {  UiTheme get ui => UiThemeScope.of(th
   /// The shell publishes that footprint as a [MediaQuery] bottom padding, so a
   /// page never has to know the dock's height — read this instead of hardcoding
   /// a magic number, or the page breaks the moment the dock changes size.
-  double get uiDockInset =>
-      MediaQuery.paddingOf(this).bottom + sp(uiSpace.lg);
+  double get uiDockInset => MediaQuery.paddingOf(this).bottom + sp(uiSpace.lg);
 
   /// [uiDockInset], or room for the keyboard when it is open.
   double get uiPageBottomInset {

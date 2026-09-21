@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 
 /// Reusable snippet widget rendering structured trade setup details and candlestick chart.
 class CommunityTradeSetupTile extends StatelessWidget {
@@ -22,8 +23,7 @@ class CommunityTradeSetupTile extends StatelessWidget {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
 
-    return UiCard(
-      variant: UiCardVariant.surface,
+    return CommunityTile(
       onTap: onTap,
       padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
       child: Column(
@@ -55,7 +55,9 @@ class CommunityTradeSetupTile extends StatelessWidget {
                     SizedBox(width: context.sp(theme.spacing.xs)),
                     UiBadge(
                       label: setup.side,
-                      intent: setup.isBullish ? UiIntent.success : UiIntent.danger,
+                      intent: setup.isBullish
+                          ? UiIntent.success
+                          : UiIntent.danger,
                       variant: UiBadgeVariant.solid,
                       size: UiSize.xs,
                     ),
@@ -73,10 +75,10 @@ class CommunityTradeSetupTile extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-              if (setup.rMultiple != null) ...<Widget>[
+              if (setup.rMultiple != null || _computeRiskReward() != null) ...<Widget>[
                 SizedBox(width: context.sp(theme.spacing.xs)),
                 UiBadge(
-                  label: setup.rMultiple!,
+                  label: setup.rMultiple ?? _computeRiskReward()!,
                   intent: (setup.isWin ?? true)
                       ? UiIntent.success
                       : UiIntent.danger,
@@ -126,31 +128,37 @@ class CommunityTradeSetupTile extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               UiButton(
-                label: 'Log to Journal',
-                icon: Icons.book_outlined,
+                label: 'Copy Setup to Journal',
+                leadingIcon: Icons.bookmark_add_outlined,
                 variant: UiVariant.ghost,
                 size: UiSize.xs,
-                onPressed: onLogToJournal ??
+                onPressed:
+                    onLogToJournal ??
                     () {
                       UiToast.show(
                         context,
-                        title: 'Saved to Journal',
-                        message: 'Trade setup for ${setup.ticker} saved to your Trading Journal',
+                        title: 'Copied to Journal',
+                        message:
+                            'Trade setup for ${setup.ticker} saved to your Trading Journal',
+                        intent: UiIntent.success,
                       );
                     },
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
               UiButton(
                 label: 'Clone Setup',
-                icon: Icons.copy_rounded,
+                leadingIcon: Icons.copy_rounded,
                 variant: UiVariant.outline,
                 size: UiSize.xs,
-                onPressed: onCloneSetup ??
+                onPressed:
+                    onCloneSetup ??
                     () {
                       UiToast.show(
                         context,
                         title: 'Setup Cloned',
-                        message: 'Loaded ${setup.ticker} setup into Order Ticket (Paper Desk)',
+                        message:
+                            'Loaded ${setup.ticker} setup into Order Ticket (Paper Desk)',
+                        intent: UiIntent.primary,
                       );
                     },
               ),
@@ -183,5 +191,28 @@ class CommunityTradeSetupTile extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String? _computeRiskReward() {
+    if (setup.rMultiple != null) return setup.rMultiple;
+    final entry = double.tryParse(setup.entry.replaceAll(RegExp(r'[^0-9.]'), ''));
+    final sl = setup.stopLoss != null
+        ? double.tryParse(setup.stopLoss!.replaceAll(RegExp(r'[^0-9.]'), ''))
+        : null;
+    final target = setup.target != null
+        ? double.tryParse(setup.target!.replaceAll(RegExp(r'[^0-9.]'), ''))
+        : null;
+    if (entry == null || sl == null || target == null) return null;
+    double risk = 0;
+    double reward = 0;
+    if (setup.isBullish) {
+      risk = entry - sl;
+      reward = target - entry;
+    } else {
+      risk = sl - entry;
+      reward = entry - target;
+    }
+    if (risk <= 0 || reward <= 0) return null;
+    return '1 : ${(reward / risk).toStringAsFixed(1)} R:R';
   }
 }

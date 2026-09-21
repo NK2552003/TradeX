@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
 
 /// Renders a Twitter/Threads-grade flat feed timeline with hairline dividers and
@@ -18,6 +18,7 @@ class CommunityFeedList extends StatelessWidget {
     this.onBookmark,
     this.onAuthorTap,
     this.onTagTap,
+    this.onOpenRef,
     this.onRefresh,
     this.padding,
     this.emptyState,
@@ -32,6 +33,7 @@ class CommunityFeedList extends StatelessWidget {
   final ValueChanged<String>? onBookmark;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<String>? onTagTap;
+  final ValueChanged<AppLinkRef>? onOpenRef;
   final Future<void> Function()? onRefresh;
   final EdgeInsetsGeometry? padding;
   final Widget? emptyState;
@@ -42,26 +44,26 @@ class CommunityFeedList extends StatelessWidget {
     final int headerCount = header != null ? 1 : 0;
     final int totalCount = headerCount + posts.length;
 
+    final double topEdgeOffset =
+        (padding is EdgeInsets) ? (padding as EdgeInsets).top : 0.0;
+
     if (posts.isEmpty && header == null) {
       final empty =
           emptyState ??
-          Center(
-            child: Padding(
-              padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-              child: UiEmptyState(
-                icon: Icons.chat_bubble_outline_rounded,
-                title: 'No posts in this feed yet',
-                message:
-                    'Be the first to share a thesis, trade setup or market insight.',
-              ),
-            ),
+          const CommunityEmptyState(
+            icon: Icons.chat_bubble_outline_rounded,
+            title: 'No posts in this feed yet',
+            message:
+                'Be the first to share a thesis, trade setup or market insight.',
           );
 
       if (onRefresh != null) {
         return RefreshIndicator(
+          edgeOffset: topEdgeOffset,
           onRefresh: onRefresh!,
           child: ListView(
             controller: controller,
+            padding: padding,
             physics: const AlwaysScrollableScrollPhysics(),
             children: <Widget>[empty],
           ),
@@ -98,12 +100,17 @@ class CommunityFeedList extends StatelessWidget {
           onBookmark: () => onBookmark?.call(post.id),
           onAuthorTap: onAuthorTap,
           onTagTap: onTagTap,
+          onOpenRef: onOpenRef,
         );
       },
     );
 
     if (onRefresh != null) {
-      list = RefreshIndicator(onRefresh: onRefresh!, child: list);
+      list = RefreshIndicator(
+        edgeOffset: topEdgeOffset,
+        onRefresh: onRefresh!,
+        child: list,
+      );
     }
 
     return list;

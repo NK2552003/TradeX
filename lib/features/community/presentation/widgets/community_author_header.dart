@@ -121,6 +121,13 @@ class CommunityAuthorHeader extends StatelessWidget {
             variant: UiBadgeVariant.solid,
             size: UiSize.xs,
           ),
+        if (author.winRate != null)
+          UiBadge(
+            label: '${author.winRate!.toStringAsFixed(0)}% Win',
+            intent: author.winRate! >= 60 ? UiIntent.success : UiIntent.neutral,
+            variant: UiBadgeVariant.soft,
+            size: UiSize.xs,
+          ),
         Text(
           '@${author.handle}',
           style: context.uiText.caption.copyWith(
@@ -180,6 +187,15 @@ class CommunityAuthorHeader extends StatelessWidget {
                     ? UiIntent.danger
                     : UiIntent.warning,
                 variant: UiBadgeVariant.solid,
+                size: UiSize.xs,
+              ),
+            ],
+            if (author.winRate != null) ...<Widget>[
+              const SizedBox(width: 4),
+              UiBadge(
+                label: '${author.winRate!.toStringAsFixed(0)}% Win',
+                intent: author.winRate! >= 60 ? UiIntent.success : UiIntent.neutral,
+                variant: UiBadgeVariant.soft,
                 size: UiSize.xs,
               ),
             ],

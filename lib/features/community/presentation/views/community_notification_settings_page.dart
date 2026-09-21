@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 
 /// Screen allowing traders to configure per-category notification preferences,
 /// signal alerts, and quiet hours.
 class CommunityNotificationSettingsPage extends StatefulWidget {
-  const CommunityNotificationSettingsPage({
-    super.key,
-    this.onBack,
-  });
+  const CommunityNotificationSettingsPage({super.key, this.onBack});
 
   final VoidCallback? onBack;
 
@@ -42,7 +40,9 @@ class _CommunityNotificationSettingsPageState
         leading: UiIconButton(
           icon: Icons.arrow_back,
           variant: UiVariant.ghost,
-          onPressed: () => widget.onBack != null ? widget.onBack!() : Navigator.of(context).pop(),
+          onPressed: () => widget.onBack != null
+              ? widget.onBack!()
+              : Navigator.of(context).pop(),
         ),
         title: Text(
           'Notification Preferences',
@@ -54,7 +54,7 @@ class _CommunityNotificationSettingsPageState
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
+          constraints: const BoxConstraints(maxWidth: kCommunityMaxWidth),
           child: ListView(
             padding: EdgeInsets.all(context.sp(16)),
             children: [
@@ -88,7 +88,8 @@ class _CommunityNotificationSettingsPageState
                       ),
                       UiToggle(
                         value: _masterPushEnabled,
-                        onChanged: (val) => setState(() => _masterPushEnabled = val),
+                        onChanged: (val) =>
+                            setState(() => _masterPushEnabled = val),
                       ),
                     ],
                   ),
@@ -105,7 +106,8 @@ class _CommunityNotificationSettingsPageState
                     _ToggleRow(
                       icon: Icons.show_chart,
                       title: 'Trade Setup & Signal Alerts',
-                      subtitle: 'When traders you follow post verified trade setups',
+                      subtitle:
+                          'When traders you follow post verified trade setups',
                       value: _setupAlerts,
                       onChanged: (v) => setState(() => _setupAlerts = v),
                     ),
@@ -113,7 +115,8 @@ class _CommunityNotificationSettingsPageState
                     _ToggleRow(
                       icon: Icons.campaign_outlined,
                       title: 'Official Desk Announcements',
-                      subtitle: 'High-priority market alerts from desk administrators',
+                      subtitle:
+                          'High-priority market alerts from desk administrators',
                       value: _deskAlerts,
                       onChanged: (v) => setState(() => _deskAlerts = v),
                     ),
@@ -131,7 +134,8 @@ class _CommunityNotificationSettingsPageState
                     _ToggleRow(
                       icon: Icons.alternate_email,
                       title: 'Mentions & Cashtag Replies',
-                      subtitle: 'When someone mentions you with @ or quotes your analysis',
+                      subtitle:
+                          'When someone mentions you with @ or quotes your analysis',
                       value: _mentions,
                       onChanged: (v) => setState(() => _mentions = v),
                     ),
@@ -205,7 +209,8 @@ class _CommunityNotificationSettingsPageState
                           ),
                           UiToggle(
                             value: _quietHoursEnabled,
-                            onChanged: (v) => setState(() => _quietHoursEnabled = v),
+                            onChanged: (v) =>
+                                setState(() => _quietHoursEnabled = v),
                           ),
                         ],
                       ),

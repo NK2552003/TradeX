@@ -123,7 +123,7 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
     final theme = context.ui;
 
     return ColoredBox(
-      color: Colors.black,
+      color: theme.colors.background,
       child: Stack(
         children: <Widget>[
           Positioned.fill(

@@ -107,6 +107,11 @@ class CommunityRepository extends ChangeNotifier {
   /// from their notes, journal entries and strategies. Sorted most-recent first.
   List<AppWritingPostAttachment> get attachableRecords => _attachableRecords;
 
+  void addAttachableRecord(AppWritingPostAttachment record) {
+    _attachableRecords = <AppWritingPostAttachment>[record, ..._attachableRecords];
+    notifyListeners();
+  }
+
   List<CommunityComment> commentsForPost(String postId) =>
       _commentsByPost[postId] ?? const <CommunityComment>[];
 
@@ -214,7 +219,7 @@ class CommunityRepository extends ChangeNotifier {
   /// @backend POST /api/v1/community/posts/{postId}/comments
   /// Body: { "body": String, "parent_comment_id": String? }
   /// Returns: CommunityComment JSON
-  void addComment(String postId, String body, {CommunityAuthor? author}) {
+  void addComment(String postId, String body, {CommunityAuthor? author, String? parentId}) {
     final a = author ?? _alexVance;
     final comment = CommunityComment(
       id: 'cmt_${DateTime.now().millisecondsSinceEpoch}',
@@ -224,7 +229,18 @@ class CommunityRepository extends ChangeNotifier {
       createdAt: DateTime.now(),
     );
     final existing = List<CommunityComment>.from(_commentsByPost[postId] ?? []);
-    existing.insert(0, comment);
+    if (parentId != null) {
+      final parentIdx = existing.indexWhere((c) => c.id == parentId);
+      if (parentIdx != -1) {
+        final parent = existing[parentIdx];
+        final updatedReplies = List<CommunityComment>.from(parent.replies)..add(comment);
+        existing[parentIdx] = parent.copyWith(replies: updatedReplies);
+      } else {
+        existing.insert(0, comment);
+      }
+    } else {
+      existing.insert(0, comment);
+    }
     _commentsByPost = Map<String, List<CommunityComment>>.from(_commentsByPost)
       ..[postId] = existing;
     _forYouPosts = _incrementComments(_forYouPosts, postId);
@@ -368,18 +384,40 @@ class CommunityRepository extends ChangeNotifier {
     _forYouPosts = _forYouPosts.map((p) {
       if (p.id != postId || p.poll == null) return p;
       final poll = p.poll!;
-      if (poll.hasVoted) return p;
       final updatedOptions = List<CommunityPollOption>.from(poll.options);
-      if (optionIndex >= 0 && optionIndex < updatedOptions.length) {
+      if (optionIndex < 0 || optionIndex >= updatedOptions.length) return p;
+
+      if (poll.allowMultiple) {
+        final currentIndices = List<int>.from(poll.votedOptionIndices);
+        final opt = updatedOptions[optionIndex];
+        if (currentIndices.contains(optionIndex)) {
+          currentIndices.remove(optionIndex);
+          updatedOptions[optionIndex] =
+              opt.copyWith(votes: (opt.votes - 1).clamp(0, 999999));
+        } else {
+          currentIndices.add(optionIndex);
+          updatedOptions[optionIndex] = opt.copyWith(votes: opt.votes + 1);
+        }
+        return p.copyWith(
+          poll: poll.copyWith(
+            options: updatedOptions,
+            votedOptionIndices: currentIndices,
+            votedOptionIndex:
+                currentIndices.isEmpty ? null : currentIndices.first,
+          ),
+        );
+      } else {
+        if (poll.hasVoted) return p;
         final opt = updatedOptions[optionIndex];
         updatedOptions[optionIndex] = opt.copyWith(votes: opt.votes + 1);
+        return p.copyWith(
+          poll: poll.copyWith(
+            options: updatedOptions,
+            votedOptionIndex: optionIndex,
+            votedOptionIndices: [optionIndex],
+          ),
+        );
       }
-      return p.copyWith(
-        poll: poll.copyWith(
-          options: updatedOptions,
-          votedOptionIndex: optionIndex,
-        ),
-      );
     }).toList();
     notifyListeners();
   }
@@ -523,6 +561,15 @@ class CommunityRepository extends ChangeNotifier {
 
   void removeCustomFeedTab(String label) {
     _customFeedTabs.remove(label);
+    notifyListeners();
+  }
+
+  void reorderCustomFeedTabs(int oldIndex, int newIndex) {
+    if (oldIndex < 0 || oldIndex >= _customFeedTabs.length) return;
+    if (newIndex < 0 || newIndex > _customFeedTabs.length) return;
+    if (oldIndex < newIndex) newIndex -= 1;
+    final String item = _customFeedTabs.removeAt(oldIndex);
+    _customFeedTabs.insert(newIndex, item);
     notifyListeners();
   }
 

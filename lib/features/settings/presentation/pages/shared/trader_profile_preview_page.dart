@@ -410,15 +410,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       );
                                     },
                                   ),
-                                  UiButton(
-                                    label: isAffiliate
-                                        ? (_isFollowing
-                                              ? 'Subscribed'
-                                              : 'Subscribe')
-                                        : (_isFollowing
-                                              ? 'Following'
-                                              : 'Follow'),
-                                    leadingIcon: _isFollowing
+                                  UiIconButton(
+                                    icon: _isFollowing
                                         ? Icons.check_rounded
                                         : (isAffiliate
                                               ? Icons.stars_rounded
@@ -429,7 +422,14 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     intent: isAffiliate
                                         ? UiIntent.warning
                                         : UiIntent.primary,
-                                    expandOnMobile: false,
+                                    size: UiSize.sm,
+                                    tooltip: isAffiliate
+                                        ? (_isFollowing
+                                              ? 'Subscribed to @${widget.handle}'
+                                              : 'Subscribe to @${widget.handle}')
+                                        : (_isFollowing
+                                              ? 'Following @${widget.handle}'
+                                              : 'Follow @${widget.handle}'),
                                     onPressed: () {
                                       setState(
                                         () => _isFollowing = !_isFollowing,

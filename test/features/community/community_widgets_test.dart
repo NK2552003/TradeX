@@ -117,6 +117,56 @@ void main() {
     });
   });
 
+  group('Community post attachment linking', () {
+    testWidgets('opens the attached record source instead of the post', (
+      WidgetTester tester,
+    ) async {
+      final now = DateTime.now();
+      final attachment = AppWritingPostAttachment.note(
+        AppNote(
+          id: 'linked-note-42',
+          title: 'Risk plan',
+          content: 'Reduce exposure into the event.',
+          createdAt: now,
+          updatedAt: now,
+          isPublic: true,
+        ),
+      );
+      const author = CommunityAuthor(
+        id: 'author-link',
+        displayName: 'Link Tester',
+        handle: 'link_tester',
+        userRole: UserRole.customer,
+      );
+      final post = CommunityPost(
+        id: 'post-link-42',
+        author: author,
+        body: 'Attached my risk plan.',
+        createdAt: now,
+        attachment: attachment,
+      );
+      AppLinkRef? opened;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CommunityPostCard(
+              post: post,
+              onOpenRef: (AppLinkRef ref) => opened = ref,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(CommunityAttachmentTile));
+
+      expect(opened, isNotNull);
+      expect(opened!.id, 'linked-note-42');
+      expect(opened!.kind, AppLinkKind.note);
+    });
+  });
+
   group('CommunityCommentCard Tests', () {
     testWidgets('renders author, body with highlight, and like counter', (
       WidgetTester tester,
@@ -298,7 +348,9 @@ void main() {
   });
 
   group('Community Interactive Tiles & Sidebar Tests', () {
-    testWidgets('CommunityPollTile renders question and allows voting', (WidgetTester tester) async {
+    testWidgets('CommunityPollTile renders question and allows voting', (
+      WidgetTester tester,
+    ) async {
       int? votedIdx;
       final poll = CommunityPoll(
         id: 'poll-test-1',
@@ -329,53 +381,51 @@ void main() {
       expect(votedIdx, equals(0));
     });
 
-    testWidgets('CommunityTradeSetupTile renders ticker, side, entry and target', (WidgetTester tester) async {
-      const setup = CommunityTradeSetup(
-        ticker: 'RELIANCE',
-        side: 'LONG',
-        entry: '2980.50',
-        stopLoss: '2930.00',
-        target: '3080.00',
-        pnl: '+3.3%',
-        isWin: true,
-      );
+    testWidgets(
+      'CommunityTradeSetupTile renders ticker, side, entry and target',
+      (WidgetTester tester) async {
+        const setup = CommunityTradeSetup(
+          ticker: 'RELIANCE',
+          side: 'LONG',
+          entry: '2980.50',
+          stopLoss: '2930.00',
+          target: '3080.00',
+          pnl: '+3.3%',
+          isWin: true,
+        );
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: CommunityTradeSetupTile(setup: setup),
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(body: CommunityTradeSetupTile(setup: setup)),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('RELIANCE'), findsOneWidget);
-      expect(find.text('LONG'), findsOneWidget);
-      expect(find.text('2980.50'), findsOneWidget);
-      expect(find.text('3080.00'), findsOneWidget);
-    });
+        expect(find.text('RELIANCE'), findsOneWidget);
+        expect(find.text('LONG'), findsOneWidget);
+        expect(find.text('2980.50'), findsOneWidget);
+        expect(find.text('3080.00'), findsOneWidget);
+      },
+    );
 
-    testWidgets('CommunityDisclaimerCard renders SEBI disclaimer and guidelines trigger', (WidgetTester tester) async {
+    testWidgets(
+      'CommunityDisclaimerCard renders SEBI disclaimer and guidelines trigger',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(home: Scaffold(body: CommunityDisclaimerCard())),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Regulatory Disclaimer'), findsOneWidget);
+        expect(find.text('Guidelines'), findsOneWidget);
+      },
+    );
+
+    testWidgets('CommunityLiveRoomWidget renders LIVE floor and topic', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: CommunityDisclaimerCard(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Regulatory Disclaimer'), findsOneWidget);
-      expect(find.text('Guidelines'), findsOneWidget);
-    });
-
-    testWidgets('CommunityLiveRoomWidget renders LIVE floor and topic', (WidgetTester tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: CommunityLiveRoomWidget(),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: CommunityLiveRoomWidget())),
       );
       await tester.pumpAndSettle();
 
@@ -385,26 +435,27 @@ void main() {
   });
 
   group('Community Sub-Pages Tests', () {
-    testWidgets('CommunityNotificationSettingsPage renders preferences and saves', (WidgetTester tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: CommunityNotificationSettingsPage(),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'CommunityNotificationSettingsPage renders preferences and saves',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(home: CommunityNotificationSettingsPage()),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Notification Preferences'), findsOneWidget);
-      expect(find.text('Push Notifications'), findsOneWidget);
-      expect(find.text('Trade Setup & Signal Alerts'), findsOneWidget);
-      expect(find.text('Save Preferences'), findsOneWidget);
-    });
+        expect(find.text('Notification Preferences'), findsOneWidget);
+        expect(find.text('Push Notifications'), findsOneWidget);
+        expect(find.text('Trade Setup & Signal Alerts'), findsOneWidget);
+        expect(find.text('Save Preferences'), findsOneWidget);
+      },
+    );
 
-    testWidgets('CommunityModerationListPage renders tabs and empty states', (WidgetTester tester) async {
+    testWidgets('CommunityModerationListPage renders tabs and empty states', (
+      WidgetTester tester,
+    ) async {
       final repo = CommunityRepository();
       await tester.pumpWidget(
-        MaterialApp(
-          home: CommunityModerationListPage(repository: repo),
-        ),
+        MaterialApp(home: CommunityModerationListPage(repository: repo)),
       );
       await tester.pumpAndSettle();
 
@@ -414,7 +465,9 @@ void main() {
       expect(find.text('No Muted Accounts'), findsOneWidget);
     });
 
-    testWidgets('CommunityHashtagPage renders topic header and tabs', (WidgetTester tester) async {
+    testWidgets('CommunityHashtagPage renders topic header and tabs', (
+      WidgetTester tester,
+    ) async {
       final repo = CommunityRepository();
       await tester.pumpWidget(
         MaterialApp(
@@ -429,33 +482,39 @@ void main() {
       expect(find.text('Traders'), findsOneWidget);
     });
 
-    testWidgets('CommunitySearchPage renders search bar, filters and empty state', (WidgetTester tester) async {
+    testWidgets(
+      'CommunitySearchPage renders search bar, filters and empty state',
+      (WidgetTester tester) async {
+        final repo = CommunityRepository();
+        await tester.pumpWidget(
+          MaterialApp(home: CommunitySearchPage(repository: repo)),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('Search community, tickers, traders...'),
+          findsOneWidget,
+        );
+        expect(find.text('Recent Searches'), findsOneWidget);
+        expect(find.text('NIFTY'), findsWidgets);
+      },
+    );
+
+    testWidgets('CommunityInboxView renders messages center and empty state', (
+      WidgetTester tester,
+    ) async {
       final repo = CommunityRepository();
       await tester.pumpWidget(
-        MaterialApp(
-          home: CommunitySearchPage(repository: repo),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Search community, tickers, traders...'), findsOneWidget);
-      expect(find.text('Recent Searches'), findsOneWidget);
-      expect(find.text('NIFTY'), findsWidgets);
-    });
-
-    testWidgets('CommunityInboxView renders messages center and empty state', (WidgetTester tester) async {
-      final repo = CommunityRepository();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: CommunityInboxView(repository: repo),
-        ),
+        MaterialApp(home: CommunityInboxView(repository: repo)),
       );
       await tester.pumpAndSettle();
 
       expect(find.text('Direct Messages'), findsOneWidget);
     });
 
-    testWidgets('CommunityArticleSheet renders headline, source and summary', (WidgetTester tester) async {
+    testWidgets('CommunityArticleSheet renders headline, source and summary', (
+      WidgetTester tester,
+    ) async {
       final item = CommunityNewsItem(
         id: 'news-test',
         headline: 'RBI Maintains Repo Rate at 6.5%',
@@ -467,9 +526,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: CommunityArticleSheet(article: item),
-          ),
+          home: Scaffold(body: CommunityArticleSheet(article: item)),
         ),
       );
       await tester.pumpAndSettle();
@@ -478,18 +535,19 @@ void main() {
       expect(find.text('Bloomberg Quint'), findsOneWidget);
     });
 
-    testWidgets('CommunityGuidelinesDialog renders compliance rules', (WidgetTester tester) async {
+    testWidgets('CommunityGuidelinesDialog renders compliance rules', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: CommunityGuidelinesDialog(),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: CommunityGuidelinesDialog())),
       );
       await tester.pumpAndSettle();
 
       expect(find.text('Trader Code of Conduct'), findsOneWidget);
-      expect(find.textContaining('Zero Stock Tipping & Pump Schemes'), findsOneWidget);
+      expect(
+        find.textContaining('Zero Stock Tipping & Pump Schemes'),
+        findsOneWidget,
+      );
     });
   });
 }

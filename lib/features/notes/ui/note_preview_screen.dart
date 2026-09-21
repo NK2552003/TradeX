@@ -15,6 +15,9 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 
 import '../data/note_attachments.dart';
 import '../data/notes_repository.dart';
+import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
 
 /// Read-only view of one note.
 ///
@@ -66,7 +69,6 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   late AppLinkGraph _graph = _links.current;
   StreamSubscription<AppLinkGraph>? _graphSub;
   StreamSubscription<List<AppNote>>? _notesSub;
-  String _commentDraft = '';
 
   @override
   void initState() {
@@ -109,6 +111,29 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   /// Roughly 220 words a minute, floored at a minute so a two-line note does
   /// not claim to take zero.
   int get _readMinutes => (_note.wordCount / 220).ceil().clamp(1, 999);
+
+  List<CommunityComment> _buildNoteComments() {
+    return _activeNote.comments.map((c) {
+      return CommunityComment(
+        id: c.id,
+        postId: _activeNote.id,
+        author: CommunityAuthor(
+          id: c.userId,
+          handle: c.authorName.toLowerCase().replaceAll(' ', ''),
+          displayName: c.authorName,
+          userRole: UserRole.customer,
+          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          verified: true,
+          followers: 1420,
+          following: 280,
+          winRate: 66.8,
+        ),
+        body: c.body,
+        createdAt: c.createdAt,
+        likes: 2,
+      );
+    }).toList();
+  }
 
   /// Everything this note connects to, resolved through the link graph rather
   /// than read out of the note's own id lists: a trade that cites this note is
@@ -475,52 +500,35 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
               ),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          UiField(
-            label: 'Add a comment',
-            child: UiInput(
-              value: _commentDraft,
-              hintText: 'Join the conversation',
-              onChanged: (String value) =>
-                  setState(() => _commentDraft = value),
+          SizedBox(height: context.sp(theme.spacing.lg)),
+          UniversalCommentsSection(
+            targetId: _activeNote.id,
+            targetType: 'note',
+            title: 'Technical Note Discussion',
+            comments: _buildNoteComments(),
+            currentUser: const CommunityAuthor(
+              id: 'usr_current',
+              handle: 'alex_vance',
+              displayName: 'Alex Vance',
+              userRole: UserRole.userAdmin,
+              avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+              verified: true,
+              followers: 4890,
+              following: 512,
+              winRate: 71.2,
             ),
+            onAddComment: (text, {parentCommentId, sentiment}) async {
+              await _repo.addComment(_activeNote.id, text);
+              if (mounted) setState(() {});
+            },
+            onLikeComment: (commentId, {reaction}) {
+              UiToast.show(
+                context,
+                title: 'Reaction Logged',
+                message: 'Liked comment on note.',
+              );
+            },
           ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Align(
-            alignment: Alignment.centerRight,
-            child: UiButton(
-              label: 'Comment',
-              size: UiSize.sm,
-              onPressed: _commentDraft.trim().isEmpty
-                  ? null
-                  : () async {
-                      await _repo.addComment(_note.id, _commentDraft);
-                      if (mounted) setState(() => _commentDraft = '');
-                    },
-            ),
-          ),
-          if (_note.comments.isNotEmpty) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
-            const UiDivider(),
-            SizedBox(height: context.sp(theme.spacing.sm)),
-            for (final AppNoteComment comment in _note.comments)
-              Padding(
-                padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(comment.authorName, style: context.uiText.label),
-                    Text(comment.body, style: context.uiText.body),
-                    Text(
-                      AppTokens.relativeTime(comment.createdAt),
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundSubtle,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
         ],
       ),
     );

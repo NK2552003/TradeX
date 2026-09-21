@@ -6,6 +6,7 @@ import 'package:tradex/features/community/presentation/widgets/community_advisor
 import 'package:tradex/features/community/presentation/widgets/community_guidelines_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_live_room_sheet.dart';
 import 'package:tradex/features/community/presentation/widgets/community_trader_card.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 
 // ---------------------------------------------------------------------------
 // Main Sidebar Orchestrator
@@ -70,29 +71,29 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
           onTap: widget.onSearchTap,
           onSubmitted: widget.onSearchSubmitted,
         ),
-        SizedBox(height: context.sp(theme.spacing.md)),
+        SizedBox(height: context.sp(theme.spacing.sm)),
 
         // 1b. Live Trading Floor / Audio Space Card
         const CommunityLiveRoomWidget(),
-        SizedBox(height: context.sp(theme.spacing.md)),
+        SizedBox(height: context.sp(theme.spacing.sm)),
 
         // 2. Subscribe to Premium Card
         const CommunityPremiumCard(),
-        SizedBox(height: context.sp(theme.spacing.md)),
+        SizedBox(height: context.sp(theme.spacing.sm)),
 
         // 3. Today's Market News Card
         CommunityNewsWidget(
           items: widget.repository.news,
           onShowMore: widget.onShowMore,
         ),
-        SizedBox(height: context.sp(theme.spacing.md)),
+        SizedBox(height: context.sp(theme.spacing.sm)),
 
         // 4. What's Happening / Trending in Markets
         CommunityTrendingWidget(
           items: widget.repository.trending,
           onShowMore: widget.onShowMore,
         ),
-        SizedBox(height: context.sp(theme.spacing.md)),
+        SizedBox(height: context.sp(theme.spacing.sm)),
 
         // 5. Who to Follow Card (hidden on tablet to save space)
         if (widget.showWhoToFollow) ...<Widget>[
@@ -101,7 +102,7 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
             onFollow: (author) => widget.onFollow?.call(author),
             onShowMore: widget.onShowMore,
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
+          SizedBox(height: context.sp(theme.spacing.sm)),
         ],
 
         // 6. Push Notifications Card (dismissible)
@@ -109,12 +110,12 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
           CommunityPushNotificationsCard(
             onDismiss: widget.repository.dismissPushNotificationsPrompt,
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
+          SizedBox(height: context.sp(theme.spacing.sm)),
         ],
 
         // 6b. Regulatory & Compliance Disclaimer Card
         const CommunityDisclaimerCard(),
-        SizedBox(height: context.sp(theme.spacing.md)),
+        SizedBox(height: context.sp(theme.spacing.sm)),
 
         // 7. Footer Links
         const CommunityFooterLinks(),
@@ -300,7 +301,7 @@ class CommunityPremiumCard extends StatelessWidget {
             label: 'Subscribe',
             variant: UiVariant.primary,
             size: UiSize.sm,
-            expandOnMobile: false,
+            expand: true,
             onPressed: () {
               UiToast.show(
                 context,
@@ -340,23 +341,16 @@ class CommunityNewsWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              Text(
-                "Today's Market Wire",
-                style: context.uiText.heading.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const Spacer(),
-              if (onDismiss != null)
-                UiIconButton(
-                  icon: Icons.close_rounded,
-                  size: UiSize.xs,
-                  tooltip: 'Dismiss',
-                  onPressed: onDismiss,
-                ),
-            ],
+          CommunitySectionHeader(
+            title: "Today's Market Wire",
+            trailing: onDismiss == null
+                ? null
+                : UiIconButton(
+                    icon: Icons.close_rounded,
+                    size: UiSize.xs,
+                    tooltip: 'Dismiss',
+                    onPressed: onDismiss,
+                  ),
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
           for (int i = 0; i < items.length && i < 3; i++) ...<Widget>[
@@ -374,7 +368,7 @@ class CommunityNewsWidget extends StatelessWidget {
             label: 'Show more',
             variant: UiVariant.ghost,
             size: UiSize.sm,
-            expandOnMobile: false,
+            expand: true,
             onPressed: onShowMore,
           ),
         ],
@@ -458,10 +452,7 @@ class CommunityTrendingWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            "What's happening",
-            style: context.uiText.heading.copyWith(fontWeight: FontWeight.w800),
-          ),
+          const CommunitySectionHeader(title: "What's happening"),
           SizedBox(height: context.sp(theme.spacing.sm)),
           for (int i = 0; i < items.length && i < 4; i++) ...<Widget>[
             if (i > 0)
@@ -478,7 +469,7 @@ class CommunityTrendingWidget extends StatelessWidget {
             label: 'Show more',
             variant: UiVariant.ghost,
             size: UiSize.sm,
-            expandOnMobile: false,
+            expand: true,
             onPressed: onShowMore,
           ),
         ],
@@ -554,10 +545,7 @@ class CommunityWhoToFollowCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            'Who to follow',
-            style: context.uiText.heading.copyWith(fontWeight: FontWeight.w800),
-          ),
+          const CommunitySectionHeader(title: 'Who to follow'),
           SizedBox(height: context.sp(theme.spacing.sm)),
           for (int i = 0; i < traders.length && i < 3; i++) ...<Widget>[
             if (i > 0)
@@ -577,7 +565,7 @@ class CommunityWhoToFollowCard extends StatelessWidget {
             label: 'Show more',
             variant: UiVariant.ghost,
             size: UiSize.sm,
-            expandOnMobile: false,
+            expand: true,
             onPressed: onShowMore,
           ),
         ],
@@ -603,22 +591,14 @@ class CommunityPushNotificationsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              Text(
-                'Push notifications',
-                style: context.uiText.heading.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const Spacer(),
-              UiIconButton(
-                icon: Icons.close_rounded,
-                size: UiSize.xs,
-                tooltip: 'Dismiss',
-                onPressed: onDismiss,
-              ),
-            ],
+          CommunitySectionHeader(
+            title: 'Push notifications',
+            trailing: UiIconButton(
+              icon: Icons.close_rounded,
+              size: UiSize.xs,
+              tooltip: 'Dismiss',
+              onPressed: onDismiss,
+            ),
           ),
           SizedBox(height: context.sp(theme.spacing.xs)),
           Text(

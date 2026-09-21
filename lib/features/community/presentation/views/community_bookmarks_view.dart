@@ -12,19 +12,22 @@ class CommunityBookmarksView extends StatefulWidget {
     required this.currentUser,
     this.onPostTap,
     this.onAuthorTap,
+    this.onOpenRef,
   });
 
   final CommunityRepository repository;
   final CommunityAuthor currentUser;
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
+  final ValueChanged<AppLinkRef>? onOpenRef;
 
   @override
   State<CommunityBookmarksView> createState() => _CommunityBookmarksViewState();
 }
 
 class _CommunityBookmarksViewState extends State<CommunityBookmarksView> {
-  int _selectedFilter = 0; // 0: All, 1: Setups, 2: Notes, 3: Journal, 4: Strategies
+  int _selectedFilter =
+      0; // 0: All, 1: Setups, 2: Notes, 3: Journal, 4: Strategies
 
   @override
   void initState() {
@@ -47,10 +50,21 @@ class _CommunityBookmarksViewState extends State<CommunityBookmarksView> {
     final bookmarked = widget.repository.bookmarkedPosts;
 
     final filtered = bookmarked.where((p) {
-      if (_selectedFilter == 1) return p.tradeSetup != null;
-      if (_selectedFilter == 2) return p.attachment?.source.title.toLowerCase().contains('note') ?? false;
-      if (_selectedFilter == 3) return p.attachment?.source.title.toLowerCase().contains('journal') ?? false;
-      if (_selectedFilter == 4) return p.attachment?.source.title.toLowerCase().contains('strategy') ?? false;
+      if (_selectedFilter == 1) {
+        return p.tradeSetup != null;
+      }
+      if (_selectedFilter == 2) {
+        return p.attachment?.source.title.toLowerCase().contains('note') ??
+            false;
+      }
+      if (_selectedFilter == 3) {
+        return p.attachment?.source.title.toLowerCase().contains('journal') ??
+            false;
+      }
+      if (_selectedFilter == 4) {
+        return p.attachment?.source.title.toLowerCase().contains('strategy') ??
+            false;
+      }
       return true;
     }).toList();
 
@@ -119,14 +133,11 @@ class _CommunityBookmarksViewState extends State<CommunityBookmarksView> {
 
           // Empty state or Post List
           if (filtered.isEmpty)
-            Padding(
-              padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-              child: UiEmptyState(
-                icon: Icons.bookmark_border_rounded,
-                title: 'No bookmarks found',
-                message:
-                    'Tap the bookmark icon on any trade setup or post to save it here for quick reference.',
-              ),
+            const CommunityEmptyState(
+              icon: Icons.bookmark_border_rounded,
+              title: 'No bookmarks found',
+              message:
+                  'Tap the bookmark icon on any trade setup or post to save it here for quick reference.',
             )
           else
             for (final post in filtered)
@@ -141,6 +152,7 @@ class _CommunityBookmarksViewState extends State<CommunityBookmarksView> {
                   onRepost: () => widget.repository.toggleRepost(post.id),
                   onBookmark: () => widget.repository.toggleBookmark(post.id),
                   onAuthorTap: widget.onAuthorTap,
+                  onOpenRef: widget.onOpenRef,
                 ),
               ),
         ],
@@ -148,4 +160,3 @@ class _CommunityBookmarksViewState extends State<CommunityBookmarksView> {
     );
   }
 }
-

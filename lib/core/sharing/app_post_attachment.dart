@@ -91,7 +91,25 @@ class AppWritingPostAttachment extends AppWritingRecordPostAttachment {
             DateTime.fromMillisecondsSinceEpoch(0),
         tags: List<String>.unmodifiable(strategy.tags),
         hasMedia: strategy.hasImages,
-        primaryTicker: strategy.linkedTickers.firstOrNull,
+      );
+
+  factory AppWritingPostAttachment.manual({
+    required AppLinkRef source,
+    required String excerpt,
+    AppRecordVisibility visibility = AppRecordVisibility.public,
+    DateTime? updatedAt,
+    List<String> tags = const <String>[],
+    bool hasMedia = false,
+    String? primaryTicker,
+  }) =>
+      AppWritingPostAttachment._(
+        source: source,
+        visibility: visibility,
+        excerpt: excerpt,
+        updatedAt: updatedAt ?? DateTime.now(),
+        tags: tags,
+        hasMedia: hasMedia,
+        primaryTicker: primaryTicker,
       );
 
   static const int previewCharacterLimit = 220;

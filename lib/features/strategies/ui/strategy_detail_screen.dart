@@ -16,6 +16,9 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 import '../data/strategies_repository.dart';
 import '../data/strategy_attachments.dart';
 import 'revision_note_prompt.dart';
+import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
 
 /// Read-only view of one strategy playbook: the rules, the track record they
 /// produced, the revisions they went through, and everything attached.
@@ -83,6 +86,126 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
   bool _loadingVersions = true;
   bool _busy = false;
   _StrategyTab _tab = _StrategyTab.playbook;
+
+  late List<CommunityComment> _strategyComments = <CommunityComment>[
+    CommunityComment(
+      id: 'cmt_s1',
+      postId: widget.strategy.id,
+      author: const CommunityAuthor(
+        id: 'usr_rohit',
+        handle: 'rohit_macro',
+        displayName: 'Rohit K.',
+        userRole: UserRole.customer,
+        avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+        verified: true,
+        followers: 5210,
+        following: 340,
+        winRate: 68.9,
+      ),
+      body: 'Great risk:reward framework. Do you filter out earnings dates or high-impact CPI releases before entering trades under this playbook?',
+      createdAt: DateTime.now().subtract(const Duration(hours: 5)),
+      likes: 6,
+      sentiment: 'Insightful',
+      replies: <CommunityComment>[
+        CommunityComment(
+          id: 'cmt_s1_1',
+          postId: widget.strategy.id,
+          parentCommentId: 'cmt_s1',
+          author: const CommunityAuthor(
+            id: 'usr_current',
+            handle: 'alex_vance',
+            displayName: 'Alex Vance',
+            userRole: UserRole.userAdmin,
+            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+            verified: true,
+            followers: 4890,
+            following: 512,
+            winRate: 71.2,
+          ),
+          body: 'Yes, rule 3 stands aside within 30 minutes before and after Tier-1 economic prints.',
+          createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+          likes: 3,
+        ),
+      ],
+    ),
+  ];
+
+  Future<void> _handleAddStrategyComment(
+    String text, {
+    String? parentCommentId,
+    String? sentiment,
+  }) async {
+    final CommunityComment newComment = CommunityComment(
+      id: 'cmt_${DateTime.now().millisecondsSinceEpoch}',
+      postId: widget.strategy.id,
+      parentCommentId: parentCommentId,
+      author: const CommunityAuthor(
+        id: 'usr_current',
+        handle: 'alex_vance',
+        displayName: 'Alex Vance',
+        userRole: UserRole.userAdmin,
+        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        verified: true,
+        followers: 4890,
+        following: 512,
+        winRate: 71.2,
+      ),
+      body: text,
+      createdAt: DateTime.now(),
+      likes: 0,
+      sentiment: sentiment,
+    );
+
+    setState(() {
+      if (parentCommentId == null) {
+        _strategyComments = <CommunityComment>[newComment, ..._strategyComments];
+      } else {
+        _strategyComments = _strategyComments.map((c) {
+          if (c.id == parentCommentId) {
+            return c.copyWith(
+              replies: <CommunityComment>[...c.replies, newComment],
+            );
+          }
+          return c;
+        }).toList();
+      }
+    });
+
+    if (mounted) {
+      UiToast.success(
+        context,
+        title: 'Review Posted',
+        message: 'Your critique has been attached to this playbook.',
+      );
+    }
+  }
+
+  void _handleLikeStrategyComment(String commentId, {String? reaction}) {
+    setState(() {
+      _strategyComments = _strategyComments.map((c) {
+        if (c.id == commentId) {
+          final bool wasLiked = c.isLiked;
+          return c.copyWith(
+            liked: !wasLiked,
+            likes: wasLiked ? (c.likes - 1).clamp(0, 9999) : c.likes + 1,
+            userReaction: wasLiked ? null : (reaction ?? '👍'),
+          );
+        }
+        final List<CommunityComment> updatedReplies = c.replies.map((r) {
+          if (r.id == commentId) {
+            final bool wasLiked = r.isLiked;
+            return r.copyWith(
+              liked: !wasLiked,
+              likes: wasLiked ? (r.likes - 1).clamp(0, 9999) : r.likes + 1,
+              userReaction: wasLiked ? null : (reaction ?? '👍'),
+            );
+          }
+          return r;
+        }).toList();
+        return c.copyWith(replies: updatedReplies);
+      }).toList();
+    });
+  }
 
   @override
   void initState() {
@@ -725,6 +848,26 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
           SizedBox(height: context.sp(theme.spacing.lg)),
           _factsCard(context),
         ],
+        SizedBox(height: context.sp(theme.spacing.xl)),
+        UniversalCommentsSection(
+          targetId: widget.strategy.id,
+          targetType: 'strategy_playbook',
+          title: 'Playbook Discussion & Peer Critique',
+          comments: _strategyComments,
+          currentUser: const CommunityAuthor(
+            id: 'usr_current',
+            handle: 'alex_vance',
+            displayName: 'Alex Vance',
+            userRole: UserRole.userAdmin,
+            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+            verified: true,
+            followers: 4890,
+            following: 512,
+            winRate: 71.2,
+          ),
+          onAddComment: _handleAddStrategyComment,
+          onLikeComment: _handleLikeStrategyComment,
+        ),
       ],
     );
   }

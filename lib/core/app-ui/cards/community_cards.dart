@@ -347,13 +347,17 @@ class AppTraderCard extends StatelessWidget {
               trader: trader,
               size: UiSize.lg,
               trailingLabel: trader.tradingStyle,
-              trailing: UiButton(
-                label: trader.isFollowing ? 'Following' : 'Follow',
+              trailing: UiIconButton(
+                icon: trader.isFollowing
+                    ? Icons.check_rounded
+                    : Icons.person_add_rounded,
                 variant: trader.isFollowing
                     ? UiVariant.outline
                     : UiVariant.primary,
                 size: UiSize.sm,
-                expandOnMobile: false,
+                tooltip: trader.isFollowing
+                    ? 'Following @${trader.handle}'
+                    : 'Follow @${trader.handle}',
                 onPressed: onFollow,
               ),
             ),

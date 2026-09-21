@@ -10,12 +10,12 @@ import 'package:tradex/features/community/presentation/views/community_follow_vi
 import 'package:tradex/features/community/presentation/views/community_hashtag_page.dart';
 import 'package:tradex/features/community/presentation/views/community_inbox_view.dart';
 import 'package:tradex/features/community/presentation/views/community_moderation_list_page.dart';
-import 'package:tradex/features/community/presentation/views/community_notification_settings_page.dart';
-import 'package:tradex/features/community/presentation/views/community_notifications_view.dart';
 import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
 import 'package:tradex/features/community/presentation/views/community_profile_view.dart';
 import 'package:tradex/features/community/presentation/views/community_search_page.dart';
+import 'package:tradex/features/community/presentation/widgets/community_ai_assistant_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
 
 /// The signed-in community shell — three-tier responsive Twitter/X layout.
@@ -40,12 +40,32 @@ class CommunityRootScreen extends StatefulWidget {
     this.userRole = UserRole.customer,
     this.currentTrader,
     this.onSubpageChanged,
+    this.onOpenRef,
+    this.initialTabIndex = 0,
+    this.embedInScaffold = true,
+    this.repository,
   });
 
   final UserRole userRole;
   final AppTrader? currentTrader;
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
   onSubpageChanged;
+
+  /// Opens a linked Writing-Desk record (note / journal / strategy) in its own
+  /// destination when a post attachment is tapped. Supplied by the app shell.
+  final void Function(AppLinkRef ref)? onOpenRef;
+
+  /// Which tab to show on first render. Driven by the global sidebar sub-item
+  /// selection (0 = Feed, 1 = Explore, 2 = Network, 3 = My Profile, 4 = Bookmarks).
+  final int initialTabIndex;
+
+  /// When true, CommunityRootScreen is embedded inside AppShell, so it avoids
+  /// rendering duplicate app bars and bottom navigation bars on mobile.
+  final bool embedInScaffold;
+
+  /// Optional shared reactive repository. If not provided, an internal
+  /// repository will be created and managed by this screen.
+  final CommunityRepository? repository;
 
   @override
   State<CommunityRootScreen> createState() => CommunityRootScreenState();
@@ -57,28 +77,20 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // Tab definitions
   // -------------------------------------------------------------------------
 
-  /// All six hub tabs — shared by tablet + desktop top tab bar.
+  /// All five hub tabs — shared by tablet + desktop top tab bar.
   static const List<_CommunityTab> _hubTabs = <_CommunityTab>[
     _CommunityTab(label: 'Feed', icon: Icons.dynamic_feed_outlined),
     _CommunityTab(label: 'Explore', icon: Icons.explore_outlined),
     _CommunityTab(label: 'Network', icon: Icons.group_outlined),
-    _CommunityTab(
-      label: 'Notifications',
-      icon: Icons.notifications_none_rounded,
-    ),
     _CommunityTab(label: 'My Profile', icon: Icons.person_outline_rounded),
     _CommunityTab(label: 'Bookmarks', icon: Icons.bookmark_border_rounded),
   ];
 
-  /// Five bottom-nav destinations on mobile — maps to tab indices 0–4.
+  /// Four bottom-nav destinations on mobile — maps to tab indices 0–3.
   static const List<_CommunityTab> _mobileNavTabs = <_CommunityTab>[
     _CommunityTab(label: 'Feed', icon: Icons.dynamic_feed_outlined),
     _CommunityTab(label: 'Explore', icon: Icons.explore_outlined),
     _CommunityTab(label: 'Network', icon: Icons.group_outlined),
-    _CommunityTab(
-      label: 'Alerts',
-      icon: Icons.notifications_none_rounded,
-    ),
     _CommunityTab(label: 'Profile', icon: Icons.person_outline_rounded),
   ];
 
@@ -86,10 +98,11 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // State
   // -------------------------------------------------------------------------
 
-  final CommunityRepository _repo = CommunityRepository();
+  late final CommunityRepository _repo;
+  late final bool _ownsRepo;
   late TabController _tabController;
 
-  /// Selected bottom-nav index on mobile (0–4), kept in sync with
+  /// Selected bottom-nav index on mobile (0–3), kept in sync with
   /// [_tabController] so [_buildTabPages] is the single source of truth.
   int _mobileNavIndex = 0;
 
@@ -103,9 +116,27 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _hubTabs.length, vsync: this);
+    _ownsRepo = widget.repository == null;
+    _repo = widget.repository ?? CommunityRepository();
+    _tabController = TabController(
+      length: _hubTabs.length,
+      vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, _hubTabs.length - 1),
+    );
     // Rebuild on tab change so FAB / badges stay current.
     _tabController.addListener(_onTabChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant CommunityRootScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTabIndex != oldWidget.initialTabIndex) {
+      final int idx = widget.initialTabIndex.clamp(0, _hubTabs.length - 1);
+      if (_tabController.index != idx) {
+        _tabController.animateTo(idx);
+      }
+      _mobileNavIndex = idx.clamp(0, _mobileNavTabs.length - 1);
+    }
   }
 
   void _onTabChanged() {
@@ -116,7 +147,9 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   void dispose() {
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
-    _repo.dispose();
+    if (_ownsRepo) {
+      _repo.dispose();
+    }
     super.dispose();
   }
 
@@ -163,6 +196,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         currentUser: _currentAuthor,
         onAuthorTap: _openAuthorProfile,
         onBack: _closeSubpage,
+        onOpenRef: widget.onOpenRef,
       ),
     );
   }
@@ -200,6 +234,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         onPostTap: _openPostDetail,
         onAuthorTap: _openAuthorProfile,
         onBack: _closeSubpage,
+        onOpenRef: widget.onOpenRef,
       ),
     );
   }
@@ -214,6 +249,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         onAuthorTap: _openAuthorProfile,
         onHashtagTap: _openHashtagPage,
         onBack: _closeSubpage,
+        onOpenRef: widget.onOpenRef,
       ),
     );
   }
@@ -224,15 +260,6 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       page: CommunityInboxView(
         repository: _repo,
         currentUser: _currentAuthor,
-        onBack: _closeSubpage,
-      ),
-    );
-  }
-
-  void _openNotificationSettings() {
-    _openSubpage(
-      title: 'Notification Settings',
-      page: CommunityNotificationSettingsPage(
         onBack: _closeSubpage,
       ),
     );
@@ -257,12 +284,14 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
-        child: CommunityComposerCard(
-          author: _currentAuthor,
-          repository: _repo,
-          onPostCreated: () => Navigator.of(ctx).pop(),
+      builder: (BuildContext ctx) => CommunityDensityScope(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+          child: CommunityComposerCard(
+            author: _currentAuthor,
+            repository: _repo,
+            onPostCreated: () => Navigator.of(ctx).pop(),
+          ),
         ),
       ),
     );
@@ -274,12 +303,42 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_activeSubpage != null) return _activeSubpage!;
+    // One density scope rescales the entire section (embedded views + every
+    // `setState`-swapped subpage). The [Builder] re-resolves `context` beneath
+    // the scope so the shell's own chrome is compacted too.
+    return CommunityDensityScope(
+      child: Builder(
+        builder: (BuildContext context) {
+          if (_activeSubpage != null) return _activeSubpage!;
 
-    final UiResponsive r = context.uiRes;
-    if (r.isMobile) return _buildMobileLayout();
-    if (r.isTablet) return _buildTabletLayout();
-    return _buildDesktopLayout();
+          final UiTheme theme = context.ui;
+          final UiResponsive r = context.uiRes;
+          final Widget layout = r.isMobile
+              ? _buildMobileLayout(context)
+              : (r.isTablet ? _buildTabletLayout(context) : _buildDesktopLayout(context));
+
+          final bool isMobile = r.isMobile;
+          final bool onFeedTab = _tabController.index == 0;
+          final double safeBottom = MediaQuery.paddingOf(context).bottom;
+          final double floatingBottom = isMobile
+              ? (context.sz(86) + (onFeedTab ? context.sz(54) : 0) + safeBottom)
+              : context.sp(theme.spacing.lg);
+
+          return Stack(
+            children: <Widget>[
+              layout,
+              Positioned(
+                right: context.sp(theme.spacing.lg),
+                bottom: floatingBottom,
+                child: CommunityAiFloatingBar(
+                  repository: _repo,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -294,33 +353,31 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       onPostTap: _openPostDetail,
       onAuthorTap: _openAuthorProfile,
       onCompose: _showMobileComposer,
+      onOpenRef: widget.onOpenRef,
     ),
     // 1 — Explore
     CommunityExploreView(
       repository: _repo,
       onPostTap: _openPostDetail,
       onAuthorTap: _openAuthorProfile,
+      onOpenRef: widget.onOpenRef,
     ),
     // 2 — Network
     CommunityFollowView(repository: _repo, onAuthorTap: _openAuthorProfile),
-    // 3 — Notifications
-    CommunityNotificationsView(
-      repository: _repo,
-      onAuthorTap: _openAuthorProfile,
-    ),
-    // 4 — My Profile
+    // 3 — My Profile
     CommunityProfileView(
       author: _currentAuthor,
       repository: _repo,
       isCurrentUser: true,
       onBack: null,
     ),
-    // 5 — Bookmarks (tablet/desktop only; not in mobile bottom nav)
+    // 4 — Bookmarks (tablet/desktop only; not in mobile bottom nav)
     CommunityBookmarksView(
       repository: _repo,
       currentUser: _currentAuthor,
       onPostTap: _openPostDetail,
       onAuthorTap: _openAuthorProfile,
+      onOpenRef: widget.onOpenRef,
     ),
   ];
 
@@ -328,9 +385,36 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // MOBILE LAYOUT  (< 600 px)
   // =========================================================================
 
-  Widget _buildMobileLayout() {
+  Widget _buildMobileLayout(BuildContext context) {
     final UiTheme theme = context.ui;
-    final bool onFeedTab = _mobileNavIndex == 0;
+    final bool onFeedTab = _tabController.index == 0;
+
+    if (widget.embedInScaffold) {
+      return Stack(
+        children: <Widget>[
+          TabBarView(
+            controller: _tabController,
+            physics: const NeverScrollableScrollPhysics(),
+            children: _buildTabPages(),
+          ),
+          if (onFeedTab)
+            Positioned(
+              right: context.sp(theme.spacing.md),
+              bottom: context.sz(86) + MediaQuery.paddingOf(context).bottom,
+              child: FloatingActionButton.small(
+                heroTag: 'community_mobile_compose_fab',
+                onPressed: _showMobileComposer,
+                backgroundColor: theme.colors.primary,
+                child: Icon(
+                  Icons.edit_rounded,
+                  color: theme.colors.onPrimary,
+                  size: context.sz(20),
+                ),
+              ),
+            ),
+        ],
+      );
+    }
 
     return Scaffold(
       backgroundColor: theme.colors.background,
@@ -370,12 +454,6 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
             onPressed: _openInboxView,
           ),
           UiIconButton(
-            icon: Icons.notifications_none_rounded,
-            size: UiSize.xs,
-            tooltip: 'Notification Preferences',
-            onPressed: _openNotificationSettings,
-          ),
-          UiIconButton(
             icon: Icons.shield_outlined,
             size: UiSize.xs,
             tooltip: 'Moderation',
@@ -413,8 +491,6 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   }
 
   Widget _buildBottomNavBar(UiTheme theme) {
-    final int unread = _repo.unreadNotifications;
-
     return NavigationBar(
       selectedIndex: _mobileNavIndex,
       onDestinationSelected: (int i) {
@@ -426,20 +502,8 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       backgroundColor: theme.colors.surface,
       indicatorColor: theme.colors.primary.withValues(alpha: 0.12),
       labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-      destinations: _mobileNavTabs.asMap().entries.map((entry) {
-        final int i = entry.key;
-        final _CommunityTab tab = entry.value;
-
-        // Notification badge on the Alerts destination.
-        final bool hasUnread = i == 3 && unread > 0;
-        final Widget iconWidget = hasUnread
-            ? Badge(
-                label: Text(unread > 9 ? '9+' : '$unread'),
-                child: Icon(tab.icon),
-              )
-            : Icon(tab.icon);
-
-        return NavigationDestination(icon: iconWidget, label: tab.label);
+      destinations: _mobileNavTabs.map((_CommunityTab tab) {
+        return NavigationDestination(icon: Icon(tab.icon), label: tab.label);
       }).toList(),
     );
   }
@@ -448,14 +512,14 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // TABLET LAYOUT  (600–904 px)
   // =========================================================================
 
-  Widget _buildTabletLayout() {
+  Widget _buildTabletLayout(BuildContext context) {
     final UiTheme theme = context.ui;
 
     return Scaffold(
       backgroundColor: theme.colors.background,
       body: Column(
         children: <Widget>[
-          _buildTopTabBar(showIcons: true),
+          _buildTopTabBar(context, showIcons: true),
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -465,6 +529,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
                   flex: 3,
                   child: TabBarView(
                     controller: _tabController,
+                    physics: const NeverScrollableScrollPhysics(),
                     children: _buildTabPages(),
                   ),
                 ),
@@ -482,9 +547,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
                     ),
                     child: Scrollbar(
                       child: SingleChildScrollView(
-                        padding: EdgeInsets.all(
-                          context.sp(theme.spacing.md),
-                        ),
+                        padding: EdgeInsets.all(context.sp(theme.spacing.md)),
                         child: CommunitySidebar(
                           repository: _repo,
                           onFollow: (author) => _repo.toggleFollow(author.id),
@@ -492,7 +555,9 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
                           onPostTap: _openPostDetail,
                           onSearchTap: _openSearchPage,
                           onSearchSubmitted: (q) => _openHashtagPage(
-                            q.startsWith('\$') || q.startsWith('#') ? q : '\$$q',
+                            q.startsWith('\$') || q.startsWith('#')
+                                ? q
+                                : '\$$q',
                           ),
                           showWhoToFollow: false,
                         ),
@@ -512,63 +577,43 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // DESKTOP LAYOUT  (≥ 905 px)
   // =========================================================================
 
-  Widget _buildDesktopLayout() {
+  Widget _buildDesktopLayout(BuildContext context) {
     final UiTheme theme = context.ui;
 
     return Scaffold(
       backgroundColor: theme.colors.background,
-      body: Column(
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          _buildTopTabBar(showIcons: false),
+          // Feed area — full width on desktop.
           Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // Left spacer to centre the feed.
-                const Spacer(),
+            child: TabBarView(
+              controller: _tabController,
+              physics: const NeverScrollableScrollPhysics(),
+              children: _buildTabPages(),
+            ),
+          ),
 
-                // Centred feed — capped at 680 px.
-                SizedBox(
-                  width: context.sz(680),
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: _buildTabPages(),
-                  ),
-                ),
-
-                // Right sidebar — sticky / independently scrollable.
-                SizedBox(
-                  width: context.sz(320),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border(
-                        left: BorderSide(
-                          color: theme.colors.border,
-                          width: theme.borders.hairline,
-                        ),
-                      ),
+          // Right sidebar — sticky / independently scrollable.
+          SizedBox(
+            width: context.sz(320),
+            child: Scrollbar(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+                child: CommunitySidebar(
+                    repository: _repo,
+                    onFollow: (author) => _repo.toggleFollow(author.id),
+                    onShowMore: _openNetworkPage,
+                    onPostTap: _openPostDetail,
+                    onSearchTap: _openSearchPage,
+                    onSearchSubmitted: (q) => _openHashtagPage(
+                      q.startsWith('\$') || q.startsWith('#')
+                          ? q
+                          : '\$$q',
                     ),
-                    child: Scrollbar(
-                      child: SingleChildScrollView(
-                        padding: EdgeInsets.all(
-                          context.sp(theme.spacing.md),
-                        ),
-                        child: CommunitySidebar(
-                          repository: _repo,
-                          onFollow: (author) => _repo.toggleFollow(author.id),
-                          onShowMore: _openNetworkPage,
-                          onPostTap: _openPostDetail,
-                          onSearchTap: _openSearchPage,
-                          onSearchSubmitted: (q) => _openHashtagPage(
-                            q.startsWith('\$') || q.startsWith('#') ? q : '\$$q',
-                          ),
-                          showWhoToFollow: true,
-                        ),
-                      ),
-                    ),
-                  ),
+                    showWhoToFollow: true,
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -581,27 +626,31 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // =========================================================================
 
   /// [showIcons] — true on tablet (icon + label), false on desktop (text only).
-  Widget _buildTopTabBar({required bool showIcons}) {
+  Widget _buildTopTabBar(BuildContext context, {required bool showIcons}) {
     final UiTheme theme = context.ui;
-    final int unread = _repo.unreadNotifications;
+    final bool isDesktop = context.uiRes.isDesktop;
 
     return Container(
       decoration: BoxDecoration(
         color: theme.colors.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.colors.border,
-            width: theme.borders.hairline,
-          ),
-        ),
+        border: isDesktop
+            ? null
+            : Border(
+                bottom: BorderSide(
+                  color: theme.colors.border,
+                  width: theme.borders.hairline,
+                ),
+              ),
       ),
       child: Row(
         children: <Widget>[
           Expanded(
             child: TabBar(
               controller: _tabController,
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
+              isScrollable: !isDesktop,
+              tabAlignment:
+                  isDesktop ? TabAlignment.fill : TabAlignment.start,
+              splashBorderRadius: context.radius(theme.radii.sm),
               labelStyle: context.uiText.bodyStrong.copyWith(
                 fontSize: context.fs(14),
               ),
@@ -614,26 +663,14 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
               indicatorColor: theme.colors.primary,
               indicatorWeight: 2.5,
               dividerColor: Colors.transparent,
-              tabs: _hubTabs.asMap().entries.map((entry) {
-                final int i = entry.key;
-                final _CommunityTab t = entry.value;
-                final bool hasUnread = i == 3 && unread > 0;
-
+              tabs: _hubTabs.map((_CommunityTab t) {
                 if (showIcons) {
                   // Tablet: icon + label.
                   return Tab(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        hasUnread
-                            ? Badge(
-                                label: Text(
-                                  unread > 9 ? '9+' : '$unread',
-                                  style: TextStyle(fontSize: context.fs(10)),
-                                ),
-                                child: Icon(t.icon, size: context.sz(18)),
-                              )
-                            : Icon(t.icon, size: context.sz(18)),
+                        Icon(t.icon, size: context.sz(18)),
                         SizedBox(width: context.sp(theme.spacing.xs)),
                         Text(t.label),
                       ],
@@ -643,15 +680,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
 
                 // Desktop: text label only.
                 return Tab(
-                  child: hasUnread
-                      ? Badge(
-                          label: Text(
-                            unread > 9 ? '9+' : '$unread',
-                            style: TextStyle(fontSize: context.fs(10)),
-                          ),
-                          child: Text(t.label),
-                        )
-                      : Text(t.label),
+                  child: Text(t.label),
                 );
               }).toList(),
             ),
@@ -667,12 +696,6 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
             size: UiSize.xs,
             tooltip: 'Direct Messages',
             onPressed: _openInboxView,
-          ),
-          UiIconButton(
-            icon: Icons.notifications_none_rounded,
-            size: UiSize.xs,
-            tooltip: 'Notification Preferences',
-            onPressed: _openNotificationSettings,
           ),
           UiIconButton(
             icon: Icons.shield_outlined,
@@ -696,3 +719,5 @@ class _CommunityTab {
   final String label;
   final IconData icon;
 }
+
+

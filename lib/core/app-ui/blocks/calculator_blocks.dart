@@ -328,7 +328,7 @@ class _DesktopCalculator extends StatelessWidget {
 
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: Colors.black,
+            color: c.surface,
             borderRadius: embedded ? null : ctx.radius(theme.radii.lg),
             border: embedded
                 ? null
@@ -347,7 +347,7 @@ class _DesktopCalculator extends StatelessWidget {
                   onBack: layout.onBack,
                   actions: layout.actions,
                   dense: false,
-                  backgroundColor: Colors.black,
+                  backgroundColor: c.surfaceMuted,
                 ),
                 _rule(ctx),
                 if (bounded) Expanded(child: body) else body,

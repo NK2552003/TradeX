@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
 import 'package:tradex/features/community/presentation/widgets/community_feed_list.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_trader_card.dart';
 
 /// Full-page drill-in view for `#tag` and `$TICKER` topics.
@@ -17,6 +17,7 @@ class CommunityHashtagPage extends StatefulWidget {
     this.onPostTap,
     this.onAuthorTap,
     this.onBack,
+    this.onOpenRef,
   });
 
   final String tag;
@@ -25,6 +26,7 @@ class CommunityHashtagPage extends StatefulWidget {
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final VoidCallback? onBack;
+  final ValueChanged<AppLinkRef>? onOpenRef;
 
   @override
   State<CommunityHashtagPage> createState() => _CommunityHashtagPageState();
@@ -78,7 +80,9 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage> {
         leading: UiIconButton(
           icon: Icons.arrow_back,
           variant: UiVariant.ghost,
-          onPressed: () => widget.onBack != null ? widget.onBack!() : Navigator.of(context).pop(),
+          onPressed: () => widget.onBack != null
+              ? widget.onBack!()
+              : Navigator.of(context).pop(),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,11 +107,18 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage> {
           Padding(
             padding: EdgeInsets.only(right: context.sp(12)),
             child: Center(
-              child: UiButton(
-                label: _isFollowingTag ? 'Following' : 'Follow',
-                variant: _isFollowingTag ? UiVariant.outline : UiVariant.primary,
+              child: UiIconButton(
+                icon: _isFollowingTag
+                    ? Icons.check_rounded
+                    : Icons.bookmark_add_outlined,
+                variant: _isFollowingTag
+                    ? UiVariant.outline
+                    : UiVariant.primary,
                 intent: UiIntent.primary,
                 size: UiSize.sm,
+                tooltip: _isFollowingTag
+                    ? 'Following $displayTag'
+                    : 'Follow $displayTag',
                 onPressed: () {
                   setState(() => _isFollowingTag = !_isFollowingTag);
                   UiToast.show(
@@ -125,7 +136,7 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage> {
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
+          constraints: const BoxConstraints(maxWidth: kCommunityMaxWidth),
           child: Column(
             children: [
               // Topic Header Card
@@ -188,7 +199,10 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage> {
               // Sub tabs
               Container(
                 color: colors.surface,
-                padding: EdgeInsets.symmetric(horizontal: context.sp(12), vertical: context.sp(8)),
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(12),
+                  vertical: context.sp(8),
+                ),
                 child: UiTabs(
                   tabs: const ['Top Posts', 'Latest', 'Traders'],
                   selectedIndex: _selectedTabIndex,
@@ -212,13 +226,17 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage> {
                                 builder: (_) => CommunityPostDetailView(
                                   post: post,
                                   repository: widget.repository,
-                                  currentUser: widget.currentUser ?? widget.repository.currentAuthor,
+                                  currentUser:
+                                      widget.currentUser ??
+                                      widget.repository.currentAuthor,
+                                  onOpenRef: widget.onOpenRef,
                                 ),
                               ),
                             );
                           }
                         },
                         onAuthorTap: widget.onAuthorTap,
+                        onOpenRef: widget.onOpenRef,
                       ),
               ),
             ],

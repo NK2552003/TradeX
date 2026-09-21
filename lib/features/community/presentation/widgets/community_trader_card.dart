@@ -116,13 +116,17 @@ class CommunityTraderCard extends StatelessWidget {
                 ),
               ),
               if (onFollow != null)
-                UiButton(
-                  label: trader.isFollowing ? 'Following' : 'Follow',
+                UiIconButton(
+                  icon: trader.isFollowing
+                      ? Icons.check_rounded
+                      : Icons.person_add_rounded,
                   variant: trader.isFollowing
                       ? UiVariant.outline
                       : UiVariant.primary,
                   size: UiSize.sm,
-                  expandOnMobile: false,
+                  tooltip: trader.isFollowing
+                      ? 'Following @${trader.handle}'
+                      : 'Follow @${trader.handle}',
                   onPressed: onFollow,
                 ),
             ],
@@ -313,13 +317,17 @@ class CommunityTraderRow extends StatelessWidget {
                 ),
               ] else if (onFollow != null) ...<Widget>[
                 SizedBox(width: context.sp(theme.spacing.xs)),
-                UiButton(
-                  label: trader.isFollowing ? 'Following' : 'Follow',
+                UiIconButton(
+                  icon: trader.isFollowing
+                      ? Icons.check_rounded
+                      : Icons.person_add_rounded,
                   variant: trader.isFollowing
                       ? UiVariant.outline
                       : UiVariant.primary,
                   size: UiSize.sm,
-                  expandOnMobile: false,
+                  tooltip: trader.isFollowing
+                      ? 'Following @${trader.handle}'
+                      : 'Follow @${trader.handle}',
                   onPressed: onFollow,
                 ),
               ],

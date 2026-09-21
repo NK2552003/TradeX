@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 
 /// Screen for managing muted and blocked accounts with 1-tap unmute / unblock.
 class CommunityModerationListPage extends StatefulWidget {
@@ -19,7 +20,8 @@ class CommunityModerationListPage extends StatefulWidget {
       _CommunityModerationListPageState();
 }
 
-class _CommunityModerationListPageState extends State<CommunityModerationListPage> {
+class _CommunityModerationListPageState
+    extends State<CommunityModerationListPage> {
   int _selectedTab = 0; // 0: Muted, 1: Blocked
 
   @override
@@ -54,7 +56,9 @@ class _CommunityModerationListPageState extends State<CommunityModerationListPag
         leading: UiIconButton(
           icon: Icons.arrow_back,
           variant: UiVariant.ghost,
-          onPressed: () => widget.onBack != null ? widget.onBack!() : Navigator.of(context).pop(),
+          onPressed: () => widget.onBack != null
+              ? widget.onBack!()
+              : Navigator.of(context).pop(),
         ),
         title: Text(
           'Moderation & Safety',
@@ -66,12 +70,15 @@ class _CommunityModerationListPageState extends State<CommunityModerationListPag
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
+          constraints: const BoxConstraints(maxWidth: kCommunityMaxWidth),
           child: Column(
             children: [
               Container(
                 color: colors.surface,
-                padding: EdgeInsets.symmetric(horizontal: context.sp(16), vertical: context.sp(8)),
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(16),
+                  vertical: context.sp(8),
+                ),
                 child: UiTabs(
                   tabs: [
                     'Muted (${mutedList.length})',
@@ -101,7 +108,8 @@ class _CommunityModerationListPageState extends State<CommunityModerationListPag
         child: UiEmptyState(
           icon: Icons.volume_off_outlined,
           title: 'No Muted Accounts',
-          message: 'When you mute someone, their posts and replies will not appear in your feeds, but they can still view your profile.',
+          message:
+              'When you mute someone, their posts and replies will not appear in your feeds, but they can still view your profile.',
         ),
       );
     }
@@ -167,7 +175,8 @@ class _CommunityModerationListPageState extends State<CommunityModerationListPag
         child: UiEmptyState(
           icon: Icons.block_outlined,
           title: 'No Blocked Accounts',
-          message: 'Blocked users cannot see your posts, follow your profile, or send you direct messages.',
+          message:
+              'Blocked users cannot see your posts, follow your profile, or send you direct messages.',
         ),
       );
     }

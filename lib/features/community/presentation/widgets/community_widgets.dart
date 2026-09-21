@@ -10,6 +10,7 @@ export 'community_bookmark_folder_dialog.dart';
 export 'community_card_share_dialog.dart';
 export 'community_comment_card.dart';
 export 'community_composer_card.dart';
+export 'community_design.dart';
 export 'community_edit_post_dialog.dart';
 export 'community_engagement_bar.dart';
 export 'community_feed_customizer_dialog.dart';

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
 import 'package:tradex/features/community/presentation/widgets/community_feed_list.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_trader_card.dart';
 
 /// Full-page search experience for posts, traders, and cashtags.
@@ -18,6 +18,7 @@ class CommunitySearchPage extends StatefulWidget {
     this.onAuthorTap,
     this.onHashtagTap,
     this.onBack,
+    this.onOpenRef,
   });
 
   final CommunityRepository repository;
@@ -27,6 +28,7 @@ class CommunitySearchPage extends StatefulWidget {
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<String>? onHashtagTap;
   final VoidCallback? onBack;
+  final ValueChanged<AppLinkRef>? onOpenRef;
 
   @override
   State<CommunitySearchPage> createState() => _CommunitySearchPageState();
@@ -36,7 +38,12 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
   late final TextEditingController _controller;
   String _query = '';
   int _selectedCategory = 0; // 0: All, 1: Posts, 2: Traders, 3: Tickers
-  final List<String> _recentSearches = ['NIFTY', 'BANKNIFTY', 'Crypto Breakouts', 'Options Scalp'];
+  final List<String> _recentSearches = [
+    'NIFTY',
+    'BANKNIFTY',
+    'Crypto Breakouts',
+    'Options Scalp',
+  ];
 
   @override
   void initState() {
@@ -81,7 +88,9 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
         leading: UiIconButton(
           icon: Icons.arrow_back,
           variant: UiVariant.ghost,
-          onPressed: () => widget.onBack != null ? widget.onBack!() : Navigator.of(context).pop(),
+          onPressed: () => widget.onBack != null
+              ? widget.onBack!()
+              : Navigator.of(context).pop(),
         ),
         title: UiInput.search(
           value: _query,
@@ -95,13 +104,16 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
+          constraints: const BoxConstraints(maxWidth: kCommunityMaxWidth),
           child: Column(
             children: [
               if (_query.isNotEmpty) ...[
                 Container(
                   color: colors.surface,
-                  padding: EdgeInsets.symmetric(horizontal: context.sp(12), vertical: context.sp(8)),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(12),
+                    vertical: context.sp(8),
+                  ),
                   child: UiTabs(
                     tabs: const ['All', 'Posts', 'Traders'],
                     selectedIndex: _selectedCategory,
@@ -158,7 +170,10 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
               },
               borderRadius: BorderRadius.circular(context.sz(20)),
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: context.sp(12), vertical: context.sp(8)),
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(12),
+                  vertical: context.sp(8),
+                ),
                 decoration: BoxDecoration(
                   color: colors.surface,
                   borderRadius: BorderRadius.circular(context.sz(20)),
@@ -167,11 +182,17 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.history, size: context.sz(14), color: colors.foregroundMuted),
+                    Icon(
+                      Icons.history,
+                      size: context.sz(14),
+                      color: colors.foregroundMuted,
+                    ),
                     SizedBox(width: context.sp(6)),
                     Text(
                       term,
-                      style: context.uiText.caption.copyWith(color: colors.foreground),
+                      style: context.uiText.caption.copyWith(
+                        color: colors.foreground,
+                      ),
                     ),
                   ],
                 ),
@@ -191,9 +212,24 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
         ...['#NIFTY50', '#Budget2026', '#CryptoRally', '#OptionsOI'].map((tag) {
           return ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.trending_up, color: colors.primary, size: context.sz(20)),
-            title: Text(tag, style: context.uiText.body.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
-            subtitle: Text('Over 1,200 traders discussing', style: context.uiText.caption.copyWith(color: colors.foregroundMuted)),
+            leading: Icon(
+              Icons.trending_up,
+              color: colors.primary,
+              size: context.sz(20),
+            ),
+            title: Text(
+              tag,
+              style: context.uiText.body.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colors.foreground,
+              ),
+            ),
+            subtitle: Text(
+              'Over 1,200 traders discussing',
+              style: context.uiText.caption.copyWith(
+                color: colors.foregroundMuted,
+              ),
+            ),
             onTap: () {
               _controller.text = tag;
               _onSearch(tag);
@@ -204,13 +240,17 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
     );
   }
 
-  Widget _buildSearchResults(List<CommunityPost> posts, List<CommunityAuthor> traders) {
+  Widget _buildSearchResults(
+    List<CommunityPost> posts,
+    List<CommunityAuthor> traders,
+  ) {
     if (posts.isEmpty && traders.isEmpty) {
       return Center(
         child: UiEmptyState(
           icon: Icons.search_off,
           title: 'No results found for "$_query"',
-          message: 'Try checking your spelling or searching for a different keyword or symbol.',
+          message:
+              'Try checking your spelling or searching for a different keyword or symbol.',
         ),
       );
     }
@@ -225,11 +265,13 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
                 post: post,
                 repository: widget.repository,
                 currentUser: widget.repository.currentAuthor,
+                onOpenRef: widget.onOpenRef,
               ),
             ),
           );
         },
         onAuthorTap: widget.onAuthorTap,
+        onOpenRef: widget.onOpenRef,
       );
     }
 
@@ -255,7 +297,12 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
       children: [
         if (traders.isNotEmpty) ...[
           Padding(
-            padding: EdgeInsets.fromLTRB(context.sp(16), context.sp(16), context.sp(16), context.sp(8)),
+            padding: EdgeInsets.fromLTRB(
+              context.sp(16),
+              context.sp(16),
+              context.sp(16),
+              context.sp(8),
+            ),
             child: Text(
               'Traders',
               style: context.uiText.subheading.copyWith(
@@ -264,20 +311,32 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
               ),
             ),
           ),
-          ...traders.take(2).map((author) => Padding(
-                padding: EdgeInsets.symmetric(horizontal: context.sp(16), vertical: context.sp(4)),
-                child: CommunityTraderCard(
-                  trader: author,
-                  onTap: () => widget.onAuthorTap?.call(author),
-                  onFollow: () => widget.repository.toggleFollow(author.id),
+          ...traders
+              .take(2)
+              .map(
+                (author) => Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(16),
+                    vertical: context.sp(4),
+                  ),
+                  child: CommunityTraderCard(
+                    trader: author,
+                    onTap: () => widget.onAuthorTap?.call(author),
+                    onFollow: () => widget.repository.toggleFollow(author.id),
+                  ),
                 ),
-              )),
+              ),
           SizedBox(height: context.sp(12)),
           const UiDivider(),
         ],
         if (posts.isNotEmpty) ...[
           Padding(
-            padding: EdgeInsets.fromLTRB(context.sp(16), context.sp(16), context.sp(16), context.sp(8)),
+            padding: EdgeInsets.fromLTRB(
+              context.sp(16),
+              context.sp(16),
+              context.sp(16),
+              context.sp(8),
+            ),
             child: Text(
               'Posts',
               style: context.uiText.subheading.copyWith(
@@ -286,52 +345,76 @@ class _CommunitySearchPageState extends State<CommunitySearchPage> {
               ),
             ),
           ),
-          ...posts.map((post) => InkWell(
-                onTap: () {
-                  if (widget.onPostTap != null) {
-                    widget.onPostTap!(post);
-                  } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => CommunityPostDetailView(
-                          post: post,
-                          repository: widget.repository,
-                          currentUser: widget.currentUser ?? widget.repository.currentAuthor,
+          ...posts.map(
+            (post) => InkWell(
+              onTap: () {
+                if (widget.onPostTap != null) {
+                  widget.onPostTap!(post);
+                } else {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => CommunityPostDetailView(
+                        post: post,
+                        repository: widget.repository,
+                        currentUser:
+                            widget.currentUser ??
+                            widget.repository.currentAuthor,
+                        onOpenRef: widget.onOpenRef,
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(16),
+                  vertical: context.sp(8),
+                ),
+                child: UiCard(
+                  child: Padding(
+                    padding: EdgeInsets.all(context.sp(12)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            UiAvatar(
+                              name: post.author.displayName,
+                              size: UiSize.xs,
+                            ),
+                            SizedBox(width: context.sp(8)),
+                            Text(
+                              post.author.displayName,
+                              style: context.uiText.label.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground,
+                              ),
+                            ),
+                            SizedBox(width: context.sp(4)),
+                            Text(
+                              post.author.handle,
+                              style: context.uiText.caption.copyWith(
+                                color: colors.foregroundMuted,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    );
-                  }
-                },
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: context.sp(16), vertical: context.sp(8)),
-                  child: UiCard(
-                    child: Padding(
-                      padding: EdgeInsets.all(context.sp(12)),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              UiAvatar(name: post.author.displayName, size: UiSize.xs),
-                              SizedBox(width: context.sp(8)),
-                              Text(post.author.displayName, style: context.uiText.label.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
-                              SizedBox(width: context.sp(4)),
-                              Text(post.author.handle, style: context.uiText.caption.copyWith(color: colors.foregroundMuted)),
-                            ],
+                        SizedBox(height: context.sp(6)),
+                        Text(
+                          post.body,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.uiText.body.copyWith(
+                            color: colors.foreground,
                           ),
-                          SizedBox(height: context.sp(6)),
-                          Text(
-                            post.body,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: context.uiText.body.copyWith(color: colors.foreground),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              )),
+              ),
+            ),
+          ),
         ],
       ],
     );

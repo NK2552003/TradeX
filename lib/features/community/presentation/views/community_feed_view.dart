@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 import 'package:tradex/features/community/data/community_repository.dart';
@@ -13,12 +15,14 @@ class CommunityFeedView extends StatefulWidget {
     this.onPostTap,
     this.onAuthorTap,
     this.onCompose,
+    this.onOpenRef,
   });
 
   final CommunityRepository repository;
   final CommunityAuthor currentUser;
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
+  final ValueChanged<AppLinkRef>? onOpenRef;
 
   /// Called when the compact mobile compose trigger is tapped.
   /// On desktop/tablet the full [CommunityComposerCard] is rendered inline
@@ -65,79 +69,170 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
+    final double topInset = context.sp(theme.spacing.xs);
+    final double barHeight = context.sz(44);
+    final double clearance =
+        topInset + barHeight + context.sp(theme.spacing.xs);
 
-    return Column(
+    return Stack(
       children: <Widget>[
-        // Sticky Top Sub-Tabs Bar
-        Container(
-          decoration: BoxDecoration(
-            color: theme.colors.surface,
-            border: Border(
-              bottom: BorderSide(
-                color: theme.colors.border.withValues(alpha: 0.6),
+        // Sub-Tab Content Views (feeds scroll smoothly underneath the floating bar)
+        TabBarView(
+          controller: _subTabController,
+          physics: context.uiRes.isDesktop
+              ? const NeverScrollableScrollPhysics()
+              : null,
+          children: <Widget>[
+            // Tab 0: For you
+            _CommunityKeepAliveTab(child: _buildForYouTab(topPadding: clearance)),
+            // Tab 1: Following
+            _CommunityKeepAliveTab(child: _buildFollowingTab(topPadding: clearance)),
+            // Tab 2: Signals & Setups
+            _CommunityKeepAliveTab(child: _buildSignalsTab(topPadding: clearance)),
+            // Tab 3: Market News
+            _CommunityKeepAliveTab(child: _buildNewsTab(topPadding: clearance)),
+            // Tab 4: Crypto
+            _CommunityKeepAliveTab(child: _buildCryptoTab(topPadding: clearance)),
+            // Tab 5: Equities
+            _CommunityKeepAliveTab(child: _buildEquitiesTab(topPadding: clearance)),
+          ],
+        ),
+
+        // Floating Top Sub-Tabs Bar - spans full width of feed container
+        Positioned(
+          top: topInset,
+          left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+          right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+          child: _buildFloatingBar(context, theme, isMobile),
+        ),
+      ],
+    );
+  }
+
+  /// Floating capsule bar with frosted glass, hairline border, soft glow indicator,
+  /// and trailing tab customizer button.
+  Widget _buildFloatingBar(BuildContext context, UiTheme theme, bool isMobile) {
+    return Container(
+      height: context.sz(44),
+      decoration: BoxDecoration(
+        borderRadius: context.radius(theme.radii.pill),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.24),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: context.radius(theme.radii.pill),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+            decoration: BoxDecoration(
+              color: theme.colors.surface.withValues(alpha: 0.88),
+              borderRadius: context.radius(theme.radii.pill),
+              border: Border.all(
+                color: theme.colors.border.withValues(alpha: 0.7),
                 width: theme.borders.hairline,
               ),
             ),
-          ),
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: TabBar(
-                  controller: _subTabController,
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  labelStyle: context.uiText.bodyStrong.copyWith(
-                    fontSize: context.fs(isMobile ? 13 : 14),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: TabBar(
+                    controller: _subTabController,
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    padding: EdgeInsets.zero,
+                    labelPadding: EdgeInsets.symmetric(
+                      horizontal: context.sp(theme.spacing.sm),
+                    ),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    splashBorderRadius: context.radius(theme.radii.pill),
+                    overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return Colors.transparent;
+                      }
+                      if (states.contains(WidgetState.hovered)) {
+                        return theme.colors.primary.withValues(alpha: 0.08);
+                      }
+                      return null;
+                    }),
+                    indicator: BoxDecoration(
+                      color: theme.colors.primary.withValues(alpha: 0.16),
+                      borderRadius: context.radius(theme.radii.pill),
+                      border: Border.all(
+                        color: theme.colors.primary.withValues(alpha: 0.4),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.colors.primary.withValues(alpha: 0.12),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    dividerColor: Colors.transparent,
+                    labelColor: theme.colors.primary,
+                    unselectedLabelColor: theme.colors.foregroundMuted,
+                    labelStyle: context.uiText.bodyStrong.copyWith(
+                      fontSize: context.fs(isMobile ? 12.5 : 13.5),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    unselectedLabelStyle: context.uiText.body.copyWith(
+                      fontSize: context.fs(isMobile ? 12.5 : 13.5),
+                      fontWeight: FontWeight.w500,
+                    ),
+                    tabs: _subTabs.map((label) {
+                      return Tab(
+                        height: context.sz(34),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Text(label),
+                        ),
+                      );
+                    }).toList(),
                   ),
-                  unselectedLabelStyle: context.uiText.body.copyWith(
-                    fontSize: context.fs(isMobile ? 13 : 14),
-                    color: theme.colors.foregroundMuted,
-                  ),
-                  labelColor: theme.colors.primary,
-                  unselectedLabelColor: theme.colors.foregroundMuted,
-                  indicatorColor: theme.colors.primary,
-                  indicatorWeight: 2,
-                  dividerColor: Colors.transparent,
-                  tabs: _subTabs.map((label) => Tab(text: label)).toList(),
                 ),
-              ),
-              UiIconButton(
-                icon: Icons.add_rounded,
-                size: UiSize.xs,
-                tooltip: 'Customize Feed Tabs',
-                onPressed: () {
-                  CommunityFeedCustomizerDialog.show(
-                    context,
-                    repository: widget.repository,
-                  );
-                },
-              ),
-              SizedBox(width: context.sp(theme.spacing.xs)),
-            ],
+                Container(
+                  height: context.sz(18),
+                  width: theme.borders.hairline,
+                  color: theme.colors.border.withValues(alpha: 0.6),
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                ),
+                UiIconButton(
+                  icon: Icons.podcasts_rounded,
+                  size: UiSize.xs,
+                  tooltip: 'Tune into Live Space',
+                  onPressed: () {
+                    CommunityLiveRoomSheet.show(context);
+                  },
+                ),
+                UiIconButton(
+                  icon: Icons.add_rounded,
+                  size: UiSize.xs,
+                  tooltip: 'Customize Feed Tabs',
+                  onPressed: () {
+                    CommunityFeedCustomizerDialog.show(
+                      context,
+                      repository: widget.repository,
+                    );
+                  },
+                ),
+                const SizedBox(width: 2),
+              ],
+            ),
           ),
         ),
-
-        // Sub-Tab Content Views
-        Expanded(
-          child: TabBarView(
-            controller: _subTabController,
-            children: <Widget>[
-              // Tab 0: For you
-              _buildForYouTab(),
-              // Tab 1: Following
-              _buildFollowingTab(),
-              // Tab 2: Signals & Setups
-              _buildSignalsTab(),
-              // Tab 3: Market News
-              _buildNewsTab(),
-              // Tab 4: Crypto
-              _buildCryptoTab(),
-              // Tab 5: Equities
-              _buildEquitiesTab(),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -145,38 +240,110 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   // Tab 0: For you
   // ---------------------------------------------------------------------------
 
-  Widget _buildForYouTab() {
+  Widget _buildForYouTab({required double topPadding}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final posts = widget.repository.forYouPosts;
 
-    // On mobile, replace the full composer card with a lightweight compact
-    // trigger row — the actual compose sheet opens via the FAB or the tap.
-    final Widget composeHeader = isMobile
-        ? _buildCompactComposeTrigger(theme)
-        : Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.md),
-              vertical: context.sp(theme.spacing.sm),
+    final Widget liveSpaceBanner = Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        vertical: context.sp(theme.spacing.xxs),
+      ),
+      child: InkWell(
+        onTap: () => CommunityLiveRoomSheet.show(context),
+        borderRadius: BorderRadius.circular(theme.radii.md),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(theme.spacing.sm),
+            vertical: context.sp(theme.spacing.xs),
+          ),
+          decoration: BoxDecoration(
+            color: theme.colors.danger.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(theme.radii.md),
+            border: Border.all(
+              color: theme.colors.danger.withValues(alpha: 0.25),
             ),
-            child: CommunityComposerCard(
-              author: widget.currentUser,
-              repository: widget.repository,
-            ),
-          );
+          ),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: context.sz(8),
+                height: context.sz(8),
+                decoration: BoxDecoration(
+                  color: theme.colors.danger,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              Text(
+                'LIVE SPACE',
+                style: context.uiText.label.copyWith(
+                  color: theme.colors.danger,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              Expanded(
+                child: Text(
+                  'Nifty & BankNifty Live Expiry Floor · Rajesh Sharma, CMT',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.bodyStrong.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: context.fs(12.5),
+                  ),
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              UiBadge(
+                label: '142 listening',
+                icon: Icons.headphones_rounded,
+                variant: UiBadgeVariant.soft,
+                intent: UiIntent.danger,
+                size: UiSize.xs,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final Widget composeHeader = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        liveSpaceBanner,
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            vertical: context.sp(theme.spacing.xs),
+          ),
+          child: CommunityComposerCard(
+            author: widget.currentUser,
+            repository: widget.repository,
+          ),
+        ),
+      ],
+    );
 
     final Widget feedList = CommunityFeedList(
       controller: _forYouScrollController,
       posts: posts,
       header: composeHeader,
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+      padding: EdgeInsets.only(
+        top: topPadding,
+        left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        bottom: context.sp(theme.spacing.xl),
       ),
       onPostTap: widget.onPostTap,
       onLike: (id) => widget.repository.toggleLike(id),
       onRepost: (id) => widget.repository.toggleRepost(id),
       onBookmark: (id) => widget.repository.toggleBookmark(id),
       onAuthorTap: widget.onAuthorTap,
+      onOpenRef: widget.onOpenRef,
       onRefresh: () async => setState(() {}),
     );
 
@@ -185,7 +352,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
         feedList,
         if (_newPostsCount > 0)
           Positioned(
-            top: context.sp(theme.spacing.sm),
+            top: topPadding + context.sp(theme.spacing.xs),
             left: 0,
             right: 0,
             child: CommunityNewPostsPill(
@@ -204,83 +371,36 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     );
   }
 
-  /// Compact mobile compose trigger — avatar + placeholder text.
-  /// Tapping opens the bottom-sheet composer via [widget.onCompose].
-  Widget _buildCompactComposeTrigger(UiTheme theme) {
-    return InkWell(
-      onTap: widget.onCompose,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: context.sp(theme.spacing.md),
-          vertical: context.sp(theme.spacing.sm),
-        ),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: theme.colors.border.withValues(alpha: 0.5),
-              width: theme.borders.hairline,
-            ),
-          ),
-        ),
-        child: Row(
-          children: <Widget>[
-            UiAvatar(
-              name: widget.currentUser.displayName,
-              imageUrl: widget.currentUser.avatarUrl,
-              size: UiSize.sm,
-            ),
-            SizedBox(width: context.sp(theme.spacing.sm)),
-            Expanded(
-              child: Text(
-                "What's your trade thesis today?",
-                style: context.uiText.body.copyWith(
-                  color: theme.colors.foregroundSubtle,
-                ),
-              ),
-            ),
-            UiButton(
-              label: 'Post',
-              variant: UiVariant.primary,
-              size: UiSize.xs,
-              expandOnMobile: false,
-              onPressed: widget.onCompose,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // ---------------------------------------------------------------------------
   // Tab 1: Following
   // ---------------------------------------------------------------------------
 
-  Widget _buildFollowingTab() {
+  Widget _buildFollowingTab({required double topPadding}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final posts = widget.repository.followingPosts;
 
     return CommunityFeedList(
       posts: posts,
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+      padding: EdgeInsets.only(
+        top: topPadding,
+        left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        bottom: context.sp(theme.spacing.xl),
       ),
       onPostTap: widget.onPostTap,
       onLike: (id) => widget.repository.toggleLike(id),
       onRepost: (id) => widget.repository.toggleRepost(id),
       onBookmark: (id) => widget.repository.toggleBookmark(id),
       onAuthorTap: widget.onAuthorTap,
+      onOpenRef: widget.onOpenRef,
       onRefresh: () async => setState(() {}),
-      emptyState: Center(
-        child: Padding(
-          padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-          child: UiEmptyState(
-            icon: Icons.person_add_outlined,
-            title: 'No posts yet',
-            message:
-                'Follow other traders to see their setups and execution notes here.',
-          ),
-        ),
+      emptyState: const CommunityEmptyState(
+        icon: Icons.person_add_outlined,
+        title: 'No posts yet',
+        message:
+            'Follow other traders to see their setups and execution notes here.',
       ),
     );
   }
@@ -289,32 +409,31 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   // Tab 2: Signals & Setups
   // ---------------------------------------------------------------------------
 
-  Widget _buildSignalsTab() {
+  Widget _buildSignalsTab({required double topPadding}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final posts = widget.repository.signalPosts;
 
     return CommunityFeedList(
       posts: posts,
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+      padding: EdgeInsets.only(
+        top: topPadding,
+        left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        bottom: context.sp(theme.spacing.xl),
       ),
       onPostTap: widget.onPostTap,
       onLike: (id) => widget.repository.toggleLike(id),
       onRepost: (id) => widget.repository.toggleRepost(id),
       onBookmark: (id) => widget.repository.toggleBookmark(id),
       onAuthorTap: widget.onAuthorTap,
+      onOpenRef: widget.onOpenRef,
       onRefresh: () async => setState(() {}),
-      emptyState: Center(
-        child: Padding(
-          padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-          child: UiEmptyState(
-            icon: Icons.candlestick_chart_rounded,
-            title: 'No trade signals found',
-            message:
-                'Published trades with entry, exit and stop levels will appear here.',
-          ),
-        ),
+      emptyState: const CommunityEmptyState(
+        icon: Icons.candlestick_chart_rounded,
+        title: 'No trade signals found',
+        message:
+            'Published trades with entry, exit and stop levels will appear here.',
       ),
     );
   }
@@ -323,15 +442,17 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   // Tab 3: Market News
   // ---------------------------------------------------------------------------
 
-  Widget _buildNewsTab() {
+  Widget _buildNewsTab({required double topPadding}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final news = widget.repository.news;
 
     return ListView.builder(
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        vertical: context.sp(theme.spacing.sm),
+      padding: EdgeInsets.only(
+        top: topPadding + context.sp(theme.spacing.xs),
+        left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        bottom: context.sp(theme.spacing.xl),
       ),
       itemCount: news.length,
       itemBuilder: (BuildContext context, int index) {
@@ -411,7 +532,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   // Tab 4: Crypto
   // ---------------------------------------------------------------------------
 
-  Widget _buildCryptoTab() {
+  Widget _buildCryptoTab({required double topPadding}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final cryptoTickers = <String>{'BTC', 'ETH', 'SOL', 'DOGE', 'USDINR'};
@@ -422,25 +543,24 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
 
     return CommunityFeedList(
       posts: posts,
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+      padding: EdgeInsets.only(
+        top: topPadding,
+        left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        bottom: context.sp(theme.spacing.xl),
       ),
       onPostTap: widget.onPostTap,
       onLike: (id) => widget.repository.toggleLike(id),
       onRepost: (id) => widget.repository.toggleRepost(id),
       onBookmark: (id) => widget.repository.toggleBookmark(id),
       onAuthorTap: widget.onAuthorTap,
+      onOpenRef: widget.onOpenRef,
       onRefresh: () async => setState(() {}),
-      emptyState: Center(
-        child: Padding(
-          padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-          child: UiEmptyState(
-            icon: Icons.currency_bitcoin_rounded,
-            title: 'No crypto setups found',
-            message:
-                'Posts referencing \$BTC, \$ETH, or crypto setups will appear here.',
-          ),
-        ),
+      emptyState: const CommunityEmptyState(
+        icon: Icons.currency_bitcoin_rounded,
+        title: 'No crypto setups found',
+        message:
+            'Posts referencing \$BTC, \$ETH, or crypto setups will appear here.',
       ),
     );
   }
@@ -449,7 +569,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   // Tab 5: Equities
   // ---------------------------------------------------------------------------
 
-  Widget _buildEquitiesTab() {
+  Widget _buildEquitiesTab({required double topPadding}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final posts = widget.repository.forYouPosts.where((p) {
@@ -460,25 +580,46 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
 
     return CommunityFeedList(
       posts: posts,
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+      padding: EdgeInsets.only(
+        top: topPadding,
+        left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        bottom: context.sp(theme.spacing.xl),
       ),
       onPostTap: widget.onPostTap,
       onLike: (id) => widget.repository.toggleLike(id),
       onRepost: (id) => widget.repository.toggleRepost(id),
       onBookmark: (id) => widget.repository.toggleBookmark(id),
       onAuthorTap: widget.onAuthorTap,
+      onOpenRef: widget.onOpenRef,
       onRefresh: () async => setState(() {}),
-      emptyState: Center(
-        child: Padding(
-          padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-          child: UiEmptyState(
-            icon: Icons.show_chart_rounded,
-            title: 'No equities setups found',
-            message: 'Posts tagged with equity tickers will appear here.',
-          ),
-        ),
+      emptyState: const CommunityEmptyState(
+        icon: Icons.show_chart_rounded,
+        title: 'No equities setups found',
+        message: 'Posts tagged with equity tickers will appear here.',
       ),
     );
   }
 }
+
+/// Helper wrapper that preserves scroll position and widget state across sub-tabs.
+class _CommunityKeepAliveTab extends StatefulWidget {
+  const _CommunityKeepAliveTab({required this.child});
+  final Widget child;
+
+  @override
+  State<_CommunityKeepAliveTab> createState() => _CommunityKeepAliveTabState();
+}
+
+class _CommunityKeepAliveTabState extends State<_CommunityKeepAliveTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+}
+

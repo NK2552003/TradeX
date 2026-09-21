@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 
 /// Redesigned notification item card with unread accent indicator, type icon container,
 /// actor attribution, and relative timestamp.
@@ -19,10 +20,11 @@ class CommunityNotificationCard extends StatelessWidget {
     final UiTheme theme = context.ui;
     final bool isUnread = !notification.read;
 
-    return UiCard(
+    return CommunityTile(
       onTap: onTap,
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-      accentColor: isUnread ? theme.colors.primary : null,
+      padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+      intent: UiIntent.primary,
+      selected: isUnread,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[

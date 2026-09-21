@@ -3,21 +3,23 @@ import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 
 /// Modal dialog that formats a post / trade setup into a branded TradeX graphic card
 /// for easy social sharing and exporting.
 class CommunityCardShareDialog extends StatelessWidget {
-  const CommunityCardShareDialog({
-    super.key,
-    required this.post,
-  });
+  const CommunityCardShareDialog({super.key, required this.post});
 
   final CommunityPost post;
 
-  static Future<void> show(BuildContext context, {required CommunityPost post}) {
+  static Future<void> show(
+    BuildContext context, {
+    required CommunityPost post,
+  }) {
     return showDialog<void>(
       context: context,
-      builder: (ctx) => CommunityCardShareDialog(post: post),
+      builder: (ctx) =>
+          CommunityDensityScope(child: CommunityCardShareDialog(post: post)),
     );
   }
 
@@ -72,7 +74,9 @@ class CommunityCardShareDialog extends StatelessWidget {
                     ],
                   ),
                   borderRadius: BorderRadius.circular(context.sz(12)),
-                  border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: colors.primary.withValues(alpha: 0.2),
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.2),
@@ -88,7 +92,10 @@ class CommunityCardShareDialog extends StatelessWidget {
                     // Author + TradeX Branding
                     Row(
                       children: [
-                        UiAvatar(name: post.author.displayName, size: UiSize.sm),
+                        UiAvatar(
+                          name: post.author.displayName,
+                          size: UiSize.sm,
+                        ),
                         SizedBox(width: context.sp(10)),
                         Expanded(
                           child: Column(
@@ -111,7 +118,10 @@ class CommunityCardShareDialog extends StatelessWidget {
                           ),
                         ),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: context.sp(8), vertical: context.sp(4)),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: context.sp(8),
+                            vertical: context.sp(4),
+                          ),
                           decoration: BoxDecoration(
                             color: colors.primary.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(context.sz(4)),
@@ -163,7 +173,9 @@ class CommunityCardShareDialog extends StatelessWidget {
                             ),
                             Text(
                               'Entry: \$${post.tradeSetup!.entry}',
-                              style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
+                              style: context.uiText.caption.copyWith(
+                                color: colors.foregroundMuted,
+                              ),
                             ),
                             if (post.tradeSetup!.target != null)
                               Text(
@@ -229,7 +241,9 @@ class CommunityCardShareDialog extends StatelessWidget {
                       icon: Icons.link,
                       variant: UiVariant.primary,
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: 'https://tradex.io/p/${post.id}'));
+                        Clipboard.setData(
+                          ClipboardData(text: 'https://tradex.io/p/${post.id}'),
+                        );
                         Navigator.of(context).pop();
                         UiToast.show(
                           context,

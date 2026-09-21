@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_image_viewer_page.dart';
 import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
@@ -49,6 +48,7 @@ class CommunityPostCard extends StatefulWidget {
     this.onTagTap,
     this.onQuote,
     this.onVotePoll,
+    this.onOpenRef,
     this.loading = false,
   });
 
@@ -64,6 +64,10 @@ class CommunityPostCard extends StatefulWidget {
   final ValueChanged<String>? onTagTap;
   final ValueChanged<CommunityPost>? onQuote;
   final void Function(int optionIndex)? onVotePoll;
+
+  /// Opens the linked Writing-Desk record when the post's attachment tile is
+  /// tapped. When null the attachment tile falls back to [onTap].
+  final ValueChanged<AppLinkRef>? onOpenRef;
   final bool loading;
 
   @override
@@ -138,10 +142,7 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
   }
 
   void _handleShare(BuildContext context) {
-    CommunityShareSheet.show(
-      context,
-      post: widget.post,
-    );
+    CommunityShareSheet.show(context, post: widget.post);
     widget.onShare?.call();
   }
 
@@ -156,9 +157,12 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
 
     final post = widget.post;
 
+    final bool isDesktop = context.uiRes.isDesktop;
+
     if (widget.variant == CommunityPostCardVariant.boxed) {
       return UiCard(
         onTap: widget.onTap,
+        hoverLift: !isDesktop,
         padding: EdgeInsets.all(
           context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
         ),
@@ -169,8 +173,10 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     // Hybrid Feed Timeline Layout
     return InkWell(
       onTap: widget.onTap,
-      splashColor: theme.colors.primary.withValues(alpha: 0.05),
-      highlightColor: theme.colors.surfaceMuted.withValues(alpha: 0.4),
+      hoverColor: isDesktop ? Colors.transparent : null,
+      splashColor: isDesktop ? Colors.transparent : theme.colors.primary.withValues(alpha: 0.03),
+      highlightColor: isDesktop ? Colors.transparent : theme.colors.surfaceMuted.withValues(alpha: 0.08),
+      overlayColor: isDesktop ? const WidgetStatePropertyAll<Color>(Colors.transparent) : null,
       child: Padding(
         padding: EdgeInsets.symmetric(
           horizontal: context.sp(
@@ -304,11 +310,17 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             decoration: BoxDecoration(
               color: theme.colors.danger.withValues(alpha: 0.12),
               borderRadius: context.radius(theme.radii.sm),
-              border: Border.all(color: theme.colors.danger.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: theme.colors.danger.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
-                Icon(Icons.campaign, color: theme.colors.danger, size: context.sz(16)),
+                Icon(
+                  Icons.campaign,
+                  color: theme.colors.danger,
+                  size: context.sz(16),
+                ),
                 SizedBox(width: context.sp(theme.spacing.xs)),
                 Text(
                   'OFFICIAL DESK ANNOUNCEMENT',
@@ -354,13 +366,13 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                   label: post.sentiment == CommunitySentiment.bullish
                       ? 'BULLISH'
                       : post.sentiment == CommunitySentiment.bearish
-                          ? 'BEARISH'
-                          : 'NEUTRAL',
+                      ? 'BEARISH'
+                      : 'NEUTRAL',
                   intent: post.sentiment == CommunitySentiment.bullish
                       ? UiIntent.success
                       : post.sentiment == CommunitySentiment.bearish
-                          ? UiIntent.danger
-                          : UiIntent.info,
+                      ? UiIntent.danger
+                      : UiIntent.info,
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
@@ -396,7 +408,9 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
           SizedBox(height: context.sp(theme.spacing.sm)),
           CommunityAttachmentTile(
             attachment: post.attachment!,
-            onTap: widget.onTap,
+            onTap: widget.onOpenRef != null
+                ? () => widget.onOpenRef!(post.attachment!.source)
+                : widget.onTap,
           ),
         ],
 
@@ -519,13 +533,13 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
           onLike: _handleLike,
           onBookmark: _handleBookmark,
           onShare: () => _handleShare(context),
-          onViewStats: () => CommunityPostInsightsSheet.show(context, post: post),
+          onViewStats: () =>
+              CommunityPostInsightsSheet.show(context, post: post),
           showBorder: true,
         ),
       ],
     );
   }
-
 }
 
 /// Shimmer loading placeholder skeleton for [CommunityPostCard].

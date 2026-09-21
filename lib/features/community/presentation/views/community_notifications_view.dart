@@ -105,7 +105,7 @@ class _CommunityNotificationsViewState
           ),
         ),
         SizedBox(height: context.sp(theme.spacing.xs)),
-        const UiDivider(),
+        if (context.uiRes.isMobile) const UiDivider(),
 
         Expanded(
           child: _NotificationsList(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
 
 /// Responsive Pinterest/X-media style masonry grid for community posts.
@@ -23,6 +23,7 @@ class CommunityPostGrid extends StatelessWidget {
     this.onBookmark,
     this.onAuthorTap,
     this.onTagTap,
+    this.onOpenRef,
     this.padding,
     this.emptyState,
   });
@@ -34,6 +35,7 @@ class CommunityPostGrid extends StatelessWidget {
   final ValueChanged<String>? onBookmark;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<String>? onTagTap;
+  final ValueChanged<AppLinkRef>? onOpenRef;
   final EdgeInsetsGeometry? padding;
   final Widget? emptyState;
 
@@ -55,16 +57,10 @@ class CommunityPostGrid extends StatelessWidget {
 
     if (posts.isEmpty) {
       return emptyState ??
-          Center(
-            child: Padding(
-              padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-              child: UiEmptyState(
-                icon: Icons.search_off_rounded,
-                title: 'No posts found',
-                message:
-                    'Try exploring other categories or clearing your search.',
-              ),
-            ),
+          const CommunityEmptyState(
+            icon: Icons.search_off_rounded,
+            title: 'No posts found',
+            message: 'Try exploring other categories or clearing your search.',
           );
     }
 
@@ -94,6 +90,7 @@ class CommunityPostGrid extends StatelessWidget {
                 onBookmark: () => onBookmark?.call(post.id),
                 onAuthorTap: onAuthorTap,
                 onTagTap: onTagTap,
+                onOpenRef: onOpenRef,
               );
             },
           );
@@ -146,6 +143,7 @@ class CommunityPostGrid extends StatelessWidget {
                               onBookmark?.call(columnBuckets[c][i].id),
                           onAuthorTap: onAuthorTap,
                           onTagTap: onTagTap,
+                          onOpenRef: onOpenRef,
                         ),
                       ],
                     ],

@@ -230,6 +230,38 @@ class RoleNavigationConfig {
             label: 'Community',
             icon: Icons.forum_outlined,
             selectedIcon: Icons.forum_rounded,
+            subItems: <AppNavItem>[
+              AppNavItem(
+                id: 'community_feed',
+                label: 'Feed',
+                icon: Icons.dynamic_feed_outlined,
+                selectedIcon: Icons.dynamic_feed_rounded,
+              ),
+              AppNavItem(
+                id: 'community_explore',
+                label: 'Explore',
+                icon: Icons.explore_outlined,
+                selectedIcon: Icons.explore_rounded,
+              ),
+              AppNavItem(
+                id: 'community_network',
+                label: 'Network',
+                icon: Icons.group_outlined,
+                selectedIcon: Icons.group_rounded,
+              ),
+              AppNavItem(
+                id: 'community_profile',
+                label: 'My Profile',
+                icon: Icons.person_outline_rounded,
+                selectedIcon: Icons.person_rounded,
+              ),
+              AppNavItem(
+                id: 'community_bookmarks',
+                label: 'Bookmarks',
+                icon: Icons.bookmark_border_rounded,
+                selectedIcon: Icons.bookmark_rounded,
+              ),
+            ],
           ),
           AppNavItem(
             id: 'messages',
@@ -424,6 +456,38 @@ class RoleNavigationConfig {
             label: 'Community',
             icon: Icons.forum_outlined,
             selectedIcon: Icons.forum_rounded,
+            subItems: <AppNavItem>[
+              AppNavItem(
+                id: 'community_feed',
+                label: 'Feed',
+                icon: Icons.dynamic_feed_outlined,
+                selectedIcon: Icons.dynamic_feed_rounded,
+              ),
+              AppNavItem(
+                id: 'community_explore',
+                label: 'Explore',
+                icon: Icons.explore_outlined,
+                selectedIcon: Icons.explore_rounded,
+              ),
+              AppNavItem(
+                id: 'community_network',
+                label: 'Network',
+                icon: Icons.group_outlined,
+                selectedIcon: Icons.group_rounded,
+              ),
+              AppNavItem(
+                id: 'community_profile',
+                label: 'My Profile',
+                icon: Icons.person_outline_rounded,
+                selectedIcon: Icons.person_rounded,
+              ),
+              AppNavItem(
+                id: 'community_bookmarks',
+                label: 'Bookmarks',
+                icon: Icons.bookmark_border_rounded,
+                selectedIcon: Icons.bookmark_rounded,
+              ),
+            ],
           ),
           AppNavItem(
             id: 'messages',

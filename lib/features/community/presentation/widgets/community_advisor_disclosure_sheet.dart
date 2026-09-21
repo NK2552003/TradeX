@@ -3,19 +3,18 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 
 /// Modal bottom sheet displaying verified Research Analyst / RIA regulatory credentials
 /// and mandatory conflict of interest disclosures.
 class CommunityAdvisorDisclosureSheet extends StatelessWidget {
-  const CommunityAdvisorDisclosureSheet({
-    super.key,
-    required this.author,
-  });
+  const CommunityAdvisorDisclosureSheet({super.key, required this.author});
 
   final CommunityAuthor author;
 
   static Future<void> show(BuildContext context, {CommunityAuthor? author}) {
-    final fallback = author ??
+    final fallback =
+        author ??
         const CommunityAuthor(
           id: 'advisor_default',
           displayName: 'Rajesh Sharma, CMT',
@@ -29,7 +28,9 @@ class CommunityAdvisorDisclosureSheet extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => CommunityAdvisorDisclosureSheet(author: fallback),
+      builder: (ctx) => CommunityDensityScope(
+        child: CommunityAdvisorDisclosureSheet(author: fallback),
+      ),
     );
   }
 
@@ -41,7 +42,9 @@ class CommunityAdvisorDisclosureSheet extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: colors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(context.sz(20))),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(context.sz(20)),
+        ),
         border: Border.all(color: colors.border),
       ),
       padding: EdgeInsets.fromLTRB(
@@ -88,7 +91,11 @@ class CommunityAdvisorDisclosureSheet extends StatelessWidget {
                           ),
                         ),
                         SizedBox(width: context.sp(4)),
-                        Icon(Icons.verified, color: colors.primary, size: context.sz(16)),
+                        Icon(
+                          Icons.verified,
+                          color: colors.primary,
+                          size: context.sz(16),
+                        ),
                       ],
                     ),
                     Text(
@@ -121,9 +128,18 @@ class CommunityAdvisorDisclosureSheet extends StatelessWidget {
             child: Column(
               children: [
                 _InfoRow(label: 'Registration Number', value: 'INH000009412'),
-                _InfoRow(label: 'Regulatory Body', value: 'SEBI (Securities & Exchange Board of India)'),
-                _InfoRow(label: 'Validity Period', value: 'Valid thru Oct 2028'),
-                _InfoRow(label: 'Compliance Officer', value: 'compliance@tradex.io'),
+                _InfoRow(
+                  label: 'Regulatory Body',
+                  value: 'SEBI (Securities & Exchange Board of India)',
+                ),
+                _InfoRow(
+                  label: 'Validity Period',
+                  value: 'Valid thru Oct 2028',
+                ),
+                _InfoRow(
+                  label: 'Compliance Officer',
+                  value: 'compliance@tradex.io',
+                ),
               ],
             ),
           ),
@@ -177,7 +193,9 @@ class _InfoRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: colors.foregroundMuted,
+            ),
           ),
           Text(
             value,

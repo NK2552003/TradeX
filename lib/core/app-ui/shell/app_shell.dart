@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:quiet_dock/quiet_dock.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
+import '../../../features/calculators/ui/calculators_screen.dart';
 import '../brand/app_logo.dart';
 import '../models/app_models.dart';
 import '../motion/app_motion.dart';
@@ -128,21 +129,62 @@ class _AppShellState extends State<AppShell> {
   /// cross-link between pages — would leave the dock on the previous
   /// destination while a different page is on screen.
   late final QuietDockController _dockController;
+  bool _calculatorVisible = false;
+
+  bool get _isCommunityRoute =>
+      widget.selectedId == 'community' ||
+      widget.selectedId.startsWith('community_');
 
   List<AppNavItem> get _flatItems =>
       widget.sections.expand((AppNavSection s) => s.items).toList();
 
   /// The (at most four) destinations the phone dock shows.
-  List<AppNavItem> get _dockItems =>
-      (widget.mobilePrimaryItems ?? _flatItems.take(4).toList())
-          .take(4)
-          .toList();
+  List<AppNavItem> get _dockItems {
+    if (_isCommunityRoute) {
+      return const <AppNavItem>[
+        AppNavItem(
+          id: 'community_feed',
+          label: 'Feed',
+          icon: Icons.dynamic_feed_outlined,
+          selectedIcon: Icons.dynamic_feed_rounded,
+        ),
+        AppNavItem(
+          id: 'community_explore',
+          label: 'Explore',
+          icon: Icons.explore_outlined,
+          selectedIcon: Icons.explore_rounded,
+        ),
+        AppNavItem(
+          id: 'community_network',
+          label: 'Network',
+          icon: Icons.people_outline_rounded,
+          selectedIcon: Icons.people_rounded,
+        ),
+        AppNavItem(
+          id: 'community_profile',
+          label: 'Profile',
+          icon: Icons.person_outline_rounded,
+          selectedIcon: Icons.person_rounded,
+        ),
+      ];
+    }
+    return (widget.mobilePrimaryItems ?? _flatItems.take(4).toList())
+        .take(4)
+        .toList();
+  }
 
   /// Dock slot that owns [id], or -1 when no slot does.
   ///
   /// Every settings surface answers to the single `settings` slot: the sidebar
   /// lists them individually, the dock cannot.
   int _dockIndexFor(String id) {
+    if (_isCommunityRoute) {
+      if (id == 'community' || id == 'community_feed') return 0;
+      if (id == 'community_explore') return 1;
+      if (id == 'community_network') return 2;
+      if (id == 'community_profile') return 3;
+      return 0;
+    }
     final List<AppNavItem> items = _dockItems;
     final int direct = items.indexWhere((AppNavItem item) => item.id == id);
     if (direct >= 0) return direct;
@@ -187,7 +229,7 @@ class _AppShellState extends State<AppShell> {
     WidgetsBinding.instance.addPostFrameCallback((Duration _) {
       if (!mounted) return;
       if (_dockController.index != index) {
-        _dockController.goToIndex(index);
+        _dockController.syncIndex(index);
       }
     });
   }
@@ -267,10 +309,21 @@ class _AppShellState extends State<AppShell> {
       );
     }
 
+    void toggleCalculator() {
+      setState(() {
+        _calculatorVisible = !_calculatorVisible;
+        if (_calculatorVisible) {
+          _collapsed = true; // Collapse left sidebar when opening calculator drawer!
+        }
+      });
+    }
+
     Widget topBar({bool researchVisible = false, VoidCallback? onResearch}) =>
         AppTopBar(
           researchVisible: researchVisible,
           onResearch: onResearch,
+          onCalculator: r.isMobile ? null : toggleCalculator,
+          calculatorVisible: _calculatorVisible,
           trader: widget.trader,
           tier: widget.tier,
           onSearch: widget.onSearch,
@@ -349,6 +402,9 @@ class _AppShellState extends State<AppShell> {
       }
       final bool moreRouteSelected = activeMoreItem != null;
       final Widget dockScaffold = QuietDockScaffold(
+        key: ValueKey<String>(
+          'quiet_dock_${_isCommunityRoute ? "community" : "main"}',
+        ),
         destinations: destinations
             .map(
               (AppNavItem item) => QuietDockDestination(
@@ -363,26 +419,75 @@ class _AppShellState extends State<AppShell> {
         controller: _dockController,
         onDestinationSelected: (int index) {
           if (index >= 0 && index < destinations.length) {
-            _dockController.goToIndex(index);
             widget.onSelect(destinations[index].id);
           }
         },
         centerAction: QuietDockCenterAction(
-          semanticLabel: 'More tools',
-          icon: Icons.grid_view_rounded,
+          semanticLabel: _isCommunityRoute ? 'Switch to App' : 'More tools',
+          icon: _isCommunityRoute
+              ? Icons.apps_rounded
+              : Icons.grid_view_rounded,
           closeIcon: moreRouteSelected
               ? (activeMoreItem.selectedIcon ?? activeMoreItem.icon)
               : Icons.close_rounded,
           columns: 3,
-          items: widget.mobileMoreItems
-              .map(
-                (AppNavItem item) => QuickGridItem(
-                  icon: item.icon,
-                  label: item.label,
-                  onTap: () => widget.onSelect(item.id),
-                ),
-              )
-              .toList(),
+          items: _isCommunityRoute
+              ? <QuickGridItem>[
+                  QuickGridItem(
+                    icon: Icons.home_rounded,
+                    label: 'Main App',
+                    onTap: () => widget.onSelect('overview'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.edit_note_rounded,
+                    label: 'Workspace',
+                    onTap: () => widget.onSelect('workspace'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.menu_book_rounded,
+                    label: 'Journal',
+                    onTap: () => widget.onSelect('journal'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.account_tree_outlined,
+                    label: 'Strategies',
+                    onTap: () => widget.onSelect('strategies'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.edit_note_rounded,
+                    label: 'Notes',
+                    onTap: () => widget.onSelect('notes'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.bookmark_outline_rounded,
+                    label: 'Bookmarks',
+                    onTap: () => widget.onSelect('community_bookmarks'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.calculate_outlined,
+                    label: 'Calculators',
+                    onTap: () => widget.onSelect('calculators'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.pie_chart_outline_rounded,
+                    label: 'Portfolio',
+                    onTap: () => widget.onSelect('portfolio'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.settings_outlined,
+                    label: 'Settings',
+                    onTap: () => widget.onSelect('settings'),
+                  ),
+                ]
+              : widget.mobileMoreItems
+                  .map(
+                    (AppNavItem item) => QuickGridItem(
+                      icon: item.icon,
+                      label: item.label,
+                      onTap: () => widget.onSelect(item.id),
+                    ),
+                  )
+                  .toList(),
         ),
         centerActionActive: moreRouteSelected,
         swipeEnabled: false,
@@ -626,6 +731,79 @@ class _AppShellState extends State<AppShell> {
                     },
                   ),
                 ),
+                if (_calculatorVisible && !r.isMobile)
+                  Container(
+                    width: context.sz(360),
+                    margin: EdgeInsets.fromLTRB(
+                      0,
+                      context.sp(theme.spacing.xs),
+                      context.sp(theme.spacing.xs + 3),
+                      context.sp(theme.spacing.xs + 3),
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colors.surface,
+                      borderRadius: context.radius(theme.radii.xl),
+                      border: Border.all(
+                        color: theme.colors.border,
+                        width: theme.borders.hairline,
+                      ),
+                      boxShadow: <BoxShadow>[
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.16),
+                          blurRadius: 16,
+                          offset: const Offset(-2, 4),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: context.radius(theme.radii.xl),
+                      child: Column(
+                        children: <Widget>[
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: context.sp(theme.spacing.md),
+                              vertical: context.sp(theme.spacing.xs),
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colors.surface,
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: theme.colors.border,
+                                  width: theme.borders.hairline,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              children: <Widget>[
+                                Icon(
+                                  Icons.calculate_rounded,
+                                  size: context.sz(18),
+                                  color: theme.colors.primary,
+                                ),
+                                SizedBox(width: context.sp(theme.spacing.xs)),
+                                Text(
+                                  'Trading Calculator',
+                                  style: context.uiText.bodyStrong.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const Spacer(),
+                                UiIconButton(
+                                  icon: Icons.close_rounded,
+                                  size: UiSize.xs,
+                                  tooltip: 'Close Calculator',
+                                  onPressed: () => setState(() => _calculatorVisible = false),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Expanded(
+                            child: CalculatorsScreen(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -1292,6 +1470,8 @@ class AppTopBar extends StatelessWidget {
     this.onBack,
     this.onResearch,
     this.researchVisible = false,
+    this.onCalculator,
+    this.calculatorVisible = false,
     this.statusBadgeText = '',
     this.showStatusBadge = false,
   });
@@ -1325,6 +1505,8 @@ class AppTopBar extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback? onResearch;
   final bool researchVisible;
+  final VoidCallback? onCalculator;
+  final bool calculatorVisible;
   final String statusBadgeText;
   final bool showStatusBadge;
 
@@ -1777,6 +1959,21 @@ class AppTopBar extends StatelessWidget {
                         size: UiSize.sm,
                         onPressed: onResearch,
                       ),
+                    UiGap.h(theme.spacing.xxs),
+                  ],
+
+                  if (onCalculator != null) ...<Widget>[
+                    UiIconButton(
+                      icon: Icons.calculate_outlined,
+                      tooltip: calculatorVisible
+                          ? 'Close calculator'
+                          : 'Trading calculator',
+                      size: UiSize.sm,
+                      variant: calculatorVisible
+                          ? UiVariant.primary
+                          : UiVariant.ghost,
+                      onPressed: onCalculator,
+                    ),
                     UiGap.h(theme.spacing.xxs),
                   ],
 

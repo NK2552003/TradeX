@@ -3,7 +3,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 
-/// Autocomplete suggestion box for @mentions and $cashtags in community composers.
+/// Autocomplete suggestion box for @mentions, $cashtags, and #hashtags in community composers.
 class CommunityMentionAutocomplete extends StatelessWidget {
   const CommunityMentionAutocomplete({
     super.key,
@@ -11,6 +11,7 @@ class CommunityMentionAutocomplete extends StatelessWidget {
     required this.traders,
     required this.onSelectTrader,
     required this.onSelectTicker,
+    this.onSelectTag,
     this.popularTickers = const <String>[
       'NIFTY',
       'BANKNIFTY',
@@ -23,24 +24,38 @@ class CommunityMentionAutocomplete extends StatelessWidget {
       'BTC',
       'ETH',
     ],
+    this.popularTags = const <String>[
+      'Breakout',
+      'PriceAction',
+      'SwingTrading',
+      'OptionsTrading',
+      'RiskReward',
+      'Nifty50',
+      'Crypto',
+      'Scalping',
+    ],
   });
 
   final String query;
   final List<CommunityAuthor> traders;
   final ValueChanged<CommunityAuthor> onSelectTrader;
   final ValueChanged<String> onSelectTicker;
+  final ValueChanged<String>? onSelectTag;
   final List<String> popularTickers;
+  final List<String> popularTags;
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final bool isMention = query.startsWith('@');
     final bool isCashtag = query.startsWith('\$');
+    final bool isHashtag = query.startsWith('#');
 
-    if (!isMention && !isCashtag) return const SizedBox.shrink();
+    if (!isMention && !isCashtag && !isHashtag) return const SizedBox.shrink();
 
     final cleanQuery = query.substring(1).toLowerCase();
 
+    // 1. @ Mentions
     if (isMention) {
       final matches = traders.where((t) {
         return t.handle.toLowerCase().contains(cleanQuery) ||
@@ -93,7 +108,53 @@ class CommunityMentionAutocomplete extends StatelessWidget {
       );
     }
 
-    // Cashtags
+    // 2. # Hashtags
+    if (isHashtag) {
+      final tagMatches = popularTags.where((t) {
+        return t.toLowerCase().contains(cleanQuery);
+      }).take(4).toList();
+
+      if (tagMatches.isEmpty) return const SizedBox.shrink();
+
+      return UiCard(
+        variant: UiCardVariant.surface,
+        padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xxs)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (final tag in tagMatches)
+              InkWell(
+                onTap: () => onSelectTag?.call(tag),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(theme.spacing.sm),
+                    vertical: context.sp(theme.spacing.xs),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.tag_rounded,
+                        size: context.sz(14),
+                        color: theme.colors.primary,
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      Text(
+                        '#$tag',
+                        style: context.uiText.bodyStrong.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    // 3. $ Cashtags
     final tickerMatches = popularTickers.where((t) {
       return t.toLowerCase().contains(cleanQuery);
     }).take(4).toList();

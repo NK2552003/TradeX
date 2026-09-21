@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 
 /// Modal dialog displaying platform community guidelines, ethical trading conduct,
 /// and regulatory compliance notices.
@@ -10,7 +11,8 @@ class CommunityGuidelinesDialog extends StatelessWidget {
   static Future<void> show(BuildContext context) {
     return showDialog<void>(
       context: context,
-      builder: (ctx) => const CommunityGuidelinesDialog(),
+      builder: (ctx) =>
+          const CommunityDensityScope(child: CommunityGuidelinesDialog()),
     );
   }
 
@@ -23,27 +25,32 @@ class CommunityGuidelinesDialog extends StatelessWidget {
       (
         icon: Icons.verified_user_outlined,
         title: 'No Front-Running or Pump & Dump',
-        body: 'Do not coordinate artificial price surges, market manipulation, or misleading trade setups. Personal holdings must be disclosed when sharing trading ideas.',
+        body:
+            'Do not coordinate artificial price surges, market manipulation, or misleading trade setups. Personal holdings must be disclosed when sharing trading ideas.',
       ),
       (
         icon: Icons.gavel_outlined,
         title: 'Educational Content Only',
-        body: 'Shared setups, charts, and strategies are for research and educational purposes only. They do not constitute certified investment advice.',
+        body:
+            'Shared setups, charts, and strategies are for research and educational purposes only. They do not constitute certified investment advice.',
       ),
       (
         icon: Icons.shield_outlined,
         title: 'Zero Tolerance for Financial Scams',
-        body: 'Promoting guaranteed returns, unregistered fund management, paid illicit telegram tips, or phishing links results in immediate, permanent account termination.',
+        body:
+            'Promoting guaranteed returns, unregistered fund management, paid illicit telegram tips, or phishing links results in immediate, permanent account termination.',
       ),
       (
         icon: Icons.handshake_outlined,
         title: 'Civil & Constructive Debate',
-        body: 'Disagreements on technical setups or market perspectives are welcomed. Personal abuse, harassment, or defamatory speech will not be tolerated.',
+        body:
+            'Disagreements on technical setups or market perspectives are welcomed. Personal abuse, harassment, or defamatory speech will not be tolerated.',
       ),
       (
         icon: Icons.account_balance_outlined,
         title: 'SEBI / Regulatory Compliance',
-        body: 'Traders claiming Research Analyst (RA) or Investment Adviser (RIA) status must display verified credentials and state their registration numbers prominently.',
+        body:
+            'Traders claiming Research Analyst (RA) or Investment Adviser (RIA) status must display verified credentials and state their registration numbers prominently.',
       ),
     ];
 
@@ -68,7 +75,11 @@ class CommunityGuidelinesDialog extends StatelessWidget {
                       color: colors.primary.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.policy_outlined, color: colors.primary, size: context.sz(20)),
+                    child: Icon(
+                      Icons.policy_outlined,
+                      color: colors.primary,
+                      size: context.sz(20),
+                    ),
                   ),
                   SizedBox(width: context.sp(12)),
                   Expanded(
@@ -116,7 +127,11 @@ class CommunityGuidelinesDialog extends StatelessWidget {
                             color: colors.surfaceMuted,
                             borderRadius: BorderRadius.circular(context.sz(8)),
                           ),
-                          child: Icon(item.icon, size: context.sz(18), color: colors.primary),
+                          child: Icon(
+                            item.icon,
+                            size: context.sz(18),
+                            color: colors.primary,
+                          ),
                         ),
                         SizedBox(width: context.sp(12)),
                         Expanded(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
@@ -63,10 +64,14 @@ class _CommunityInboxViewState extends State<CommunityInboxView> {
         elevation: 0,
         leading: UiIconButton(
           icon: Icons.arrow_back,
-          onPressed: () => widget.onBack != null ? widget.onBack!() : Navigator.of(context).pop(),
+          onPressed: () => widget.onBack != null
+              ? widget.onBack!()
+              : Navigator.of(context).pop(),
         ),
         title: Text(
-          _activeConversation == null ? 'Direct Messages' : _activeConversation!.peer.displayName,
+          _activeConversation == null
+              ? 'Direct Messages'
+              : _activeConversation!.peer.displayName,
           style: context.uiText.heading.copyWith(
             fontWeight: FontWeight.w700,
             color: colors.foreground,
@@ -77,18 +82,18 @@ class _CommunityInboxViewState extends State<CommunityInboxView> {
             UiIconButton(
               icon: Icons.edit_square,
               tooltip: 'New message',
-              onPressed: () => CommunitySendDmDialog.show(context, repository: widget.repository),
+              onPressed: () => CommunitySendDmDialog.show(
+                context,
+                repository: widget.repository,
+              ),
             )
           else
-            UiIconButton(
-              icon: Icons.info_outline,
-              onPressed: () {},
-            ),
+            UiIconButton(icon: Icons.info_outline, onPressed: () {}),
         ],
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
+          constraints: const BoxConstraints(maxWidth: kCommunityMaxWidth),
           child: _activeConversation == null
               ? _buildConversationList()
               : _buildChatThread(_activeConversation!),
@@ -106,9 +111,13 @@ class _CommunityInboxViewState extends State<CommunityInboxView> {
         child: UiEmptyState(
           icon: Icons.mail_outline,
           title: 'No Direct Messages Yet',
-          message: 'Direct messages allow you to discuss setups, signals, and strategies privately with followed traders.',
+          message:
+              'Direct messages allow you to discuss setups, signals, and strategies privately with followed traders.',
           actionLabel: 'Start a Conversation',
-          onActionPressed: () => CommunitySendDmDialog.show(context, repository: widget.repository),
+          onActionPressed: () => CommunitySendDmDialog.show(
+            context,
+            repository: widget.repository,
+          ),
         ),
       );
     }
@@ -121,8 +130,13 @@ class _CommunityInboxViewState extends State<CommunityInboxView> {
         return InkWell(
           onTap: () => setState(() => _activeConversation = conv),
           child: Container(
-            color: conv.unreadCount > 0 ? colors.primary.withValues(alpha: 0.04) : Colors.transparent,
-            padding: EdgeInsets.symmetric(horizontal: context.sp(16), vertical: context.sp(14)),
+            color: conv.unreadCount > 0
+                ? colors.primary.withValues(alpha: 0.04)
+                : Colors.transparent,
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(16),
+              vertical: context.sp(14),
+            ),
             child: Row(
               children: [
                 UiAvatar(name: conv.peer.displayName, size: UiSize.md),
@@ -138,7 +152,9 @@ class _CommunityInboxViewState extends State<CommunityInboxView> {
                             child: Text(
                               conv.peer.displayName,
                               style: context.uiText.body.copyWith(
-                                fontWeight: conv.unreadCount > 0 ? FontWeight.w700 : FontWeight.w600,
+                                fontWeight: conv.unreadCount > 0
+                                    ? FontWeight.w700
+                                    : FontWeight.w600,
                                 color: colors.foreground,
                               ),
                             ),
@@ -158,8 +174,12 @@ class _CommunityInboxViewState extends State<CommunityInboxView> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: context.uiText.caption.copyWith(
-                          color: conv.unreadCount > 0 ? colors.foreground : colors.foregroundMuted,
-                          fontWeight: conv.unreadCount > 0 ? FontWeight.w600 : FontWeight.w400,
+                          color: conv.unreadCount > 0
+                              ? colors.foreground
+                              : colors.foregroundMuted,
+                          fontWeight: conv.unreadCount > 0
+                              ? FontWeight.w600
+                              : FontWeight.w400,
                         ),
                       ),
                     ],
@@ -199,7 +219,10 @@ class _CommunityInboxViewState extends State<CommunityInboxView> {
       children: [
         // Back to list bar
         Container(
-          padding: EdgeInsets.symmetric(horizontal: context.sp(16), vertical: context.sp(8)),
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(16),
+            vertical: context.sp(8),
+          ),
           color: colors.surfaceMuted,
           child: Row(
             children: [
@@ -213,7 +236,9 @@ class _CommunityInboxViewState extends State<CommunityInboxView> {
               const Spacer(),
               Text(
                 conv.peer.handle,
-                style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: colors.foregroundMuted,
+                ),
               ),
             ],
           ),
@@ -234,12 +259,19 @@ class _CommunityInboxViewState extends State<CommunityInboxView> {
               return Align(
                 alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.75,
+                  ),
                   child: Column(
-                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    crossAxisAlignment: isMe
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: context.sp(14), vertical: context.sp(10)),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.sp(14),
+                          vertical: context.sp(10),
+                        ),
                         decoration: BoxDecoration(
                           color: isMe ? colors.primary : colors.surface,
                           borderRadius: BorderRadius.circular(context.sz(14)),
@@ -263,7 +295,9 @@ class _CommunityInboxViewState extends State<CommunityInboxView> {
                                 builder: (_) => CommunityPostDetailView(
                                   post: msg.sharedPost!,
                                   repository: widget.repository,
-                                  currentUser: widget.currentUser ?? widget.repository.currentAuthor,
+                                  currentUser:
+                                      widget.currentUser ??
+                                      widget.repository.currentAuthor,
                                 ),
                               ),
                             );
@@ -272,13 +306,19 @@ class _CommunityInboxViewState extends State<CommunityInboxView> {
                             padding: EdgeInsets.all(context.sp(10)),
                             decoration: BoxDecoration(
                               color: colors.surfaceMuted,
-                              borderRadius: BorderRadius.circular(context.sz(8)),
+                              borderRadius: BorderRadius.circular(
+                                context.sz(8),
+                              ),
                               border: Border.all(color: colors.border),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.share, size: context.sz(14), color: colors.primary),
+                                Icon(
+                                  Icons.share,
+                                  size: context.sz(14),
+                                  color: colors.primary,
+                                ),
                                 SizedBox(width: context.sp(8)),
                                 Text(
                                   'View Shared Post',

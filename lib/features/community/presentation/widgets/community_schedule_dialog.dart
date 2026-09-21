@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 
 /// Modal dialog allowing traders to schedule a post for market open, pre-market, or custom time.
 class CommunityScheduleDialog extends StatefulWidget {
@@ -19,15 +20,18 @@ class CommunityScheduleDialog extends StatefulWidget {
   }) {
     return showDialog<DateTime>(
       context: context,
-      builder: (ctx) => CommunityScheduleDialog(
-        initialDateTime: initialDateTime,
-        onSchedule: (dt) => Navigator.of(ctx).pop(dt),
+      builder: (ctx) => CommunityDensityScope(
+        child: CommunityScheduleDialog(
+          initialDateTime: initialDateTime,
+          onSchedule: (dt) => Navigator.of(ctx).pop(dt),
+        ),
       ),
     );
   }
 
   @override
-  State<CommunityScheduleDialog> createState() => _CommunityScheduleDialogState();
+  State<CommunityScheduleDialog> createState() =>
+      _CommunityScheduleDialogState();
 }
 
 class _CommunityScheduleDialogState extends State<CommunityScheduleDialog> {
@@ -83,7 +87,11 @@ class _CommunityScheduleDialogState extends State<CommunityScheduleDialog> {
                       color: colors.primary.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.schedule, color: colors.primary, size: context.sz(20)),
+                    child: Icon(
+                      Icons.schedule,
+                      color: colors.primary,
+                      size: context.sz(20),
+                    ),
                   ),
                   SizedBox(width: context.sp(12)),
                   Expanded(
@@ -129,22 +137,26 @@ class _CommunityScheduleDialogState extends State<CommunityScheduleDialog> {
                 children: [
                   _PresetChip(
                     label: 'Pre-Market (08:30 AM)',
-                    isSelected: _selectedTime.hour == 8 && _selectedTime.minute == 30,
+                    isSelected:
+                        _selectedTime.hour == 8 && _selectedTime.minute == 30,
                     onTap: () => _applyPreset(8, 30),
                   ),
                   _PresetChip(
                     label: 'Market Open (09:15 AM)',
-                    isSelected: _selectedTime.hour == 9 && _selectedTime.minute == 15,
+                    isSelected:
+                        _selectedTime.hour == 9 && _selectedTime.minute == 15,
                     onTap: () => _applyPreset(9, 15),
                   ),
                   _PresetChip(
                     label: 'Mid-Session (01:00 PM)',
-                    isSelected: _selectedTime.hour == 13 && _selectedTime.minute == 0,
+                    isSelected:
+                        _selectedTime.hour == 13 && _selectedTime.minute == 0,
                     onTap: () => _applyPreset(13, 0),
                   ),
                   _PresetChip(
                     label: 'Closing Bell (03:15 PM)',
-                    isSelected: _selectedTime.hour == 15 && _selectedTime.minute == 15,
+                    isSelected:
+                        _selectedTime.hour == 15 && _selectedTime.minute == 15,
                     onTap: () => _applyPreset(15, 15),
                   ),
                 ],
@@ -161,7 +173,9 @@ class _CommunityScheduleDialogState extends State<CommunityScheduleDialog> {
                           context: context,
                           initialDate: _selectedDate,
                           firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 30)),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 30),
+                          ),
                         );
                         if (picked != null) {
                           setState(() => _selectedDate = picked);
@@ -179,11 +193,17 @@ class _CommunityScheduleDialogState extends State<CommunityScheduleDialog> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.calendar_today_outlined, size: context.sz(16), color: colors.foregroundMuted),
+                            Icon(
+                              Icons.calendar_today_outlined,
+                              size: context.sz(16),
+                              color: colors.foregroundMuted,
+                            ),
                             SizedBox(width: context.sp(8)),
                             Text(
                               '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                              style: context.uiText.body.copyWith(color: colors.foreground),
+                              style: context.uiText.body.copyWith(
+                                color: colors.foreground,
+                              ),
                             ),
                           ],
                         ),
@@ -214,11 +234,17 @@ class _CommunityScheduleDialogState extends State<CommunityScheduleDialog> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.access_time_outlined, size: context.sz(16), color: colors.foregroundMuted),
+                            Icon(
+                              Icons.access_time_outlined,
+                              size: context.sz(16),
+                              color: colors.foregroundMuted,
+                            ),
                             SizedBox(width: context.sp(8)),
                             Text(
                               _selectedTime.format(context),
-                              style: context.uiText.body.copyWith(color: colors.foreground),
+                              style: context.uiText.body.copyWith(
+                                color: colors.foreground,
+                              ),
                             ),
                           ],
                         ),
@@ -274,9 +300,14 @@ class _PresetChip extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(context.sz(20)),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: context.sp(10), vertical: context.sp(6)),
+        padding: EdgeInsets.symmetric(
+          horizontal: context.sp(10),
+          vertical: context.sp(6),
+        ),
         decoration: BoxDecoration(
-          color: isSelected ? colors.primary.withValues(alpha: 0.15) : colors.surfaceMuted,
+          color: isSelected
+              ? colors.primary.withValues(alpha: 0.15)
+              : colors.surfaceMuted,
           borderRadius: BorderRadius.circular(context.sz(20)),
           border: Border.all(
             color: isSelected ? colors.primary : colors.border,

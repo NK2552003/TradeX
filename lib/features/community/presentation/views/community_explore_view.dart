@@ -13,11 +13,13 @@ class CommunityExploreView extends StatefulWidget {
     required this.repository,
     this.onPostTap,
     this.onAuthorTap,
+    this.onOpenRef,
   });
 
   final CommunityRepository repository;
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
+  final ValueChanged<AppLinkRef>? onOpenRef;
 
   @override
   State<CommunityExploreView> createState() => _CommunityExploreViewState();
@@ -91,6 +93,7 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
                     repository: widget.repository,
                     initialQuery: q,
                     onAuthorTap: widget.onAuthorTap,
+                    onOpenRef: widget.onOpenRef,
                   ),
                 ),
               );
@@ -197,14 +200,11 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
           SizedBox(height: context.sp(theme.spacing.sm)),
 
           if (filteredPosts.isEmpty)
-            Padding(
-              padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-              child: UiEmptyState(
-                icon: Icons.search_off_rounded,
-                title: 'No matching posts found',
-                message:
-                    'Try exploring other categories or clearing your search.',
-              ),
+            const CommunityEmptyState(
+              icon: Icons.search_off_rounded,
+              title: 'No matching posts found',
+              message:
+                  'Try exploring other categories or clearing your search.',
             )
           else
             CommunityPostGrid(
@@ -214,6 +214,7 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
               onRepost: (id) => widget.repository.toggleRepost(id),
               onBookmark: (id) => widget.repository.toggleBookmark(id),
               onAuthorTap: widget.onAuthorTap,
+              onOpenRef: widget.onOpenRef,
             ),
         ],
       ),
@@ -231,6 +232,7 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
               tag: item.topic,
               repository: widget.repository,
               onAuthorTap: widget.onAuthorTap,
+              onOpenRef: widget.onOpenRef,
             ),
           ),
         );
@@ -280,6 +282,7 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
                       tag: item.topic,
                       repository: widget.repository,
                       onAuthorTap: widget.onAuthorTap,
+                      onOpenRef: widget.onOpenRef,
                     ),
                   ),
                 );
@@ -299,10 +302,7 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
 
     return InkWell(
       onTap: () {
-        CommunityArticleSheet.show(
-          context,
-          article: item,
-        );
+        CommunityArticleSheet.show(context, article: item);
       },
       borderRadius: context.radius(theme.radii.sm),
       child: Padding(

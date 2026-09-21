@@ -168,12 +168,44 @@ class _CommunityAttachmentPickerState extends State<CommunityAttachmentPicker> {
                 hintText: 'Search title, ticker, tags, or excerpt...',
                 onChanged: (val) => setState(() => _searchQuery = val),
               ),
+              SizedBox(height: context.sp(theme.spacing.xs)),
+              // Quick creation action row
+              Row(
+                children: <Widget>[
+                  Text(
+                    'Need to create one first?',
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundSubtle,
+                      fontSize: context.fs(11),
+                    ),
+                  ),
+                  const Spacer(),
+                  UiButton(
+                    label: '+ Note',
+                    size: UiSize.xs,
+                    variant: UiVariant.ghost,
+                    onPressed: () => _openQuickCreate(context, AppLinkKind.note),
+                  ),
+                  UiButton(
+                    label: '+ Journal',
+                    size: UiSize.xs,
+                    variant: UiVariant.ghost,
+                    onPressed: () => _openQuickCreate(context, AppLinkKind.journal),
+                  ),
+                  UiButton(
+                    label: '+ Strategy',
+                    size: UiSize.xs,
+                    variant: UiVariant.ghost,
+                    onPressed: () => _openQuickCreate(context, AppLinkKind.strategy),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
 
         SizedBox(height: context.sp(theme.spacing.sm)),
-        UiDivider(),
+        const UiDivider(),
 
         // Candidates List
         Expanded(
@@ -185,7 +217,9 @@ class _CommunityAttachmentPickerState extends State<CommunityAttachmentPicker> {
                       icon: Icons.find_in_page_outlined,
                       title: 'No matching records',
                       message:
-                          'Create notes, journal trades, or strategies in your workspace to attach them to your posts.',
+                          'Create a note, journal trade, or strategy above to attach it to your post immediately.',
+                      actionLabel: '+ Quick Create Note',
+                      onActionPressed: () => _openQuickCreate(context, AppLinkKind.note),
                     ),
                   ),
                 )
@@ -204,6 +238,90 @@ class _CommunityAttachmentPickerState extends State<CommunityAttachmentPicker> {
                 ),
         ),
       ],
+    );
+  }
+
+  void _openQuickCreate(BuildContext context, AppLinkKind kind) {
+    final titleCtrl = TextEditingController();
+    final excerptCtrl = TextEditingController();
+    final tickerCtrl = TextEditingController();
+    final UiTheme theme = context.ui;
+
+    final String kindLabel = switch (kind) {
+      AppLinkKind.note => 'Note',
+      AppLinkKind.journal => 'Trade Journal',
+      AppLinkKind.strategy => 'Strategy Playbook',
+      _ => 'Record',
+    };
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => UiDialog(
+        title: 'Create $kindLabel',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            UiInput(
+              label: 'Title',
+              hintText: 'e.g. BankNifty 50000 Call Scalp Setup',
+              controller: titleCtrl,
+            ),
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            UiInput(
+              label: 'Primary Ticker (Optional)',
+              hintText: 'e.g. BANKNIFTY',
+              controller: tickerCtrl,
+            ),
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            UiTextarea(
+              label: 'Summary / Thesis',
+              hintText: 'Key reasoning, risk parameters, and execution rules...',
+              controller: excerptCtrl,
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          UiButton(
+            label: 'Cancel',
+            variant: UiVariant.ghost,
+            size: UiSize.sm,
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+          ),
+          UiButton(
+            label: 'Create & Attach',
+            variant: UiVariant.primary,
+            size: UiSize.sm,
+            onPressed: () {
+              final title = titleCtrl.text.trim().isEmpty
+                  ? 'Untitled $kindLabel'
+                  : titleCtrl.text.trim();
+              final excerpt = excerptCtrl.text.trim().isEmpty
+                  ? 'Detailed workspace $kindLabel record created on ${DateTime.now().toString().substring(0, 10)}.'
+                  : excerptCtrl.text.trim();
+              final ticker = tickerCtrl.text.trim().isEmpty
+                  ? null
+                  : tickerCtrl.text.trim().toUpperCase();
+
+              final newRecord = AppWritingPostAttachment.manual(
+                source: AppLinkRef(
+                  kind: kind,
+                  id: 'rec_${DateTime.now().millisecondsSinceEpoch}',
+                  title: title,
+                ),
+                excerpt: excerpt,
+                primaryTicker: ticker,
+                updatedAt: DateTime.now(),
+                tags: ticker != null ? [ticker] : const [],
+              );
+
+              widget.repository.addAttachableRecord(newRecord);
+              Navigator.of(dialogCtx).pop();
+              Navigator.of(context).pop(newRecord);
+            },
+          ),
+        ],
+      ),
     );
   }
 }

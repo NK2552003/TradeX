@@ -24,6 +24,7 @@ import 'package:tradex/features/settings/data/repositories/profile_settings_repo
 import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
 import 'package:tradex/features/strategies/ui/strategies_screen.dart';
 import 'package:tradex/features/community/community.dart';
+import 'package:tradex/core/widgets/app_global_notifications_page.dart';
 
 /// The signed-in application shell: chrome, navigation and the active page.
 ///
@@ -93,6 +94,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   int _unread = 0;
   bool _showAffiliateApplication = false;
   AffiliateApplicationStatus? _affiliateApplicationStatus;
+  late final CommunityRepository _communityRepo = CommunityRepository();
 
   UserRole? _previewRoleOverride;
   UserRole get _effectiveRole => _previewRoleOverride ?? widget.userRole;
@@ -114,9 +116,24 @@ class _AppScaffoldState extends State<AppScaffold> {
     // Painted from the cached profile on the first frame so the avatar, handle
     // and sidebar footer are never blank, then refreshed from the repository.
     _identity = appTraderFromProfile(_profiles.cachedProfile);
+    _communityRepo.addListener(_onCommunityRepoChanged);
+    _unread = _communityRepo.unreadNotifications;
     _loadIdentity();
     _loadUnread();
     _loadAffiliateApplicationStatus();
+  }
+
+  void _onCommunityRepoChanged() {
+    if (mounted) {
+      setState(() => _unread = _communityRepo.unreadNotifications);
+    }
+  }
+
+  @override
+  void dispose() {
+    _communityRepo.removeListener(_onCommunityRepoChanged);
+    _communityRepo.dispose();
+    super.dispose();
   }
 
   @override
@@ -144,7 +161,7 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   Future<void> _loadUnread() async {
     if (!mounted) return;
-    setState(() => _unread = 0);
+    setState(() => _unread = _communityRepo.unreadNotifications);
   }
 
   Future<void> _loadAffiliateApplicationStatus() async {
@@ -436,7 +453,13 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   Widget _searchPage() => UiSkeleton.search();
 
-  Widget _notificationsPage() => UiSkeleton.notifications();
+  Widget _notificationsPage() => AppGlobalNotificationsPage(
+    repository: _communityRepo,
+    currentUser: _chromeIdentity,
+    onOpenRef: _openLinkRef,
+    onNavigateToCommunity: () => _go('community_feed'),
+    onSubpageChanged: _onSubpageChanged,
+  );
 
   /// Loading shape for a destination the reader has not arrived at yet.
   ///
@@ -559,6 +582,53 @@ class _AppScaffoldState extends State<AppScaffold> {
       userRole: _effectiveRole,
       currentTrader: _chromeIdentity,
       onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      repository: _communityRepo,
+    ),
+    'community_feed' => CommunityRootScreen(
+      key: const ValueKey<String>('community_feed'),
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      initialTabIndex: 0,
+      repository: _communityRepo,
+    ),
+    'community_explore' => CommunityRootScreen(
+      key: const ValueKey<String>('community_explore'),
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      initialTabIndex: 1,
+      repository: _communityRepo,
+    ),
+    'community_network' => CommunityRootScreen(
+      key: const ValueKey<String>('community_network'),
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      initialTabIndex: 2,
+      repository: _communityRepo,
+    ),
+    'community_profile' => CommunityRootScreen(
+      key: const ValueKey<String>('community_profile'),
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      initialTabIndex: 3,
+      repository: _communityRepo,
+    ),
+    'community_bookmarks' => CommunityRootScreen(
+      key: const ValueKey<String>('community_bookmarks'),
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      initialTabIndex: 4,
+      repository: _communityRepo,
     ),
     'messages' => UiSkeleton.messages(),
     'ai_copilot' => UiSkeleton.ai(),
@@ -588,6 +658,53 @@ class _AppScaffoldState extends State<AppScaffold> {
       userRole: _effectiveRole,
       currentTrader: _chromeIdentity,
       onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      repository: _communityRepo,
+    ),
+    'community_feed' => CommunityRootScreen(
+      key: const ValueKey<String>('community_feed'),
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      initialTabIndex: 0,
+      repository: _communityRepo,
+    ),
+    'community_explore' => CommunityRootScreen(
+      key: const ValueKey<String>('community_explore'),
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      initialTabIndex: 1,
+      repository: _communityRepo,
+    ),
+    'community_network' => CommunityRootScreen(
+      key: const ValueKey<String>('community_network'),
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      initialTabIndex: 2,
+      repository: _communityRepo,
+    ),
+    'community_profile' => CommunityRootScreen(
+      key: const ValueKey<String>('community_profile'),
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      initialTabIndex: 3,
+      repository: _communityRepo,
+    ),
+    'community_bookmarks' => CommunityRootScreen(
+      key: const ValueKey<String>('community_bookmarks'),
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      initialTabIndex: 4,
+      repository: _communityRepo,
     ),
     'messages' => _placeholderPage(
       'Messages',
@@ -608,6 +725,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       userRole: _effectiveRole,
       currentTrader: _chromeIdentity,
       onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
     ),
     'overview' => _placeholderPage(
       'Desk Overview',
