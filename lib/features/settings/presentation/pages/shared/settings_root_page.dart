@@ -30,6 +30,7 @@ class SettingsRootPage extends StatefulWidget {
     this.subscriptionTier = AppTier.free,
     this.onApplyForAffiliate,
     this.onSubpageChanged,
+    this.onOpenRef,
   });
 
   final UserRole userRole;
@@ -41,6 +42,7 @@ class SettingsRootPage extends StatefulWidget {
   final VoidCallback? onApplyForAffiliate;
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
   onSubpageChanged;
+  final void Function(AppLinkRef ref)? onOpenRef;
 
   @override
   State<SettingsRootPage> createState() => _SettingsRootPageState();
@@ -139,7 +141,10 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
 
   Widget _buildDetailPane(String sectionId) {
     return switch (sectionId) {
-      'profile' => ProfileSettingsPage(userRole: widget.userRole),
+      'profile' => ProfileSettingsPage(
+        userRole: widget.userRole,
+        onOpenRef: widget.onOpenRef,
+      ),
       'affiliate_perks' => TraderAffiliatePerksPage(
         onUpgradeToAffiliate: widget.onApplyForAffiliate,
       ),
@@ -156,7 +161,10 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
         onSubscriptionTierChanged: widget.onSubscriptionTierChanged,
       ),
       'help' => const HelpAboutPage(),
-      _ => ProfileSettingsPage(userRole: widget.userRole),
+      _ => ProfileSettingsPage(
+        userRole: widget.userRole,
+        onOpenRef: widget.onOpenRef,
+      ),
     };
   }
 
@@ -409,7 +417,10 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                           : 'Administrator credentials and desk division'),
                 icon: Icons.person_outline_rounded,
                 onTap: () => _navigateToSubpage(
-                  ProfileSettingsPage(userRole: widget.userRole),
+                  ProfileSettingsPage(
+                    userRole: widget.userRole,
+                    onOpenRef: widget.onOpenRef,
+                  ),
                   widget.userRole == UserRole.customer
                       ? 'Personal Profile'
                       : (widget.userRole == UserRole.affiliate

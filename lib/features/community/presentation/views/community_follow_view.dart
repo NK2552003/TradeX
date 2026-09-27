@@ -1,10 +1,12 @@
-import 'dart:ui';
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_moderation_list_page.dart';
 import 'package:tradex/features/community/presentation/widgets/community_widgets.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// Full Network & "Who to follow" page (accessible from sidebar 'Show more').
 class CommunityFollowView extends StatefulWidget {
@@ -12,10 +14,12 @@ class CommunityFollowView extends StatefulWidget {
     super.key,
     required this.repository,
     this.onAuthorTap,
+    this.searchQuery,
   });
 
   final CommunityRepository repository;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
+  final String? searchQuery;
 
   @override
   State<CommunityFollowView> createState() => _CommunityFollowViewState();
@@ -24,8 +28,13 @@ class CommunityFollowView extends StatefulWidget {
 class _CommunityFollowViewState extends State<CommunityFollowView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String _searchQuery = '';
+  final String _searchQuery = '';
   String _leaderboardPeriod = '1M';
+
+  String get _effectiveQuery =>
+      (widget.searchQuery?.trim().isNotEmpty ?? false)
+          ? widget.searchQuery!.trim()
+          : _searchQuery;
 
   static const List<String> _tabs = <String>[
     'Suggested',
@@ -53,88 +62,52 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final isMobile = context.uiRes.isMobile;
-    final double topInset = context.sp(theme.spacing.xs);
-    final double barHeight = context.sz(44);
-    final double clearance =
-        topInset + barHeight + context.sp(theme.spacing.xs);
+    final bool isMobile = context.uiRes.isMobile;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        // Top Search & Filter Bar
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-            context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-            context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-            context.sp(theme.spacing.xs),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: UiSearchField(
-                  value: _searchQuery,
-                  hintText: 'Search traders by name, @handle or style...',
-                  onChanged: (String q) => setState(() => _searchQuery = q),
-                ),
-              ),
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              UiIconButton(
-                icon: Icons.shield_outlined,
-                tooltip: 'Muted & Blocked Accounts',
-                size: UiSize.sm,
-                variant: UiVariant.ghost,
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => CommunityModerationListPage(
-                        repository: widget.repository,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
+        // Full width top bar tab toggle across the centered panel
+        _buildTopBar(context, theme, isMobile),
 
-        // Floating Tab Bar Area
+        // Sub-Tab Content Views (trader cards centered at maxWidth 700px beneath the bar)
         Expanded(
-          child: Stack(
+          child: TabBarView(
+            controller: _tabController,
+            physics: context.uiRes.isDesktop
+                ? const NeverScrollableScrollPhysics()
+                : null,
             children: <Widget>[
-              // Tab Views (scroll smoothly underneath the floating bar)
-              TabBarView(
-                controller: _tabController,
-                physics: context.uiRes.isDesktop
-                    ? const NeverScrollableScrollPhysics()
-                    : null,
-                children: <Widget>[
-                  _CommunityKeepAliveTab(
-                    child: _buildSuggestedTab(topPadding: clearance),
-                  ),
-                  _CommunityKeepAliveTab(
-                    child: _buildFollowingTab(topPadding: clearance),
-                  ),
-                  _CommunityKeepAliveTab(
-                    child: _buildFollowersTab(topPadding: clearance),
-                  ),
-                  _CommunityKeepAliveTab(
-                    child: _buildLeaderboardTab(topPadding: clearance),
-                  ),
-                ],
+              _CommunityKeepAliveTab(
+                child: _buildSuggestedTab(),
               ),
-
-              // Floating Top Sub-Tabs Bar - spans full width of network container
-              Positioned(
-                top: topInset,
-                left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-                right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-                child: _buildFloatingBar(context, theme, isMobile),
+              _CommunityKeepAliveTab(
+                child: _buildFollowingTab(),
+              ),
+              _CommunityKeepAliveTab(
+                child: _buildFollowersTab(),
+              ),
+              _CommunityKeepAliveTab(
+                child: _buildLeaderboardTab(),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  /// Top bar container holding the floating capsule pill bar,
+  /// moved outside the scroll view so trader lists never scroll over it.
+  Widget _buildTopBar(BuildContext context, UiTheme theme, bool isMobile) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        context.sp(theme.spacing.xs),
+      ),
+      child: _buildFloatingBar(context, theme, isMobile),
     );
   }
 
@@ -247,6 +220,25 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
                   tooltip: 'Refresh Network',
                   onPressed: () => setState(() {}),
                 ),
+                UiIconButton(
+                  icon: Icons.shield_outlined,
+                  size: UiSize.xs,
+                  tooltip: 'Muted & Blocked Accounts',
+                  onPressed: () {
+                    showSettingsSideSheet<void>(
+                      context,
+                      title: 'Muted & Blocked Accounts',
+                      subtitle: 'Review restricted and muted trader profiles',
+                      desktopWidthRatio: 0.44,
+                      maxWidth: 620,
+                      minDesktopWidth: 460,
+                      child: CommunityModerationListPage(
+                        repository: widget.repository,
+                        isEmbedded: true,
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -259,12 +251,12 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   // Tab 0: Suggested
   // ---------------------------------------------------------------------------
 
-  Widget _buildSuggestedTab({required double topPadding}) {
+  Widget _buildSuggestedTab({double topPadding = 0}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final traders = widget.repository.suggestedTraders.where((t) {
-      if (_searchQuery.isEmpty) return true;
-      final q = _searchQuery.toLowerCase();
+      if (_effectiveQuery.isEmpty) return true;
+      final q = _effectiveQuery.toLowerCase();
       return t.displayName.toLowerCase().contains(q) ||
           t.handle.toLowerCase().contains(q) ||
           (t.tradingStyle?.toLowerCase().contains(q) ?? false);
@@ -277,22 +269,22 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   // Tab 1: Following
   // ---------------------------------------------------------------------------
 
-  Widget _buildFollowingTab({required double topPadding}) {
+  Widget _buildFollowingTab({double topPadding = 0}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
-    final traders = widget.repository.suggestedTraders
-        .where((t) => t.isFollowing)
-        .toList();
+    final traders = widget.repository.suggestedTraders.where((t) {
+      if (!t.isFollowing) return false;
+      if (_effectiveQuery.isEmpty) return true;
+      final q = _effectiveQuery.toLowerCase();
+      return t.displayName.toLowerCase().contains(q) ||
+          t.handle.toLowerCase().contains(q) ||
+          (t.tradingStyle?.toLowerCase().contains(q) ?? false);
+    }).toList();
 
     if (traders.isEmpty) {
       return Center(
         child: Padding(
-          padding: EdgeInsets.only(
-            top: topPadding + context.sp(theme.spacing.xl),
-            bottom: context.sp(theme.spacing.xl),
-            left: context.sp(theme.spacing.xl),
-            right: context.sp(theme.spacing.xl),
-          ),
+          padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
           child: UiEmptyState(
             icon: Icons.person_add_disabled_outlined,
             title: 'Not following anyone yet',
@@ -310,10 +302,16 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   // Tab 2: Followers
   // ---------------------------------------------------------------------------
 
-  Widget _buildFollowersTab({required double topPadding}) {
+  Widget _buildFollowersTab({double topPadding = 0}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
-    final traders = widget.repository.suggestedTraders.reversed.toList();
+    final traders = widget.repository.suggestedTraders.reversed.where((t) {
+      if (_effectiveQuery.isEmpty) return true;
+      final q = _effectiveQuery.toLowerCase();
+      return t.displayName.toLowerCase().contains(q) ||
+          t.handle.toLowerCase().contains(q) ||
+          (t.tradingStyle?.toLowerCase().contains(q) ?? false);
+    }).toList();
 
     return _buildTraderList(traders, isMobile, theme, topPadding: topPadding);
   }
@@ -322,14 +320,13 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   // Tab 3: Leaderboard
   // ---------------------------------------------------------------------------
 
-  Widget _buildLeaderboardTab({required double topPadding}) {
+  Widget _buildLeaderboardTab() {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final entries = widget.repository.leaderboard;
 
-    return Column(
+    final Widget content = Column(
       children: [
-        SizedBox(height: topPadding + context.sp(theme.spacing.xs)),
         Padding(
           padding: EdgeInsets.symmetric(
             horizontal: context.sp(theme.spacing.md),
@@ -391,6 +388,14 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
         ),
       ],
     );
+
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: context.sz(700)),
+        child: content,
+      ),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -401,17 +406,12 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
     List<CommunityAuthor> traders,
     bool isMobile,
     UiTheme theme, {
-    required double topPadding,
+    double topPadding = 0,
   }) {
     if (traders.isEmpty) {
       return Center(
         child: Padding(
-          padding: EdgeInsets.only(
-            top: topPadding + context.sp(theme.spacing.xl),
-            bottom: context.sp(theme.spacing.xl),
-            left: context.sp(theme.spacing.xl),
-            right: context.sp(theme.spacing.xl),
-          ),
+          padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
           child: UiEmptyState(
             icon: Icons.person_search_outlined,
             title: 'No traders found',
@@ -421,8 +421,9 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
       );
     }
 
+    Widget content;
     if (isMobile) {
-      return ListView.separated(
+      content = ListView.separated(
         padding: EdgeInsets.fromLTRB(
           context.sp(theme.spacing.sm),
           topPadding + context.sp(theme.spacing.xs),
@@ -443,25 +444,47 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
           );
         },
       );
-    }
+    } else {
+      content = LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final int crossAxisCount = constraints.maxWidth > 600 ? 2 : 1;
 
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final int crossAxisCount = constraints.maxWidth > 900
-            ? 3
-            : (constraints.maxWidth > 600 ? 2 : 1);
+          if (crossAxisCount == 1) {
+            return ListView.separated(
+              padding: EdgeInsets.fromLTRB(
+                context.sp(theme.spacing.md),
+                topPadding + context.sp(theme.spacing.xs),
+                context.sp(theme.spacing.md),
+                context.sp(theme.spacing.md),
+              ),
+              itemCount: traders.length,
+              separatorBuilder: (_, _) =>
+                  SizedBox(height: context.sp(theme.spacing.sm)),
+              itemBuilder: (BuildContext context, int index) {
+                final trader = traders[index];
+                return CommunityTraderCard(
+                  trader: trader,
+                  onTap: () => widget.onAuthorTap?.call(trader),
+                  onFollow: () => widget.repository.toggleFollow(trader.id),
+                );
+              },
+            );
+          }
 
-        if (crossAxisCount == 1) {
-          return ListView.separated(
+          return GridView.builder(
             padding: EdgeInsets.fromLTRB(
               context.sp(theme.spacing.md),
               topPadding + context.sp(theme.spacing.xs),
               context.sp(theme.spacing.md),
               context.sp(theme.spacing.md),
             ),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              mainAxisSpacing: context.sp(theme.spacing.sm),
+              crossAxisSpacing: context.sp(theme.spacing.sm),
+              mainAxisExtent: context.sz(146),
+            ),
             itemCount: traders.length,
-            separatorBuilder: (_, _) =>
-                SizedBox(height: context.sp(theme.spacing.sm)),
             itemBuilder: (BuildContext context, int index) {
               final trader = traders[index];
               return CommunityTraderCard(
@@ -471,52 +494,16 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
               );
             },
           );
-        }
+        },
+      );
+    }
 
-        final List<List<CommunityAuthor>> columns = List.generate(
-          crossAxisCount,
-          (_) => <CommunityAuthor>[],
-        );
-        for (int i = 0; i < traders.length; i++) {
-          columns[i % crossAxisCount].add(traders[i]);
-        }
-
-        return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            context.sp(theme.spacing.md),
-            topPadding + context.sp(theme.spacing.xs),
-            context.sp(theme.spacing.md),
-            context.sp(theme.spacing.md),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (int c = 0; c < crossAxisCount; c++) ...[
-                if (c > 0) SizedBox(width: context.sp(theme.spacing.sm)),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (int r = 0; r < columns[c].length; r++) ...[
-                        if (r > 0)
-                          SizedBox(height: context.sp(theme.spacing.sm)),
-                        CommunityTraderCard(
-                          trader: columns[c][r],
-                          onTap: () =>
-                              widget.onAuthorTap?.call(columns[c][r]),
-                          onFollow: () =>
-                              widget.repository.toggleFollow(columns[c][r].id),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        );
-      },
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: context.sz(700)),
+        child: content,
+      ),
     );
   }
 }

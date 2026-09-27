@@ -1,0 +1,380 @@
+import 'package:flutter/material.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/messages/data/messages_repository.dart';
+import 'package:tradex/features/messages/models/messages_models.dart';
+import 'package:tradex/features/messages/presentation/overlays/conversation_info_sheet.dart';
+import 'package:tradex/features/messages/presentation/overlays/message_actions_sheet.dart';
+import 'package:tradex/features/messages/presentation/overlays/new_message_dialog.dart';
+import 'package:tradex/features/messages/presentation/views/messages_archived_view.dart';
+import 'package:tradex/features/messages/presentation/views/messages_inbox_view.dart';
+import 'package:tradex/features/messages/presentation/views/messages_requests_view.dart';
+import 'package:tradex/features/messages/presentation/views/messages_thread_view.dart';
+import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
+
+/// The Messages shell — three-tier responsive direct-messaging layout.
+///
+/// **Mobile** (< 600 px):
+///   - Push navigation: the inbox fills the screen; opening a thread replaces it
+///     with the full-screen conversation and announces a back handler via
+///     [onSubpageChanged].
+///
+/// **Tablet** (600–904 px) and **Desktop** (≥ 905 px):
+///   - Persistent split pane: the inbox list on the left, the open conversation
+///     on the right. Desktop widens the inbox rail and centres the chat column.
+///
+/// All content is served by [MessagesRepository]; this widget owns only
+/// navigation and which secondary view (requests / archive) is showing.
+class MessagesRootScreen extends StatefulWidget {
+  const MessagesRootScreen({
+    super.key,
+    this.userRole = UserRole.customer,
+    this.currentUser,
+    this.onSubpageChanged,
+    this.onOpenRef,
+    this.repository,
+    this.searchQuery,
+    this.embedInScaffold = true,
+  });
+
+  final UserRole userRole;
+  final AppTrader? currentUser;
+  final void Function(String? title, IconData? icon, VoidCallback? onBack)?
+      onSubpageChanged;
+
+  /// Opens a shared Writing-Desk record in its home feature. Supplied by shell.
+  final void Function(AppLinkRef ref)? onOpenRef;
+
+  /// Optional shared repository; an internal one is created if omitted.
+  final MessagesRepository? repository;
+
+  /// Search text pushed from the global top header.
+  final String? searchQuery;
+
+  /// True when embedded inside AppShell (avoids duplicate chrome on mobile).
+  final bool embedInScaffold;
+
+  @override
+  State<MessagesRootScreen> createState() => MessagesRootScreenState();
+}
+
+class MessagesRootScreenState extends State<MessagesRootScreen> {
+  late final MessagesRepository _repo;
+  late final bool _ownsRepo;
+
+  /// Which conversation is open in the detail pane (tablet/desktop) or pushed
+  /// full-screen (mobile). Null on tablet/desktop shows the empty detail state.
+  String? _activeThreadId;
+
+  /// Secondary panel currently in the mobile navigation stack.
+  _Secondary _secondary = _Secondary.none;
+
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _ownsRepo = widget.repository == null;
+    _repo = widget.repository ?? MessagesRepository();
+    _searchQuery = widget.searchQuery ?? '';
+    _repo.addListener(_onRepo);
+  }
+
+  @override
+  void didUpdateWidget(covariant MessagesRootScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.searchQuery != oldWidget.searchQuery &&
+        widget.searchQuery != null) {
+      _searchQuery = widget.searchQuery!;
+    }
+  }
+
+  void _onRepo() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _repo.removeListener(_onRepo);
+    if (_ownsRepo) _repo.dispose();
+    super.dispose();
+  }
+
+  // -------------------------------------------------------------------------
+  // Public API (GlobalKey-driven from the shell)
+  // -------------------------------------------------------------------------
+
+  /// Pushes a search query in from the global header search field.
+  void setSearchQuery(String query) {
+    if (!mounted) return;
+    setState(() => _searchQuery = query);
+  }
+
+  // -------------------------------------------------------------------------
+  // Navigation
+  // -------------------------------------------------------------------------
+
+  bool get _isMobile => context.uiRes.isMobile;
+
+  void _openThread(MessageThread thread) {
+    setState(() {
+      _activeThreadId = thread.id;
+      _secondary = _Secondary.none;
+    });
+    if (_isMobile) {
+      widget.onSubpageChanged?.call(thread.title, null, _closeMobileDetail);
+    }
+  }
+
+  void _closeMobileDetail() {
+    setState(() => _activeThreadId = null);
+    widget.onSubpageChanged?.call(null, null, null);
+  }
+
+  void _openSecondary(_Secondary panel, String title) {
+    setState(() => _secondary = panel);
+    if (_isMobile) {
+      widget.onSubpageChanged?.call(title, null, _closeSecondary);
+    }
+  }
+
+  void _closeSecondary() {
+    setState(() => _secondary = _Secondary.none);
+    widget.onSubpageChanged?.call(null, null, null);
+  }
+
+  // -------------------------------------------------------------------------
+  // Overlays
+  // -------------------------------------------------------------------------
+
+  Future<void> _newMessage() async {
+    final List<AppTrader> candidates = DemoDataSource.instance.traders();
+    await NewMessageDialog.show(
+      context,
+      repository: _repo,
+      candidates: candidates,
+      onStarted: (String threadId) {
+        final MessageThread? t = _repo.threadById(threadId);
+        if (t != null) _openThread(t);
+      },
+    );
+  }
+
+  void _openInfo(MessageThread thread) {
+    ConversationInfoSheet.show(
+      context,
+      repository: _repo,
+      threadId: thread.id,
+      onOpenRef: widget.onOpenRef,
+      onLeft: () {
+        if (_activeThreadId == thread.id) {
+          if (_isMobile) {
+            _closeMobileDetail();
+          } else {
+            setState(() => _activeThreadId = null);
+          }
+        }
+      },
+    );
+  }
+
+  void _messageActions(MessageThread thread, ChatMessage message) {
+    MessageActionsSheet.show(
+      context,
+      repository: _repo,
+      threadId: thread.id,
+      message: message,
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Build
+  // -------------------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    return MessagesDensityScope(
+      child: Builder(
+        builder: (BuildContext context) {
+          final UiResponsive res = context.uiRes;
+          if (res.isMobile) return _buildMobile(context);
+          return _buildWide(context);
+        },
+      ),
+    );
+  }
+
+  /// Mobile: a single column that swaps between inbox, an open thread, and the
+  /// secondary requests/archive panels.
+  Widget _buildMobile(BuildContext context) {
+    if (_secondary != _Secondary.none) {
+      return _secondaryView(context);
+    }
+    final String? id = _activeThreadId;
+    if (id != null && _repo.threadById(id) != null) {
+      return MessagesThreadView(
+        repository: _repo,
+        threadId: id,
+        showHeader: true,
+        showBackButton: true,
+        onBack: _closeMobileDetail,
+        onOpenRef: widget.onOpenRef,
+        onOpenInfo: _openInfo,
+        onMessageActions: _messageActions,
+      );
+    }
+    return _inbox(context);
+  }
+
+  /// Tablet + desktop: inbox rail beside the conversation detail.
+  Widget _buildWide(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final bool desktop = context.uiRes.isDesktop;
+    final double railWidth = desktop ? context.sz(360) : context.sz(300);
+
+    final Widget left = _secondary != _Secondary.none
+        ? _secondaryView(context)
+        : _inbox(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        SizedBox(
+          width: railWidth,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(
+                right:
+                    BorderSide(color: colors.border, width: theme.borders.hairline),
+              ),
+            ),
+            child: left,
+          ),
+        ),
+        Expanded(child: _detail(context)),
+      ],
+    );
+  }
+
+  Widget _inbox(BuildContext context) {
+    return MessagesInboxView(
+      repository: _repo,
+      selectedThreadId: _isMobile ? null : _activeThreadId,
+      externalQuery: _searchQuery,
+      onOpenThread: _openThread,
+      onNewMessage: _newMessage,
+      onOpenRequests: () => _openSecondary(_Secondary.requests, 'Message requests'),
+      onOpenArchived: () => _openSecondary(_Secondary.archived, 'Archived'),
+      onThreadLongPress: _openInfo,
+    );
+  }
+
+  Widget _detail(BuildContext context) {
+    final String? id = _activeThreadId;
+    if (id == null || _repo.threadById(id) == null) {
+      return _emptyDetail(context);
+    }
+    return MessagesThreadView(
+      key: ValueKey<String>(id),
+      repository: _repo,
+      threadId: id,
+      showHeader: true,
+      showBackButton: false,
+      onOpenRef: widget.onOpenRef,
+      onOpenInfo: _openInfo,
+      onMessageActions: _messageActions,
+    );
+  }
+
+  Widget _emptyDetail(BuildContext context) {
+    final UiTheme theme = context.ui;
+    return Container(
+      color: theme.colors.background,
+      child: MessagesEmptyState(
+        icon: Icons.forum_outlined,
+        title: 'Your messages',
+        message: 'Choose a conversation from the list, or start a new one.',
+        action: UiButton(
+          label: 'New message',
+          icon: Icons.edit_square,
+          onPressed: _newMessage,
+        ),
+      ),
+    );
+  }
+
+  Widget _secondaryView(BuildContext context) {
+    final Widget body = switch (_secondary) {
+      _Secondary.requests => MessagesRequestsView(
+          repository: _repo,
+          onAccepted: (String threadId) {
+            _closeSecondary();
+            final MessageThread? t = _repo.threadById(threadId);
+            if (t != null) _openThread(t);
+          },
+        ),
+      _Secondary.archived => MessagesArchivedView(
+          repository: _repo,
+          onOpenThread: (MessageThread t) {
+            _closeSecondary();
+            _openThread(t);
+          },
+        ),
+      _Secondary.none => const SizedBox.shrink(),
+    };
+
+    // On tablet/desktop the secondary panel replaces the inbox rail, so it needs
+    // its own compact header with a back affordance.
+    return Column(
+      children: <Widget>[
+        _secondaryHeader(context),
+        Expanded(child: body),
+      ],
+    );
+  }
+
+  Widget _secondaryHeader(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final String title = switch (_secondary) {
+      _Secondary.requests => 'Message requests',
+      _Secondary.archived => 'Archived',
+      _Secondary.none => '',
+    };
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(
+          bottom: BorderSide(color: colors.border, width: theme.borders.hairline),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(theme.spacing.xs),
+            vertical: context.sp(theme.spacing.xs),
+          ),
+          child: Row(
+            children: <Widget>[
+              UiIconButton(
+                icon: Icons.arrow_back_rounded,
+                tooltip: 'Back',
+                size: UiSize.sm,
+                onPressed: _closeSecondary,
+              ),
+              SizedBox(width: context.sp(theme.spacing.xxs)),
+              Expanded(
+                child: Text(title, style: context.uiText.bodyStrong),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _Secondary { none, requests, archived }

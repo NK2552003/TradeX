@@ -1426,6 +1426,9 @@ class JournalScreenState extends State<JournalScreen> {
     final UiTheme theme = context.ui;
     final double gap = context.sp(theme.spacing.sm);
     final int columns = maxWidth >= 1024 ? 3 : (maxWidth >= 680 ? 2 : 1);
+    final double cardWidth = columns > 1
+        ? (maxWidth - (columns - 1) * gap) / columns
+        : maxWidth;
 
     final List<Widget> rows = <Widget>[];
     for (int i = 0; i < batch.length; i += columns) {
@@ -1450,11 +1453,14 @@ class JournalScreenState extends State<JournalScreen> {
                         if (j > 0) SizedBox(width: gap),
                         Expanded(
                           child: j < rowItems.length
-                              ? _JournalDashboardCard(
-                                  entry: rowItems[j],
-                                  linkedNoteCount:
-                                      _linkedNoteCounts[rowItems[j].id],
-                                  onTap: () => _open(rowItems[j].id),
+                              ? SizedBox(
+                                  width: cardWidth,
+                                  child: _JournalDashboardCard(
+                                    entry: rowItems[j],
+                                    linkedNoteCount:
+                                        _linkedNoteCounts[rowItems[j].id],
+                                    onTap: () => _open(rowItems[j].id),
+                                  ),
                                 )
                               : const SizedBox.shrink(),
                         ),

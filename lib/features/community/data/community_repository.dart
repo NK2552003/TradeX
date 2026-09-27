@@ -87,7 +87,37 @@ class CommunityRepository extends ChangeNotifier {
   Set<String> get blockedUsers => _blockedUsers;
   List<CommunityPost> get feedPosts => forYouPosts;
   List<CommunityAuthor> get topTraders => suggestedTraders;
-  CommunityAuthor get currentAuthor => _alexVance;
+
+  static const CommunityAuthor _defaultCurrentUser = CommunityAuthor(
+    id: 'usr_nitish_trader',
+    handle: 'nitish_trader',
+    displayName: 'Nitish Kumar',
+    userRole: UserRole.customer,
+    verified: true,
+    tier: AppTier.premium,
+    followers: 12400,
+    following: 234,
+    winRate: 84.0,
+    tradingStyle: 'Swing Trading',
+    primaryMarket: 'Indian Equities & F&O',
+    postsCount: 892,
+  );
+
+  CommunityAuthor? _currentAuthorOverride;
+  CommunityAuthor get currentAuthor => _currentAuthorOverride ?? _defaultCurrentUser;
+  set currentAuthor(CommunityAuthor author) {
+    _currentAuthorOverride = author;
+    notifyListeners();
+  }
+
+  void updateCurrentAuthor(CommunityAuthor author) {
+    if (_currentAuthorOverride?.id != author.id ||
+        _currentAuthorOverride?.handle != author.handle ||
+        _currentAuthorOverride?.displayName != author.displayName) {
+      _currentAuthorOverride = author;
+      Future<void>.microtask(notifyListeners);
+    }
+  }
 
   List<CommunityMuteEntry> loadMutedUsers() {
     final now = DateTime.now();
@@ -126,7 +156,9 @@ class CommunityRepository extends ChangeNotifier {
   }
 
   CommunityAuthor? authorById(String id) {
+    if (id == currentAuthor.id) return currentAuthor;
     final all = <CommunityAuthor>[
+      _defaultCurrentUser,
       _alexVance,
       _marcoSilva,
       _elenaRostova,
@@ -217,9 +249,15 @@ class CommunityRepository extends ChangeNotifier {
   }
 
   /// @backend POST /api/v1/community/posts/{postId}/comments
-  /// Body: { "body": String, "parent_comment_id": String? }
+  /// Body: { "body": String, "parent_comment_id": String?, "sentiment": String? }
   /// Returns: CommunityComment JSON
-  void addComment(String postId, String body, {CommunityAuthor? author, String? parentId}) {
+  void addComment(
+    String postId,
+    String body, {
+    CommunityAuthor? author,
+    String? parentId,
+    String? sentiment,
+  }) {
     final a = author ?? _alexVance;
     final comment = CommunityComment(
       id: 'cmt_${DateTime.now().millisecondsSinceEpoch}',
@@ -227,15 +265,45 @@ class CommunityRepository extends ChangeNotifier {
       author: a,
       body: body,
       createdAt: DateTime.now(),
+      sentiment: sentiment,
+      parentCommentId: parentId,
     );
     final existing = List<CommunityComment>.from(_commentsByPost[postId] ?? []);
     if (parentId != null) {
-      final parentIdx = existing.indexWhere((c) => c.id == parentId);
-      if (parentIdx != -1) {
-        final parent = existing[parentIdx];
-        final updatedReplies = List<CommunityComment>.from(parent.replies)..add(comment);
-        existing[parentIdx] = parent.copyWith(replies: updatedReplies);
-      } else {
+      bool attached = false;
+      CommunityComment? attachReply(CommunityComment c) {
+        if (c.id == parentId) {
+          attached = true;
+          return c.copyWith(replies: [...c.replies, comment]);
+        }
+        if (c.replies.isNotEmpty) {
+          final updatedReplies = <CommunityComment>[];
+          bool anyFound = false;
+          for (final r in c.replies) {
+            final updated = attachReply(r);
+            if (updated != null) {
+              updatedReplies.add(updated);
+              anyFound = true;
+            } else {
+              updatedReplies.add(r);
+            }
+          }
+          if (anyFound) {
+            return c.copyWith(replies: updatedReplies);
+          }
+        }
+        return null;
+      }
+
+      for (int i = 0; i < existing.length; i++) {
+        final updated = attachReply(existing[i]);
+        if (updated != null) {
+          existing[i] = updated;
+          break;
+        }
+      }
+
+      if (!attached) {
         existing.insert(0, comment);
       }
     } else {
@@ -256,19 +324,85 @@ class CommunityRepository extends ChangeNotifier {
       .toList();
 
   /// @backend POST /api/v1/community/comments/{commentId}/like
-  /// Returns: { "liked": bool, "likes": int }
-  void likeComment(String postId, String commentId) {
+  /// Returns: { "liked": bool, "likes": int, "user_reaction": String? }
+  void likeComment(String postId, String commentId, {String? reaction}) {
     final list = List<CommunityComment>.from(_commentsByPost[postId] ?? []);
-    final idx = list.indexWhere((c) => c.id == commentId);
-    if (idx == -1) return;
-    final c = list[idx];
-    list[idx] = c.copyWith(
-      liked: !c.liked,
-      likes: c.liked ? c.likes - 1 : c.likes + 1,
-    );
-    _commentsByPost = Map<String, List<CommunityComment>>.from(_commentsByPost)
-      ..[postId] = list;
-    notifyListeners();
+
+    CommunityComment? updateRecursively(CommunityComment c) {
+      if (c.id == commentId) {
+        final bool wasLiked = c.liked;
+        final String? currentReaction = c.userReaction;
+
+        if (reaction != null && reaction.trim().isNotEmpty) {
+          final targetReaction = reaction.trim();
+          if (wasLiked && currentReaction == targetReaction) {
+            // Tapped same reaction again: toggle off
+            return c.copyWith(
+              liked: false,
+              likes: (c.likes - 1).clamp(0, 99999),
+              userReaction: null,
+            );
+          } else {
+            // New reaction or changing from one reaction to another
+            return c.copyWith(
+              liked: true,
+              likes: wasLiked ? c.likes : c.likes + 1,
+              userReaction: targetReaction,
+            );
+          }
+        } else {
+          // Direct Like button tapped
+          if (wasLiked) {
+            return c.copyWith(
+              liked: false,
+              likes: (c.likes - 1).clamp(0, 99999),
+              userReaction: null,
+            );
+          } else {
+            return c.copyWith(
+              liked: true,
+              likes: c.likes + 1,
+              userReaction: '👍',
+            );
+          }
+        }
+      }
+
+      if (c.replies.isNotEmpty) {
+        bool changed = false;
+        final updatedReplies = <CommunityComment>[];
+        for (final r in c.replies) {
+          final updated = updateRecursively(r);
+          if (updated != null) {
+            updatedReplies.add(updated);
+            changed = true;
+          } else {
+            updatedReplies.add(r);
+          }
+        }
+        if (changed) {
+          return c.copyWith(replies: updatedReplies);
+        }
+      }
+
+      return null;
+    }
+
+    bool modified = false;
+    for (int i = 0; i < list.length; i++) {
+      final updated = updateRecursively(list[i]);
+      if (updated != null) {
+        list[i] = updated;
+        modified = true;
+        break;
+      }
+    }
+
+    if (modified) {
+      _commentsByPost = Map<String, List<CommunityComment>>.from(_commentsByPost)
+        ..[postId] = list;
+      notifyListeners();
+    }
   }
 
   /// @backend POST /api/v1/community/users/{traderId}/follow
@@ -343,24 +477,111 @@ class CommunityRepository extends ChangeNotifier {
   }
 
   /// @backend PATCH /api/v1/community/posts/{postId}
-  /// Body: { "body": String }
+  /// Body: { "body": String, ... }
   /// Returns: CommunityPost JSON
-  void editPost(String postId, String newBody) {
-    _forYouPosts = _editPostInList(_forYouPosts, postId, newBody);
-    _followingPosts = _editPostInList(_followingPosts, postId, newBody);
-    _signalPosts = _editPostInList(_signalPosts, postId, newBody);
+  void editPost(
+    String postId,
+    String newBody, {
+    List<String>? tickers,
+    List<String>? tags,
+    CommunityTradeSetup? tradeSetup,
+    bool clearTradeSetup = false,
+    AppWritingPostAttachment? attachment,
+    bool clearAttachment = false,
+    CommunityPoll? poll,
+    bool clearPoll = false,
+    CommunitySentiment? sentiment,
+    bool clearSentiment = false,
+    CommunityReplyAudience? replyAudience,
+    List<String>? imageUrls,
+  }) {
+    _forYouPosts = _editPostInList(
+      _forYouPosts,
+      postId,
+      newBody,
+      tickers: tickers,
+      tags: tags,
+      tradeSetup: tradeSetup,
+      clearTradeSetup: clearTradeSetup,
+      attachment: attachment,
+      clearAttachment: clearAttachment,
+      poll: poll,
+      clearPoll: clearPoll,
+      sentiment: sentiment,
+      clearSentiment: clearSentiment,
+      replyAudience: replyAudience,
+      imageUrls: imageUrls,
+    );
+    _followingPosts = _editPostInList(
+      _followingPosts,
+      postId,
+      newBody,
+      tickers: tickers,
+      tags: tags,
+      tradeSetup: tradeSetup,
+      clearTradeSetup: clearTradeSetup,
+      attachment: attachment,
+      clearAttachment: clearAttachment,
+      poll: poll,
+      clearPoll: clearPoll,
+      sentiment: sentiment,
+      clearSentiment: clearSentiment,
+      replyAudience: replyAudience,
+      imageUrls: imageUrls,
+    );
+    _signalPosts = _editPostInList(
+      _signalPosts,
+      postId,
+      newBody,
+      tickers: tickers,
+      tags: tags,
+      tradeSetup: tradeSetup,
+      clearTradeSetup: clearTradeSetup,
+      attachment: attachment,
+      clearAttachment: clearAttachment,
+      poll: poll,
+      clearPoll: clearPoll,
+      sentiment: sentiment,
+      clearSentiment: clearSentiment,
+      replyAudience: replyAudience,
+      imageUrls: imageUrls,
+    );
     notifyListeners();
   }
 
   List<CommunityPost> _editPostInList(
     List<CommunityPost> list,
     String id,
-    String newBody,
-  ) {
+    String newBody, {
+    List<String>? tickers,
+    List<String>? tags,
+    CommunityTradeSetup? tradeSetup,
+    bool clearTradeSetup = false,
+    AppWritingPostAttachment? attachment,
+    bool clearAttachment = false,
+    CommunityPoll? poll,
+    bool clearPoll = false,
+    CommunitySentiment? sentiment,
+    bool clearSentiment = false,
+    CommunityReplyAudience? replyAudience,
+    List<String>? imageUrls,
+  }) {
     return list.map((p) {
       if (p.id != id) return p;
       return p.copyWith(
         body: newBody,
+        tickers: tickers,
+        tags: tags,
+        tradeSetup: tradeSetup,
+        clearTradeSetup: clearTradeSetup,
+        attachment: attachment,
+        clearAttachment: clearAttachment,
+        poll: poll,
+        clearPoll: clearPoll,
+        sentiment: sentiment,
+        clearSentiment: clearSentiment,
+        replyAudience: replyAudience,
+        imageUrls: imageUrls,
         isEdited: true,
         editedAt: DateTime.now(),
       );
@@ -884,6 +1105,33 @@ class CommunityRepository extends ChangeNotifier {
       views: 6200,
     );
 
+    final postNitish1 = CommunityPost(
+      id: 'post_nitish_1',
+      author: currentAuthor,
+      sentiment: CommunitySentiment.bullish,
+      body:
+          'BANKNIFTY breaking out of the 15-minute consolidation range. Looking for follow-through momentum towards 52,200 resistance with tight trailing stops. Disciplined execution over emotion always. 📈',
+      createdAt: now.subtract(const Duration(minutes: 45)),
+      tickers: const <String>['BANKNIFTY'],
+      tags: const <String>['Breakout', 'PriceAction', 'Execution'],
+      tradeSetup: CommunityTradeSetup(
+        ticker: 'BANKNIFTY 52000 CE',
+        side: 'LONG',
+        entry: '₹310.00',
+        exit: '₹420.00',
+        stopLoss: '₹265.00',
+        target: '₹450.00',
+        rMultiple: '+2.44R',
+        pnl: '+₹24,750',
+        isWin: true,
+        candles: _generateCandles(16, 300.0, rising: true),
+      ),
+      likes: 56,
+      comments: 12,
+      reposts: 8,
+      views: 1420,
+    );
+
     final postA1 = CommunityPost(
       id: 'post_a1',
       author: _alexVance,
@@ -1060,6 +1308,7 @@ class CommunityRepository extends ChangeNotifier {
     );
 
     _forYouPosts = <CommunityPost>[
+      postNitish1,
       postA1,
       postPoll,
       postW1,
@@ -1072,6 +1321,7 @@ class CommunityRepository extends ChangeNotifier {
       postA3,
     ];
     _followingPosts = <CommunityPost>[
+      postNitish1,
       postA1,
       postPoll,
       postW1,
@@ -1079,12 +1329,50 @@ class CommunityRepository extends ChangeNotifier {
       postE1,
       postA3,
     ];
-    _signalPosts = <CommunityPost>[postA1, postP1, postA3, postQ1];
+    _signalPosts = <CommunityPost>[postNitish1, postA1, postP1, postA3, postQ1];
   }
 
   void _seedComments() {
     final now = DateTime.now();
     _commentsByPost = <String, List<CommunityComment>>{
+      'post_nitish1': <CommunityComment>[
+        CommunityComment(
+          id: 'cmt_n1',
+          postId: 'post_nitish1',
+          author: _priyaSharma,
+          body:
+              'Massive move on \$RELIANCE! The weekly volume expansion confirmed the structural breakout before open. Targeting 3,020 next?',
+          createdAt: now.subtract(const Duration(minutes: 55)),
+          likes: 18,
+          reactions: const <String>['🚀', '👍'],
+          sentiment: 'BULLISH',
+          replies: <CommunityComment>[
+            CommunityComment(
+              id: 'cmt_n1_r1',
+              postId: 'post_nitish1',
+              parentCommentId: 'cmt_n1',
+              author: _alexVance,
+              body:
+                  'Spot on Priya. Confluence of 50-day EMA and VWAP retest provided an optimal 1:3.4 risk-to-reward entry.',
+              createdAt: now.subtract(const Duration(minutes: 35)),
+              likes: 9,
+              reactions: const <String>['💡'],
+              sentiment: 'INSIGHTFUL',
+            ),
+          ],
+        ),
+        CommunityComment(
+          id: 'cmt_n2',
+          postId: 'post_nitish1',
+          author: _arisThorne,
+          body:
+              'Notice the delivery percentage was above 62%. Strong institutional accumulation rather than speculative intraday churn.',
+          createdAt: now.subtract(const Duration(minutes: 25)),
+          likes: 11,
+          reactions: const <String>['🔥', '👍'],
+          sentiment: 'INSIGHTFUL',
+        ),
+      ],
       'post_a1': <CommunityComment>[
         CommunityComment(
           id: 'cmt_1',
@@ -1094,6 +1382,22 @@ class CommunityRepository extends ChangeNotifier {
               'Love the patience! Waiting for the retest is so hard but always pays off. What was your initial RR on this setup?',
           createdAt: now.subtract(const Duration(hours: 1, minutes: 40)),
           likes: 12,
+          reactions: const <String>['👍', '🚀'],
+          sentiment: 'BULLISH',
+          replies: <CommunityComment>[
+            CommunityComment(
+              id: 'cmt_1_r1',
+              postId: 'post_a1',
+              parentCommentId: 'cmt_1',
+              author: _alexVance,
+              body:
+                  'Initial stop was placed exactly 0.5% below the consolidation low, delivering a 1:2.8 R:R before scaling out.',
+              createdAt: now.subtract(const Duration(hours: 1, minutes: 15)),
+              likes: 5,
+              reactions: const <String>['💡'],
+              sentiment: 'INSIGHTFUL',
+            ),
+          ],
         ),
         CommunityComment(
           id: 'cmt_2',
@@ -1103,6 +1407,8 @@ class CommunityRepository extends ChangeNotifier {
               'Clean execution. The volume confirmation before entry is what separates this from a random trade. 👏',
           createdAt: now.subtract(const Duration(hours: 1, minutes: 20)),
           likes: 8,
+          reactions: const <String>['🔥'],
+          sentiment: 'INSIGHTFUL',
         ),
         CommunityComment(
           id: 'cmt_3',
@@ -1112,6 +1418,33 @@ class CommunityRepository extends ChangeNotifier {
               'Alex, do you use VWAP as an anchor for the opening range, or pure H/L of first candle?',
           createdAt: now.subtract(const Duration(minutes: 45)),
           likes: 3,
+          reactions: const <String>['💡'],
+        ),
+      ],
+      'post_poll': <CommunityComment>[
+        CommunityComment(
+          id: 'cmt_poll_1',
+          postId: 'post_poll',
+          author: _elenaRostova,
+          body:
+              'Voted 25,000+. The call open interest unwinding at 24,800 points towards an imminent gamma squeeze.',
+          createdAt: now.subtract(const Duration(hours: 2)),
+          likes: 14,
+          reactions: const <String>['🚀', '👍'],
+          sentiment: 'BULLISH',
+        ),
+      ],
+      'post_w1': <CommunityComment>[
+        CommunityComment(
+          id: 'cmt_w1',
+          postId: 'post_w1',
+          author: _rajeshPatel,
+          body:
+              'The liquidity sweep on BankNifty was textbook today. 48,200 put buyers got completely trapped.',
+          createdAt: now.subtract(const Duration(hours: 3)),
+          likes: 7,
+          reactions: const <String>['💡'],
+          sentiment: 'INSIGHTFUL',
         ),
       ],
       'post_p1': <CommunityComment>[
@@ -1123,6 +1456,98 @@ class CommunityRepository extends ChangeNotifier {
               'Priya crushing it as usual. Expiry day IV crush is such a reliable edge.',
           createdAt: now.subtract(const Duration(hours: 4)),
           likes: 22,
+          reactions: const <String>['🔥', '🚀'],
+          sentiment: 'BULLISH',
+          replies: <CommunityComment>[
+            CommunityComment(
+              id: 'cmt_4_r1',
+              postId: 'post_p1',
+              parentCommentId: 'cmt_4',
+              author: _priyaSharma,
+              body:
+                  'Thanks Alex! Theta decay between 1:30 PM and 3:00 PM did all the heavy lifting.',
+              createdAt: now.subtract(const Duration(hours: 3, minutes: 20)),
+              likes: 8,
+              reactions: const <String>['❤️'],
+            ),
+          ],
+        ),
+      ],
+      'post_m1': <CommunityComment>[
+        CommunityComment(
+          id: 'cmt_m1',
+          postId: 'post_m1',
+          author: _arisThorne,
+          body:
+              'Tracking momentum breadth across Midcaps. Advance/Decline ratio looks promising for continuation.',
+          createdAt: now.subtract(const Duration(hours: 5)),
+          likes: 6,
+          reactions: const <String>['💡'],
+          sentiment: 'BULLISH',
+        ),
+      ],
+      'post_q1': <CommunityComment>[
+        CommunityComment(
+          id: 'cmt_q1',
+          postId: 'post_q1',
+          author: _priyaSharma,
+          body:
+              'Quantitative hedge ratios on the pair trade look tightly bounded. Sharpe ratio above 2.1 is stellar.',
+          createdAt: now.subtract(const Duration(hours: 6)),
+          likes: 15,
+          reactions: const <String>['🚀', '💡'],
+          sentiment: 'INSIGHTFUL',
+        ),
+      ],
+      'post_a2': <CommunityComment>[
+        CommunityComment(
+          id: 'cmt_a2',
+          postId: 'post_a2',
+          author: _elenaRostova,
+          body:
+              'Order book depth showed aggressive bids absorbing limit offers at the support pivot. Great catch.',
+          createdAt: now.subtract(const Duration(hours: 12)),
+          likes: 9,
+          reactions: const <String>['🔥'],
+          sentiment: 'BULLISH',
+        ),
+      ],
+      'post_e1': <CommunityComment>[
+        CommunityComment(
+          id: 'cmt_e1',
+          postId: 'post_e1',
+          author: _rajeshPatel,
+          body:
+              'Wise decision Elena. Preserving dry powder during high-volatility macro prints always beats taking unnecessary beta.',
+          createdAt: now.subtract(const Duration(hours: 16)),
+          likes: 31,
+          reactions: const <String>['💡', '👍'],
+          sentiment: 'BEARISH',
+        ),
+      ],
+      'post_r1': <CommunityComment>[
+        CommunityComment(
+          id: 'cmt_r1',
+          postId: 'post_r1',
+          author: _arisThorne,
+          body:
+              'The FX forward premia is pricing in minimal depreciation here. Good risk:reward on the collar structure.',
+          createdAt: now.subtract(const Duration(hours: 24)),
+          likes: 8,
+          reactions: const <String>['💡'],
+        ),
+      ],
+      'post_a3': <CommunityComment>[
+        CommunityComment(
+          id: 'cmt_a3',
+          postId: 'post_a3',
+          author: _priyaSharma,
+          body:
+              'VWAP band expansion setup executed to perfection. Looking forward to the post-market review.',
+          createdAt: now.subtract(const Duration(hours: 30)),
+          likes: 10,
+          reactions: const <String>['🚀', '👍'],
+          sentiment: 'BULLISH',
         ),
       ],
     };

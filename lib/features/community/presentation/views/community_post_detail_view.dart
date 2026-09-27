@@ -1,14 +1,11 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/community/presentation/widgets/community_ai_assistant_dialog.dart';
 import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
-import 'package:tradex/features/community/presentation/widgets/community_highlighted_text.dart';
-import 'package:tradex/features/community/presentation/widgets/community_poll_tile.dart';
-import 'package:tradex/features/community/presentation/widgets/community_quote_card.dart';
+import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
+import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_repost_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_share_sheet.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
@@ -17,11 +14,14 @@ import 'package:tradex/features/community/presentation/widgets/universal_comment
 // CommunityPostDetailView
 // ---------------------------------------------------------------------------
 
-/// Detailed thread view with responsive multi-device layouts.
+/// Detailed thread view with unified post card and responsive multi-device layouts.
+///
+/// Uses the canonical [CommunityPostCard] (with [CommunityPostCardVariant.boxed])
+/// ensuring 100% design fidelity and consistency with feed post cards.
 ///
 /// Layout Strategy:
-/// - Desktop: 2-column architecture (left: main setup & LinkedIn comments thread;
-///   right: sticky author analytics sidebar with win-rate stats, recent setups, and one-click copy).
+/// - Desktop: 2-column architecture (left: canonical post card & LinkedIn comments thread;
+///   right: sticky author analytics sidebar with win-rate stats, recent setups, and risk compliance).
 /// - Tablet: Adaptive stacked layout with interactive author stat card.
 /// - Mobile: Full-width feed-centric layout with sticky bottom quick reply bar.
 class CommunityPostDetailView extends StatefulWidget {
@@ -48,57 +48,54 @@ class CommunityPostDetailView extends StatefulWidget {
 }
 
 class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
-  late bool _liked;
-  late int _likes;
-  late bool _reposted;
-  late int _reposts;
-  late bool _bookmarked;
-  late bool _isAuthorFollowed;
-  int _bullishVotes = 42;
-  int _bearishVotes = 6;
-  bool _hasVotedSentiment = false;
-
   final TextEditingController _mobileQuickReplyCtrl = TextEditingController();
+  final FocusNode _mobileReplyFocusNode = FocusNode();
   bool _mobileSubmitting = false;
 
   @override
   void initState() {
     super.initState();
-    _liked = widget.post.liked;
-    _likes = widget.post.likes;
-    _reposted = widget.post.reposted;
-    _reposts = widget.post.reposts;
-    _bookmarked = widget.post.bookmarked;
-    _isAuthorFollowed = widget.post.author.isFollowing;
     widget.repository.addListener(_onDataChanged);
   }
 
   @override
   void dispose() {
     _mobileQuickReplyCtrl.dispose();
+    _mobileReplyFocusNode.dispose();
     widget.repository.removeListener(_onDataChanged);
     super.dispose();
   }
 
-  void _onDataChanged() => setState(() {});
+  void _onDataChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Finds the freshest instance of this post from the repository.
+  CommunityPost get _currentPost {
+    for (final p in widget.repository.forYouPosts) {
+      if (p.id == widget.post.id) return p;
+    }
+    for (final p in widget.repository.followingPosts) {
+      if (p.id == widget.post.id) return p;
+    }
+    for (final p in widget.repository.signalPosts) {
+      if (p.id == widget.post.id) return p;
+    }
+    for (final p in widget.repository.bookmarkedPosts) {
+      if (p.id == widget.post.id) return p;
+    }
+    return widget.post;
+  }
 
   void _handleLike() {
-    setState(() {
-      _liked = !_liked;
-      _likes += _liked ? 1 : -1;
-    });
     widget.repository.toggleLike(widget.post.id);
   }
 
   void _handleRepost() {
     CommunityRepostDialog.show(
       context,
-      post: widget.post,
+      post: _currentPost,
       onRepost: () {
-        setState(() {
-          _reposted = !_reposted;
-          _reposts += _reposted ? 1 : -1;
-        });
         widget.repository.toggleRepost(widget.post.id);
       },
       onQuote: () {},
@@ -106,22 +103,20 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   }
 
   void _handleBookmark() {
-    setState(() {
-      _bookmarked = !_bookmarked;
-    });
     widget.repository.toggleBookmark(widget.post.id);
+    final bool isBookmarked = !_currentPost.bookmarked;
     UiToast.show(
       context,
-      title: _bookmarked ? 'Bookmark Added' : 'Bookmark Removed',
-      message: _bookmarked
+      title: isBookmarked ? 'Bookmark Added' : 'Bookmark Removed',
+      message: isBookmarked
           ? 'Post saved to your bookmarks library.'
           : 'Removed from bookmarks.',
-      intent: _bookmarked ? UiIntent.primary : UiIntent.neutral,
+      intent: isBookmarked ? UiIntent.primary : UiIntent.neutral,
     );
   }
 
   void _handleShare() {
-    CommunityShareSheet.show(context, post: widget.post);
+    CommunityShareSheet.show(context, post: _currentPost);
   }
 
   Future<void> _handleMobileQuickReply() async {
@@ -148,12 +143,35 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     }
   }
 
+  bool get _isAuthor {
+    final current = widget.currentUser;
+    final author = _currentPost.author;
+    if (author.id == current.id ||
+        author.handle.toLowerCase() == current.handle.toLowerCase()) {
+      return true;
+    }
+    final cleanCurrent = current.handle.toLowerCase().replaceFirst('@', '').trim();
+    final cleanAuthor = author.handle.toLowerCase().replaceFirst('@', '').trim();
+    return cleanCurrent.isNotEmpty && cleanCurrent == cleanAuthor;
+  }
+
+  Future<void> _handleEditPost() async {
+    await CommunityEditPostDialog.show(
+      context,
+      post: _currentPost,
+      repository: widget.repository,
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final isDesktop = context.uiRes.isDesktop;
     final isMobile = context.uiRes.isMobile;
-    final author = widget.post.author;
+    final author = _currentPost.author;
     final comments = widget.repository.commentsForPost(widget.post.id);
 
     return Scaffold(
@@ -177,8 +195,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     UiTheme theme, {
     required bool isMobile,
   }) {
-    final ticker = widget.post.tradeSetup?.ticker ??
-        (widget.post.tickers.isNotEmpty ? widget.post.tickers.first : null);
+    final post = _currentPost;
+    final ticker = post.tradeSetup?.ticker ??
+        (post.tickers.isNotEmpty ? post.tickers.first : null);
 
     return Container(
       height: context.sz(44),
@@ -202,7 +221,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
               color: theme.colors.surface.withValues(alpha: 0.88),
               borderRadius: context.radius(theme.radii.pill),
@@ -242,39 +261,43 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     size: UiSize.xs,
                   ),
                 ],
-                if (widget.post.tradeSetup?.side != null) ...[
+                if (post.tradeSetup?.side != null) ...[
                   SizedBox(width: context.sp(theme.spacing.xxs)),
                   UiBadge(
-                    label: widget.post.tradeSetup!.side,
-                    intent: widget.post.tradeSetup!.isBullish
+                    label: post.tradeSetup!.side,
+                    intent: post.tradeSetup!.isBullish
                         ? UiIntent.success
                         : UiIntent.danger,
                     variant: UiBadgeVariant.soft,
                     size: UiSize.xs,
                   ),
                 ],
+                if (_isAuthor) ...[
+                  SizedBox(width: context.sp(theme.spacing.sm)),
+                  UiButton(
+                    label: 'Edit Post',
+                    icon: Icons.edit_outlined,
+                    size: UiSize.xs,
+                    variant: UiVariant.soft,
+                    intent: UiIntent.primary,
+                    onPressed: _handleEditPost,
+                  ),
+                ],
                 const Spacer(),
-                UiIconButton(
-                  icon: _bookmarked
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  size: UiSize.xs,
-                  tooltip: _bookmarked ? 'Remove Bookmark' : 'Save Thread',
-                  onPressed: _handleBookmark,
-                ),
-                UiIconButton(
-                  icon: Icons.link_rounded,
-                  size: UiSize.xs,
-                  tooltip: 'Copy Thread Link',
-                  onPressed: () {
-                    UiToast.show(
-                      context,
-                      title: 'Link Copied',
-                      message: 'Thread URL copied to clipboard.',
-                      intent: UiIntent.success,
-                    );
-                  },
-                ),
+                if (!isMobile)
+                  UiIconButton(
+                    icon: Icons.link_rounded,
+                    size: UiSize.xs,
+                    tooltip: 'Copy Thread Link',
+                    onPressed: () {
+                      UiToast.show(
+                        context,
+                        title: 'Link Copied',
+                        message: 'Thread URL copied to clipboard.',
+                        intent: UiIntent.success,
+                      );
+                    },
+                  ),
                 UiIconButton(
                   icon: Icons.ios_share_rounded,
                   size: UiSize.xs,
@@ -290,7 +313,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   }
 
   // ---------------------------------------------------------------------------
-  // Desktop 2-Column Responsive Layout: Left Floating Header, Right Sticky Sidebar
+  // Desktop 2-Column Responsive Layout: Left Main Column, Right Sticky Sidebar
   // ---------------------------------------------------------------------------
 
   Widget _buildDesktopLayout(
@@ -298,85 +321,117 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     CommunityAuthor author,
     List<CommunityComment> comments,
   ) {
-    final double clearance =
-        context.sz(44) + context.sp(theme.spacing.md) + context.sp(theme.spacing.xs);
+    final isMobile = context.uiRes.isMobile;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        // Left Column: Main Post Card + LinkedIn Comments Thread with Floating Bar
+        // Panel 1: Main Post Thread & Comments Panel (Expanded to span all space up to the right sidebar)
         Expanded(
-          flex: 7,
-          child: Stack(
-            children: <Widget>[
-              SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  context.sp(theme.spacing.lg),
-                  clearance,
-                  context.sp(theme.spacing.lg),
-                  context.sp(theme.spacing.xl),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    _buildMainPostCard(theme, author, isMobile: false),
-                    SizedBox(height: context.sp(theme.spacing.lg)),
-                    UniversalCommentsSection(
-                      targetId: widget.post.id,
-                      targetType: 'post',
-                      comments: comments,
-                      currentUser: widget.currentUser,
-                      onAuthorTap: widget.onAuthorTap,
-                      onAddComment: (text, {parentCommentId, sentiment}) async {
-                        widget.repository.addComment(
-                          widget.post.id,
-                          text,
-                          author: widget.currentUser,
-                          parentId: parentCommentId,
-                        );
-                      },
-                      onLikeComment: (commentId, {reaction}) {
-                        widget.repository.likeComment(widget.post.id, commentId);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              // Floating Header Pinned at Top of Left Section
-              Positioned(
-                top: context.sp(theme.spacing.xs),
-                left: context.sp(theme.spacing.lg),
-                right: context.sp(theme.spacing.lg),
-                child: _buildFloatingHeader(context, theme, isMobile: false),
-              ),
-            ],
-          ),
-        ),
-
-        // Right Column: Sticky Author Analytics & Setup Actions (stays pinned on screen)
-        SizedBox(
-          width: context.sz(350),
           child: Container(
             decoration: BoxDecoration(
               border: Border(
-                left: BorderSide(
-                  color: theme.colors.border.withValues(alpha: 0.5),
+                right: BorderSide(
+                  color: theme.colors.border.withValues(alpha: 0.6),
                   width: theme.borders.hairline,
                 ),
               ),
             ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                // Pinned floating header matching feed floating bar layout and top margin
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+                    context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+                    context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+                    context.sp(theme.spacing.xs),
+                  ),
+                  child: _buildFloatingHeader(context, theme, isMobile: false),
+                ),
+
+                // Thread content (post card & comments centered at maxWidth: 700px)
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: context.sz(700)),
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(
+                          context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+                          context.sp(theme.spacing.xs),
+                          context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+                          context.sp(theme.spacing.xl),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            CommunityPostCard(
+                              key: ValueKey<String>('detail_${_currentPost.id}'),
+                              post: _currentPost,
+                              variant: CommunityPostCardVariant.boxed,
+                              repository: widget.repository,
+                              currentUser: widget.currentUser,
+                              onLike: _handleLike,
+                              onRepost: _handleRepost,
+                              onBookmark: _handleBookmark,
+                              onShare: _handleShare,
+                              onAuthorTap: widget.onAuthorTap,
+                              onOpenRef: widget.onOpenRef,
+                              onVotePoll: (idx) => widget.repository.votePoll(widget.post.id, idx),
+                            ),
+                            SizedBox(height: context.sp(theme.spacing.lg)),
+                            UniversalCommentsSection(
+                              targetId: widget.post.id,
+                              targetType: 'post',
+                              comments: comments,
+                              currentUser: widget.currentUser,
+                              onAuthorTap: widget.onAuthorTap,
+                              onAddComment: (text, {parentCommentId, sentiment}) async {
+                                widget.repository.addComment(
+                                  widget.post.id,
+                                  text,
+                                  author: widget.currentUser,
+                                  parentId: parentCommentId,
+                                  sentiment: sentiment,
+                                );
+                              },
+                              onLikeComment: (commentId, {reaction}) {
+                                widget.repository.likeComment(
+                                  widget.post.id,
+                                  commentId,
+                                  reaction: reaction,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Panel 2: Right Companion Sidebar (docked firmly to the right side of the screen at width 340)
+        SizedBox(
+          width: context.sz(340),
+          child: Scrollbar(
             child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                context.sp(theme.spacing.md),
-                context.sp(theme.spacing.xs),
-                context.sp(theme.spacing.md),
-                context.sp(theme.spacing.xl),
-              ),
+              padding: EdgeInsets.all(context.sp(theme.spacing.md)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  _buildAuthorAnalyticsCard(theme, author),
+                  _buildAuthorProfileCard(theme, author),
+                  SizedBox(height: context.sp(theme.spacing.md)),
+                  if (_currentPost.tradeSetup != null) ...[
+                    _buildTradeSetupBlueprintCard(theme, _currentPost.tradeSetup!),
+                    SizedBox(height: context.sp(theme.spacing.md)),
+                  ],
+                  _buildThreadActivityCard(theme, comments),
                   SizedBox(height: context.sp(theme.spacing.md)),
                   _buildAuthorRecentSetupsCard(theme, author),
                   SizedBox(height: context.sp(theme.spacing.md)),
@@ -412,34 +467,58 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
             context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
             context.sp(isMobile ? 80 : theme.spacing.lg),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _buildMainPostCard(theme, author, isMobile: isMobile),
-              SizedBox(height: context.sp(theme.spacing.md)),
-              if (!isMobile) ...[
-                _buildAuthorAnalyticsCard(theme, author),
-                SizedBox(height: context.sp(theme.spacing.md)),
-              ],
-              UniversalCommentsSection(
-                targetId: widget.post.id,
-                targetType: 'post',
-                comments: comments,
-                currentUser: widget.currentUser,
-                onAuthorTap: widget.onAuthorTap,
-                onAddComment: (text, {parentCommentId, sentiment}) async {
-                  widget.repository.addComment(
-                    widget.post.id,
-                    text,
-                    author: widget.currentUser,
-                    parentId: parentCommentId,
-                  );
-                },
-                onLikeComment: (commentId, {reaction}) {
-                  widget.repository.likeComment(widget.post.id, commentId);
-                },
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: context.sz(700)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  CommunityPostCard(
+                    key: ValueKey<String>('detail_${_currentPost.id}'),
+                    post: _currentPost,
+                    variant: CommunityPostCardVariant.boxed,
+                    repository: widget.repository,
+                    onReply: () {
+                      if (isMobile) {
+                        _mobileReplyFocusNode.requestFocus();
+                      }
+                    },
+                    onLike: _handleLike,
+                    onRepost: _handleRepost,
+                    onBookmark: _handleBookmark,
+                    onShare: _handleShare,
+                    onAuthorTap: widget.onAuthorTap,
+                    onOpenRef: widget.onOpenRef,
+                    onVotePoll: (idx) => widget.repository.votePoll(widget.post.id, idx),
+                  ),
+                  SizedBox(height: context.sp(theme.spacing.md)),
+                  UniversalCommentsSection(
+                    targetId: widget.post.id,
+                    targetType: 'post',
+                    comments: comments,
+                    currentUser: widget.currentUser,
+                    onAuthorTap: widget.onAuthorTap,
+                    onAddComment: (text, {parentCommentId, sentiment}) async {
+                      widget.repository.addComment(
+                        widget.post.id,
+                        text,
+                        author: widget.currentUser,
+                        parentId: parentCommentId,
+                        sentiment: sentiment,
+                      );
+                    },
+                    onLikeComment: (commentId, {reaction}) {
+                      widget.repository.likeComment(
+                        widget.post.id,
+                        commentId,
+                        reaction: reaction,
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
 
@@ -447,35 +526,46 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
         Positioned(
           top: context.sp(theme.spacing.xs),
           left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-          child: _buildFloatingHeader(context, theme, isMobile: isMobile),
+          right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: context.sz(700)),
+              child: _buildFloatingHeader(context, theme, isMobile: isMobile),
+            ),
+          ),
         ),
       ],
     );
   }
 
   // ---------------------------------------------------------------------------
-  // Main Post Card (Enriched Trader-Grade Post View)
+  // Desktop Sidebar Companion Cards
   // ---------------------------------------------------------------------------
 
-  Widget _buildMainPostCard(UiTheme theme, CommunityAuthor author, {required bool isMobile}) {
-    final verifiedColor = author.verifiedColor(theme);
+  Widget _buildAuthorProfileCard(UiTheme theme, CommunityAuthor author) {
+    final bool isCurrentUser = author.id == widget.currentUser.id;
+    final Color verifiedColor = author.verifiedColor(theme);
 
     return UiCard(
-      padding: EdgeInsets.all(context.sp(isMobile ? theme.spacing.sm : theme.spacing.md)),
+      variant: UiCardVariant.surface,
+      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          // Author Header Row with Follow Action
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              UiAvatar(
-                name: author.displayName,
-                imageUrl: author.avatarUrl,
-                size: isMobile ? UiSize.md : UiSize.lg,
-                verified: author.verified,
-                verifiedColor: verifiedColor,
-                onTap: widget.onAuthorTap == null ? null : () => widget.onAuthorTap!(author),
+              GestureDetector(
+                onTap: widget.onAuthorTap == null
+                    ? null
+                    : () => widget.onAuthorTap!(author),
+                child: UiAvatar(
+                  name: author.displayName,
+                  imageUrl: author.avatarUrl,
+                  size: UiSize.lg,
+                  verified: author.verified,
+                  verifiedColor: verifiedColor,
+                ),
               ),
               SizedBox(width: context.sp(theme.spacing.sm)),
               Expanded(
@@ -485,793 +575,32 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     Row(
                       children: <Widget>[
                         Flexible(
-                          child: Text(
-                            author.displayName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: context.uiText.bodyStrong.copyWith(
-                              fontWeight: FontWeight.w700,
-                              fontSize: context.fs(isMobile ? 14 : 16),
-                              color: theme.colors.foreground,
+                          child: GestureDetector(
+                            onTap: widget.onAuthorTap == null
+                                ? null
+                                : () => widget.onAuthorTap!(author),
+                            child: Text(
+                              author.displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.uiText.bodyStrong.copyWith(
+                                fontWeight: FontWeight.w700,
+                                fontSize: context.fs(15),
+                              ),
                             ),
                           ),
                         ),
                         if (author.verified) ...<Widget>[
-                          SizedBox(width: context.sp(theme.spacing.xxs)),
+                          const SizedBox(width: 4),
                           Icon(
                             Icons.verified_rounded,
                             color: verifiedColor,
-                            size: context.sz(16),
-                          ),
-                        ],
-                        if (author.userRole != UserRole.customer) ...<Widget>[
-                          SizedBox(width: context.sp(theme.spacing.xxs)),
-                          UiBadge(
-                            label: author.roleBadgeText,
-                            intent: author.userRole == UserRole.userAdmin
-                                ? UiIntent.danger
-                                : UiIntent.warning,
-                            variant: UiBadgeVariant.solid,
-                            size: UiSize.xs,
-                          ),
-                        ],
-                        if (author.winRate != null) ...<Widget>[
-                          SizedBox(width: context.sp(theme.spacing.xxs)),
-                          UiBadge(
-                            label: '${author.winRate!.toStringAsFixed(0)}% Win',
-                            intent: author.winRate! >= 60 ? UiIntent.success : UiIntent.neutral,
-                            variant: UiBadgeVariant.soft,
-                            size: UiSize.xs,
+                            size: context.sz(14),
                           ),
                         ],
                       ],
                     ),
-                    Row(
-                      children: [
-                        Text(
-                          '@${author.handle}',
-                          style: context.uiText.caption.copyWith(
-                            color: theme.colors.foregroundMuted,
-                          ),
-                        ),
-                        if (author.tradingStyle != null) ...[
-                          Text(
-                            ' · ',
-                            style: context.uiText.caption.copyWith(
-                              color: theme.colors.foregroundSubtle,
-                            ),
-                          ),
-                          Flexible(
-                            child: Text(
-                              author.tradingStyle!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.uiText.caption.copyWith(
-                                color: theme.colors.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              UiIconButton(
-                icon: _isAuthorFollowed
-                    ? Icons.check_rounded
-                    : Icons.person_add_rounded,
-                variant: _isAuthorFollowed
-                    ? UiVariant.outline
-                    : UiVariant.primary,
-                size: UiSize.sm,
-                tooltip: _isAuthorFollowed
-                    ? 'Following @${author.handle}'
-                    : 'Follow @${author.handle}',
-                onPressed: () {
-                  setState(() => _isAuthorFollowed = !_isAuthorFollowed);
-                  widget.repository.toggleFollow(author.id);
-                  UiToast.show(
-                    context,
-                    title: _isAuthorFollowed
-                        ? 'Following @${author.handle}'
-                        : 'Unfollowed @${author.handle}',
-                    message: _isAuthorFollowed
-                        ? 'Their setups will now appear in your Following feed.'
-                        : 'Removed from following list.',
-                    intent: _isAuthorFollowed ? UiIntent.success : UiIntent.neutral,
-                  );
-                },
-              ),
-              SizedBox(width: context.sp(theme.spacing.xxs)),
-              UiIconButton(
-                icon: Icons.ios_share_rounded,
-                size: UiSize.xs,
-                tooltip: 'Share',
-                onPressed: _handleShare,
-              ),
-            ],
-          ),
-
-          // Market Context & Setup Conviction Strip
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          Wrap(
-            spacing: context.sp(theme.spacing.xs),
-            runSpacing: context.sp(theme.spacing.xxs),
-            children: [
-              if (widget.post.sentiment != null)
-                UiBadge(
-                  label: '${widget.post.sentiment!.label} Bias',
-                  icon: widget.post.sentiment!.icon,
-                  intent: widget.post.sentiment == CommunitySentiment.bullish
-                      ? UiIntent.success
-                      : widget.post.sentiment == CommunitySentiment.bearish
-                          ? UiIntent.danger
-                          : UiIntent.neutral,
-                  variant: UiBadgeVariant.soft,
-                  size: UiSize.xs,
-                )
-              else if (widget.post.tradeSetup != null)
-                UiBadge(
-                  label: widget.post.tradeSetup!.isBullish
-                      ? 'Bullish Setup'
-                      : 'Bearish Setup',
-                  icon: widget.post.tradeSetup!.isBullish
-                      ? Icons.trending_up_rounded
-                      : Icons.trending_down_rounded,
-                  intent: widget.post.tradeSetup!.isBullish
-                      ? UiIntent.success
-                      : UiIntent.danger,
-                  variant: UiBadgeVariant.soft,
-                  size: UiSize.xs,
-                ),
-              if (author.winRate != null && author.winRate! >= 60)
-                UiBadge(
-                  label: 'High Conviction',
-                  icon: Icons.verified_user_rounded,
-                  intent: UiIntent.primary,
-                  variant: UiBadgeVariant.outline,
-                  size: UiSize.xs,
-                ),
-              if (widget.post.isPinned)
-                UiBadge(
-                  label: 'Pinned Thread',
-                  icon: Icons.push_pin_rounded,
-                  intent: UiIntent.warning,
-                  variant: UiBadgeVariant.soft,
-                  size: UiSize.xs,
-                ),
-              UiBadge(
-                label: 'Verified Setup Hash',
-                icon: Icons.shield_outlined,
-                intent: UiIntent.neutral,
-                variant: UiBadgeVariant.outline,
-                size: UiSize.xs,
-              ),
-            ],
-          ),
-
-          // Large Body Text
-          SizedBox(height: context.sp(theme.spacing.md)),
-          CommunityHighlightedText(
-            text: widget.post.body,
-            style: context.uiText.body.copyWith(
-              fontSize: context.fs(isMobile ? 15 : 17),
-              height: 1.5,
-              color: theme.colors.foreground,
-            ),
-          ),
-
-          // Attached Post Media / Technical Chart Screenshot
-          if (widget.post.imageUrls.isNotEmpty || widget.post.imageUrl != null) ...[
-            SizedBox(height: context.sp(theme.spacing.md)),
-            _buildPostImages(context, theme),
-          ],
-
-          // Trade Setup Card (with live R:R, progress, and Candlestick Chart)
-          if (widget.post.tradeSetup != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
-            _buildTradeSetupCard(theme, widget.post.tradeSetup!, isMobile: isMobile),
-          ],
-
-          // Attached Workspace Record (Note, Journal, Strategy)
-          if (widget.post.attachment != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
-            CommunityAttachmentTile(
-              attachment: widget.post.attachment!,
-              dense: isMobile,
-              onTap: widget.onOpenRef == null
-                  ? null
-                  : () => widget.onOpenRef!(widget.post.attachment!.source),
-            ),
-          ],
-
-          // Quoted Post
-          if (widget.post.quoted != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
-            CommunityQuoteCard(post: widget.post.quoted!),
-          ],
-
-          // Poll
-          if (widget.post.poll != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
-            CommunityPollTile(
-              poll: widget.post.poll!,
-              onVote: (idx) => widget.repository.votePoll(widget.post.id, idx),
-            ),
-          ],
-
-          // Interactive Community Sentiment Consensus Poll Strip
-          SizedBox(height: context.sp(theme.spacing.md)),
-          _buildCommunityConsensusCard(theme),
-
-          // Tickers & Hashtags Badges
-          if (widget.post.tickers.isNotEmpty || widget.post.tags.isNotEmpty) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
-            Wrap(
-              spacing: context.sp(theme.spacing.xs),
-              runSpacing: context.sp(theme.spacing.xs),
-              children: <Widget>[
-                for (final t in widget.post.tickers)
-                  UiBadge(
-                    label: '\$$t',
-                    intent: UiIntent.primary,
-                    variant: UiBadgeVariant.soft,
-                    size: UiSize.xs,
-                  ),
-                for (final tag in widget.post.tags)
-                  UiBadge(
-                    label: '#$tag',
-                    intent: UiIntent.info,
-                    variant: UiBadgeVariant.outline,
-                    size: UiSize.xs,
-                  ),
-              ],
-            ),
-          ],
-
-          // Timestamp & Reach Info
-          SizedBox(height: context.sp(theme.spacing.md)),
-          Text(
-            '${_formatTimestamp(widget.post.createdAt)} · ${uiCompactNumber(widget.post.views)} Views · ${uiCompactNumber(_likes)} Likes · ${uiCompactNumber(_reposts)} Reposts · TradeX Verified Thread',
-            style: context.uiText.caption.copyWith(
-              color: theme.colors.foregroundSubtle,
-              fontSize: context.fs(12),
-            ),
-          ),
-
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          const UiDivider(),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-
-          // High-Visibility Engagement Bar
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: <Widget>[
-              _engagementAction(
-                context,
-                icon: Icons.repeat_rounded,
-                label: uiCompactNumber(_reposts),
-                active: _reposted,
-                activeColor: theme.colors.primary,
-                tooltip: 'Repost setup',
-                onTap: _handleRepost,
-              ),
-              _engagementAction(
-                context,
-                icon: _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                label: uiCompactNumber(_likes),
-                active: _liked,
-                activeColor: theme.colors.danger,
-                tooltip: 'Like setup',
-                onTap: _handleLike,
-              ),
-              _engagementAction(
-                context,
-                icon: _bookmarked
-                    ? Icons.bookmark_rounded
-                    : Icons.bookmark_border_rounded,
-                label: 'Save',
-                active: _bookmarked,
-                activeColor: theme.colors.warning,
-                tooltip: 'Bookmark',
-                onTap: _handleBookmark,
-              ),
-              _engagementAction(
-                context,
-                icon: Icons.link_rounded,
-                label: 'Copy Link',
-                active: false,
-                activeColor: theme.colors.foreground,
-                tooltip: 'Copy link',
-                onTap: () {
-                  UiToast.show(
-                    context,
-                    title: 'Link Copied',
-                    message: 'Thread URL copied to clipboard.',
-                    intent: UiIntent.success,
-                  );
-                },
-              ),
-              _engagementAction(
-                context,
-                icon: Icons.ios_share_rounded,
-                label: 'Share',
-                active: false,
-                activeColor: theme.colors.foreground,
-                tooltip: 'Share post',
-                onTap: _handleShare,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Community Consensus Voting Card displaying live trader sentiment split
-  Widget _buildCommunityConsensusCard(UiTheme theme) {
-    final int total = _bullishVotes + _bearishVotes;
-    final double bullishPct = total == 0 ? 50.0 : (_bullishVotes / total) * 100.0;
-
-    return UiCard(
-      variant: UiCardVariant.surface,
-      accentColor: theme.colors.primary,
-      padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.how_to_vote_rounded,
-                    size: context.sz(14),
-                    color: theme.colors.primary,
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xxs)),
-                  Text(
-                    'Community Consensus',
-                    style: context.uiText.caption.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: theme.colors.foreground,
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                '${bullishPct.toStringAsFixed(0)}% Bullish ($total votes)',
-                style: context.uiText.caption.copyWith(
-                  color: theme.colors.foregroundSubtle,
-                  fontSize: context.fs(11),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          ClipRRect(
-            borderRadius: context.radius(theme.radii.pill),
-            child: SizedBox(
-              height: context.sz(6),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: _bullishVotes,
-                    child: Container(color: theme.colors.bullish),
-                  ),
-                  Expanded(
-                    flex: _bearishVotes,
-                    child: Container(color: theme.colors.bearish),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Row(
-            children: [
-              UiButton(
-                label: 'Agree (Bullish)',
-                leadingIcon: Icons.thumb_up_alt_rounded,
-                variant: UiVariant.ghost,
-                intent: UiIntent.success,
-                size: UiSize.xs,
-                onPressed: () {
-                  if (_hasVotedSentiment) return;
-                  setState(() {
-                    _bullishVotes++;
-                    _hasVotedSentiment = true;
-                  });
-                  UiToast.show(
-                    context,
-                    title: 'Vote Recorded',
-                    message: 'You voted Bullish on this trade thesis.',
-                    intent: UiIntent.success,
-                  );
-                },
-              ),
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              UiButton(
-                label: 'Disagree (Bearish)',
-                leadingIcon: Icons.thumb_down_alt_rounded,
-                variant: UiVariant.ghost,
-                intent: UiIntent.danger,
-                size: UiSize.xs,
-                onPressed: () {
-                  if (_hasVotedSentiment) return;
-                  setState(() {
-                    _bearishVotes++;
-                    _hasVotedSentiment = true;
-                  });
-                  UiToast.show(
-                    context,
-                    title: 'Vote Recorded',
-                    message: 'You voted Bearish on this trade thesis.',
-                    intent: UiIntent.neutral,
-                  );
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Technical chart screenshot or attachment preview
-  Widget _buildPostImages(BuildContext context, UiTheme theme) {
-    final images = widget.post.imageUrls.isNotEmpty
-        ? widget.post.imageUrls
-        : [widget.post.imageUrl!];
-
-    return ClipRRect(
-      borderRadius: context.radius(theme.radii.md),
-      child: Container(
-        constraints: BoxConstraints(maxHeight: context.sz(300)),
-        width: double.infinity,
-        color: theme.colors.surface,
-        child: Image.network(
-          images.first,
-          fit: BoxFit.cover,
-          errorBuilder: (ctx, err, trace) => Container(
-            height: context.sz(140),
-            color: theme.colors.surface,
-            alignment: Alignment.center,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.candlestick_chart_rounded,
-                  color: theme.colors.primary,
-                  size: context.sz(20),
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Text(
-                  'TradingView Chart Screenshot Attached',
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _engagementAction(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required bool active,
-    required Color activeColor,
-    required String tooltip,
-    required VoidCallback onTap,
-  }) {
-    final theme = context.ui;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: context.radius(theme.radii.sm),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: context.sp(theme.spacing.sm),
-          vertical: context.sp(theme.spacing.xs),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: context.sz(18),
-              color: active ? activeColor : theme.colors.foregroundMuted,
-            ),
-            SizedBox(width: context.sp(theme.spacing.xxs)),
-            Text(
-              label,
-              style: context.uiText.caption.copyWith(
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                color: active ? activeColor : theme.colors.foregroundMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Trade Setup Card (Enhanced with Live Computed R:R & AI Analyzer Shortcut)
-  // ---------------------------------------------------------------------------
-
-  Widget _buildTradeSetupCard(
-    UiTheme theme,
-    CommunityTradeSetup setup, {
-    required bool isMobile,
-  }) {
-    final rrRatio = _computeRiskReward(setup);
-
-    return UiCard(
-      variant: UiCardVariant.surface,
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          // Header: Ticker + Side + R:R + PnL
-          // Header: Ticker + Side + R:R + Status + PnL (Responsive Wrap)
-          Wrap(
-            spacing: context.sp(theme.spacing.xs),
-            runSpacing: context.sp(theme.spacing.xs),
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: <Widget>[
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(
-                    Icons.candlestick_chart_rounded,
-                    size: context.sz(20),
-                    color: theme.colors.primary,
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  Text(
-                    setup.ticker,
-                    style: context.uiText.bodyStrong.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: context.fs(16),
-                      color: theme.colors.foreground,
-                    ),
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  UiBadge(
-                    label: setup.side,
-                    intent: setup.isBullish ? UiIntent.success : UiIntent.danger,
-                    variant: UiBadgeVariant.solid,
-                    size: UiSize.xs,
-                  ),
-                  if (rrRatio != null) ...[
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    UiBadge(
-                      label: rrRatio,
-                      intent: UiIntent.primary,
-                      variant: UiBadgeVariant.soft,
-                      size: UiSize.xs,
-                    ),
-                  ],
-                ],
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  UiBadge(
-                    label: 'Active Setup In Play',
-                    intent: UiIntent.success,
-                    variant: UiBadgeVariant.outline,
-                    size: UiSize.xs,
-                  ),
-                  if (setup.pnl != null) ...[
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    Text(
-                      setup.pnl!,
-                      style: context.uiText.numeric.copyWith(
-                        color: (setup.isWin ?? true)
-                            ? theme.colors.bullish
-                            : theme.colors.bearish,
-                        fontWeight: FontWeight.w800,
-                        fontSize: context.fs(15),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ),
-
-          SizedBox(height: context.sp(theme.spacing.sm)),
-
-          // Trade Metrics (2x2 on mobile, 4-column on tablet/desktop)
-          if (isMobile) ...<Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(child: _metricBox(context, 'Entry', setup.entry)),
-                if (setup.exit != null) ...<Widget>[
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  Expanded(child: _metricBox(context, 'Exit', setup.exit!)),
-                ] else if (setup.target != null) ...<Widget>[
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  Expanded(child: _metricBox(context, 'Target', setup.target!)),
-                ],
-              ],
-            ),
-            if (setup.stopLoss != null || (setup.exit != null && setup.target != null)) ...<Widget>[
-              SizedBox(height: context.sp(theme.spacing.xs)),
-              Row(
-                children: <Widget>[
-                  if (setup.stopLoss != null)
-                    Expanded(child: _metricBox(context, 'Stop Loss', setup.stopLoss!)),
-                  if (setup.exit != null && setup.target != null) ...<Widget>[
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    Expanded(child: _metricBox(context, 'Target', setup.target!)),
-                  ],
-                ],
-              ),
-            ],
-          ] else
-            Row(
-              children: <Widget>[
-                Expanded(child: _metricBox(context, 'Entry', setup.entry)),
-                if (setup.exit != null)
-                  Expanded(child: _metricBox(context, 'Exit', setup.exit!)),
-                if (setup.stopLoss != null)
-                  Expanded(child: _metricBox(context, 'Stop Loss', setup.stopLoss!)),
-                if (setup.target != null)
-                  Expanded(child: _metricBox(context, 'Target', setup.target!)),
-              ],
-            ),
-
-          // Candlestick chart
-          if (setup.candles.isNotEmpty) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
-            UiCandleChart(
-              candles: setup.candles,
-              height: isMobile ? 140 : 200,
-              showVolume: true,
-              showGrid: true,
-              interactive: true,
-            ),
-          ],
-
-          SizedBox(height: context.sp(theme.spacing.md)),
-
-          // Action Toolbar: Journal Copy, AI Vision Analyzer, Chart
-          Wrap(
-            spacing: context.sp(theme.spacing.xs),
-            runSpacing: context.sp(theme.spacing.xs),
-            children: [
-              UiButton(
-                label: 'Copy Setup to Journal',
-                leadingIcon: Icons.bookmark_add_outlined,
-                variant: UiVariant.outline,
-                size: UiSize.sm,
-                onPressed: () {
-                  final journalRecord = AppWritingPostAttachment.manual(
-                    source: AppLinkRef(
-                      kind: AppLinkKind.journal,
-                      id: 'trade_${DateTime.now().millisecondsSinceEpoch}',
-                      title: '${setup.ticker} ${setup.side} Execution',
-                    ),
-                    excerpt:
-                        'Entry: ${setup.entry} | SL: ${setup.stopLoss ?? "N/A"} | Target: ${setup.target ?? "N/A"}',
-                    updatedAt: DateTime.now(),
-                    tags: [setup.ticker, setup.side],
-                  );
-                  widget.repository.addAttachableRecord(journalRecord);
-                  UiToast.show(
-                    context,
-                    title: 'Setup Copied to Journal!',
-                    message:
-                        '${setup.ticker} ${setup.side} logged into your Trading Journal desk.',
-                    intent: UiIntent.success,
-                  );
-                },
-              ),
-              UiButton(
-                label: 'AI Vision Analysis',
-                leadingIcon: Icons.auto_awesome_rounded,
-                variant: UiVariant.soft,
-                intent: UiIntent.primary,
-                size: UiSize.sm,
-                onPressed: () {
-                  CommunityAiAssistantDialog.show(context);
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String? _computeRiskReward(CommunityTradeSetup setup) {
-    if (setup.rMultiple != null) return setup.rMultiple;
-    final entry = double.tryParse(setup.entry.replaceAll(RegExp(r'[^0-9.]'), ''));
-    final sl = setup.stopLoss != null ? double.tryParse(setup.stopLoss!.replaceAll(RegExp(r'[^0-9.]'), '')) : null;
-    final target = setup.target != null ? double.tryParse(setup.target!.replaceAll(RegExp(r'[^0-9.]'), '')) : null;
-    if (entry == null || sl == null || target == null) return null;
-    double risk = 0;
-    double reward = 0;
-    if (setup.isBullish) {
-      risk = entry - sl;
-      reward = target - entry;
-    } else {
-      risk = sl - entry;
-      reward = entry - target;
-    }
-    if (risk <= 0 || reward <= 0) return null;
-    return '1 : ${(reward / risk).toStringAsFixed(1)} R:R';
-  }
-
-  Widget _metricBox(BuildContext context, String label, String value) {
-    final theme = context.ui;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          label,
-          style: context.uiText.caption.copyWith(
-            color: theme.colors.foregroundSubtle,
-            fontSize: context.fs(11),
-          ),
-        ),
-        Text(
-          value,
-          style: context.uiText.caption.copyWith(
-            fontWeight: FontWeight.w700,
-            fontSize: context.fs(13),
-            color: theme.colors.foreground,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Desktop Sidebar: Author Profile & Analytics
-  // ---------------------------------------------------------------------------
-
-  Widget _buildAuthorAnalyticsCard(UiTheme theme, CommunityAuthor author) {
-    return UiCard(
-      variant: UiCardVariant.surface,
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              UiAvatar(
-                name: author.displayName,
-                imageUrl: author.avatarUrl,
-                size: UiSize.lg,
-                verified: author.verified,
-                verifiedColor: author.verifiedColor(theme),
-              ),
-              SizedBox(width: context.sp(theme.spacing.sm)),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      author.displayName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.uiText.bodyStrong.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: context.fs(15),
-                      ),
-                    ),
+                    const SizedBox(height: 1),
                     Text(
                       '@${author.handle}',
                       style: context.uiText.caption.copyWith(
@@ -1283,7 +612,32 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
               ),
             ],
           ),
-          if (author.bio != null && author.bio!.isNotEmpty) ...[
+          if (author.userRole != UserRole.customer || author.winRate != null) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.xs)),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: <Widget>[
+                if (author.userRole != UserRole.customer)
+                  UiBadge(
+                    label: author.roleBadgeText,
+                    intent: author.userRole == UserRole.userAdmin
+                        ? UiIntent.danger
+                        : UiIntent.warning,
+                    variant: UiBadgeVariant.solid,
+                    size: UiSize.xs,
+                  ),
+                if (author.winRate != null)
+                  UiBadge(
+                    label: '${author.winRate!.toStringAsFixed(0)}% Win',
+                    intent: author.winRate! >= 60 ? UiIntent.success : UiIntent.neutral,
+                    variant: UiBadgeVariant.soft,
+                    size: UiSize.xs,
+                  ),
+              ],
+            ),
+          ],
+          if (author.bio != null && author.bio!.isNotEmpty) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.xs)),
             Text(
               author.bio!,
@@ -1301,12 +655,14 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
 
           // Verified Metrics Grid
           Row(
-            children: [
+            children: <Widget>[
               Expanded(
                 child: _sidebarStat(
                   theme,
                   label: 'Win Rate',
-                  value: author.winRate != null ? '${author.winRate!.toStringAsFixed(1)}%' : '67.2%',
+                  value: author.winRate != null
+                      ? '${author.winRate!.toStringAsFixed(1)}%'
+                      : '67.2%',
                   intent: UiIntent.success,
                 ),
               ),
@@ -1329,38 +685,443 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
 
           SizedBox(height: context.sp(theme.spacing.md)),
 
-          // Follow / DM Actions
-          Row(
-            children: [
-              UiIconButton(
-                icon: author.isFollowing
-                    ? Icons.check_rounded
-                    : Icons.person_add_rounded,
-                variant: author.isFollowing
-                    ? UiVariant.outline
-                    : UiVariant.primary,
-                size: UiSize.sm,
-                tooltip: author.isFollowing
-                    ? 'Following @${author.handle}'
-                    : 'Follow @${author.handle}',
-                onPressed: () => widget.repository.toggleFollow(author.id),
+          // Follow / DM Actions or Your Desk Badge
+          if (isCurrentUser)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: theme.colors.surfaceMuted,
+                borderRadius: context.radius(theme.radii.sm),
               ),
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              UiIconButton(
-                icon: Icons.mail_outline_rounded,
-                size: UiSize.sm,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Icon(
+                    Icons.badge_outlined,
+                    size: context.sz(14),
+                    color: theme.colors.primary,
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  Text(
+                    'Your Trading Desk Profile',
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: UiButton(
+                    label: author.isFollowing ? 'Following' : 'Follow',
+                    icon: author.isFollowing
+                        ? Icons.check_rounded
+                        : Icons.person_add_rounded,
+                    size: UiSize.sm,
+                    variant: author.isFollowing
+                        ? UiVariant.outline
+                        : UiVariant.primary,
+                    onPressed: () => widget.repository.toggleFollow(author.id),
+                  ),
+                ),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                UiIconButton(
+                  icon: Icons.mail_outline_rounded,
+                  size: UiSize.sm,
+                  variant: UiVariant.ghost,
+                  tooltip: 'Send Direct Message',
+                  onPressed: () {
+                    UiToast.show(
+                      context,
+                      title: 'Direct Message',
+                      message:
+                          'Opening encrypted DM channel with @${author.handle}',
+                    );
+                  },
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTradeSetupBlueprintCard(
+    UiTheme theme,
+    CommunityTradeSetup setup,
+  ) {
+    final bool isBullish = setup.isBullish;
+    return UiCard(
+      variant: UiCardVariant.surface,
+      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(
+                    Icons.candlestick_chart_rounded,
+                    size: context.sz(16),
+                    color: theme.colors.primary,
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  Text(
+                    'Setup Blueprint',
+                    style: context.uiText.label.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: context.fs(13),
+                    ),
+                  ),
+                ],
+              ),
+              UiBadge(
+                label: setup.side.toUpperCase(),
+                intent: isBullish ? UiIntent.success : UiIntent.danger,
+                variant: UiBadgeVariant.solid,
+                size: UiSize.xs,
+              ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.sm),
+              vertical: context.sp(theme.spacing.xs),
+            ),
+            decoration: BoxDecoration(
+              color: theme.colors.surfaceMuted,
+              borderRadius: context.radius(theme.radii.sm),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Text(
+                  setup.ticker,
+                  style: context.uiText.bodyStrong.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (setup.rMultiple != null)
+                  Text(
+                    'R:R ${setup.rMultiple}',
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _sidebarStat(
+                  theme,
+                  label: 'Entry',
+                  value: setup.entry,
+                ),
+              ),
+              if (setup.stopLoss != null)
+                Expanded(
+                  child: _sidebarStat(
+                    theme,
+                    label: 'Stop Loss',
+                    value: setup.stopLoss!,
+                    intent: UiIntent.danger,
+                  ),
+                ),
+              if (setup.target != null)
+                Expanded(
+                  child: _sidebarStat(
+                    theme,
+                    label: 'Target',
+                    value: setup.target!,
+                    intent: UiIntent.success,
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          const UiDivider(),
+          SizedBox(height: context.sp(theme.spacing.xs)),
+          // Interactive Action Buttons matching the setup tile
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: <Widget>[
+              UiButton(
+                label: 'Copy to Journal',
+                leadingIcon: Icons.bookmark_add_outlined,
                 variant: UiVariant.ghost,
-                tooltip: 'Send Direct Message',
+                size: UiSize.xs,
                 onPressed: () {
                   UiToast.show(
                     context,
-                    title: 'Direct Message',
-                    message: 'Opening encrypted DM channel with @${author.handle}',
+                    title: 'Copied to Journal',
+                    message:
+                        'Trade setup for ${setup.ticker} saved to your Trading Journal',
+                    intent: UiIntent.success,
+                  );
+                },
+              ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              UiButton(
+                label: 'Clone Setup',
+                leadingIcon: Icons.copy_rounded,
+                variant: UiVariant.outline,
+                size: UiSize.xs,
+                onPressed: () {
+                  UiToast.show(
+                    context,
+                    title: 'Setup Cloned',
+                    message:
+                        'Loaded ${setup.ticker} setup into Order Ticket (Paper Desk)',
+                    intent: UiIntent.primary,
                   );
                 },
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThreadActivityCard(
+    UiTheme theme,
+    List<CommunityComment> comments,
+  ) {
+    final Set<String> seenTickers = <String>{};
+    final List<String> distinctTickers = <String>[];
+    for (final raw in _currentPost.tickers) {
+      final String clean = raw.trim().replaceFirst(RegExp(r'^\$+'), '');
+      if (clean.isEmpty) continue;
+      final String key = clean.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+      if (seenTickers.add(key)) {
+        distinctTickers.add(clean);
+      }
+    }
+
+    final Set<String> tickerKeys = distinctTickers
+        .map((t) => t.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase())
+        .toSet();
+    final Set<String> seenTags = <String>{};
+    final List<String> distinctTags = <String>[];
+    for (final raw in _currentPost.tags) {
+      final String clean = raw.trim().replaceFirst(RegExp(r'^[#\$]+'), '');
+      if (clean.isEmpty) continue;
+      final String key = clean.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+      if (tickerKeys.contains(key)) continue;
+      if (seenTags.add(key)) {
+        distinctTags.add(clean);
+      }
+    }
+
+    return UiCard(
+      variant: UiCardVariant.surface,
+      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(
+                Icons.forum_outlined,
+                size: context.sz(16),
+                color: theme.colors.primary,
+              ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              Text(
+                'Thread Activity',
+                style: context.uiText.label.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: context.fs(13),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _sidebarStat(
+                  theme,
+                  label: 'Replies',
+                  value: '${comments.length}',
+                ),
+              ),
+              Expanded(
+                child: _sidebarStat(
+                  theme,
+                  label: 'Likes',
+                  value: uiCompactNumber(_currentPost.likes),
+                ),
+              ),
+              Expanded(
+                child: _sidebarStat(
+                  theme,
+                  label: 'Reposts',
+                  value: uiCompactNumber(_currentPost.reposts),
+                ),
+              ),
+              Expanded(
+                child: _sidebarStat(
+                  theme,
+                  label: 'Views',
+                  value: uiCompactNumber(_currentPost.views),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          const UiDivider(),
+          SizedBox(height: context.sp(theme.spacing.xs)),
+          // Interactive Action Controls for Desktop Companion Sidebar
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: UiButton(
+                  label: _currentPost.liked ? 'Liked' : 'Like',
+                  icon: _currentPost.liked
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  variant: _currentPost.liked
+                      ? UiVariant.soft
+                      : UiVariant.outline,
+                  intent: _currentPost.liked
+                      ? UiIntent.danger
+                      : UiIntent.primary,
+                  size: UiSize.xs,
+                  onPressed: _handleLike,
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              Expanded(
+                child: UiButton(
+                  label: _currentPost.reposted ? 'Reposted' : 'Repost',
+                  icon: Icons.repeat_rounded,
+                  variant: _currentPost.reposted
+                      ? UiVariant.soft
+                      : UiVariant.outline,
+                  intent: _currentPost.reposted
+                      ? UiIntent.success
+                      : UiIntent.primary,
+                  size: UiSize.xs,
+                  onPressed: _handleRepost,
+                ),
+              ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              UiIconButton(
+                icon: _currentPost.bookmarked
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded,
+                tooltip: _currentPost.bookmarked ? 'Bookmarked' : 'Bookmark',
+                size: UiSize.xs,
+                intent: _currentPost.bookmarked
+                    ? UiIntent.warning
+                    : UiIntent.primary,
+                variant: _currentPost.bookmarked
+                    ? UiVariant.soft
+                    : UiVariant.ghost,
+                onPressed: _handleBookmark,
+              ),
+              SizedBox(width: context.sp(theme.spacing.xxs)),
+              UiIconButton(
+                icon: Icons.ios_share_rounded,
+                tooltip: 'Share',
+                size: UiSize.xs,
+                variant: UiVariant.ghost,
+                onPressed: _handleShare,
+              ),
+            ],
+          ),
+          if (distinctTickers.isNotEmpty || distinctTags.isNotEmpty) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            const UiDivider(),
+            SizedBox(height: context.sp(theme.spacing.xs)),
+            Row(
+              children: <Widget>[
+                Icon(
+                  Icons.tag_rounded,
+                  size: context.sz(14),
+                  color: theme.colors.foregroundSubtle,
+                ),
+                SizedBox(width: context.sp(theme.spacing.xxs)),
+                Text(
+                  'Associated Tickers & Tags',
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundSubtle,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: context.sp(theme.spacing.xs)),
+            Wrap(
+              spacing: context.sp(theme.spacing.xs),
+              runSpacing: context.sp(theme.spacing.xs),
+              children: <Widget>[
+                for (final ticker in distinctTickers)
+                  UiBadge(
+                    label: '\$$ticker',
+                    intent: UiIntent.primary,
+                    variant: UiBadgeVariant.soft,
+                    size: UiSize.xs,
+                  ),
+                for (final tag in distinctTags)
+                  UiBadge(
+                    label: '#$tag',
+                    intent: UiIntent.info,
+                    variant: UiBadgeVariant.outline,
+                    size: UiSize.xs,
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAuthorRecentSetupsCard(UiTheme theme, CommunityAuthor author) {
+    final bool isCurrentUser = author.id == widget.currentUser.id;
+
+    return UiCard(
+      variant: UiCardVariant.surface,
+      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(
+                Icons.history_rounded,
+                size: context.sz(16),
+                color: theme.colors.primary,
+              ),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              Text(
+                isCurrentUser ? 'Your Recent Setups' : 'Recent Setups by @${author.handle}',
+                style: context.uiText.label.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: context.fs(13),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          _recentSetupRow(theme, 'NIFTY 24500 CE', '+42.5%', isWin: true),
+          SizedBox(height: context.sp(theme.spacing.xs)),
+          _recentSetupRow(theme, 'RELIANCE Breakout', '+18.2%', isWin: true),
+          SizedBox(height: context.sp(theme.spacing.xs)),
+          _recentSetupRow(theme, 'BANKNIFTY Scalp', '-12.0%', isWin: false),
         ],
       ),
     );
@@ -1382,53 +1143,26 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
             fontSize: context.fs(11),
           ),
         ),
-        SizedBox(height: 2),
+        const SizedBox(height: 2),
         Text(
           value,
           style: context.uiText.numeric.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: context.fs(14),
-            color: intent == UiIntent.success ? theme.colors.bullish : theme.colors.foreground,
+            color: intent == UiIntent.success
+                ? theme.colors.bullish
+                : intent == UiIntent.danger
+                    ? theme.colors.bearish
+                    : theme.colors.foreground,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildAuthorRecentSetupsCard(UiTheme theme, CommunityAuthor author) {
-    return UiCard(
-      variant: UiCardVariant.surface,
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.history_rounded, size: context.sz(16), color: theme.colors.primary),
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              Text(
-                'Recent Setups by @${author.handle}',
-                style: context.uiText.label.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: context.fs(13),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          _recentSetupRow(theme, 'NIFTY 24500 CE', '+42.5%', isWin: true),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          _recentSetupRow(theme, 'RELIANCE Breakout', '+18.2%', isWin: true),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          _recentSetupRow(theme, 'BANKNIFTY Scalp', '-12.0%', isWin: false),
-        ],
-      ),
-    );
-  }
-
   Widget _recentSetupRow(UiTheme theme, String title, String pnl, {required bool isWin}) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: theme.colors.surfaceMuted,
         borderRadius: context.radius(theme.radii.sm),
@@ -1482,13 +1216,27 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   // ---------------------------------------------------------------------------
 
   Widget _buildMobileStickyReplyBar(UiTheme theme) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
     return Container(
-      padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
+      padding: EdgeInsets.fromLTRB(
+        context.sp(theme.spacing.xs),
+        context.sp(theme.spacing.xs),
+        context.sp(theme.spacing.xs),
+        context.sp(theme.spacing.xs) + bottomInset,
+      ),
       decoration: BoxDecoration(
         color: theme.colors.surface,
-        border: Border(top: BorderSide(color: theme.colors.border)),
+        border: Border(
+          top: BorderSide(
+            color: theme.colors.border,
+            width: theme.borders.hairline,
+          ),
+        ),
       ),
       child: SafeArea(
+        top: false,
+        bottom: false,
         child: Row(
           children: [
             UiAvatar(
@@ -1500,6 +1248,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
             Expanded(
               child: UiInput(
                 controller: _mobileQuickReplyCtrl,
+                focusNode: _mobileReplyFocusNode,
                 hintText: 'Reply to @${widget.post.author.handle}...',
                 size: UiSize.sm,
               ),
@@ -1518,30 +1267,3 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-String _formatTimestamp(DateTime dt) {
-  final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-  final minute = dt.minute.toString().padLeft(2, '0');
-  final period = dt.hour >= 12 ? 'PM' : 'AM';
-  final month = _shortMonths[dt.month - 1];
-  return '$hour:$minute $period · $month ${dt.day}, ${dt.year}';
-}
-
-const List<String> _shortMonths = <String>[
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];

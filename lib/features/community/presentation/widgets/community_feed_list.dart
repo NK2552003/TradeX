@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
+import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
@@ -12,6 +13,8 @@ class CommunityFeedList extends StatelessWidget {
     required this.posts,
     this.header,
     this.controller,
+    this.repository,
+    this.currentUser,
     this.onPostTap,
     this.onLike,
     this.onRepost,
@@ -27,6 +30,8 @@ class CommunityFeedList extends StatelessWidget {
   final List<CommunityPost> posts;
   final Widget? header;
   final ScrollController? controller;
+  final CommunityRepository? repository;
+  final CommunityAuthor? currentUser;
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<String>? onLike;
   final ValueChanged<String>? onRepost;
@@ -94,6 +99,8 @@ class CommunityFeedList extends StatelessWidget {
           key: ValueKey<String>(post.id),
           post: post,
           variant: CommunityPostCardVariant.feed,
+          repository: repository,
+          currentUser: currentUser,
           onTap: () => onPostTap?.call(post),
           onLike: () => onLike?.call(post.id),
           onRepost: () => onRepost?.call(post.id),

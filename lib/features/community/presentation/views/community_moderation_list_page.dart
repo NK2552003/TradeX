@@ -10,10 +10,12 @@ class CommunityModerationListPage extends StatefulWidget {
     super.key,
     required this.repository,
     this.onBack,
+    this.isEmbedded = false,
   });
 
   final CommunityRepository repository;
   final VoidCallback? onBack;
+  final bool isEmbedded;
 
   @override
   State<CommunityModerationListPage> createState() =>
@@ -48,6 +50,49 @@ class _CommunityModerationListPageState
     final mutedList = widget.repository.loadMutedUsers();
     final blockedList = widget.repository.loadBlockedUsers();
 
+    final Widget content = Column(
+      children: [
+        Container(
+          color: colors.surface,
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(16),
+            vertical: context.sp(10),
+          ),
+          child: UiToggleGroup<int>(
+            value: _selectedTab,
+            onChanged: (int val) => setState(() => _selectedTab = val),
+            expand: true,
+            size: UiSize.sm,
+            variant: UiToggleGroupVariant.segmented,
+            options: [
+              UiToggleOption<int>(
+                value: 0,
+                label: 'Muted',
+                badge: '${mutedList.length}',
+                icon: Icons.volume_off_outlined,
+              ),
+              UiToggleOption<int>(
+                value: 1,
+                label: 'Blocked',
+                badge: '${blockedList.length}',
+                icon: Icons.block_outlined,
+              ),
+            ],
+          ),
+        ),
+        const UiDivider(),
+        Expanded(
+          child: _selectedTab == 0
+              ? _buildMutedView(mutedList)
+              : _buildBlockedView(blockedList),
+        ),
+      ],
+    );
+
+    if (widget.isEmbedded) {
+      return content;
+    }
+
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
@@ -71,31 +116,7 @@ class _CommunityModerationListPageState
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: kCommunityMaxWidth),
-          child: Column(
-            children: [
-              Container(
-                color: colors.surface,
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(16),
-                  vertical: context.sp(8),
-                ),
-                child: UiTabs(
-                  tabs: [
-                    'Muted (${mutedList.length})',
-                    'Blocked (${blockedList.length})',
-                  ],
-                  selectedIndex: _selectedTab,
-                  onChanged: (idx) => setState(() => _selectedTab = idx),
-                ),
-              ),
-              const UiDivider(),
-              Expanded(
-                child: _selectedTab == 0
-                    ? _buildMutedView(mutedList)
-                    : _buildBlockedView(blockedList),
-              ),
-            ],
-          ),
+          child: content,
         ),
       ),
     );

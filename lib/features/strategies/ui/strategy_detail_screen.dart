@@ -105,7 +105,8 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
       body: 'Great risk:reward framework. Do you filter out earnings dates or high-impact CPI releases before entering trades under this playbook?',
       createdAt: DateTime.now().subtract(const Duration(hours: 5)),
       likes: 6,
-      sentiment: 'Insightful',
+      reactions: const <String>['💡', '👍'],
+      sentiment: 'INSIGHTFUL',
       replies: <CommunityComment>[
         CommunityComment(
           id: 'cmt_s1_1',
@@ -125,6 +126,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
           body: 'Yes, rule 3 stands aside within 30 minutes before and after Tier-1 economic prints.',
           createdAt: DateTime.now().subtract(const Duration(hours: 3)),
           likes: 3,
+          reactions: const <String>['👍'],
         ),
       ],
     ),
@@ -160,14 +162,19 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
       if (parentCommentId == null) {
         _strategyComments = <CommunityComment>[newComment, ..._strategyComments];
       } else {
-        _strategyComments = _strategyComments.map((c) {
+        CommunityComment? attach(CommunityComment c) {
           if (c.id == parentCommentId) {
+            return c.copyWith(replies: <CommunityComment>[...c.replies, newComment]);
+          }
+          if (c.replies.isNotEmpty) {
             return c.copyWith(
-              replies: <CommunityComment>[...c.replies, newComment],
+              replies: c.replies.map((r) => attach(r) ?? r).toList(),
             );
           }
-          return c;
-        }).toList();
+          return null;
+        }
+
+        _strategyComments = _strategyComments.map((c) => attach(c) ?? c).toList();
       }
     });
 
@@ -182,28 +189,51 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
 
   void _handleLikeStrategyComment(String commentId, {String? reaction}) {
     setState(() {
-      _strategyComments = _strategyComments.map((c) {
-        if (c.id == commentId) {
-          final bool wasLiked = c.isLiked;
-          return c.copyWith(
-            liked: !wasLiked,
-            likes: wasLiked ? (c.likes - 1).clamp(0, 9999) : c.likes + 1,
-            userReaction: wasLiked ? null : (reaction ?? '👍'),
+      CommunityComment? updateRec(CommunityComment item) {
+        if (item.id == commentId) {
+          final bool wasLiked = item.liked;
+          final String? currentReaction = item.userReaction;
+
+          if (reaction != null && reaction.trim().isNotEmpty) {
+            final target = reaction.trim();
+            if (wasLiked && currentReaction == target) {
+              return item.copyWith(
+                liked: false,
+                likes: (item.likes - 1).clamp(0, 9999),
+                userReaction: null,
+              );
+            } else {
+              return item.copyWith(
+                liked: true,
+                likes: wasLiked ? item.likes : item.likes + 1,
+                userReaction: target,
+              );
+            }
+          } else {
+            if (wasLiked) {
+              return item.copyWith(
+                liked: false,
+                likes: (item.likes - 1).clamp(0, 9999),
+                userReaction: null,
+              );
+            } else {
+              return item.copyWith(
+                liked: true,
+                likes: item.likes + 1,
+                userReaction: '👍',
+              );
+            }
+          }
+        }
+        if (item.replies.isNotEmpty) {
+          return item.copyWith(
+            replies: item.replies.map((r) => updateRec(r) ?? r).toList(),
           );
         }
-        final List<CommunityComment> updatedReplies = c.replies.map((r) {
-          if (r.id == commentId) {
-            final bool wasLiked = r.isLiked;
-            return r.copyWith(
-              liked: !wasLiked,
-              likes: wasLiked ? (r.likes - 1).clamp(0, 9999) : r.likes + 1,
-              userReaction: wasLiked ? null : (reaction ?? '👍'),
-            );
-          }
-          return r;
-        }).toList();
-        return c.copyWith(replies: updatedReplies);
-      }).toList();
+        return null;
+      }
+
+      _strategyComments = _strategyComments.map((c) => updateRec(c) ?? c).toList();
     });
   }
 

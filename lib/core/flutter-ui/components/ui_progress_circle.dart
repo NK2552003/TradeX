@@ -12,6 +12,7 @@ class UiProgressCircle extends StatelessWidget {
     this.thickness,
     this.intent = UiIntent.primary,
     this.center,
+    this.showLabel = true,
   });
 
   final double? value;
@@ -19,6 +20,7 @@ class UiProgressCircle extends StatelessWidget {
   final double? thickness;
   final UiIntent intent;
   final Widget? center;
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +41,7 @@ class UiProgressCircle extends StatelessWidget {
     }
 
     final double safeValue = value!.clamp(0, 1);
+    final bool canShowLabel = showLabel && dim >= 40;
     return SizedBox(
       width: dim,
       height: dim,
@@ -54,13 +57,15 @@ class UiProgressCircle extends StatelessWidget {
               thickness: actualThickness,
             ),
           ),
-          center ??
-              Text(
-                '${(safeValue * 100).toStringAsFixed(0)}%',
-                style: context.uiText.bodyStrong.copyWith(
-                  color: theme.colors.foreground,
-                ),
+          if (center != null)
+            center!
+          else if (canShowLabel)
+            Text(
+              '${(safeValue * 100).toStringAsFixed(0)}%',
+              style: context.uiText.bodyStrong.copyWith(
+                color: theme.colors.foreground,
               ),
+            ),
         ],
       ),
     );

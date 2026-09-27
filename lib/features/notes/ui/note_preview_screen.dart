@@ -112,8 +112,14 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   /// not claim to take zero.
   int get _readMinutes => (_note.wordCount / 220).ceil().clamp(1, 999);
 
+  final Map<String, String?> _noteCommentReactions = <String, String?>{};
+  final Map<String, int> _noteCommentLikesDelta = <String, int>{};
+
   List<CommunityComment> _buildNoteComments() {
     return _activeNote.comments.map((c) {
+      final userReaction = _noteCommentReactions[c.id];
+      final isLiked = userReaction != null;
+      final delta = _noteCommentLikesDelta[c.id] ?? 0;
       return CommunityComment(
         id: c.id,
         postId: _activeNote.id,
@@ -130,7 +136,10 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
         ),
         body: c.body,
         createdAt: c.createdAt,
-        likes: 2,
+        likes: (2 + delta).clamp(0, 9999),
+        liked: isLiked,
+        userReaction: userReaction,
+        reactions: const <String>['👍'],
       );
     }).toList();
   }
@@ -522,11 +531,33 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
               if (mounted) setState(() {});
             },
             onLikeComment: (commentId, {reaction}) {
-              UiToast.show(
-                context,
-                title: 'Reaction Logged',
-                message: 'Liked comment on note.',
-              );
+              setState(() {
+                final current = _noteCommentReactions[commentId];
+                if (reaction != null && reaction.trim().isNotEmpty) {
+                  final target = reaction.trim();
+                  if (current == target) {
+                    _noteCommentReactions.remove(commentId);
+                    _noteCommentLikesDelta[commentId] =
+                        (_noteCommentLikesDelta[commentId] ?? 0) - 1;
+                  } else {
+                    if (current == null) {
+                      _noteCommentLikesDelta[commentId] =
+                          (_noteCommentLikesDelta[commentId] ?? 0) + 1;
+                    }
+                    _noteCommentReactions[commentId] = target;
+                  }
+                } else {
+                  if (current != null) {
+                    _noteCommentReactions.remove(commentId);
+                    _noteCommentLikesDelta[commentId] =
+                        (_noteCommentLikesDelta[commentId] ?? 0) - 1;
+                  } else {
+                    _noteCommentReactions[commentId] = '👍';
+                    _noteCommentLikesDelta[commentId] =
+                        (_noteCommentLikesDelta[commentId] ?? 0) + 1;
+                  }
+                }
+              });
             },
           ),
         ],

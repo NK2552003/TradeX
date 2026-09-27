@@ -520,12 +520,19 @@ class CommunityPost {
     bool? isPinned,
     String? repostedBy,
     AppWritingPostAttachment? attachment,
+    bool clearAttachment = false,
     CommunityPoll? poll,
+    bool clearPoll = false,
     CommunitySentiment? sentiment,
+    bool clearSentiment = false,
     CommunityReplyAudience? replyAudience,
     bool? isEdited,
     DateTime? editedAt,
     List<String>? imageUrls,
+    List<String>? tickers,
+    List<String>? tags,
+    CommunityTradeSetup? tradeSetup,
+    bool clearTradeSetup = false,
   }) => CommunityPost(
     id: id,
     author: author,
@@ -533,9 +540,9 @@ class CommunityPost {
     createdAt: createdAt,
     isPinned: isPinned ?? this.isPinned,
     repostedBy: repostedBy ?? this.repostedBy,
-    tickers: tickers,
-    tags: tags,
-    tradeSetup: tradeSetup,
+    tickers: tickers ?? this.tickers,
+    tags: tags ?? this.tags,
+    tradeSetup: clearTradeSetup ? null : (tradeSetup ?? this.tradeSetup),
     linkPreview: linkPreview,
     imageUrl: imageUrl,
     imageUrls: imageUrls ?? this.imageUrls,
@@ -547,11 +554,11 @@ class CommunityPost {
     reposted: reposted ?? this.reposted,
     bookmarked: bookmarked ?? this.bookmarked,
     quoted: quoted,
-    attachment: attachment ?? this.attachment,
-    poll: poll ?? this.poll,
+    attachment: clearAttachment ? null : (attachment ?? this.attachment),
+    poll: clearPoll ? null : (poll ?? this.poll),
     videoUrl: videoUrl,
     gifUrl: gifUrl,
-    sentiment: sentiment ?? this.sentiment,
+    sentiment: clearSentiment ? null : (sentiment ?? this.sentiment),
     replyAudience: replyAudience ?? this.replyAudience,
     isDeskAlert: isDeskAlert,
     isEdited: isEdited ?? this.isEdited,
@@ -578,6 +585,7 @@ class CommunityComment {
     this.sentiment,
     this.parentCommentId,
     this.userReaction,
+    this.reactions = const <String>[],
   });
 
   final String id;
@@ -591,8 +599,30 @@ class CommunityComment {
   final String? sentiment;
   final String? parentCommentId;
   final String? userReaction;
+  final List<String> reactions;
 
   bool get isLiked => liked;
+
+  /// Returns the unique ordered list of emoji reactions to display on the badge.
+  /// If the current user has reacted, that emoji is guaranteed to appear first.
+  List<String> get displayReactions {
+    final result = <String>[];
+    if (userReaction != null && userReaction!.trim().isNotEmpty) {
+      result.add(userReaction!.trim());
+    }
+    for (final r in reactions) {
+      final clean = r.trim();
+      if (clean.isNotEmpty && !result.contains(clean)) {
+        result.add(clean);
+      }
+    }
+    if (result.isEmpty && likes > 0) {
+      result.add('👍');
+    }
+    return result;
+  }
+
+  static const Object _sentinel = Object();
 
   CommunityComment copyWith({
     int? likes,
@@ -600,7 +630,8 @@ class CommunityComment {
     List<CommunityComment>? replies,
     String? sentiment,
     String? parentCommentId,
-    String? userReaction,
+    Object? userReaction = _sentinel,
+    List<String>? reactions,
   }) => CommunityComment(
     id: id,
     postId: postId,
@@ -612,7 +643,10 @@ class CommunityComment {
     replies: replies ?? this.replies,
     sentiment: sentiment ?? this.sentiment,
     parentCommentId: parentCommentId ?? this.parentCommentId,
-    userReaction: userReaction ?? this.userReaction,
+    userReaction: identical(userReaction, _sentinel)
+        ? this.userReaction
+        : userReaction as String?,
+    reactions: reactions ?? this.reactions,
   );
 }
 

@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
@@ -692,7 +694,7 @@ class AppJournalNoteCard extends StatelessWidget {
 
     final String excerpt = AppMarkdownStats.excerpt(
       entry.content.trim().isEmpty ? (entry.notes ?? '') : entry.content,
-      maxChars: 130,
+      maxChars: 120,
     );
 
     final String subtitle =
@@ -703,180 +705,335 @@ class AppJournalNoteCard extends StatelessWidget {
       selected: selected,
       variant: UiCardVariant.surface,
       accentColor: entry.isOpen ? colors.info : null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              // Header Row: Title & Subtitle + Status / PnL + Trailing
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          entry.displayTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.uiText.bodyStrong.copyWith(
-                            color: colors.foreground,
-                          ),
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(theme.spacing.md),
+        vertical: context.sp(theme.spacing.sm),
+      ),
+      minHeight: context.sz(switch (density) {
+        AppNoteDensity.titleOnly => 108,
+        AppNoteDensity.comfortable => 140,
+        AppNoteDensity.full => 182,
+      }),
+      child: _AppJournalCardLayout(
+        top: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            // Header Row: Title & Subtitle + Status / PnL + Trailing
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        entry.displayTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.bodyStrong.copyWith(
+                          color: colors.foreground,
                         ),
-                        SizedBox(height: context.sp(theme.spacing.xxs)),
-                        Text(
-                          subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.uiText.caption.copyWith(
-                            color: colors.foregroundMuted,
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  if (entry.isOpen)
-                    const UiBadge(
-                      label: 'Open',
-                      size: UiSize.xs,
-                      intent: UiIntent.info,
-                      variant: UiBadgeVariant.outline,
-                    )
-                  else
-                    Text(
-                      AppTokens.signedMoney(entry.pnl, decimals: 0),
-                      style: context.uiText.bodyStrong.copyWith(
-                        color: plColor,
-                        fontFamily: 'monospace',
                       ),
-                    ),
-                  if (trailing != null) ...<Widget>[
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    trailing!,
-                  ],
-                ],
-              ),
-              if (showExcerpt) ...<Widget>[
-                SizedBox(height: context.sp(theme.spacing.sm)),
-                // Excerpt / Story
-                if (excerpt.isNotEmpty)
-                  Text(
-                    excerpt,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.uiText.caption.copyWith(
-                      color: colors.foregroundSubtle,
-                      height: 1.45,
-                    ),
+                      SizedBox(height: context.sp(theme.spacing.xxs)),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.caption.copyWith(
+                          color: colors.foregroundMuted,
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                if (entry.isOpen)
+                  const UiBadge(
+                    label: 'Open',
+                    size: UiSize.xs,
+                    intent: UiIntent.info,
+                    variant: UiBadgeVariant.outline,
                   )
                 else
                   Text(
-                    'No thesis or notes recorded for this execution yet.',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.uiText.caption.copyWith(
-                      color: colors.foregroundMuted.withValues(alpha: 0.6),
-                      fontStyle: FontStyle.italic,
+                    AppTokens.signedMoney(entry.pnl, decimals: 0),
+                    style: context.uiText.bodyStrong.copyWith(
+                      color: plColor,
+                      fontFamily: 'monospace',
                     ),
                   ),
-              ],
-            ],
-          ),
-          // Footer Divider & Badges
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              SizedBox(height: context.sp(theme.spacing.sm)),
-              Container(
-                height: theme.borders.hairline,
-                color: colors.border.withValues(alpha: 0.6),
-              ),
-              SizedBox(height: context.sp(theme.spacing.xs)),
-              Wrap(
-                spacing: context.sp(theme.spacing.xs),
-                runSpacing: context.sp(theme.spacing.xxs),
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: <Widget>[
-                  if (entry.isOpen)
-                    const UiBadge(
-                      label: 'Open',
-                      icon: Icons.schedule_rounded,
-                      size: UiSize.xs,
-                      intent: UiIntent.info,
-                      variant: UiBadgeVariant.soft,
-                    )
-                  else
-                    UiBadge(
-                      label: AppTokens.outcomeLabel(entry.outcome),
-                      icon: _outcomeIcon(entry.outcome),
-                      size: UiSize.xs,
-                      intent: AppTokens.outcomeIntent(entry.outcome),
-                      variant: UiBadgeVariant.soft,
-                    ),
-                  if (entry.rMultiple != null)
-                    UiBadge(
-                      label: AppTokens.rr(entry.rMultiple!),
-                      size: UiSize.xs,
-                      intent: AppTokens.plIntent(entry.rMultiple!),
-                      variant: UiBadgeVariant.soft,
-                    ),
-                  if (notes > 0)
-                    UiBadge(
-                      label: '$notes note${notes == 1 ? '' : 's'}',
-                      icon: Icons.link_rounded,
-                      size: UiSize.xs,
-                      variant: UiBadgeVariant.outline,
-                    ),
-                  if (entry.checklistTotal > 0)
-                    UiBadge(
-                      label:
-                          '${entry.checklistDone}/${entry.checklistTotal} checks',
-                      icon: Icons.checklist_rounded,
-                      size: UiSize.xs,
-                      intent:
-                          entry.checklistDone == entry.checklistTotal
-                          ? UiIntent.bullish
-                          : (entry.checklistDone == 0
-                                ? UiIntent.bearish
-                                : UiIntent.warning),
-                      variant: UiBadgeVariant.outline,
-                    ),
-                  if (!entry.hasStory)
-                    const UiBadge(
-                      label: 'Needs write-up',
-                      icon: Icons.edit_note_rounded,
-                      size: UiSize.xs,
-                      intent: UiIntent.warning,
-                      variant: UiBadgeVariant.soft,
-                    ),
-                  if (unfiled)
-                    const UiBadge(
-                      label: 'Unfiled',
-                      icon: Icons.folder_off_outlined,
-                      size: UiSize.xs,
-                      intent: UiIntent.info,
-                      variant: UiBadgeVariant.outline,
-                    ),
-                  if (footerEngagement != null) ...<Widget>[
-                    footerEngagement!,
-                  ],
+                if (trailing != null) ...<Widget>[
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  trailing!,
                 ],
-              ),
+              ],
+            ),
+            if (showExcerpt) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.xs)),
+              // Excerpt / Story
+              if (excerpt.isNotEmpty)
+                Text(
+                  excerpt,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: colors.foregroundSubtle,
+                    height: 1.4,
+                  ),
+                )
+              else
+                Text(
+                  'No thesis or notes recorded for this execution yet.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: colors.foregroundMuted.withValues(alpha: 0.6),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
             ],
-          ),
-        ],
+          ],
+        ),
+        bottom: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            SizedBox(height: context.sp(theme.spacing.xs)),
+            Container(
+              height: theme.borders.hairline,
+              color: colors.border.withValues(alpha: 0.6),
+            ),
+            SizedBox(height: context.sp(theme.spacing.xs)),
+            Wrap(
+              spacing: context.sp(theme.spacing.xs),
+              runSpacing: context.sp(theme.spacing.xxs),
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: <Widget>[
+                if (entry.isOpen)
+                  const UiBadge(
+                    label: 'Open',
+                    icon: Icons.schedule_rounded,
+                    size: UiSize.xs,
+                    intent: UiIntent.info,
+                    variant: UiBadgeVariant.soft,
+                  )
+                else
+                  UiBadge(
+                    label: AppTokens.outcomeLabel(entry.outcome),
+                    icon: _outcomeIcon(entry.outcome),
+                    size: UiSize.xs,
+                    intent: AppTokens.outcomeIntent(entry.outcome),
+                    variant: UiBadgeVariant.soft,
+                  ),
+                if (entry.rMultiple != null)
+                  UiBadge(
+                    label: AppTokens.rr(entry.rMultiple!),
+                    size: UiSize.xs,
+                    intent: AppTokens.plIntent(entry.rMultiple!),
+                    variant: UiBadgeVariant.soft,
+                  ),
+                if (notes > 0)
+                  UiBadge(
+                    label: '$notes note${notes == 1 ? '' : 's'}',
+                    icon: Icons.link_rounded,
+                    size: UiSize.xs,
+                    variant: UiBadgeVariant.outline,
+                  ),
+                if (entry.checklistTotal > 0)
+                  UiBadge(
+                    label:
+                        '${entry.checklistDone}/${entry.checklistTotal} checks',
+                    icon: Icons.checklist_rounded,
+                    size: UiSize.xs,
+                    intent:
+                        entry.checklistDone == entry.checklistTotal
+                        ? UiIntent.bullish
+                        : (entry.checklistDone == 0
+                              ? UiIntent.bearish
+                              : UiIntent.warning),
+                    variant: UiBadgeVariant.outline,
+                  ),
+                if (!entry.hasStory)
+                  const UiBadge(
+                    label: 'Needs write-up',
+                    icon: Icons.edit_note_rounded,
+                    size: UiSize.xs,
+                    intent: UiIntent.warning,
+                    variant: UiBadgeVariant.soft,
+                  ),
+                if (unfiled)
+                  const UiBadge(
+                    label: 'Unfiled',
+                    icon: Icons.folder_off_outlined,
+                    size: UiSize.xs,
+                    intent: UiIntent.info,
+                    variant: UiBadgeVariant.outline,
+                  ),
+                if (footerEngagement != null) ...<Widget>[
+                  footerEngagement!,
+                ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
 
     return AppHoverLift(
       child: cardBody,
     );
+  }
+}
+
+class _AppJournalCardParentData extends ContainerBoxParentData<RenderBox> {}
+
+/// A specialized dual-slot layout for journal cards that guarantees zero flex overflow.
+/// In bounded constraints (e.g. [IntrinsicHeight] or fixed card heights), it pins the
+/// footer [bottom] to the base of the card and allows [top] to consume the remaining space,
+/// avoiding the standard Flutter 1px flex subpixel overflow error. In unbounded constraints
+/// (e.g. inside a scrollable [ListView]), it lays out children sequentially.
+class _AppJournalCardLayout extends MultiChildRenderObjectWidget {
+  _AppJournalCardLayout({
+    required Widget top,
+    required Widget bottom,
+  }) : super(children: <Widget>[top, bottom]);
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _RenderAppJournalCard();
+  }
+}
+
+class _RenderAppJournalCard extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _AppJournalCardParentData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _AppJournalCardParentData> {
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _AppJournalCardParentData) {
+      child.parentData = _AppJournalCardParentData();
+    }
+  }
+
+  @override
+  double computeMinIntrinsicWidth(double height) {
+    final RenderBox? top = firstChild;
+    final RenderBox? bottom = lastChild;
+    return math.max(
+      top?.getMinIntrinsicWidth(height) ?? 0.0,
+      bottom?.getMinIntrinsicWidth(height) ?? 0.0,
+    );
+  }
+
+  @override
+  double computeMaxIntrinsicWidth(double height) {
+    final RenderBox? top = firstChild;
+    final RenderBox? bottom = lastChild;
+    return math.max(
+      top?.getMaxIntrinsicWidth(height) ?? 0.0,
+      bottom?.getMaxIntrinsicWidth(height) ?? 0.0,
+    );
+  }
+
+  @override
+  double computeMinIntrinsicHeight(double width) {
+    final RenderBox? top = firstChild;
+    final RenderBox? bottom = lastChild;
+    return (top?.getMinIntrinsicHeight(width) ?? 0.0) +
+        (bottom?.getMinIntrinsicHeight(width) ?? 0.0);
+  }
+
+  @override
+  double computeMaxIntrinsicHeight(double width) {
+    final RenderBox? top = firstChild;
+    final RenderBox? bottom = lastChild;
+    return (top?.getMaxIntrinsicHeight(width) ?? 0.0) +
+        (bottom?.getMaxIntrinsicHeight(width) ?? 0.0);
+  }
+
+  @override
+  void performLayout() {
+    final RenderBox? top = firstChild;
+    final RenderBox? bottom = lastChild;
+
+    if (top == null || bottom == null) {
+      size = constraints.biggest;
+      return;
+    }
+
+    final double maxWidth = constraints.maxWidth;
+
+    // 1. Layout bottom first (divider + badges) with loose constraints
+    bottom.layout(
+      BoxConstraints(
+        minWidth: 0,
+        maxWidth: maxWidth,
+        minHeight: 0,
+        maxHeight: constraints.maxHeight,
+      ),
+      parentUsesSize: true,
+    );
+    final double bottomHeight = bottom.size.height;
+
+    if (constraints.hasBoundedHeight) {
+      final double availableForTop = math.max(
+        0.0,
+        constraints.maxHeight - bottomHeight,
+      );
+      top.layout(
+        BoxConstraints(
+          minWidth: 0,
+          maxWidth: maxWidth,
+          minHeight: 0,
+          maxHeight: availableForTop,
+        ),
+        parentUsesSize: true,
+      );
+
+      final _AppJournalCardParentData topData =
+          top.parentData! as _AppJournalCardParentData;
+      topData.offset = Offset.zero;
+
+      final _AppJournalCardParentData bottomData =
+          bottom.parentData! as _AppJournalCardParentData;
+      // Pin to bottom
+      bottomData.offset = Offset(
+        0,
+        math.max(top.size.height, constraints.maxHeight - bottomHeight),
+      );
+
+      size = constraints.constrain(Size(maxWidth, constraints.maxHeight));
+    } else {
+      // Unbounded height (e.g. inside ListView)
+      top.layout(
+        BoxConstraints(minWidth: 0, maxWidth: maxWidth),
+        parentUsesSize: true,
+      );
+
+      final _AppJournalCardParentData topData =
+          top.parentData! as _AppJournalCardParentData;
+      topData.offset = Offset.zero;
+
+      final _AppJournalCardParentData bottomData =
+          bottom.parentData! as _AppJournalCardParentData;
+      bottomData.offset = Offset(0, top.size.height);
+
+      size = constraints.constrain(Size(maxWidth, top.size.height + bottomHeight));
+    }
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    return defaultHitTestChildren(result, position: position);
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    defaultPaint(context, offset);
   }
 }
 

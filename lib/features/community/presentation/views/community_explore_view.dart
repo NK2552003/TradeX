@@ -3,7 +3,6 @@ import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_hashtag_page.dart';
-import 'package:tradex/features/community/presentation/views/community_search_page.dart';
 import 'package:tradex/features/community/presentation/widgets/community_widgets.dart';
 
 /// Explore & News view — trending market topics, market wire headlines, and category filters.
@@ -14,20 +13,27 @@ class CommunityExploreView extends StatefulWidget {
     this.onPostTap,
     this.onAuthorTap,
     this.onOpenRef,
+    this.searchQuery,
   });
 
   final CommunityRepository repository;
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final String? searchQuery;
 
   @override
   State<CommunityExploreView> createState() => _CommunityExploreViewState();
 }
 
 class _CommunityExploreViewState extends State<CommunityExploreView> {
-  String _searchQuery = '';
+  final String _searchQuery = '';
   String _selectedCategory = 'All';
+
+  String get _effectiveQuery =>
+      (widget.searchQuery?.trim().isNotEmpty ?? false)
+          ? widget.searchQuery!.trim()
+          : _searchQuery;
 
   static const List<String> _categories = <String>[
     'All',
@@ -58,8 +64,8 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
     final isMobile = context.uiRes.isMobile;
 
     final filteredPosts = widget.repository.forYouPosts.where((p) {
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
+      if (_effectiveQuery.isNotEmpty) {
+        final q = _effectiveQuery.toLowerCase();
         if (!p.body.toLowerCase().contains(q) &&
             !p.tickers.any((t) => t.toLowerCase().contains(q)) &&
             !p.tags.any((t) => t.toLowerCase().contains(q))) {
@@ -78,31 +84,15 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
       padding: EdgeInsets.all(
         context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          // Search Field
-          UiSearchField(
-            value: _searchQuery,
-            hintText: 'Explore topics, market trends, breaking signals...',
-            onChanged: (String q) => setState(() => _searchQuery = q),
-            onSubmitted: (String q) {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => CommunitySearchPage(
-                    repository: widget.repository,
-                    initialQuery: q,
-                    onAuthorTap: widget.onAuthorTap,
-                    onOpenRef: widget.onOpenRef,
-                  ),
-                ),
-              );
-            },
-          ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-
-          // Category Chips Row
-          Wrap(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.sz(700)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // Category Chips Row
+              Wrap(
             spacing: context.sp(theme.spacing.xs),
             runSpacing: context.sp(theme.spacing.xs),
             children: _categories.map((cat) {
@@ -218,7 +208,9 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
             ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _trendRow(BuildContext context, CommunityTrendItem item) {

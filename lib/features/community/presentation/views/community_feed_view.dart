@@ -16,6 +16,7 @@ class CommunityFeedView extends StatefulWidget {
     this.onAuthorTap,
     this.onCompose,
     this.onOpenRef,
+    this.searchQuery,
   });
 
   final CommunityRepository repository;
@@ -23,6 +24,7 @@ class CommunityFeedView extends StatefulWidget {
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final String? searchQuery;
 
   /// Called when the compact mobile compose trigger is tapped.
   /// On desktop/tablet the full [CommunityComposerCard] is rendered inline
@@ -69,43 +71,51 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
-    final double topInset = context.sp(theme.spacing.xs);
-    final double barHeight = context.sz(44);
-    final double clearance =
-        topInset + barHeight + context.sp(theme.spacing.xs);
 
-    return Stack(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        // Sub-Tab Content Views (feeds scroll smoothly underneath the floating bar)
-        TabBarView(
-          controller: _subTabController,
-          physics: context.uiRes.isDesktop
-              ? const NeverScrollableScrollPhysics()
-              : null,
-          children: <Widget>[
-            // Tab 0: For you
-            _CommunityKeepAliveTab(child: _buildForYouTab(topPadding: clearance)),
-            // Tab 1: Following
-            _CommunityKeepAliveTab(child: _buildFollowingTab(topPadding: clearance)),
-            // Tab 2: Signals & Setups
-            _CommunityKeepAliveTab(child: _buildSignalsTab(topPadding: clearance)),
-            // Tab 3: Market News
-            _CommunityKeepAliveTab(child: _buildNewsTab(topPadding: clearance)),
-            // Tab 4: Crypto
-            _CommunityKeepAliveTab(child: _buildCryptoTab(topPadding: clearance)),
-            // Tab 5: Equities
-            _CommunityKeepAliveTab(child: _buildEquitiesTab(topPadding: clearance)),
-          ],
-        ),
+        // Full width top bar tab toggle spanning across the centered panel
+        _buildTopBar(context, theme, isMobile),
 
-        // Floating Top Sub-Tabs Bar - spans full width of feed container
-        Positioned(
-          top: topInset,
-          left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-          right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-          child: _buildFloatingBar(context, theme, isMobile),
+        // Sub-Tab Content Views (feeds centered at maxWidth 700px beneath the bar)
+        Expanded(
+          child: TabBarView(
+            controller: _subTabController,
+            physics: context.uiRes.isDesktop
+                ? const NeverScrollableScrollPhysics()
+                : null,
+            children: <Widget>[
+              // Tab 0: For you
+              _CommunityKeepAliveTab(child: _buildForYouTab()),
+              // Tab 1: Following
+              _CommunityKeepAliveTab(child: _buildFollowingTab()),
+              // Tab 2: Signals & Setups
+              _CommunityKeepAliveTab(child: _buildSignalsTab()),
+              // Tab 3: Market News
+              _CommunityKeepAliveTab(child: _buildNewsTab()),
+              // Tab 4: Crypto
+              _CommunityKeepAliveTab(child: _buildCryptoTab()),
+              // Tab 5: Equities
+              _CommunityKeepAliveTab(child: _buildEquitiesTab()),
+            ],
+          ),
         ),
       ],
+    );
+  }
+
+  /// Top bar container holding the floating capsule pill bar,
+  /// moved outside the feed scroll view so posts never scroll over it.
+  Widget _buildTopBar(BuildContext context, UiTheme theme, bool isMobile) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        context.sp(theme.spacing.xs),
+      ),
+      child: _buildFloatingBar(context, theme, isMobile),
     );
   }
 
@@ -156,7 +166,8 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                     ),
                     indicatorSize: TabBarIndicatorSize.tab,
                     splashBorderRadius: context.radius(theme.radii.pill),
-                    overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
+                    overlayColor:
+                        WidgetStateProperty.resolveWith<Color?>((states) {
                       if (states.contains(WidgetState.selected)) {
                         return Colors.transparent;
                       }
@@ -236,14 +247,27 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     );
   }
 
+  List<CommunityPost> _filter(List<CommunityPost> raw) {
+    final q = widget.searchQuery?.trim().toLowerCase();
+    if (q == null || q.isEmpty) return raw;
+    return raw.where((p) {
+      return p.body.toLowerCase().contains(q) ||
+          p.tickers.any((t) => t.toLowerCase().contains(q)) ||
+          p.tags.any((t) => t.toLowerCase().contains(q)) ||
+          p.author.displayName.toLowerCase().contains(q) ||
+          p.author.handle.toLowerCase().contains(q);
+    }).toList();
+  }
+
   // ---------------------------------------------------------------------------
   // Tab 0: For you
   // ---------------------------------------------------------------------------
 
-  Widget _buildForYouTab({required double topPadding}) {
+  Widget _buildForYouTab({double? topPadding}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
-    final posts = widget.repository.forYouPosts;
+    final posts = _filter(widget.repository.forYouPosts);
+    final double effectiveTop = topPadding ?? context.sp(theme.spacing.sm);
 
     final Widget liveSpaceBanner = Padding(
       padding: EdgeInsets.symmetric(
@@ -315,16 +339,17 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         liveSpaceBanner,
-        Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-            vertical: context.sp(theme.spacing.xs),
+        if (!isMobile)
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.md),
+              vertical: context.sp(theme.spacing.xs),
+            ),
+            child: CommunityComposerCard(
+              author: widget.currentUser,
+              repository: widget.repository,
+            ),
           ),
-          child: CommunityComposerCard(
-            author: widget.currentUser,
-            repository: widget.repository,
-          ),
-        ),
       ],
     );
 
@@ -332,8 +357,10 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       controller: _forYouScrollController,
       posts: posts,
       header: composeHeader,
+      repository: widget.repository,
+      currentUser: widget.currentUser,
       padding: EdgeInsets.only(
-        top: topPadding,
+        top: effectiveTop,
         left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
         right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
         bottom: context.sp(theme.spacing.xl),
@@ -347,12 +374,12 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       onRefresh: () async => setState(() {}),
     );
 
-    return Stack(
+    final Widget content = Stack(
       children: <Widget>[
         feedList,
         if (_newPostsCount > 0)
           Positioned(
-            top: topPadding + context.sp(theme.spacing.xs),
+            top: effectiveTop + context.sp(theme.spacing.xs),
             left: 0,
             right: 0,
             child: CommunityNewPostsPill(
@@ -369,38 +396,54 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           ),
       ],
     );
-  }
 
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: context.sz(700)),
+        child: content,
+      ),
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // Tab 1: Following
   // ---------------------------------------------------------------------------
 
-  Widget _buildFollowingTab({required double topPadding}) {
+  Widget _buildFollowingTab({double? topPadding}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
-    final posts = widget.repository.followingPosts;
+    final posts = _filter(widget.repository.followingPosts);
+    final double effectiveTop = topPadding ?? context.sp(theme.spacing.sm);
 
-    return CommunityFeedList(
-      posts: posts,
-      padding: EdgeInsets.only(
-        top: topPadding,
-        left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        bottom: context.sp(theme.spacing.xl),
-      ),
-      onPostTap: widget.onPostTap,
-      onLike: (id) => widget.repository.toggleLike(id),
-      onRepost: (id) => widget.repository.toggleRepost(id),
-      onBookmark: (id) => widget.repository.toggleBookmark(id),
-      onAuthorTap: widget.onAuthorTap,
-      onOpenRef: widget.onOpenRef,
-      onRefresh: () async => setState(() {}),
-      emptyState: const CommunityEmptyState(
-        icon: Icons.person_add_outlined,
-        title: 'No posts yet',
-        message:
-            'Follow other traders to see their setups and execution notes here.',
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: context.sz(700)),
+        child: CommunityFeedList(
+          posts: posts,
+          repository: widget.repository,
+          currentUser: widget.currentUser,
+          padding: EdgeInsets.only(
+            top: effectiveTop,
+            left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            bottom: context.sp(theme.spacing.xl),
+          ),
+          onPostTap: widget.onPostTap,
+          onLike: (id) => widget.repository.toggleLike(id),
+          onRepost: (id) => widget.repository.toggleRepost(id),
+          onBookmark: (id) => widget.repository.toggleBookmark(id),
+          onAuthorTap: widget.onAuthorTap,
+          onOpenRef: widget.onOpenRef,
+          onRefresh: () async => setState(() {}),
+          emptyState: const CommunityEmptyState(
+            icon: Icons.person_add_outlined,
+            title: 'No posts yet',
+            message:
+                'Follow other traders to see their setups and execution notes here.',
+          ),
+        ),
       ),
     );
   }
@@ -409,31 +452,40 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   // Tab 2: Signals & Setups
   // ---------------------------------------------------------------------------
 
-  Widget _buildSignalsTab({required double topPadding}) {
+  Widget _buildSignalsTab({double? topPadding}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
-    final posts = widget.repository.signalPosts;
+    final posts = _filter(widget.repository.signalPosts);
+    final double effectiveTop = topPadding ?? context.sp(theme.spacing.sm);
 
-    return CommunityFeedList(
-      posts: posts,
-      padding: EdgeInsets.only(
-        top: topPadding,
-        left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        bottom: context.sp(theme.spacing.xl),
-      ),
-      onPostTap: widget.onPostTap,
-      onLike: (id) => widget.repository.toggleLike(id),
-      onRepost: (id) => widget.repository.toggleRepost(id),
-      onBookmark: (id) => widget.repository.toggleBookmark(id),
-      onAuthorTap: widget.onAuthorTap,
-      onOpenRef: widget.onOpenRef,
-      onRefresh: () async => setState(() {}),
-      emptyState: const CommunityEmptyState(
-        icon: Icons.candlestick_chart_rounded,
-        title: 'No trade signals found',
-        message:
-            'Published trades with entry, exit and stop levels will appear here.',
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: context.sz(700)),
+        child: CommunityFeedList(
+          posts: posts,
+          repository: widget.repository,
+          currentUser: widget.currentUser,
+          padding: EdgeInsets.only(
+            top: effectiveTop,
+            left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            bottom: context.sp(theme.spacing.xl),
+          ),
+          onPostTap: widget.onPostTap,
+          onLike: (id) => widget.repository.toggleLike(id),
+          onRepost: (id) => widget.repository.toggleRepost(id),
+          onBookmark: (id) => widget.repository.toggleBookmark(id),
+          onAuthorTap: widget.onAuthorTap,
+          onOpenRef: widget.onOpenRef,
+          onRefresh: () async => setState(() {}),
+          emptyState: const CommunityEmptyState(
+            icon: Icons.candlestick_chart_rounded,
+            title: 'No trade signals found',
+            message:
+                'Published trades with entry, exit and stop levels will appear here.',
+          ),
+        ),
       ),
     );
   }
@@ -442,89 +494,96 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   // Tab 3: Market News
   // ---------------------------------------------------------------------------
 
-  Widget _buildNewsTab({required double topPadding}) {
+  Widget _buildNewsTab({double? topPadding}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final news = widget.repository.news;
+    final double effectiveTop = topPadding ?? context.sp(theme.spacing.sm);
 
-    return ListView.builder(
-      padding: EdgeInsets.only(
-        top: topPadding + context.sp(theme.spacing.xs),
-        left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        bottom: context.sp(theme.spacing.xl),
-      ),
-      itemCount: news.length,
-      itemBuilder: (BuildContext context, int index) {
-        final item = news[index];
-        final sentimentIntent = item.sentimentScore > 0.3
-            ? UiIntent.success
-            : (item.sentimentScore < -0.2 ? UiIntent.danger : UiIntent.info);
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: context.sz(700)),
+        child: ListView.builder(
+          padding: EdgeInsets.only(
+            top: effectiveTop,
+            left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            bottom: context.sp(theme.spacing.xl),
+          ),
+          itemCount: news.length,
+          itemBuilder: (BuildContext context, int index) {
+            final item = news[index];
+            final sentimentIntent = item.sentimentScore > 0.3
+                ? UiIntent.success
+                : (item.sentimentScore < -0.2 ? UiIntent.danger : UiIntent.info);
 
-        return Padding(
-          padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
-          child: UiCard(
-            padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
+            return Padding(
+              padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+              child: UiCard(
+                padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    UiBadge(
-                      label: item.category,
-                      intent: sentimentIntent,
-                      variant: UiBadgeVariant.solid,
-                      size: UiSize.xs,
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    Expanded(
-                      child: Text(
-                        '${item.source} · ${AppTokens.relativeTime(item.publishedAt)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.uiText.caption.copyWith(
-                          color: theme.colors.foregroundSubtle,
+                    Row(
+                      children: <Widget>[
+                        UiBadge(
+                          label: item.category,
+                          intent: sentimentIntent,
+                          variant: UiBadgeVariant.solid,
+                          size: UiSize.xs,
                         ),
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        Expanded(
+                          child: Text(
+                            '${item.source} · ${AppTokens.relativeTime(item.publishedAt)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.uiText.caption.copyWith(
+                              color: theme.colors.foregroundSubtle,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.xs)),
+                    Text(
+                      item.headline,
+                      style: context.uiText.heading.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
+                    if (item.summary != null) ...<Widget>[
+                      SizedBox(height: context.sp(theme.spacing.xs)),
+                      Text(
+                        item.summary!,
+                        style: context.uiText.body.copyWith(
+                          color: theme.colors.foregroundMuted,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                    if (item.relatedTickers.isNotEmpty) ...<Widget>[
+                      SizedBox(height: context.sp(theme.spacing.sm)),
+                      Wrap(
+                        spacing: context.sp(theme.spacing.xs),
+                        children: item.relatedTickers.map((t) {
+                          return UiBadge(
+                            label: '\$$t',
+                            intent: UiIntent.primary,
+                            variant: UiBadgeVariant.soft,
+                            size: UiSize.xs,
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
-                SizedBox(height: context.sp(theme.spacing.xs)),
-                Text(
-                  item.headline,
-                  style: context.uiText.heading.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (item.summary != null) ...<Widget>[
-                  SizedBox(height: context.sp(theme.spacing.xs)),
-                  Text(
-                    item.summary!,
-                    style: context.uiText.body.copyWith(
-                      color: theme.colors.foregroundMuted,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-                if (item.relatedTickers.isNotEmpty) ...<Widget>[
-                  SizedBox(height: context.sp(theme.spacing.sm)),
-                  Wrap(
-                    spacing: context.sp(theme.spacing.xs),
-                    children: item.relatedTickers.map((t) {
-                      return UiBadge(
-                        label: '\$$t',
-                        intent: UiIntent.primary,
-                        variant: UiBadgeVariant.soft,
-                        size: UiSize.xs,
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -532,7 +591,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   // Tab 4: Crypto
   // ---------------------------------------------------------------------------
 
-  Widget _buildCryptoTab({required double topPadding}) {
+  Widget _buildCryptoTab({double? topPadding}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final cryptoTickers = <String>{'BTC', 'ETH', 'SOL', 'DOGE', 'USDINR'};
@@ -540,27 +599,36 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       return p.tickers.any((t) => cryptoTickers.contains(t.toUpperCase())) ||
           p.tags.any((tag) => tag.toLowerCase().contains('crypto'));
     }).toList();
+    final double effectiveTop = topPadding ?? context.sp(theme.spacing.sm);
 
-    return CommunityFeedList(
-      posts: posts,
-      padding: EdgeInsets.only(
-        top: topPadding,
-        left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        bottom: context.sp(theme.spacing.xl),
-      ),
-      onPostTap: widget.onPostTap,
-      onLike: (id) => widget.repository.toggleLike(id),
-      onRepost: (id) => widget.repository.toggleRepost(id),
-      onBookmark: (id) => widget.repository.toggleBookmark(id),
-      onAuthorTap: widget.onAuthorTap,
-      onOpenRef: widget.onOpenRef,
-      onRefresh: () async => setState(() {}),
-      emptyState: const CommunityEmptyState(
-        icon: Icons.currency_bitcoin_rounded,
-        title: 'No crypto setups found',
-        message:
-            'Posts referencing \$BTC, \$ETH, or crypto setups will appear here.',
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: context.sz(700)),
+        child: CommunityFeedList(
+          posts: posts,
+          repository: widget.repository,
+          currentUser: widget.currentUser,
+          padding: EdgeInsets.only(
+            top: effectiveTop,
+            left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            bottom: context.sp(theme.spacing.xl),
+          ),
+          onPostTap: widget.onPostTap,
+          onLike: (id) => widget.repository.toggleLike(id),
+          onRepost: (id) => widget.repository.toggleRepost(id),
+          onBookmark: (id) => widget.repository.toggleBookmark(id),
+          onAuthorTap: widget.onAuthorTap,
+          onOpenRef: widget.onOpenRef,
+          onRefresh: () async => setState(() {}),
+          emptyState: const CommunityEmptyState(
+            icon: Icons.currency_bitcoin_rounded,
+            title: 'No crypto setups found',
+            message:
+                'Posts referencing \$BTC, \$ETH, or crypto setups will appear here.',
+          ),
+        ),
       ),
     );
   }
@@ -569,7 +637,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   // Tab 5: Equities
   // ---------------------------------------------------------------------------
 
-  Widget _buildEquitiesTab({required double topPadding}) {
+  Widget _buildEquitiesTab({double? topPadding}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final posts = widget.repository.forYouPosts.where((p) {
@@ -577,26 +645,35 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
         (t) => !{'BTC', 'ETH', 'SOL', 'DOGE'}.contains(t.toUpperCase()),
       );
     }).toList();
+    final double effectiveTop = topPadding ?? context.sp(theme.spacing.sm);
 
-    return CommunityFeedList(
-      posts: posts,
-      padding: EdgeInsets.only(
-        top: topPadding,
-        left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-        bottom: context.sp(theme.spacing.xl),
-      ),
-      onPostTap: widget.onPostTap,
-      onLike: (id) => widget.repository.toggleLike(id),
-      onRepost: (id) => widget.repository.toggleRepost(id),
-      onBookmark: (id) => widget.repository.toggleBookmark(id),
-      onAuthorTap: widget.onAuthorTap,
-      onOpenRef: widget.onOpenRef,
-      onRefresh: () async => setState(() {}),
-      emptyState: const CommunityEmptyState(
-        icon: Icons.show_chart_rounded,
-        title: 'No equities setups found',
-        message: 'Posts tagged with equity tickers will appear here.',
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: context.sz(700)),
+        child: CommunityFeedList(
+          posts: posts,
+          repository: widget.repository,
+          currentUser: widget.currentUser,
+          padding: EdgeInsets.only(
+            top: effectiveTop,
+            left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            bottom: context.sp(theme.spacing.xl),
+          ),
+          onPostTap: widget.onPostTap,
+          onLike: (id) => widget.repository.toggleLike(id),
+          onRepost: (id) => widget.repository.toggleRepost(id),
+          onBookmark: (id) => widget.repository.toggleBookmark(id),
+          onAuthorTap: widget.onAuthorTap,
+          onOpenRef: widget.onOpenRef,
+          onRefresh: () async => setState(() {}),
+          emptyState: const CommunityEmptyState(
+            icon: Icons.show_chart_rounded,
+            title: 'No equities setups found',
+            message: 'Posts tagged with equity tickers will appear here.',
+          ),
+        ),
       ),
     );
   }

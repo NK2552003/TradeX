@@ -72,10 +72,14 @@ class _CommunityBookmarksViewState extends State<CommunityBookmarksView> {
       padding: EdgeInsets.all(
         context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          // Header Row
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.sz(700)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // Header Row
           Row(
             children: <Widget>[
               Text(
@@ -157,6 +161,8 @@ class _CommunityBookmarksViewState extends State<CommunityBookmarksView> {
               ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }

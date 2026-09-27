@@ -38,7 +38,7 @@ const UiScaleConfig kCommunityScale = UiScaleConfig(
 );
 
 /// Maximum content width for centred standalone community pages / feeds.
-const double kCommunityMaxWidth = 640;
+const double kCommunityMaxWidth = 700;
 
 /// Wraps [child] in a [UiThemeScope] carrying [kCommunityScale] so the entire
 /// subtree renders at community density. A no-op if the scale is already

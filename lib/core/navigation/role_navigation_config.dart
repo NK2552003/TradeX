@@ -102,21 +102,14 @@ class RoleNavigationConfig {
       'Alerts': 'watchlists',
       'AI': 'ai_copilot',
       'Community': 'community',
-      'Risk': 'portfolio',
       'Strategies': 'strategies',
       'Billing': 'settings_billing',
       'Notes': 'notes',
     },
     mobilePrimaryItems: <AppNavItem>[
       AppNavItem(
-        id: 'overview',
-        label: 'Home',
-        icon: Icons.dashboard_outlined,
-        selectedIcon: Icons.dashboard_rounded,
-      ),
-      AppNavItem(
         id: 'workspace',
-        label: 'Workspace',
+        label: 'Writing Desk',
         icon: Icons.edit_note_outlined,
         selectedIcon: Icons.edit_note_rounded,
       ),
@@ -126,6 +119,12 @@ class RoleNavigationConfig {
         icon: Icons.forum_outlined,
         selectedIcon: Icons.forum_rounded,
       ),
+      AppNavItem(
+        id: 'calculators',
+        label: 'Calculators',
+        icon: Icons.calculate_outlined,
+        selectedIcon: Icons.calculate_rounded,
+      ),
       _settingsDock,
     ],
     mobileMoreItems: <AppNavItem>[
@@ -133,11 +132,6 @@ class RoleNavigationConfig {
         id: 'calculators',
         label: 'Calculators',
         icon: Icons.calculate_outlined,
-      ),
-      AppNavItem(
-        id: 'portfolio',
-        label: 'Portfolio',
-        icon: Icons.pie_chart_outline_rounded,
       ),
       AppNavItem(
         id: 'ai_copilot',
@@ -177,12 +171,6 @@ class RoleNavigationConfig {
         title: 'Workspace',
         items: <AppNavItem>[
           AppNavItem(
-            id: 'overview',
-            label: 'Dashboard',
-            icon: Icons.dashboard_outlined,
-            selectedIcon: Icons.dashboard_rounded,
-          ),
-          AppNavItem(
             id: 'workspace',
             label: 'Writing Desk',
             icon: Icons.edit_note_outlined,
@@ -213,12 +201,6 @@ class RoleNavigationConfig {
             label: 'Calculators',
             icon: Icons.calculate_outlined,
             selectedIcon: Icons.calculate_rounded,
-          ),
-          AppNavItem(
-            id: 'portfolio',
-            label: 'Portfolio',
-            icon: Icons.pie_chart_outline_rounded,
-            selectedIcon: Icons.pie_chart_rounded,
           ),
         ],
       ),
@@ -614,6 +596,11 @@ class RoleNavigationConfig {
         icon: Icons.auto_awesome_outlined,
       ),
       AppNavItem(
+        id: 'messages',
+        label: 'Messages',
+        icon: Icons.chat_bubble_outline_rounded,
+      ),
+      AppNavItem(
         id: 'settings_organization',
         label: 'Organization',
         icon: Icons.apartment_outlined,
@@ -700,6 +687,12 @@ class RoleNavigationConfig {
             label: 'AI Risk Assistant',
             icon: Icons.auto_awesome_outlined,
             selectedIcon: Icons.auto_awesome_rounded,
+          ),
+          AppNavItem(
+            id: 'messages',
+            label: 'Messages',
+            icon: Icons.chat_bubble_outline_rounded,
+            selectedIcon: Icons.chat_bubble_rounded,
           ),
         ],
       ),

@@ -183,6 +183,8 @@ class _AppGlobalNotificationsPageState
         repository: widget.repository,
         isCurrentUser: author.id == _currentAuthor.id,
         onBack: _closeSubpage,
+        onPostTap: _openPostDetail,
+        onOpenRef: widget.onOpenRef,
       ),
       '@${author.handle}',
       Icons.person_outline_rounded,

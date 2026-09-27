@@ -41,8 +41,6 @@ class CommunitySidebar extends StatefulWidget {
 }
 
 class _CommunitySidebarState extends State<CommunitySidebar> {
-  String _searchQuery = '';
-
   @override
   void initState() {
     super.initState();
@@ -64,16 +62,7 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        // 1. Search Bar
-        CommunitySearchWidget(
-          value: _searchQuery,
-          onChanged: (String q) => setState(() => _searchQuery = q),
-          onTap: widget.onSearchTap,
-          onSubmitted: widget.onSearchSubmitted,
-        ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
-
-        // 1b. Live Trading Floor / Audio Space Card
+        // 1. Live Trading Floor / Audio Space Card
         const CommunityLiveRoomWidget(),
         SizedBox(height: context.sp(theme.spacing.sm)),
 

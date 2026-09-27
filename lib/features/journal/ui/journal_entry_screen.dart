@@ -122,7 +122,8 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
       body: 'Clean execution on the breakout retest. Did you account for the liquidity sweep below support before entering?',
       createdAt: DateTime.now().subtract(const Duration(hours: 3)),
       likes: 4,
-      sentiment: 'Insightful',
+      reactions: const <String>['💡', '👍'],
+      sentiment: 'INSIGHTFUL',
       replies: <CommunityComment>[
         CommunityComment(
           id: 'cmt_j1_1',
@@ -142,6 +143,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
           body: 'Yes, waited for the 5-min candle close back inside value area before triggering sizing.',
           createdAt: DateTime.now().subtract(const Duration(hours: 2)),
           likes: 2,
+          reactions: const <String>['👍'],
         ),
       ],
     ),
@@ -177,14 +179,19 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
       if (parentCommentId == null) {
         _tradeComments = <CommunityComment>[newComment, ..._tradeComments];
       } else {
-        _tradeComments = _tradeComments.map((c) {
+        CommunityComment? attach(CommunityComment c) {
           if (c.id == parentCommentId) {
+            return c.copyWith(replies: <CommunityComment>[...c.replies, newComment]);
+          }
+          if (c.replies.isNotEmpty) {
             return c.copyWith(
-              replies: <CommunityComment>[...c.replies, newComment],
+              replies: c.replies.map((r) => attach(r) ?? r).toList(),
             );
           }
-          return c;
-        }).toList();
+          return null;
+        }
+
+        _tradeComments = _tradeComments.map((c) => attach(c) ?? c).toList();
       }
     });
 
@@ -199,28 +206,51 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
 
   void _handleLikeTradeComment(String commentId, {String? reaction}) {
     setState(() {
-      _tradeComments = _tradeComments.map((c) {
-        if (c.id == commentId) {
-          final bool wasLiked = c.isLiked;
-          return c.copyWith(
-            liked: !wasLiked,
-            likes: wasLiked ? (c.likes - 1).clamp(0, 9999) : c.likes + 1,
-            userReaction: wasLiked ? null : (reaction ?? '👍'),
+      CommunityComment? updateRec(CommunityComment item) {
+        if (item.id == commentId) {
+          final bool wasLiked = item.liked;
+          final String? currentReaction = item.userReaction;
+
+          if (reaction != null && reaction.trim().isNotEmpty) {
+            final target = reaction.trim();
+            if (wasLiked && currentReaction == target) {
+              return item.copyWith(
+                liked: false,
+                likes: (item.likes - 1).clamp(0, 9999),
+                userReaction: null,
+              );
+            } else {
+              return item.copyWith(
+                liked: true,
+                likes: wasLiked ? item.likes : item.likes + 1,
+                userReaction: target,
+              );
+            }
+          } else {
+            if (wasLiked) {
+              return item.copyWith(
+                liked: false,
+                likes: (item.likes - 1).clamp(0, 9999),
+                userReaction: null,
+              );
+            } else {
+              return item.copyWith(
+                liked: true,
+                likes: item.likes + 1,
+                userReaction: '👍',
+              );
+            }
+          }
+        }
+        if (item.replies.isNotEmpty) {
+          return item.copyWith(
+            replies: item.replies.map((r) => updateRec(r) ?? r).toList(),
           );
         }
-        final List<CommunityComment> updatedReplies = c.replies.map((r) {
-          if (r.id == commentId) {
-            final bool wasLiked = r.isLiked;
-            return r.copyWith(
-              liked: !wasLiked,
-              likes: wasLiked ? (r.likes - 1).clamp(0, 9999) : r.likes + 1,
-              userReaction: wasLiked ? null : (reaction ?? '👍'),
-            );
-          }
-          return r;
-        }).toList();
-        return c.copyWith(replies: updatedReplies);
-      }).toList();
+        return null;
+      }
+
+      _tradeComments = _tradeComments.map((c) => updateRec(c) ?? c).toList();
     });
   }
 

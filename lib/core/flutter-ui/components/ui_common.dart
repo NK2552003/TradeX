@@ -559,7 +559,7 @@ String uiCompactNumber(num value) {
   if (abs >= 1e9) return '${(v / 1e9).toStringAsFixed(1)}B';
   if (abs >= 1e6) return '${(v / 1e6).toStringAsFixed(1)}M';
   if (abs >= 1e3) return '${(v / 1e3).toStringAsFixed(1)}K';
-  if (abs >= 100) return v.toStringAsFixed(0);
+  if (v == v.roundToDouble() || abs >= 100) return v.toStringAsFixed(0);
   return v.toStringAsFixed(2);
 }
 

@@ -262,11 +262,21 @@ class AppCalculatorLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool embedded = AppCalculatorWorkspaceScope.of(context);
-    final Widget body = context.uiRes.isMobile
-        ? _MobileCalculator(layout: this, embedded: embedded)
-        : _DesktopCalculator(layout: this, embedded: embedded);
-    if (embedded) return body;
-    return UiPage(scrollable: false, maxWidth: 2400, child: body);
+    Widget buildBody(BuildContext ctx, BoxConstraints constraints) {
+      final bool isNarrow = ctx.uiRes.isMobile || constraints.maxWidth < 680;
+      return isNarrow
+          ? _MobileCalculator(layout: this, embedded: embedded)
+          : _DesktopCalculator(layout: this, embedded: embedded);
+    }
+
+    if (embedded) {
+      return LayoutBuilder(builder: buildBody);
+    }
+    return UiPage(
+      scrollable: false,
+      maxWidth: 2400,
+      child: LayoutBuilder(builder: buildBody),
+    );
   }
 }
 

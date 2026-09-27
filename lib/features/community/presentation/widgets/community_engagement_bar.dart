@@ -53,8 +53,84 @@ class CommunityEngagementBar extends StatelessWidget {
     final UiTheme theme = context.ui;
     final bool isMobile = context.uiRes.isMobile;
 
+    final List<Widget> primaryMetrics = <Widget>[
+      // Reply / Comments
+      CommunityEngagementButton(
+        icon: Icons.chat_bubble_outline_rounded,
+        count: comments > 0 ? uiCompactNumber(comments) : '',
+        tooltip: 'Reply',
+        activeColor: theme.colors.primary,
+        hoverColor: theme.colors.primary.withValues(alpha: 0.06),
+        onTap: onReply,
+        isMobile: isMobile,
+      ),
+
+      // Repost / Retweet
+      CommunityEngagementButton(
+        icon: Icons.repeat_rounded,
+        count: reposts > 0 ? uiCompactNumber(reposts) : '',
+        tooltip: 'Repost',
+        isActive: reposted,
+        activeColor: theme.colors.bullish,
+        hoverColor: theme.colors.bullish.withValues(alpha: 0.06),
+        onTap: onRepost,
+        isMobile: isMobile,
+      ),
+
+      // Like / Heart
+      CommunityEngagementButton(
+        icon: liked
+            ? Icons.favorite_rounded
+            : Icons.favorite_border_rounded,
+        count: likes > 0 ? uiCompactNumber(likes) : '',
+        tooltip: liked ? 'Unlike' : 'Like',
+        isActive: liked,
+        activeColor: Colors.redAccent,
+        hoverColor: Colors.redAccent.withValues(alpha: 0.06),
+        onTap: onLike,
+        isMobile: isMobile,
+      ),
+
+      // Views / Impressions
+      CommunityEngagementButton(
+        icon: Icons.bar_chart_rounded,
+        count: views > 0 ? uiCompactNumber(views) : '',
+        tooltip: 'Views',
+        activeColor: theme.colors.primary,
+        hoverColor: theme.colors.primary.withValues(alpha: 0.06),
+        onTap: onViewStats,
+        isMobile: isMobile,
+      ),
+    ];
+
+    final Widget bookmarkButton = CommunityEngagementButton(
+      icon: bookmarked
+          ? Icons.bookmark_rounded
+          : Icons.bookmark_border_rounded,
+      count: '',
+      tooltip: bookmarked ? 'Remove bookmark' : 'Bookmark',
+      isActive: bookmarked,
+      activeColor: theme.colors.warning,
+      hoverColor: theme.colors.warning.withValues(alpha: 0.06),
+      onTap: onBookmark,
+      isMobile: isMobile,
+    );
+
+    final Widget shareButton = CommunityEngagementButton(
+      icon: Icons.ios_share_rounded,
+      count: '',
+      tooltip: 'Share',
+      activeColor: theme.colors.primary,
+      hoverColor: theme.colors.primary.withValues(alpha: 0.06),
+      onTap: onShare,
+      isMobile: isMobile,
+    );
+
     return Container(
-      padding: EdgeInsets.only(top: context.sp(theme.spacing.xs)),
+      padding: EdgeInsets.only(
+        top: context.sp(theme.spacing.xs),
+        bottom: context.sp(theme.spacing.xxs),
+      ),
       decoration: showBorder
           ? BoxDecoration(
               border: Border(
@@ -65,82 +141,47 @@ class CommunityEngagementBar extends StatelessWidget {
               ),
             )
           : null,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          // Reply / Comments
-          CommunityEngagementButton(
-            icon: Icons.chat_bubble_outline_rounded,
-            count: comments > 0 ? uiCompactNumber(comments) : '',
-            tooltip: 'Reply',
-            activeColor: theme.colors.primary,
-            hoverColor: theme.colors.primary.withValues(alpha: 0.06),
-            onTap: onReply,
-            isMobile: isMobile,
-          ),
+      child: LayoutBuilder(
+        builder: (BuildContext ctx, BoxConstraints constraints) {
+          final bool isCompact = isMobile || constraints.maxWidth < 560;
+          if (isCompact) {
+            return Row(
+              children: <Widget>[
+                Expanded(child: primaryMetrics[0]),
+                Expanded(child: primaryMetrics[1]),
+                Expanded(child: primaryMetrics[2]),
+                Expanded(child: primaryMetrics[3]),
+                Expanded(child: bookmarkButton),
+                Expanded(child: shareButton),
+              ],
+            );
+          }
 
-          // Repost / Retweet
-          CommunityEngagementButton(
-            icon: Icons.repeat_rounded,
-            count: reposts > 0 ? uiCompactNumber(reposts) : '',
-            tooltip: 'Repost',
-            isActive: reposted,
-            activeColor: theme.colors.bullish,
-            hoverColor: theme.colors.bullish.withValues(alpha: 0.06),
-            onTap: onRepost,
-            isMobile: isMobile,
-          ),
-
-          // Like / Heart
-          CommunityEngagementButton(
-            icon: liked
-                ? Icons.favorite_rounded
-                : Icons.favorite_border_rounded,
-            count: likes > 0 ? uiCompactNumber(likes) : '',
-            tooltip: liked ? 'Unlike' : 'Like',
-            isActive: liked,
-            activeColor: Colors.redAccent,
-            hoverColor: Colors.redAccent.withValues(alpha: 0.06),
-            onTap: onLike,
-            isMobile: isMobile,
-          ),
-
-          // Views / Impressions
-          CommunityEngagementButton(
-            icon: Icons.bar_chart_rounded,
-            count: views > 0 ? uiCompactNumber(views) : '',
-            tooltip: 'Views',
-            activeColor: theme.colors.primary,
-            hoverColor: theme.colors.primary.withValues(alpha: 0.06),
-            onTap: onViewStats,
-            isMobile: isMobile,
-          ),
-
-          // Bookmark
-          CommunityEngagementButton(
-            icon: bookmarked
-                ? Icons.bookmark_rounded
-                : Icons.bookmark_border_rounded,
-            count: '',
-            tooltip: bookmarked ? 'Remove bookmark' : 'Bookmark',
-            isActive: bookmarked,
-            activeColor: theme.colors.warning,
-            hoverColor: theme.colors.warning.withValues(alpha: 0.06),
-            onTap: onBookmark,
-            isMobile: isMobile,
-          ),
-
-          // Share
-          CommunityEngagementButton(
-            icon: Icons.ios_share_rounded,
-            count: '',
-            tooltip: 'Share',
-            activeColor: theme.colors.primary,
-            hoverColor: theme.colors.primary.withValues(alpha: 0.06),
-            onTap: onShare,
-            isMobile: isMobile,
-          ),
-        ],
+          return Row(
+            children: <Widget>[
+              // Primary metrics spaced evenly up to 440px max width
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: primaryMetrics,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              // Utility actions grouped neatly on the far right
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  bookmarkButton,
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  shareButton,
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -186,11 +227,11 @@ class CommunityEngagementButton extends StatelessWidget {
           message: tooltip,
           child: Container(
             padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 6 : 8,
+              horizontal: isMobile ? 2 : 8,
               vertical: 4,
             ),
             constraints: isMobile
-                ? const BoxConstraints(minWidth: 44, minHeight: 44)
+                ? const BoxConstraints(minHeight: 38)
                 : const BoxConstraints(minHeight: 32),
             alignment: Alignment.center,
             decoration: BoxDecoration(
@@ -199,22 +240,32 @@ class CommunityEngagementButton extends StatelessWidget {
                   : Colors.transparent,
               borderRadius: context.radius(theme.radii.sm),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(icon, size: ctx.sz(17), color: effectiveColor),
-                if (count.isNotEmpty) ...<Widget>[
-                  SizedBox(width: ctx.sp(theme.spacing.xxs)),
-                  Text(
-                    count,
-                    style: ctx.uiText.caption.copyWith(
-                      color: effectiveColor,
-                      fontSize: ctx.fs(12),
-                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                    ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Icon(
+                    icon,
+                    size: isMobile ? ctx.sz(16) : ctx.sz(17),
+                    color: effectiveColor,
                   ),
+                  if (count.isNotEmpty) ...<Widget>[
+                    SizedBox(width: isMobile ? 3 : ctx.sp(theme.spacing.xxs)),
+                    Text(
+                      count,
+                      style: ctx.uiText.caption.copyWith(
+                        color: effectiveColor,
+                        fontSize: isMobile ? ctx.fs(11.5) : ctx.fs(12),
+                        fontWeight:
+                            isActive ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         );

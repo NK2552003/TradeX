@@ -94,6 +94,7 @@ class UiResponsive {
   bool get isDesktop =>
       deviceType == UiDeviceType.desktop ||
       deviceType == UiDeviceType.largeDesktop;
+  bool get isLargeDesktop => deviceType == UiDeviceType.largeDesktop;
   bool get isCompact => isMobile;
   bool get isLandscape => orientation == Orientation.landscape;
 

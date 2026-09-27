@@ -1,0 +1,428 @@
+import 'dart:async';
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/messages/data/messages_seed_data.dart';
+import 'package:tradex/features/messages/models/messages_models.dart';
+
+/// Reactive store for the Messages feature.
+///
+/// A plain [ChangeNotifier] — views `addListener`/`removeListener` and rebuild.
+/// State is seeded once from [MessagesSeed]; every mutation is local and
+/// optimistic, with a simulated peer reply so the thread feels alive. Each
+/// mutation documents the backend call it stands in for.
+class MessagesRepository extends ChangeNotifier {
+  MessagesRepository() {
+    _threads = MessagesSeed.threads();
+    _requests = MessagesSeed.requests();
+    _messages = MessagesSeed.messagesByThread();
+  }
+
+  late List<MessageThread> _threads;
+  late List<MessageThread> _requests;
+  late Map<String, List<ChatMessage>> _messages;
+  final Set<String> _typing = <String>{};
+  final List<Timer> _pending = <Timer>[];
+
+  final Random _rng = Random(7);
+
+  static const List<String> _autoReplies = <String>[
+    'Got it — thanks for sharing 🙏',
+    'On it. Give me a few minutes to look.',
+    'Solid. That lines up with what I am seeing.',
+    'Nice one. Let us review it after the close.',
+    'Appreciate it. Adding this to my notes now.',
+    'Good call. I will mirror that in my rules.',
+  ];
+
+  // ---------------------------------------------------------------------------
+  // Reads
+  // ---------------------------------------------------------------------------
+
+  /// Active (non-archived) threads, pinned first then most-recent.
+  List<MessageThread> get threads {
+    final List<MessageThread> live =
+        _threads.where((MessageThread t) => !t.archived).toList()
+          ..sort(_byPinnedThenRecency);
+    return live;
+  }
+
+  List<MessageThread> get archivedThreads =>
+      _threads.where((MessageThread t) => t.archived).toList()
+        ..sort(_byPinnedThenRecency);
+
+  List<MessageThread> get requests => List<MessageThread>.unmodifiable(_requests);
+
+  /// Total unread across active threads + pending requests, for the nav badge.
+  int get unreadCount =>
+      threads.fold<int>(0, (int sum, MessageThread t) => sum + t.unread) +
+      _requests.fold<int>(0, (int sum, MessageThread t) => sum + t.unread);
+
+  int get requestCount => _requests.length;
+
+  bool isTyping(String threadId) => _typing.contains(threadId);
+
+  MessageThread? threadById(String id) {
+    for (final MessageThread t in _threads) {
+      if (t.id == id) return t;
+    }
+    for (final MessageThread t in _requests) {
+      if (t.id == id) return t;
+    }
+    return null;
+  }
+
+  List<ChatMessage> messagesFor(String threadId) =>
+      List<ChatMessage>.unmodifiable(_messages[threadId] ?? const <ChatMessage>[]);
+
+  /// Records the composer can attach.
+  List<AppLinkRef> get shareableRefs => MessagesSeed.shareableRefs();
+
+  /// Emoji offered in the composer's quick-reaction row.
+  List<String> get quickReactions => MessagesSeed.quickReactions;
+
+  /// Applies the inbox [filter] then a free-text [query] over title + preview.
+  List<MessageThread> filtered(ThreadFilter filter, String query) {
+    Iterable<MessageThread> base = switch (filter) {
+      ThreadFilter.requests => _requests,
+      _ => threads,
+    };
+    base = switch (filter) {
+      ThreadFilter.unread => base.where((MessageThread t) => t.hasUnread),
+      ThreadFilter.direct => base.where((MessageThread t) => !t.isGroup),
+      ThreadFilter.groups => base.where((MessageThread t) => t.isGroup),
+      _ => base,
+    };
+    final String q = query.trim().toLowerCase();
+    if (q.isEmpty) return base.toList();
+    return base
+        .where(
+          (MessageThread t) =>
+              t.title.toLowerCase().contains(q) ||
+              t.lastMessagePreview.toLowerCase().contains(q) ||
+              t.peer.handle.toLowerCase().contains(q),
+        )
+        .toList();
+  }
+
+  int _byPinnedThenRecency(MessageThread a, MessageThread b) {
+    if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
+    return b.lastMessageAt.compareTo(a.lastMessageAt);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mutations
+  // ---------------------------------------------------------------------------
+
+  /// Sends a message. Optimistically appended as [MessageStatus.sending], then
+  /// advanced to delivered/read; a peer auto-reply follows on direct threads.
+  ///
+  /// @backend POST /threads/{id}/messages then stream status + inbound replies.
+  void sendMessage(
+    String threadId, {
+    String body = '',
+    MessageAttachment? attachment,
+    AppLinkRef? sharedRef,
+  }) {
+    if (body.trim().isEmpty && attachment == null && sharedRef == null) return;
+    final ChatMessage message = ChatMessage(
+      id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
+      threadId: threadId,
+      body: body.trim(),
+      fromMe: true,
+      sentAt: DateTime.now(),
+      status: MessageStatus.sending,
+      attachment: attachment,
+      sharedRef: sharedRef,
+    );
+    _messages.putIfAbsent(threadId, () => <ChatMessage>[]).add(message);
+    _touchThread(
+      threadId,
+      preview: _previewFor(message),
+      fromMe: true,
+      status: MessageStatus.sending,
+      clearDraft: true,
+    );
+    notifyListeners();
+
+    // Simulated transport: sending → sent → delivered, then a peer reply.
+    _after(const Duration(milliseconds: 350), () {
+      _setStatus(threadId, message.id, MessageStatus.sent);
+    });
+    _after(const Duration(milliseconds: 900), () {
+      _setStatus(threadId, message.id, MessageStatus.delivered);
+    });
+
+    final MessageThread? thread = threadById(threadId);
+    if (thread != null && !thread.isGroup && !thread.isRequest) {
+      _simulatePeerReply(threadId);
+    }
+  }
+
+  /// Convenience wrapper used by the share-to-conversation flow.
+  ///
+  /// @backend POST /threads/{id}/messages with an entity reference payload.
+  void sendSharedRef(String threadId, AppLinkRef ref, {String note = ''}) =>
+      sendMessage(threadId, body: note, sharedRef: ref);
+
+  /// Marks every message in a thread read and clears its unread badge.
+  ///
+  /// @backend POST /threads/{id}/read { upTo: `messageId` }.
+  void markThreadRead(String threadId) {
+    final int idx = _threads.indexWhere((MessageThread t) => t.id == threadId);
+    if (idx == -1 || _threads[idx].unread == 0) return;
+    _threads[idx] = _threads[idx].copyWith(unread: 0);
+    notifyListeners();
+  }
+
+  /// Toggles a per-message emoji reaction for the signed-in trader.
+  ///
+  /// @backend PUT/DELETE /messages/{id}/reactions/{emoji}.
+  void toggleReaction(String threadId, String messageId, String emoji) {
+    final List<ChatMessage>? list = _messages[threadId];
+    if (list == null) return;
+    final int i = list.indexWhere((ChatMessage m) => m.id == messageId);
+    if (i == -1) return;
+    final ChatMessage m = list[i];
+    final Map<String, int> counts = Map<String, int>.of(m.reactions);
+    final Set<String> mine = Set<String>.of(m.myReactions);
+    if (mine.contains(emoji)) {
+      mine.remove(emoji);
+      final int next = (counts[emoji] ?? 1) - 1;
+      if (next <= 0) {
+        counts.remove(emoji);
+      } else {
+        counts[emoji] = next;
+      }
+    } else {
+      mine.add(emoji);
+      counts[emoji] = (counts[emoji] ?? 0) + 1;
+    }
+    list[i] = m.copyWith(reactions: counts, myReactions: mine);
+    notifyListeners();
+  }
+
+  /// Removes a message the trader sent.
+  ///
+  /// @backend DELETE /messages/{id}.
+  void deleteMessage(String threadId, String messageId) {
+    final List<ChatMessage>? list = _messages[threadId];
+    if (list == null) return;
+    list.removeWhere((ChatMessage m) => m.id == messageId);
+    final ChatMessage? last = list.isEmpty ? null : list.last;
+    if (last != null) {
+      _touchThread(
+        threadId,
+        preview: _previewFor(last),
+        fromMe: last.fromMe,
+        status: last.status,
+        at: last.sentAt,
+      );
+    }
+    notifyListeners();
+  }
+
+  /// Starts (or reopens) a direct thread with [peer] and returns its id.
+  ///
+  /// @backend POST /threads { participantId }.
+  String startConversation(AppTrader peer) {
+    final int existing = _threads.indexWhere(
+      (MessageThread t) => !t.isGroup && t.peer.id == peer.id,
+    );
+    if (existing != -1) {
+      if (_threads[existing].archived) {
+        _threads[existing] = _threads[existing].copyWith(archived: false);
+        notifyListeners();
+      }
+      return _threads[existing].id;
+    }
+    final String id = 'thread_new_${DateTime.now().millisecondsSinceEpoch}';
+    _threads.insert(
+      0,
+      MessageThread(
+        id: id,
+        peer: peer,
+        presence: MessagePresence.online,
+        lastMessagePreview: 'Say hi to ${peer.displayName ?? peer.handle} 👋',
+        lastMessageAt: DateTime.now(),
+      ),
+    );
+    _messages[id] = <ChatMessage>[];
+    notifyListeners();
+    return id;
+  }
+
+  /// @backend PATCH /threads/{id} { pinned }.
+  void togglePin(String threadId) => _mutateThread(
+    threadId,
+    (MessageThread t) => t.copyWith(pinned: !t.pinned),
+  );
+
+  /// @backend PATCH /threads/{id} { muted }.
+  void toggleMute(String threadId) => _mutateThread(
+    threadId,
+    (MessageThread t) => t.copyWith(muted: !t.muted),
+  );
+
+  /// @backend PATCH /threads/{id} { archived }.
+  void toggleArchive(String threadId) => _mutateThread(
+    threadId,
+    (MessageThread t) => t.copyWith(archived: !t.archived),
+  );
+
+  /// Accepts a message request, promoting it into the main inbox.
+  ///
+  /// @backend POST /requests/{id}/accept.
+  String acceptRequest(String requestId) {
+    final int i = _requests.indexWhere((MessageThread t) => t.id == requestId);
+    if (i == -1) return requestId;
+    final MessageThread promoted = _requests.removeAt(i).copyWith(
+      isRequest: false,
+      unread: 0,
+    );
+    _threads.insert(0, promoted);
+    // Fold in a system notice so the transition is visible in the thread.
+    _messages.putIfAbsent(promoted.id, () => <ChatMessage>[]).add(
+      ChatMessage(
+        id: '${promoted.id}_sys',
+        threadId: promoted.id,
+        body: 'You accepted the message request.',
+        fromMe: false,
+        sentAt: DateTime.now(),
+        systemNotice: true,
+      ),
+    );
+    notifyListeners();
+    return promoted.id;
+  }
+
+  /// @backend POST /requests/{id}/decline.
+  void declineRequest(String requestId) {
+    _requests.removeWhere((MessageThread t) => t.id == requestId);
+    notifyListeners();
+  }
+
+  /// Persists the unsent composer text so it survives navigation.
+  ///
+  /// @backend local only (draft cache).
+  void setDraft(String threadId, String draft) {
+    final int idx = _threads.indexWhere((MessageThread t) => t.id == threadId);
+    if (idx == -1) return;
+    if (_threads[idx].draft == draft) return;
+    _threads[idx] = _threads[idx].copyWith(draft: draft);
+    // No notify: drafts must not rebuild the whole inbox on every keystroke.
+  }
+
+  // ---------------------------------------------------------------------------
+  // Internal helpers
+  // ---------------------------------------------------------------------------
+
+  void _simulatePeerReply(String threadId) {
+    _after(const Duration(milliseconds: 1100), () {
+      _typing.add(threadId);
+      notifyListeners();
+    });
+    _after(Duration(milliseconds: 2200 + _rng.nextInt(1200)), () {
+      _typing.remove(threadId);
+      final MessageThread? thread = threadById(threadId);
+      if (thread == null) return;
+      final ChatMessage reply = ChatMessage(
+        id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
+        threadId: threadId,
+        body: _autoReplies[_rng.nextInt(_autoReplies.length)],
+        fromMe: false,
+        sentAt: DateTime.now(),
+      );
+      _messages.putIfAbsent(threadId, () => <ChatMessage>[]).add(reply);
+      // An open thread is being read, so do not inflate its unread counter.
+      _touchThread(
+        threadId,
+        preview: reply.body,
+        fromMe: false,
+        status: MessageStatus.read,
+      );
+      notifyListeners();
+    });
+  }
+
+  void _setStatus(String threadId, String messageId, MessageStatus status) {
+    final List<ChatMessage>? list = _messages[threadId];
+    if (list == null) return;
+    final int i = list.indexWhere((ChatMessage m) => m.id == messageId);
+    if (i == -1) return;
+    list[i] = list[i].copyWith(status: status);
+    final int t = _threads.indexWhere((MessageThread th) => th.id == threadId);
+    if (t != -1 && _threads[t].lastFromMe) {
+      _threads[t] = _threads[t].copyWith(lastStatus: status);
+    }
+    notifyListeners();
+  }
+
+  void _touchThread(
+    String threadId, {
+    required String preview,
+    required bool fromMe,
+    MessageStatus status = MessageStatus.read,
+    DateTime? at,
+    bool clearDraft = false,
+  }) {
+    final int idx = _threads.indexWhere((MessageThread t) => t.id == threadId);
+    if (idx == -1) return;
+    _threads[idx] = _threads[idx].copyWith(
+      lastMessagePreview: preview,
+      lastMessageAt: at ?? DateTime.now(),
+      lastFromMe: fromMe,
+      lastStatus: status,
+      draft: clearDraft ? '' : null,
+    );
+  }
+
+  void _mutateThread(
+    String threadId,
+    MessageThread Function(MessageThread) update,
+  ) {
+    final int idx = _threads.indexWhere((MessageThread t) => t.id == threadId);
+    if (idx == -1) return;
+    _threads[idx] = update(_threads[idx]);
+    notifyListeners();
+  }
+
+  String _previewFor(ChatMessage m) {
+    if (m.body.trim().isNotEmpty) return m.body.trim();
+    if (m.sharedRef != null) return 'Shared ${m.sharedRef!.kind.label.toLowerCase()}';
+    if (m.attachment != null) return m.attachment!.kind.label;
+    return 'Message';
+  }
+
+  void _after(Duration d, VoidCallback fn) {
+    late Timer timer;
+    timer = Timer(d, () {
+      _pending.remove(timer);
+      fn();
+    });
+    _pending.add(timer);
+  }
+
+  @override
+  void dispose() {
+    for (final Timer t in _pending) {
+      t.cancel();
+    }
+    _pending.clear();
+    super.dispose();
+  }
+}
+
+/// Static accessor so overlays and cross-feature callers can reach the shared
+/// repository without threading it through constructors.
+class MessagesRepositoryScope {
+  MessagesRepositoryScope._();
+
+  static MessagesRepository? _instance;
+
+  static MessagesRepository get repository =>
+      _instance ??= MessagesRepository();
+
+  static set repository(MessagesRepository repo) => _instance = repo;
+}

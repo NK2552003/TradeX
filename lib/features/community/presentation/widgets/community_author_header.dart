@@ -22,6 +22,7 @@ class CommunityAuthorHeader extends StatelessWidget {
     this.onMute,
     this.onReport,
     this.onMoreTap,
+    this.onEdit,
   });
 
   final CommunityAuthor author;
@@ -35,6 +36,7 @@ class CommunityAuthorHeader extends StatelessWidget {
   final VoidCallback? onMute;
   final VoidCallback? onReport;
   final VoidCallback? onMoreTap;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -71,6 +73,17 @@ class CommunityAuthorHeader extends StatelessWidget {
               ? _buildStackedMeta(context, theme, verifiedColor, timeAgo)
               : _buildInlineMeta(context, theme, verifiedColor, timeAgo),
         ),
+        if (onEdit != null) ...[
+          UiButton(
+            label: 'Edit',
+            icon: Icons.edit_outlined,
+            size: UiSize.xs,
+            variant: UiVariant.soft,
+            intent: UiIntent.primary,
+            onPressed: onEdit,
+          ),
+          SizedBox(width: context.sp(theme.spacing.xs)),
+        ],
         if (onMoreTap != null)
           UiIconButton(
             icon: Icons.more_horiz_rounded,
@@ -218,6 +231,12 @@ class CommunityAuthorHeader extends StatelessWidget {
   Widget _buildOverflowMenu(BuildContext context) {
     return UiDropdownMenu(
       actions: <UiMenuItem>[
+        if (onEdit != null)
+          UiMenuItem(
+            label: 'Edit post',
+            icon: Icons.edit_outlined,
+            onPressed: onEdit!,
+          ),
         if (onShare != null)
           UiMenuItem(
             label: 'Copy link to post',

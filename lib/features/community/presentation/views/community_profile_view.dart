@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
@@ -18,6 +19,8 @@ class CommunityProfileView extends StatefulWidget {
     this.isCurrentUser = false,
     this.onBack,
     this.onFollow,
+    this.onPostTap,
+    this.onOpenRef,
   });
 
   final CommunityAuthor author;
@@ -25,6 +28,8 @@ class CommunityProfileView extends StatefulWidget {
   final bool isCurrentUser;
   final VoidCallback? onBack;
   final ValueChanged<CommunityAuthor>? onFollow;
+  final ValueChanged<CommunityPost>? onPostTap;
+  final ValueChanged<AppLinkRef>? onOpenRef;
 
   @override
   State<CommunityProfileView> createState() => _CommunityProfileViewState();
@@ -35,57 +40,47 @@ class _CommunityProfileViewState extends State<CommunityProfileView> {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
 
+    final bool showAppBar = !widget.isCurrentUser && widget.onBack != null;
+
     return Scaffold(
       backgroundColor: theme.colors.background,
-      appBar: AppBar(
-        backgroundColor: theme.colors.surface,
-        elevation: 0,
-        leading: widget.onBack != null
-            ? UiIconButton(
+      appBar: showAppBar
+          ? AppBar(
+              backgroundColor: theme.colors.surface,
+              elevation: 0,
+              leading: UiIconButton(
                 icon: Icons.arrow_back_rounded,
                 size: UiSize.sm,
                 tooltip: 'Back',
                 onPressed: widget.onBack,
-              )
-            : null,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Text(
-                  widget.author.displayName,
-                  style: context.uiText.heading.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (widget.author.verified) ...<Widget>[
-                  SizedBox(width: context.sp(theme.spacing.xxs)),
-                  Icon(
-                    Icons.verified_rounded,
-                    color: widget.author.verifiedColor(theme),
-                    size: context.sz(16),
-                  ),
-                ],
-              ],
-            ),
-            Text(
-              '${widget.author.postsCount} posts',
-              style: context.uiText.caption.copyWith(
-                color: theme.colors.foregroundMuted,
-                fontSize: context.fs(11),
               ),
-            ),
-          ],
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: theme.colors.border.withValues(alpha: 0.6),
-            height: theme.borders.hairline,
-          ),
-        ),
-      ),
+              title: Row(
+                children: <Widget>[
+                  Text(
+                    widget.author.displayName,
+                    style: context.uiText.heading.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (widget.author.verified) ...<Widget>[
+                    SizedBox(width: context.sp(theme.spacing.xxs)),
+                    Icon(
+                      Icons.verified_rounded,
+                      color: widget.author.verifiedColor(theme),
+                      size: context.sz(16),
+                    ),
+                  ],
+                ],
+              ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(1),
+                child: Container(
+                  color: theme.colors.border.withValues(alpha: 0.6),
+                  height: theme.borders.hairline,
+                ),
+              ),
+            )
+          : null,
       body: TraderProfilePreviewPage(
         displayName: widget.author.displayName,
         handle: widget.author.handle,
@@ -99,6 +94,11 @@ class _CommunityProfileViewState extends State<CommunityProfileView> {
         referralCode: widget.author.referralCode,
         channelHandle: widget.author.channelHandle,
         audienceReach: widget.author.audienceReach,
+        repository: widget.repository,
+        author: widget.author,
+        onPostTap: widget.onPostTap,
+        onOpenRef: widget.onOpenRef,
+        isCurrentUser: widget.isCurrentUser,
       ),
     );
   }

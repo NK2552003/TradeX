@@ -327,11 +327,11 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
               activeReplyingCommentId: _activeReplyingCommentId,
               replyCtrl: _replyCtrl,
               submittingReply: _submittingReply,
-              onStartReply: () => _startReply(comment),
+              onStartReply: _startReply,
               onCancelReply: () => setState(() => _activeReplyingCommentId = null),
-              onSubmitReply: () => _submitReply(comment.id, comment.author),
-              onLike: () => widget.onLikeComment?.call(comment.id),
-              onReact: (reaction) => widget.onLikeComment?.call(comment.id, reaction: reaction),
+              onSubmitReply: _submitReply,
+              onLike: (id) => widget.onLikeComment?.call(id),
+              onReact: (id, reaction) => widget.onLikeComment?.call(id, reaction: reaction),
               onAuthorTap: widget.onAuthorTap,
               onTagTap: widget.onTagTap,
               indent: 0,
@@ -375,11 +375,11 @@ class _LinkedInCommentTile extends StatefulWidget {
   final String? activeReplyingCommentId;
   final TextEditingController replyCtrl;
   final bool submittingReply;
-  final VoidCallback onStartReply;
+  final void Function(CommunityComment comment) onStartReply;
   final VoidCallback onCancelReply;
-  final VoidCallback onSubmitReply;
-  final VoidCallback onLike;
-  final ValueChanged<String> onReact;
+  final void Function(String parentId, CommunityAuthor author) onSubmitReply;
+  final void Function(String commentId) onLike;
+  final void Function(String commentId, String reaction) onReact;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<String>? onTagTap;
   final int indent;
@@ -391,6 +391,46 @@ class _LinkedInCommentTile extends StatefulWidget {
 class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
   bool _repliesCollapsed = false;
   bool _showReactionPicker = false;
+
+  static const List<Map<String, String>> _availableReactions = [
+    {'emoji': '👍', 'label': 'Like'},
+    {'emoji': '🚀', 'label': 'Bullish'},
+    {'emoji': '💡', 'label': 'Insightful'},
+    {'emoji': '🔥', 'label': 'Fire'},
+    {'emoji': '❤️', 'label': 'Love'},
+  ];
+
+  String _reactionLabel(String? reaction) {
+    switch (reaction) {
+      case '🚀':
+        return 'Bullish';
+      case '💡':
+        return 'Insightful';
+      case '🔥':
+        return 'Fire';
+      case '❤️':
+        return 'Love';
+      case '👍':
+      default:
+        return 'Like';
+    }
+  }
+
+  Color _reactionColor(String? reaction, UiTheme theme) {
+    switch (reaction) {
+      case '🚀':
+        return theme.colors.success;
+      case '💡':
+        return theme.colors.warning;
+      case '🔥':
+        return theme.colors.danger;
+      case '❤️':
+        return theme.colors.danger;
+      case '👍':
+      default:
+        return theme.colors.primary;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -460,7 +500,7 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          // Top Header: Name, Verified, Role, Headline, Time
+                          // Top Header: Name, Verified, Role, Sentiment, Headline, Time
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
@@ -471,6 +511,7 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                                     Wrap(
                                       crossAxisAlignment: WrapCrossAlignment.center,
                                       spacing: context.sp(theme.spacing.xxs),
+                                      runSpacing: 2,
                                       children: <Widget>[
                                         GestureDetector(
                                           onTap: widget.onAuthorTap == null
@@ -500,9 +541,21 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                                             variant: UiBadgeVariant.solid,
                                             size: UiSize.xs,
                                           ),
+                                        if (comment.sentiment != null &&
+                                            comment.sentiment!.trim().isNotEmpty)
+                                          UiBadge(
+                                            label: comment.sentiment!.toUpperCase(),
+                                            intent: comment.sentiment!.toUpperCase() == 'BULLISH'
+                                                ? UiIntent.success
+                                                : (comment.sentiment!.toUpperCase() == 'BEARISH'
+                                                    ? UiIntent.danger
+                                                    : UiIntent.info),
+                                            variant: UiBadgeVariant.soft,
+                                            size: UiSize.xs,
+                                          ),
                                       ],
                                     ),
-                                    SizedBox(height: 2),
+                                    const SizedBox(height: 2),
                                     // Professional Trader Headline
                                     Text(
                                       _getTraderHeadline(author),
@@ -550,25 +603,37 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                       ),
                       child: Row(
                         children: <Widget>[
-                          // Reaction summary badge if liked
+                          // Dynamic reaction summary badge if liked
                           if (comment.likes > 0) ...<Widget>[
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: context.sp(theme.spacing.xs),
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: theme.colors.surfaceHover,
                                 borderRadius: context.radius(theme.radii.pill),
+                                border: Border.all(
+                                  color: theme.colors.border.withValues(alpha: 0.5),
+                                  width: theme.borders.hairline,
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text('👍 🚀', style: TextStyle(fontSize: 10)),
-                                  SizedBox(width: 4),
+                                  Text(
+                                    comment.displayReactions.join(' '),
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                  const SizedBox(width: 4),
                                   Text(
                                     '${comment.likes}',
                                     style: context.uiText.caption.copyWith(
                                       fontSize: context.fs(11),
                                       fontWeight: FontWeight.w600,
-                                      color: theme.colors.foregroundMuted,
+                                      color: comment.liked
+                                          ? theme.colors.primary
+                                          : theme.colors.foregroundMuted,
                                     ),
                                   ),
                                 ],
@@ -577,29 +642,57 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                             SizedBox(width: context.sp(theme.spacing.xs)),
                           ],
 
-                          // Like / React Button
+                          // Interactive Like / Reaction Button
                           InkWell(
-                            onTap: widget.onLike,
+                            onTap: () => widget.onLike(comment.id),
                             borderRadius: context.radius(theme.radii.sm),
                             child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: context.sp(theme.spacing.xxs),
+                                vertical: 2,
+                              ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: <Widget>[
-                                  Icon(
-                                    comment.liked ? Icons.thumb_up_rounded : Icons.thumb_up_alt_outlined,
-                                    size: context.sz(13),
-                                    color: comment.liked ? theme.colors.primary : theme.colors.foregroundMuted,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Like',
-                                    style: context.uiText.caption.copyWith(
-                                      color: comment.liked ? theme.colors.primary : theme.colors.foregroundMuted,
-                                      fontWeight: comment.liked ? FontWeight.w700 : FontWeight.w500,
-                                      fontSize: context.fs(11),
+                                  if (comment.liked &&
+                                      comment.userReaction != null &&
+                                      comment.userReaction != '👍') ...[
+                                    Text(
+                                      comment.userReaction!,
+                                      style: const TextStyle(fontSize: 12),
                                     ),
-                                  ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _reactionLabel(comment.userReaction),
+                                      style: context.uiText.caption.copyWith(
+                                        color: _reactionColor(comment.userReaction, theme),
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: context.fs(11),
+                                      ),
+                                    ),
+                                  ] else ...[
+                                    Icon(
+                                      comment.liked
+                                          ? Icons.thumb_up_rounded
+                                          : Icons.thumb_up_alt_outlined,
+                                      size: context.sz(13),
+                                      color: comment.liked
+                                          ? theme.colors.primary
+                                          : theme.colors.foregroundMuted,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Like',
+                                      style: context.uiText.caption.copyWith(
+                                        color: comment.liked
+                                            ? theme.colors.primary
+                                            : theme.colors.foregroundMuted,
+                                        fontWeight:
+                                            comment.liked ? FontWeight.w700 : FontWeight.w500,
+                                        fontSize: context.fs(11),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -609,10 +702,13 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
 
                           // Reply Button
                           InkWell(
-                            onTap: widget.onStartReply,
+                            onTap: () => widget.onStartReply(comment),
                             borderRadius: context.radius(theme.radii.sm),
                             child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: context.sp(theme.spacing.xxs),
+                                vertical: 2,
+                              ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: <Widget>[
@@ -635,44 +731,76 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                           ),
 
                           // Quick reaction emoji picker popup toggle
-                          SizedBox(width: context.sp(theme.spacing.xs)),
-                          InkWell(
-                            onTap: () => setState(() => _showReactionPicker = !_showReactionPicker),
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                              child: Text('➕', style: TextStyle(fontSize: 10)),
+                          SizedBox(width: context.sp(theme.spacing.xxs)),
+                          Tooltip(
+                            message: 'React with emoji',
+                            child: InkWell(
+                              onTap: () => setState(() => _showReactionPicker = !_showReactionPicker),
+                              borderRadius: context.radius(theme.radii.sm),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                                child: Icon(
+                                  _showReactionPicker
+                                      ? Icons.close_rounded
+                                      : Icons.add_reaction_outlined,
+                                  size: context.sz(13),
+                                  color: _showReactionPicker
+                                      ? theme.colors.primary
+                                      : theme.colors.foregroundMuted,
+                                ),
+                              ),
                             ),
                           ),
 
                           if (_showReactionPicker) ...<Widget>[
                             SizedBox(width: context.sp(theme.spacing.xs)),
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                               decoration: BoxDecoration(
                                 color: theme.colors.surface,
                                 borderRadius: context.radius(theme.radii.pill),
-                                border: Border.all(color: theme.colors.border),
+                                border: Border.all(
+                                  color: theme.colors.border.withValues(alpha: 0.8),
+                                  width: theme.borders.hairline,
+                                ),
+                                boxShadow: <BoxShadow>[
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.16),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _quickEmoji('🚀', () {
-                                    widget.onReact('🚀');
-                                    setState(() => _showReactionPicker = false);
-                                  }),
-                                  _quickEmoji('💡', () {
-                                    widget.onReact('💡');
-                                    setState(() => _showReactionPicker = false);
-                                  }),
-                                  _quickEmoji('🔥', () {
-                                    widget.onReact('🔥');
-                                    setState(() => _showReactionPicker = false);
-                                  }),
-                                  _quickEmoji('❤️', () {
-                                    widget.onReact('❤️');
-                                    setState(() => _showReactionPicker = false);
-                                  }),
-                                ],
+                                children: _availableReactions.map((r) {
+                                  final emoji = r['emoji']!;
+                                  final label = r['label']!;
+                                  final isSelected = comment.liked && comment.userReaction == emoji;
+                                  return Tooltip(
+                                    message: label,
+                                    child: InkWell(
+                                      onTap: () {
+                                        widget.onReact(comment.id, emoji);
+                                        setState(() => _showReactionPicker = false);
+                                      },
+                                      borderRadius: context.radius(theme.radii.pill),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? theme.colors.primary.withValues(alpha: 0.16)
+                                              : Colors.transparent,
+                                          borderRadius: context.radius(theme.radii.pill),
+                                        ),
+                                        child: Text(
+                                          emoji,
+                                          style: const TextStyle(fontSize: 13),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
                               ),
                             ),
                           ],
@@ -713,7 +841,7 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                               size: UiSize.xs,
                               loading: widget.submittingReply,
                               expandOnMobile: false,
-                              onPressed: widget.onSubmitReply,
+                              onPressed: () => widget.onSubmitReply(comment.id, comment.author),
                             ),
                           ],
                         ),
@@ -734,7 +862,7 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                               size: context.sz(14),
                               color: theme.colors.primary,
                             ),
-                            SizedBox(width: 4),
+                            const SizedBox(width: 4),
                             Text(
                               _repliesCollapsed
                                   ? 'Show ${comment.replies.length} ${comment.replies.length == 1 ? "reply" : "replies"}'
@@ -773,16 +901,6 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _quickEmoji(String emoji, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: Text(emoji, style: const TextStyle(fontSize: 12)),
       ),
     );
   }

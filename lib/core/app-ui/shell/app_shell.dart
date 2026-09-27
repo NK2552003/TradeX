@@ -123,13 +123,55 @@ class _AppShellState extends State<AppShell> {
   bool _collapsed = false;
   bool _researchVisible = true;
 
-  /// The dock owns its own page index and reads `initialIndex` exactly once, so
-  /// the shell drives it through a controller instead. Without this, navigation
-  /// that starts anywhere but the dock — the top bar, the quick grid, a
-  /// cross-link between pages — would leave the dock on the previous
-  /// destination while a different page is on screen.
-  late final QuietDockController _dockController;
+  /// Two separate dock controllers: one for main workspace navigation, and
+  /// one for the community sub-experience navigation. This prevents index
+  /// cross-contamination and placeholder/skeleton flashes when toggling between
+  /// the main dock and community dock.
+  QuietDockController? _mainDockController;
+  QuietDockController? _communityDockController;
+
+  QuietDockController get _activeDockController {
+    if (_isCommunityRoute) {
+      return _communityDockController ??= QuietDockController(
+        initialIndex: (_dockIndexFor(widget.selectedId) < 0)
+            ? 0
+            : _dockIndexFor(widget.selectedId),
+      );
+    }
+    return _mainDockController ??= QuietDockController(
+      initialIndex: (_dockIndexFor(widget.selectedId) < 0)
+          ? 0
+          : _dockIndexFor(widget.selectedId),
+    );
+  }
+
   bool _calculatorVisible = false;
+  bool _hasEverOpenedCalculator = false;
+
+  void _openCalculator() {
+    if (widget.selectedId == 'calculators') return;
+    setState(() {
+      _calculatorVisible = true;
+      _hasEverOpenedCalculator = true;
+      _collapsed = true;
+    });
+  }
+
+  void _closeCalculator() {
+    setState(() {
+      _calculatorVisible = false;
+      _collapsed = false;
+    });
+  }
+
+  void _toggleCalculator() {
+    if (widget.selectedId == 'calculators') return;
+    if (_calculatorVisible) {
+      _closeCalculator();
+    } else {
+      _openCalculator();
+    }
+  }
 
   bool get _isCommunityRoute =>
       widget.selectedId == 'community' ||
@@ -197,13 +239,30 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
-    final int index = _dockIndexFor(widget.selectedId);
-    _dockController = QuietDockController(initialIndex: index < 0 ? 0 : index);
+    _initDockControllers();
+  }
+
+  void _initDockControllers() {
+    final int mainIndex =
+        !_isCommunityRoute ? _dockIndexFor(widget.selectedId) : 0;
+    final int commIndex =
+        _isCommunityRoute ? _dockIndexFor(widget.selectedId) : 0;
+    _mainDockController ??=
+        QuietDockController(initialIndex: mainIndex < 0 ? 0 : mainIndex);
+    _communityDockController ??=
+        QuietDockController(initialIndex: commIndex < 0 ? 0 : commIndex);
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    _initDockControllers();
   }
 
   @override
   void dispose() {
-    _dockController.dispose();
+    _mainDockController?.dispose();
+    _communityDockController?.dispose();
     super.dispose();
   }
 
@@ -215,21 +274,24 @@ class _AppShellState extends State<AppShell> {
   void didUpdateWidget(covariant AppShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedId != widget.selectedId) {
+      if (widget.selectedId == 'calculators' && _calculatorVisible) {
+        _closeCalculator();
+      }
       _syncDock();
     }
   }
 
   /// Slides the dock to whichever slot owns the new destination.
-  ///
-  /// Deferred to the end of the frame: the dock is a descendant, and moving it
-  /// from here would mark it dirty while this build is still running.
   void _syncDock() {
     final int index = _dockIndexFor(widget.selectedId);
     if (index < 0) return;
+    if (_activeDockController.index != index) {
+      _activeDockController.syncIndex(index);
+    }
     WidgetsBinding.instance.addPostFrameCallback((Duration _) {
       if (!mounted) return;
-      if (_dockController.index != index) {
-        _dockController.syncIndex(index);
+      if (_activeDockController.index != index) {
+        _activeDockController.goToIndex(index);
       }
     });
   }
@@ -309,20 +371,13 @@ class _AppShellState extends State<AppShell> {
       );
     }
 
-    void toggleCalculator() {
-      setState(() {
-        _calculatorVisible = !_calculatorVisible;
-        if (_calculatorVisible) {
-          _collapsed = true; // Collapse left sidebar when opening calculator drawer!
-        }
-      });
-    }
-
     Widget topBar({bool researchVisible = false, VoidCallback? onResearch}) =>
         AppTopBar(
           researchVisible: researchVisible,
           onResearch: onResearch,
-          onCalculator: r.isMobile ? null : toggleCalculator,
+          onCalculator: (r.isMobile || widget.selectedId == 'calculators')
+              ? null
+              : _toggleCalculator,
           calculatorVisible: _calculatorVisible,
           trader: widget.trader,
           tier: widget.tier,
@@ -391,8 +446,11 @@ class _AppShellState extends State<AppShell> {
       // A destination reached from the quick grid or the top bar owns no dock
       // slot, so the page the dock is already showing hosts it.
       final int activeIndex = selectedIndex < 0
-          ? _dockController.index
+          ? _activeDockController.index
           : selectedIndex;
+      if (_activeDockController.index != activeIndex) {
+        _activeDockController.syncIndex(activeIndex);
+      }
       AppNavItem? activeMoreItem;
       for (final AppNavItem item in widget.mobileMoreItems) {
         if (item.id == widget.selectedId) {
@@ -416,7 +474,7 @@ class _AppShellState extends State<AppShell> {
             )
             .toList(),
         initialIndex: activeIndex,
-        controller: _dockController,
+        controller: _activeDockController,
         onDestinationSelected: (int index) {
           if (index >= 0 && index < destinations.length) {
             widget.onSelect(destinations[index].id);
@@ -431,16 +489,11 @@ class _AppShellState extends State<AppShell> {
               ? (activeMoreItem.selectedIcon ?? activeMoreItem.icon)
               : Icons.close_rounded,
           columns: 3,
-          items: _isCommunityRoute
+           items: _isCommunityRoute
               ? <QuickGridItem>[
                   QuickGridItem(
-                    icon: Icons.home_rounded,
-                    label: 'Main App',
-                    onTap: () => widget.onSelect('overview'),
-                  ),
-                  QuickGridItem(
                     icon: Icons.edit_note_rounded,
-                    label: 'Workspace',
+                    label: 'Writing Desk',
                     onTap: () => widget.onSelect('workspace'),
                   ),
                   QuickGridItem(
@@ -467,11 +520,6 @@ class _AppShellState extends State<AppShell> {
                     icon: Icons.calculate_outlined,
                     label: 'Calculators',
                     onTap: () => widget.onSelect('calculators'),
-                  ),
-                  QuickGridItem(
-                    icon: Icons.pie_chart_outline_rounded,
-                    label: 'Portfolio',
-                    onTap: () => widget.onSelect('portfolio'),
                   ),
                   QuickGridItem(
                     icon: Icons.settings_outlined,
@@ -642,14 +690,17 @@ class _AppShellState extends State<AppShell> {
           )
         : ClipRect(
             child: AnimatedContainer(
-              duration: theme.motion.normal,
-              curve: theme.motion.curve,
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeInOutCubic,
               width: _collapsed ? 0 : context.sz(244),
               child: OverflowBox(
-                alignment: Alignment.centerLeft,
+                alignment: Alignment.centerRight,
                 minWidth: context.sz(244),
                 maxWidth: context.sz(244),
-                child: expandedSidebar,
+                child: IgnorePointer(
+                  ignoring: _collapsed,
+                  child: expandedSidebar,
+                ),
               ),
             ),
           );
@@ -731,76 +782,99 @@ class _AppShellState extends State<AppShell> {
                     },
                   ),
                 ),
-                if (_calculatorVisible && !r.isMobile)
-                  Container(
-                    width: context.sz(360),
-                    margin: EdgeInsets.fromLTRB(
-                      0,
-                      context.sp(theme.spacing.xs),
-                      context.sp(theme.spacing.xs + 3),
-                      context.sp(theme.spacing.xs + 3),
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colors.surface,
-                      borderRadius: context.radius(theme.radii.xl),
-                      border: Border.all(
-                        color: theme.colors.border,
-                        width: theme.borders.hairline,
-                      ),
-                      boxShadow: <BoxShadow>[
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.16),
-                          blurRadius: 16,
-                          offset: const Offset(-2, 4),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: context.radius(theme.radii.xl),
-                      child: Column(
-                        children: <Widget>[
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: context.sp(theme.spacing.md),
-                              vertical: context.sp(theme.spacing.xs),
+                if (!r.isMobile && widget.selectedId != 'calculators')
+                  ClipRect(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeInOutCubic,
+                      width: _calculatorVisible
+                          ? (context.sz(360) + context.sp(theme.spacing.xs + 3))
+                          : 0,
+                      child: OverflowBox(
+                        alignment: Alignment.centerLeft,
+                        minWidth: context.sz(360) + context.sp(theme.spacing.xs + 3),
+                        maxWidth: context.sz(360) + context.sp(theme.spacing.xs + 3),
+                        child: IgnorePointer(
+                          ignoring: !_calculatorVisible,
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              0,
+                              context.sp(theme.spacing.xs),
+                              context.sp(theme.spacing.xs + 3),
+                              context.sp(theme.spacing.xs + 3),
                             ),
-                            decoration: BoxDecoration(
-                              color: theme.colors.surface,
-                              border: Border(
-                                bottom: BorderSide(
+                            child: Container(
+                              width: context.sz(360),
+                              decoration: BoxDecoration(
+                                color: theme.colors.surface,
+                                borderRadius: context.radius(theme.radii.xl),
+                                border: Border.all(
                                   color: theme.colors.border,
                                   width: theme.borders.hairline,
                                 ),
+                                boxShadow: <BoxShadow>[
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.16),
+                                    blurRadius: 16,
+                                    offset: const Offset(-2, 4),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: context.radius(theme.radii.xl),
+                                child: Column(
+                                  children: <Widget>[
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: context.sp(theme.spacing.md),
+                                        vertical: context.sp(theme.spacing.xs),
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: theme.colors.surface,
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: theme.colors.border,
+                                            width: theme.borders.hairline,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: <Widget>[
+                                          Icon(
+                                            Icons.calculate_rounded,
+                                            size: context.sz(18),
+                                            color: theme.colors.primary,
+                                          ),
+                                          SizedBox(width: context.sp(theme.spacing.xs)),
+                                          Text(
+                                            'Trading Calculator',
+                                            style: context.uiText.bodyStrong.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          UiIconButton(
+                                            icon: Icons.close_rounded,
+                                            size: UiSize.xs,
+                                            tooltip: 'Close Calculator',
+                                            onPressed: _closeCalculator,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: _hasEverOpenedCalculator
+                                          ? const CalculatorsScreen(
+                                              initiallyOpened: true,
+                                            )
+                                          : const SizedBox.shrink(),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            child: Row(
-                              children: <Widget>[
-                                Icon(
-                                  Icons.calculate_rounded,
-                                  size: context.sz(18),
-                                  color: theme.colors.primary,
-                                ),
-                                SizedBox(width: context.sp(theme.spacing.xs)),
-                                Text(
-                                  'Trading Calculator',
-                                  style: context.uiText.bodyStrong.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const Spacer(),
-                                UiIconButton(
-                                  icon: Icons.close_rounded,
-                                  size: UiSize.xs,
-                                  tooltip: 'Close Calculator',
-                                  onPressed: () => setState(() => _calculatorVisible = false),
-                                ),
-                              ],
-                            ),
                           ),
-                          const Expanded(
-                            child: CalculatorsScreen(),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -2046,10 +2120,11 @@ class AppTopBar extends StatelessWidget {
                     tooltip: 'Help & Guides',
                     onPressed: onHelp ?? onAi,
                   ),
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-
-                  // User Avatar with profile dropdown
-                  _buildUserAvatar(context),
+                  // User Avatar with profile dropdown (hidden on desktop as it already exists in the left sidebar)
+                  if (!context.uiRes.isDesktop) ...<Widget>[
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    _buildUserAvatar(context),
+                  ],
                 ],
               ),
             ],

@@ -17,6 +17,7 @@ import 'package:tradex/features/community/presentation/widgets/community_ai_assi
 import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// The signed-in community shell — three-tier responsive Twitter/X layout.
 ///
@@ -44,6 +45,7 @@ class CommunityRootScreen extends StatefulWidget {
     this.initialTabIndex = 0,
     this.embedInScaffold = true,
     this.repository,
+    this.searchQuery,
   });
 
   final UserRole userRole;
@@ -66,6 +68,9 @@ class CommunityRootScreen extends StatefulWidget {
   /// Optional shared reactive repository. If not provided, an internal
   /// repository will be created and managed by this screen.
   final CommunityRepository? repository;
+
+  /// Search query passed down from the global top header.
+  final String? searchQuery;
 
   @override
   State<CommunityRootScreen> createState() => CommunityRootScreenState();
@@ -118,6 +123,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     super.initState();
     _ownsRepo = widget.repository == null;
     _repo = widget.repository ?? CommunityRepository();
+    _repo.updateCurrentAuthor(_currentAuthor);
     _tabController = TabController(
       length: _hubTabs.length,
       vsync: this,
@@ -130,6 +136,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   @override
   void didUpdateWidget(covariant CommunityRootScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _repo.updateCurrentAuthor(_currentAuthor);
     if (widget.initialTabIndex != oldWidget.initialTabIndex) {
       final int idx = widget.initialTabIndex.clamp(0, _hubTabs.length - 1);
       if (_tabController.index != idx) {
@@ -158,9 +165,15 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // -------------------------------------------------------------------------
 
   CommunityAuthor get _currentAuthor => CommunityAuthor(
-    id: widget.currentTrader?.id ?? 'usr_alex_vance',
-    handle: widget.currentTrader?.handle ?? 'alextrades',
-    displayName: widget.currentTrader?.displayName ?? 'Alex Vance',
+    id: (widget.currentTrader?.id.isNotEmpty ?? false)
+        ? widget.currentTrader!.id
+        : 'usr_nitish_trader',
+    handle: (widget.currentTrader?.handle.isNotEmpty ?? false)
+        ? widget.currentTrader!.handle
+        : 'nitish_trader',
+    displayName: (widget.currentTrader?.displayName?.isNotEmpty ?? false)
+        ? widget.currentTrader!.displayName!
+        : 'Nitish Kumar',
     userRole: widget.userRole,
     avatarUrl: widget.currentTrader?.avatarUrl,
     verified: true,
@@ -201,8 +214,15 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     );
   }
 
+  bool _isMe(CommunityAuthor author) {
+    return author.id == _currentAuthor.id ||
+        author.handle.toLowerCase() == _currentAuthor.handle.toLowerCase() ||
+        author.id == _repo.currentAuthor.id ||
+        author.handle.toLowerCase() == _repo.currentAuthor.handle.toLowerCase();
+  }
+
   void _openAuthorProfile(CommunityAuthor author) {
-    final bool isMe = author.id == _currentAuthor.id;
+    final bool isMe = _isMe(author);
     _openSubpage(
       title: author.displayName,
       page: CommunityProfileView(
@@ -210,6 +230,8 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         repository: _repo,
         isCurrentUser: isMe,
         onBack: _closeSubpage,
+        onPostTap: _openPostDetail,
+        onOpenRef: widget.onOpenRef,
       ),
     );
   }
@@ -266,11 +288,16 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   }
 
   void _openModerationListPage() {
-    _openSubpage(
-      title: 'Safety & Moderation',
-      page: CommunityModerationListPage(
+    showSettingsSideSheet<void>(
+      context,
+      title: 'Muted & Blocked Accounts',
+      subtitle: 'Review restricted and muted trader profiles',
+      desktopWidthRatio: 0.44,
+      maxWidth: 620,
+      minDesktopWidth: 460,
+      child: CommunityModerationListPage(
         repository: _repo,
-        onBack: _closeSubpage,
+        isEmbedded: true,
       ),
     );
   }
@@ -280,17 +307,22 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // -------------------------------------------------------------------------
 
   void _showMobileComposer() {
+    final UiTheme theme = context.ui;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: theme.colors.overlay,
       builder: (BuildContext ctx) => CommunityDensityScope(
         child: Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
-          child: CommunityComposerCard(
-            author: _currentAuthor,
-            repository: _repo,
-            onPostCreated: () => Navigator.of(ctx).pop(),
+          child: SingleChildScrollView(
+            child: CommunityComposerCard(
+              author: _currentAuthor,
+              repository: _repo,
+              isDrawerTile: true,
+              onPostCreated: () => Navigator.of(ctx).pop(),
+            ),
           ),
         ),
       ),
@@ -320,18 +352,27 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
           final bool isMobile = r.isMobile;
           final bool onFeedTab = _tabController.index == 0;
           final double safeBottom = MediaQuery.paddingOf(context).bottom;
+          // In AppShell, MediaQuery.paddingOf(context).bottom already includes the
+          // floating dock clearance (~76px). Position the dock just above it.
           final double floatingBottom = isMobile
-              ? (context.sz(86) + (onFeedTab ? context.sz(54) : 0) + safeBottom)
+              ? (widget.embedInScaffold || safeBottom > 50
+                  ? (safeBottom + context.sp(theme.spacing.xs))
+                  : (context.sz(74) + safeBottom))
+              : context.sp(theme.spacing.lg);
+          final double floatingRight = isMobile
+              ? context.sp(theme.spacing.md)
               : context.sp(theme.spacing.lg);
 
           return Stack(
             children: <Widget>[
               layout,
               Positioned(
-                right: context.sp(theme.spacing.lg),
+                right: floatingRight,
                 bottom: floatingBottom,
                 child: CommunityAiFloatingBar(
                   repository: _repo,
+                  onCompose: _showMobileComposer,
+                  showCompose: isMobile && onFeedTab,
                 ),
               ),
             ],
@@ -354,6 +395,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       onAuthorTap: _openAuthorProfile,
       onCompose: _showMobileComposer,
       onOpenRef: widget.onOpenRef,
+      searchQuery: widget.searchQuery,
     ),
     // 1 — Explore
     CommunityExploreView(
@@ -361,15 +403,22 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       onPostTap: _openPostDetail,
       onAuthorTap: _openAuthorProfile,
       onOpenRef: widget.onOpenRef,
+      searchQuery: widget.searchQuery,
     ),
     // 2 — Network
-    CommunityFollowView(repository: _repo, onAuthorTap: _openAuthorProfile),
+    CommunityFollowView(
+      repository: _repo,
+      onAuthorTap: _openAuthorProfile,
+      searchQuery: widget.searchQuery,
+    ),
     // 3 — My Profile
     CommunityProfileView(
       author: _currentAuthor,
       repository: _repo,
       isCurrentUser: true,
       onBack: null,
+      onPostTap: _openPostDetail,
+      onOpenRef: widget.onOpenRef,
     ),
     // 4 — Bookmarks (tablet/desktop only; not in mobile bottom nav)
     CommunityBookmarksView(
@@ -387,32 +436,12 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
 
   Widget _buildMobileLayout(BuildContext context) {
     final UiTheme theme = context.ui;
-    final bool onFeedTab = _tabController.index == 0;
 
     if (widget.embedInScaffold) {
-      return Stack(
-        children: <Widget>[
-          TabBarView(
-            controller: _tabController,
-            physics: const NeverScrollableScrollPhysics(),
-            children: _buildTabPages(),
-          ),
-          if (onFeedTab)
-            Positioned(
-              right: context.sp(theme.spacing.md),
-              bottom: context.sz(86) + MediaQuery.paddingOf(context).bottom,
-              child: FloatingActionButton.small(
-                heroTag: 'community_mobile_compose_fab',
-                onPressed: _showMobileComposer,
-                backgroundColor: theme.colors.primary,
-                child: Icon(
-                  Icons.edit_rounded,
-                  color: theme.colors.onPrimary,
-                  size: context.sz(20),
-                ),
-              ),
-            ),
-        ],
+      return TabBarView(
+        controller: _tabController,
+        physics: const NeverScrollableScrollPhysics(),
+        children: _buildTabPages(),
       );
     }
 
@@ -469,14 +498,8 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
           ),
         ),
       ),
-      // FAB — only visible on the Feed tab.
-      floatingActionButton: onFeedTab
-          ? FloatingActionButton(
-              onPressed: _showMobileComposer,
-              backgroundColor: theme.colors.primary,
-              child: Icon(Icons.edit_rounded, color: theme.colors.onPrimary),
-            )
-          : null,
+      // Combined dock in root stack handles both AI and Compose
+      floatingActionButton: null,
       bottomNavigationBar: _buildBottomNavBar(theme),
       body: SafeArea(
         bottom: false, // bottom nav handles its own safe-area inset
@@ -524,13 +547,19 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                // Feed column.
+                // Feed column (Twitter/X style: max 700px).
                 Expanded(
                   flex: 3,
-                  child: TabBarView(
-                    controller: _tabController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: _buildTabPages(),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: context.sz(700)),
+                      child: TabBarView(
+                        controller: _tabController,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: _buildTabPages(),
+                      ),
+                    ),
                   ),
                 ),
                 // Narrow sidebar — no Who-to-Follow to save horizontal space.
@@ -585,33 +614,43 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // Feed area — full width on desktop.
+          // Panel 1: Centered Panel (takes all remaining space, hosting full-width top bar and centered 700px cards)
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: _buildTabPages(),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  right: BorderSide(
+                    color: theme.colors.border.withValues(alpha: 0.6),
+                    width: theme.borders.hairline,
+                  ),
+                ),
+              ),
+              child: TabBarView(
+                controller: _tabController,
+                physics: const NeverScrollableScrollPhysics(),
+                children: _buildTabPages(),
+              ),
             ),
           ),
 
-          // Right sidebar — sticky / independently scrollable.
+          // Panel 2: Right-side Container (docked firmly to the right side of the screen)
           SizedBox(
-            width: context.sz(320),
+            width: context.sz(340),
             child: Scrollbar(
               child: SingleChildScrollView(
                 padding: EdgeInsets.all(context.sp(theme.spacing.md)),
                 child: CommunitySidebar(
-                    repository: _repo,
-                    onFollow: (author) => _repo.toggleFollow(author.id),
-                    onShowMore: _openNetworkPage,
-                    onPostTap: _openPostDetail,
-                    onSearchTap: _openSearchPage,
-                    onSearchSubmitted: (q) => _openHashtagPage(
-                      q.startsWith('\$') || q.startsWith('#')
-                          ? q
-                          : '\$$q',
-                    ),
-                    showWhoToFollow: true,
+                  repository: _repo,
+                  onFollow: (author) => _repo.toggleFollow(author.id),
+                  onShowMore: _openNetworkPage,
+                  onPostTap: _openPostDetail,
+                  onSearchTap: _openSearchPage,
+                  onSearchSubmitted: (q) => _openHashtagPage(
+                    q.startsWith('\$') || q.startsWith('#')
+                        ? q
+                        : '\$$q',
+                  ),
+                  showWhoToFollow: true,
                 ),
               ),
             ),

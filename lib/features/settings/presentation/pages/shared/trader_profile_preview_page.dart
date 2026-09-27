@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/data/demo_data_source.dart';
 // Required unified primitive import for the profile preview surface.
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/community/data/community_repository.dart';
+import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
+import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
+import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
+import 'package:tradex/features/community/presentation/widgets/community_post_options_sheet.dart';
+import 'package:tradex/features/journal/ui/journal_entry_screen.dart';
+import 'package:tradex/features/notes/ui/note_preview_screen.dart';
 
 /// Stunning, responsive public profile preview resembling Twitter (X) + Trading Journal + Notes.
 class TraderProfilePreviewPage extends StatefulWidget {
@@ -25,6 +34,11 @@ class TraderProfilePreviewPage extends StatefulWidget {
     this.channelHandle,
     this.audienceReach,
     this.payoutMethod,
+    this.repository,
+    this.author,
+    this.onPostTap,
+    this.onOpenRef,
+    this.isCurrentUser = false,
   });
 
   final String displayName;
@@ -42,6 +56,11 @@ class TraderProfilePreviewPage extends StatefulWidget {
   final String? channelHandle;
   final String? audienceReach;
   final String? payoutMethod;
+  final CommunityRepository? repository;
+  final CommunityAuthor? author;
+  final ValueChanged<CommunityPost>? onPostTap;
+  final ValueChanged<AppLinkRef>? onOpenRef;
+  final bool isCurrentUser;
 
   @override
   State<TraderProfilePreviewPage> createState() =>
@@ -122,10 +141,12 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             audienceReach: widget.audienceReach ?? '10,000 – 100,000',
           ),
         ),
-        const UiTabItem(
+        UiTabItem(
           label: 'Playbooks',
           icon: Icons.menu_book_outlined,
-          content: _NotesPlaybooksPreview(),
+          content: _NotesPlaybooksPreview(
+            onOpenRef: widget.onOpenRef,
+          ),
         ),
         const UiTabItem(
           label: 'Community Overview',
@@ -142,6 +163,11 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             handle: widget.handle,
             avatarUrl: widget.avatarUrl,
             verifiedColor: verifiedColor,
+            repository: widget.repository,
+            author: widget.author,
+            onPostTap: widget.onPostTap,
+            onOpenRef: widget.onOpenRef,
+            isCurrentUser: widget.isCurrentUser,
           ),
         ),
         UiTabItem(
@@ -151,17 +177,15 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             selectedFilter: _selectedFilterIndex,
             onFilterChanged: (int idx) =>
                 setState(() => _selectedFilterIndex = idx),
+            onOpenRef: widget.onOpenRef,
           ),
         ),
-        const UiTabItem(
+        UiTabItem(
           label: 'Notes',
           icon: Icons.note_alt_outlined,
-          content: _NotesPlaybooksPreview(),
-        ),
-        const UiTabItem(
-          label: 'Dashboard',
-          icon: Icons.space_dashboard_outlined,
-          content: _PublicDashboardPreview(),
+          content: _NotesPlaybooksPreview(
+            onOpenRef: widget.onOpenRef,
+          ),
         ),
       ],
     };
@@ -208,7 +232,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: context.sz(840)),
+          constraints: BoxConstraints(maxWidth: context.sz(700)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -1219,20 +1243,194 @@ class _TwitterFeedPreview extends StatelessWidget {
     required this.handle,
     this.avatarUrl,
     required this.verifiedColor,
+    this.repository,
+    this.author,
+    this.onPostTap,
+    this.onOpenRef,
+    this.isCurrentUser = false,
   });
 
   final String displayName;
   final String handle;
   final String? avatarUrl;
   final Color verifiedColor;
+  final CommunityRepository? repository;
+  final CommunityAuthor? author;
+  final ValueChanged<CommunityPost>? onPostTap;
+  final ValueChanged<AppLinkRef>? onOpenRef;
+  final bool isCurrentUser;
 
   @override
   Widget build(BuildContext context) {
+    final bool isAuthor = isCurrentUser ||
+        (author != null && repository != null &&
+            (author!.id == repository!.currentAuthor.id ||
+             author!.handle.toLowerCase() == repository!.currentAuthor.handle.toLowerCase())) ||
+        (author != null &&
+            (author!.handle.toLowerCase() == handle.toLowerCase() && isCurrentUser)) ||
+        (isCurrentUser && handle.isEmpty);
+
+    List<CommunityPost> authorPosts = <CommunityPost>[];
+    if (repository != null) {
+      if (author != null) {
+        authorPosts = repository!.postsForAuthor(author!.id);
+      }
+      if (authorPosts.isEmpty && isAuthor) {
+        authorPosts = repository!.postsForAuthor(repository!.currentAuthor.id);
+      }
+    }
+
+    if (authorPosts.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: authorPosts.map((CommunityPost post) {
+          final diff = DateTime.now().difference(post.createdAt);
+          final timeStr = diff.inMinutes < 60
+              ? '${diff.inMinutes}m ago'
+              : (diff.inHours < 24
+                  ? '${diff.inHours}h ago'
+                  : (diff.inDays == 1 ? 'Yesterday' : '${diff.inDays}d ago'));
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: _TwitterPostCard(
+              post: post,
+              displayName: post.author.displayName,
+              handle: post.author.handle,
+              avatarUrl: post.author.avatarUrl,
+              verifiedColor: verifiedColor,
+              isPinned: post.isPinned,
+              timestamp: timeStr,
+              body: post.body,
+              tags: post.tags,
+              likes: '${post.likes}',
+              reposts: '${post.reposts}',
+              replies: '${post.comments}',
+              views: '${post.views}',
+              setupSnapshot: post.tradeSetup != null
+                  ? _TradeSetupSnippet(
+                      ticker: post.tradeSetup!.ticker,
+                      side: post.tradeSetup!.side,
+                      entry: post.tradeSetup!.entry,
+                      exit: post.tradeSetup!.exit ?? '--',
+                      rMultiple: post.tradeSetup!.rMultiple ?? '--',
+                      pnl: post.tradeSetup!.pnl ?? '--',
+                      isWin: post.tradeSetup!.isWin ?? true,
+                      tradeId:
+                          'trd_${post.tradeSetup!.ticker.toLowerCase().replaceAll(' ', '_')}',
+                      onOpenRef: onOpenRef,
+                    )
+                  : null,
+              onTap: onPostTap != null ? () => onPostTap!(post) : null,
+              onOpenRef: onOpenRef,
+              repository: repository,
+              isAuthor: isAuthor,
+            ),
+          );
+        }).toList(),
+      );
+    }
+
+    final repoPosts = repository?.forYouPosts ?? <CommunityPost>[];
+    final post1 = repoPosts.cast<CommunityPost?>().firstWhere(
+          (p) => p?.id == 'post_a1',
+          orElse: () => null,
+        ) ??
+        CommunityPost(
+          id: 'post_a1',
+          author: author ??
+              CommunityAuthor(
+                id: 'usr_$handle',
+                handle: handle,
+                displayName: displayName,
+                userRole: UserRole.customer,
+                avatarUrl: avatarUrl,
+              ),
+          isPinned: true,
+          body:
+              'NIFTY reclaimed the opening range with improving breadth. Waiting for the retest instead of chasing the first expansion candle. Focus on risk management over FOMO.',
+          tags: const <String>['NIFTY', 'MarketStructure', 'PriceAction'],
+          likes: 148,
+          reposts: 32,
+          comments: 19,
+          views: 3400,
+          createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+          tradeSetup: const CommunityTradeSetup(
+            ticker: 'NIFTY 24400 CE',
+            side: 'LONG',
+            entry: '₹142.50',
+            exit: '₹188.00',
+            rMultiple: '+2.4R',
+            pnl: '+₹34,500',
+            isWin: true,
+          ),
+        );
+
+    final post2 = repoPosts.cast<CommunityPost?>().firstWhere(
+          (p) => p?.id == 'post_a2',
+          orElse: () => null,
+        ) ??
+        CommunityPost(
+          id: 'post_a2',
+          author: author ??
+              CommunityAuthor(
+                id: 'usr_$handle',
+                handle: handle,
+                displayName: displayName,
+                userRole: UserRole.customer,
+                avatarUrl: avatarUrl,
+              ),
+          isPinned: false,
+          body:
+              'Weekly review: best trades came from following the plan. The two avoidable losses both happened after moving stops without new information. Sticking strictly to the 2-Strike Rule next week.',
+          tags: const <String>['WeeklyReview', 'Discipline', 'RiskRules'],
+          likes: 94,
+          reposts: 16,
+          comments: 11,
+          views: 2100,
+          createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        );
+
+    final post3 = repoPosts.cast<CommunityPost?>().firstWhere(
+          (p) => p?.id == 'post_a3',
+          orElse: () => null,
+        ) ??
+        CommunityPost(
+          id: 'post_a3',
+          author: author ??
+              CommunityAuthor(
+                id: 'usr_$handle',
+                handle: handle,
+                displayName: displayName,
+                userRole: UserRole.customer,
+                avatarUrl: avatarUrl,
+              ),
+          isPinned: false,
+          body:
+              'RELIANCE broke out of a 3-week consolidation base on 2.5x volume. Scaled out 50% at 2R, trailing the stop under the prior 15-minute swing pivot.',
+          tags: const <String>['RELIANCE', 'Breakout', 'SwingTrade'],
+          likes: 215,
+          reposts: 48,
+          comments: 27,
+          views: 5800,
+          createdAt: DateTime.now().subtract(const Duration(days: 3)),
+          tradeSetup: const CommunityTradeSetup(
+            ticker: 'RELIANCE',
+            side: 'LONG',
+            entry: '₹2,890.00',
+            exit: '₹2,955.00',
+            rMultiple: '+2.8R',
+            pnl: '+₹42,800',
+            isWin: true,
+          ),
+        );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         // Pinned post
         _TwitterPostCard(
+          post: post1,
           displayName: displayName,
           handle: handle,
           avatarUrl: avatarUrl,
@@ -1246,7 +1444,7 @@ class _TwitterFeedPreview extends StatelessWidget {
           reposts: '32',
           replies: '19',
           views: '3.4K',
-          setupSnapshot: const _TradeSetupSnippet(
+          setupSnapshot: _TradeSetupSnippet(
             ticker: 'NIFTY 24400 CE',
             side: 'LONG',
             entry: '₹142.50',
@@ -1254,11 +1452,18 @@ class _TwitterFeedPreview extends StatelessWidget {
             rMultiple: '+2.4R',
             pnl: '+₹34,500',
             isWin: true,
+            tradeId: 'trd_nifty50_1',
+            onOpenRef: onOpenRef,
           ),
+          onTap: onPostTap != null ? () => onPostTap!(post1) : null,
+          onOpenRef: onOpenRef,
+          repository: repository,
+          isAuthor: isAuthor,
         ),
 
         // Post 2
         _TwitterPostCard(
+          post: post2,
           displayName: displayName,
           handle: handle,
           avatarUrl: avatarUrl,
@@ -1272,10 +1477,15 @@ class _TwitterFeedPreview extends StatelessWidget {
           reposts: '16',
           replies: '11',
           views: '2.1K',
+          onTap: onPostTap != null ? () => onPostTap!(post2) : null,
+          onOpenRef: onOpenRef,
+          repository: repository,
+          isAuthor: isAuthor,
         ),
 
         // Post 3
         _TwitterPostCard(
+          post: post3,
           displayName: displayName,
           handle: handle,
           avatarUrl: avatarUrl,
@@ -1289,7 +1499,7 @@ class _TwitterFeedPreview extends StatelessWidget {
           reposts: '48',
           replies: '27',
           views: '5.8K',
-          setupSnapshot: const _TradeSetupSnippet(
+          setupSnapshot: _TradeSetupSnippet(
             ticker: 'RELIANCE',
             side: 'LONG',
             entry: '₹2,890.00',
@@ -1297,7 +1507,13 @@ class _TwitterFeedPreview extends StatelessWidget {
             rMultiple: '+2.8R',
             pnl: '+₹42,800',
             isWin: true,
+            tradeId: 'trd_reliance_0',
+            onOpenRef: onOpenRef,
           ),
+          onTap: onPostTap != null ? () => onPostTap!(post3) : null,
+          onOpenRef: onOpenRef,
+          repository: repository,
+          isAuthor: isAuthor,
         ),
       ],
     );
@@ -1306,6 +1522,7 @@ class _TwitterFeedPreview extends StatelessWidget {
 
 class _TwitterPostCard extends StatefulWidget {
   const _TwitterPostCard({
+    this.post,
     required this.displayName,
     required this.handle,
     this.avatarUrl,
@@ -1319,8 +1536,13 @@ class _TwitterPostCard extends StatefulWidget {
     required this.replies,
     required this.views,
     this.setupSnapshot,
+    this.onTap,
+    this.onOpenRef,
+    this.repository,
+    this.isAuthor = false,
   });
 
+  final CommunityPost? post;
   final String displayName;
   final String handle;
   final String? avatarUrl;
@@ -1334,6 +1556,10 @@ class _TwitterPostCard extends StatefulWidget {
   final String replies;
   final String views;
   final Widget? setupSnapshot;
+  final VoidCallback? onTap;
+  final ValueChanged<AppLinkRef>? onOpenRef;
+  final CommunityRepository? repository;
+  final bool isAuthor;
 
   @override
   State<_TwitterPostCard> createState() => _TwitterPostCardState();
@@ -1342,13 +1568,128 @@ class _TwitterPostCard extends StatefulWidget {
 class _TwitterPostCardState extends State<_TwitterPostCard> {
   bool _liked = false;
   bool _bookmarked = false;
+  late String _body = widget.body;
+  late List<String> _tags = List<String>.from(widget.tags);
+
+  @override
+  void didUpdateWidget(_TwitterPostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.body != widget.body) {
+      _body = widget.body;
+    }
+    if (oldWidget.tags != widget.tags) {
+      _tags = List<String>.from(widget.tags);
+    }
+  }
+
+  bool get _isAuthor {
+    if (widget.isAuthor) return true;
+    final repo = widget.repository ?? CommunityRepository();
+    final current = repo.currentAuthor;
+    final p = widget.post;
+    if (p != null) {
+      if (p.author.id == current.id ||
+          p.author.handle.toLowerCase() == current.handle.toLowerCase()) {
+        return true;
+      }
+    }
+    final cleanCurrent = current.handle.toLowerCase().replaceFirst('@', '').trim();
+    final cleanHandle = widget.handle.toLowerCase().replaceFirst('@', '').trim();
+    if (cleanCurrent.isNotEmpty && cleanCurrent == cleanHandle) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _handleEditPost(BuildContext context) async {
+    final effectivePost = widget.post ?? _buildFallbackPost();
+    final repo = widget.repository ?? CommunityRepository();
+    await CommunityEditPostDialog.show(
+      context,
+      post: effectivePost,
+      repository: repo,
+    );
+    final updated = repo.loadPostById(effectivePost.id);
+    if (updated != null && mounted) {
+      setState(() {
+        _body = updated.body;
+        _tags = List<String>.from(updated.tags);
+      });
+    }
+  }
+
+  void _showPostOptions(BuildContext context) {
+    final effectivePost = widget.post ?? _buildFallbackPost();
+    final repo = widget.repository ?? CommunityRepository();
+    final authorMode = _isAuthor;
+    CommunityPostOptionsSheet.show(
+      context,
+      post: effectivePost,
+      repository: repo,
+      isAuthor: authorMode,
+      onEdit: authorMode ? () => _handleEditPost(context) : null,
+      onDelete: authorMode
+          ? () {
+              repo.deletePost(effectivePost.id);
+              UiToast.show(
+                context,
+                title: 'Post deleted',
+                message: 'Your post was removed.',
+                intent: UiIntent.neutral,
+              );
+            }
+          : null,
+    );
+  }
+
+  void _openActualPost(BuildContext context) {
+    if (widget.onTap != null) {
+      widget.onTap!();
+      return;
+    }
+    final post = widget.post ?? _buildFallbackPost();
+    final repo = widget.repository ?? CommunityRepository();
+    final user = repo.currentAuthor;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CommunityPostDetailView(
+          post: post,
+          repository: repo,
+          currentUser: user,
+          onOpenRef: widget.onOpenRef,
+          onBack: () => Navigator.of(context).pop(),
+        ),
+      ),
+    );
+  }
+
+  CommunityPost _buildFallbackPost() {
+    return CommunityPost(
+      id: 'post_${widget.handle}_${widget.timestamp.hashCode.abs()}',
+      author: CommunityAuthor(
+        id: 'usr_${widget.handle}',
+        handle: widget.handle,
+        displayName: widget.displayName,
+        userRole: UserRole.customer,
+        avatarUrl: widget.avatarUrl,
+      ),
+      isPinned: widget.isPinned,
+      body: widget.body,
+      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+      tags: widget.tags,
+      likes: int.tryParse(widget.likes.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
+      reposts: int.tryParse(widget.reposts.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
+      comments: int.tryParse(widget.replies.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
+      views: int.tryParse(widget.views.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
 
     return InkWell(
-      onTap: () {},
+      onTap: () => _openActualPost(context),
       splashColor: theme.colors.primary.withValues(alpha: 0.05),
       highlightColor: theme.colors.surfaceMuted.withValues(alpha: 0.4),
       child: Padding(
@@ -1387,38 +1728,23 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
               ),
             ],
 
-            // Threads-style avatar rail + content
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  // Left: avatar + vertical thread-line
-                  Column(
-                    children: <Widget>[
-                      UiAvatar(
-                        name: widget.displayName,
-                        imageUrl: widget.avatarUrl,
-                        size: UiSize.sm,
-                        verified: true,
-                        verifiedColor: widget.verifiedColor,
-                      ),
-                      const SizedBox(height: 6),
-                      Expanded(
-                        child: Container(
-                          width: 2,
-                          decoration: BoxDecoration(
-                            color: theme.colors.border.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(1),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.sm)),
+            // Avatar rail + content
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                // Left: avatar
+                UiAvatar(
+                  name: widget.displayName,
+                  imageUrl: widget.avatarUrl,
+                  size: UiSize.sm,
+                  verified: true,
+                  verifiedColor: widget.verifiedColor,
+                ),
+                SizedBox(width: context.sp(theme.spacing.sm)),
 
-                  // Right: author header + body + tags + engagement bar
-                  Expanded(
-                    child: Column(
+                // Right: author header + body + tags + engagement bar
+                Expanded(
+                  child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         // Author row
@@ -1456,11 +1782,22 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                                 ],
                               ),
                             ),
+                            if (_isAuthor) ...<Widget>[
+                              UiButton(
+                                label: 'Edit',
+                                icon: Icons.edit_outlined,
+                                size: UiSize.xs,
+                                variant: UiVariant.soft,
+                                intent: UiIntent.primary,
+                                onPressed: () => _handleEditPost(context),
+                              ),
+                              SizedBox(width: context.sp(theme.spacing.xs)),
+                            ],
                             UiIconButton(
                               icon: Icons.more_horiz_rounded,
                               size: UiSize.xs,
                               tooltip: 'Post options',
-                              onPressed: () {},
+                              onPressed: () => _showPostOptions(context),
                             ),
                           ],
                         ),
@@ -1468,7 +1805,7 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                         // Body
                         SizedBox(height: context.sp(theme.spacing.xs)),
                         Text(
-                          widget.body,
+                          _body,
                           style: context.uiText.body.copyWith(
                             height: 1.45,
                             fontSize: context.fs(14),
@@ -1481,13 +1818,67 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                           widget.setupSnapshot!,
                         ],
 
+                        // Embedded writing desk record attachment (notes/journal/strategy)
+                        if (widget.post?.attachment != null) ...<Widget>[
+                          SizedBox(height: context.sp(theme.spacing.sm)),
+                          CommunityAttachmentTile(
+                            attachment: widget.post!.attachment!,
+                            onTap: () {
+                              final source = widget.post!.attachment!.source;
+                              if (widget.onOpenRef != null) {
+                                if (ModalRoute.of(context)?.isCurrent == true &&
+                                    Navigator.of(context).canPop()) {
+                                  Navigator.of(context).pop();
+                                }
+                                widget.onOpenRef!(source);
+                              } else {
+                                if (source.kind == AppLinkKind.journal) {
+                                  final trades = DemoDataSource.instance.trades();
+                                  final trade = trades.firstWhere(
+                                    (t) => t.id == source.id,
+                                    orElse: () => DemoDataSource.instance.trades().first,
+                                  );
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (ctx) => Scaffold(
+                                        body: JournalEntryScreen(
+                                          entry: trade,
+                                          onClose: () => Navigator.of(ctx).pop(),
+                                          onEdit: () {},
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                } else if (source.kind == AppLinkKind.note) {
+                                  final notes = DemoDataSource.instance.notes();
+                                  final note = notes.firstWhere(
+                                    (n) => n.id == source.id,
+                                    orElse: () => DemoDataSource.instance.notes().first,
+                                  );
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (ctx) => Scaffold(
+                                        body: NotePreviewScreen(
+                                          note: note,
+                                          onClose: () => Navigator.of(ctx).pop(),
+                                          onEdit: () {},
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        ],
+
                         // Hashtag badges
-                        if (widget.tags.isNotEmpty) ...<Widget>[
+                        if (_tags.isNotEmpty) ...<Widget>[
                           SizedBox(height: context.sp(theme.spacing.sm)),
                           Wrap(
                             spacing: context.sp(theme.spacing.xs),
                             runSpacing: context.sp(theme.spacing.xs),
-                            children: widget.tags
+                            children: _tags
                                 .map(
                                   (String tag) => UiBadge(
                                     label: '#$tag',
@@ -1509,13 +1900,21 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                               icon: Icons.chat_bubble_outline_rounded,
                               count: widget.replies,
                               activeColor: theme.colors.primary,
-                              onTap: () {},
+                              onTap: () => _openActualPost(context),
                             ),
                             _EngagementButton(
                               icon: Icons.repeat_rounded,
                               count: widget.reposts,
                               activeColor: theme.colors.bullish,
-                              onTap: () {},
+                              onTap: () {
+                                UiToast.show(
+                                  context,
+                                  title: 'Reposted',
+                                  message:
+                                      'Setup reposted to your community followers.',
+                                  intent: UiIntent.success,
+                                );
+                              },
                             ),
                             _EngagementButton(
                               icon: _liked
@@ -1534,7 +1933,15 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                               icon: Icons.bar_chart_rounded,
                               count: widget.views,
                               activeColor: theme.colors.primary,
-                              onTap: () {},
+                              onTap: () {
+                                UiToast.show(
+                                  context,
+                                  title: 'Analytics',
+                                  message:
+                                      '${widget.views} traders viewed this setup.',
+                                  intent: UiIntent.info,
+                                );
+                              },
                             ),
                             _EngagementButton(
                               icon: _bookmarked
@@ -1543,8 +1950,11 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                               count: '',
                               isActive: _bookmarked,
                               activeColor: theme.colors.warning,
-                              onTap: () =>
-                                  setState(() => _bookmarked = !_bookmarked),
+                              onTap: () {
+                                setState(() => _bookmarked = !_bookmarked);
+                                final p = widget.post ?? _buildFallbackPost();
+                                widget.repository?.toggleBookmark(p.id);
+                              },
                             ),
                           ],
                         ),
@@ -1555,7 +1965,6 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                   ),
                 ],
               ),
-            ),
 
             // Bottom separator hairline
             Divider(
@@ -1625,6 +2034,8 @@ class _TradeSetupSnippet extends StatelessWidget {
     required this.rMultiple,
     required this.pnl,
     required this.isWin,
+    this.tradeId,
+    this.onOpenRef,
   });
 
   final String ticker;
@@ -1634,12 +2045,62 @@ class _TradeSetupSnippet extends StatelessWidget {
   final String rMultiple;
   final String pnl;
   final bool isWin;
+  final String? tradeId;
+  final ValueChanged<AppLinkRef>? onOpenRef;
+
+  void _handleTap(BuildContext context) {
+    final id = tradeId ?? _JournalTradeCard._resolveTradeId(ticker);
+    if (onOpenRef != null) {
+      if (ModalRoute.of(context)?.isCurrent == true &&
+          Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      onOpenRef!(AppLinkRef(kind: AppLinkKind.journal, id: id, title: ticker));
+    } else {
+      final trades = DemoDataSource.instance.trades();
+      final trade = trades.firstWhere(
+        (t) => t.id == id,
+        orElse: () => AppTrade(
+          id: id,
+          ticker: ticker,
+          side: side.toUpperCase() == 'LONG'
+              ? AppSide.long
+              : AppSide.short,
+          entry:
+              double.tryParse(entry.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
+          exit:
+              double.tryParse(exit.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
+          size: 100,
+          pnl: double.tryParse(pnl.replaceAll(RegExp(r'[^0-9.-]'), '')) ?? 0.0,
+          pnlPercent: 0.0,
+          rMultiple:
+              double.tryParse(rMultiple.replaceAll(RegExp(r'[^0-9.-]'), '')) ??
+                  0.0,
+          outcome: isWin ? AppOutcome.win : AppOutcome.loss,
+          openedAt: DateTime.now(),
+          notes: 'Trade setup shared via profile.',
+          isPublic: true,
+        ),
+      );
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (ctx) => Scaffold(
+            body: JournalEntryScreen(
+              entry: trade,
+              onClose: () => Navigator.of(ctx).pop(),
+              onEdit: () {},
+            ),
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
 
-    return Container(
+    final Widget card = Container(
       padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
       decoration: BoxDecoration(
         color: theme.colors.surfaceMuted,
@@ -1690,6 +2151,12 @@ class _TradeSetupSnippet extends StatelessWidget {
         ],
       ),
     );
+
+    return InkWell(
+      onTap: () => _handleTap(context),
+      borderRadius: context.radius(theme.radii.md),
+      child: card,
+    );
   }
 }
 
@@ -1701,10 +2168,12 @@ class _PublicJournalPreview extends StatelessWidget {
   const _PublicJournalPreview({
     required this.selectedFilter,
     required this.onFilterChanged,
+    this.onOpenRef,
   });
 
   final int selectedFilter;
   final ValueChanged<int> onFilterChanged;
+  final ValueChanged<AppLinkRef>? onOpenRef;
 
   @override
   Widget build(BuildContext context) {
@@ -1808,6 +2277,7 @@ class _PublicJournalPreview extends StatelessWidget {
         // Trade Entry 1
         _JournalTradeCard(
           ticker: 'RELIANCE',
+          tradeId: 'trd_reliance_0',
           side: 'LONG',
           date: 'Aug 21, 2026 · 10:14 AM',
           setup: 'Opening Range Breakout',
@@ -1821,12 +2291,14 @@ class _PublicJournalPreview extends StatelessWidget {
           notes:
               'High relative volume on 5-min breakout. Reclaimed VWAP with index confirmation. Scaled out at 2R target.',
           tags: const <String>['ORB', 'VWAP', 'Momentum'],
+          onOpenRef: onOpenRef,
         ),
         SizedBox(height: context.sp(theme.spacing.sm)),
 
         // Trade Entry 2
         _JournalTradeCard(
           ticker: 'NIFTY 24400 CE',
+          tradeId: 'trd_nifty50_1',
           side: 'LONG',
           date: 'Aug 20, 2026 · 02:30 PM',
           setup: 'VWAP Bounce & Trend Retest',
@@ -1840,12 +2312,14 @@ class _PublicJournalPreview extends StatelessWidget {
           notes:
               'Afternoon session breakout continuation. Protected capital by trailing stop loss to entry after 1R.',
           tags: const <String>['Options', 'Index', 'Trend'],
+          onOpenRef: onOpenRef,
         ),
         SizedBox(height: context.sp(theme.spacing.sm)),
 
         // Trade Entry 3
         _JournalTradeCard(
           ticker: 'TCS',
+          tradeId: 'trd_tcs_2',
           side: 'SHORT',
           date: 'Aug 19, 2026 · 11:20 AM',
           setup: 'Key Level Breakdown',
@@ -1859,6 +2333,7 @@ class _PublicJournalPreview extends StatelessWidget {
           notes:
               'Failed breakdown attempt as IT sector reversed. Stopped out cleanly without adding or widening stop.',
           tags: const <String>['Discipline', 'StopLoss'],
+          onOpenRef: onOpenRef,
         ),
       ],
     );
@@ -1912,6 +2387,8 @@ class _JournalTradeCard extends StatelessWidget {
     required this.quantity,
     required this.notes,
     required this.tags,
+    this.tradeId,
+    this.onOpenRef,
   });
 
   final String ticker;
@@ -1927,6 +2404,77 @@ class _JournalTradeCard extends StatelessWidget {
   final String quantity;
   final String notes;
   final List<String> tags;
+  final String? tradeId;
+  final ValueChanged<AppLinkRef>? onOpenRef;
+
+  static String _resolveTradeId(String ticker) {
+    try {
+      final trades = DemoDataSource.instance.trades();
+      final clean = ticker.split(' ').first.toUpperCase();
+      final match = trades
+          .where((AppTrade t) =>
+              t.ticker.toUpperCase() == ticker.toUpperCase() ||
+              t.ticker.toUpperCase() == clean ||
+              ticker.toUpperCase().contains(t.ticker.toUpperCase()))
+          .firstOrNull;
+      return match?.id ?? (trades.isNotEmpty ? trades.first.id : 'trd_reliance_0');
+    } catch (_) {
+      return 'trd_reliance_0';
+    }
+  }
+
+  void _openActualTrade(BuildContext context) {
+    final id = tradeId ?? _resolveTradeId(ticker);
+    if (onOpenRef != null) {
+      if (ModalRoute.of(context)?.isCurrent == true &&
+          Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      onOpenRef!(AppLinkRef(kind: AppLinkKind.journal, id: id, title: ticker));
+    } else {
+      final trades = DemoDataSource.instance.trades();
+      final trade = trades.firstWhere(
+        (t) => t.id == id,
+        orElse: () => AppTrade(
+          id: id,
+          ticker: ticker,
+          side: side.toUpperCase() == 'LONG'
+              ? AppSide.long
+              : AppSide.short,
+          entry:
+              double.tryParse(entryPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+                  0.0,
+          exit:
+              double.tryParse(exitPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+                  0.0,
+          size:
+              double.tryParse(quantity.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 100.0,
+          pnl:
+              double.tryParse(pnl.replaceAll(RegExp(r'[^0-9.-]'), '')) ?? 0.0,
+          pnlPercent: 0.0,
+          rMultiple:
+              double.tryParse(rMultiple.replaceAll(RegExp(r'[^0-9.-]'), '')) ??
+                  0.0,
+          outcome: isWin ? AppOutcome.win : AppOutcome.loss,
+          openedAt: DateTime.now(),
+          notes: notes,
+          tags: tags,
+          isPublic: true,
+        ),
+      );
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (ctx) => Scaffold(
+            body: JournalEntryScreen(
+              entry: trade,
+              onClose: () => Navigator.of(ctx).pop(),
+              onEdit: () {},
+            ),
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1934,6 +2482,7 @@ class _JournalTradeCard extends StatelessWidget {
     final Color tint = isWin ? theme.colors.bullish : theme.colors.bearish;
 
     return UiCard(
+      onTap: () => _openActualTrade(context),
       accentColor: tint,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2030,7 +2579,11 @@ class _JournalTradeCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _NotesPlaybooksPreview extends StatelessWidget {
-  const _NotesPlaybooksPreview();
+  const _NotesPlaybooksPreview({
+    this.onOpenRef,
+  });
+
+  final ValueChanged<AppLinkRef>? onOpenRef;
 
   @override
   Widget build(BuildContext context) {
@@ -2042,36 +2595,42 @@ class _NotesPlaybooksPreview extends StatelessWidget {
         // Note 1
         _NotePlaybookCard(
           title: 'Opening range playbook',
+          noteId: 'note_001',
           subtitle: 'Updated 2 days ago · 8 linked trades · 4 min read',
           icon: Icons.menu_book_rounded,
           summary:
               'Conditions, invalidation rules, and review questions for high-volume opening range setups. Trigger rules strictly require index confirmation and 1.5x volume expansion.',
           tags: const <String>['Playbook', 'Strategy', 'ORB'],
           isPublic: true,
+          onOpenRef: onOpenRef,
         ),
         SizedBox(height: context.sp(theme.spacing.sm)),
 
         // Note 2
         _NotePlaybookCard(
           title: 'Risk reset checklist',
+          noteId: 'note_005',
           subtitle: 'Updated last week · Public note · 2 min read',
           icon: Icons.shield_outlined,
           summary:
               'A five-minute reset used after two consecutive losses or a process violation. Mandatory step-away protocol before executing another order.',
           tags: const <String>['Psychology', 'Risk Rules', 'Discipline'],
           isPublic: true,
+          onOpenRef: onOpenRef,
         ),
         SizedBox(height: context.sp(theme.spacing.sm)),
 
         // Note 3
         _NotePlaybookCard(
           title: 'Pre-Market Preparation Checklist',
+          noteId: 'note_004',
           subtitle: 'Updated Aug 20, 2026 · Daily Routine',
           icon: Icons.checklist_rtl_rounded,
           summary:
               '1. Review SGX/Gift Nifty & US markets. 2. Mark major support/resistance on top 5 index heavyweight stocks. 3. Check open interest concentration and sector heatmap.',
           tags: const <String>['Routine', 'PreMarket', 'Checklist'],
           isPublic: true,
+          onOpenRef: onOpenRef,
         ),
       ],
     );
@@ -2086,6 +2645,8 @@ class _NotePlaybookCard extends StatelessWidget {
     required this.summary,
     required this.tags,
     required this.isPublic,
+    this.noteId,
+    this.onOpenRef,
   });
 
   final String title;
@@ -2094,12 +2655,75 @@ class _NotePlaybookCard extends StatelessWidget {
   final String summary;
   final List<String> tags;
   final bool isPublic;
+  final String? noteId;
+  final ValueChanged<AppLinkRef>? onOpenRef;
+
+  static String _resolveNoteId(String title) {
+    try {
+      final notes = DemoDataSource.instance.notes();
+      final lower = title.toLowerCase();
+      for (final note in notes) {
+        if (note.title.toLowerCase().contains(lower) ||
+            lower.contains(note.title.toLowerCase())) {
+          return note.id;
+        }
+      }
+      final words = lower.split(RegExp(r'\s+')).where((String w) => w.length > 3);
+      for (final note in notes) {
+        for (final word in words) {
+          if (note.title.toLowerCase().contains(word)) {
+            return note.id;
+          }
+        }
+      }
+      return notes.isNotEmpty ? notes.first.id : 'note_001';
+    } catch (_) {
+      return 'note_001';
+    }
+  }
+
+  void _openActualNote(BuildContext context) {
+    final id = noteId ?? _resolveNoteId(title);
+    if (onOpenRef != null) {
+      if (ModalRoute.of(context)?.isCurrent == true &&
+          Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      onOpenRef!(AppLinkRef(kind: AppLinkKind.note, id: id, title: title));
+    } else {
+      final notes = DemoDataSource.instance.notes();
+      final note = notes.firstWhere(
+        (n) => n.id == id,
+        orElse: () => AppNote(
+          id: id,
+          title: title,
+          content: summary,
+          tags: tags,
+          isPublic: isPublic,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (ctx) => Scaffold(
+            body: NotePreviewScreen(
+              note: note,
+              onClose: () => Navigator.of(ctx).pop(),
+              onEdit: () {},
+            ),
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
 
     return UiCard(
+      onTap: () => _openActualNote(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -2160,6 +2784,7 @@ class _NotePlaybookCard extends StatelessWidget {
 // 4. Public Dashboard Preview
 // ---------------------------------------------------------------------------
 
+// ignore: unused_element
 class _PublicDashboardPreview extends StatelessWidget {
   const _PublicDashboardPreview();
 

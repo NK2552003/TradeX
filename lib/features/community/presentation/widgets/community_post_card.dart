@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_image_viewer_page.dart';
 import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
 import 'package:tradex/features/community/presentation/widgets/community_author_header.dart';
+import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_engagement_bar.dart';
 import 'package:tradex/features/community/presentation/widgets/community_highlighted_text.dart';
 import 'package:tradex/features/community/presentation/widgets/community_link_preview_tile.dart';
@@ -40,6 +42,7 @@ class CommunityPostCard extends StatefulWidget {
     this.variant = CommunityPostCardVariant.feed,
     this.repository,
     this.onTap,
+    this.onReply,
     this.onLike,
     this.onRepost,
     this.onBookmark,
@@ -49,13 +52,20 @@ class CommunityPostCard extends StatefulWidget {
     this.onQuote,
     this.onVotePoll,
     this.onOpenRef,
+    this.showAuthorHeader = true,
+    this.showTradeSetup = true,
+    this.showEngagementBar = true,
+    this.showTagsAndTickers = true,
     this.loading = false,
+    this.currentUser,
   });
 
   final CommunityPost post;
   final CommunityPostCardVariant variant;
   final dynamic repository;
+  final CommunityAuthor? currentUser;
   final VoidCallback? onTap;
+  final VoidCallback? onReply;
   final VoidCallback? onLike;
   final VoidCallback? onRepost;
   final VoidCallback? onBookmark;
@@ -68,6 +78,23 @@ class CommunityPostCard extends StatefulWidget {
   /// Opens the linked Writing-Desk record when the post's attachment tile is
   /// tapped. When null the attachment tile falls back to [onTap].
   final ValueChanged<AppLinkRef>? onOpenRef;
+
+  /// Whether to render the author header (avatar + display name + handle).
+  /// Defaults to true. On desktop detail view, this can be hidden when the author profile is shown in the right sidebar.
+  final bool showAuthorHeader;
+
+  /// Whether to render the embedded trade setup snippet tile.
+  /// Defaults to true. On desktop detail view, this can be hidden when the trade setup blueprint is shown in the right sidebar.
+  final bool showTradeSetup;
+
+  /// Whether to render the engagement action bar (likes, reposts, comments, share).
+  /// Defaults to true. On desktop detail view, this can be hidden when thread activity & actions are elevated to the companion sidebar.
+  final bool showEngagementBar;
+
+  /// Whether to render the cashtag and hashtag badge wrap.
+  /// Defaults to true. On desktop detail view, this can be hidden when tags are elevated to the companion sidebar.
+  final bool showTagsAndTickers;
+
   final bool loading;
 
   @override
@@ -144,6 +171,78 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
   void _handleShare(BuildContext context) {
     CommunityShareSheet.show(context, post: widget.post);
     widget.onShare?.call();
+  }
+
+  bool get _isAuthor {
+    final current = widget.currentUser ??
+        (widget.repository is CommunityRepository
+            ? (widget.repository as CommunityRepository).currentAuthor
+            : null);
+    if (current == null) return false;
+    final author = widget.post.author;
+    if (author.id == current.id ||
+        author.handle.toLowerCase() == current.handle.toLowerCase()) {
+      return true;
+    }
+    final cleanCurrentHandle =
+        current.handle.toLowerCase().replaceFirst('@', '').trim();
+    final cleanAuthorHandle =
+        author.handle.toLowerCase().replaceFirst('@', '').trim();
+    if (cleanCurrentHandle.isNotEmpty &&
+        cleanCurrentHandle == cleanAuthorHandle) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _handleEditPost(BuildContext context) async {
+    final repo = widget.repository is CommunityRepository
+        ? widget.repository as CommunityRepository
+        : CommunityRepository();
+    await CommunityEditPostDialog.show(
+      context,
+      post: widget.post,
+      repository: repo,
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  /// Tickers cleaned and deduplicated against redundant prefixes and duplicates.
+  List<String> get _deduplicatedTickers {
+    final Set<String> seen = <String>{};
+    final List<String> result = <String>[];
+    for (final raw in widget.post.tickers) {
+      final String clean = raw.trim().replaceFirst(RegExp(r'^\$+'), '');
+      if (clean.isEmpty) continue;
+      final String key = clean.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+      if (seen.add(key)) {
+        result.add(clean);
+      }
+    }
+    return result;
+  }
+
+  /// Tags deduplicated against tickers and redundant formatting, avoiding duplicacy.
+  List<String> get _deduplicatedTags {
+    final Set<String> tickerKeys = _deduplicatedTickers
+        .map((t) => t.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase())
+        .toSet();
+    final Set<String> seen = <String>{};
+    final List<String> result = <String>[];
+
+    for (final raw in widget.post.tags) {
+      final String clean = raw.trim().replaceFirst(RegExp(r'^[#\$]+'), '');
+      if (clean.isEmpty) continue;
+      final String key = clean.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+      // Skip tag if it duplicates an active ticker symbol or was already seen
+      if (tickerKeys.contains(key)) continue;
+      if (seen.add(key)) {
+        result.add(clean);
+      }
+    }
+    return result;
   }
 
   @override
@@ -239,35 +338,21 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
               ),
             ],
 
-            // Main Post with Threads Avatar Thread-Line Rail
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+            // Main Post with Avatar & Content
+            if (widget.showAuthorHeader)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  // Left: Avatar + continuous vertical thread-line
-                  Column(
-                    children: <Widget>[
-                      UiAvatar(
-                        name: post.author.displayName,
-                        imageUrl: post.author.avatarUrl,
-                        size: UiSize.md,
-                        verified: post.author.verified,
-                        verifiedColor: post.author.verifiedColor(theme),
-                        onTap: widget.onAuthorTap == null
-                            ? null
-                            : () => widget.onAuthorTap!(post.author),
-                      ),
-                      const SizedBox(height: 6),
-                      Expanded(
-                        child: Container(
-                          width: 2,
-                          decoration: BoxDecoration(
-                            color: theme.colors.border.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(1),
-                          ),
-                        ),
-                      ),
-                    ],
+                  // Left: Avatar
+                  UiAvatar(
+                    name: post.author.displayName,
+                    imageUrl: post.author.avatarUrl,
+                    size: UiSize.md,
+                    verified: post.author.verified,
+                    verifiedColor: post.author.verifiedColor(theme),
+                    onTap: widget.onAuthorTap == null
+                        ? null
+                        : () => widget.onAuthorTap!(post.author),
                   ),
                   SizedBox(width: context.sp(theme.spacing.sm)),
 
@@ -280,8 +365,14 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                     ),
                   ),
                 ],
+              )
+            else
+              // Full-width post content when author header is in desktop sidebar
+              _buildPostContent(
+                context,
+                theme,
+                showAvatarInHeader: false,
               ),
-            ),
           ],
         ),
       ),
@@ -294,6 +385,8 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     required bool showAvatarInHeader,
   }) {
     final post = widget.post;
+    final List<String> displayTickers = _deduplicatedTickers;
+    final List<String> displayTags = _deduplicatedTags;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -335,26 +428,82 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
           ),
         ],
 
-        // Author Header
-        CommunityAuthorHeader(
-          author: post.author,
-          createdAt: post.createdAt,
-          showAvatar: showAvatarInHeader,
-          onAuthorTap: widget.onAuthorTap,
-          onShare: () => _handleShare(context),
-          onBookmark: _handleBookmark,
-          bookmarked: _bookmarked,
-          onMoreTap: widget.repository == null
-              ? null
-              : () {
-                  CommunityPostOptionsSheet.show(
-                    context,
-                    post: post,
-                    repository: widget.repository,
-                    isAuthor: post.author.handle == 'current_user',
-                  );
-                },
-        ),
+        // Author Header or Compact Timestamp Strip
+        if (widget.showAuthorHeader)
+          CommunityAuthorHeader(
+            author: post.author,
+            createdAt: post.createdAt,
+            showAvatar: showAvatarInHeader,
+            onAuthorTap: widget.onAuthorTap,
+            onShare: () => _handleShare(context),
+            onBookmark: _handleBookmark,
+            bookmarked: _bookmarked,
+            onEdit: _isAuthor ? () => _handleEditPost(context) : null,
+            onMoreTap: widget.repository == null
+                ? null
+                : () {
+                    CommunityPostOptionsSheet.show(
+                      context,
+                      post: post,
+                      repository: widget.repository,
+                      isAuthor: _isAuthor,
+                    );
+                  },
+          )
+        else ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(
+                    Icons.schedule_rounded,
+                    size: context.sz(14),
+                    color: theme.colors.foregroundSubtle,
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xxs)),
+                  Text(
+                    AppTokens.relativeTime(post.createdAt),
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundSubtle,
+                      fontSize: context.fs(12),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (_isAuthor) ...<Widget>[
+                    UiButton(
+                      label: 'Edit',
+                      icon: Icons.edit_outlined,
+                      size: UiSize.xs,
+                      variant: UiVariant.soft,
+                      intent: UiIntent.primary,
+                      onPressed: () => _handleEditPost(context),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                  ],
+                  if (widget.repository != null)
+                    UiIconButton(
+                      icon: Icons.more_horiz_rounded,
+                      size: UiSize.xs,
+                      tooltip: 'More options',
+                      onPressed: () {
+                        CommunityPostOptionsSheet.show(
+                          context,
+                          post: post,
+                          repository: widget.repository,
+                          isAuthor: _isAuthor,
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ],
 
         // Sentiment badge & edited note
         if (post.sentiment != null || post.isEdited) ...<Widget>[
@@ -397,8 +546,8 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
           CommunityHighlightedText(text: post.body, onTagTap: widget.onTagTap),
         ],
 
-        // Embedded Trade Setup Snippet (if any)
-        if (post.tradeSetup != null) ...<Widget>[
+        // Embedded Trade Setup Snippet (if any and if showTradeSetup is true)
+        if (widget.showTradeSetup && post.tradeSetup != null) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.sm)),
           CommunityTradeSetupTile(setup: post.tradeSetup!, onTap: widget.onTap),
         ],
@@ -487,14 +636,14 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
           ),
         ],
 
-        // Ticker Badges & Hashtags
-        if (post.tickers.isNotEmpty || post.tags.isNotEmpty) ...<Widget>[
+        // Ticker Badges & Hashtags (Cleaned & Deduplicated)
+        if (widget.showTagsAndTickers && (displayTickers.isNotEmpty || displayTags.isNotEmpty)) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.sm)),
           Wrap(
             spacing: context.sp(theme.spacing.xs),
             runSpacing: context.sp(theme.spacing.xs),
             children: <Widget>[
-              for (final ticker in post.tickers)
+              for (final ticker in displayTickers)
                 UiBadge(
                   label: '\$$ticker',
                   intent: UiIntent.primary,
@@ -504,7 +653,7 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                       ? null
                       : () => widget.onTagTap!('\$$ticker'),
                 ),
-              for (final tag in post.tags)
+              for (final tag in displayTags)
                 UiBadge(
                   label: '#$tag',
                   intent: UiIntent.info,
@@ -519,24 +668,26 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
         ],
 
         // Engagement Action Bar
-        SizedBox(height: context.sp(theme.spacing.xs)),
-        CommunityEngagementBar(
-          comments: post.comments,
-          reposts: _reposts,
-          likes: _likes,
-          views: post.views,
-          liked: _liked,
-          reposted: _reposted,
-          bookmarked: _bookmarked,
-          onReply: widget.onTap,
-          onRepost: _handleRepost,
-          onLike: _handleLike,
-          onBookmark: _handleBookmark,
-          onShare: () => _handleShare(context),
-          onViewStats: () =>
-              CommunityPostInsightsSheet.show(context, post: post),
-          showBorder: true,
-        ),
+        if (widget.showEngagementBar) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.xs)),
+          CommunityEngagementBar(
+            comments: post.comments,
+            reposts: _reposts,
+            likes: _likes,
+            views: post.views,
+            liked: _liked,
+            reposted: _reposted,
+            bookmarked: _bookmarked,
+            onReply: widget.onReply ?? widget.onTap,
+            onRepost: _handleRepost,
+            onLike: _handleLike,
+            onBookmark: _handleBookmark,
+            onShare: () => _handleShare(context),
+            onViewStats: () =>
+                CommunityPostInsightsSheet.show(context, post: post),
+            showBorder: true,
+          ),
+        ],
       ],
     );
   }

@@ -36,10 +36,17 @@ import 'turnover_screen.dart';
 /// calculator on a phone, and faking one with a sheet buries the list behind a
 /// button, so the list is simply the first screen and the tool is the second.
 class CalculatorsScreen extends StatefulWidget {
-  const CalculatorsScreen({super.key, this.onSubpageChanged});
+  const CalculatorsScreen({
+    super.key,
+    this.onSubpageChanged,
+    this.initialCalculatorId,
+    this.initiallyOpened = false,
+  });
 
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
       onSubpageChanged;
+  final String? initialCalculatorId;
+  final bool initiallyOpened;
 
   @override
   State<CalculatorsScreen> createState() => _CalculatorsScreenState();
@@ -51,9 +58,22 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
   String _query = '';
   AppCalculatorCategory? _category;
 
-  /// Desktop: always a tool. Mobile: null until one is opened.
-  String _activeId = kAllCalculators.first.id;
-  bool _opened = false;
+  late String _activeId;
+  late bool _opened;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeId = widget.initialCalculatorId ?? kAllCalculators.first.id;
+    _opened = widget.initiallyOpened || widget.initialCalculatorId != null;
+    if (_opened) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final AppCalculatorMeta meta = calculatorMetaById(_activeId);
+        widget.onSubpageChanged?.call(meta.name, meta.icon, _closeTool);
+      });
+    }
+  }
 
   void _openTool(String id) {
     setState(() {
@@ -73,7 +93,10 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
   @override
   void didUpdateWidget(CalculatorsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.onSubpageChanged != widget.onSubpageChanged && _opened) {
+    if (widget.initialCalculatorId != null &&
+        widget.initialCalculatorId != oldWidget.initialCalculatorId) {
+      _openTool(widget.initialCalculatorId!);
+    } else if (oldWidget.onSubpageChanged != widget.onSubpageChanged && _opened) {
       final AppCalculatorMeta meta = calculatorMetaById(_activeId);
       widget.onSubpageChanged?.call(meta.name, meta.icon, _closeTool);
     }
@@ -120,31 +143,60 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
   // ── Desktop workbench ──────────────────────────────────────────────────────
 
   Widget _desktop(BuildContext context) {
-    final theme = context.ui;
+    if (_opened) {
+      final theme = context.ui;
 
-    return ColoredBox(
-      color: theme.colors.background,
-      child: Stack(
-        children: <Widget>[
-          Positioned.fill(
-            child: AppCalculatorWorkspaceScope(child: _tool(context)),
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (bool didPop, dynamic result) {
+          if (!didPop) {
+            _closeTool();
+          }
+        },
+        child: ColoredBox(
+          color: theme.colors.background,
+          child: Stack(
+            children: <Widget>[
+              Positioned.fill(
+                child: AppCalculatorWorkspaceScope(
+                  embeddedHeader: widget.onSubpageChanged != null,
+                  child: _tool(
+                    context,
+                    onBack: _closeTool,
+                  ),
+                ),
+              ),
+              Positioned(
+                right: context.sp(theme.spacing.md),
+                bottom: context.sp(theme.spacing.md),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: context.radius(theme.radii.lg),
+                    boxShadow: <BoxShadow>[
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.28),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: UiIconButton(
+                    key: const ValueKey<String>('calculator_tools_fab'),
+                    icon: Icons.grid_view_rounded,
+                    tooltip: 'All Tools',
+                    variant: UiVariant.primary,
+                    size: UiSize.md,
+                    onPressed: () => _openToolsSidebar(context),
+                  ),
+                ),
+              ),
+            ],
           ),
-          Positioned(
-            right: context.sp(theme.spacing.lg),
-            bottom: context.sp(theme.spacing.lg),
-            child: UiButton(
-              key: const ValueKey<String>('calculator_tools_fab'),
-              label: 'Tools',
-              leadingIcon: Icons.grid_view_rounded,
-              variant: UiVariant.primary,
-              rounded: true,
-              elevate: true,
-              onPressed: () => _openToolsSidebar(context),
-            ),
-          ),
-        ],
-      ),
-    );
+        ),
+      );
+    }
+
+    return _indexView(context);
   }
 
   void _openToolsSidebar(BuildContext context) {
@@ -165,14 +217,12 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
         initialQuery: _query,
         initialCategory: _category,
         onSelect: (AppCalculatorMeta m) {
-          setState(() => _activeId = m.id);
+          _openTool(m.id);
           Navigator.of(context).pop();
         },
       ),
     );
   }
-
-  // ── Mobile: index, then tool ───────────────────────────────────────────────
 
   Widget _mobile(BuildContext context) {
     if (_opened) {
@@ -193,6 +243,10 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
       );
     }
 
+    return _indexView(context);
+  }
+
+  Widget _indexView(BuildContext context) {
     final theme = context.ui;
     final c = theme.colors;
     final List<AppCalculatorMeta> visible = _visible;

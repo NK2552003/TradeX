@@ -24,6 +24,8 @@ import 'package:tradex/features/settings/data/repositories/profile_settings_repo
 import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
 import 'package:tradex/features/strategies/ui/strategies_screen.dart';
 import 'package:tradex/features/community/community.dart';
+import 'package:tradex/features/messages/messages.dart';
+import 'package:tradex/features/ai_assistant/ai_assistant.dart';
 import 'package:tradex/core/widgets/app_global_notifications_page.dart';
 
 /// The signed-in application shell: chrome, navigation and the active page.
@@ -44,7 +46,7 @@ class AppScaffold extends StatefulWidget {
     this.subscriptionTier = AppTier.free,
     this.userId = '',
     this.userDisplayName = '',
-    this.initialDestination = 'overview',
+    this.initialDestination = 'workspace',
   });
 
   final UserRole userRole;
@@ -88,13 +90,24 @@ class _AppScaffoldState extends State<AppScaffold> {
   final GlobalKey<NotesScreenState> _notesKey = GlobalKey<NotesScreenState>();
   final GlobalKey _workspaceSearchKey = GlobalKey();
 
-  String _selectedId = 'overview';
+  String _selectedId = 'workspace';
   String _workspaceQuery = '';
+  String _communityQuery = '';
   AppTrader? _identity;
   int _unread = 0;
   bool _showAffiliateApplication = false;
   AffiliateApplicationStatus? _affiliateApplicationStatus;
   late final CommunityRepository _communityRepo = CommunityRepository();
+  late final MessagesRepository _messagesRepo = MessagesRepository();
+  late final AiAssistantRepository _aiRepo = AiAssistantRepository(
+    communityRepository: _communityRepo,
+  );
+  final GlobalKey<MessagesRootScreenState> _messagesKey =
+      GlobalKey<MessagesRootScreenState>();
+  final GlobalKey<AiAssistantRootScreenState> _aiKey =
+      GlobalKey<AiAssistantRootScreenState>();
+  String _messagesQuery = '';
+  String _aiQuery = '';
 
   UserRole? _previewRoleOverride;
   UserRole get _effectiveRole => _previewRoleOverride ?? widget.userRole;
@@ -133,6 +146,8 @@ class _AppScaffoldState extends State<AppScaffold> {
   void dispose() {
     _communityRepo.removeListener(_onCommunityRepoChanged);
     _communityRepo.dispose();
+    _messagesRepo.dispose();
+    _aiRepo.dispose();
     super.dispose();
   }
 
@@ -271,6 +286,49 @@ class _AppScaffoldState extends State<AppScaffold> {
     ),
   );
 
+  bool get _isCommunityFeature =>
+      _selectedId == 'community' || _selectedId.startsWith('community_');
+
+  String get _communitySearchHint => switch (_selectedId) {
+    'community_explore' =>
+      'Search topics, signals, cashtags (#BTC, \$AAPL)...',
+    'community_network' => 'Search traders by name, @handle or style...',
+    _ => 'Search community posts, traders, topics...',
+  };
+
+  void _updateCommunityQuery(String value) =>
+      setState(() => _communityQuery = value);
+
+  Future<void> _showCommunitySearch() => UiDrawer.show<void>(
+    context,
+    title: _communitySearchHint,
+    child: StatefulBuilder(
+      builder: (BuildContext drawerContext, StateSetter updateDrawer) =>
+          UiInput.search(
+            value: _communityQuery,
+            hintText: _communitySearchHint,
+            autofocus: true,
+            onChanged: (String value) {
+              _updateCommunityQuery(value);
+              updateDrawer(() {});
+            },
+          ),
+    ),
+  );
+
+  bool get _isMessagesFeature => _selectedId == 'messages';
+
+  void _updateMessagesQuery(String value) {
+    setState(() => _messagesQuery = value);
+    _messagesKey.currentState?.setSearchQuery(value);
+  }
+
+  bool get _isAiFeature => _selectedId == 'ai_copilot';
+
+  void _updateAiQuery(String value) {
+    setState(() => _aiQuery = value);
+    _aiKey.currentState?.setSearchQuery(value);
+  }
 
   void _showActiveWritingGuide() {
     final List<GlobalKey> targets = <GlobalKey>[
@@ -298,7 +356,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// [setState] because the only caller is [didUpdateWidget], where a rebuild is
   /// already on the way.
   void _resetToOverview() {
-    _selectedId = 'overview';
+    _selectedId = _navigation.allows('workspace') ? 'workspace' : 'overview';
     _showAffiliateApplication = false;
     _activeSubpageTitle = null;
     _activeSubpageIcon = null;
@@ -330,9 +388,13 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// The one way a destination changes.
   void _go(String id) {
     if (!_canReach(id)) return;
+    if (_selectedId == id && !_showAffiliateApplication) return;
     setState(() {
       _selectedId = id;
       _workspaceQuery = '';
+      if (!id.startsWith('community')) {
+        _communityQuery = '';
+      }
       _showAffiliateApplication = id == 'affiliate_application';
       _activeSubpageTitle = null;
       _activeSubpageIcon = null;
@@ -530,6 +592,63 @@ class _AppScaffoldState extends State<AppScaffold> {
       onSubscriptionTierChanged: _session.changeTier,
       onApplyForAffiliate: _openAffiliateApplication,
       onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+    );
+  }
+
+  Widget _communityPage({int initialTabIndex = 0}) {
+    final trader = _chromeIdentity;
+    _communityRepo.updateCurrentAuthor(
+      CommunityAuthor(
+        id: trader.id.isNotEmpty ? trader.id : 'usr_nitish_trader',
+        handle: trader.handle.isNotEmpty ? trader.handle : 'nitish_trader',
+        displayName: (trader.displayName?.isNotEmpty ?? false)
+            ? trader.displayName!
+            : 'Nitish Kumar',
+        userRole: _effectiveRole,
+        avatarUrl: trader.avatarUrl,
+        verified: trader.verified,
+        tier: _session.tier.value,
+        followers: trader.followers,
+        following: trader.following,
+        winRate: trader.winRate ?? 84.0,
+        tradingStyle: trader.tradingStyle ?? 'Swing Trading',
+        primaryMarket: 'Indian Equities & F&O',
+      ),
+    );
+    return CommunityRootScreen(
+      key: ValueKey<String>('community_root_${_effectiveRole.id}'),
+      userRole: _effectiveRole,
+      currentTrader: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      initialTabIndex: initialTabIndex,
+      repository: _communityRepo,
+      searchQuery: _communityQuery,
+    );
+  }
+
+  Widget _messagesPage() {
+    return MessagesRootScreen(
+      key: _messagesKey,
+      userRole: _effectiveRole,
+      currentUser: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      repository: _messagesRepo,
+      searchQuery: _messagesQuery,
+    );
+  }
+
+  Widget _aiAssistantPage() {
+    return AiAssistantRootScreen(
+      key: _aiKey,
+      userRole: _effectiveRole,
+      currentUser: _chromeIdentity,
+      onSubpageChanged: _onSubpageChanged,
+      onOpenRef: _openLinkRef,
+      repository: _aiRepo,
+      searchQuery: _aiQuery,
     );
   }
 
@@ -578,60 +697,14 @@ class _AppScaffoldState extends State<AppScaffold> {
 
     'calculators' => CalculatorsScreen(onSubpageChanged: _onSubpageChanged),
     'portfolio' => UiSkeleton.portfolio(),
-    'community' => CommunityRootScreen(
-      userRole: _effectiveRole,
-      currentTrader: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      repository: _communityRepo,
-    ),
-    'community_feed' => CommunityRootScreen(
-      key: const ValueKey<String>('community_feed'),
-      userRole: _effectiveRole,
-      currentTrader: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      initialTabIndex: 0,
-      repository: _communityRepo,
-    ),
-    'community_explore' => CommunityRootScreen(
-      key: const ValueKey<String>('community_explore'),
-      userRole: _effectiveRole,
-      currentTrader: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      initialTabIndex: 1,
-      repository: _communityRepo,
-    ),
-    'community_network' => CommunityRootScreen(
-      key: const ValueKey<String>('community_network'),
-      userRole: _effectiveRole,
-      currentTrader: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      initialTabIndex: 2,
-      repository: _communityRepo,
-    ),
-    'community_profile' => CommunityRootScreen(
-      key: const ValueKey<String>('community_profile'),
-      userRole: _effectiveRole,
-      currentTrader: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      initialTabIndex: 3,
-      repository: _communityRepo,
-    ),
-    'community_bookmarks' => CommunityRootScreen(
-      key: const ValueKey<String>('community_bookmarks'),
-      userRole: _effectiveRole,
-      currentTrader: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      initialTabIndex: 4,
-      repository: _communityRepo,
-    ),
-    'messages' => UiSkeleton.messages(),
-    'ai_copilot' => UiSkeleton.ai(),
+    'community' => _communityPage(initialTabIndex: 0),
+    'community_feed' => _communityPage(initialTabIndex: 0),
+    'community_explore' => _communityPage(initialTabIndex: 1),
+    'community_network' => _communityPage(initialTabIndex: 2),
+    'community_profile' => _communityPage(initialTabIndex: 3),
+    'community_bookmarks' => _communityPage(initialTabIndex: 4),
+    'messages' => _messagesPage(),
+    'ai_copilot' => _aiAssistantPage(),
     _ => _unknownPage(),
   };
 
@@ -654,79 +727,25 @@ class _AppScaffoldState extends State<AppScaffold> {
       onOpenReferrals: _jump('referrals'),
       onOpenSettings: _jump('settings_affiliate'),
     ),
-    'community' => CommunityRootScreen(
-      userRole: _effectiveRole,
-      currentTrader: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      repository: _communityRepo,
-    ),
-    'community_feed' => CommunityRootScreen(
-      key: const ValueKey<String>('community_feed'),
-      userRole: _effectiveRole,
-      currentTrader: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      initialTabIndex: 0,
-      repository: _communityRepo,
-    ),
-    'community_explore' => CommunityRootScreen(
-      key: const ValueKey<String>('community_explore'),
-      userRole: _effectiveRole,
-      currentTrader: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      initialTabIndex: 1,
-      repository: _communityRepo,
-    ),
-    'community_network' => CommunityRootScreen(
-      key: const ValueKey<String>('community_network'),
-      userRole: _effectiveRole,
-      currentTrader: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      initialTabIndex: 2,
-      repository: _communityRepo,
-    ),
-    'community_profile' => CommunityRootScreen(
-      key: const ValueKey<String>('community_profile'),
-      userRole: _effectiveRole,
-      currentTrader: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      initialTabIndex: 3,
-      repository: _communityRepo,
-    ),
-    'community_bookmarks' => CommunityRootScreen(
-      key: const ValueKey<String>('community_bookmarks'),
-      userRole: _effectiveRole,
-      currentTrader: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-      initialTabIndex: 4,
-      repository: _communityRepo,
-    ),
-    'messages' => _placeholderPage(
-      'Messages',
-      'This screen will provide direct communication channels with your affiliate manager.',
-      Icons.chat_bubble_outline_rounded,
-    ),
-    'ai_copilot' => _placeholderPage(
-      'AI Assistant',
-      'This screen will provide AI-powered marketing copy generation and conversion tips.',
-      Icons.auto_awesome_outlined,
-    ),
+    'community' => _communityPage(initialTabIndex: 0),
+    'community_feed' => _communityPage(initialTabIndex: 0),
+    'community_explore' => _communityPage(initialTabIndex: 1),
+    'community_network' => _communityPage(initialTabIndex: 2),
+    'community_profile' => _communityPage(initialTabIndex: 3),
+    'community_bookmarks' => _communityPage(initialTabIndex: 4),
+    'messages' => _messagesPage(),
+    'ai_copilot' => _aiAssistantPage(),
     _ => _unknownPage(),
   };
 
   Widget _adminPage() => switch (_selectedId) {
     'notes' => const NotesScreen(),
-    'community' => CommunityRootScreen(
-      userRole: _effectiveRole,
-      currentTrader: _chromeIdentity,
-      onSubpageChanged: _onSubpageChanged,
-      onOpenRef: _openLinkRef,
-    ),
+    'community' => _communityPage(initialTabIndex: 0),
+    'community_feed' => _communityPage(initialTabIndex: 0),
+    'community_explore' => _communityPage(initialTabIndex: 1),
+    'community_network' => _communityPage(initialTabIndex: 2),
+    'community_profile' => _communityPage(initialTabIndex: 3),
+    'community_bookmarks' => _communityPage(initialTabIndex: 4),
     'overview' => _placeholderPage(
       'Desk Overview',
       'This screen will display the trading firm executive summary and risk metrics.',
@@ -753,11 +772,8 @@ class _AppScaffoldState extends State<AppScaffold> {
       Icons.analytics_outlined,
     ),
     'affiliate_reviews' => const AffiliateApprovalsPage(),
-    'ai_copilot' => _placeholderPage(
-      'AI Assistant',
-      'This screen will analyze organizational risk patterns and trader compliance.',
-      Icons.auto_awesome_outlined,
-    ),
+    'messages' => _messagesPage(),
+    'ai_copilot' => _aiAssistantPage(),
     _ => _unknownPage(),
   };
 
@@ -778,10 +794,10 @@ class _AppScaffoldState extends State<AppScaffold> {
               'The navigation lists this destination but no page answers it. Pick '
               'another item from the sidebar.',
           action: UiButton(
-            label: 'Back to ${_navigation.labelFor('overview') ?? 'the start'}',
+            label: 'Back to ${_navigation.labelFor('workspace') ?? _navigation.labelFor('overview') ?? 'the start'}',
             leadingIcon: Icons.arrow_back_rounded,
             variant: UiVariant.outline,
-            onPressed: _jump('overview'),
+            onPressed: _jump(_navigation.allows('workspace') ? 'workspace' : 'overview'),
           ),
         ),
       ),
@@ -991,10 +1007,18 @@ class _AppScaffoldState extends State<AppScaffold> {
             onSelect: _go,
             onSearch: _isWritingFeature
                 ? _showWorkspaceSearch
-                : () => _go('search'),
-            searchQuery: _isWritingFeature ? _workspaceQuery : null,
-            searchHint: _isWritingFeature ? _writingSearchHint : null,
-            onSearchChanged: _isWritingFeature ? _updateWorkspaceQuery : null,
+                : (_isCommunityFeature
+                    ? _showCommunitySearch
+                    : () => _go('search')),
+            searchQuery: _isWritingFeature
+                ? _workspaceQuery
+                : (_isCommunityFeature ? _communityQuery : null),
+            searchHint: _isWritingFeature
+                ? _writingSearchHint
+                : (_isCommunityFeature ? _communitySearchHint : null),
+            onSearchChanged: _isWritingFeature
+                ? _updateWorkspaceQuery
+                : (_isCommunityFeature ? _updateCommunityQuery : null),
             searchTargetKey: _isWritingFeature ? _workspaceSearchKey : null,
             headerActions: const <Widget>[],
             onSettings: () => _go('settings'),
@@ -1020,7 +1044,7 @@ class _AppScaffoldState extends State<AppScaffold> {
             unreadNotifications: _unread,
             pageTitle: _pageTitleOverride,
             pageIcon: _pageIconOverride,
-            onBack: context.uiRes.isDesktop ? null : _pageBackOverride,
+            onBack: _pageBackOverride,
             pagePlaceholderBuilder: (BuildContext context, AppNavItem item) =>
                 _destinationSkeleton(item.id),
             primaryActionLabel: null,
