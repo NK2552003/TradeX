@@ -1,0 +1,24 @@
+{
+  "quotes": [
+    {
+      "symbol": "NVDA",
+      "regularMarketPrice": 128.5,
+      "regularMarketChangePercent": 5.41,
+      "regularMarketVolume": 68000000
+    },
+    {
+      "symbol": "RELIANCE.NS",
+      "regularMarketPrice": 2950.4,
+      "regularMarketChangePercent": 1.39,
+      "regularMarketVolume": 5123000
+    },
+    {
+      "symbol": "MSFT",
+      "regularMarketPrice": 448.2,
+      "regularMarketChangePercent": 1.4,
+      "regularMarketVolume": 21045000
+    }
+  ],
+  "count": 3,
+  "total": 3
+}

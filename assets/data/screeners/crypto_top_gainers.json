@@ -1,0 +1,12 @@
+[
+  {
+    "ticker": "BTC-USD",
+    "price": 64200.5,
+    "change_pct": 2.1
+  },
+  {
+    "ticker": "ETH-USD",
+    "price": 3480.2,
+    "change_pct": 1.5
+  }
+]

@@ -65,6 +65,12 @@ flutter:
 
   assets:
     - .env
+    - assets/data/
+    - assets/data/history/
+    - assets/data/screeners/
+    - assets/data/stock_detail/
+    - assets/data/by_topic/
+    - assets/data/tickers/
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

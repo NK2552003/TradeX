@@ -1,0 +1,186 @@
+{
+  "ticker": "TCS.NS",
+  "market": "IN",
+  "fetched_at": "2026-09-28T13:33:08.753Z",
+  "summary": {
+    "name": "Tata Consultancy Services",
+    "sector": "Energy & Retail",
+    "industry": "Conglomerate",
+    "website": "https://www.tcs.com",
+    "description": "Tata Consultancy Services is a leading player in the market delivering high value to global investors.",
+    "market_cap": 20000000000000,
+    "pe_ratio": 28.4,
+    "forward_pe": 25.1,
+    "peg_ratio": 1.9,
+    "eps": 104.5,
+    "dividend_yield": 0.4,
+    "beta": 1.1,
+    "fifty_two_week_high": 4847.25,
+    "fifty_two_week_low": 3456.3,
+    "fifty_day_average": 4130.7,
+    "two_hundred_day_average": 3919.95,
+    "avg_volume": 55000000,
+    "shares_outstanding": 15400000000,
+    "float_shares": 15300000000,
+    "held_percent_insiders": 0.45,
+    "held_percent_institutions": 0.35,
+    "short_ratio": 1.4,
+    "target_mean_price": 5058.0,
+    "recommendation": "buy",
+    "number_of_analyst_opinions": 38,
+    "employees": 164000,
+    "country": "India",
+    "exchange": "NSE"
+  },
+  "quote": {
+    "price": 4215.0,
+    "previous_close": 4164.42,
+    "day_high": 4257.15,
+    "day_low": 4151.77,
+    "volume": 5123000,
+    "change_pct": 1.25,
+    "currency": "INR",
+    "market_cap": 20000000000000,
+    "updated_at": "2026-09-28T13:33:08.753Z"
+  },
+  "news": [
+    {
+      "ticker": "TCS.NS",
+      "title": "Tata Consultancy Services Reports Strong Financial Results and Market Expansion",
+      "summary": "Key momentum seen across major operational units with bullish analyst outlook for TCS.NS.",
+      "link": "https://finance.yahoo.com/news/tcs.ns-earnings-report",
+      "publisher": "Reuters",
+      "thumbnail_url": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=500",
+      "related_tickers": [
+        "TCS.NS"
+      ],
+      "content_type": "STORY",
+      "published_at": "2026-09-28T13:33:08.753Z"
+    },
+    {
+      "ticker": "TCS.NS",
+      "title": "Analyst Sentiment Remains Positive for TCS.NS Following Strategic Roadmap Update",
+      "summary": "Institutional investors double down on growth expectations amidst broader macroeconomic tailwinds.",
+      "link": "https://finance.yahoo.com/news/tcs.ns-analyst-update",
+      "publisher": "Bloomberg",
+      "thumbnail_url": "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=500",
+      "related_tickers": [
+        "TCS.NS"
+      ],
+      "content_type": "STORY",
+      "published_at": "2026-09-28T13:33:08.753Z"
+    }
+  ],
+  "chart": {
+    "period": "6mo",
+    "interval": "1d",
+    "data": [
+      {
+        "date": "2026-08-10T00:00:00",
+        "open": 4004.25,
+        "high": 4088.55,
+        "low": 3962.1,
+        "close": 4046.4,
+        "volume": 4500000
+      },
+      {
+        "date": "2026-08-11T00:00:00",
+        "open": 4046.4,
+        "high": 4172.85,
+        "low": 4004.25,
+        "close": 4130.7,
+        "volume": 5200000
+      },
+      {
+        "date": "2026-08-12T00:00:00",
+        "open": 4130.7,
+        "high": 4257.15,
+        "low": 4088.55,
+        "close": 4215.0,
+        "volume": 5123000
+      }
+    ]
+  },
+  "options": {
+    "expirations": [
+      "2026-10-16",
+      "2026-11-20",
+      "2026-12-18"
+    ],
+    "chains": {
+      "2026-10-16": {
+        "calls": [
+          {
+            "strike": 4425.8,
+            "lastPrice": 3.2,
+            "bid": 3.1,
+            "ask": 3.3,
+            "volume": 1200,
+            "openInterest": 4500,
+            "impliedVolatility": 0.25,
+            "inTheMoney": false,
+            "contractSymbol": "TCS.NS261016C00230000"
+          }
+        ],
+        "puts": [
+          {
+            "strike": 4004.2,
+            "lastPrice": 2.8,
+            "bid": 2.7,
+            "ask": 2.9,
+            "volume": 850,
+            "openInterest": 3100,
+            "impliedVolatility": 0.24,
+            "inTheMoney": false,
+            "contractSymbol": "TCS.NS261016P00210000"
+          }
+        ]
+      }
+    }
+  },
+  "dividends_and_splits": {
+    "dividends": [
+      {
+        "date": "2026-08-01T00:00:00",
+        "amount": 0.25
+      }
+    ],
+    "splits": [
+      {
+        "date": "2020-08-31T00:00:00",
+        "ratio": 4.0
+      }
+    ]
+  },
+  "recommendations": [
+    {
+      "period": "0m",
+      "strongBuy": 12,
+      "buy": 22,
+      "hold": 5,
+      "sell": 1,
+      "strongSell": 0
+    }
+  ],
+  "holders": {
+    "major_holders": [
+      {
+        "Value": "0.05",
+        "Breakdown": "% of Shares Held by All Insiders"
+      }
+    ],
+    "institutional_holders": [
+      {
+        "Holder": "Vanguard Group Inc",
+        "Shares": 1300000000,
+        "Date Reported": "2026-06-30",
+        "% Out": 0.084,
+        "Value": 295000000000
+      }
+    ]
+  },
+  "not_available": {
+    "conversations": "Yahoo's discussion/comment system is not exposed by any API — website-rendered only.",
+    "components": "No reliable free source for full ETF/index holdings lists via yfinance."
+  }
+}

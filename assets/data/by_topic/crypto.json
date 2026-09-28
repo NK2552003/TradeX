@@ -1,0 +1,17 @@
+[
+  {
+    "ticker": "BTC-USD",
+    "market": "CRYPTO",
+    "title": "Bitcoin Holds Key Support Level as Market Liquidity Expands",
+    "summary": "Institutional inflows into spot ETFs reach new monthly high while long-term holder balances remain steady.",
+    "link": "https://finance.yahoo.com/news/example-btc",
+    "publisher": "CoinDesk",
+    "thumbnail_url": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=500",
+    "related_tickers": [
+      "BTC-USD",
+      "ETH-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-28T13:33:08.903Z"
+  }
+]

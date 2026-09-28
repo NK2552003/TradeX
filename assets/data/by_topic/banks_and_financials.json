@@ -1,0 +1,17 @@
+[
+  {
+    "ticker": "RELIANCE.NS",
+    "market": "IN",
+    "title": "Reliance Retail Expands Digital Platform Integration Across Key Markets",
+    "summary": "Strong quarterly performance driven by digital commerce acceleration and expanded footprint in retail and consumer services.",
+    "link": "https://finance.yahoo.com/news/example-reliance",
+    "publisher": "Reuters",
+    "thumbnail_url": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=500",
+    "related_tickers": [
+      "RELIANCE.NS",
+      "TCS.NS"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-28T13:33:08.903Z"
+  }
+]
