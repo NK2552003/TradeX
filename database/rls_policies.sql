@@ -25,6 +25,8 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE revenuecat_webhook_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_views ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trader_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trader_checklists ENABLE ROW LEVEL SECURITY;
 
 -- Helper function to check if current user is user_admin
 CREATE OR REPLACE FUNCTION is_user_admin()
@@ -232,5 +234,16 @@ WITH CHECK (sender_id <> auth.uid());
 -- notifications
 DROP POLICY IF EXISTS notifications_own_all ON notifications;
 CREATE POLICY notifications_own_all ON notifications FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- post_views
+DROP POLICY IF EXISTS post_views_own_all ON post_views;
+CREATE POLICY post_views_own_all ON post_views FOR ALL USING (auth.uid() = user_id OR user_id IS NULL) WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
+
+-- trader_preferences & checklists
+DROP POLICY IF EXISTS trader_preferences_own_all ON trader_preferences;
+CREATE POLICY trader_preferences_own_all ON trader_preferences FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS trader_checklists_own_all ON trader_checklists;
+CREATE POLICY trader_checklists_own_all ON trader_checklists FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 COMMIT;

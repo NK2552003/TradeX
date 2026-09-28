@@ -1,0 +1,186 @@
+{
+  "ticker": "RELIANCE.NS",
+  "market": "IN",
+  "fetched_at": "2026-09-28T13:33:08.732Z",
+  "summary": {
+    "name": "Reliance Industries Limited",
+    "sector": "Energy & Retail",
+    "industry": "Conglomerate",
+    "website": "https://www.reliance.com",
+    "description": "Reliance Industries Limited is a leading player in the market delivering high value to global investors.",
+    "market_cap": 20000000000000,
+    "pe_ratio": 28.4,
+    "forward_pe": 25.1,
+    "peg_ratio": 1.9,
+    "eps": 104.5,
+    "dividend_yield": 0.4,
+    "beta": 1.1,
+    "fifty_two_week_high": 3392.96,
+    "fifty_two_week_low": 2419.33,
+    "fifty_day_average": 2891.39,
+    "two_hundred_day_average": 2743.87,
+    "avg_volume": 55000000,
+    "shares_outstanding": 15400000000,
+    "float_shares": 15300000000,
+    "held_percent_insiders": 0.45,
+    "held_percent_institutions": 0.35,
+    "short_ratio": 1.4,
+    "target_mean_price": 3540.48,
+    "recommendation": "buy",
+    "number_of_analyst_opinions": 38,
+    "employees": 164000,
+    "country": "India",
+    "exchange": "NSE"
+  },
+  "quote": {
+    "price": 2950.4,
+    "previous_close": 2915.0,
+    "day_high": 2979.9,
+    "day_low": 2906.14,
+    "volume": 5123000,
+    "change_pct": 1.25,
+    "currency": "INR",
+    "market_cap": 20000000000000,
+    "updated_at": "2026-09-28T13:33:08.732Z"
+  },
+  "news": [
+    {
+      "ticker": "RELIANCE.NS",
+      "title": "Reliance Industries Limited Reports Strong Financial Results and Market Expansion",
+      "summary": "Key momentum seen across major operational units with bullish analyst outlook for RELIANCE.NS.",
+      "link": "https://finance.yahoo.com/news/reliance.ns-earnings-report",
+      "publisher": "Reuters",
+      "thumbnail_url": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=500",
+      "related_tickers": [
+        "RELIANCE.NS"
+      ],
+      "content_type": "STORY",
+      "published_at": "2026-09-28T13:33:08.732Z"
+    },
+    {
+      "ticker": "RELIANCE.NS",
+      "title": "Analyst Sentiment Remains Positive for RELIANCE.NS Following Strategic Roadmap Update",
+      "summary": "Institutional investors double down on growth expectations amidst broader macroeconomic tailwinds.",
+      "link": "https://finance.yahoo.com/news/reliance.ns-analyst-update",
+      "publisher": "Bloomberg",
+      "thumbnail_url": "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=500",
+      "related_tickers": [
+        "RELIANCE.NS"
+      ],
+      "content_type": "STORY",
+      "published_at": "2026-09-28T13:33:08.732Z"
+    }
+  ],
+  "chart": {
+    "period": "6mo",
+    "interval": "1d",
+    "data": [
+      {
+        "date": "2026-08-10T00:00:00",
+        "open": 2802.88,
+        "high": 2861.89,
+        "low": 2773.38,
+        "close": 2832.38,
+        "volume": 4500000
+      },
+      {
+        "date": "2026-08-11T00:00:00",
+        "open": 2832.38,
+        "high": 2920.9,
+        "low": 2802.88,
+        "close": 2891.39,
+        "volume": 5200000
+      },
+      {
+        "date": "2026-08-12T00:00:00",
+        "open": 2891.39,
+        "high": 2979.9,
+        "low": 2861.89,
+        "close": 2950.4,
+        "volume": 5123000
+      }
+    ]
+  },
+  "options": {
+    "expirations": [
+      "2026-10-16",
+      "2026-11-20",
+      "2026-12-18"
+    ],
+    "chains": {
+      "2026-10-16": {
+        "calls": [
+          {
+            "strike": 3097.9,
+            "lastPrice": 3.2,
+            "bid": 3.1,
+            "ask": 3.3,
+            "volume": 1200,
+            "openInterest": 4500,
+            "impliedVolatility": 0.25,
+            "inTheMoney": false,
+            "contractSymbol": "RELIANCE.NS261016C00230000"
+          }
+        ],
+        "puts": [
+          {
+            "strike": 2802.9,
+            "lastPrice": 2.8,
+            "bid": 2.7,
+            "ask": 2.9,
+            "volume": 850,
+            "openInterest": 3100,
+            "impliedVolatility": 0.24,
+            "inTheMoney": false,
+            "contractSymbol": "RELIANCE.NS261016P00210000"
+          }
+        ]
+      }
+    }
+  },
+  "dividends_and_splits": {
+    "dividends": [
+      {
+        "date": "2026-08-01T00:00:00",
+        "amount": 0.25
+      }
+    ],
+    "splits": [
+      {
+        "date": "2020-08-31T00:00:00",
+        "ratio": 4.0
+      }
+    ]
+  },
+  "recommendations": [
+    {
+      "period": "0m",
+      "strongBuy": 12,
+      "buy": 22,
+      "hold": 5,
+      "sell": 1,
+      "strongSell": 0
+    }
+  ],
+  "holders": {
+    "major_holders": [
+      {
+        "Value": "0.05",
+        "Breakdown": "% of Shares Held by All Insiders"
+      }
+    ],
+    "institutional_holders": [
+      {
+        "Holder": "Vanguard Group Inc",
+        "Shares": 1300000000,
+        "Date Reported": "2026-06-30",
+        "% Out": 0.084,
+        "Value": 295000000000
+      }
+    ]
+  },
+  "not_available": {
+    "conversations": "Yahoo's discussion/comment system is not exposed by any API — website-rendered only.",
+    "components": "No reliable free source for full ETF/index holdings lists via yfinance."
+  }
+}

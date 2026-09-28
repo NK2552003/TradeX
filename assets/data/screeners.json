@@ -1,0 +1,59 @@
+{
+  "day_gainers": [
+    {
+      "rank": 1,
+      "ticker": "NVDA",
+      "name": "NVIDIA Corporation",
+      "price": 128.5,
+      "change_pct": 5.41,
+      "volume": 68000000
+    },
+    {
+      "rank": 2,
+      "ticker": "RELIANCE.NS",
+      "name": "Reliance Industries",
+      "price": 2950.4,
+      "change_pct": 1.39,
+      "volume": 5123000
+    }
+  ],
+  "day_losers": [
+    {
+      "rank": 1,
+      "ticker": "INTC",
+      "name": "Intel Corporation",
+      "price": 20.15,
+      "change_pct": -3.85,
+      "volume": 42000000
+    }
+  ],
+  "most_active": [
+    {
+      "rank": 1,
+      "ticker": "AAPL",
+      "name": "Apple Inc.",
+      "price": 227.5,
+      "change_pct": 1.07,
+      "volume": 48213000
+    },
+    {
+      "rank": 2,
+      "ticker": "TSLA",
+      "name": "Tesla Inc.",
+      "price": 245.8,
+      "change_pct": 2.16,
+      "volume": 55000000
+    }
+  ],
+  "undervalued_growth": [
+    {
+      "rank": 1,
+      "ticker": "GOOGL",
+      "name": "Alphabet Inc.",
+      "price": 165.2,
+      "change_pct": 0.85,
+      "pe_ratio": 22.4
+    }
+  ],
+  "generated_at": "2026-09-28T13:33:08.989Z"
+}
