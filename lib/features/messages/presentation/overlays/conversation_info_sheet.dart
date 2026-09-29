@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
 
-/// Conversation details bottom sheet: peer identity, quick toggles (pin, mute,
-/// archive), the shared records/media exchanged in the thread, and destructive
-/// actions. Reads live thread state and message history from the repository.
+/// Conversation details bottom sheet: peer/group identity, quick toggles (pin, mute,
+/// archive), group membership management, the shared records/media exchanged in the
+/// thread, and destructive actions (clear history, leave/delete, block).
+/// Reads live thread state and message history from the repository.
 class ConversationInfoSheet extends StatefulWidget {
   const ConversationInfoSheet({
     super.key,
@@ -22,7 +24,7 @@ class ConversationInfoSheet extends StatefulWidget {
   final void Function(AppLinkRef ref)? onOpenRef;
   final void Function(AppTrader trader)? onOpenProfile;
 
-  /// Called after archiving/blocking so the shell can drop the open thread.
+  /// Called after deleting/archiving/blocking so the shell can drop the open thread.
   final VoidCallback? onLeft;
 
   static Future<void> show(
@@ -70,6 +72,265 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
     super.dispose();
   }
 
+  void _showRenameDialog(BuildContext context, MessageThread thread) {
+    final TextEditingController controller =
+        TextEditingController(text: thread.groupTitle ?? '');
+    UiDialog.show<void>(
+      context,
+      child: UiDialog(
+        title: 'Rename Group',
+        content: Padding(
+          padding: EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+          child: UiInput(
+            label: 'Group Name',
+            controller: controller,
+            autofocus: true,
+            hintText: 'Enter new group name',
+          ),
+        ),
+        actions: <Widget>[
+          UiButton(
+            label: 'Cancel',
+            variant: UiVariant.ghost,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          UiButton(
+            label: 'Save',
+            intent: UiIntent.primary,
+            onPressed: () {
+              final String val = controller.text.trim();
+              if (val.isNotEmpty) {
+                widget.repository.renameGroup(thread.id, val);
+                Navigator.of(context).pop();
+                UiToastScope.maybeOf(context)?.show(
+                  UiToastData(
+                    title: 'Group Renamed',
+                    message: 'Group is now "$val".',
+                    intent: UiIntent.success,
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddMemberDialog(BuildContext context, MessageThread thread) {
+    final List<AppTrader> candidates = DemoDataSource.instance
+        .traders()
+        .where((AppTrader t) => !thread.participants.any((AppTrader p) => p.id == t.id))
+        .toList();
+
+    UiDialog.show<void>(
+      context,
+      child: UiDialog(
+        title: 'Add Member',
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: context.sz(280),
+            minWidth: context.sz(280),
+          ),
+          child: candidates.isEmpty
+              ? Padding(
+                  padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+                  child: Text(
+                    'All available traders are already in this group.',
+                    style: context.uiText.body.copyWith(
+                      color: context.uiColors.foregroundMuted,
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: candidates.length,
+                  separatorBuilder: (BuildContext _, int _) => const UiDivider(),
+                  itemBuilder: (BuildContext ctx, int i) {
+                    final AppTrader candidate = candidates[i];
+                    return Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: context.sp(context.ui.spacing.xxs),
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          UiAvatar(name: candidate.displayName ?? candidate.handle),
+                          SizedBox(width: context.sp(context.ui.spacing.sm)),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  candidate.displayName ?? candidate.handle,
+                                  style: context.uiText.bodyStrong,
+                                ),
+                                Text(
+                                  '@${candidate.handle}',
+                                  style: context.uiText.caption.copyWith(
+                                    color: context.uiColors.foregroundMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          UiButton(
+                            label: 'Add',
+                            size: UiSize.xs,
+                            variant: UiVariant.soft,
+                            intent: UiIntent.primary,
+                            onPressed: () {
+                              widget.repository.addParticipant(thread.id, candidate);
+                              Navigator.of(context).pop();
+                              UiToastScope.maybeOf(context)?.show(
+                                UiToastData(
+                                  title: 'Member Added',
+                                  message:
+                                      '${candidate.displayName ?? candidate.handle} joined.',
+                                  intent: UiIntent.success,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: <Widget>[
+          UiButton(
+            label: 'Close',
+            variant: UiVariant.ghost,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmClearHistory(BuildContext context, MessageThread thread) {
+    UiDialog.show<void>(
+      context,
+      child: UiDialog(
+        title: 'Clear Chat History',
+        content: Padding(
+          padding: EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+          child: Text(
+            'Are you sure you want to clear all messages in this conversation? This cannot be undone.',
+            style: context.uiText.body,
+          ),
+        ),
+        actions: <Widget>[
+          UiButton(
+            label: 'Cancel',
+            variant: UiVariant.ghost,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          UiButton(
+            label: 'Clear messages',
+            intent: UiIntent.warning,
+            onPressed: () {
+              widget.repository.clearThreadMessages(thread.id);
+              Navigator.of(context).pop();
+              UiToastScope.maybeOf(context)?.show(
+                UiToastData(
+                  title: 'History Cleared',
+                  message: 'Messages in this conversation have been deleted.',
+                  intent: UiIntent.neutral,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmLeaveOrDelete(BuildContext context, MessageThread thread) {
+    final bool isGroup = thread.isGroup;
+    UiDialog.show<void>(
+      context,
+      child: UiDialog(
+        title: isGroup ? 'Leave Group' : 'Delete Conversation',
+        content: Padding(
+          padding: EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+          child: Text(
+            isGroup
+                ? 'Are you sure you want to leave "${thread.title}"? You will no longer receive new messages.'
+                : 'Are you sure you want to delete this conversation with ${thread.title}? All messages will be permanently removed.',
+            style: context.uiText.body,
+          ),
+        ),
+        actions: <Widget>[
+          UiButton(
+            label: 'Cancel',
+            variant: UiVariant.ghost,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          UiButton(
+            label: isGroup ? 'Leave' : 'Delete',
+            intent: UiIntent.danger,
+            onPressed: () {
+              widget.repository.deleteThread(thread.id);
+              Navigator.of(context).pop(); // dismiss dialog
+              Navigator.of(context).pop(); // dismiss info sheet
+              widget.onLeft?.call();
+              UiToastScope.maybeOf(context)?.show(
+                UiToastData(
+                  title: isGroup ? 'Left Group' : 'Conversation Deleted',
+                  message: isGroup
+                      ? 'You left "${thread.title}".'
+                      : 'Conversation with ${thread.title} deleted.',
+                  intent: UiIntent.danger,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmBlock(BuildContext context, MessageThread thread) {
+    UiDialog.show<void>(
+      context,
+      child: UiDialog(
+        title: 'Block @${thread.peer.handle}',
+        content: Padding(
+          padding: EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+          child: Text(
+            'Are you sure you want to block @${thread.peer.handle}? They will no longer be able to message you.',
+            style: context.uiText.body,
+          ),
+        ),
+        actions: <Widget>[
+          UiButton(
+            label: 'Cancel',
+            variant: UiVariant.ghost,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          UiButton(
+            label: 'Block',
+            intent: UiIntent.danger,
+            onPressed: () {
+              widget.repository.blockTrader(thread.peer.id);
+              Navigator.of(context).pop(); // dismiss dialog
+              Navigator.of(context).pop(); // dismiss sheet
+              widget.onLeft?.call();
+              UiToastScope.maybeOf(context)?.show(
+                UiToastData(
+                  title: 'Trader Blocked',
+                  message: '@${thread.peer.handle} has been blocked.',
+                  intent: UiIntent.danger,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
@@ -84,7 +345,7 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
         .toList();
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.72,
+      initialChildSize: 0.76,
       minChildSize: 0.4,
       maxChildSize: 0.95,
       expand: false,
@@ -112,6 +373,10 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
                     _identity(context, thread),
                     SizedBox(height: context.sp(theme.spacing.md)),
                     _quickActions(context, thread),
+                    if (thread.isGroup) ...<Widget>[
+                      SizedBox(height: context.sp(theme.spacing.md)),
+                      _groupMembers(context, thread),
+                    ],
                     SizedBox(height: context.sp(theme.spacing.md)),
                     const MessagesSectionHeader(
                       title: 'Shared records',
@@ -122,8 +387,9 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
                     else
                       ...sharedRefs.map(
                         (AppLinkRef ref) => Padding(
-                          padding:
-                              EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+                          padding: EdgeInsets.only(
+                            bottom: context.sp(theme.spacing.xs),
+                          ),
                           child: AppLinkRefTile(
                             ref: ref,
                             onTap: widget.onOpenRef == null
@@ -172,6 +438,15 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
               Icon(Icons.verified_rounded,
                   size: context.sz(18), color: colors.primary),
             ],
+            if (thread.isGroup) ...<Widget>[
+              SizedBox(width: context.sp(theme.spacing.xxs)),
+              UiIconButton(
+                icon: Icons.edit_outlined,
+                size: UiSize.xs,
+                tooltip: 'Rename group',
+                onPressed: () => _showRenameDialog(context, thread),
+              ),
+            ],
           ],
         ),
         SizedBox(height: context.sp(theme.spacing.xxs)),
@@ -196,6 +471,7 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
   }
 
   Widget _quickActions(BuildContext context, MessageThread thread) {
+    final UiTheme theme = context.ui;
     return Row(
       children: <Widget>[
         Expanded(
@@ -208,7 +484,7 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
             onTap: () => widget.repository.togglePin(thread.id),
           ),
         ),
-        SizedBox(width: context.sp(context.ui.spacing.sm)),
+        SizedBox(width: context.sp(theme.spacing.sm)),
         Expanded(
           child: _ActionTile(
             icon: thread.muted
@@ -219,7 +495,7 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
             onTap: () => widget.repository.toggleMute(thread.id),
           ),
         ),
-        SizedBox(width: context.sp(context.ui.spacing.sm)),
+        SizedBox(width: context.sp(theme.spacing.sm)),
         Expanded(
           child: _ActionTile(
             icon: Icons.archive_outlined,
@@ -235,27 +511,122 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
     );
   }
 
+  Widget _groupMembers(BuildContext context, MessageThread thread) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: MessagesSectionHeader(
+                title: 'Group members (${thread.participants.length})',
+                icon: Icons.groups_rounded,
+              ),
+            ),
+            UiButton(
+              label: 'Add',
+              icon: Icons.person_add_outlined,
+              size: UiSize.xs,
+              variant: UiVariant.ghost,
+              onPressed: () => _showAddMemberDialog(context, thread),
+            ),
+          ],
+        ),
+        SizedBox(height: context.sp(theme.spacing.xs)),
+        ...thread.participants.map((AppTrader p) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+            child: UiCard(
+              variant: UiCardVariant.surface,
+              padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
+              child: Row(
+                children: <Widget>[
+                  UiAvatar(name: p.displayName ?? p.handle),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          p.displayName ?? p.handle,
+                          style: context.uiText.bodyStrong,
+                        ),
+                        Text(
+                          '@${p.handle}',
+                          style: context.uiText.caption.copyWith(
+                            color: colors.foregroundMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (p.winRate != null)
+                    UiBadge(
+                      label: '${p.winRate!.toStringAsFixed(0)}% WR',
+                      intent: UiIntent.success,
+                      size: UiSize.xs,
+                    ),
+                  if (widget.onOpenProfile != null) ...<Widget>[
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    UiIconButton(
+                      icon: Icons.person_outline_rounded,
+                      size: UiSize.xs,
+                      tooltip: 'View profile',
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        widget.onOpenProfile!(p);
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
   Widget _dangerZone(BuildContext context, MessageThread thread) {
+    final UiTheme theme = context.ui;
+    final bool isGroup = thread.isGroup;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         const MessagesSectionHeader(
-          title: 'Privacy',
+          title: 'Actions & Privacy',
           icon: Icons.shield_outlined,
         ),
+        SizedBox(height: context.sp(theme.spacing.xs)),
         UiButton(
-          label: thread.isGroup ? 'Leave group' : 'Block & report',
-          icon: thread.isGroup
-              ? Icons.logout_rounded
-              : Icons.block_rounded,
+          label: 'Clear chat history',
+          icon: Icons.cleaning_services_outlined,
+          variant: UiVariant.soft,
+          intent: UiIntent.warning,
+          onPressed: () => _confirmClearHistory(context, thread),
+        ),
+        SizedBox(height: context.sp(theme.spacing.xs)),
+        UiButton(
+          label: isGroup ? 'Leave group' : 'Delete conversation',
+          icon: isGroup ? Icons.logout_rounded : Icons.delete_outline_rounded,
           variant: UiVariant.soft,
           intent: UiIntent.danger,
-          onPressed: () {
-            widget.repository.toggleArchive(thread.id);
-            Navigator.of(context).pop();
-            widget.onLeft?.call();
-          },
+          onPressed: () => _confirmLeaveOrDelete(context, thread),
         ),
+        if (!isGroup) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.xs)),
+          UiButton(
+            label: 'Block @${thread.peer.handle}',
+            icon: Icons.block_rounded,
+            variant: UiVariant.ghost,
+            intent: UiIntent.danger,
+            onPressed: () => _confirmBlock(context, thread),
+          ),
+        ],
       ],
     );
   }

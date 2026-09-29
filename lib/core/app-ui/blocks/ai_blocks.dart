@@ -19,6 +19,7 @@ class AppAiChatBlock extends StatefulWidget {
     this.onAttach,
     this.onRetry,
     this.onCopy,
+    this.onShare,
     this.emptyTitle = 'Ask about your trading',
     this.emptyMessage =
         'Summarise this week, review a setup, or stress-test a strategy.',
@@ -32,6 +33,7 @@ class AppAiChatBlock extends StatefulWidget {
   final VoidCallback? onAttach;
   final ValueChanged<AppAiMessage>? onRetry;
   final ValueChanged<AppAiMessage>? onCopy;
+  final ValueChanged<AppAiMessage>? onShare;
   final String emptyTitle;
   final String emptyMessage;
 
@@ -93,6 +95,9 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
                       onRetry: widget.onRetry == null
                           ? null
                           : () => widget.onRetry!(widget.messages[i]),
+                      onShare: widget.onShare == null
+                          ? null
+                          : () => widget.onShare!(widget.messages[i]),
                     ),
                   ),
                 ),

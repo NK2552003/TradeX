@@ -21,6 +21,7 @@ class CommunityProfileView extends StatefulWidget {
     this.onFollow,
     this.onPostTap,
     this.onOpenRef,
+    this.onDirectMessage,
   });
 
   final CommunityAuthor author;
@@ -30,6 +31,7 @@ class CommunityProfileView extends StatefulWidget {
   final ValueChanged<CommunityAuthor>? onFollow;
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final void Function(AppTrader trader)? onDirectMessage;
 
   @override
   State<CommunityProfileView> createState() => _CommunityProfileViewState();

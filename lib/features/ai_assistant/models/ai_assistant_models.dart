@@ -341,6 +341,23 @@ class AiCreateDraft {
     this.tickers = const <String>[],
     this.tags = const <String>[],
     this.setup,
+    this.noteType = AppNoteType.analysis,
+    this.isFavorite = false,
+    this.isPublic = false,
+    this.side = AppSide.long,
+    this.entryPrice,
+    this.stopLoss,
+    this.target1,
+    this.target2,
+    this.quantity = 50.0,
+    this.rMultiple,
+    this.strategyName,
+    this.psychologyScore = 5,
+    this.isClosed = false,
+    this.category = 'Breakout Momentum',
+    this.strategyStatus = AppStrategyStatus.live,
+    this.summary,
+    this.channel = 'Feed',
   });
 
   final AiCreateTarget target;
@@ -352,11 +369,54 @@ class AiCreateDraft {
   /// Present for trade-shaped drafts (journal / post / chart analysis exports).
   final AiChartSetup? setup;
 
+  // Note-specific fields
+  final AppNoteType noteType;
+  final bool isFavorite;
+  final bool isPublic;
+
+  // Journal-specific fields
+  final AppSide side;
+  final double? entryPrice;
+  final double? stopLoss;
+  final double? target1;
+  final double? target2;
+  final double quantity;
+  final double? rMultiple;
+  final String? strategyName;
+  final int psychologyScore;
+  final bool isClosed;
+
+  // Strategy-specific fields
+  final String? category;
+  final AppStrategyStatus strategyStatus;
+  final String? summary;
+
+  // Post-specific fields
+  final String channel;
+
   AiCreateDraft copyWith({
     String? title,
     String? body,
     List<String>? tickers,
     List<String>? tags,
+    AiChartSetup? setup,
+    AppNoteType? noteType,
+    bool? isFavorite,
+    bool? isPublic,
+    AppSide? side,
+    double? entryPrice,
+    double? stopLoss,
+    double? target1,
+    double? target2,
+    double? quantity,
+    double? rMultiple,
+    String? strategyName,
+    int? psychologyScore,
+    bool? isClosed,
+    String? category,
+    AppStrategyStatus? strategyStatus,
+    String? summary,
+    String? channel,
   }) {
     return AiCreateDraft(
       target: target,
@@ -364,7 +424,24 @@ class AiCreateDraft {
       body: body ?? this.body,
       tickers: tickers ?? this.tickers,
       tags: tags ?? this.tags,
-      setup: setup,
+      setup: setup ?? this.setup,
+      noteType: noteType ?? this.noteType,
+      isFavorite: isFavorite ?? this.isFavorite,
+      isPublic: isPublic ?? this.isPublic,
+      side: side ?? this.side,
+      entryPrice: entryPrice ?? this.entryPrice,
+      stopLoss: stopLoss ?? this.stopLoss,
+      target1: target1 ?? this.target1,
+      target2: target2 ?? this.target2,
+      quantity: quantity ?? this.quantity,
+      rMultiple: rMultiple ?? this.rMultiple,
+      strategyName: strategyName ?? this.strategyName,
+      psychologyScore: psychologyScore ?? this.psychologyScore,
+      isClosed: isClosed ?? this.isClosed,
+      category: category ?? this.category,
+      strategyStatus: strategyStatus ?? this.strategyStatus,
+      summary: summary ?? this.summary,
+      channel: channel ?? this.channel,
     );
   }
 }

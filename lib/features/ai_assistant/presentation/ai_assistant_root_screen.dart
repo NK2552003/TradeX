@@ -1,3 +1,4 @@
+import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
@@ -11,6 +12,7 @@ import 'package:tradex/features/ai_assistant/presentation/views/ai_history_view.
 import 'package:tradex/features/ai_assistant/presentation/views/ai_insights_view.dart';
 import 'package:tradex/features/ai_assistant/presentation/widgets/ai_assistant_widgets.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/core/linking/link_graph.dart';
 
 /// The AI Assistant shell — three-tier responsive copilot layout.
 ///
@@ -35,6 +37,7 @@ class AiAssistantRootScreen extends StatefulWidget {
     this.onOpenRef,
     this.repository,
     this.searchQuery,
+    this.openRequest,
     this.embedInScaffold = true,
   });
 
@@ -54,6 +57,9 @@ class AiAssistantRootScreen extends StatefulWidget {
 
   /// True when embedded inside AppShell (avoids duplicate chrome on mobile).
   final bool embedInScaffold;
+  
+  /// Link request to open a specific item.
+  final AppLinkOpenRequest? openRequest;
 
   @override
   State<AiAssistantRootScreen> createState() => AiAssistantRootScreenState();
@@ -78,6 +84,10 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
     _repo = widget.repository ?? AiAssistantRepository();
     _searchQuery = widget.searchQuery ?? '';
     _repo.addListener(_onRepo);
+    
+    if (widget.openRequest != null) {
+      _applyRequest(widget.openRequest!);
+    }
   }
 
   @override
@@ -87,6 +97,24 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
         widget.searchQuery != null) {
       _searchQuery = widget.searchQuery!;
     }
+    
+    if (widget.openRequest != null && widget.openRequest != oldWidget.openRequest) {
+      _applyRequest(widget.openRequest!);
+    }
+    _notifySubpage();
+  }
+  
+  void _notifySubpage() {
+    if (!mounted) return;
+    if (_isMobile && _mobilePanel == _MobilePanel.history) {
+      widget.onSubpageChanged?.call("History", Icons.history_rounded, _closePanel);
+    } else {
+      widget.onSubpageChanged?.call(null, null, null);
+    }
+  }
+  
+  void _applyRequest(AppLinkOpenRequest request) {
+    // We could navigate to a specific AI chat if we had IDs
   }
 
   void _onRepo() {
@@ -115,7 +143,6 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   // ---------------------------------------------------------------------------
 
   bool get _isMobile => context.uiRes.isMobile;
-  bool get _isDesktop => context.uiRes.isDesktop;
 
   void _selectThread(String id) {
     _repo.selectThread(id);
@@ -128,21 +155,13 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   void _openHistory() {
     setState(() => _mobilePanel = _MobilePanel.history);
     if (_isMobile) {
-      widget.onSubpageChanged?.call('History', Icons.history_rounded, _closePanel);
-    }
-  }
-
-  void _openCreateHub() {
-    if (_isMobile) {
-      setState(() => _mobileTab = 2);
-    } else {
-      setState(() => _mobilePanel = _MobilePanel.create);
+      _notifySubpage();
     }
   }
 
   void _closePanel() {
     setState(() => _mobilePanel = _MobilePanel.none);
-    widget.onSubpageChanged?.call(null, null, null);
+    _notifySubpage();
   }
 
   // ---------------------------------------------------------------------------
@@ -301,7 +320,49 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
             child: _historyRail(context),
           ),
         ),
-        Expanded(child: _chatView(context, showHeader: true)),
+        Expanded(
+          child: DefaultTabController(
+            length: 3,
+            child: Column(
+              children: <Widget>[
+                Container(
+                  decoration: BoxDecoration(
+                    color: theme.colors.surface,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: theme.colors.border,
+                        width: theme.borders.hairline,
+                      ),
+                    ),
+                  ),
+                  child: TabBar(
+                    labelStyle: context.uiText.bodyStrong.copyWith(
+                      fontSize: context.fs(12.5),
+                    ),
+                    unselectedLabelStyle: context.uiText.caption,
+                    indicatorColor: theme.colors.primary,
+                    labelColor: theme.colors.foreground,
+                    unselectedLabelColor: theme.colors.foregroundMuted,
+                    tabs: const <Widget>[
+                      Tab(text: 'Chat'),
+                      Tab(text: 'Insights'),
+                      Tab(text: 'Create'),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: <Widget>[
+                      _chatView(context, showHeader: true),
+                      _insightsView(context),
+                      _createView(context),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -398,6 +459,8 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
       repository: _repo,
       onCreateFromChat: _handleCreateFromChat,
       onOpenRef: widget.onOpenRef ?? (_) {},
+      onOpenPersona: _changePersona,
+      onOpenHistory: _isMobile ? _openHistory : null,
     );
   }
 
@@ -408,6 +471,8 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
       onCreateFromSetup: (AiChartSetup setup, AiCreateTarget target) {
         _openCreateSheet(target, setup: setup);
       },
+      onAskPrompt: (String prompt) =>
+          _handleCreateTargetWithPrompt(null, prompt: prompt),
     );
   }
 
@@ -433,17 +498,20 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
       selectedThreadId: _repo.activeThreadId,
       onSelectThread: _selectThread,
       onNewThread: () => _repo.newThread(),
+      searchQuery: _searchQuery,
     );
   }
 
   Widget _historyPanel(BuildContext context) {
     return Column(
       children: <Widget>[
-        _panelHeader(context, 'Conversation history'),
+        if (!widget.embedInScaffold)
+          _panelHeader(context, 'Conversation history'),
         Expanded(
           child: AiHistoryView(
             repository: _repo,
             selectedThreadId: _repo.activeThreadId,
+            searchQuery: _searchQuery,
             onSelectThread: (String id) {
               _selectThread(id);
               _closePanel();
@@ -495,4 +563,4 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   }
 }
 
-enum _MobilePanel { none, history, create }
+enum _MobilePanel { none, history }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
@@ -19,9 +21,11 @@ class MessageBubble extends StatelessWidget {
     this.onOpenAttachment,
     this.onLongPress,
     this.onReactionTap,
+    this.replyMessage,
   });
 
   final ChatMessage message;
+  final ChatMessage? replyMessage;
 
   /// Sender label shown above inbound bubbles in group threads.
   final String? senderName;
@@ -96,6 +100,51 @@ class MessageBubble extends StatelessWidget {
     final Color fg = me ? colors.onPrimary : colors.foreground;
 
     final List<Widget> parts = <Widget>[];
+    if (replyMessage != null) {
+      final String sender = replyMessage!.fromMe ? 'You' : (senderName ?? 'Trader');
+      parts.add(
+        Container(
+          margin: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(theme.spacing.xs),
+            vertical: context.sp(theme.spacing.xxs),
+          ),
+          decoration: BoxDecoration(
+            color: me ? Colors.black.withValues(alpha: 0.15) : colors.surfaceHover,
+            borderRadius: context.radius(theme.radii.sm),
+            border: Border(
+              left: BorderSide(
+                color: me ? colors.onPrimary : colors.primary,
+                width: context.sz(3),
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                sender,
+                style: context.uiText.caption.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: me ? colors.onPrimary : colors.primary,
+                ),
+              ),
+              Text(
+                replyMessage!.body.isNotEmpty
+                    ? replyMessage!.body
+                    : (replyMessage!.sharedRef?.title ?? replyMessage!.attachment?.title ?? 'Attachment'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.uiText.caption.copyWith(
+                  color: (me ? colors.onPrimary : colors.foreground).withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (message.attachment != null) {
       parts.add(_attachment(context, message.attachment!, fg));
     }
@@ -181,6 +230,13 @@ class MessageBubble extends StatelessWidget {
     MessageAttachment attachment,
     Color fg,
   ) {
+    if (attachment.kind == MessageAttachmentKind.voice) {
+      return _VoiceAttachmentPlayer(
+        attachment: attachment,
+        fromMe: message.fromMe,
+        fgColor: fg,
+      );
+    }
     final bool visual = attachment.kind == MessageAttachmentKind.image ||
         attachment.kind == MessageAttachmentKind.chart;
     if (visual && attachment.thumbnailUrl != null) {
@@ -475,6 +531,211 @@ class _SystemNotice extends StatelessWidget {
               color: theme.colors.foregroundMuted,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VoiceAttachmentPlayer extends StatefulWidget {
+  const _VoiceAttachmentPlayer({
+    required this.attachment,
+    required this.fromMe,
+    required this.fgColor,
+  });
+
+  final MessageAttachment attachment;
+  final bool fromMe;
+  final Color fgColor;
+
+  @override
+  State<_VoiceAttachmentPlayer> createState() => _VoiceAttachmentPlayerState();
+}
+
+class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
+  bool _isPlaying = false;
+  double _progress = 0.0;
+  double _speed = 1.0;
+  Timer? _timer;
+
+  static const List<double> _waveformHeights = <double>[
+    6, 10, 16, 22, 14, 8, 18, 24, 20, 12, 16, 26, 18, 14, 22, 12, 8, 20, 24, 16, 10, 18, 14, 6
+  ];
+
+  int get _totalSeconds {
+    final String label = widget.attachment.sizeLabel ?? '0:12';
+    final List<String> parts = label.split(':');
+    if (parts.length == 2) {
+      final int m = int.tryParse(parts[0]) ?? 0;
+      final int s = int.tryParse(parts[1]) ?? 12;
+      return (m * 60 + s).clamp(1, 600);
+    }
+    return 12;
+  }
+
+  void _togglePlay() {
+    if (_isPlaying) {
+      _pause();
+    } else {
+      _play();
+    }
+  }
+
+  void _play() {
+    _timer?.cancel();
+    setState(() => _isPlaying = true);
+    final int totalSec = _totalSeconds;
+    _timer = Timer.periodic(const Duration(milliseconds: 100), (Timer t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() {
+        _progress += (0.1 * _speed) / totalSec;
+        if (_progress >= 1.0) {
+          _progress = 0.0;
+          _isPlaying = false;
+          t.cancel();
+        }
+      });
+    });
+  }
+
+  void _pause() {
+    _timer?.cancel();
+    setState(() => _isPlaying = false);
+  }
+
+  void _cycleSpeed() {
+    setState(() {
+      if (_speed == 1.0) {
+        _speed = 1.5;
+      } else if (_speed == 1.5) {
+        _speed = 2.0;
+      } else {
+        _speed = 1.0;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _formatTime(int seconds) {
+    final int m = seconds ~/ 60;
+    final int s = seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final Color fg = widget.fgColor;
+    final int currentSec = (_progress * _totalSeconds).floor();
+    final String timeDisplay = _isPlaying
+        ? '${_formatTime(currentSec)} / ${widget.attachment.sizeLabel ?? _formatTime(_totalSeconds)}'
+        : (widget.attachment.sizeLabel ?? _formatTime(_totalSeconds));
+
+    final Color playBtnBg = widget.fromMe
+        ? theme.colors.onPrimary.withValues(alpha: 0.2)
+        : theme.colors.primary.withValues(alpha: 0.12);
+    final Color playIconColor = widget.fromMe
+        ? theme.colors.onPrimary
+        : theme.colors.primary;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: context.sz(240),
+        maxWidth: context.sz(310),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xxs)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            GestureDetector(
+              onTap: _togglePlay,
+              child: Container(
+                width: context.sz(38),
+                height: context.sz(38),
+                decoration: BoxDecoration(
+                  color: playBtnBg,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  size: context.sz(22),
+                  color: playIconColor,
+                ),
+              ),
+            ),
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  SizedBox(
+                    height: context.sz(26),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: List<Widget>.generate(_waveformHeights.length, (int index) {
+                        final double barFraction = (index + 1) / _waveformHeights.length;
+                        final bool played = _progress >= barFraction;
+                        final double h = _waveformHeights[index];
+                        return Container(
+                          width: context.sz(2.5),
+                          height: context.sz(h),
+                          decoration: BoxDecoration(
+                            color: played
+                                ? fg
+                                : fg.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(context.sz(2)),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                  SizedBox(height: context.sp(theme.spacing.xxs)),
+                  Text(
+                    timeDisplay,
+                    style: context.uiText.caption.copyWith(
+                      color: fg.withValues(alpha: 0.8),
+                      fontSize: context.fs(11),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            GestureDetector(
+              onTap: _cycleSpeed,
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.xxs),
+                  vertical: context.sz(2),
+                ),
+                decoration: BoxDecoration(
+                  color: playBtnBg,
+                  borderRadius: BorderRadius.circular(context.sz(8)),
+                ),
+                child: Text(
+                  '${_speed == 1.0 ? '1' : _speed.toString()}x',
+                  style: context.uiText.caption.copyWith(
+                    color: fg,
+                    fontWeight: FontWeight.w700,
+                    fontSize: context.fs(10.5),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

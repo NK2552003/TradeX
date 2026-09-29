@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
@@ -16,9 +15,11 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 import '../data/strategies_repository.dart';
 import '../data/strategy_attachments.dart';
 import 'revision_note_prompt.dart';
+import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
+import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
 
 /// Read-only view of one strategy playbook: the rules, the track record they
 /// produced, the revisions they went through, and everything attached.
@@ -582,12 +583,19 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
 
   Future<void> _shareStrategy() async {
     final String shareUrl = 'https://tradex.app/p/strategies/${_strategy.id}';
-    await Clipboard.setData(ClipboardData(text: shareUrl));
-    if (!mounted) return;
-    UiToast.success(
+    final AppLinkRef ref = AppLinkRef(
+      kind: AppLinkKind.strategy,
+      id: _strategy.id,
+      title: _strategy.name,
+      subtitle: _strategy.category,
+      meta: _strategy.status.name.toUpperCase(),
+      intent: UiIntent.bullish,
+    );
+    await ShareToConversationDialog.showShareMenu(
       context,
-      title: 'Link copied',
-      message: 'Share URL copied to clipboard',
+      reference: ref,
+      shareUrl: shareUrl,
+      onExportPdf: _exportPdf,
     );
   }
 
@@ -689,9 +697,44 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
     );
   }
 
+  void _analyzeWithAi() {
+    final String prompt =
+        'Critique and optimize quantitative strategy "${_strategy.name}" (${_strategy.category ?? 'General'}):\n\n'
+        'Status: ${_strategy.status.label}, Revisions: ${_strategy.versionCount}\n'
+        'Win Rate: ${AppTokens.percent(_strategy.winRate)}, Average R: ${AppTokens.rr(_strategy.avgR)}, Total Trades: ${_strategy.trades}, Net PnL: ${AppTokens.signedMoney(_strategy.netPnl)}\n\n'
+        'Playbook Rules:\n${_strategy.content}\n\n'
+        'Provide mathematical risk analysis, edge evaluation, failure modes to protect against, and proposed rule enhancements.';
+    AiAssistantRepositoryScope.repository.sendPrompt(prompt);
+    UiToastScope.maybeOf(context)?.show(
+      UiToastData(
+        title: 'Sent to AI Copilot',
+        message: 'Critiquing "${_strategy.name}" in AI Assistant...',
+        intent: UiIntent.info,
+      ),
+    );
+    if (widget.onOpenLink != null) {
+      widget.onOpenLink!(
+        const AppLinkRef(
+          id: 'ai_copilot',
+          kind: AppLinkKind.strategy,
+          title: 'AI Copilot',
+          subtitle: 'Strategy Critique',
+        ),
+      );
+    }
+  }
+
   List<Widget> _headerActions(BuildContext context) {
     final UiTheme theme = context.ui;
     return <Widget>[
+      SizedBox(width: context.sp(theme.spacing.xs)),
+      UiIconButton(
+        icon: Icons.auto_awesome_rounded,
+        variant: UiVariant.ghost,
+        intent: UiIntent.primary,
+        tooltip: 'Critique and optimize strategy with AI',
+        onPressed: _busy ? null : _analyzeWithAi,
+      ),
       SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: Icons.share_outlined,

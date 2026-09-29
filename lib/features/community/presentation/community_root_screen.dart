@@ -1,3 +1,5 @@
+import 'package:tradex/features/messages/models/messages_models.dart';
+import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
@@ -41,17 +43,24 @@ class CommunityRootScreen extends StatefulWidget {
     this.userRole = UserRole.customer,
     this.currentTrader,
     this.onSubpageChanged,
+    this.onNavigateToMessages,
+    this.onOpenThread,
+    this.onStartDirectMessage,
     this.onOpenRef,
     this.initialTabIndex = 0,
     this.embedInScaffold = true,
     this.repository,
     this.searchQuery,
+    this.openRequest,
   });
 
   final UserRole userRole;
   final AppTrader? currentTrader;
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
   onSubpageChanged;
+  final VoidCallback? onNavigateToMessages;
+  final void Function(String)? onOpenThread;
+  final void Function(AppTrader)? onStartDirectMessage;
 
   /// Opens a linked Writing-Desk record (note / journal / strategy) in its own
   /// destination when a post attachment is tapped. Supplied by the app shell.
@@ -71,6 +80,9 @@ class CommunityRootScreen extends StatefulWidget {
 
   /// Search query passed down from the global top header.
   final String? searchQuery;
+
+  /// Link request to open a specific post.
+  final AppLinkOpenRequest? openRequest;
 
   @override
   State<CommunityRootScreen> createState() => CommunityRootScreenState();
@@ -131,6 +143,10 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     );
     // Rebuild on tab change so FAB / badges stay current.
     _tabController.addListener(_onTabChanged);
+    
+    if (widget.openRequest != null) {
+      _applyRequest(widget.openRequest!);
+    }
   }
 
   @override
@@ -144,6 +160,21 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       }
       _mobileNavIndex = idx.clamp(0, _mobileNavTabs.length - 1);
     }
+    if (widget.openRequest != null && widget.openRequest != oldWidget.openRequest) {
+      _applyRequest(widget.openRequest!);
+    }
+  }
+  
+  void _applyRequest(AppLinkOpenRequest request) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (request.id.startsWith('community_')) {
+        final post = _repo.loadPostById(request.id);
+        if (post != null) {
+          _openPostDetail(post);
+        }
+      }
+    });
   }
 
   void _onTabChanged() {

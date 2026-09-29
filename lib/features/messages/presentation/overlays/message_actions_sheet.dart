@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
+import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
 import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
 
 /// Long-press actions for a single message: a quick emoji reaction row plus
@@ -15,12 +17,16 @@ class MessageActionsSheet extends StatelessWidget {
     required this.threadId,
     required this.message,
     this.onReply,
+    this.onForward,
+    this.onNavigateToAi,
   });
 
   final MessagesRepository repository;
   final String threadId;
   final ChatMessage message;
   final void Function(ChatMessage message)? onReply;
+  final void Function(ChatMessage message)? onForward;
+  final VoidCallback? onNavigateToAi;
 
   static Future<void> show(
     BuildContext context, {
@@ -28,6 +34,8 @@ class MessageActionsSheet extends StatelessWidget {
     required String threadId,
     required ChatMessage message,
     void Function(ChatMessage message)? onReply,
+    void Function(ChatMessage message)? onForward,
+    VoidCallback? onNavigateToAi,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -38,6 +46,8 @@ class MessageActionsSheet extends StatelessWidget {
           threadId: threadId,
           message: message,
           onReply: onReply,
+          onForward: onForward,
+          onNavigateToAi: onNavigateToAi,
         ),
       ),
     );
@@ -73,6 +83,26 @@ class MessageActionsSheet extends StatelessWidget {
                   Navigator.of(context).pop();
                 },
               ),
+            if (message.fromMe && message.hasText && !message.systemNotice)
+              _action(
+                context,
+                icon: Icons.edit_outlined,
+                label: 'Edit message',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _showEditDialog(context);
+                },
+              ),
+            _action(
+              context,
+              icon: Icons.auto_awesome_rounded,
+              label: 'Analyze with AI Copilot',
+              intent: UiIntent.primary,
+              onTap: () {
+                Navigator.of(context).pop();
+                _analyzeWithAi(context);
+              },
+            ),
             if (onReply != null)
               _action(
                 context,
@@ -83,6 +113,62 @@ class MessageActionsSheet extends StatelessWidget {
                   onReply!(message);
                 },
               ),
+            _action(
+              context,
+              icon: Icons.bookmark_border_rounded,
+              label: 'Bookmark message',
+              onTap: () {
+                Navigator.of(context).pop();
+                UiToastScope.maybeOf(context)?.show(
+                  UiToastData(
+                    title: 'Message Bookmarked',
+                    message: 'Saved to your bookmarked messages.',
+                    intent: UiIntent.success,
+                  ),
+                );
+              },
+            ),
+            _action(
+              context,
+              icon: repository.pinnedMessageId(threadId) == message.id
+                  ? Icons.push_pin_rounded
+                  : Icons.push_pin_outlined,
+              label: repository.pinnedMessageId(threadId) == message.id
+                  ? 'Unpin from conversation'
+                  : 'Pin to conversation',
+              onTap: () {
+                final bool wasPinned =
+                    repository.pinnedMessageId(threadId) == message.id;
+                repository.togglePinMessage(threadId, message.id);
+                Navigator.of(context).pop();
+                UiToastScope.maybeOf(context)?.show(
+                  UiToastData(
+                    title: wasPinned ? 'Message Unpinned' : 'Message Pinned',
+                    message: wasPinned
+                        ? 'Message unpinned from this conversation.'
+                        : 'Message pinned to top of conversation.',
+                    intent: UiIntent.info,
+                  ),
+                );
+              },
+            ),
+            _action(
+              context,
+              icon: Icons.forward_rounded,
+              label: 'Forward message',
+              onTap: () {
+                Navigator.of(context).pop();
+                if (onForward != null) {
+                  onForward!(message);
+                } else {
+                  ShareToConversationDialog.forwardMessage(
+                    context,
+                    repository: repository,
+                    message: message,
+                  );
+                }
+              },
+            ),
             if (message.fromMe && !message.systemNotice)
               _action(
                 context,
@@ -99,6 +185,67 @@ class MessageActionsSheet extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _showEditDialog(BuildContext context) {
+    final TextEditingController controller =
+        TextEditingController(text: message.body);
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => UiDialog(
+        title: 'Edit message',
+        content: Padding(
+          padding: EdgeInsets.symmetric(
+            vertical: context.sp(context.ui.spacing.sm),
+          ),
+          child: UiInput(
+            controller: controller,
+            minLines: 1,
+            maxLines: 4,
+            variant: UiInputVariant.filled,
+            autofocus: true,
+          ),
+        ),
+        actions: <Widget>[
+          UiButton(
+            label: 'Cancel',
+            variant: UiVariant.ghost,
+            intent: UiIntent.neutral,
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          UiButton(
+            label: 'Save',
+            variant: UiVariant.solid,
+            intent: UiIntent.primary,
+            onPressed: () {
+              final String newText = controller.text.trim();
+              if (newText.isNotEmpty) {
+                repository.editMessage(threadId, message.id, newText);
+              }
+              Navigator.of(ctx).pop();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _analyzeWithAi(BuildContext context) {
+    final String content = message.hasText
+        ? message.body
+        : (message.sharedRef?.title ?? message.attachment?.title ?? 'Message');
+    final String prompt =
+        'Analyze this message/trade setup from our conversation:\n\n"$content"\n\n'
+        'Provide technical setup validation, risk:reward assessment, and key levels to monitor.';
+    AiAssistantRepositoryScope.repository.sendPrompt(prompt);
+    UiToastScope.maybeOf(context)?.show(
+      UiToastData(
+        title: 'Sent to AI Copilot',
+        message: 'Analyzing conversation message in AI Assistant...',
+        intent: UiIntent.info,
+      ),
+    );
+    onNavigateToAi?.call();
   }
 
   Widget _reactionRow(BuildContext context) {

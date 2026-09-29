@@ -131,6 +131,17 @@ class _AppScaffoldState extends State<AppScaffold> {
     _identity = appTraderFromProfile(_profiles.cachedProfile);
     _communityRepo.addListener(_onCommunityRepoChanged);
     _unread = _communityRepo.unreadNotifications;
+
+    // Share the local repository instances with the global scope singletons so
+    // cross-feature callers (ShareToConversationDialog, CommunitySendDmDialog,
+    // AI chat "send as DM", message_actions_sheet "Analyze with AI Copilot",
+    // etc.) all write to the exact same instance that the Messages and AI
+    // Assistant screens read from. Without this, each scope lazily creates its
+    // own detached repository and messages sent from other features never
+    // appear in the Messages tab.
+    MessagesRepositoryScope.repository = _messagesRepo;
+    AiAssistantRepositoryScope.repository = _aiRepo;
+
     _loadIdentity();
     _loadUnread();
     _loadAffiliateApplicationStatus();
@@ -323,6 +334,20 @@ class _AppScaffoldState extends State<AppScaffold> {
     _messagesKey.currentState?.setSearchQuery(value);
   }
 
+  void _openMessagesThread(String threadId) {
+    _go('messages');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _messagesKey.currentState?.openThreadById(threadId);
+    });
+  }
+
+  void _startDirectMessage(AppTrader trader) {
+    _go('messages');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _messagesKey.currentState?.openThreadWithTrader(trader);
+    });
+  }
+
   bool get _isAiFeature => _selectedId == 'ai_copilot';
 
   void _updateAiQuery(String value) {
@@ -427,12 +452,18 @@ class _AppScaffoldState extends State<AppScaffold> {
   void _openLinkRef(AppLinkRef ref, {bool writing = false}) {
     final String? destination = writing
         ? 'notes'
-        : switch (ref.kind) {
-            AppLinkKind.journal => 'journal',
-            AppLinkKind.strategy => 'strategies',
-            AppLinkKind.note => 'notes',
-            _ => ref.kind.destinationId,
-          };
+        : (ref.id == 'ai_copilot'
+            ? 'ai_copilot'
+            : (ref.id == 'messages'
+                ? 'messages'
+                : switch (ref.kind) {
+                    AppLinkKind.journal => 'journal',
+                    AppLinkKind.strategy => 'strategies',
+                    AppLinkKind.note => ref.id.startsWith('community')
+                        ? 'community_feed'
+                        : 'notes',
+                    _ => ref.kind.destinationId,
+                  }));
     if (destination == null || !_canReach(destination)) return;
     setState(() {
       _selectedId = destination;
@@ -622,9 +653,13 @@ class _AppScaffoldState extends State<AppScaffold> {
       currentTrader: _chromeIdentity,
       onSubpageChanged: _onSubpageChanged,
       onOpenRef: _openLinkRef,
+      onNavigateToMessages: () => _go('messages'),
+      onOpenThread: _openMessagesThread,
+      onStartDirectMessage: _startDirectMessage,
       initialTabIndex: initialTabIndex,
       repository: _communityRepo,
       searchQuery: _communityQuery,
+      openRequest: _linkRequest,
     );
   }
 
@@ -637,6 +672,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       onOpenRef: _openLinkRef,
       repository: _messagesRepo,
       searchQuery: _messagesQuery,
+      openRequest: _linkRequest,
     );
   }
 
@@ -649,6 +685,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       onOpenRef: _openLinkRef,
       repository: _aiRepo,
       searchQuery: _aiQuery,
+      openRequest: _linkRequest,
     );
   }
 
@@ -709,7 +746,14 @@ class _AppScaffoldState extends State<AppScaffold> {
   };
 
   Widget _affiliatePage() => switch (_selectedId) {
-    'notes' => const NotesScreen(),
+    'notes' => AppWritingDeskScope(
+      child: NotesScreen(
+        onSubpageChanged: _onSubpageChanged,
+        onOpenRef: _openLinkRef,
+        onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
+        openRequest: _linkRequest,
+      ),
+    ),
     'overview' => AffiliateOverviewPage(
       onOpenReferrals: _jump('referrals'),
       onOpenPayouts: _jump('payouts'),
@@ -739,7 +783,14 @@ class _AppScaffoldState extends State<AppScaffold> {
   };
 
   Widget _adminPage() => switch (_selectedId) {
-    'notes' => const NotesScreen(),
+    'notes' => AppWritingDeskScope(
+      child: NotesScreen(
+        onSubpageChanged: _onSubpageChanged,
+        onOpenRef: _openLinkRef,
+        onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
+        openRequest: _linkRequest,
+      ),
+    ),
     'community' => _communityPage(initialTabIndex: 0),
     'community_feed' => _communityPage(initialTabIndex: 0),
     'community_explore' => _communityPage(initialTabIndex: 1),
@@ -1012,13 +1063,25 @@ class _AppScaffoldState extends State<AppScaffold> {
                     : () => _go('search')),
             searchQuery: _isWritingFeature
                 ? _workspaceQuery
-                : (_isCommunityFeature ? _communityQuery : null),
+                : (_isCommunityFeature
+                    ? _communityQuery
+                    : (_isMessagesFeature
+                        ? _messagesQuery
+                        : (_isAiFeature ? _aiQuery : null))),
             searchHint: _isWritingFeature
                 ? _writingSearchHint
-                : (_isCommunityFeature ? _communitySearchHint : null),
+                : (_isCommunityFeature
+                    ? _communitySearchHint
+                    : (_isMessagesFeature
+                        ? 'Search conversations, traders...'
+                        : (_isAiFeature ? 'Search copilot chats and prompts...' : null))),
             onSearchChanged: _isWritingFeature
                 ? _updateWorkspaceQuery
-                : (_isCommunityFeature ? _updateCommunityQuery : null),
+                : (_isCommunityFeature
+                    ? _updateCommunityQuery
+                    : (_isMessagesFeature
+                        ? _updateMessagesQuery
+                        : (_isAiFeature ? _updateAiQuery : null))),
             searchTargetKey: _isWritingFeature ? _workspaceSearchKey : null,
             headerActions: const <Widget>[],
             onSettings: () => _go('settings'),
@@ -1061,7 +1124,22 @@ class _AppScaffoldState extends State<AppScaffold> {
       ],
     );
 
-    return scaffoldContent;
+    // Intercept the Android back button / edge swipe: when a subpage (message
+    // thread, community post detail, AI history panel, etc.) declares a back
+    // handler via onSubpageChanged, the system back gesture should invoke that
+    // handler instead of popping the root route and closing the application.
+    return PopScope(
+      canPop: _activeSubpageOnBack == null && !_showAffiliateApplication,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        if (_showAffiliateApplication) {
+          setState(() => _showAffiliateApplication = false);
+        } else {
+          _activeSubpageOnBack?.call();
+        }
+      },
+      child: scaffoldContent,
+    );
   }
 
   /// Prototype-only strip that names the previewed session and offers a way out

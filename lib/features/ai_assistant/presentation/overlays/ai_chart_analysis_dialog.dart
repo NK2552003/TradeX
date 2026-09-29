@@ -4,6 +4,8 @@ import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
 import 'package:tradex/features/ai_assistant/presentation/widgets/ai_assistant_widgets.dart';
 import 'package:tradex/features/ai_assistant/presentation/overlays/ai_create_sheet.dart';
+import 'package:tradex/features/messages/data/messages_repository.dart';
+import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
 
 class AiChartAnalysisDialog extends StatefulWidget {
   final AiAssistantRepository repository;
@@ -74,6 +76,32 @@ class _AiChartAnalysisDialogState extends State<AiChartAnalysisDialog> {
     );
   }
 
+  void _shareToDm() {
+    Navigator.of(context).pop();
+    final AppLinkRef ref = AppLinkRef(
+      id: widget.setup.id,
+      kind: AppLinkKind.ticker,
+      title: '${widget.setup.symbol} ${widget.setup.direction.label} Setup',
+      subtitle: '${widget.setup.pattern} · Target \$${widget.setup.target1.toStringAsFixed(2)}',
+      meta: '${widget.setup.confidence}% CONF',
+      intent: widget.setup.direction.intent,
+    );
+    ShareToConversationDialog.show(
+      context,
+      repository: MessagesRepositoryScope.repository,
+      reference: ref,
+      onShared: (String threadId) {
+        UiToastScope.maybeOf(context)?.show(
+          UiToastData(
+            title: 'Setup Shared',
+            message: 'Trade setup was sent to the conversation.',
+            intent: UiIntent.success,
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final setup = widget.setup;
@@ -123,6 +151,14 @@ class _AiChartAnalysisDialogState extends State<AiChartAnalysisDialog> {
                   ),
                 ],
               ),
+              SizedBox(height: context.sp(context.ui.spacing.sm)),
+              UiButton(
+                label: 'Send setup in DM',
+                icon: Icons.send_rounded,
+                variant: UiVariant.solid,
+                intent: UiIntent.primary,
+                onPressed: _shareToDm,
+              ),
             ],
           )
         ] : [],
@@ -130,6 +166,20 @@ class _AiChartAnalysisDialogState extends State<AiChartAnalysisDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_stage < 2)
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.xl)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Center(child: UiTypingIndicator()),
+                    SizedBox(height: context.sp(context.ui.spacing.md)),
+                    Center(
+                      child: Text('Analyzing chart patterns...', style: context.uiText.body),
+                    ),
+                  ],
+                ),
+              ),
             // Stage 2: Pattern
             if (_stage >= 2)
               AnimatedOpacity(
@@ -141,7 +191,7 @@ class _AiChartAnalysisDialogState extends State<AiChartAnalysisDialog> {
                     children: [
                       Text('Pattern: ${setup.pattern}', style: context.uiText.title),
                       const Spacer(),
-                      UiBadge(label: 'Confidence: ${(setup.confidence * 100).toInt()}%'),
+                      UiBadge(label: 'Confidence: ${setup.confidence}%'),
                     ],
                   ),
                 ),

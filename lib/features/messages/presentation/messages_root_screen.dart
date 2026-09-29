@@ -1,3 +1,4 @@
+import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
@@ -5,13 +6,14 @@ import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 import 'package:tradex/features/messages/presentation/overlays/conversation_info_sheet.dart';
-import 'package:tradex/features/messages/presentation/overlays/message_actions_sheet.dart';
+
 import 'package:tradex/features/messages/presentation/overlays/new_message_dialog.dart';
 import 'package:tradex/features/messages/presentation/views/messages_archived_view.dart';
 import 'package:tradex/features/messages/presentation/views/messages_inbox_view.dart';
 import 'package:tradex/features/messages/presentation/views/messages_requests_view.dart';
 import 'package:tradex/features/messages/presentation/views/messages_thread_view.dart';
 import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
+import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
 
 /// The Messages shell — three-tier responsive direct-messaging layout.
 ///
@@ -35,6 +37,7 @@ class MessagesRootScreen extends StatefulWidget {
     this.onOpenRef,
     this.repository,
     this.searchQuery,
+    this.openRequest,
     this.embedInScaffold = true,
   });
 
@@ -55,6 +58,9 @@ class MessagesRootScreen extends StatefulWidget {
   /// True when embedded inside AppShell (avoids duplicate chrome on mobile).
   final bool embedInScaffold;
 
+  /// Link request to open a specific thread.
+  final AppLinkOpenRequest? openRequest;
+
   @override
   State<MessagesRootScreen> createState() => MessagesRootScreenState();
 }
@@ -69,6 +75,7 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
 
   /// Secondary panel currently in the mobile navigation stack.
   _Secondary _secondary = _Secondary.none;
+  _Secondary? _returnSecondary;
 
   String _searchQuery = '';
 
@@ -79,6 +86,10 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
     _repo = widget.repository ?? MessagesRepository();
     _searchQuery = widget.searchQuery ?? '';
     _repo.addListener(_onRepo);
+    
+    if (widget.openRequest != null) {
+      _applyRequest(widget.openRequest!);
+    }
   }
 
   @override
@@ -88,10 +99,51 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
         widget.searchQuery != null) {
       _searchQuery = widget.searchQuery!;
     }
+    if (widget.openRequest != null && widget.openRequest != oldWidget.openRequest) {
+      _applyRequest(widget.openRequest!);
+    }
+    _notifySubpage();
+  }
+  
+  void _notifySubpage() {
+    if (!mounted) return;
+    if (!_isMobile) {
+      widget.onSubpageChanged?.call(null, null, null);
+      return;
+    }
+    if (_secondary != _Secondary.none) {
+      final String title = switch (_secondary) {
+        _Secondary.requests => 'Message requests',
+        _Secondary.archived => 'Archived',
+        _Secondary.none => '',
+      };
+      widget.onSubpageChanged?.call(title, null, _closeSecondary);
+      return;
+    }
+    if (_activeThreadId != null) {
+      final t = _repo.threadById(_activeThreadId!);
+      if (t != null) {
+        widget.onSubpageChanged?.call(t.title, null, _closeMobileDetail);
+        return;
+      }
+    }
+    widget.onSubpageChanged?.call(null, null, null);
+  }
+  
+  void _applyRequest(AppLinkOpenRequest request) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      openThreadById(request.id);
+    });
   }
 
   void _onRepo() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      if (_activeThreadId != null && _repo.threadById(_activeThreadId!) == null) {
+        _activeThreadId = null;
+      }
+      setState(() {});
+    }
   }
 
   @override
@@ -111,37 +163,77 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
     setState(() => _searchQuery = query);
   }
 
+  /// Opens a thread by its ID.
+  void openThreadById(String id) {
+    final MessageThread? t = _repo.threadById(id);
+    if (t != null) {
+      _openThread(t);
+    }
+  }
+
+  /// Opens or starts a thread with [trader].
+  void openThreadWithTrader(AppTrader trader) {
+    final String threadId = _repo.startConversation(trader);
+    openThreadById(threadId);
+  }
+
   // -------------------------------------------------------------------------
   // Navigation
   // -------------------------------------------------------------------------
 
   bool get _isMobile => context.uiRes.isMobile;
 
-  void _openThread(MessageThread thread) {
+  void _openThread(MessageThread thread, {bool keepSecondaryOnWide = true}) {
     setState(() {
       _activeThreadId = thread.id;
-      _secondary = _Secondary.none;
+      if (_isMobile) {
+        if (_secondary != _Secondary.none) {
+          _returnSecondary = _secondary;
+        }
+        _secondary = _Secondary.none;
+      } else if (!keepSecondaryOnWide) {
+        _secondary = _Secondary.none;
+      }
     });
     if (_isMobile) {
-      widget.onSubpageChanged?.call(thread.title, null, _closeMobileDetail);
+      _notifySubpage();
     }
   }
 
   void _closeMobileDetail() {
-    setState(() => _activeThreadId = null);
-    widget.onSubpageChanged?.call(null, null, null);
+    setState(() {
+      _activeThreadId = null;
+      if (_returnSecondary != null) {
+        _secondary = _returnSecondary!;
+        _returnSecondary = null;
+        final String title = switch (_secondary) {
+          _Secondary.requests => 'Message requests',
+          _Secondary.archived => 'Archived',
+          _Secondary.none => '',
+        };
+        _notifySubpage();
+        return;
+      }
+    });
+    _notifySubpage();
   }
 
   void _openSecondary(_Secondary panel, String title) {
-    setState(() => _secondary = panel);
+    setState(() {
+      _secondary = panel;
+      _returnSecondary = null;
+    });
     if (_isMobile) {
-      widget.onSubpageChanged?.call(title, null, _closeSecondary);
+      _notifySubpage();
     }
   }
 
   void _closeSecondary() {
-    setState(() => _secondary = _Secondary.none);
-    widget.onSubpageChanged?.call(null, null, null);
+    setState(() {
+      _secondary = _Secondary.none;
+      _returnSecondary = null;
+    });
+    _notifySubpage();
   }
 
   // -------------------------------------------------------------------------
@@ -161,12 +253,46 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
     );
   }
 
+  void _openProfile(AppTrader trader) {
+    final UiTheme theme = context.ui;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext ctx) {
+        return ClipRRect(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(ctx.sp(theme.radii.xl)),
+          ),
+          child: SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.88,
+            child: TraderProfilePreviewPage(
+              displayName: trader.displayName ?? trader.handle,
+              handle: trader.handle,
+              userRole: widget.userRole,
+              avatarUrl: trader.avatarUrl,
+              bio: trader.bio,
+              onOpenRef: widget.onOpenRef,
+              onDirectMessage: (AppTrader t) {
+                Navigator.of(ctx).pop();
+                final String threadId = _repo.startConversation(t);
+                final MessageThread? thread = _repo.threadById(threadId);
+                if (thread != null) _openThread(thread);
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _openInfo(MessageThread thread) {
     ConversationInfoSheet.show(
       context,
       repository: _repo,
       threadId: thread.id,
       onOpenRef: widget.onOpenRef,
+      onOpenProfile: _openProfile,
       onLeft: () {
         if (_activeThreadId == thread.id) {
           if (_isMobile) {
@@ -176,15 +302,6 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
           }
         }
       },
-    );
-  }
-
-  void _messageActions(MessageThread thread, ChatMessage message) {
-    MessageActionsSheet.show(
-      context,
-      repository: _repo,
-      threadId: thread.id,
-      message: message,
     );
   }
 
@@ -221,7 +338,7 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
         onBack: _closeMobileDetail,
         onOpenRef: widget.onOpenRef,
         onOpenInfo: _openInfo,
-        onMessageActions: _messageActions,
+        onOpenProfile: (MessageThread t) => _openProfile(t.peer),
       );
     }
     return _inbox(context);
@@ -263,9 +380,11 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
       repository: _repo,
       selectedThreadId: _isMobile ? null : _activeThreadId,
       externalQuery: _searchQuery,
-      onOpenThread: _openThread,
+      onOpenThread: (MessageThread t) =>
+          _openThread(t, keepSecondaryOnWide: false),
       onNewMessage: _newMessage,
-      onOpenRequests: () => _openSecondary(_Secondary.requests, 'Message requests'),
+      onOpenRequests: () =>
+          _openSecondary(_Secondary.requests, 'Message requests'),
       onOpenArchived: () => _openSecondary(_Secondary.archived, 'Archived'),
       onThreadLongPress: _openInfo,
     );
@@ -284,7 +403,7 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
       showBackButton: false,
       onOpenRef: widget.onOpenRef,
       onOpenInfo: _openInfo,
-      onMessageActions: _messageActions,
+      onOpenProfile: (MessageThread t) => _openProfile(t.peer),
     );
   }
 
@@ -309,17 +428,20 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
     final Widget body = switch (_secondary) {
       _Secondary.requests => MessagesRequestsView(
           repository: _repo,
+          onOpenThread: (MessageThread t) =>
+              _openThread(t, keepSecondaryOnWide: true),
+          onOpenProfile: _openProfile,
           onAccepted: (String threadId) {
             _closeSecondary();
             final MessageThread? t = _repo.threadById(threadId);
-            if (t != null) _openThread(t);
+            if (t != null) _openThread(t, keepSecondaryOnWide: false);
           },
         ),
       _Secondary.archived => MessagesArchivedView(
           repository: _repo,
           onOpenThread: (MessageThread t) {
             _closeSecondary();
-            _openThread(t);
+            _openThread(t, keepSecondaryOnWide: false);
           },
         ),
       _Secondary.none => const SizedBox.shrink(),

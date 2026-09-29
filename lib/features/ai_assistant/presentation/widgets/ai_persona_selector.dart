@@ -9,12 +9,12 @@ class AiPersonaChip extends StatelessWidget {
   const AiPersonaChip({
     super.key,
     required this.persona,
-    required this.onTap,
+    this.onTap,
     this.dense = false,
   });
 
   final AiPersona persona;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   /// Shows only the short label — used where horizontal space is tight.
   final bool dense;

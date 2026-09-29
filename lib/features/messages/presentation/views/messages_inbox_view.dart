@@ -86,11 +86,17 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
         ? results.where((MessageThread t) => !t.pinned).toList()
         : results;
 
+    final bool showRequestsBanner = _filter == ThreadFilter.all &&
+        _query.trim().isEmpty &&
+        repo.requestCount > 0 &&
+        widget.onOpenRequests != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         _searchBar(context),
         _filterChips(context, repo),
+        if (showRequestsBanner) _requestsBanner(context, repo),
         Expanded(
           child: results.isEmpty
               ? _empty(context)
@@ -192,6 +198,91 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
                   : null,
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _requestsBanner(BuildContext context, MessagesRepository repo) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(theme.spacing.sm),
+        vertical: context.sp(theme.spacing.xxs),
+      ),
+      child: UiInteractive(
+        onTap: widget.onOpenRequests,
+        builder: (BuildContext context, UiInteractiveState state) {
+          return Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.md),
+              vertical: context.sp(theme.spacing.sm),
+            ),
+            decoration: BoxDecoration(
+              color: state.hovered
+                  ? colors.surfaceHover
+                  : colors.primary.withValues(alpha: 0.08),
+              borderRadius: context.radius(theme.radii.lg),
+              border: Border.all(
+                color: colors.primary.withValues(alpha: 0.25),
+                width: theme.borders.hairline,
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: context.sz(36),
+                  height: context.sz(36),
+                  decoration: BoxDecoration(
+                    color: colors.primary.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.mark_email_unread_rounded,
+                    size: context.sz(18),
+                    color: colors.primary,
+                  ),
+                ),
+                SizedBox(width: context.sp(theme.spacing.sm)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Text(
+                            'Message requests',
+                            style: context.uiText.bodyStrong,
+                          ),
+                          SizedBox(width: context.sp(theme.spacing.xs)),
+                          UiBadge(
+                            label: '${repo.requestCount}',
+                            intent: UiIntent.primary,
+                            size: UiSize.xs,
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: context.sz(2)),
+                      Text(
+                        '${repo.requestCount} ${repo.requestCount == 1 ? 'person wants' : 'people want'} to connect with you',
+                        style: context.uiText.caption.copyWith(
+                          color: colors.foregroundMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: context.sz(theme.sizes.iconSm),
+                  color: colors.foregroundSubtle,
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

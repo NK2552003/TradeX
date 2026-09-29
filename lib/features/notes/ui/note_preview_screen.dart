@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
@@ -15,9 +14,11 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 
 import '../data/note_attachments.dart';
 import '../data/notes_repository.dart';
+import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
+import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
 
 /// Read-only view of one note.
 ///
@@ -190,12 +191,17 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
 
   Future<void> _shareNote() async {
     final String shareUrl = 'https://tradex.app/p/notes/${_note.id}';
-    await Clipboard.setData(ClipboardData(text: shareUrl));
-    if (!mounted) return;
-    UiToast.success(
+    final AppLinkRef ref = AppLinkRef(
+      kind: AppLinkKind.note,
+      id: _note.id,
+      title: _title,
+      subtitle: _note.noteType.label,
+    );
+    await ShareToConversationDialog.showShareMenu(
       context,
-      title: 'Link copied',
-      message: 'Share URL copied to clipboard',
+      reference: ref,
+      shareUrl: shareUrl,
+      onExportPdf: _exportPdf,
     );
   }
 
@@ -210,6 +216,33 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           ? 'Note removed from bookmarks'
           : 'Note saved to your bookmarks',
     );
+  }
+
+  void _analyzeWithAi() {
+    final String prompt =
+        'Analyze this trade note "${_note.title}":\n\n'
+        '${_note.content}\n\n'
+        'Tags: ${_note.tags.join(', ')}\n'
+        'Instruments: ${_note.linkedTickers.join(', ')}\n\n'
+        'Provide a critical review, key takeaways, and suggested trade setups or risk warnings.';
+    AiAssistantRepositoryScope.repository.sendPrompt(prompt);
+    UiToastScope.maybeOf(context)?.show(
+      UiToastData(
+        title: 'Sent to AI Copilot',
+        message: 'Analyzing "${_note.title}" in AI Assistant...',
+        intent: UiIntent.info,
+      ),
+    );
+    if (widget.onOpenLink != null) {
+      widget.onOpenLink!(
+        const AppLinkRef(
+          id: 'ai_copilot',
+          kind: AppLinkKind.note,
+          title: 'AI Copilot',
+          subtitle: 'Note Analysis',
+        ),
+      );
+    }
   }
 
   String get _title =>
@@ -284,6 +317,14 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   Widget _previewCommandBar(BuildContext context) {
     final UiTheme theme = context.ui;
     final List<Widget> actions = <Widget>[
+      UiIconButton(
+        icon: Icons.auto_awesome_rounded,
+        variant: UiVariant.ghost,
+        intent: UiIntent.primary,
+        tooltip: 'Analyze note with AI Copilot',
+        onPressed: _analyzeWithAi,
+      ),
+      SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: _note.isFavorite
             ? Icons.bookmark_rounded

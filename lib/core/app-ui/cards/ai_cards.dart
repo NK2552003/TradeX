@@ -13,12 +13,14 @@ class AppAiMessageBubble extends StatelessWidget {
     required this.message,
     this.onCopy,
     this.onRetry,
+    this.onShare,
     this.onSourceTap,
   });
 
   final AppAiMessage message;
   final VoidCallback? onCopy;
   final VoidCallback? onRetry;
+  final VoidCallback? onShare;
   final ValueChanged<String>? onSourceTap;
 
   @override
@@ -130,6 +132,13 @@ class AppAiMessageBubble extends StatelessWidget {
                     tooltip: 'Regenerate',
                     onPressed: onRetry,
                   ),
+                  if (onShare != null)
+                    UiIconButton(
+                      icon: Icons.send_outlined,
+                      size: UiSize.sm,
+                      tooltip: 'Share in message',
+                      onPressed: onShare,
+                    ),
                   if (message.sentAt != null)
                     Text(
                       AppTokens.relativeTime(message.sentAt!),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_send_dm_dialog.dart';
 
@@ -98,6 +99,29 @@ class CommunityShareSheet extends StatelessWidget {
           title: 'Send via Direct Message',
           subtitle: 'Share privately with a fellow trader',
           onTap: onSendDm ?? () => CommunitySendDmDialog.show(context, post: post),
+        ),
+
+        // Option: Analyze with AI Copilot
+        _shareOption(
+          context,
+          icon: Icons.auto_awesome_rounded,
+          title: 'Analyze with AI Copilot',
+          subtitle: 'Validate thesis, sentiment, and setups',
+          onTap: () {
+            Navigator.of(context).pop();
+            AiAssistantRepositoryScope.repository.sendPrompt(
+              'Analyze community post by @${post.author.handle}:\n\n'
+              '"${post.body}"\n\n'
+              'Provide sentiment breakdown, technical setup validity, and potential counter-thesis risks.',
+            );
+            UiToastScope.maybeOf(context)?.show(
+              UiToastData(
+                title: 'Sent to AI Copilot',
+                message: 'Analyzing @${post.author.handle}\'s post in AI Assistant...',
+                intent: UiIntent.info,
+              ),
+            );
+          },
         ),
 
         // Option: Copy Link

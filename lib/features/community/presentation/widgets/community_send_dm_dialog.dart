@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/messages/data/messages_repository.dart';
 
 /// Modal dialog allowing a trader to send a post or direct message to another user.
 class CommunitySendDmDialog extends StatefulWidget {
@@ -206,6 +206,23 @@ class _CommunitySendDmDialogState extends State<CommunitySendDmDialog> {
                     _message,
                     sharedPost: widget.post,
                   );
+                  try {
+                    final AppTrader trader = AppTrader(
+                      id: _selectedRecipient!.id,
+                      handle: _selectedRecipient!.handle,
+                      displayName: _selectedRecipient!.displayName,
+                      avatarUrl: _selectedRecipient!.avatarUrl,
+                    );
+                    final String threadId = MessagesRepositoryScope.repository
+                        .startConversation(trader);
+                    final String shareText = widget.post != null
+                        ? (_message.isNotEmpty
+                            ? '$_message\n\nShared post by @${widget.post!.author.handle}: "${widget.post!.body}"'
+                            : 'Shared post by @${widget.post!.author.handle}: "${widget.post!.body}"')
+                        : _message;
+                    MessagesRepositoryScope.repository
+                        .sendMessage(threadId, body: shareText);
+                  } catch (_) {}
                   Navigator.of(context).pop();
                   UiToast.show(
                     context,

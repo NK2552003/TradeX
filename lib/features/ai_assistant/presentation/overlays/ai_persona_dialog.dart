@@ -34,6 +34,13 @@ class AiPersonaDialog extends StatelessWidget {
             ),
           ],
         ),
+        actions: [
+          UiButton(
+            label: 'Cancel',
+            variant: UiVariant.ghost,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
       ),
     );
   }

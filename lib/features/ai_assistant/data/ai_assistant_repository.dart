@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -36,6 +37,7 @@ class AiAssistantRepository extends ChangeNotifier {
     _threads.sort(_threadOrder);
     if (_threads.isEmpty) _threads.add(_blankThread(AiPersona.swing));
     _activeThreadId = _threads.first.id;
+    _insights = List<AppAiInsight>.from(AiSeedData.insights());
   }
 
   /// Injected so AI-created community posts land in the real feed. When null,
@@ -43,6 +45,7 @@ class AiAssistantRepository extends ChangeNotifier {
   final CommunityRepository? _community;
 
   final List<AiThread> _threads;
+  late final List<AppAiInsight> _insights;
   late String _activeThreadId;
 
   bool _generating = false;
@@ -84,7 +87,30 @@ class AiAssistantRepository extends ChangeNotifier {
   List<AppAiPrompt> get quickPrompts => AiSeedData.quickPrompts();
   Map<String, List<AppAiPrompt>> get promptLibrary => AiSeedData.promptLibrary();
   List<AiChartSetup> get chartSetups => AiSeedData.chartSetups();
-  List<AppAiInsight> get insights => AiSeedData.insights();
+  List<AppAiInsight> get insights => List<AppAiInsight>.unmodifiable(_insights);
+
+  void dismissInsight(AppAiInsight insight) {
+    _insights.remove(insight);
+    notifyListeners();
+  }
+
+  void generateInsight() {
+    final List<String> symbols = <String>['NVDA', 'TSLA', 'AAPL', 'BTC', 'ETH', 'SPY', 'QQQ', 'AMD'];
+    final Random rng = Random();
+    final String symbol = symbols[rng.nextInt(symbols.length)];
+    final bool bullish = rng.nextBool();
+    final AppAiInsight fresh = AppAiInsight(
+      id: 'insight_${DateTime.now().millisecondsSinceEpoch}',
+      title: '$symbol ${bullish ? "Bullish Volume Breakout" : "Bearish Rejection at Resistance"}',
+      body: 'AI detected unusual ${bullish ? "accumulation" : "distribution"} patterns on the 1H timeframe with high institutional order flow.',
+      confidence: 0.88,
+      sentimentScore: bullish ? 0.75 : -0.65,
+      tickers: <String>[symbol],
+      createdAt: DateTime.now(),
+    );
+    _insights.insert(0, fresh);
+    notifyListeners();
+  }
 
   AiChartSetup? setupById(String id) {
     for (final AiChartSetup s in AiSeedData.chartSetups()) {
@@ -175,6 +201,13 @@ class AiAssistantRepository extends ChangeNotifier {
       _threads.sort(_threadOrder);
       _activeThreadId = _threads.first.id;
     }
+    _notify();
+  }
+
+  /// Clears all messages in the active thread.
+  void clearActiveThread() {
+    final AiThread t = activeThread;
+    _replace(t.copyWith(messages: const <AppAiMessage>[]));
     _notify();
   }
 
@@ -344,8 +377,7 @@ class AiAssistantRepository extends ChangeNotifier {
       case AiCreateTarget.strategy:
         return _createStrategy(draft);
       case AiCreateTarget.post:
-        _createPost(draft);
-        return null;
+        return _createPost(draft);
       case AiCreateTarget.chartAnalysis:
         // Chart analysis exports commit through the concrete targets above.
         return null;
@@ -354,6 +386,8 @@ class AiAssistantRepository extends ChangeNotifier {
 
   /// @backend POST /notes
   Future<AppLinkRef> _createNote(AiCreateDraft draft) async {
+    final int wordCount =
+        draft.body.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
     final AppNote note = await NotesRepositoryScope.repository.create(
       AppNote(
         id: 'note_ai_${_uid()}',
@@ -361,41 +395,78 @@ class AiAssistantRepository extends ChangeNotifier {
         content: draft.body,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
-        noteType: AppNoteType.analysis,
+        noteType: draft.noteType,
         tags: draft.tags,
         linkedTickers: draft.tickers,
-        isFavorite: true,
+        isFavorite: draft.isFavorite,
+        isPublic: draft.isPublic,
+        strategyName: draft.strategyName,
+        wordCount: wordCount,
+        hasCode: draft.body.contains('```'),
       ),
     );
     return _refFor(
       AppLinkKind.note,
       note.id,
       note.title,
-      subtitle: 'AI-generated note',
+      subtitle: '${draft.noteType.label} • ${draft.tickers.join(', ')}',
     );
   }
 
   /// @backend POST /journal/trades
   Future<AppLinkRef> _createTrade(AiCreateDraft draft) async {
     final AiChartSetup? s = draft.setup;
-    final String ticker = s?.symbol ??
-        (draft.tickers.isNotEmpty ? draft.tickers.first : 'NIFTY50');
+    final String ticker = draft.tickers.isNotEmpty
+        ? draft.tickers.first
+        : (s?.symbol ?? 'NIFTY50');
+    final double entry = draft.entryPrice ?? (s?.entry ?? 100.0);
+    final double? stop = draft.stopLoss ?? s?.stopLoss;
+    final double? target = draft.target1 ?? s?.target1;
+    final double rMult = draft.rMultiple ?? (s?.rrRatio ?? 2.0);
+    final double exit = draft.isClosed ? (target ?? entry) : 0.0;
+    final double pnl = draft.isClosed
+        ? (draft.side == AppSide.long ? (exit - entry) : (entry - exit)) *
+            draft.quantity
+        : 0.0;
+    final double pnlPercent = draft.isClosed && entry > 0
+        ? ((draft.side == AppSide.long ? (exit - entry) : (entry - exit)) /
+                entry) *
+            100
+        : 0.0;
+    final AppOutcome outcome = !draft.isClosed
+        ? AppOutcome.open
+        : (pnl > 0
+            ? AppOutcome.win
+            : (pnl < 0 ? AppOutcome.loss : AppOutcome.breakeven));
+    final int wordCount =
+        draft.body.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+
     final AppTrade trade = await JournalRepositoryScope.repository.create(
       AppTrade(
         id: 'trade_ai_${_uid()}',
         ticker: ticker,
-        side: (s?.direction ?? AiTradeDirection.long).side,
+        side: draft.side,
         openedAt: DateTime.now(),
-        entry: s?.entry ?? 0,
-        exit: null,
-        stopLoss: s?.stopLoss,
-        target: s?.target1,
-        size: 50,
-        rMultiple: s?.rrRatio,
+        closedAt: draft.isClosed ? DateTime.now() : null,
+        entry: entry,
+        exit: draft.isClosed ? exit : null,
+        stopLoss: stop,
+        target: target,
+        size: draft.quantity,
+        pnl: pnl,
+        pnlPercent: pnlPercent,
+        rMultiple: rMult,
+        outcome: outcome,
         title: draft.title,
         content: draft.body,
-        strategy: s?.pattern,
+        notes: draft.title,
+        strategy: draft.strategyName ?? s?.pattern ?? 'Breakout Momentum',
         tags: draft.tags,
+        psychologyScore: draft.psychologyScore,
+        isPublic: draft.isPublic,
+        isFavorite: draft.isFavorite,
+        wordCount: wordCount,
+        hasCode: draft.body.contains('```'),
       ),
     );
     final String title = trade.title.isEmpty ? '$ticker trade' : trade.title;
@@ -403,52 +474,87 @@ class AiAssistantRepository extends ChangeNotifier {
       AppLinkKind.journal,
       trade.id,
       title,
-      subtitle: 'AI trade idea',
+      subtitle:
+          '${draft.side.name.toUpperCase()} $ticker • ${rMult.toStringAsFixed(1)}R',
     );
   }
 
   /// @backend POST /strategies
   Future<AppLinkRef> _createStrategy(AiCreateDraft draft) async {
+    final int wordCount =
+        draft.body.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
     final AppStrategy strat = await StrategiesRepositoryScope.repository.create(
       AppStrategy(
         id: 'strat_ai_${_uid()}',
         name: draft.title,
-        summary: _firstLine(draft.body),
+        summary: draft.summary?.trim().isNotEmpty == true
+            ? draft.summary!
+            : _firstLine(draft.body),
+        category: draft.category ?? 'Breakout Momentum',
         content: draft.body,
-        status: AppStrategyStatus.draft,
+        status: draft.strategyStatus,
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
         tags: draft.tags,
         linkedTickers: draft.tickers,
+        isPublic: draft.isPublic,
+        isFavorite: draft.isFavorite,
+        wordCount: wordCount,
+        hasCode: draft.body.contains('```'),
       ),
     );
+    try {
+      await StrategiesRepositoryScope.repository.saveVersion(
+        strat.id,
+        note: 'Initial AI-generated draft playbook',
+      );
+    } catch (_) {}
     return _refFor(
       AppLinkKind.strategy,
       strat.id,
       strat.name,
-      subtitle: 'AI playbook',
+      subtitle:
+          '${draft.category ?? 'Playbook'} • ${draft.strategyStatus.name.toUpperCase()}',
     );
   }
 
   /// @backend POST /community/posts
-  void _createPost(AiCreateDraft draft) {
-    final CommunityRepository? community = _community;
-    if (community == null) return;
+  Future<AppLinkRef?> _createPost(AiCreateDraft draft) async {
+    final CommunityRepository community = _community ?? CommunityRepository();
     final AiChartSetup? s = draft.setup;
+    final tradeSetup = s != null
+        ? CommunityTradeSetup(
+            ticker: s.symbol,
+            side: s.direction.label.toUpperCase(),
+            entry: s.entry.toStringAsFixed(2),
+            stopLoss: s.stopLoss.toStringAsFixed(2),
+            target: s.target1.toStringAsFixed(2),
+            rMultiple: '${s.rrRatio.toStringAsFixed(1)}R',
+          )
+        : (draft.entryPrice != null && draft.target1 != null
+            ? CommunityTradeSetup(
+                ticker:
+                    draft.tickers.isNotEmpty ? draft.tickers.first : 'NIFTY50',
+                side: draft.side.name.toUpperCase(),
+                entry: draft.entryPrice!.toStringAsFixed(2),
+                stopLoss: (draft.stopLoss ?? 0).toStringAsFixed(2),
+                target: draft.target1!.toStringAsFixed(2),
+                rMultiple: '${(draft.rMultiple ?? 2.0).toStringAsFixed(1)}R',
+              )
+            : null);
+
     community.createPost(
       body: draft.body,
       author: community.currentAuthor,
       tickers: draft.tickers,
       tags: draft.tags.isEmpty ? const <String>['AI Setup'] : draft.tags,
-      tradeSetup: s == null
-          ? null
-          : CommunityTradeSetup(
-              ticker: s.symbol,
-              side: s.direction.label.toUpperCase(),
-              entry: s.entry.toStringAsFixed(2),
-              stopLoss: s.stopLoss.toStringAsFixed(2),
-              target: s.target1.toStringAsFixed(2),
-              rMultiple: '${s.rrRatio.toStringAsFixed(1)}R',
-            ),
+      tradeSetup: tradeSetup,
+    );
+    return _refFor(
+      AppLinkKind.note,
+      'community_feed',
+      draft.title,
+      subtitle: 'Published to Community',
     );
   }
 
@@ -463,38 +569,74 @@ class AiAssistantRepository extends ChangeNotifier {
         return AiCreateDraft(
           target: target,
           title: '${setup.symbol} ${setup.pattern} Playbook',
+          summary: 'High-conviction ${setup.pattern} trading system on ${setup.symbol} with defined risk parameters.',
+          category: 'Breakout Momentum',
+          strategyStatus: AppStrategyStatus.live,
           body: AiSeedData.strategyBodyForSetup(setup),
           tickers: <String>[setup.symbol],
-          tags: const <String>['AI', 'Playbook'],
+          tags: <String>['AI', 'Playbook', setup.pattern],
           setup: setup,
+          entryPrice: setup.entry,
+          stopLoss: setup.stopLoss,
+          target1: setup.target1,
+          target2: setup.target2,
+          rMultiple: setup.rrRatio,
         );
       case AiCreateTarget.journal:
         return AiCreateDraft(
           target: target,
           title: '${setup.symbol} ${setup.pattern}',
-          body: setup.rationale,
+          strategyName: setup.pattern,
+          side: setup.direction.side,
+          entryPrice: setup.entry,
+          stopLoss: setup.stopLoss,
+          target1: setup.target1,
+          target2: setup.target2,
+          quantity: 50.0,
+          rMultiple: setup.rrRatio,
+          body: '## Setup Thesis: ${setup.symbol}\n'
+              '${setup.rationale}\n\n'
+              '### Execution Strategy\n'
+              '- **Key Invalidation Level:** ${setup.stopLoss.toStringAsFixed(2)}\n'
+              '- **Primary Target:** ${setup.target1.toStringAsFixed(2)}\n'
+              '- **Secondary Runner:** ${setup.target2.toStringAsFixed(2)}\n'
+              '- **Calculated R:R:** ${setup.rrRatio.toStringAsFixed(1)}R\n\n'
+              '### Trader Psychology\n'
+              'Disciplined risk allocation followed. Pre-defined exit plan in place.',
           tickers: <String>[setup.symbol],
-          tags: const <String>['AI'],
+          tags: <String>['AI', setup.pattern, setup.direction.label],
           setup: setup,
         );
       case AiCreateTarget.post:
         return AiCreateDraft(
           target: target,
-          title: '${setup.symbol} setup',
+          title: '${setup.symbol} Setup Analysis',
           body: AiSeedData.postBodyForSetup(setup),
           tickers: <String>[setup.symbol],
-          tags: <String>['AI Setup', setup.direction.label],
+          tags: <String>['AI Setup', setup.direction.label, setup.pattern],
           setup: setup,
+          entryPrice: setup.entry,
+          stopLoss: setup.stopLoss,
+          target1: setup.target1,
+          target2: setup.target2,
+          rMultiple: setup.rrRatio,
+          side: setup.direction.side,
         );
       case AiCreateTarget.note:
       case AiCreateTarget.chartAnalysis:
         return AiCreateDraft(
           target: AiCreateTarget.note,
-          title: '${setup.symbol} ${setup.pattern} Analysis',
+          title: '${setup.symbol} ${setup.pattern} Technical Analysis',
+          noteType: AppNoteType.analysis,
           body: AiSeedData.noteBodyForSetup(setup),
           tickers: <String>[setup.symbol],
-          tags: const <String>['AI', 'Analysis'],
+          tags: <String>['AI', 'Analysis', setup.symbol, setup.pattern],
           setup: setup,
+          entryPrice: setup.entry,
+          stopLoss: setup.stopLoss,
+          target1: setup.target1,
+          target2: setup.target2,
+          rMultiple: setup.rrRatio,
         );
     }
   }
@@ -506,22 +648,35 @@ class AiAssistantRepository extends ChangeNotifier {
     final String symbol =
         AiSeedData.symbolFrom(source.isEmpty ? activeThread.title : source);
     final String title = switch (target) {
-      AiCreateTarget.note => '$symbol research note',
-      AiCreateTarget.journal => '$symbol trade idea',
-      AiCreateTarget.strategy => '$symbol playbook',
-      AiCreateTarget.post => '$symbol update',
-      AiCreateTarget.chartAnalysis => '$symbol analysis',
+      AiCreateTarget.note => '$symbol In-Depth Research Note',
+      AiCreateTarget.journal => '$symbol Trade Execution Idea',
+      AiCreateTarget.strategy => '$symbol Precision Playbook',
+      AiCreateTarget.post => '$symbol Community Market Update',
+      AiCreateTarget.chartAnalysis => '$symbol Chart Breakdown',
     };
     final String body = source.isNotEmpty
         ? source
-        : 'A ${target.label.toLowerCase()} on $symbol generated by the TradeX '
-            'AI copilot. Edit the details before saving.';
+        : '# $symbol Analysis\n\n'
+            'Comprehensive technical and macro breakdown for **$symbol** generated by the TradeX AI Copilot.\n\n'
+            '## Key Observations\n'
+            '- Momentum structure remains aligned with higher timeframe trends.\n'
+            '- Invalidation and liquidity pools have been mapped.\n'
+            '- Review risk parameters before committing capital.\n';
     return AiCreateDraft(
       target: target == AiCreateTarget.chartAnalysis ? AiCreateTarget.note : target,
       title: title,
       body: body,
       tickers: <String>[symbol],
-      tags: const <String>['AI'],
+      tags: const <String>['AI', 'Copilot'],
+      noteType: AppNoteType.analysis,
+      entryPrice: 150.0,
+      stopLoss: 144.5,
+      target1: 162.0,
+      target2: 170.0,
+      quantity: 50.0,
+      rMultiple: 2.18,
+      category: 'Price Action',
+      strategyStatus: AppStrategyStatus.live,
     );
   }
 
@@ -606,4 +761,17 @@ class AiAssistantRepository extends ChangeNotifier {
     _replyTimer?.cancel();
     super.dispose();
   }
+}
+
+/// Static accessor so overlays and cross-feature callers can reach the shared
+/// AI assistant repository without threading it through constructors.
+class AiAssistantRepositoryScope {
+  AiAssistantRepositoryScope._();
+
+  static AiAssistantRepository? _instance;
+
+  static AiAssistantRepository get repository =>
+      _instance ??= AiAssistantRepository();
+
+  static set repository(AiAssistantRepository repo) => _instance = repo;
 }

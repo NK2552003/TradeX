@@ -19,11 +19,15 @@ class MessagesRepository extends ChangeNotifier {
     _messages = MessagesSeed.messagesByThread();
   }
 
+  /// Global singleton instance so messages can be opened or sent from any feature.
+  static final MessagesRepository instance = MessagesRepository();
+
   late List<MessageThread> _threads;
   late List<MessageThread> _requests;
   late Map<String, List<ChatMessage>> _messages;
   final Set<String> _typing = <String>{};
   final List<Timer> _pending = <Timer>[];
+  final Map<String, String> _pinnedMessages = <String, String>{};
 
   final Random _rng = Random(7);
 
@@ -76,6 +80,24 @@ class MessagesRepository extends ChangeNotifier {
   List<ChatMessage> messagesFor(String threadId) =>
       List<ChatMessage>.unmodifiable(_messages[threadId] ?? const <ChatMessage>[]);
 
+  String? pinnedMessageId(String threadId) => _pinnedMessages[threadId];
+
+  ChatMessage? pinnedMessageFor(String threadId) {
+    final String? msgId = _pinnedMessages[threadId];
+    if (msgId == null) return null;
+    final List<ChatMessage> list = messagesFor(threadId);
+    return list.where((ChatMessage m) => m.id == msgId).firstOrNull;
+  }
+
+  void togglePinMessage(String threadId, String messageId) {
+    if (_pinnedMessages[threadId] == messageId) {
+      _pinnedMessages.remove(threadId);
+    } else {
+      _pinnedMessages[threadId] = messageId;
+    }
+    notifyListeners();
+  }
+
   /// Records the composer can attach.
   List<AppLinkRef> get shareableRefs => MessagesSeed.shareableRefs();
 
@@ -124,6 +146,7 @@ class MessagesRepository extends ChangeNotifier {
     String body = '',
     MessageAttachment? attachment,
     AppLinkRef? sharedRef,
+    String? replyToId,
   }) {
     if (body.trim().isEmpty && attachment == null && sharedRef == null) return;
     final ChatMessage message = ChatMessage(
@@ -135,6 +158,7 @@ class MessagesRepository extends ChangeNotifier {
       status: MessageStatus.sending,
       attachment: attachment,
       sharedRef: sharedRef,
+      replyToId: replyToId,
     );
     _messages.putIfAbsent(threadId, () => <ChatMessage>[]).add(message);
     _touchThread(
@@ -203,6 +227,30 @@ class MessagesRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Edits the body of an existing message.
+  ///
+  /// @backend PATCH /messages/{id} { body }.
+  void editMessage(String threadId, String messageId, String newBody) {
+    final List<ChatMessage>? list = _messages[threadId];
+    if (list == null) return;
+    final int i = list.indexWhere((ChatMessage m) => m.id == messageId);
+    if (i == -1) return;
+    final ChatMessage m = list[i];
+    final String clean = newBody.trim();
+    if (clean.isEmpty || clean == m.body) return;
+    list[i] = m.copyWith(body: clean, edited: true);
+    if (i == list.length - 1) {
+      _touchThread(
+        threadId,
+        preview: clean,
+        fromMe: m.fromMe,
+        status: m.status,
+        at: m.sentAt,
+      );
+    }
+    notifyListeners();
+  }
+
   /// Removes a message the trader sent.
   ///
   /// @backend DELETE /messages/{id}.
@@ -249,6 +297,41 @@ class MessagesRepository extends ChangeNotifier {
       ),
     );
     _messages[id] = <ChatMessage>[];
+    notifyListeners();
+    return id;
+  }
+
+  /// Starts or opens a group conversation with multiple [participants].
+  ///
+  /// @backend POST /threads/group { title, participantIds }
+  String startGroupConversation({
+    required String title,
+    required List<AppTrader> participants,
+  }) {
+    final String id = 'thread_grp_${DateTime.now().millisecondsSinceEpoch}';
+    final AppTrader dummyPeer = participants.isNotEmpty
+        ? participants.first
+        : const AppTrader(id: 'group', handle: 'group', displayName: 'Group');
+    final MessageThread thread = MessageThread(
+      id: id,
+      peer: dummyPeer,
+      groupTitle: title,
+      isGroup: true,
+      participants: participants,
+      lastMessagePreview: 'Group created with ${participants.length} traders',
+      lastMessageAt: DateTime.now(),
+    );
+    _threads.insert(0, thread);
+    _messages[id] = <ChatMessage>[
+      ChatMessage(
+        id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
+        threadId: id,
+        body: 'You created group "$title" with ${participants.length} members.',
+        fromMe: true,
+        sentAt: DateTime.now(),
+        systemNotice: true,
+      ),
+    ];
     notifyListeners();
     return id;
   }
@@ -300,6 +383,169 @@ class MessagesRepository extends ChangeNotifier {
   /// @backend POST /requests/{id}/decline.
   void declineRequest(String requestId) {
     _requests.removeWhere((MessageThread t) => t.id == requestId);
+    notifyListeners();
+  }
+
+  /// @backend DELETE /requests.
+  void declineAllRequests() {
+    _requests.clear();
+    notifyListeners();
+  }
+
+  /// Deletes a conversation thread completely.
+  ///
+  /// @backend DELETE /threads/{id}.
+  void deleteThread(String threadId) {
+    _threads.removeWhere((MessageThread t) => t.id == threadId);
+    _requests.removeWhere((MessageThread t) => t.id == threadId);
+    _messages.remove(threadId);
+    notifyListeners();
+  }
+
+  /// Clears all messages in a conversation without removing the thread.
+  ///
+  /// @backend DELETE /threads/{id}/messages.
+  void clearThreadMessages(String threadId) {
+    _messages[threadId]?.clear();
+    _touchThread(
+      threadId,
+      preview: 'No messages',
+      fromMe: false,
+      status: MessageStatus.read,
+      clearDraft: true,
+    );
+    notifyListeners();
+  }
+
+  /// Renames a group conversation.
+  ///
+  /// @backend PATCH /threads/{id} { groupTitle }.
+  void renameGroup(String threadId, String newTitle) {
+    final String clean = newTitle.trim();
+    if (clean.isEmpty) return;
+    _mutateThread(
+      threadId,
+      (MessageThread t) => t.copyWith(groupTitle: clean),
+    );
+    _messages.putIfAbsent(threadId, () => <ChatMessage>[]).add(
+      ChatMessage(
+        id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
+        threadId: threadId,
+        body: 'Group name changed to "$clean".',
+        fromMe: true,
+        sentAt: DateTime.now(),
+        systemNotice: true,
+      ),
+    );
+    notifyListeners();
+  }
+
+  /// Adds a participant to a group conversation.
+  ///
+  /// @backend POST /threads/{id}/participants { traderId }.
+  void addParticipant(String threadId, AppTrader trader) {
+    final int idx = _threads.indexWhere((MessageThread t) => t.id == threadId);
+    if (idx == -1) return;
+    final MessageThread thread = _threads[idx];
+    if (thread.participants.any((AppTrader p) => p.id == trader.id)) return;
+    final List<AppTrader> updated = <AppTrader>[...thread.participants, trader];
+    _threads[idx] = MessageThread(
+      id: thread.id,
+      peer: thread.peer,
+      participants: updated,
+      isGroup: thread.isGroup,
+      groupTitle: thread.groupTitle,
+      groupAvatarUrl: thread.groupAvatarUrl,
+      presence: thread.presence,
+      lastMessagePreview:
+          '${trader.displayName ?? trader.handle} joined the group',
+      lastMessageAt: DateTime.now(),
+      unread: thread.unread,
+      pinned: thread.pinned,
+      muted: thread.muted,
+      archived: thread.archived,
+      isRequest: thread.isRequest,
+      draft: thread.draft,
+      typing: thread.typing,
+      lastFromMe: true,
+      lastStatus: MessageStatus.sent,
+    );
+    _messages.putIfAbsent(threadId, () => <ChatMessage>[]).add(
+      ChatMessage(
+        id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
+        threadId: threadId,
+        body: '${trader.displayName ?? trader.handle} joined the group.',
+        fromMe: true,
+        sentAt: DateTime.now(),
+        systemNotice: true,
+      ),
+    );
+    notifyListeners();
+  }
+
+  /// Removes a participant from a group conversation.
+  ///
+  /// @backend DELETE /threads/{id}/participants/{traderId}.
+  void removeParticipant(String threadId, String traderId) {
+    final int idx = _threads.indexWhere((MessageThread t) => t.id == threadId);
+    if (idx == -1) return;
+    final MessageThread thread = _threads[idx];
+    AppTrader? removed;
+    for (final AppTrader p in thread.participants) {
+      if (p.id == traderId) {
+        removed = p;
+        break;
+      }
+    }
+    final List<AppTrader> updated =
+        thread.participants.where((AppTrader p) => p.id != traderId).toList();
+    _threads[idx] = MessageThread(
+      id: thread.id,
+      peer: thread.peer,
+      participants: updated,
+      isGroup: thread.isGroup,
+      groupTitle: thread.groupTitle,
+      groupAvatarUrl: thread.groupAvatarUrl,
+      presence: thread.presence,
+      lastMessagePreview: removed != null
+          ? '${removed.displayName ?? removed.handle} left the group'
+          : thread.lastMessagePreview,
+      lastMessageAt: DateTime.now(),
+      unread: thread.unread,
+      pinned: thread.pinned,
+      muted: thread.muted,
+      archived: thread.archived,
+      isRequest: thread.isRequest,
+      draft: thread.draft,
+      typing: thread.typing,
+      lastFromMe: true,
+      lastStatus: MessageStatus.sent,
+    );
+    if (removed != null) {
+      _messages.putIfAbsent(threadId, () => <ChatMessage>[]).add(
+        ChatMessage(
+          id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
+          threadId: threadId,
+          body: '${removed.displayName ?? removed.handle} left the group.',
+          fromMe: false,
+          sentAt: DateTime.now(),
+          systemNotice: true,
+        ),
+      );
+    }
+    notifyListeners();
+  }
+
+  /// Blocks a trader: removes any incoming requests and hides active conversations.
+  ///
+  /// @backend POST /traders/{id}/block.
+  void blockTrader(String traderId) {
+    _requests.removeWhere((MessageThread t) => t.peer.id == traderId);
+    for (int i = 0; i < _threads.length; i++) {
+      if (_threads[i].peer.id == traderId) {
+        _threads[i] = _threads[i].copyWith(archived: true);
+      }
+    }
     notifyListeners();
   }
 

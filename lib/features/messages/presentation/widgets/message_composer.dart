@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -19,9 +21,12 @@ class MessageComposer extends StatefulWidget {
     this.quickReactions = const <String>[],
     this.onSendText,
     this.onSendAttachment,
+    this.onSendVoice,
     this.onSendRef,
     this.onQuickReaction,
     this.onDraftChanged,
+    this.replyTo,
+    this.onCancelReply,
     this.autofocus = false,
   });
 
@@ -29,9 +34,12 @@ class MessageComposer extends StatefulWidget {
   final String initialDraft;
   final List<AppLinkRef> shareableRefs;
   final List<String> quickReactions;
+  final ChatMessage? replyTo;
+  final VoidCallback? onCancelReply;
 
   final void Function(String body)? onSendText;
   final void Function(MessageAttachmentKind kind)? onSendAttachment;
+  final void Function(String durationLabel)? onSendVoice;
   final void Function(AppLinkRef ref)? onSendRef;
   final void Function(String emoji)? onQuickReaction;
   final void Function(String draft)? onDraftChanged;
@@ -46,6 +54,9 @@ class _MessageComposerState extends State<MessageComposer> {
   final FocusNode _focus = FocusNode();
   bool _hasText = false;
   bool _showQuickBar = false;
+  bool _isRecording = false;
+  int _recordSeconds = 0;
+  Timer? _recordTimer;
 
   @override
   void initState() {
@@ -84,8 +95,52 @@ class _MessageComposerState extends State<MessageComposer> {
     _focus.requestFocus();
   }
 
+  void _startRecording() {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _isRecording = true;
+      _recordSeconds = 0;
+    });
+    _recordTimer?.cancel();
+    _recordTimer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() => _recordSeconds++);
+    });
+  }
+
+  void _cancelRecording() {
+    HapticFeedback.selectionClick();
+    _recordTimer?.cancel();
+    setState(() {
+      _isRecording = false;
+      _recordSeconds = 0;
+    });
+  }
+
+  void _sendVoiceRecording() {
+    _recordTimer?.cancel();
+    final int sec = _recordSeconds < 1 ? 3 : _recordSeconds;
+    final int m = sec ~/ 60;
+    final int s = sec % 60;
+    final String durationLabel = '$m:${s.toString().padLeft(2, '0')}';
+    setState(() {
+      _isRecording = false;
+      _recordSeconds = 0;
+    });
+    HapticFeedback.lightImpact();
+    if (widget.onSendVoice != null) {
+      widget.onSendVoice!(durationLabel);
+    } else {
+      widget.onSendAttachment?.call(MessageAttachmentKind.voice);
+    }
+  }
+
   @override
   void dispose() {
+    _recordTimer?.cancel();
     _controller.removeListener(_onChanged);
     _controller.dispose();
     _focus.dispose();
@@ -114,33 +169,128 @@ class _MessageComposerState extends State<MessageComposer> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              if (_showQuickBar) _quickBar(context),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: <Widget>[
-                  _attachButton(context),
-                  SizedBox(width: context.sp(theme.spacing.xxs)),
-                  Expanded(
-                    child: UiInput(
-                      controller: _controller,
-                      focusNode: _focus,
-                      autofocus: widget.autofocus,
-                      hintText: 'Message…',
-                      minLines: 1,
-                      maxLines: 5,
-                      variant: UiInputVariant.filled,
-                      keyboardType: TextInputType.multiline,
-                      textInputAction: TextInputAction.newline,
-                      trailing: _emojiToggle(context),
+              if (widget.replyTo != null && !_isRecording) _replyBar(context, widget.replyTo!),
+              if (_showQuickBar && !_isRecording) _quickBar(context),
+              if (_isRecording)
+                _recordingBar(context)
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    _attachButton(context),
+                    SizedBox(width: context.sp(theme.spacing.xxs)),
+                    Expanded(
+                      child: UiInput(
+                        controller: _controller,
+                        focusNode: _focus,
+                        autofocus: widget.autofocus,
+                        hintText: 'Message…',
+                        minLines: 1,
+                        maxLines: 5,
+                        variant: UiInputVariant.filled,
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline,
+                        trailing: _emojiToggle(context),
+                      ),
                     ),
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xxs)),
-                  _sendButton(context),
-                ],
-              ),
+                    SizedBox(width: context.sp(theme.spacing.xxs)),
+                    _sendButton(context),
+                  ],
+                ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _recordingBar(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final int m = _recordSeconds ~/ 60;
+    final int s = _recordSeconds % 60;
+    final String timeStr = '$m:${s.toString().padLeft(2, '0')}';
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(theme.spacing.xs),
+        vertical: context.sp(theme.spacing.xxs),
+      ),
+      child: Row(
+        children: <Widget>[
+          UiIconButton(
+            icon: Icons.delete_outline_rounded,
+            tooltip: 'Discard',
+            intent: UiIntent.danger,
+            size: UiSize.md,
+            onPressed: _cancelRecording,
+          ),
+          SizedBox(width: context.sp(theme.spacing.xs)),
+          Expanded(
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(theme.spacing.sm),
+                vertical: context.sp(theme.spacing.xs),
+              ),
+              decoration: BoxDecoration(
+                color: colors.surfaceMuted,
+                borderRadius: context.radius(theme.radii.lg),
+                border: Border.all(
+                  color: colors.destructive.withValues(alpha: 0.3),
+                  width: theme.borders.hairline,
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Container(
+                    width: context.sz(10),
+                    height: context.sz(10),
+                    decoration: BoxDecoration(
+                      color: colors.destructive,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  Text(
+                    timeStr,
+                    style: context.uiText.bodyStrong.copyWith(
+                      color: colors.destructive,
+                    ),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.sm)),
+                  Expanded(
+                    child: SizedBox(
+                      height: context.sz(18),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: List<Widget>.generate(16, (int i) {
+                          final double h = 4.0 + ((i + _recordSeconds) % 5) * 3.0;
+                          return Container(
+                            width: context.sz(2.5),
+                            height: context.sz(h),
+                            decoration: BoxDecoration(
+                              color: colors.primary.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(context.sz(2)),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(width: context.sp(theme.spacing.xs)),
+          UiIconButton(
+            icon: Icons.send_rounded,
+            tooltip: 'Send voice note',
+            variant: UiVariant.solid,
+            intent: UiIntent.primary,
+            size: UiSize.md,
+            onPressed: _sendVoiceRecording,
+          ),
+        ],
       ),
     );
   }
@@ -198,14 +348,12 @@ class _MessageComposerState extends State<MessageComposer> {
         onPressed: _send,
       );
     }
-    // Nothing typed → a mic affordance, matching common chat UX. It shares an
-    // attachment of the voice kind so the flow stays data-driven.
+    // Nothing typed → a mic affordance. Tapping it activates live voice note recording.
     return UiIconButton(
       icon: Icons.mic_none_rounded,
-      tooltip: 'Voice message',
+      tooltip: 'Record voice note',
       size: UiSize.md,
-      onPressed: () =>
-          widget.onSendAttachment?.call(MessageAttachmentKind.voice),
+      onPressed: _startRecording,
     );
   }
 
@@ -230,6 +378,65 @@ class _MessageComposerState extends State<MessageComposer> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _replyBar(BuildContext context, ChatMessage reply) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final String senderLabel = reply.fromMe ? 'You' : 'Trader';
+    return Container(
+      margin: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(theme.spacing.sm),
+        vertical: context.sp(theme.spacing.xxs),
+      ),
+      decoration: BoxDecoration(
+        color: colors.surfaceMuted,
+        borderRadius: context.radius(theme.radii.sm),
+        border: Border(
+          left: BorderSide(
+            color: colors.primary,
+            width: context.sz(3),
+          ),
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  'Replying to $senderLabel',
+                  style: context.uiText.caption.copyWith(
+                    color: colors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  reply.body.isNotEmpty
+                      ? reply.body
+                      : (reply.sharedRef?.title ?? reply.attachment?.title ?? 'Attachment'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: colors.foregroundMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (widget.onCancelReply != null)
+            UiIconButton(
+              icon: Icons.close_rounded,
+              size: UiSize.xs,
+              tooltip: 'Cancel reply',
+              onPressed: widget.onCancelReply,
+            ),
         ],
       ),
     );

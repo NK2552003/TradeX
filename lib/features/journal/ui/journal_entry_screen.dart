@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
@@ -15,9 +14,11 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 
 import '../data/journal_attachments.dart';
 import '../data/journal_repository.dart';
+import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
+import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
 
 /// Read-only view of one journal entry: the write-up, then the numbers behind
 /// it, then everything it is attached to.
@@ -411,12 +412,25 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
 
   Future<void> _shareTrade() async {
     final String shareUrl = 'https://tradex.app/p/journal/${_entry.id}';
-    await Clipboard.setData(ClipboardData(text: shareUrl));
-    if (!mounted) return;
-    UiToast.success(
+    final AppLinkRef ref = AppLinkRef(
+      kind: AppLinkKind.journal,
+      id: _entry.id,
+      title: _entry.displayTitle,
+      subtitle: '${_entry.side.name.toUpperCase()} ${_entry.ticker}',
+      meta: _entry.rMultiple != null
+          ? '${_entry.rMultiple!.toStringAsFixed(1)}R'
+          : null,
+      intent: _entry.outcome == AppOutcome.win
+          ? UiIntent.bullish
+          : (_entry.outcome == AppOutcome.loss
+              ? UiIntent.danger
+              : UiIntent.neutral),
+    );
+    await ShareToConversationDialog.showShareMenu(
       context,
-      title: 'Link copied',
-      message: 'Share URL copied to clipboard',
+      reference: ref,
+      shareUrl: shareUrl,
+      onExportPdf: _exportPdf,
     );
   }
 
@@ -555,9 +569,45 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     );
   }
 
+  void _analyzeWithAi() {
+    final String prompt =
+        'Audit this trade execution for ${_entry.ticker} (${_entry.side.name.toUpperCase()}):\n\n'
+        'Entry: ${_entry.entry}, Exit: ${_entry.exit ?? 'Open'}, Stop: ${_entry.stopLoss ?? 'None'}, Target: ${_entry.target ?? 'None'}\n'
+        'PnL: \$${_entry.pnl.toStringAsFixed(2)} (${_entry.pnlPercent.toStringAsFixed(2)}%), Outcome: ${_entry.outcome.name.toUpperCase()}\n'
+        'Strategy: ${_entry.strategy ?? 'Discretionary'}\n\n'
+        'Trader Notes:\n${_entry.content.isNotEmpty ? _entry.content : (_entry.notes ?? '')}\n\n'
+        'Evaluate execution discipline, risk management, and recommend actionable adjustments for future setups.';
+    AiAssistantRepositoryScope.repository.sendPrompt(prompt);
+    UiToastScope.maybeOf(context)?.show(
+      UiToastData(
+        title: 'Sent to AI Copilot',
+        message: 'Auditing trade execution in AI Assistant...',
+        intent: UiIntent.info,
+      ),
+    );
+    if (widget.onOpenLink != null) {
+      widget.onOpenLink!(
+        const AppLinkRef(
+          id: 'ai_copilot',
+          kind: AppLinkKind.journal,
+          title: 'AI Copilot',
+          subtitle: 'Trade Audit',
+        ),
+      );
+    }
+  }
+
   List<Widget> _headerActions(BuildContext context) {
     final UiTheme theme = context.ui;
     return <Widget>[
+      SizedBox(width: context.sp(theme.spacing.xs)),
+      UiIconButton(
+        icon: Icons.auto_awesome_rounded,
+        variant: UiVariant.ghost,
+        intent: UiIntent.primary,
+        tooltip: 'Analyze trade execution with AI',
+        onPressed: _busy ? null : _analyzeWithAi,
+      ),
       SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
         icon: Icons.share_outlined,

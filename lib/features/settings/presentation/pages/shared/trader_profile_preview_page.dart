@@ -13,6 +13,7 @@ import 'package:tradex/features/community/presentation/widgets/community_attachm
 import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_options_sheet.dart';
 import 'package:tradex/features/journal/ui/journal_entry_screen.dart';
+import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/notes/ui/note_preview_screen.dart';
 
 /// Stunning, responsive public profile preview resembling Twitter (X) + Trading Journal + Notes.
@@ -38,6 +39,7 @@ class TraderProfilePreviewPage extends StatefulWidget {
     this.author,
     this.onPostTap,
     this.onOpenRef,
+    this.onDirectMessage,
     this.isCurrentUser = false,
   });
 
@@ -60,6 +62,7 @@ class TraderProfilePreviewPage extends StatefulWidget {
   final CommunityAuthor? author;
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final void Function(AppTrader trader)? onDirectMessage;
   final bool isCurrentUser;
 
   @override
@@ -425,13 +428,41 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     tooltip: 'Direct Message',
                                     variant: UiVariant.outline,
                                     onPressed: () {
-                                      UiToast.show(
-                                        context,
-                                        title: 'Direct Message',
-                                        message:
-                                            'Opening conversation with @${widget.handle}',
-                                        intent: UiIntent.info,
+                                      final AppTrader peer = AppTrader(
+                                        id: widget.author?.id ??
+                                            'trader_${widget.handle}',
+                                        handle: widget.handle,
+                                        displayName: widget.displayName,
+                                        avatarUrl: widget.avatarUrl,
+                                        bio: widget.bio,
+                                        tier: widget.userRole ==
+                                                UserRole.affiliate
+                                            ? AppTier.premium
+                                            : AppTier.free,
                                       );
+                                      if (widget.onDirectMessage != null) {
+                                        widget.onDirectMessage!(peer);
+                                      } else {
+                                        try {
+                                          MessagesRepositoryScope.repository
+                                              .startConversation(peer);
+                                          UiToast.show(
+                                            context,
+                                            title: 'Direct Message',
+                                            message:
+                                                'Started conversation with @${widget.handle}',
+                                            intent: UiIntent.success,
+                                          );
+                                        } catch (_) {
+                                          UiToast.show(
+                                            context,
+                                            title: 'Direct Message',
+                                            message:
+                                                'Opening conversation with @${widget.handle}',
+                                            intent: UiIntent.info,
+                                          );
+                                        }
+                                      }
                                     },
                                   ),
                                   UiIconButton(

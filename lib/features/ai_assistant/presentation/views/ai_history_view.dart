@@ -10,12 +10,15 @@ class AiHistoryView extends StatefulWidget {
   final void Function(String) onSelectThread;
   final VoidCallback onNewThread;
 
+  final String? searchQuery;
+
   const AiHistoryView({
     super.key,
     required this.repository,
     this.selectedThreadId,
     required this.onSelectThread,
     required this.onNewThread,
+    this.searchQuery,
   });
 
   @override
@@ -32,11 +35,20 @@ class _AiHistoryViewState extends State<AiHistoryView> {
     super.initState();
     _repository = widget.repository;
     _repository.addListener(_onRepositoryChanged);
+    _searchQuery = widget.searchQuery ?? '';
+    if (_searchQuery.isNotEmpty) {
+      _searchController.text = _searchQuery;
+    }
   }
 
   @override
   void didUpdateWidget(AiHistoryView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.searchQuery != oldWidget.searchQuery &&
+        widget.searchQuery != null) {
+      _searchQuery = widget.searchQuery!;
+      _searchController.text = _searchQuery;
+    }
     if (oldWidget.repository != widget.repository) {
       oldWidget.repository.removeListener(_onRepositoryChanged);
       _repository = widget.repository;
@@ -56,65 +68,211 @@ class _AiHistoryViewState extends State<AiHistoryView> {
   }
 
   void _handleLongPress(AiThread thread) {
-    showModalBottomSheet(
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+
+    showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(thread.pinned ? Icons.push_pin_outlined : Icons.push_pin),
-              title: Text(thread.pinned ? 'Unpin' : 'Pin'),
-              onTap: () {
-                _repository.togglePin(thread.id);
-                Navigator.pop(ctx);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.edit),
-              title: const Text('Rename'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _showRenameDialog(thread);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Delete', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                _repository.deleteThread(thread.id);
-                Navigator.pop(ctx);
-              },
-            ),
-          ],
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext ctx) => SafeArea(
+        top: false,
+        child: Container(
+          margin: EdgeInsets.all(ctx.sp(theme.spacing.sm)),
+          decoration: BoxDecoration(
+            color: colors.background,
+            borderRadius: ctx.radius(theme.radii.xl),
+            border: Border.all(color: colors.border, width: theme.borders.hairline),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: ctx.sz(36),
+                  height: ctx.sz(4),
+                  margin: EdgeInsets.symmetric(vertical: ctx.sp(theme.spacing.xs)),
+                  decoration: BoxDecoration(
+                    color: colors.borderStrong,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: ctx.sp(theme.spacing.md),
+                  vertical: ctx.sp(theme.spacing.xxs),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        thread.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: ctx.uiText.bodyStrong,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              UiDivider(),
+              _actionTile(
+                ctx,
+                icon: thread.pinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
+                label: thread.pinned ? 'Unpin thread' : 'Pin to top',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _repository.togglePin(thread.id);
+                },
+              ),
+              _actionTile(
+                ctx,
+                icon: Icons.edit_rounded,
+                label: 'Rename thread',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showRenameDialog(thread);
+                },
+              ),
+              _actionTile(
+                ctx,
+                icon: Icons.delete_outline_rounded,
+                label: 'Delete thread',
+                intent: UiIntent.danger,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showDeleteDialog(thread);
+                },
+              ),
+              SizedBox(height: ctx.sp(theme.spacing.xs)),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _actionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    UiIntent intent = UiIntent.primary,
+  }) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+    final Color color =
+        intent == UiIntent.danger ? colors.destructive : colors.foreground;
+
+    return UiInteractive(
+      onTap: onTap,
+      builder: (BuildContext ctx, UiInteractiveState state) {
+        return Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: ctx.sp(theme.spacing.md),
+            vertical: ctx.sp(theme.spacing.sm),
+          ),
+          decoration: BoxDecoration(
+            color: state.hovered ? colors.surfaceHover : Colors.transparent,
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: ctx.sz(18), color: color),
+              SizedBox(width: ctx.sp(theme.spacing.sm)),
+              Expanded(
+                child: Text(
+                  label,
+                  style: ctx.uiText.body.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _showRenameDialog(AiThread thread) {
-    final controller = TextEditingController(text: thread.title);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rename Thread'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(hintText: 'New title'),
+    final TextEditingController controller =
+        TextEditingController(text: thread.title);
+    UiDialog.show<void>(
+      context,
+      child: UiDialog(
+        title: 'Rename Thread',
+        content: Padding(
+          padding:
+              EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+          child: UiInput(
+            label: 'Thread Title',
+            controller: controller,
+            hintText: 'Enter new title…',
+          ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+          UiButton(
+            label: 'Cancel',
+            variant: UiVariant.soft,
+            intent: UiIntent.neutral,
+            onPressed: () => Navigator.of(context).pop(),
           ),
-          TextButton(
+          UiButton(
+            label: 'Save',
+            intent: UiIntent.primary,
             onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                _repository.renameThread(thread.id, controller.text.trim());
+              final String trimmed = controller.text.trim();
+              if (trimmed.isNotEmpty) {
+                _repository.renameThread(thread.id, trimmed);
+                UiToast.show(
+                  context,
+                  title: 'Renamed',
+                  message: 'Thread title updated',
+                  intent: UiIntent.success,
+                );
               }
-              Navigator.pop(ctx);
+              Navigator.of(context).pop();
             },
-            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteDialog(AiThread thread) {
+    UiDialog.show<void>(
+      context,
+      child: UiDialog(
+        title: 'Delete Thread',
+        content: Padding(
+          padding:
+              EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+          child: Text(
+            'Are you sure you want to delete "${thread.title}"? This conversation history cannot be recovered.',
+            style: context.uiText.body,
+          ),
+        ),
+        actions: [
+          UiButton(
+            label: 'Cancel',
+            variant: UiVariant.soft,
+            intent: UiIntent.neutral,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          UiButton(
+            label: 'Delete',
+            icon: Icons.delete_outline_rounded,
+            intent: UiIntent.danger,
+            onPressed: () {
+              _repository.deleteThread(thread.id);
+              Navigator.of(context).pop();
+              UiToast.show(
+                context,
+                title: 'Thread deleted',
+                intent: UiIntent.neutral,
+              );
+            },
           ),
         ],
       ),
@@ -151,7 +309,7 @@ class _AiHistoryViewState extends State<AiHistoryView> {
                 ),
                 SizedBox(width: context.sp(context.ui.spacing.sm)),
                 UiButton(
-                  leadingIcon: Icons.add,
+                  icon: Icons.add,
                   label: 'New chat',
                   onPressed: widget.onNewThread,
                 ),
