@@ -1,0 +1,32 @@
+{
+  "AAPL": {
+    "ticker": "AAPL",
+    "market": "US",
+    "exchange": "NASDAQ",
+    "currency": "USD",
+    "name": "Apple Inc.",
+    "market_cap": 3500000000000,
+    "pe_ratio": 32.1,
+    "sector": "Technology",
+    "industry": "Consumer Electronics",
+    "fifty_two_week_high": 240.5,
+    "fifty_two_week_low": 164.0,
+    "dividend_yield": 0.5,
+    "updated_at": "2026-09-28T13:33:08.542Z"
+  },
+  "RELIANCE.NS": {
+    "ticker": "RELIANCE.NS",
+    "market": "IN",
+    "exchange": "NSE",
+    "currency": "INR",
+    "name": "Reliance Industries Limited",
+    "market_cap": 19950000000000,
+    "pe_ratio": 28.4,
+    "sector": "Energy & Conglomerate",
+    "industry": "Oil & Gas / Retail / Telecom",
+    "fifty_two_week_high": 3217.9,
+    "fifty_two_week_low": 2220.3,
+    "dividend_yield": 0.35,
+    "updated_at": "2026-09-28T13:33:08.542Z"
+  }
+}

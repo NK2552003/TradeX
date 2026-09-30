@@ -1,0 +1,18 @@
+{
+  "quotes": [
+    {
+      "symbol": "INTC",
+      "regularMarketPrice": 20.15,
+      "regularMarketChangePercent": -3.85,
+      "regularMarketVolume": 42000000
+    },
+    {
+      "symbol": "BA",
+      "regularMarketPrice": 175.4,
+      "regularMarketChangePercent": -2.1,
+      "regularMarketVolume": 11000000
+    }
+  ],
+  "count": 2,
+  "total": 2
+}

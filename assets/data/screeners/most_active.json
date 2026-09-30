@@ -1,0 +1,24 @@
+{
+  "quotes": [
+    {
+      "symbol": "AAPL",
+      "regularMarketPrice": 227.5,
+      "regularMarketChangePercent": 1.07,
+      "regularMarketVolume": 48213000
+    },
+    {
+      "symbol": "TSLA",
+      "regularMarketPrice": 245.8,
+      "regularMarketChangePercent": 2.16,
+      "regularMarketVolume": 55000000
+    },
+    {
+      "symbol": "NVDA",
+      "regularMarketPrice": 128.5,
+      "regularMarketChangePercent": 5.41,
+      "regularMarketVolume": 68000000
+    }
+  ],
+  "count": 3,
+  "total": 3
+}

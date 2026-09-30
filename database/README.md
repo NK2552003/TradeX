@@ -53,6 +53,19 @@ Several CHECK constraints in 009 and 010 are added `NOT VALID` on purpose: they
 constrain everything written from now on without failing the migration on rows
 that predate it. Clean the old rows, then `VALIDATE CONSTRAINT` at your leisure.
 
+## News article schema
+
+`schema.sql` uses the main-branch news schema: `news_articles.id` is a
+serial integer and the article URL is stored in `link`. The Python fetchers,
+`news_article_tickers`, `news_article_topics`, `news_tickers`, and
+`news_bookmarks` all use that same article table and integer ID.
+`backend_handoff/04-News/tables.sql` mirrors this definition.
+
+These files define the merged source; merging Git branches does not apply SQL
+to a deployed database. An existing deployment with UUID article IDs needs a
+separate data migration that preserves its articles and references before this
+schema is applied.
+
 ## Run Order
 
 1. Apply migrations in numeric order.

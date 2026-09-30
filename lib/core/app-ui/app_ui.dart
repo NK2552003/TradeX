@@ -17,6 +17,7 @@ export '../sharing/app_post_attachment.dart';
 export 'brand/app_logo.dart';
 
 // Cards
+export 'cards/watchlist_cards.dart';
 export 'cards/journal_cards.dart';
 export 'cards/strategy_cards.dart';
 export 'cards/portfolio_cards.dart';
@@ -34,6 +35,7 @@ export 'guides/feature_guide.dart';
 export 'guides/guide_steps.dart';
 
 // Blocks
+export 'blocks/market_blocks.dart';
 export 'blocks/canonical_blocks.dart';
 export 'blocks/dashboard_blocks.dart';
 export 'blocks/journal_blocks.dart';

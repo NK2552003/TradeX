@@ -80,6 +80,7 @@ class AppFeedBlock extends StatelessWidget {
     this.onLike,
     this.onComment,
     this.onSave,
+    this.onShare,
     this.onOpen,
     this.onAuthorTap,
     this.loading = false,
@@ -89,6 +90,7 @@ class AppFeedBlock extends StatelessWidget {
   final ValueChanged<AppPost>? onLike;
   final ValueChanged<AppPost>? onComment;
   final ValueChanged<AppPost>? onSave;
+  final ValueChanged<AppPost>? onShare;
   final ValueChanged<AppPost>? onOpen;
   final ValueChanged<AppTrader>? onAuthorTap;
   final bool loading;
@@ -129,6 +131,7 @@ class AppFeedBlock extends StatelessWidget {
                     ? null
                     : () => onComment!(posts[i]),
                 onSave: onSave == null ? null : () => onSave!(posts[i]),
+                onShare: onShare == null ? null : () => onShare!(posts[i]),
                 onAuthorTap: onAuthorTap == null
                     ? null
                     : () => onAuthorTap!(posts[i].author),

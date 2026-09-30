@@ -1,0 +1,22 @@
+{
+  "Technology": {
+    "ticker": "XLK",
+    "price": 235.1,
+    "change_pct": 0.8
+  },
+  "Financials": {
+    "ticker": "XLF",
+    "price": 48.3,
+    "change_pct": 0.3
+  },
+  "Healthcare": {
+    "ticker": "XLV",
+    "price": 145.2,
+    "change_pct": -0.2
+  },
+  "Energy": {
+    "ticker": "XLE",
+    "price": 92.4,
+    "change_pct": 1.1
+  }
+}

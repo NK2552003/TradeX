@@ -1,0 +1,52 @@
+{
+  "Americas": {
+    "^GSPC": {
+      "price": 5850.2,
+      "change_pct": 0.4
+    },
+    "^DJI": {
+      "price": 42100.5,
+      "change_pct": 0.2
+    },
+    "^IXIC": {
+      "price": 18400.1,
+      "change_pct": 0.6
+    }
+  },
+  "Europe": {
+    "^FTSE": {
+      "price": 8300.1,
+      "change_pct": -0.1
+    },
+    "^GDAXI": {
+      "price": 19200.4,
+      "change_pct": 0.3
+    }
+  },
+  "Asia": {
+    "^N225": {
+      "price": 38900.5,
+      "change_pct": 0.8
+    },
+    "^NSEI": {
+      "price": 25800.2,
+      "change_pct": 0.55
+    },
+    "^BSESN": {
+      "price": 84200.1,
+      "change_pct": 0.52
+    }
+  },
+  "Middle East & Africa": {
+    "^CASE30": {
+      "price": 30500.0,
+      "change_pct": 0.15
+    }
+  },
+  "Oceania": {
+    "^AXJO": {
+      "price": 8200.3,
+      "change_pct": 0.25
+    }
+  }
+}

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
 
 abstract class AffiliateApplicationRepository {
@@ -16,40 +18,9 @@ abstract class AffiliateApplicationRepository {
   });
 }
 
-/// In-memory adapter used by the frontend preview. The contract maps directly
-/// to GET/POST/PATCH endpoints and can be replaced by the backend developer.
 class AffiliateApplicationRepositoryImpl
     implements AffiliateApplicationRepository {
-  AffiliateApplicationRepositoryImpl._() {
-    final DateTime now = DateTime.now();
-    final AffiliateApplicationModel seeded = AffiliateApplicationModel(
-      id: 'aff_app_demo_001',
-      userId: 'usr_creator_demo',
-      fullName: 'Aarav Mehta',
-      email: 'aarav@markets.example',
-      phone: '9876543210',
-      city: 'Mumbai',
-      state: 'Maharashtra',
-      dateOfBirth: DateTime(1996, 4, 18),
-      gender: 'Prefer not to say',
-      platforms: const <String>['YouTube', 'Instagram'],
-      primaryPlatform: 'YouTube',
-      channelHandle: '@aaravtrades',
-      audienceReach: '10,000 – 100,000',
-      niches: const <String>['Trading education', 'Personal finance'],
-      sampleLink: 'https://example.com/aaravtrades',
-      accountHolder: 'Aarav Mehta',
-      bankName: 'HDFC Bank',
-      accountNumber: '001234567890',
-      ifsc: 'HDFC0001234',
-      accountType: 'Savings',
-      pan: 'ABCDE1234F',
-      upiId: 'aarav@upi',
-      status: AffiliateApplicationStatus.pending,
-      submittedAt: now.subtract(const Duration(hours: 9)),
-    );
-    _applications[seeded.id] = seeded;
-  }
+  AffiliateApplicationRepositoryImpl._();
 
   static final AffiliateApplicationRepositoryImpl instance =
       AffiliateApplicationRepositoryImpl._();
@@ -59,6 +30,23 @@ class AffiliateApplicationRepositoryImpl
 
   @override
   Future<AffiliateApplicationModel?> getForUser(String userId) async {
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final res = await client
+            .from('affiliate_applications')
+            .select()
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (res != null) {
+          return AffiliateApplicationModel.fromJson(res);
+        }
+      } catch (e) {
+        debugPrint('[AffiliateApplicationRepository] getForUser error: $e');
+      }
+    }
+
     for (final AffiliateApplicationModel application in _applications.values) {
       if (application.userId == userId) return application;
     }
@@ -67,7 +55,22 @@ class AffiliateApplicationRepositoryImpl
 
   @override
   Future<List<AffiliateApplicationModel>> listApplications() async {
-    await Future<void>.delayed(const Duration(milliseconds: 180));
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final res = await client
+            .from('affiliate_applications')
+            .select()
+            .order('created_at', ascending: false);
+
+        return (res as List)
+            .map((item) => AffiliateApplicationModel.fromJson(item))
+            .toList();
+      } catch (e) {
+        debugPrint('[AffiliateApplicationRepository] listApplications error: $e');
+      }
+    }
+
     final List<AffiliateApplicationModel> result = _applications.values.toList()
       ..sort((AffiliateApplicationModel a, AffiliateApplicationModel b) {
         final DateTime left = a.submittedAt ?? DateTime(1970);
@@ -85,8 +88,25 @@ class AffiliateApplicationRepositoryImpl
       status: AffiliateApplicationStatus.pending,
       submittedAt: DateTime.now(),
     );
+
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final payload = pending.toJson();
+
+        final res = await client
+            .from('affiliate_applications')
+            .upsert(payload)
+            .select()
+            .single();
+
+        return AffiliateApplicationModel.fromJson(res);
+      } catch (e) {
+        debugPrint('[AffiliateApplicationRepository] submit error: $e');
+      }
+    }
+
     _applications[pending.id] = pending;
-    await Future<void>.delayed(const Duration(milliseconds: 420));
     return pending;
   }
 
@@ -96,6 +116,31 @@ class AffiliateApplicationRepositoryImpl
     required bool approve,
     String? notes,
   }) async {
+    if (SupabaseConfig.isConfigured && approve) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.rpc(
+          'approve_affiliate_application',
+          params: {
+            'p_application_id': applicationId,
+            'p_review_notes': notes,
+          },
+        );
+
+        final res = await client
+            .from('affiliate_applications')
+            .select()
+            .eq('id', applicationId)
+            .maybeSingle();
+
+        if (res != null) {
+          return AffiliateApplicationModel.fromJson(res);
+        }
+      } catch (e) {
+        debugPrint('[AffiliateApplicationRepository] review RPC error: $e');
+      }
+    }
+
     final AffiliateApplicationModel? current = _applications[applicationId];
     if (current == null) {
       throw StateError('Affiliate application not found.');
@@ -108,7 +153,6 @@ class AffiliateApplicationRepositoryImpl
       reviewedAt: DateTime.now(),
     );
     _applications[applicationId] = reviewed;
-    await Future<void>.delayed(const Duration(milliseconds: 280));
     return reviewed;
   }
 }

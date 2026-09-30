@@ -1,0 +1,186 @@
+{
+  "ticker": "AAPL",
+  "market": "US",
+  "fetched_at": "2026-09-28T13:33:08.632Z",
+  "summary": {
+    "name": "Apple Inc.",
+    "sector": "Technology",
+    "industry": "Consumer Electronics",
+    "website": "https://www.aapl.com",
+    "description": "Apple Inc. is a leading player in the market delivering high value to global investors.",
+    "market_cap": 3500000000000,
+    "pe_ratio": 32.1,
+    "forward_pe": 25.1,
+    "peg_ratio": 1.9,
+    "eps": 6.9,
+    "dividend_yield": 0.4,
+    "beta": 1.1,
+    "fifty_two_week_high": 261.62,
+    "fifty_two_week_low": 186.55,
+    "fifty_day_average": 222.95,
+    "two_hundred_day_average": 211.58,
+    "avg_volume": 55000000,
+    "shares_outstanding": 15400000000,
+    "float_shares": 15300000000,
+    "held_percent_insiders": 0.001,
+    "held_percent_institutions": 0.62,
+    "short_ratio": 1.4,
+    "target_mean_price": 273.0,
+    "recommendation": "buy",
+    "number_of_analyst_opinions": 38,
+    "employees": 164000,
+    "country": "United States",
+    "exchange": "NASDAQ"
+  },
+  "quote": {
+    "price": 227.5,
+    "previous_close": 224.77,
+    "day_high": 229.78,
+    "day_low": 224.09,
+    "volume": 48213000,
+    "change_pct": 1.25,
+    "currency": "USD",
+    "market_cap": 3500000000000,
+    "updated_at": "2026-09-28T13:33:08.632Z"
+  },
+  "news": [
+    {
+      "ticker": "AAPL",
+      "title": "Apple Inc. Reports Strong Financial Results and Market Expansion",
+      "summary": "Key momentum seen across major operational units with bullish analyst outlook for AAPL.",
+      "link": "https://finance.yahoo.com/news/aapl-earnings-report",
+      "publisher": "Reuters",
+      "thumbnail_url": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=500",
+      "related_tickers": [
+        "AAPL"
+      ],
+      "content_type": "STORY",
+      "published_at": "2026-09-28T13:33:08.632Z"
+    },
+    {
+      "ticker": "AAPL",
+      "title": "Analyst Sentiment Remains Positive for AAPL Following Strategic Roadmap Update",
+      "summary": "Institutional investors double down on growth expectations amidst broader macroeconomic tailwinds.",
+      "link": "https://finance.yahoo.com/news/aapl-analyst-update",
+      "publisher": "Bloomberg",
+      "thumbnail_url": "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=500",
+      "related_tickers": [
+        "AAPL"
+      ],
+      "content_type": "STORY",
+      "published_at": "2026-09-28T13:33:08.632Z"
+    }
+  ],
+  "chart": {
+    "period": "6mo",
+    "interval": "1d",
+    "data": [
+      {
+        "date": "2026-08-10T00:00:00",
+        "open": 216.12,
+        "high": 220.67,
+        "low": 213.85,
+        "close": 218.4,
+        "volume": 4500000
+      },
+      {
+        "date": "2026-08-11T00:00:00",
+        "open": 218.4,
+        "high": 225.22,
+        "low": 216.12,
+        "close": 222.95,
+        "volume": 5200000
+      },
+      {
+        "date": "2026-08-12T00:00:00",
+        "open": 222.95,
+        "high": 229.78,
+        "low": 220.67,
+        "close": 227.5,
+        "volume": 5123000
+      }
+    ]
+  },
+  "options": {
+    "expirations": [
+      "2026-10-16",
+      "2026-11-20",
+      "2026-12-18"
+    ],
+    "chains": {
+      "2026-10-16": {
+        "calls": [
+          {
+            "strike": 238.9,
+            "lastPrice": 3.2,
+            "bid": 3.1,
+            "ask": 3.3,
+            "volume": 1200,
+            "openInterest": 4500,
+            "impliedVolatility": 0.25,
+            "inTheMoney": false,
+            "contractSymbol": "AAPL261016C00230000"
+          }
+        ],
+        "puts": [
+          {
+            "strike": 216.1,
+            "lastPrice": 2.8,
+            "bid": 2.7,
+            "ask": 2.9,
+            "volume": 850,
+            "openInterest": 3100,
+            "impliedVolatility": 0.24,
+            "inTheMoney": false,
+            "contractSymbol": "AAPL261016P00210000"
+          }
+        ]
+      }
+    }
+  },
+  "dividends_and_splits": {
+    "dividends": [
+      {
+        "date": "2026-08-01T00:00:00",
+        "amount": 0.25
+      }
+    ],
+    "splits": [
+      {
+        "date": "2020-08-31T00:00:00",
+        "ratio": 4.0
+      }
+    ]
+  },
+  "recommendations": [
+    {
+      "period": "0m",
+      "strongBuy": 12,
+      "buy": 22,
+      "hold": 5,
+      "sell": 1,
+      "strongSell": 0
+    }
+  ],
+  "holders": {
+    "major_holders": [
+      {
+        "Value": "0.05",
+        "Breakdown": "% of Shares Held by All Insiders"
+      }
+    ],
+    "institutional_holders": [
+      {
+        "Holder": "Vanguard Group Inc",
+        "Shares": 1300000000,
+        "Date Reported": "2026-06-30",
+        "% Out": 0.084,
+        "Value": 295000000000
+      }
+    ]
+  },
+  "not_available": {
+    "conversations": "Yahoo's discussion/comment system is not exposed by any API — website-rendered only.",
+    "components": "No reliable free source for full ETF/index holdings lists via yfinance."
+  }
+}

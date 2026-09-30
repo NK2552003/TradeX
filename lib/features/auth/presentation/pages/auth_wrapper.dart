@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/session_trader.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_application_page.dart';
@@ -67,6 +68,33 @@ class _AuthWrapperState extends State<AuthWrapper> {
       userId: preview == null ? '' : 'usr_design_preview',
       displayName: preview == null ? '' : 'Design Preview',
     );
+
+    _restoreActiveSession();
+  }
+
+  Future<void> _restoreActiveSession() async {
+    if (!SupabaseConfig.isConfigured) return;
+    final client = SupabaseConfig.client;
+    final user = client?.auth.currentUser;
+    if (user != null) {
+      final profile = await _authRepository.getProfile(user.id);
+      if (profile != null && mounted) {
+        final affProfile = profile.role == UserRole.affiliate
+            ? await _authRepository.getAffiliateProfile(user.id)
+            : null;
+        setState(() {
+          _sessionState = _sessionState.copyWith(
+            stage: AuthStage.authenticated,
+            userId: profile.id,
+            email: profile.email,
+            displayName: profile.displayName,
+            role: profile.role,
+            profile: profile,
+            affiliateProfile: affProfile,
+          );
+        });
+      }
+    }
   }
 
   void _navigateToStage(AuthStage stage, {UserRole? role, String? email}) {

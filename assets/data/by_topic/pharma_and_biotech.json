@@ -1,0 +1,18 @@
+[
+  {
+    "ticker": "AAPL",
+    "market": "US",
+    "title": "Apple Prepares Next-Gen Silicon Upgrades for Flagship Lineup",
+    "summary": "Analyst sentiment turns bullish following supply chain updates indicating strong yield performance on 3nm nodes.",
+    "link": "https://finance.yahoo.com/news/example-apple",
+    "publisher": "Bloomberg",
+    "thumbnail_url": "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=500",
+    "related_tickers": [
+      "AAPL",
+      "MSFT",
+      "NVDA"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-28T13:33:08.903Z"
+  }
+]

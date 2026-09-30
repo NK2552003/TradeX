@@ -50,15 +50,40 @@ CREATE TABLE IF NOT EXISTS ai_messages (
 );
 
 CREATE TABLE IF NOT EXISTS ai_insights (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    title TEXT NOT NULL,
-    body TEXT NOT NULL,
-    confidence NUMERIC(5, 4) DEFAULT 0.8500,
-    sentiment_score NUMERIC(5, 4) DEFAULT 0.0000,
-    tickers TEXT[] NOT NULL DEFAULT '{}',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  ticker TEXT,
+  summary TEXT,
+  indicators JSONB,
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  title TEXT NOT NULL DEFAULT '',
+  body TEXT NOT NULL DEFAULT '',
+  confidence NUMERIC(5, 4) DEFAULT 0.8500,
+  sentiment_score NUMERIC(5, 4) DEFAULT 0.0000,
+  tickers TEXT[] NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Upgrade either pre-existing insight shape without deleting cached signals.
+ALTER TABLE ai_insights
+    ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    ADD COLUMN IF NOT EXISTS ticker TEXT,
+    ADD COLUMN IF NOT EXISTS summary TEXT,
+    ADD COLUMN IF NOT EXISTS indicators JSONB,
+    ADD COLUMN IF NOT EXISTS generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS body TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS confidence NUMERIC(5, 4) DEFAULT 0.8500,
+    ADD COLUMN IF NOT EXISTS sentiment_score NUMERIC(5, 4) DEFAULT 0.0000,
+    ADD COLUMN IF NOT EXISTS tickers TEXT[] NOT NULL DEFAULT '{}',
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE ai_insights
+    ALTER COLUMN ticker DROP NOT NULL,
+    ALTER COLUMN summary DROP NOT NULL,
+    ALTER COLUMN user_id DROP NOT NULL,
+    ALTER COLUMN title SET DEFAULT '',
+    ALTER COLUMN body SET DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS ai_quotas (
     user_id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,

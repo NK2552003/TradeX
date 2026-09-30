@@ -349,11 +349,22 @@ CREATE TABLE IF NOT EXISTS posts (
   note_id UUID REFERENCES trader_notes(id) ON DELETE SET NULL ON UPDATE CASCADE,
   journal_entry_id UUID REFERENCES journal_entries(id) ON DELETE SET NULL ON UPDATE CASCADE,
   strategy_id UUID REFERENCES strategies(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  likes_count INTEGER NOT NULL DEFAULT 0,
+  comments_count INTEGER NOT NULL DEFAULT 0,
+  views_count INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT posts_one_writing_attachment CHECK (
     num_nonnulls(note_id, journal_entry_id, strategy_id) <= 1
   )
+);
+
+CREATE TABLE IF NOT EXISTS post_views (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  viewed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (post_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS saved_posts (
@@ -392,10 +403,16 @@ CREATE TABLE IF NOT EXISTS likes (
 
 CREATE TABLE IF NOT EXISTS ai_insights (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  ticker TEXT NOT NULL,
-  summary TEXT NOT NULL,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  ticker TEXT,
+  summary TEXT,
   indicators JSONB,
   generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  title TEXT NOT NULL DEFAULT '',
+  body TEXT NOT NULL DEFAULT '',
+  confidence NUMERIC(5, 4) DEFAULT 0.8500,
+  sentiment_score NUMERIC(5, 4) DEFAULT 0.0000,
+  tickers TEXT[] NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -1084,6 +1101,291 @@ REVOKE EXECUTE ON FUNCTION public_document(text, uuid)        FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public_refs(text, uuid)            FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public_strategy_performance(uuid)  FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public_document(text, uuid)        TO anon, authenticated;
+-- Trader Preferences & Risk Checklists Table
+CREATE TABLE IF NOT EXISTS public.trader_preferences (
+  user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  default_position_size_pct NUMERIC NOT NULL DEFAULT 2.0 CHECK (default_position_size_pct > 0 AND default_position_size_pct <= 100),
+  default_r_multiple NUMERIC NOT NULL DEFAULT 2.5 CHECK (default_r_multiple > 0),
+  default_watchlist_symbols TEXT[] NOT NULL DEFAULT '{"NIFTY50","BANKNIFTY","RELIANCE","TCS","HDFCBANK"}'::text[],
+  watchlist_refresh_interval_seconds INTEGER NOT NULL DEFAULT 15 CHECK (watchlist_refresh_interval_seconds >= 1),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.trader_checklists (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  label TEXT NOT NULL,
+  description TEXT,
+  done BOOLEAN NOT NULL DEFAULT false,
+  icon_name TEXT DEFAULT 'check_box_outline_blank',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
+-- SOCIAL ANALYTICS COUNTERS, TRIGGERS & DEDUPLICATED VIEWS
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION update_post_likes_count()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF (TG_OP = 'INSERT') THEN
+    UPDATE posts SET likes_count = likes_count + 1 WHERE id = NEW.post_id;
+  ELSIF (TG_OP = 'DELETE') THEN
+    UPDATE posts SET likes_count = GREATEST(0, likes_count - 1) WHERE id = OLD.post_id;
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_likes_count ON likes;
+CREATE TRIGGER trg_likes_count
+  AFTER INSERT OR DELETE ON likes
+  FOR EACH ROW EXECUTE FUNCTION update_post_likes_count();
+
+CREATE OR REPLACE FUNCTION update_post_comments_count()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF (TG_OP = 'INSERT') THEN
+    UPDATE posts SET comments_count = comments_count + 1 WHERE id = NEW.post_id;
+  ELSIF (TG_OP = 'DELETE') THEN
+    UPDATE posts SET comments_count = GREATEST(0, comments_count - 1) WHERE id = OLD.post_id;
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_comments_count ON comments;
+CREATE TRIGGER trg_comments_count
+  AFTER INSERT OR DELETE ON comments
+  FOR EACH ROW EXECUTE FUNCTION update_post_comments_count();
+
+CREATE OR REPLACE FUNCTION increment_post_views(p_post_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id UUID;
+BEGIN
+  v_user_id := auth.uid();
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO post_views (post_id, user_id)
+    VALUES (p_post_id, v_user_id)
+    ON CONFLICT (post_id, user_id) DO NOTHING;
+
+    IF FOUND THEN
+      UPDATE posts SET views_count = views_count + 1 WHERE id = p_post_id;
+    END IF;
+  ELSE
+    UPDATE posts SET views_count = views_count + 1 WHERE id = p_post_id;
+  END IF;
+END;
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_posts_trending ON posts (likes_count DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_post_views_post_user ON post_views (post_id, user_id);
+
+-- ============================================================================
+-- UNIFIED MARKET DATA TABLES (Used by Market Data Python Scripts & Postgres)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS tickers (
+    ticker      VARCHAR(20) PRIMARY KEY,
+    market      VARCHAR(10),
+    exchange    VARCHAR(20),
+    currency    VARCHAR(5),
+    asset_type  VARCHAR(20),
+    name        TEXT,
+    first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_seen_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tickers_market     ON tickers(market);
+CREATE INDEX IF NOT EXISTS idx_tickers_asset_type ON tickers(asset_type);
+
+CREATE TABLE IF NOT EXISTS stock_quotes (
+    ticker         VARCHAR(20) PRIMARY KEY REFERENCES tickers(ticker) ON DELETE CASCADE,
+    price          DECIMAL,
+    previous_close DECIMAL,
+    day_high       DECIMAL,
+    day_low        DECIMAL,
+    volume         BIGINT,
+    change_pct     DECIMAL,
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS stock_fundamentals (
+    ticker              VARCHAR(20) PRIMARY KEY REFERENCES tickers(ticker) ON DELETE CASCADE,
+    market_cap          BIGINT,
+    pe_ratio            DECIMAL,
+    forward_pe          DECIMAL,
+    peg_ratio           DECIMAL,
+    eps                 DECIMAL,
+    sector              VARCHAR(50),
+    industry            VARCHAR(50),
+    fifty_two_week_high DECIMAL,
+    fifty_two_week_low  DECIMAL,
+    fifty_day_average   DECIMAL,
+    two_hundred_day_average DECIMAL,
+    dividend_yield      DECIMAL,
+    beta                DECIMAL,
+    avg_volume          BIGINT,
+    shares_outstanding  BIGINT,
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS stock_price_history (
+    id          SERIAL PRIMARY KEY,
+    ticker      VARCHAR(20) NOT NULL REFERENCES tickers(ticker) ON DELETE CASCADE,
+    date        DATE NOT NULL,
+    open        DECIMAL,
+    high        DECIMAL,
+    low         DECIMAL,
+    close       DECIMAL,
+    volume      BIGINT,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (ticker, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_history_ticker_date ON stock_price_history(ticker, date);
+
+CREATE TABLE IF NOT EXISTS news_articles (
+    id             SERIAL PRIMARY KEY,
+    title          TEXT,
+    summary        TEXT,
+    link           TEXT UNIQUE,
+    publisher      VARCHAR(100),
+    thumbnail_url  TEXT,
+    content_type   VARCHAR(30),
+    published_at   TIMESTAMPTZ,
+    fetched_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_news_published ON news_articles(published_at DESC);
+
+CREATE TABLE IF NOT EXISTS news_article_tickers (
+    article_id  INTEGER NOT NULL REFERENCES news_articles(id) ON DELETE CASCADE,
+    ticker      VARCHAR(20) NOT NULL REFERENCES tickers(ticker) ON DELETE CASCADE,
+    PRIMARY KEY (article_id, ticker)
+);
+
+CREATE INDEX IF NOT EXISTS idx_article_tickers_ticker ON news_article_tickers(ticker);
+
+CREATE TABLE IF NOT EXISTS news_topics (
+    id   SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS news_article_topics (
+    article_id INTEGER NOT NULL REFERENCES news_articles(id) ON DELETE CASCADE,
+    topic_id   INTEGER NOT NULL REFERENCES news_topics(id) ON DELETE CASCADE,
+    PRIMARY KEY (article_id, topic_id)
+);
+
+CREATE TABLE IF NOT EXISTS screener_categories (
+    id            SERIAL PRIMARY KEY,
+    name          VARCHAR(50) UNIQUE NOT NULL,
+    category_type VARCHAR(20)
+);
+
+CREATE TABLE IF NOT EXISTS screener_results (
+    id            SERIAL PRIMARY KEY,
+    category_id   INTEGER NOT NULL REFERENCES screener_categories(id) ON DELETE CASCADE,
+    ticker        VARCHAR(20) NOT NULL REFERENCES tickers(ticker) ON DELETE CASCADE,
+    rank          INTEGER,
+    price         DECIMAL,
+    change_pct    DECIMAL,
+    extra_data    JSONB,
+    run_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_screener_results_category ON screener_results(category_id, rank);
+
+CREATE TABLE IF NOT EXISTS index_metadata (
+    ticker    VARCHAR(20) PRIMARY KEY REFERENCES tickers(ticker) ON DELETE CASCADE,
+    continent VARCHAR(30)
+);
+
+CREATE TABLE IF NOT EXISTS sector_metadata (
+    ticker      VARCHAR(20) PRIMARY KEY REFERENCES tickers(ticker) ON DELETE CASCADE,
+    sector_name VARCHAR(50)
+);
+
+CREATE TABLE IF NOT EXISTS options_expirations (
+    id              SERIAL PRIMARY KEY,
+    ticker          VARCHAR(20) NOT NULL REFERENCES tickers(ticker) ON DELETE CASCADE,
+    expiration_date DATE NOT NULL,
+    fetched_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (ticker, expiration_date)
+);
+
+CREATE TABLE IF NOT EXISTS options_contracts (
+    id                SERIAL PRIMARY KEY,
+    expiration_id     INTEGER NOT NULL REFERENCES options_expirations(id) ON DELETE CASCADE,
+    contract_type     VARCHAR(4) NOT NULL,
+    strike            DECIMAL,
+    last_price        DECIMAL,
+    bid               DECIMAL,
+    ask               DECIMAL,
+    volume            BIGINT,
+    open_interest     BIGINT,
+    implied_volatility DECIMAL,
+    in_the_money      BOOLEAN,
+    contract_symbol   VARCHAR(50)
+);
+
+CREATE INDEX IF NOT EXISTS idx_options_contracts_expiration ON options_contracts(expiration_id, contract_type);
+
+CREATE TABLE IF NOT EXISTS dividends (
+    id      SERIAL PRIMARY KEY,
+    ticker  VARCHAR(20) NOT NULL REFERENCES tickers(ticker) ON DELETE CASCADE,
+    ex_date DATE NOT NULL,
+    amount  DECIMAL,
+    UNIQUE (ticker, ex_date)
+);
+
+CREATE TABLE IF NOT EXISTS stock_splits (
+    id         SERIAL PRIMARY KEY,
+    ticker     VARCHAR(20) NOT NULL REFERENCES tickers(ticker) ON DELETE CASCADE,
+    split_date DATE NOT NULL,
+    ratio      DECIMAL,
+    UNIQUE (ticker, split_date)
+);
+
+CREATE TABLE IF NOT EXISTS analyst_recommendations (
+    id        SERIAL PRIMARY KEY,
+    ticker    VARCHAR(20) NOT NULL REFERENCES tickers(ticker) ON DELETE CASCADE,
+    period    VARCHAR(10),
+    strong_buy  INTEGER,
+    buy         INTEGER,
+    hold        INTEGER,
+    sell        INTEGER,
+    strong_sell INTEGER,
+    fetched_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS holders (
+    id          SERIAL PRIMARY KEY,
+    ticker      VARCHAR(20) NOT NULL REFERENCES tickers(ticker) ON DELETE CASCADE,
+    holder_type VARCHAR(20),
+    holder_name TEXT,
+    shares      BIGINT,
+    date_reported DATE,
+    pct_out     DECIMAL,
+    value       BIGINT,
+    fetched_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_holders_ticker ON holders(ticker, holder_type);
 
 COMMIT;
 BEGIN;
@@ -1109,26 +1411,9 @@ CREATE TABLE IF NOT EXISTS quotes (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- News Articles
-CREATE TABLE IF NOT EXISTS news_articles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title TEXT NOT NULL,
-    summary TEXT,
-    publisher TEXT,
-    url TEXT UNIQUE NOT NULL,
-    thumbnail_url TEXT,
-    content_type TEXT NOT NULL DEFAULT 'STORY',
-    market TEXT,
-    source TEXT,
-
-    published_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_news_published ON news_articles(published_at DESC);
-
 -- News Tickers
 CREATE TABLE IF NOT EXISTS news_tickers (
-    article_id UUID NOT NULL REFERENCES news_articles(id) ON DELETE CASCADE,
+    article_id INTEGER NOT NULL REFERENCES news_articles(id) ON DELETE CASCADE,
     symbol TEXT NOT NULL REFERENCES instruments(symbol) ON DELETE CASCADE,
     PRIMARY KEY (article_id, symbol)
 );
@@ -1137,7 +1422,7 @@ CREATE INDEX IF NOT EXISTS idx_news_tickers_symbol ON news_tickers(symbol);
 -- News Bookmarks
 CREATE TABLE IF NOT EXISTS news_bookmarks (
     user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    article_id UUID NOT NULL REFERENCES news_articles(id) ON DELETE CASCADE,
+    article_id INTEGER NOT NULL REFERENCES news_articles(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (user_id, article_id)
 );
@@ -1252,16 +1537,7 @@ CREATE TABLE IF NOT EXISTS ai_messages (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS ai_insights (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    title TEXT NOT NULL,
-    body TEXT NOT NULL,
-    confidence NUMERIC(5, 4) DEFAULT 0.8500,
-    sentiment_score NUMERIC(5, 4) DEFAULT 0.0000,
-    tickers TEXT[] NOT NULL DEFAULT '{}',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+
 
 CREATE TABLE IF NOT EXISTS ai_quotas (
     user_id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,

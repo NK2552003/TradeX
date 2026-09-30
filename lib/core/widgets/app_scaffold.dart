@@ -13,6 +13,8 @@ import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_m
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_overview_page.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_payouts_page.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart';
+import 'package:tradex/features/journal/presentation/dashboard_page.dart';
+import 'package:tradex/features/watchlists/presentation/watchlists_page.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/calculators/ui/calculators_screen.dart';
@@ -717,7 +719,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   Widget _traderPage() => switch (_selectedId) {
-    'overview' => UiSkeleton.dashboard(),
+    'overview' => const DashboardPage(),
     // The three linked writing surfaces. Each is handed the same three
     // affordances so a link followed out of one lands correctly in the next:
     // `onOpenRef` to leave, `openRequest` to arrive, and — for the two that put
@@ -760,7 +762,8 @@ class _AppScaffoldState extends State<AppScaffold> {
     ),
 
     'calculators' => CalculatorsScreen(onSubpageChanged: _onSubpageChanged),
-    'portfolio' => UiSkeleton.portfolio(),
+    'portfolio' => const DashboardPage(),
+    'watchlists' => const WatchlistsPage(),
     'community' => _communityPage(initialTabIndex: 0),
     'community_feed' => _communityPage(initialTabIndex: 0),
     'community_explore' => _communityPage(initialTabIndex: 1),

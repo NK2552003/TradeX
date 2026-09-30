@@ -690,6 +690,7 @@ class AppPost {
     this.writingAttachment,
     this.likes = 0,
     this.comments = 0,
+    this.views = 0,
     this.liked = false,
     this.saved = false,
   });
@@ -709,6 +710,7 @@ class AppPost {
   final AppWritingRecordPostAttachment? writingAttachment;
   final int likes;
   final int comments;
+  final int views;
   final bool liked;
   final bool saved;
 }
