@@ -14,7 +14,7 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 
 import '../data/note_attachments.dart';
 import '../data/notes_repository.dart';
-import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
+import 'package:tradex/features/ai_assistant/ai_assistant.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
@@ -218,31 +218,68 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
     );
   }
 
+  Future<void> _toggleVisibility() async {
+    final bool next = !_note.isPublic;
+    if (next) {
+      final bool ok = await UiDialog.confirm(
+        context,
+        title: 'Publish this note?',
+        description:
+            'This note will become readable to the community. You can change it back to private at any time.',
+        confirmLabel: 'Make Public',
+      );
+      if (!ok || !mounted) return;
+    }
+    final updated = await _repo.setVisibility(_note.id, next);
+    if (mounted) {
+      setState(() => _activeNote = updated);
+      UiToast.show(
+        context,
+        title: next ? 'Note Published' : 'Note Made Private',
+        message: next
+            ? 'The note is now public and open for discussion.'
+            : 'The note is now private to your account.',
+        intent: next ? UiIntent.success : UiIntent.warning,
+      );
+    }
+  }
+
   void _analyzeWithAi() {
+
     final String prompt =
         'Analyze this trade note "${_note.title}":\n\n'
         '${_note.content}\n\n'
         'Tags: ${_note.tags.join(', ')}\n'
         'Instruments: ${_note.linkedTickers.join(', ')}\n\n'
         'Provide a critical review, key takeaways, and suggested trade setups or risk warnings.';
-    AiAssistantRepositoryScope.repository.sendPrompt(prompt);
-    UiToastScope.maybeOf(context)?.show(
-      UiToastData(
-        title: 'Sent to AI Copilot',
-        message: 'Analyzing "${_note.title}" in AI Assistant...',
-        intent: UiIntent.info,
+
+    AiAssistantOverlaySheet.show(
+      context,
+      repository: AiAssistantRepositoryScope.repository,
+      initialPrompt: prompt,
+      contextTitle: _note.title.isNotEmpty ? _note.title : 'Untitled Note',
+      contextSubtitle: _note.noteType.label,
+      contextIcon: _note.noteType.icon,
+      contextRef: AppLinkRef(
+        id: _note.id,
+        kind: AppLinkKind.note,
+        title: _note.title,
+        subtitle: _note.noteType.label,
       ),
+      onOpenRef: widget.onOpenLink,
+      onOpenFullScreen: () {
+        if (widget.onOpenLink != null) {
+          widget.onOpenLink!(
+            const AppLinkRef(
+              id: 'ai_copilot',
+              kind: AppLinkKind.aiCopilot,
+              title: 'AI Copilot',
+              subtitle: 'Note Analysis',
+            ),
+          );
+        }
+      },
     );
-    if (widget.onOpenLink != null) {
-      widget.onOpenLink!(
-        const AppLinkRef(
-          id: 'ai_copilot',
-          kind: AppLinkKind.note,
-          title: 'AI Copilot',
-          subtitle: 'Note Analysis',
-        ),
-      );
-    }
   }
 
   String get _title =>
@@ -343,6 +380,14 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
       ),
       SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
+        icon: _note.isPublic ? Icons.public_rounded : Icons.lock_outline_rounded,
+        variant: _note.isPublic ? UiVariant.soft : UiVariant.ghost,
+        intent: _note.isPublic ? UiIntent.success : UiIntent.warning,
+        tooltip: _note.isPublic ? 'Public note (tap to make private)' : 'Private note (tap to make public)',
+        onPressed: _toggleVisibility,
+      ),
+      SizedBox(width: context.sp(theme.spacing.xs)),
+      UiIconButton(
         icon: Icons.picture_as_pdf_outlined,
         variant: UiVariant.ghost,
         tooltip: 'Export as PDF',
@@ -403,6 +448,15 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
               variant: UiBadgeVariant.soft,
               intent: UiIntent.primary,
             ),
+            UiBadge(
+              label: _note.isPublic ? 'Public' : 'Private',
+              size: UiSize.xs,
+              variant: UiBadgeVariant.soft,
+              intent: _note.isPublic ? UiIntent.success : UiIntent.warning,
+              icon: _note.isPublic
+                  ? Icons.public_rounded
+                  : Icons.lock_outline_rounded,
+            ),
             Text(
               '${AppTokens.fullDate(_note.updatedAt)} · ${_note.wordCount} words · $_readMinutes min read',
               style: context.uiText.caption.copyWith(
@@ -413,6 +467,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
         ),
       ],
     );
+
   }
 
   Widget _document(BuildContext context) {
@@ -489,10 +544,8 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
             ],
           ),
         ),
-        if (_note.isPublic) ...<Widget>[
-          SizedBox(height: context.sp(theme.spacing.md)),
-          _publicConversation(context),
-        ],
+        SizedBox(height: context.sp(theme.spacing.md)),
+        _publicConversation(context),
       ],
     );
   }
@@ -501,8 +554,9 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
     final UiTheme theme = context.ui;
     return UiCard(
       title: 'Conversation',
-      subtitle:
-          '${_note.viewCount} views · ${_note.likeCount} likes · ${_note.comments.length} comments',
+      subtitle: _note.isPublic
+          ? '${_note.viewCount} views · ${_note.likeCount} likes · ${_note.comments.length} comments'
+          : 'Private Note · ${_note.comments.length} comments · Only visible to you',
       variant: UiCardVariant.outlined,
       hoverLift: false,
       padding: EdgeInsets.all(context.sp(theme.spacing.md)),
@@ -556,7 +610,11 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
             targetType: 'note',
             title: 'Technical Note Discussion',
             comments: _buildNoteComments(),
+            isPublic: _note.isPublic,
+            canToggleVisibility: true,
+            onToggleVisibility: (v) => _toggleVisibility(),
             currentUser: const CommunityAuthor(
+
               id: 'usr_current',
               handle: 'alex_vance',
               displayName: 'Alex Vance',

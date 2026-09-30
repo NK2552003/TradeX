@@ -202,6 +202,33 @@ class AppLinkGraph {
         return s == null ? AppLinkRef.missing(kind, id) : strategyRef(s);
       case AppLinkKind.ticker:
         return tickerRef(id);
+      case AppLinkKind.aiCopilot:
+        return AppLinkRef(
+          kind: AppLinkKind.aiCopilot,
+          id: id.isNotEmpty ? id : 'ai_copilot',
+          title: 'AI Trading Copilot',
+          subtitle: 'Quantitative Assistant',
+          icon: AppLinkKind.aiCopilot.icon,
+          intent: AppLinkKind.aiCopilot.intent,
+        );
+      case AppLinkKind.communityPost:
+        return AppLinkRef(
+          kind: AppLinkKind.communityPost,
+          id: id,
+          title: 'Community Post #$id',
+          subtitle: 'Shared Post',
+          icon: AppLinkKind.communityPost.icon,
+          intent: AppLinkKind.communityPost.intent,
+        );
+      case AppLinkKind.messageThread:
+        return AppLinkRef(
+          kind: AppLinkKind.messageThread,
+          id: id,
+          title: 'Direct Message',
+          subtitle: 'Conversation',
+          icon: AppLinkKind.messageThread.icon,
+          intent: AppLinkKind.messageThread.intent,
+        );
     }
   }
 
@@ -357,6 +384,7 @@ class AppLinkGraph {
           ? AppLinkBundle.empty
           : bundleForStrategy(strategy(id)!),
     AppLinkKind.ticker => bundleForTicker(id),
+    _ => AppLinkBundle.empty,
   };
 
   /// Everything that mentions one instrument. Tickers own no record of their
@@ -533,6 +561,16 @@ class AppLinkGraph {
       AppLinkKind.ticker => <AppLinkRef>[
         for (final AppTicker t in _tickers.values) tickerRef(t.symbol),
       ],
+      AppLinkKind.aiCopilot => <AppLinkRef>[
+        const AppLinkRef(
+          kind: AppLinkKind.aiCopilot,
+          id: 'ai_copilot',
+          title: 'AI Trading Copilot',
+          subtitle: 'Quantitative Assistant',
+        ),
+      ],
+      AppLinkKind.communityPost => <AppLinkRef>[],
+      AppLinkKind.messageThread => <AppLinkRef>[],
     };
     return refs
         .where((AppLinkRef r) => !skip.contains(r.id) && matches(r))

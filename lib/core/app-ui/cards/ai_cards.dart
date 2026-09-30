@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
@@ -70,12 +71,30 @@ class AppAiMessageBubble extends StatelessWidget {
         children: <Widget>[
           if (message.pending)
             const UiTypingIndicator(label: 'Thinking…')
-          else
+          else if (mine)
             Text(
               message.body,
               style: context.uiText.body.copyWith(
                 color: mine ? theme.colors.onPrimary : theme.colors.foreground,
               ),
+            )
+          else
+            MarkdownBody(
+              data: message.body,
+              selectable: true,
+              styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
+                  .copyWith(
+                    p: context.uiText.body.copyWith(
+                      color: theme.colors.foreground,
+                    ),
+                    code: context.uiText.numeric.copyWith(
+                      color: theme.colors.foreground,
+                      backgroundColor: theme.colors.surface,
+                    ),
+                    blockquote: context.uiText.body.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  ),
             ),
           if (message.sources.isNotEmpty) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.sm)),

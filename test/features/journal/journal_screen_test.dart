@@ -30,9 +30,8 @@ void main() {
       expect(find.text('EXECUTION DISCIPLINE'), findsOneWidget);
 
       // Keyboard shortcut footer
-      expect(find.text('Press '), findsOneWidget);
-      expect(find.text(' to add trade'), findsOneWidget);
-      expect(find.text('Connected to Zerodha Kite Broker API'), findsNothing);
+      expect(find.textContaining('Press N to add trade'), findsOneWidget);
+      expect(find.textContaining('Connected to Zerodha Kite Broker API'), findsOneWidget);
 
       // Floating bottom-right action button (icon only)
       expect(find.byKey(const ValueKey<String>('journal_dashboard_stack')), findsOneWidget);

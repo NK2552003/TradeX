@@ -7,8 +7,11 @@ import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_repost_dialog.dart';
+import 'package:tradex/features/ai_assistant/ai_assistant.dart';
+import 'package:tradex/features/community/presentation/widgets/community_send_dm_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_share_sheet.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
+import 'package:tradex/features/journal/data/journal_repository.dart';
 
 // ---------------------------------------------------------------------------
 // CommunityPostDetailView
@@ -119,6 +122,69 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     CommunityShareSheet.show(context, post: _currentPost);
   }
 
+  Future<void> _togglePostVisibility(bool next) async {
+    if (next) {
+      final bool ok = await UiDialog.confirm(
+        context,
+        title: 'Make this post public?',
+        description:
+            'This post will become visible to all community members and appear in the explore feed.',
+        confirmLabel: 'Make Public',
+      );
+      if (!ok || !mounted) return;
+    }
+    widget.repository.setPostVisibility(_currentPost.id, next);
+    if (mounted) {
+      UiToast.show(
+        context,
+        title: next ? 'Post Published' : 'Post Made Private',
+        message: next
+            ? 'Your post is now visible to the trading community.'
+            : 'Your post is now private to your profile.',
+        intent: next ? UiIntent.success : UiIntent.warning,
+      );
+    }
+  }
+
+
+  Future<void> _copySetupToJournal(CommunityTradeSetup setup) async {
+    final double? entry = double.tryParse(setup.entry);
+    if (entry == null) {
+      UiToast.error(
+        context,
+        title: 'Setup cannot be copied',
+        message: 'The shared entry price is invalid.',
+      );
+      return;
+    }
+    await JournalRepositoryScope.repository.create(
+      AppTrade(
+        id: 'trade_community_${DateTime.now().millisecondsSinceEpoch}',
+        ticker: setup.ticker,
+        side: setup.side.toLowerCase() == 'short'
+            ? AppSide.short
+            : AppSide.long,
+        openedAt: DateTime.now(),
+        entry: entry,
+        exit: null,
+        stopLoss: double.tryParse(setup.stopLoss ?? ''),
+        target: double.tryParse(setup.target ?? ''),
+        size: 0,
+        title: 'Community setup: ${setup.ticker}',
+        content:
+            'Copied from @${_currentPost.author.handle}\n\n${_currentPost.body}',
+        strategy: 'Community setup',
+      ),
+    );
+    if (!mounted) return;
+    UiToast.success(
+      context,
+      title: 'Copied to Journal',
+      message:
+          'Trade setup for ${setup.ticker} is ready to review in your journal.',
+    );
+  }
+
   Future<void> _handleMobileQuickReply() async {
     final text = _mobileQuickReplyCtrl.text.trim();
     if (text.isEmpty || _mobileSubmitting) return;
@@ -150,8 +216,14 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
         author.handle.toLowerCase() == current.handle.toLowerCase()) {
       return true;
     }
-    final cleanCurrent = current.handle.toLowerCase().replaceFirst('@', '').trim();
-    final cleanAuthor = author.handle.toLowerCase().replaceFirst('@', '').trim();
+    final cleanCurrent = current.handle
+        .toLowerCase()
+        .replaceFirst('@', '')
+        .trim();
+    final cleanAuthor = author.handle
+        .toLowerCase()
+        .replaceFirst('@', '')
+        .trim();
     return cleanCurrent.isNotEmpty && cleanCurrent == cleanAuthor;
   }
 
@@ -176,9 +248,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
 
     return Scaffold(
       backgroundColor: theme.colors.background,
-      bottomNavigationBar: isMobile
-          ? _buildMobileStickyReplyBar(theme)
-          : null,
+      bottomNavigationBar: isMobile ? _buildMobileStickyReplyBar(theme) : null,
       body: SafeArea(
         bottom: false,
         child: isDesktop
@@ -196,7 +266,8 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     required bool isMobile,
   }) {
     final post = _currentPost;
-    final ticker = post.tradeSetup?.ticker ??
+    final ticker =
+        post.tradeSetup?.ticker ??
         (post.tickers.isNotEmpty ? post.tickers.first : null);
 
     return Container(
@@ -236,7 +307,8 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                   icon: Icons.arrow_back_rounded,
                   size: UiSize.xs,
                   tooltip: 'Back to Feed',
-                  onPressed: widget.onBack ?? () => Navigator.of(context).maybePop(),
+                  onPressed:
+                      widget.onBack ?? () => Navigator.of(context).maybePop(),
                 ),
                 Container(
                   height: context.sz(18),
@@ -299,6 +371,35 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     },
                   ),
                 UiIconButton(
+                  icon: Icons.auto_awesome_rounded,
+                  size: UiSize.xs,
+                  tooltip: 'Analyze with AI Copilot',
+                  intent: UiIntent.primary,
+                  onPressed: () {
+                    final String prompt =
+                        'Analyze community post by @${post.author.handle}:\n\n'
+                        '"${post.body}"\n\n'
+                        'Provide sentiment breakdown, technical setup validity, and potential counter-thesis risks.';
+
+                    AiAssistantOverlaySheet.show(
+                      context,
+                      repository: AiAssistantRepositoryScope.repository,
+                      initialPrompt: prompt,
+                      contextTitle: 'Post by @${post.author.handle}',
+                      contextSubtitle: post.body.length > 50
+                          ? '${post.body.substring(0, 50)}...'
+                          : post.body,
+                      contextIcon: Icons.public_rounded,
+                      contextRef: AppLinkRef(
+                        id: post.id,
+                        kind: AppLinkKind.communityPost,
+                        title: 'Post by @${post.author.handle}',
+                        subtitle: post.body,
+                      ),
+                    );
+                  },
+                ),
+                UiIconButton(
                   icon: Icons.ios_share_rounded,
                   size: UiSize.xs,
                   tooltip: 'Share Thread',
@@ -359,16 +460,22 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                       constraints: BoxConstraints(maxWidth: context.sz(700)),
                       child: SingleChildScrollView(
                         padding: EdgeInsets.fromLTRB(
-                          context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+                          context.sp(
+                            isMobile ? theme.spacing.sm : theme.spacing.md,
+                          ),
                           context.sp(theme.spacing.xs),
-                          context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+                          context.sp(
+                            isMobile ? theme.spacing.sm : theme.spacing.md,
+                          ),
                           context.sp(theme.spacing.xl),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: <Widget>[
                             CommunityPostCard(
-                              key: ValueKey<String>('detail_${_currentPost.id}'),
+                              key: ValueKey<String>(
+                                'detail_${_currentPost.id}',
+                              ),
                               post: _currentPost,
                               variant: CommunityPostCardVariant.boxed,
                               repository: widget.repository,
@@ -379,7 +486,10 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                               onShare: _handleShare,
                               onAuthorTap: widget.onAuthorTap,
                               onOpenRef: widget.onOpenRef,
-                              onVotePoll: (idx) => widget.repository.votePoll(widget.post.id, idx),
+                              onVotePoll: (idx) => widget.repository.votePoll(
+                                widget.post.id,
+                                idx,
+                              ),
                             ),
                             SizedBox(height: context.sp(theme.spacing.lg)),
                             UniversalCommentsSection(
@@ -387,16 +497,21 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                               targetType: 'post',
                               comments: comments,
                               currentUser: widget.currentUser,
+                              isPublic: _currentPost.isPublic,
+                              canToggleVisibility: _currentPost.author.id == widget.currentUser.id,
+                              onToggleVisibility: _togglePostVisibility,
                               onAuthorTap: widget.onAuthorTap,
-                              onAddComment: (text, {parentCommentId, sentiment}) async {
-                                widget.repository.addComment(
-                                  widget.post.id,
-                                  text,
-                                  author: widget.currentUser,
-                                  parentId: parentCommentId,
-                                  sentiment: sentiment,
-                                );
-                              },
+
+                              onAddComment:
+                                  (text, {parentCommentId, sentiment}) async {
+                                    widget.repository.addComment(
+                                      widget.post.id,
+                                      text,
+                                      author: widget.currentUser,
+                                      parentId: parentCommentId,
+                                      sentiment: sentiment,
+                                    );
+                                  },
                               onLikeComment: (commentId, {reaction}) {
                                 widget.repository.likeComment(
                                   widget.post.id,
@@ -428,7 +543,10 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                   _buildAuthorProfileCard(theme, author),
                   SizedBox(height: context.sp(theme.spacing.md)),
                   if (_currentPost.tradeSetup != null) ...[
-                    _buildTradeSetupBlueprintCard(theme, _currentPost.tradeSetup!),
+                    _buildTradeSetupBlueprintCard(
+                      theme,
+                      _currentPost.tradeSetup!,
+                    ),
                     SizedBox(height: context.sp(theme.spacing.md)),
                   ],
                   _buildThreadActivityCard(theme, comments),
@@ -456,7 +574,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     List<CommunityComment> comments,
   ) {
     final double clearance =
-        context.sz(44) + context.sp(theme.spacing.sm) + context.sp(theme.spacing.xs);
+        context.sz(44) +
+        context.sp(theme.spacing.sm) +
+        context.sp(theme.spacing.xs);
 
     return Stack(
       children: <Widget>[
@@ -490,7 +610,8 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     onShare: _handleShare,
                     onAuthorTap: widget.onAuthorTap,
                     onOpenRef: widget.onOpenRef,
-                    onVotePoll: (idx) => widget.repository.votePoll(widget.post.id, idx),
+                    onVotePoll: (idx) =>
+                        widget.repository.votePoll(widget.post.id, idx),
                   ),
                   SizedBox(height: context.sp(theme.spacing.md)),
                   UniversalCommentsSection(
@@ -498,7 +619,11 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     targetType: 'post',
                     comments: comments,
                     currentUser: widget.currentUser,
+                    isPublic: _currentPost.isPublic,
+                    canToggleVisibility: _currentPost.author.id == widget.currentUser.id,
+                    onToggleVisibility: _togglePostVisibility,
                     onAuthorTap: widget.onAuthorTap,
+
                     onAddComment: (text, {parentCommentId, sentiment}) async {
                       widget.repository.addComment(
                         widget.post.id,
@@ -612,7 +737,8 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
               ),
             ],
           ),
-          if (author.userRole != UserRole.customer || author.winRate != null) ...<Widget>[
+          if (author.userRole != UserRole.customer ||
+              author.winRate != null) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.xs)),
             Wrap(
               spacing: 6,
@@ -630,7 +756,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                 if (author.winRate != null)
                   UiBadge(
                     label: '${author.winRate!.toStringAsFixed(0)}% Win',
-                    intent: author.winRate! >= 60 ? UiIntent.success : UiIntent.neutral,
+                    intent: author.winRate! >= 60
+                        ? UiIntent.success
+                        : UiIntent.neutral,
                     variant: UiBadgeVariant.soft,
                     size: UiSize.xs,
                   ),
@@ -674,11 +802,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                 ),
               ),
               Expanded(
-                child: _sidebarStat(
-                  theme,
-                  label: 'Sharpe',
-                  value: '2.14',
-                ),
+                child: _sidebarStat(theme, label: 'Sharpe', value: '2.14'),
               ),
             ],
           ),
@@ -734,14 +858,12 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                   size: UiSize.sm,
                   variant: UiVariant.ghost,
                   tooltip: 'Send Direct Message',
-                  onPressed: () {
-                    UiToast.show(
-                      context,
-                      title: 'Direct Message',
-                      message:
-                          'Opening encrypted DM channel with @${author.handle}',
-                    );
-                  },
+                  onPressed: () => CommunitySendDmDialog.show(
+                    context,
+                    repository: widget.repository,
+                    post: _currentPost,
+                    initialRecipient: author,
+                  ),
                 ),
               ],
             ),
@@ -823,11 +945,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
           Row(
             children: <Widget>[
               Expanded(
-                child: _sidebarStat(
-                  theme,
-                  label: 'Entry',
-                  value: setup.entry,
-                ),
+                child: _sidebarStat(theme, label: 'Entry', value: setup.entry),
               ),
               if (setup.stopLoss != null)
                 Expanded(
@@ -861,15 +979,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                 leadingIcon: Icons.bookmark_add_outlined,
                 variant: UiVariant.ghost,
                 size: UiSize.xs,
-                onPressed: () {
-                  UiToast.show(
-                    context,
-                    title: 'Copied to Journal',
-                    message:
-                        'Trade setup for ${setup.ticker} saved to your Trading Journal',
-                    intent: UiIntent.success,
-                  );
-                },
+                onPressed: () => _copySetupToJournal(setup),
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
               UiButton(
@@ -903,7 +1013,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     for (final raw in _currentPost.tickers) {
       final String clean = raw.trim().replaceFirst(RegExp(r'^\$+'), '');
       if (clean.isEmpty) continue;
-      final String key = clean.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+      final String key = clean
+          .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+          .toLowerCase();
       if (seenTickers.add(key)) {
         distinctTickers.add(clean);
       }
@@ -917,7 +1029,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     for (final raw in _currentPost.tags) {
       final String clean = raw.trim().replaceFirst(RegExp(r'^[#\$]+'), '');
       if (clean.isEmpty) continue;
-      final String key = clean.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+      final String key = clean
+          .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+          .toLowerCase();
       if (tickerKeys.contains(key)) continue;
       if (seenTags.add(key)) {
         distinctTags.add(clean);
@@ -1042,7 +1156,8 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
               ),
             ],
           ),
-          if (distinctTickers.isNotEmpty || distinctTags.isNotEmpty) ...<Widget>[
+          if (distinctTickers.isNotEmpty ||
+              distinctTags.isNotEmpty) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.sm)),
             const UiDivider(),
             SizedBox(height: context.sp(theme.spacing.xs)),
@@ -1108,7 +1223,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
               Text(
-                isCurrentUser ? 'Your Recent Setups' : 'Recent Setups by @${author.handle}',
+                isCurrentUser
+                    ? 'Your Recent Setups'
+                    : 'Recent Setups by @${author.handle}',
                 style: context.uiText.label.copyWith(
                   fontWeight: FontWeight.w700,
                   fontSize: context.fs(13),
@@ -1152,15 +1269,20 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
             color: intent == UiIntent.success
                 ? theme.colors.bullish
                 : intent == UiIntent.danger
-                    ? theme.colors.bearish
-                    : theme.colors.foreground,
+                ? theme.colors.bearish
+                : theme.colors.foreground,
           ),
         ),
       ],
     );
   }
 
-  Widget _recentSetupRow(UiTheme theme, String title, String pnl, {required bool isWin}) {
+  Widget _recentSetupRow(
+    UiTheme theme,
+    String title,
+    String pnl, {
+    required bool isWin,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
@@ -1170,7 +1292,10 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: context.uiText.caption.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            title,
+            style: context.uiText.caption.copyWith(fontWeight: FontWeight.w600),
+          ),
           Text(
             pnl,
             style: context.uiText.numeric.copyWith(
@@ -1195,7 +1320,11 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.shield_outlined, size: context.sz(14), color: theme.colors.foregroundSubtle),
+          Icon(
+            Icons.shield_outlined,
+            size: context.sz(14),
+            color: theme.colors.foregroundSubtle,
+          ),
           SizedBox(width: context.sp(theme.spacing.xs)),
           Expanded(
             child: Text(

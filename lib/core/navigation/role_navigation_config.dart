@@ -350,6 +350,11 @@ class RoleNavigationConfig {
     mobileMoreItems: <AppNavItem>[
       AppNavItem(id: 'notes', label: 'Notes', icon: Icons.note_alt_outlined),
       AppNavItem(
+        id: 'strategies',
+        label: 'Strategies',
+        icon: Icons.account_tree_outlined,
+      ),
+      AppNavItem(
         id: 'marketing',
         label: 'Media Kit',
         icon: Icons.campaign_outlined,
@@ -427,6 +432,12 @@ class RoleNavigationConfig {
             label: 'Notes',
             icon: Icons.note_alt_outlined,
             selectedIcon: Icons.note_alt_rounded,
+          ),
+          AppNavItem(
+            id: 'strategies',
+            label: 'Strategies',
+            icon: Icons.account_tree_outlined,
+            selectedIcon: Icons.account_tree_rounded,
           ),
         ],
       ),
@@ -576,6 +587,11 @@ class RoleNavigationConfig {
         icon: Icons.note_alt_outlined,
       ),
       AppNavItem(
+        id: 'strategies',
+        label: 'Strategies',
+        icon: Icons.account_tree_outlined,
+      ),
+      AppNavItem(
         id: 'org_audit',
         label: 'Execution Audit',
         icon: Icons.history_edu_outlined,
@@ -676,6 +692,12 @@ class RoleNavigationConfig {
             label: 'Desk Notes',
             icon: Icons.note_alt_outlined,
             selectedIcon: Icons.note_alt_rounded,
+          ),
+          AppNavItem(
+            id: 'strategies',
+            label: 'Strategies',
+            icon: Icons.account_tree_outlined,
+            selectedIcon: Icons.account_tree_rounded,
           ),
         ],
       ),

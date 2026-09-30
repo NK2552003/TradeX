@@ -1,4 +1,3 @@
-import 'package:tradex/features/messages/models/messages_models.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -16,6 +15,7 @@ import 'package:tradex/features/community/presentation/views/community_post_deta
 import 'package:tradex/features/community/presentation/views/community_profile_view.dart';
 import 'package:tradex/features/community/presentation/views/community_search_page.dart';
 import 'package:tradex/features/community/presentation/widgets/community_ai_assistant_dialog.dart';
+import 'package:tradex/features/community/presentation/widgets/community_audio_mini_player.dart';
 import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
@@ -135,6 +135,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     super.initState();
     _ownsRepo = widget.repository == null;
     _repo = widget.repository ?? CommunityRepository();
+    _repo.addListener(_onRepoChanged);
     _repo.updateCurrentAuthor(_currentAuthor);
     _tabController = TabController(
       length: _hubTabs.length,
@@ -181,10 +182,15 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     if (mounted) setState(() {});
   }
 
+  void _onRepoChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
+    _repo.removeListener(_onRepoChanged);
     if (_ownsRepo) {
       _repo.dispose();
     }
@@ -397,6 +403,14 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
           return Stack(
             children: <Widget>[
               layout,
+              if (_repo.isTunedIntoLiveRoom)
+                Positioned(
+                  left: isMobile
+                      ? context.sp(theme.spacing.sm)
+                      : context.sp(theme.spacing.lg),
+                  bottom: floatingBottom + (isMobile ? context.sz(56) : 0),
+                  child: CommunityAudioMiniPlayer(repository: _repo),
+                ),
               Positioned(
                 right: floatingRight,
                 bottom: floatingBottom,

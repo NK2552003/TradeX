@@ -91,6 +91,10 @@ class _AppScaffoldState extends State<AppScaffold> {
   final GlobalKey _workspaceSearchKey = GlobalKey();
 
   String _selectedId = 'workspace';
+
+  /// Shell-level destination history. Feature screens keep their own detail
+  /// history, while this stack preserves where a cross-feature jump came from.
+  final List<String> _destinationHistory = <String>[];
   String _workspaceQuery = '';
   String _communityQuery = '';
   AppTrader? _identity;
@@ -254,9 +258,12 @@ class _AppScaffoldState extends State<AppScaffold> {
     });
   }
 
-  bool get _isWritingFeature =>
-      const <String>{'workspace', 'journal', 'strategies', 'notes'}
-          .contains(_selectedId);
+  bool get _isWritingFeature => const <String>{
+    'workspace',
+    'journal',
+    'strategies',
+    'notes',
+  }.contains(_selectedId);
 
   String get _writingSearchHint => switch (_selectedId) {
     'workspace' => 'Search desk records, notes, trades, playbooks...',
@@ -301,8 +308,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       _selectedId == 'community' || _selectedId.startsWith('community_');
 
   String get _communitySearchHint => switch (_selectedId) {
-    'community_explore' =>
-      'Search topics, signals, cashtags (#BTC, \$AAPL)...',
+    'community_explore' => 'Search topics, signals, cashtags (#BTC, \$AAPL)...',
     'community_network' => 'Search traders by name, @handle or style...',
     _ => 'Search community posts, traders, topics...',
   };
@@ -356,9 +362,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   void _showActiveWritingGuide() {
-    final List<GlobalKey> targets = <GlobalKey>[
-      _workspaceSearchKey,
-    ];
+    final List<GlobalKey> targets = <GlobalKey>[_workspaceSearchKey];
     switch (_selectedId) {
       case 'journal':
         _journalKey.currentState?.showGuide();
@@ -387,6 +391,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     _activeSubpageIcon = null;
     _activeSubpageOnBack = null;
     _linkRequest = null;
+    _destinationHistory.clear();
   }
 
   void _switchRole(UserRole role) {
@@ -415,6 +420,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     if (!_canReach(id)) return;
     if (_selectedId == id && !_showAffiliateApplication) return;
     setState(() {
+      if (_selectedId != id) _destinationHistory.add(_selectedId);
       _selectedId = id;
       _workspaceQuery = '';
       if (!id.startsWith('community')) {
@@ -428,6 +434,22 @@ class _AppScaffoldState extends State<AppScaffold> {
       // record a link sent the reader to an hour ago: the screens apply their
       // request in `initState`, and a remount cannot tell a fresh one from a
       // spent one.
+      _linkRequest = null;
+    });
+  }
+
+  void _goBack() {
+    if (_destinationHistory.isEmpty) return;
+    setState(() {
+      _selectedId = _destinationHistory.removeLast();
+      _workspaceQuery = '';
+      _communityQuery = '';
+      _messagesQuery = '';
+      _aiQuery = '';
+      _showAffiliateApplication = false;
+      _activeSubpageTitle = null;
+      _activeSubpageIcon = null;
+      _activeSubpageOnBack = null;
       _linkRequest = null;
     });
   }
@@ -452,20 +474,25 @@ class _AppScaffoldState extends State<AppScaffold> {
   void _openLinkRef(AppLinkRef ref, {bool writing = false}) {
     final String? destination = writing
         ? 'notes'
-        : (ref.id == 'ai_copilot'
-            ? 'ai_copilot'
-            : (ref.id == 'messages'
-                ? 'messages'
-                : switch (ref.kind) {
-                    AppLinkKind.journal => 'journal',
-                    AppLinkKind.strategy => 'strategies',
-                    AppLinkKind.note => ref.id.startsWith('community')
-                        ? 'community_feed'
-                        : 'notes',
-                    _ => ref.kind.destinationId,
-                  }));
+        : (ref.id == 'ai_copilot' || ref.kind == AppLinkKind.aiCopilot
+              ? 'ai_copilot'
+              : (ref.id == 'messages' || ref.kind == AppLinkKind.messageThread
+                    ? 'messages'
+                    : switch (ref.kind) {
+                        AppLinkKind.journal => 'journal',
+                        AppLinkKind.strategy => 'strategies',
+                        AppLinkKind.aiCopilot => 'ai_copilot',
+                        AppLinkKind.communityPost => 'community_feed',
+                        AppLinkKind.messageThread => 'messages',
+                        AppLinkKind.note =>
+                          ref.id.startsWith('community')
+                              ? 'community_feed'
+                              : 'notes',
+                        _ => ref.kind.destinationId,
+                      }));
     if (destination == null || !_canReach(destination)) return;
     setState(() {
+      if (_selectedId != destination) _destinationHistory.add(_selectedId);
       _selectedId = destination;
       _showAffiliateApplication = false;
       _activeSubpageTitle = null;
@@ -746,6 +773,14 @@ class _AppScaffoldState extends State<AppScaffold> {
   };
 
   Widget _affiliatePage() => switch (_selectedId) {
+    'strategies' => AppWritingDeskScope(
+      child: StrategiesScreen(
+        onSubpageChanged: _onSubpageChanged,
+        onOpenRef: _openLinkRef,
+        onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
+        openRequest: _linkRequest,
+      ),
+    ),
     'notes' => AppWritingDeskScope(
       child: NotesScreen(
         onSubpageChanged: _onSubpageChanged,
@@ -783,6 +818,14 @@ class _AppScaffoldState extends State<AppScaffold> {
   };
 
   Widget _adminPage() => switch (_selectedId) {
+    'strategies' => AppWritingDeskScope(
+      child: StrategiesScreen(
+        onSubpageChanged: _onSubpageChanged,
+        onOpenRef: _openLinkRef,
+        onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
+        openRequest: _linkRequest,
+      ),
+    ),
     'notes' => AppWritingDeskScope(
       child: NotesScreen(
         onSubpageChanged: _onSubpageChanged,
@@ -845,10 +888,13 @@ class _AppScaffoldState extends State<AppScaffold> {
               'The navigation lists this destination but no page answers it. Pick '
               'another item from the sidebar.',
           action: UiButton(
-            label: 'Back to ${_navigation.labelFor('workspace') ?? _navigation.labelFor('overview') ?? 'the start'}',
+            label:
+                'Back to ${_navigation.labelFor('workspace') ?? _navigation.labelFor('overview') ?? 'the start'}',
             leadingIcon: Icons.arrow_back_rounded,
             variant: UiVariant.outline,
-            onPressed: _jump(_navigation.allows('workspace') ? 'workspace' : 'overview'),
+            onPressed: _jump(
+              _navigation.allows('workspace') ? 'workspace' : 'overview',
+            ),
           ),
         ),
       ),
@@ -1059,29 +1105,31 @@ class _AppScaffoldState extends State<AppScaffold> {
             onSearch: _isWritingFeature
                 ? _showWorkspaceSearch
                 : (_isCommunityFeature
-                    ? _showCommunitySearch
-                    : () => _go('search')),
+                      ? _showCommunitySearch
+                      : () => _go('search')),
             searchQuery: _isWritingFeature
                 ? _workspaceQuery
                 : (_isCommunityFeature
-                    ? _communityQuery
-                    : (_isMessagesFeature
-                        ? _messagesQuery
-                        : (_isAiFeature ? _aiQuery : null))),
+                      ? _communityQuery
+                      : (_isMessagesFeature
+                            ? _messagesQuery
+                            : (_isAiFeature ? _aiQuery : null))),
             searchHint: _isWritingFeature
                 ? _writingSearchHint
                 : (_isCommunityFeature
-                    ? _communitySearchHint
-                    : (_isMessagesFeature
-                        ? 'Search conversations, traders...'
-                        : (_isAiFeature ? 'Search copilot chats and prompts...' : null))),
+                      ? _communitySearchHint
+                      : (_isMessagesFeature
+                            ? 'Search conversations, traders...'
+                            : (_isAiFeature
+                                  ? 'Search copilot chats and prompts...'
+                                  : null))),
             onSearchChanged: _isWritingFeature
                 ? _updateWorkspaceQuery
                 : (_isCommunityFeature
-                    ? _updateCommunityQuery
-                    : (_isMessagesFeature
-                        ? _updateMessagesQuery
-                        : (_isAiFeature ? _updateAiQuery : null))),
+                      ? _updateCommunityQuery
+                      : (_isMessagesFeature
+                            ? _updateMessagesQuery
+                            : (_isAiFeature ? _updateAiQuery : null))),
             searchTargetKey: _isWritingFeature ? _workspaceSearchKey : null,
             headerActions: const <Widget>[],
             onSettings: () => _go('settings'),
@@ -1129,13 +1177,18 @@ class _AppScaffoldState extends State<AppScaffold> {
     // handler via onSubpageChanged, the system back gesture should invoke that
     // handler instead of popping the root route and closing the application.
     return PopScope(
-      canPop: _activeSubpageOnBack == null && !_showAffiliateApplication,
+      canPop:
+          _activeSubpageOnBack == null &&
+          !_showAffiliateApplication &&
+          _destinationHistory.isEmpty,
       onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) return;
         if (_showAffiliateApplication) {
           setState(() => _showAffiliateApplication = false);
-        } else {
+        } else if (_activeSubpageOnBack != null) {
           _activeSubpageOnBack?.call();
+        } else {
+          _goBack();
         }
       },
       child: scaffoldContent,

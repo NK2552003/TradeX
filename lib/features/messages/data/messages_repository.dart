@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/linking/link_graph_service.dart';
 import 'package:tradex/features/messages/data/messages_seed_data.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 
@@ -56,7 +57,8 @@ class MessagesRepository extends ChangeNotifier {
       _threads.where((MessageThread t) => t.archived).toList()
         ..sort(_byPinnedThenRecency);
 
-  List<MessageThread> get requests => List<MessageThread>.unmodifiable(_requests);
+  List<MessageThread> get requests =>
+      List<MessageThread>.unmodifiable(_requests);
 
   /// Total unread across active threads + pending requests, for the nav badge.
   int get unreadCount =>
@@ -78,7 +80,9 @@ class MessagesRepository extends ChangeNotifier {
   }
 
   List<ChatMessage> messagesFor(String threadId) =>
-      List<ChatMessage>.unmodifiable(_messages[threadId] ?? const <ChatMessage>[]);
+      List<ChatMessage>.unmodifiable(
+        _messages[threadId] ?? const <ChatMessage>[],
+      );
 
   String? pinnedMessageId(String threadId) => _pinnedMessages[threadId];
 
@@ -98,8 +102,17 @@ class MessagesRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Records the composer can attach.
-  List<AppLinkRef> get shareableRefs => MessagesSeed.shareableRefs();
+  /// Current Writing Desk records the composer can attach. These come from the
+  /// live link-graph snapshot instead of a static demo list, so deletes and
+  /// visibility changes are reflected before a message is sent.
+  List<AppLinkRef> get shareableRefs {
+    final graph = AppLinkGraphService.instance.current;
+    return <AppLinkRef>[
+      ...graph.options(AppLinkKind.note),
+      ...graph.options(AppLinkKind.journal),
+      ...graph.options(AppLinkKind.strategy),
+    ];
+  }
 
   /// Emoji offered in the composer's quick-reaction row.
   List<String> get quickReactions => MessagesSeed.quickReactions;
@@ -343,10 +356,8 @@ class MessagesRepository extends ChangeNotifier {
   );
 
   /// @backend PATCH /threads/{id} { muted }.
-  void toggleMute(String threadId) => _mutateThread(
-    threadId,
-    (MessageThread t) => t.copyWith(muted: !t.muted),
-  );
+  void toggleMute(String threadId) =>
+      _mutateThread(threadId, (MessageThread t) => t.copyWith(muted: !t.muted));
 
   /// @backend PATCH /threads/{id} { archived }.
   void toggleArchive(String threadId) => _mutateThread(
@@ -360,22 +371,23 @@ class MessagesRepository extends ChangeNotifier {
   String acceptRequest(String requestId) {
     final int i = _requests.indexWhere((MessageThread t) => t.id == requestId);
     if (i == -1) return requestId;
-    final MessageThread promoted = _requests.removeAt(i).copyWith(
-      isRequest: false,
-      unread: 0,
-    );
+    final MessageThread promoted = _requests
+        .removeAt(i)
+        .copyWith(isRequest: false, unread: 0);
     _threads.insert(0, promoted);
     // Fold in a system notice so the transition is visible in the thread.
-    _messages.putIfAbsent(promoted.id, () => <ChatMessage>[]).add(
-      ChatMessage(
-        id: '${promoted.id}_sys',
-        threadId: promoted.id,
-        body: 'You accepted the message request.',
-        fromMe: false,
-        sentAt: DateTime.now(),
-        systemNotice: true,
-      ),
-    );
+    _messages
+        .putIfAbsent(promoted.id, () => <ChatMessage>[])
+        .add(
+          ChatMessage(
+            id: '${promoted.id}_sys',
+            threadId: promoted.id,
+            body: 'You accepted the message request.',
+            fromMe: false,
+            sentAt: DateTime.now(),
+            systemNotice: true,
+          ),
+        );
     notifyListeners();
     return promoted.id;
   }
@@ -423,20 +435,19 @@ class MessagesRepository extends ChangeNotifier {
   void renameGroup(String threadId, String newTitle) {
     final String clean = newTitle.trim();
     if (clean.isEmpty) return;
-    _mutateThread(
-      threadId,
-      (MessageThread t) => t.copyWith(groupTitle: clean),
-    );
-    _messages.putIfAbsent(threadId, () => <ChatMessage>[]).add(
-      ChatMessage(
-        id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
-        threadId: threadId,
-        body: 'Group name changed to "$clean".',
-        fromMe: true,
-        sentAt: DateTime.now(),
-        systemNotice: true,
-      ),
-    );
+    _mutateThread(threadId, (MessageThread t) => t.copyWith(groupTitle: clean));
+    _messages
+        .putIfAbsent(threadId, () => <ChatMessage>[])
+        .add(
+          ChatMessage(
+            id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
+            threadId: threadId,
+            body: 'Group name changed to "$clean".',
+            fromMe: true,
+            sentAt: DateTime.now(),
+            systemNotice: true,
+          ),
+        );
     notifyListeners();
   }
 
@@ -470,16 +481,18 @@ class MessagesRepository extends ChangeNotifier {
       lastFromMe: true,
       lastStatus: MessageStatus.sent,
     );
-    _messages.putIfAbsent(threadId, () => <ChatMessage>[]).add(
-      ChatMessage(
-        id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
-        threadId: threadId,
-        body: '${trader.displayName ?? trader.handle} joined the group.',
-        fromMe: true,
-        sentAt: DateTime.now(),
-        systemNotice: true,
-      ),
-    );
+    _messages
+        .putIfAbsent(threadId, () => <ChatMessage>[])
+        .add(
+          ChatMessage(
+            id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
+            threadId: threadId,
+            body: '${trader.displayName ?? trader.handle} joined the group.',
+            fromMe: true,
+            sentAt: DateTime.now(),
+            systemNotice: true,
+          ),
+        );
     notifyListeners();
   }
 
@@ -497,8 +510,9 @@ class MessagesRepository extends ChangeNotifier {
         break;
       }
     }
-    final List<AppTrader> updated =
-        thread.participants.where((AppTrader p) => p.id != traderId).toList();
+    final List<AppTrader> updated = thread.participants
+        .where((AppTrader p) => p.id != traderId)
+        .toList();
     _threads[idx] = MessageThread(
       id: thread.id,
       peer: thread.peer,
@@ -522,16 +536,18 @@ class MessagesRepository extends ChangeNotifier {
       lastStatus: MessageStatus.sent,
     );
     if (removed != null) {
-      _messages.putIfAbsent(threadId, () => <ChatMessage>[]).add(
-        ChatMessage(
-          id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
-          threadId: threadId,
-          body: '${removed.displayName ?? removed.handle} left the group.',
-          fromMe: false,
-          sentAt: DateTime.now(),
-          systemNotice: true,
-        ),
-      );
+      _messages
+          .putIfAbsent(threadId, () => <ChatMessage>[])
+          .add(
+            ChatMessage(
+              id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
+              threadId: threadId,
+              body: '${removed.displayName ?? removed.handle} left the group.',
+              fromMe: false,
+              sentAt: DateTime.now(),
+              systemNotice: true,
+            ),
+          );
     }
     notifyListeners();
   }
@@ -636,7 +652,9 @@ class MessagesRepository extends ChangeNotifier {
 
   String _previewFor(ChatMessage m) {
     if (m.body.trim().isNotEmpty) return m.body.trim();
-    if (m.sharedRef != null) return 'Shared ${m.sharedRef!.kind.label.toLowerCase()}';
+    if (m.sharedRef != null) {
+      return 'Shared ${m.sharedRef!.kind.label.toLowerCase()}';
+    }
     if (m.attachment != null) return m.attachment!.kind.label;
     return 'Message';
   }

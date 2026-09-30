@@ -163,11 +163,18 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
     setState(() => _searchQuery = query);
   }
 
-  /// Opens a thread by its ID.
+  /// Opens a thread by its ID or associated peer trader ID.
   void openThreadById(String id) {
     final MessageThread? t = _repo.threadById(id);
     if (t != null) {
       _openThread(t);
+    } else {
+      for (final MessageThread th in _repo.threads) {
+        if (th.peer.id == id || th.peer.handle == id) {
+          _openThread(th);
+          return;
+        }
+      }
     }
   }
 
@@ -206,11 +213,6 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
       if (_returnSecondary != null) {
         _secondary = _returnSecondary!;
         _returnSecondary = null;
-        final String title = switch (_secondary) {
-          _Secondary.requests => 'Message requests',
-          _Secondary.archived => 'Archived',
-          _Secondary.none => '',
-        };
         _notifySubpage();
         return;
       }

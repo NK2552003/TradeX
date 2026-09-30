@@ -14,7 +14,7 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 
 import '../data/journal_attachments.dart';
 import '../data/journal_repository.dart';
-import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
+import 'package:tradex/features/ai_assistant/ai_assistant.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
@@ -96,11 +96,51 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     super.dispose();
   }
 
-  AppTrade get _entry => widget.entry;
+  late AppTrade _activeEntry = widget.entry;
+
+  @override
+  void didUpdateWidget(JournalEntryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.entry.id != widget.entry.id ||
+        oldWidget.entry.isPublic != widget.entry.isPublic) {
+      _activeEntry = widget.entry;
+    }
+  }
+
+  AppTrade get _entry => _activeEntry;
+
+  Future<void> _toggleVisibility() async {
+    final bool next = !_entry.isPublic;
+    if (next) {
+      final bool ok = await UiDialog.confirm(
+        context,
+        title: 'Publish trade review?',
+        description:
+            'Your execution review, thesis, and learnings become visible for peer feedback. Your financial capital and broker account IDs remain confidential.',
+        confirmLabel: 'Make Public',
+      );
+      if (!ok || !mounted) return;
+    }
+    await _guard(() async {
+      final AppTrade updated = await _repo.setVisibility(_entry.id, next);
+      if (mounted) {
+        setState(() => _activeEntry = updated);
+        UiToast.show(
+          context,
+          title: next ? 'Trade Review Published' : 'Trade Review Made Private',
+          message: next
+              ? 'Your execution review is now public and open for trader feedback.'
+              : 'Your execution review is now private to your journal.',
+          intent: next ? UiIntent.success : UiIntent.warning,
+        );
+      }
+    });
+  }
 
   AppLinkBundle get _bundle => _graph.bundleForJournal(_entry);
 
   List<AppLinkRef> get _siblings => _graph.siblingEntries(_entry);
+
 
   /// Roughly 220 words a minute, floored at a minute.
   int get _readMinutes => (_entry.wordCount / 220).ceil().clamp(1, 999);
@@ -265,7 +305,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     final List<AppLinkRef> linked = switch (kind) {
       AppLinkKind.note => _bundle.notes,
       AppLinkKind.strategy => _bundle.strategies,
-      AppLinkKind.journal || AppLinkKind.ticker => const <AppLinkRef>[],
+      AppLinkKind.journal || AppLinkKind.ticker || _ => const <AppLinkRef>[],
     };
     final Set<String> before = <String>{
       for (final AppLinkRef ref in linked) ref.id,
@@ -577,24 +617,34 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
         'Strategy: ${_entry.strategy ?? 'Discretionary'}\n\n'
         'Trader Notes:\n${_entry.content.isNotEmpty ? _entry.content : (_entry.notes ?? '')}\n\n'
         'Evaluate execution discipline, risk management, and recommend actionable adjustments for future setups.';
-    AiAssistantRepositoryScope.repository.sendPrompt(prompt);
-    UiToastScope.maybeOf(context)?.show(
-      UiToastData(
-        title: 'Sent to AI Copilot',
-        message: 'Auditing trade execution in AI Assistant...',
-        intent: UiIntent.info,
+
+    AiAssistantOverlaySheet.show(
+      context,
+      repository: AiAssistantRepositoryScope.repository,
+      initialPrompt: prompt,
+      contextTitle: '${_entry.ticker} (${_entry.side.name.toUpperCase()})',
+      contextSubtitle: 'PnL: \$${_entry.pnl.toStringAsFixed(2)} · ${_entry.outcome.name.toUpperCase()}',
+      contextIcon: Icons.menu_book_outlined,
+      contextRef: AppLinkRef(
+        id: _entry.id,
+        kind: AppLinkKind.journal,
+        title: _entry.displayTitle,
+        subtitle: _entry.ticker,
       ),
+      onOpenRef: widget.onOpenLink,
+      onOpenFullScreen: () {
+        if (widget.onOpenLink != null) {
+          widget.onOpenLink!(
+            const AppLinkRef(
+              id: 'ai_copilot',
+              kind: AppLinkKind.aiCopilot,
+              title: 'AI Copilot',
+              subtitle: 'Trade Audit',
+            ),
+          );
+        }
+      },
     );
-    if (widget.onOpenLink != null) {
-      widget.onOpenLink!(
-        const AppLinkRef(
-          id: 'ai_copilot',
-          kind: AppLinkKind.journal,
-          title: 'AI Copilot',
-          subtitle: 'Trade Audit',
-        ),
-      );
-    }
   }
 
   List<Widget> _headerActions(BuildContext context) {
@@ -622,12 +672,25 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
         tooltip: 'Export as PDF',
         onPressed: _busy ? null : _exportPdf,
       ),
+      if (widget.canEdit) ...<Widget>[
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        UiIconButton(
+          icon: _entry.isPublic ? Icons.public_rounded : Icons.lock_outline_rounded,
+          variant: _entry.isPublic ? UiVariant.soft : UiVariant.ghost,
+          intent: _entry.isPublic ? UiIntent.success : UiIntent.warning,
+          tooltip: _entry.isPublic
+              ? 'Public review (tap to make private)'
+              : 'Private review (tap to make public)',
+          onPressed: _busy ? null : _toggleVisibility,
+        ),
+      ],
       if (widget.onAttachToPost != null) ...<Widget>[
         SizedBox(width: context.sp(theme.spacing.xs)),
         UiIconButton(
           icon: Icons.add_comment_outlined,
           variant: UiVariant.ghost,
           tooltip: 'Attach journal entry to a post',
+
           onPressed: _busy
               ? null
               : () => widget.onAttachToPost!(
@@ -716,7 +779,11 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
             targetType: 'trade_journal',
             title: 'Execution Critique & Peer Discussion',
             comments: _tradeComments,
+            isPublic: _entry.isPublic,
+            canToggleVisibility: widget.canEdit,
+            onToggleVisibility: (v) => _toggleVisibility(),
             currentUser: const CommunityAuthor(
+
               id: 'usr_current',
               handle: 'alex_vance',
               displayName: 'Alex Vance',

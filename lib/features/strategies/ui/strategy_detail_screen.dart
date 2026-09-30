@@ -15,7 +15,7 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 import '../data/strategies_repository.dart';
 import '../data/strategy_attachments.dart';
 import 'revision_note_prompt.dart';
-import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
+import 'package:tradex/features/ai_assistant/ai_assistant.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
@@ -390,7 +390,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
       AppLinkKind.note => _bundle.notes,
       AppLinkKind.journal => _bundle.journal,
       AppLinkKind.ticker => _bundle.tickers,
-      AppLinkKind.strategy => const <AppLinkRef>[],
+      AppLinkKind.strategy || _ => const <AppLinkRef>[],
     };
     final List<String>? chosen = await showAppLinkPicker(
       context,
@@ -408,7 +408,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
         AppLinkKind.journal => 'File trades under this playbook',
         AppLinkKind.note => 'Attach research to this playbook',
         AppLinkKind.ticker => 'Instruments this playbook trades',
-        AppLinkKind.strategy => null,
+        AppLinkKind.strategy || _ => null,
       },
     );
     if (chosen == null || chosen.isEmpty || !mounted) return;
@@ -704,24 +704,34 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
         'Win Rate: ${AppTokens.percent(_strategy.winRate)}, Average R: ${AppTokens.rr(_strategy.avgR)}, Total Trades: ${_strategy.trades}, Net PnL: ${AppTokens.signedMoney(_strategy.netPnl)}\n\n'
         'Playbook Rules:\n${_strategy.content}\n\n'
         'Provide mathematical risk analysis, edge evaluation, failure modes to protect against, and proposed rule enhancements.';
-    AiAssistantRepositoryScope.repository.sendPrompt(prompt);
-    UiToastScope.maybeOf(context)?.show(
-      UiToastData(
-        title: 'Sent to AI Copilot',
-        message: 'Critiquing "${_strategy.name}" in AI Assistant...',
-        intent: UiIntent.info,
+
+    AiAssistantOverlaySheet.show(
+      context,
+      repository: AiAssistantRepositoryScope.repository,
+      initialPrompt: prompt,
+      contextTitle: _strategy.name,
+      contextSubtitle: 'Win Rate: ${AppTokens.percent(_strategy.winRate)} · ${_strategy.trades} Trades',
+      contextIcon: Icons.account_tree_outlined,
+      contextRef: AppLinkRef(
+        id: _strategy.id,
+        kind: AppLinkKind.strategy,
+        title: _strategy.name,
+        subtitle: _strategy.category,
       ),
+      onOpenRef: widget.onOpenLink,
+      onOpenFullScreen: () {
+        if (widget.onOpenLink != null) {
+          widget.onOpenLink!(
+            const AppLinkRef(
+              id: 'ai_copilot',
+              kind: AppLinkKind.aiCopilot,
+              title: 'AI Copilot',
+              subtitle: 'Strategy Critique',
+            ),
+          );
+        }
+      },
     );
-    if (widget.onOpenLink != null) {
-      widget.onOpenLink!(
-        const AppLinkRef(
-          id: 'ai_copilot',
-          kind: AppLinkKind.strategy,
-          title: 'AI Copilot',
-          subtitle: 'Strategy Critique',
-        ),
-      );
-    }
   }
 
   List<Widget> _headerActions(BuildContext context) {
@@ -927,7 +937,11 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
           targetType: 'strategy_playbook',
           title: 'Playbook Discussion & Peer Critique',
           comments: _strategyComments,
+          isPublic: _strategy.isPublic,
+          canToggleVisibility: widget.canEdit,
+          onToggleVisibility: (v) => _toggleVisibility(),
           currentUser: const CommunityAuthor(
+
             id: 'usr_current',
             handle: 'alex_vance',
             displayName: 'Alex Vance',

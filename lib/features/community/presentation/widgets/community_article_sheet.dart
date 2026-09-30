@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 
@@ -203,14 +204,31 @@ class CommunityArticleSheet extends StatelessWidget {
                 label: 'Open Source',
                 variant: UiVariant.primary,
                 icon: Icons.open_in_new_rounded,
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  UiToast.show(
-                    context,
-                    title: article.source,
-                    message: 'Opening external news source...',
-                    intent: UiIntent.info,
+                onPressed: () async {
+                  final Uri? source = Uri.tryParse(article.articleUrl ?? '');
+                  if (source == null || !source.hasScheme) {
+                    UiToast.error(
+                      context,
+                      title: 'Source unavailable',
+                      message:
+                          'This article does not include a valid source URL.',
+                    );
+                    return;
+                  }
+                  final bool opened = await launchUrl(
+                    source,
+                    mode: LaunchMode.externalApplication,
                   );
+                  if (!context.mounted) return;
+                  if (!opened) {
+                    UiToast.error(
+                      context,
+                      title: 'Could not open source',
+                      message: 'Your device could not open ${article.source}.',
+                    );
+                    return;
+                  }
+                  Navigator.of(context).pop();
                 },
               ),
             ),

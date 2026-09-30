@@ -63,7 +63,12 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         // 1. Live Trading Floor / Audio Space Card
-        const CommunityLiveRoomWidget(),
+        CommunityLiveRoomWidget(
+          repository: widget.repository,
+          room: widget.repository.liveRooms.isNotEmpty
+              ? widget.repository.liveRooms.first
+              : null,
+        ),
         SizedBox(height: context.sp(theme.spacing.sm)),
 
         // 2. Subscribe to Premium Card
@@ -165,15 +170,22 @@ class CommunityLiveRoomWidget extends StatelessWidget {
     this.title = 'Nifty & BankNifty Live Expiry Floor',
     this.host = 'Rajesh Sharma, CMT',
     this.listeners = 142,
+    this.room,
+    this.repository,
   });
 
   final String title;
   final String host;
   final int listeners;
+  final LiveAudioRoom? room;
+  final CommunityRepository? repository;
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    final displayTitle = room?.title ?? title;
+    final displayHost = room?.host.displayName ?? host;
+    final displayListeners = room?.listenerCount ?? listeners;
 
     return UiCard(
       accentColor: theme.colors.danger,
@@ -191,11 +203,13 @@ class CommunityLiveRoomWidget extends StatelessWidget {
                 ),
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
-              UiBadge(
-                label: 'LIVE AUDIO SPACE',
-                intent: UiIntent.danger,
-                variant: UiBadgeVariant.soft,
-                size: UiSize.xs,
+              Flexible(
+                child: UiBadge(
+                  label: 'LIVE AUDIO SPACE',
+                  intent: UiIntent.danger,
+                  variant: UiBadgeVariant.soft,
+                  size: UiSize.xs,
+                ),
               ),
               const Spacer(),
               Row(
@@ -208,10 +222,11 @@ class CommunityLiveRoomWidget extends StatelessWidget {
                   ),
                   SizedBox(width: context.sp(theme.spacing.xxs)),
                   Text(
-                    '$listeners listening',
+                    AppTokens.count(displayListeners),
                     style: context.uiText.caption.copyWith(
                       color: theme.colors.foregroundMuted,
-                      fontSize: context.fs(10),
+                      fontWeight: FontWeight.w600,
+                      fontSize: context.fs(11),
                     ),
                   ),
                 ],
@@ -220,7 +235,7 @@ class CommunityLiveRoomWidget extends StatelessWidget {
           ),
           SizedBox(height: context.sp(theme.spacing.xs)),
           Text(
-            title,
+            displayTitle,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: context.uiText.bodyStrong.copyWith(
@@ -230,7 +245,7 @@ class CommunityLiveRoomWidget extends StatelessWidget {
           ),
           SizedBox(height: context.sp(theme.spacing.xxs)),
           Text(
-            'Hosted by $host',
+            'Hosted by $displayHost',
             style: context.uiText.caption.copyWith(
               color: theme.colors.foregroundMuted,
               fontSize: context.fs(11),
@@ -246,9 +261,12 @@ class CommunityLiveRoomWidget extends StatelessWidget {
             onPressed: () {
               CommunityLiveRoomSheet.show(
                 context,
-                roomTitle: title,
-                hostName: host,
-                listenerCount: listeners,
+                roomId: room?.id,
+                roomTitle: displayTitle,
+                hostName: displayHost,
+                listenerCount: displayListeners,
+                pinnedSetup: room?.pinnedSetup,
+                repository: repository,
               );
             },
           ),
@@ -386,11 +404,14 @@ class CommunityNewsWidget extends StatelessWidget {
         SizedBox(height: context.sp(theme.spacing.xxs)),
         Row(
           children: <Widget>[
-            UiBadge(
-              label: item.category,
-              intent: sentimentIntent,
-              variant: UiBadgeVariant.soft,
-              size: UiSize.xs,
+            Flexible(
+              child: UiBadge(
+                label: item.category,
+                intent: sentimentIntent,
+                variant: UiBadgeVariant.soft,
+                size: UiSize.xs,
+                maxWidth: context.sz(110),
+              ),
             ),
             SizedBox(width: context.sp(theme.spacing.xs)),
             Expanded(
@@ -404,7 +425,8 @@ class CommunityNewsWidget extends StatelessWidget {
                 ),
               ),
             ),
-            if (item.postCount != null)
+            if (item.postCount != null) ...<Widget>[
+              SizedBox(width: context.sp(theme.spacing.xxs)),
               Text(
                 item.postCount!,
                 style: context.uiText.caption.copyWith(
@@ -412,6 +434,7 @@ class CommunityNewsWidget extends StatelessWidget {
                   fontSize: context.fs(11),
                 ),
               ),
+            ],
           ],
         ),
       ],
@@ -503,7 +526,12 @@ class CommunityTrendingWidget extends StatelessWidget {
           icon: Icons.more_horiz_rounded,
           size: UiSize.xs,
           tooltip: 'Options',
-          onPressed: () {},
+          onPressed: () => UiToast.show(
+            context,
+            title: item.topic,
+            message: 'Topic controls are available from the community feed.',
+            intent: UiIntent.neutral,
+          ),
         ),
       ],
     );
@@ -642,11 +670,14 @@ class CommunityDisclaimerCard extends StatelessWidget {
                 color: theme.colors.foregroundMuted,
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
-              Text(
-                'Regulatory Disclaimer',
-                style: context.uiText.bodyStrong.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: context.fs(12),
+              Expanded(
+                child: Text(
+                  'Regulatory Disclaimer',
+                  style: context.uiText.bodyStrong.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: context.fs(12),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -661,7 +692,9 @@ class CommunityDisclaimerCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
-          Row(
+          Wrap(
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xs),
             children: <Widget>[
               UiButton(
                 label: 'Advisors',
@@ -672,7 +705,6 @@ class CommunityDisclaimerCard extends StatelessWidget {
                   CommunityAdvisorDisclosureSheet.show(context);
                 },
               ),
-              SizedBox(width: context.sp(theme.spacing.xs)),
               UiButton(
                 label: 'Guidelines',
                 variant: UiVariant.ghost,

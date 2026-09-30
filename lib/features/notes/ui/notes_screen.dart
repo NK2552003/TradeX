@@ -110,7 +110,7 @@ class NotesScreenState extends State<NotesScreen> {
   bool _isGridView = true;
 
   AppNoteSort _sort = AppNoteSort.recentlyUpdated;
-  final AppNoteDensity _density = AppNoteDensity.comfortable;
+  AppNoteDensity _density = AppNoteDensity.comfortable;
   int _currentPage = 1;
   bool _dismissedBanner = false;
   _NotesCollection _collection = _NotesCollection.mine;
@@ -229,8 +229,9 @@ class NotesScreenState extends State<NotesScreen> {
   }
 
   List<AppNote> get _visible {
-    final List<AppNote> pool =
-        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+    final List<AppNote> pool = _collection == _NotesCollection.mine
+        ? _notes
+        : _publicNotes;
     final List<AppNote> baseFiltered = NotesQuery.apply(
       pool,
       query: _query,
@@ -239,12 +240,16 @@ class NotesScreenState extends State<NotesScreen> {
       sort: _sort,
     );
 
-    return baseFiltered.where((AppNote n) {
-      if (_ticker != null && !n.linkedTickers.contains(_ticker)) return false;
-      if (_strategyId != null && n.strategyId != _strategyId) return false;
-      if (_onlyWithJournal && n.linkedJournalIds.isEmpty) return false;
-      return true;
-    }).toList(growable: false);
+    return baseFiltered
+        .where((AppNote n) {
+          if (_ticker != null && !n.linkedTickers.contains(_ticker)) {
+            return false;
+          }
+          if (_strategyId != null && n.strategyId != _strategyId) return false;
+          if (_onlyWithJournal && n.linkedJournalIds.isEmpty) return false;
+          return true;
+        })
+        .toList(growable: false);
   }
 
   int get _totalPages => (_visible.length / _pageSize).ceil().clamp(1, 999999);
@@ -279,8 +284,9 @@ class NotesScreenState extends State<NotesScreen> {
   });
 
   List<String> get _availableTickers {
-    final List<AppNote> pool =
-        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+    final List<AppNote> pool = _collection == _NotesCollection.mine
+        ? _notes
+        : _publicNotes;
     final Set<String> tickers = <String>{};
     for (final AppNote n in pool) {
       tickers.addAll(n.linkedTickers);
@@ -290,8 +296,9 @@ class NotesScreenState extends State<NotesScreen> {
   }
 
   List<({String id, String name})> get _availableStrategies {
-    final List<AppNote> pool =
-        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+    final List<AppNote> pool = _collection == _NotesCollection.mine
+        ? _notes
+        : _publicNotes;
     final Map<String, String> map = <String, String>{};
     for (final AppNote n in pool) {
       if (n.strategyId != null && n.strategyName != null) {
@@ -307,15 +314,16 @@ class NotesScreenState extends State<NotesScreen> {
   }
 
   String _strategyNameFor(String id) {
-    for (final (:id, :name) in _availableStrategies) {
-      if (id == id) return name;
+    for (final (id: recordId, :name) in _availableStrategies) {
+      if (recordId == id) return name;
     }
     return id;
   }
 
   int _countForType(AppNoteType? type) {
-    final List<AppNote> pool =
-        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+    final List<AppNote> pool = _collection == _NotesCollection.mine
+        ? _notes
+        : _publicNotes;
     if (type == null) return pool.length;
     return pool.where((AppNote n) => n.noteType == type).length;
   }
@@ -338,7 +346,8 @@ class NotesScreenState extends State<NotesScreen> {
     onTypeChanged: (AppNoteType? t) => _updateFilter(() => _type = t),
     onTagChanged: (String? t) => _updateFilter(() => _tag = t),
     onSortChanged: (AppNoteSort s) => _updateFilter(() => _sort = s),
-    onDensityChanged: (_) {},
+    onDensityChanged: (AppNoteDensity density) =>
+        _updateFilter(() => _density = density),
     onNew: onNew,
   );
 
@@ -425,6 +434,10 @@ class NotesScreenState extends State<NotesScreen> {
         title: 'That record is gone',
         message: 'The link is kept so you can see it broke.',
       );
+      return;
+    }
+    if (ref.id == 'ai_copilot' || ref.kind == AppLinkKind.aiCopilot) {
+      widget.onOpenRef?.call(ref);
       return;
     }
     if (ref.kind == AppLinkKind.note) {
@@ -582,9 +595,8 @@ class NotesScreenState extends State<NotesScreen> {
         children: <Widget>[
           InkWell(
             borderRadius: context.radius(theme.radii.sm),
-            onTap: () => _updateFilter(
-              () => _collection = _NotesCollection.mine,
-            ),
+            onTap: () =>
+                _updateFilter(() => _collection = _NotesCollection.mine),
             child: Container(
               height: context.sz(28),
               alignment: Alignment.center,
@@ -647,9 +659,8 @@ class NotesScreenState extends State<NotesScreen> {
           ),
           InkWell(
             borderRadius: context.radius(theme.radii.sm),
-            onTap: () => _updateFilter(
-              () => _collection = _NotesCollection.public,
-            ),
+            onTap: () =>
+                _updateFilter(() => _collection = _NotesCollection.public),
             child: Container(
               height: context.sz(28),
               alignment: Alignment.center,
@@ -729,9 +740,7 @@ class NotesScreenState extends State<NotesScreen> {
       child: Container(
         height: context.sz(28),
         alignment: Alignment.center,
-        padding: EdgeInsets.symmetric(
-          horizontal: context.sp(theme.spacing.sm),
-        ),
+        padding: EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.sm)),
         decoration: BoxDecoration(
           color: isSelected ? colors.foreground : Colors.transparent,
           borderRadius: context.radius(theme.radii.sm),
@@ -800,8 +809,9 @@ class NotesScreenState extends State<NotesScreen> {
   Widget _executiveKpis(BuildContext context, {required double maxWidth}) {
     final UiTheme theme = context.ui;
     final UiColors colors = theme.colors;
-    final List<AppNote> pool =
-        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+    final List<AppNote> pool = _collection == _NotesCollection.mine
+        ? _notes
+        : _publicNotes;
 
     final List<AppTrade> unreviewed = _graph.journalList
         .where((AppTrade t) => _graph.bundleForJournal(t).notes.isEmpty)
@@ -823,7 +833,9 @@ class NotesScreenState extends State<NotesScreen> {
         .length;
 
     final int linkedCount = pool
-        .where((AppNote n) => n.linkedJournalIds.isNotEmpty || n.strategyId != null)
+        .where(
+          (AppNote n) => n.linkedJournalIds.isNotEmpty || n.strategyId != null,
+        )
         .length;
 
     final List<DeskStatCardData> stats = <DeskStatCardData>[
@@ -833,7 +845,8 @@ class NotesScreenState extends State<NotesScreen> {
         valueColor: colors.foreground,
         secondary: _collection == _NotesCollection.mine ? 'Personal' : 'Public',
         secondaryColor: colors.foregroundMuted,
-        subtitle: '${_notes.length} Personal · ${_publicNotes.length} Public notes',
+        subtitle:
+            '${_notes.length} Personal · ${_publicNotes.length} Public notes',
       ),
       DeskStatCardData(
         title: 'TRADE PREP & PLANS',
@@ -863,10 +876,7 @@ class NotesScreenState extends State<NotesScreen> {
       ),
     ];
 
-    return DeskStatsOverview(
-      stats: stats,
-      maxWidth: maxWidth,
-    );
+    return DeskStatsOverview(stats: stats, maxWidth: maxWidth);
   }
 
   // ── SubNavbar & Tabs ───────────────────────────────────────────────────────
@@ -874,8 +884,9 @@ class NotesScreenState extends State<NotesScreen> {
   Widget _buildSubNavbar(BuildContext context, {required double maxWidth}) {
     final UiTheme theme = context.ui;
     final UiColors colors = theme.colors;
-    final List<AppNote> pool =
-        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+    final List<AppNote> pool = _collection == _NotesCollection.mine
+        ? _notes
+        : _publicNotes;
 
     final Widget categories = SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -1012,14 +1023,10 @@ class NotesScreenState extends State<NotesScreen> {
 
     final Widget journalLinkToggle = InkWell(
       borderRadius: context.radius(theme.radii.md),
-      onTap: () => _updateFilter(
-        () => _onlyWithJournal = !_onlyWithJournal,
-      ),
+      onTap: () => _updateFilter(() => _onlyWithJournal = !_onlyWithJournal),
       child: Container(
         height: context.sz(32),
-        padding: EdgeInsets.symmetric(
-          horizontal: context.sp(theme.spacing.sm),
-        ),
+        padding: EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.sm)),
         decoration: BoxDecoration(
           color: _onlyWithJournal
               ? colors.primary.withValues(alpha: 0.1)
@@ -1035,9 +1042,7 @@ class NotesScreenState extends State<NotesScreen> {
             Icon(
               _onlyWithJournal ? Icons.check_rounded : Icons.link_rounded,
               size: 13,
-              color: _onlyWithJournal
-                  ? colors.primary
-                  : colors.foregroundMuted,
+              color: _onlyWithJournal ? colors.primary : colors.foregroundMuted,
             ),
             const SizedBox(width: 4),
             Text(
@@ -1046,8 +1051,9 @@ class NotesScreenState extends State<NotesScreen> {
                 color: _onlyWithJournal
                     ? colors.foreground
                     : colors.foregroundMuted,
-                fontWeight:
-                    _onlyWithJournal ? FontWeight.bold : FontWeight.w500,
+                fontWeight: _onlyWithJournal
+                    ? FontWeight.bold
+                    : FontWeight.w500,
                 fontSize: 12,
               ),
             ),
@@ -1210,8 +1216,9 @@ class NotesScreenState extends State<NotesScreen> {
     final String title = _collection == _NotesCollection.mine
         ? 'Your Notes'
         : 'Public Notes';
-    final List<AppNote> pool =
-        _collection == _NotesCollection.mine ? _notes : _publicNotes;
+    final List<AppNote> pool = _collection == _NotesCollection.mine
+        ? _notes
+        : _publicNotes;
 
     return DeskSectionHeader(
       title: title,
@@ -1295,7 +1302,12 @@ class NotesScreenState extends State<NotesScreen> {
       );
     }
 
-    return _buildNoteCardGrid(context, visibleBatch, columns: columns, gap: gap);
+    return _buildNoteCardGrid(
+      context,
+      visibleBatch,
+      columns: columns,
+      gap: gap,
+    );
   }
 
   Widget _buildNoteCardGrid(
@@ -1368,7 +1380,10 @@ class NotesScreenState extends State<NotesScreen> {
 
   // ── Footer Status Bar ──────────────────────────────────────────────────────
 
-  Widget _buildFooterStatusBar(BuildContext context, {required double maxWidth}) {
+  Widget _buildFooterStatusBar(
+    BuildContext context, {
+    required double maxWidth,
+  }) {
     return const DeskStatusBarFooter(
       syncLabel: 'Auto-synced with Journal & Broker API',
       latency: '24ms',
@@ -1477,8 +1492,9 @@ class NotesScreenState extends State<NotesScreen> {
               child: LayoutBuilder(
                 builder: (BuildContext context, BoxConstraints constraints) {
                   final double maxWidth = constraints.maxWidth;
-                  final int columns =
-                      maxWidth >= 1024 ? 3 : (maxWidth >= 640 ? 2 : 1);
+                  final int columns = maxWidth >= 1024
+                      ? 3
+                      : (maxWidth >= 640 ? 2 : 1);
 
                   return Padding(
                     padding: EdgeInsets.symmetric(
@@ -1547,8 +1563,7 @@ class NotesScreenState extends State<NotesScreen> {
                         _buildFooterStatusBar(context, maxWidth: maxWidth),
 
                         SizedBox(
-                          height:
-                              context.uiPageBottomInset + context.sz(72),
+                          height: context.uiPageBottomInset + context.sz(72),
                         ),
                       ],
                     ),

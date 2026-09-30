@@ -436,6 +436,10 @@ class JournalScreenState extends State<JournalScreen> {
       );
       return;
     }
+    if (ref.id == 'ai_copilot' || ref.kind == AppLinkKind.aiCopilot) {
+      widget.onOpenRef?.call(ref);
+      return;
+    }
     if (ref.kind == AppLinkKind.journal) {
       _open(ref.id);
       return;

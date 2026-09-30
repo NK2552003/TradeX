@@ -29,6 +29,9 @@ class UniversalCommentsSection extends StatefulWidget {
     this.onAuthorTap,
     this.onTagTap,
     this.title = 'Trader Discussion',
+    this.isPublic = true,
+    this.canToggleVisibility = true,
+    this.onToggleVisibility,
   });
 
   final String targetId;
@@ -40,10 +43,14 @@ class UniversalCommentsSection extends StatefulWidget {
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<String>? onTagTap;
   final String title;
+  final bool isPublic;
+  final bool canToggleVisibility;
+  final ValueChanged<bool>? onToggleVisibility;
 
   @override
   State<UniversalCommentsSection> createState() => _UniversalCommentsSectionState();
 }
+
 
 class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
   final TextEditingController _mainCommentCtrl = TextEditingController();
@@ -121,6 +128,23 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
     });
   }
 
+  String _targetLabel() {
+    switch (widget.targetType) {
+      case 'note':
+        return 'Note';
+      case 'strategy':
+      case 'strategy_playbook':
+        return 'Playbook';
+      case 'journal':
+      case 'trade_journal':
+        return 'Trade Review';
+      case 'post':
+        return 'Post';
+      default:
+        return 'Record';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
@@ -132,48 +156,104 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         // ---------------------------------------------------------------------
-        // Section Header (Title, Count, Sort)
+        // Privacy Callout Banner (when thread/target is private)
+        // ---------------------------------------------------------------------
+        if (!widget.isPublic) ...<Widget>[
+          UiCallout(
+            title: 'Private ${_targetLabel()} Discussion',
+            message: widget.canToggleVisibility
+                ? 'This ${_targetLabel().toLowerCase()} is currently private. Discussion is visible only to you. Make it public to invite feedback and critique from the trader network.'
+                : 'This ${_targetLabel().toLowerCase()} is private. Discussion is visible only to authorized collaborators.',
+            intent: UiIntent.warning,
+            icon: Icons.lock_outline_rounded,
+            action: widget.canToggleVisibility && widget.onToggleVisibility != null
+                ? UiButton(
+                    label: 'Make Public',
+                    leadingIcon: Icons.public_rounded,
+                    size: UiSize.xs,
+                    variant: UiVariant.solid,
+                    intent: UiIntent.success,
+                    onPressed: () => widget.onToggleVisibility!(true),
+                  )
+                : null,
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+        ],
+
+        // ---------------------------------------------------------------------
+        // Section Header (Title, Count, Privacy Badge, Quick Toggle, Sort)
         // ---------------------------------------------------------------------
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
-            Row(
-              children: <Widget>[
-                Icon(
-                  Icons.forum_rounded,
-                  size: context.sz(18),
-                  color: theme.colors.primary,
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Text(
-                  widget.title,
-                  style: context.uiText.heading.copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontSize: context.fs(16),
+            Expanded(
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: context.sp(theme.spacing.xs),
+                runSpacing: context.sp(theme.spacing.xxs),
+                children: <Widget>[
+                  Icon(
+                    Icons.forum_rounded,
+                    size: context.sz(18),
+                    color: theme.colors.primary,
                   ),
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                UiBadge(
-                  label: '$totalCount',
-                  intent: UiIntent.primary,
-                  variant: UiBadgeVariant.soft,
-                  size: UiSize.xs,
-                ),
-              ],
+                  Text(
+                    widget.title,
+                    style: context.uiText.heading.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: context.fs(16),
+                    ),
+                  ),
+                  UiBadge(
+                    label: '$totalCount',
+                    intent: UiIntent.primary,
+                    variant: UiBadgeVariant.soft,
+                    size: UiSize.xs,
+                  ),
+                  UiBadge(
+                    label: widget.isPublic ? 'Public' : 'Private',
+                    intent: widget.isPublic ? UiIntent.success : UiIntent.warning,
+                    variant: UiBadgeVariant.soft,
+                    size: UiSize.xs,
+                    icon: widget.isPublic
+                        ? Icons.public_rounded
+                        : Icons.lock_outline_rounded,
+                  ),
+                ],
+              ),
             ),
-            UiToggleGroup<String>(
-              size: UiSize.xs,
-              value: _sortBy,
-              onChanged: (v) => setState(() => _sortBy = v),
-              options: const <UiToggleOption<String>>[
-                UiToggleOption(value: 'Most Relevant', label: 'Top'),
-                UiToggleOption(value: 'Newest', label: 'Newest'),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (widget.canToggleVisibility && widget.onToggleVisibility != null) ...[
+                  UiButton(
+                    label: widget.isPublic ? 'Make Private' : 'Make Public',
+                    leadingIcon: widget.isPublic
+                        ? Icons.lock_outline_rounded
+                        : Icons.public_rounded,
+                    variant: UiVariant.ghost,
+                    size: UiSize.xs,
+                    intent: widget.isPublic ? UiIntent.warning : UiIntent.success,
+                    onPressed: () => widget.onToggleVisibility!(!widget.isPublic),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                ],
+                UiToggleGroup<String>(
+                  size: UiSize.xs,
+                  value: _sortBy,
+                  onChanged: (v) => setState(() => _sortBy = v),
+                  options: const <UiToggleOption<String>>[
+                    UiToggleOption(value: 'Most Relevant', label: 'Top'),
+                    UiToggleOption(value: 'Newest', label: 'Newest'),
+                  ],
+                ),
               ],
             ),
           ],
         ),
 
         SizedBox(height: context.sp(theme.spacing.sm)),
+
 
         // ---------------------------------------------------------------------
         // LinkedIn-Style Primary Composer Box

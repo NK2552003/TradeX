@@ -422,6 +422,7 @@ class CommunityPost {
     required this.body,
     required this.createdAt,
     this.isPinned = false,
+    this.isPublic = true,
     this.repostedBy,
     this.tickers = const <String>[],
     this.tags = const <String>[],
@@ -454,9 +455,11 @@ class CommunityPost {
   final String body;
   final DateTime createdAt;
   final bool isPinned;
+  final bool isPublic;
 
   /// When non-null this post appears as a repost with a banner.
   final String? repostedBy;
+
   final List<String> tickers;
   final List<String> tags;
   final CommunityTradeSetup? tradeSetup;
@@ -518,6 +521,7 @@ class CommunityPost {
     bool? reposted,
     bool? bookmarked,
     bool? isPinned,
+    bool? isPublic,
     String? repostedBy,
     AppWritingPostAttachment? attachment,
     bool clearAttachment = false,
@@ -539,8 +543,10 @@ class CommunityPost {
     body: body ?? this.body,
     createdAt: createdAt,
     isPinned: isPinned ?? this.isPinned,
+    isPublic: isPublic ?? this.isPublic,
     repostedBy: repostedBy ?? this.repostedBy,
     tickers: tickers ?? this.tickers,
+
     tags: tags ?? this.tags,
     tradeSetup: clearTradeSetup ? null : (tradeSetup ?? this.tradeSetup),
     linkPreview: linkPreview,
@@ -751,4 +757,109 @@ class CommunityNotificationItem {
     CommunityNotificationType.mention => 'mentioned you',
     CommunityNotificationType.signal => 'published a new signal',
   };
+}
+
+// ---------------------------------------------------------------------------
+// Live Audio Space / Room
+// ---------------------------------------------------------------------------
+
+enum LiveRoomStatus {
+  live,
+  scheduled,
+  ended,
+}
+
+@immutable
+class LivePinnedSetup {
+  const LivePinnedSetup({
+    required this.ticker,
+    required this.side,
+    required this.entry,
+    required this.stopLoss,
+    required this.target,
+    required this.note,
+  });
+
+  final String ticker;
+  final String side; // 'LONG' or 'SHORT'
+  final double entry;
+  final double stopLoss;
+  final double target;
+  final String note;
+
+  double get risk => (entry - stopLoss).abs();
+  double get reward => (target - entry).abs();
+  double get rrRatio => risk > 0 ? (reward / risk) : 1.0;
+}
+
+@immutable
+class LiveAudioRoom {
+  const LiveAudioRoom({
+    required this.id,
+    required this.title,
+    required this.topic,
+    required this.host,
+    required this.category,
+    this.status = LiveRoomStatus.live,
+    this.listenerCount = 0,
+    this.speakers = const <String>[],
+    this.pinnedSetup,
+    this.scheduledFor,
+    this.startedAt,
+    this.isRecording = false,
+    this.tags = const <String>[],
+    this.hasReminder = false,
+  });
+
+  final String id;
+  final String title;
+  final String topic;
+  final CommunityAuthor host;
+  final String category;
+  final LiveRoomStatus status;
+  final int listenerCount;
+  final List<String> speakers;
+  final LivePinnedSetup? pinnedSetup;
+  final DateTime? scheduledFor;
+  final DateTime? startedAt;
+  final bool isRecording;
+  final List<String> tags;
+  final bool hasReminder;
+
+  bool get isLive => status == LiveRoomStatus.live;
+  bool get isScheduled => status == LiveRoomStatus.scheduled;
+
+  LiveAudioRoom copyWith({
+    String? id,
+    String? title,
+    String? topic,
+    CommunityAuthor? host,
+    String? category,
+    LiveRoomStatus? status,
+    int? listenerCount,
+    List<String>? speakers,
+    LivePinnedSetup? pinnedSetup,
+    DateTime? scheduledFor,
+    DateTime? startedAt,
+    bool? isRecording,
+    List<String>? tags,
+    bool? hasReminder,
+  }) {
+    return LiveAudioRoom(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      topic: topic ?? this.topic,
+      host: host ?? this.host,
+      category: category ?? this.category,
+      status: status ?? this.status,
+      listenerCount: listenerCount ?? this.listenerCount,
+      speakers: speakers ?? this.speakers,
+      pinnedSetup: pinnedSetup ?? this.pinnedSetup,
+      scheduledFor: scheduledFor ?? this.scheduledFor,
+      startedAt: startedAt ?? this.startedAt,
+      isRecording: isRecording ?? this.isRecording,
+      tags: tags ?? this.tags,
+      hasReminder: hasReminder ?? this.hasReminder,
+    );
+  }
 }

@@ -724,7 +724,8 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
               .toList(growable: false),
         );
       case AppLinkKind.strategy:
-        // A playbook is never linked to another playbook.
+      default:
+        // A playbook is never linked to another playbook or other entities here.
         return;
     }
   }

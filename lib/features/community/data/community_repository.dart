@@ -58,6 +58,10 @@ class CommunityRepository extends ChangeNotifier {
       <String, List<CommunityChatMessage>>{};
   final Map<String, CommunityPostInsights> _insightsByPost =
       <String, CommunityPostInsights>{};
+  List<LiveAudioRoom> _liveRooms = <LiveAudioRoom>[];
+  String? _tunedRoomId;
+  bool _isAudioMuted = true;
+  bool _isHandRaised = false;
 
   // -------------------------------------------------------------------------
   // Accessors
@@ -87,6 +91,23 @@ class CommunityRepository extends ChangeNotifier {
   Set<String> get blockedUsers => _blockedUsers;
   List<CommunityPost> get feedPosts => forYouPosts;
   List<CommunityAuthor> get topTraders => suggestedTraders;
+
+  List<LiveAudioRoom> get liveRooms =>
+      _liveRooms.where((r) => r.isLive).toList();
+  List<LiveAudioRoom> get upcomingRooms =>
+      _liveRooms.where((r) => r.isScheduled).toList();
+  List<LiveAudioRoom> get allLiveRooms =>
+      List<LiveAudioRoom>.unmodifiable(_liveRooms);
+  LiveAudioRoom? get activeTunedRoom {
+    if (_tunedRoomId == null) return null;
+    return _liveRooms.cast<LiveAudioRoom?>().firstWhere(
+      (r) => r?.id == _tunedRoomId,
+      orElse: () => null,
+    );
+  }
+  bool get isTunedIntoLiveRoom => _tunedRoomId != null;
+  bool get isAudioMuted => _isAudioMuted;
+  bool get isHandRaised => _isHandRaised;
 
   static const CommunityAuthor _defaultCurrentUser = CommunityAuthor(
     id: 'usr_nitish_trader',
@@ -549,7 +570,27 @@ class CommunityRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  CommunityPost? setPostVisibility(String postId, bool isPublic) {
+    CommunityPost? updated;
+    CommunityPost update(CommunityPost p) {
+      if (p.id == postId) {
+        updated = p.copyWith(isPublic: isPublic);
+        return updated!;
+      }
+      return p;
+    }
+
+    _forYouPosts = _forYouPosts.map(update).toList();
+    _followingPosts = _followingPosts.map(update).toList();
+    _signalPosts = _signalPosts.map(update).toList();
+    _bookmarkedPosts = _bookmarkedPosts.map(update).toList();
+
+    notifyListeners();
+    return updated;
+  }
+
   List<CommunityPost> _editPostInList(
+
     List<CommunityPost> list,
     String id,
     String newBody, {
@@ -858,6 +899,87 @@ class CommunityRepository extends ChangeNotifier {
       );
     }).toList();
     notifyListeners();
+  }
+
+  // -------------------------------------------------------------------------
+  // Live Audio Spaces Controls
+  // -------------------------------------------------------------------------
+
+  void tuneIntoRoom(String roomId) {
+    if (_tunedRoomId == roomId) return;
+    _tunedRoomId = roomId;
+    final index = _liveRooms.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final room = _liveRooms[index];
+      _liveRooms[index] = room.copyWith(listenerCount: room.listenerCount + 1);
+    }
+    notifyListeners();
+  }
+
+  void leaveRoom() {
+    if (_tunedRoomId == null) return;
+    final index = _liveRooms.indexWhere((r) => r.id == _tunedRoomId);
+    if (index != -1) {
+      final room = _liveRooms[index];
+      _liveRooms[index] = room.copyWith(
+        listenerCount: (room.listenerCount - 1).clamp(0, 999999),
+      );
+    }
+    _tunedRoomId = null;
+    _isHandRaised = false;
+    notifyListeners();
+  }
+
+  void toggleMute() {
+    _isAudioMuted = !_isAudioMuted;
+    notifyListeners();
+  }
+
+  void toggleHandRaised() {
+    _isHandRaised = !_isHandRaised;
+    notifyListeners();
+  }
+
+  void toggleRoomReminder(String roomId) {
+    final index = _liveRooms.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final room = _liveRooms[index];
+      _liveRooms[index] = room.copyWith(hasReminder: !room.hasReminder);
+      notifyListeners();
+    }
+  }
+
+  LiveAudioRoom createLiveRoom({
+    required String title,
+    required String topic,
+    required String category,
+    LivePinnedSetup? pinnedSetup,
+    bool startNow = true,
+    DateTime? scheduledFor,
+    List<String> tags = const <String>[],
+  }) {
+    final id = 'room_${DateTime.now().millisecondsSinceEpoch}';
+    final room = LiveAudioRoom(
+      id: id,
+      title: title,
+      topic: topic,
+      host: _defaultCurrentUser,
+      category: category,
+      status: startNow ? LiveRoomStatus.live : LiveRoomStatus.scheduled,
+      listenerCount: startNow ? 1 : 0,
+      speakers: <String>[_defaultCurrentUser.displayName],
+      pinnedSetup: pinnedSetup,
+      scheduledFor: scheduledFor,
+      startedAt: startNow ? DateTime.now() : null,
+      isRecording: true,
+      tags: tags,
+    );
+    _liveRooms.insert(0, room);
+    if (startNow) {
+      _tunedRoomId = id;
+    }
+    notifyListeners();
+    return room;
   }
 
   // -------------------------------------------------------------------------
@@ -1718,6 +1840,92 @@ class CommunityRepository extends ChangeNotifier {
         senderId: _priyaSharma.id,
         text: 'Check out the Iron Condor Greeks on 47500CE!',
         sentAt: now.subtract(const Duration(minutes: 25)),
+      ),
+    ];
+
+    // Seed Live Audio Spaces
+    _liveRooms = <LiveAudioRoom>[
+      LiveAudioRoom(
+        id: 'room_nifty_expiry',
+        title: 'Nifty & BankNifty Live Expiry Floor',
+        topic: 'VWAP breakout & strong CE OI unwinding at 24,800 strike',
+        host: _rajeshPatel,
+        category: 'Options & Expiry',
+        status: LiveRoomStatus.live,
+        listenerCount: 142,
+        speakers: const <String>[
+          'Rajesh Sharma, CMT',
+          'Sarah Chen, Quant',
+          'Vikram Joshi',
+        ],
+        pinnedSetup: const LivePinnedSetup(
+          ticker: 'NIFTY 24,850 CE',
+          side: 'LONG',
+          entry: 142.50,
+          stopLoss: 118.00,
+          target: 210.00,
+          note: 'VWAP breakout with strong CE OI unwinding at 24,800 strike.',
+        ),
+        startedAt: now.subtract(const Duration(minutes: 42)),
+        isRecording: true,
+        tags: const <String>['#Nifty', '#Options', '#ExpirySpecial'],
+      ),
+      LiveAudioRoom(
+        id: 'room_crypto_macro',
+        title: 'Crypto Alpha Desk: BTC ATH Retest & Altcoin Liquidity',
+        topic: 'Spot ETF inflows, funding rates, and Solana breakout setups',
+        host: _marcoSilva,
+        category: 'Crypto',
+        status: LiveRoomStatus.live,
+        listenerCount: 89,
+        speakers: const <String>[
+          'Marco Silva',
+          'Elena Rostova',
+          'Dr. Aris Thorne',
+        ],
+        pinnedSetup: const LivePinnedSetup(
+          ticker: 'BTC/USDT',
+          side: 'LONG',
+          entry: 94200.00,
+          stopLoss: 91800.00,
+          target: 104000.00,
+          note: 'Daily 21 EMA bounce with open interest expansion.',
+        ),
+        startedAt: now.subtract(const Duration(minutes: 25)),
+        isRecording: false,
+        tags: const <String>['#Bitcoin', '#Crypto', '#Breakout'],
+      ),
+      LiveAudioRoom(
+        id: 'room_post_expiry',
+        title: 'Post-Expiry Debrief & Journaling',
+        topic: 'Analyzing gamma squeezes, mistake reviews, and journaling execution stats',
+        host: _elenaRostova,
+        category: 'Education',
+        status: LiveRoomStatus.scheduled,
+        listenerCount: 0,
+        speakers: const <String>[
+          'Elena Rostova',
+          'Sarah Chen, Quant',
+        ],
+        scheduledFor: now.add(const Duration(hours: 4)),
+        isRecording: true,
+        tags: const <String>['#Debrief', '#RiskManagement', '#Journal'],
+      ),
+      LiveAudioRoom(
+        id: 'room_pre_market',
+        title: 'Pre-Market Gameplan: Global Cues & Gift Nifty',
+        topic: 'US Fed commentary, crude oil trends, and morning open levels',
+        host: _priyaSharma,
+        category: 'Macro',
+        status: LiveRoomStatus.scheduled,
+        listenerCount: 0,
+        speakers: const <String>[
+          'Priya Sharma',
+          'Rajesh Patel',
+        ],
+        scheduledFor: now.add(const Duration(hours: 18)),
+        isRecording: true,
+        tags: const <String>['#PreMarket', '#Macro', '#Levels'],
       ),
     ];
   }

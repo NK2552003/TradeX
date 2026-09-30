@@ -1270,13 +1270,19 @@ enum AppLinkKind {
   note,
   journal,
   strategy,
-  ticker;
+  ticker,
+  aiCopilot,
+  communityPost,
+  messageThread;
 
   String get label => switch (this) {
     AppLinkKind.note => 'Note',
     AppLinkKind.journal => 'Journal entry',
     AppLinkKind.strategy => 'Strategy',
     AppLinkKind.ticker => 'Ticker',
+    AppLinkKind.aiCopilot => 'AI Copilot',
+    AppLinkKind.communityPost => 'Community Post',
+    AppLinkKind.messageThread => 'Conversation',
   };
 
   /// Plural used in section headers.
@@ -1285,6 +1291,9 @@ enum AppLinkKind {
     AppLinkKind.journal => 'Journal entries',
     AppLinkKind.strategy => 'Strategies',
     AppLinkKind.ticker => 'Tickers',
+    AppLinkKind.aiCopilot => 'AI Copilots',
+    AppLinkKind.communityPost => 'Community Posts',
+    AppLinkKind.messageThread => 'Conversations',
   };
 
   IconData get icon => switch (this) {
@@ -1292,6 +1301,9 @@ enum AppLinkKind {
     AppLinkKind.journal => Icons.menu_book_outlined,
     AppLinkKind.strategy => Icons.account_tree_outlined,
     AppLinkKind.ticker => Icons.candlestick_chart_outlined,
+    AppLinkKind.aiCopilot => Icons.auto_awesome_rounded,
+    AppLinkKind.communityPost => Icons.public_rounded,
+    AppLinkKind.messageThread => Icons.chat_bubble_outline_rounded,
   };
 
   UiIntent get intent => switch (this) {
@@ -1299,6 +1311,9 @@ enum AppLinkKind {
     AppLinkKind.journal => UiIntent.primary,
     AppLinkKind.strategy => UiIntent.bullish,
     AppLinkKind.ticker => UiIntent.warning,
+    AppLinkKind.aiCopilot => UiIntent.primary,
+    AppLinkKind.communityPost => UiIntent.info,
+    AppLinkKind.messageThread => UiIntent.success,
   };
 
   /// The workspace destination id this kind opens in, matching the ids
@@ -1308,6 +1323,9 @@ enum AppLinkKind {
     AppLinkKind.journal => 'journal',
     AppLinkKind.strategy => 'strategies',
     AppLinkKind.ticker => 'markets',
+    AppLinkKind.aiCopilot => 'ai_copilot',
+    AppLinkKind.communityPost => 'community_feed',
+    AppLinkKind.messageThread => 'messages',
   };
 
   /// Host segment used by `tradex://` deep links.
@@ -1316,6 +1334,9 @@ enum AppLinkKind {
     AppLinkKind.journal => 'journal',
     AppLinkKind.strategy => 'strategy',
     AppLinkKind.ticker => 'ticker',
+    AppLinkKind.aiCopilot => 'copilot',
+    AppLinkKind.communityPost => 'community',
+    AppLinkKind.messageThread => 'message',
   };
 
   static AppLinkKind? fromHost(String? host) => switch (host) {
@@ -1323,6 +1344,9 @@ enum AppLinkKind {
     'journal' || 'entry' || 'trade' => AppLinkKind.journal,
     'strategy' || 'strategies' => AppLinkKind.strategy,
     'ticker' || 'symbol' => AppLinkKind.ticker,
+    'copilot' || 'ai' || 'ai_copilot' => AppLinkKind.aiCopilot,
+    'community' || 'post' || 'posts' => AppLinkKind.communityPost,
+    'message' || 'messages' || 'chat' => AppLinkKind.messageThread,
     _ => null,
   };
 }
@@ -1419,6 +1443,7 @@ class AppLinkBundle {
     AppLinkKind.journal => journal,
     AppLinkKind.strategy => strategies,
     AppLinkKind.ticker => tickers,
+    _ => const <AppLinkRef>[],
   };
 }
 

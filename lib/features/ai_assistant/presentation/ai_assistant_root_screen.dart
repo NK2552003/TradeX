@@ -12,7 +12,6 @@ import 'package:tradex/features/ai_assistant/presentation/views/ai_history_view.
 import 'package:tradex/features/ai_assistant/presentation/views/ai_insights_view.dart';
 import 'package:tradex/features/ai_assistant/presentation/widgets/ai_assistant_widgets.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/core/linking/link_graph.dart';
 
 /// The AI Assistant shell — three-tier responsive copilot layout.
 ///
@@ -114,7 +113,14 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   }
   
   void _applyRequest(AppLinkOpenRequest request) {
-    // We could navigate to a specific AI chat if we had IDs
+    final String targetId = request.id;
+    if (_repo.threads.any((t) => t.id == targetId)) {
+      _repo.selectThread(targetId);
+      setState(() {
+        _mobileTab = 0;
+        _mobilePanel = _MobilePanel.none;
+      });
+    }
   }
 
   void _onRepo() {

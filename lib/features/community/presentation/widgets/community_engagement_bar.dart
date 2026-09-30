@@ -159,17 +159,20 @@ class CommunityEngagementBar extends StatelessWidget {
 
           return Row(
             children: <Widget>[
-              // Primary metrics spaced evenly up to 440px max width
-              Flexible(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: primaryMetrics,
+              // Give the metrics a bounded, allocated row. A loose Flexible
+              // shrink-wrapped the Wrap on desktop, stacking actions vertically.
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    width: 440,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: primaryMetrics,
+                    ),
                   ),
                 ),
               ),
-              const Spacer(),
               // Utility actions grouped neatly on the far right
               Row(
                 mainAxisSize: MainAxisSize.min,

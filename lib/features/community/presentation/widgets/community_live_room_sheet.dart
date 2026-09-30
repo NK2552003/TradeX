@@ -4,30 +4,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/community/data/community_repository.dart';
+import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
-
-/// Pinned trade setup shared inside the live audio space.
-class LivePinnedSetup {
-  const LivePinnedSetup({
-    required this.ticker,
-    required this.side,
-    required this.entry,
-    required this.stopLoss,
-    required this.target,
-    required this.note,
-  });
-
-  final String ticker;
-  final String side; // 'LONG' or 'SHORT'
-  final double entry;
-  final double stopLoss;
-  final double target;
-  final String note;
-
-  double get risk => (entry - stopLoss).abs();
-  double get reward => (target - entry).abs();
-  double get rrRatio => risk > 0 ? (reward / risk) : 1.0;
-}
 
 /// Floating reaction item for the upward floating animation.
 class _FloatingEmoji {
@@ -108,6 +87,7 @@ class _UpNextRoom {
 class CommunityLiveRoomSheet extends StatefulWidget {
   const CommunityLiveRoomSheet({
     super.key,
+    this.roomId,
     this.roomTitle = 'Nifty & BankNifty Live Expiry Floor',
     this.hostName = 'Rajesh Sharma, CMT',
     this.listenerCount = 142,
@@ -119,29 +99,41 @@ class CommunityLiveRoomSheet extends StatefulWidget {
       target: 210.00,
       note: 'VWAP breakout with strong CE OI unwinding at 24,800 strike.',
     ),
+    this.repository,
     this.onMinimize,
+    this.onLeave,
   });
 
+  final String? roomId;
   final String roomTitle;
   final String hostName;
   final int listenerCount;
   final LivePinnedSetup? pinnedSetup;
+  final CommunityRepository? repository;
   final VoidCallback? onMinimize;
+  final VoidCallback? onLeave;
 
   static Future<void> show(
     BuildContext context, {
+    String? roomId,
     String? roomTitle,
     String? hostName,
     int? listenerCount,
     LivePinnedSetup? pinnedSetup,
+    CommunityRepository? repository,
     VoidCallback? onMinimize,
+    VoidCallback? onLeave,
   }) {
+    if (repository != null && roomId != null) {
+      repository.tuneIntoRoom(roomId);
+    }
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext ctx) => CommunityDensityScope(
         child: CommunityLiveRoomSheet(
+          roomId: roomId,
           roomTitle: roomTitle ?? 'Nifty & BankNifty Live Expiry Floor',
           hostName: hostName ?? 'Rajesh Sharma, CMT',
           listenerCount: listenerCount ?? 142,
@@ -155,7 +147,9 @@ class CommunityLiveRoomSheet extends StatefulWidget {
                 note:
                     'VWAP breakout with strong CE OI unwinding at 24,800 strike.',
               ),
+          repository: repository,
           onMinimize: onMinimize,
+          onLeave: onLeave,
         ),
       ),
     );
@@ -469,6 +463,14 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
         );
       }
     });
+  }
+
+  void _handleLeave() {
+    Navigator.of(context).pop();
+    if (widget.repository != null) {
+      widget.repository!.leaveRoom();
+    }
+    widget.onLeave?.call();
   }
 
   void _votePoll(int choice) {
@@ -1425,8 +1427,8 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                     icon: Icons.close_rounded,
                     variant: UiVariant.ghost,
                     size: UiSize.sm,
-                    tooltip: 'Close',
-                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: 'Leave Room',
+                    onPressed: _handleLeave,
                   ),
                 ],
               ),
@@ -1471,6 +1473,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                 variant: UiTabsVariant.pill,
                 size: UiSize.sm,
                 showPanel: false,
+                scrollable: true,
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
 
@@ -1610,7 +1613,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                       leadingIcon: Icons.logout_rounded,
                       variant: UiVariant.outline,
                       size: UiSize.sm,
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: _handleLeave,
                     ),
                   ],
                 ),

@@ -267,6 +267,9 @@ class AppLinkGraphService {
       // A journal entry's instrument is the trade's own ticker, not a link the
       // trader adds or removes. Changing it means editing the trade.
       case AppLinkKind.ticker:
+      case AppLinkKind.aiCopilot:
+      case AppLinkKind.communityPost:
+      case AppLinkKind.messageThread:
         return;
     }
   }

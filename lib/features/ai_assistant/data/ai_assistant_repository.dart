@@ -275,6 +275,9 @@ class AiAssistantRepository extends ChangeNotifier {
     _notify();
   }
 
+  /// Alias for [stop] to halt active generation.
+  void stopGenerating() => stop();
+
   /// Regenerates the answer for [assistantMessage] using its preceding prompt.
   ///
   /// @backend POST /ai/messages/{id}/regenerate

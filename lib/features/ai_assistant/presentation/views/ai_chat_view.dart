@@ -67,22 +67,23 @@ class _AiChatViewState extends State<AiChatView> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext ctx) => _AiAttachmentSheet(
-        repository: _repository,
-      ),
+      builder: (BuildContext ctx) =>
+          _AiAttachmentSheet(repository: _repository),
     );
   }
 
   void _showRenameDialog(BuildContext context) {
-    final TextEditingController controller =
-        TextEditingController(text: _repository.activeThread.title);
+    final TextEditingController controller = TextEditingController(
+      text: _repository.activeThread.title,
+    );
     UiDialog.show<void>(
       context,
       child: UiDialog(
         title: 'Rename Thread',
         content: Padding(
           padding: EdgeInsets.symmetric(
-              vertical: context.sp(context.ui.spacing.sm)),
+            vertical: context.sp(context.ui.spacing.sm),
+          ),
           child: UiInput(
             label: 'Thread title',
             controller: controller,
@@ -194,7 +195,8 @@ class _AiChatViewState extends State<AiChatView> {
                       onPressed: () {
                         final msgs = _repository.messages;
                         if (msgs.isNotEmpty) {
-                          final last = msgs
+                          final last =
+                              msgs
                                   .where((m) => m.role == AppAiRole.assistant)
                                   .lastOrNull ??
                               msgs.last;
@@ -254,7 +256,9 @@ class _AiChatViewState extends State<AiChatView> {
           Expanded(
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 780), // kAiChatMaxWidth
+                constraints: const BoxConstraints(
+                  maxWidth: 780,
+                ), // kAiChatMaxWidth
                 child: isEmpty
                     ? _buildEmptyState()
                     : _buildChatBlock(messages, generating, actions),
@@ -285,8 +289,9 @@ class _AiChatViewState extends State<AiChatView> {
                 SizedBox(height: context.sp(theme.spacing.xs)),
                 Text(
                   'Select a trading capability or ask anything about setups, risk, and strategies.',
-                  style: context.uiText.body
-                      .copyWith(color: theme.colors.foregroundMuted),
+                  style: context.uiText.body.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
                 ),
                 SizedBox(height: context.sp(theme.spacing.md)),
                 GridView.builder(
@@ -296,7 +301,11 @@ class _AiChatViewState extends State<AiChatView> {
                     crossAxisCount: context.uiRes.isMobile ? 1 : 2,
                     crossAxisSpacing: context.sp(theme.spacing.sm),
                     mainAxisSpacing: context.sp(theme.spacing.sm),
-                    childAspectRatio: 2.8,
+                    // Capability cards need enough vertical space for the
+                    // title and three-line description at every breakpoint.
+                    // A shorter card produces a RenderFlex overflow and can
+                    // make the assistant's empty state look blank.
+                    childAspectRatio: 2.35,
                   ),
                   itemCount: _repository.capabilities.length,
                   itemBuilder: (context, index) {
@@ -304,6 +313,13 @@ class _AiChatViewState extends State<AiChatView> {
                     return AiCapabilityCard(
                       capability: capability,
                       onTap: () {
+                        final AiCreateTarget? target = capability.target;
+                        if (target != null) {
+                          widget.onCreateFromChat(
+                            AiSuggestedAction(target: target),
+                          );
+                          return;
+                        }
                         _repository.sendPrompt(capability.promptSeed);
                       },
                     );
@@ -342,7 +358,9 @@ class _AiChatViewState extends State<AiChatView> {
         color: theme.colors.surface,
         border: Border(
           top: BorderSide(
-              color: theme.colors.border, width: theme.borders.hairline),
+            color: theme.colors.border,
+            width: theme.borders.hairline,
+          ),
         ),
       ),
       child: Row(
@@ -393,8 +411,9 @@ class _AiChatViewState extends State<AiChatView> {
     bool generating,
     List<AiSuggestedAction> actions,
   ) {
-    final bool hasAssistantMsg =
-        messages.any((m) => m.role == AppAiRole.assistant && !m.pending);
+    final bool hasAssistantMsg = messages.any(
+      (m) => m.role == AppAiRole.assistant && !m.pending,
+    );
 
     return Column(
       children: [
@@ -436,8 +455,9 @@ class _AiChatViewState extends State<AiChatView> {
                 children: [
                   ...actions.map((action) {
                     return Padding(
-                      padding:
-                          EdgeInsets.only(right: context.sp(context.ui.spacing.xs)),
+                      padding: EdgeInsets.only(
+                        right: context.sp(context.ui.spacing.xs),
+                      ),
                       child: UiBadge(
                         label: action.effectiveLabel,
                         icon: action.icon,
@@ -447,17 +467,21 @@ class _AiChatViewState extends State<AiChatView> {
                   }),
                   if (hasAssistantMsg)
                     Padding(
-                      padding:
-                          EdgeInsets.only(right: context.sp(context.ui.spacing.xs)),
+                      padding: EdgeInsets.only(
+                        right: context.sp(context.ui.spacing.xs),
+                      ),
                       child: UiBadge(
                         label: 'Send in DM',
                         icon: Icons.send_outlined,
                         intent: UiIntent.primary,
                         onTap: () {
-                          final last = messages
-                                  .where((m) =>
-                                      m.role == AppAiRole.assistant &&
-                                      !m.pending)
+                          final last =
+                              messages
+                                  .where(
+                                    (m) =>
+                                        m.role == AppAiRole.assistant &&
+                                        !m.pending,
+                                  )
                                   .lastOrNull ??
                               messages.last;
                           ShareToConversationDialog.show(
@@ -510,12 +534,13 @@ class _AiAttachmentSheetState extends State<_AiAttachmentSheet> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
-      final List<AppTrade> trades =
-          await JournalRepositoryScope.repository.fetchAll();
-      final List<AppNote> notes =
-          await NotesRepositoryScope.repository.fetchAll();
-      final List<AppStrategy> strats =
-          await StrategiesRepositoryScope.repository.fetchAll();
+      final List<AppTrade> trades = await JournalRepositoryScope.repository
+          .fetchAll();
+      final List<AppNote> notes = await NotesRepositoryScope.repository
+          .fetchAll();
+      final List<AppStrategy> strats = await StrategiesRepositoryScope
+          .repository
+          .fetchAll();
       if (!mounted) return;
       setState(() {
         _trades = trades;
@@ -553,7 +578,10 @@ class _AiAttachmentSheetState extends State<_AiAttachmentSheet> {
         decoration: BoxDecoration(
           color: colors.background,
           borderRadius: context.radius(theme.radii.xl),
-          border: Border.all(color: colors.border, width: theme.borders.hairline),
+          border: Border.all(
+            color: colors.border,
+            width: theme.borders.hairline,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -623,12 +651,7 @@ class _AiAttachmentSheetState extends State<_AiAttachmentSheet> {
               ),
               child: UiTabs(
                 variant: UiTabsVariant.segmented,
-                tabs: const <String>[
-                  'Setups',
-                  'Trades',
-                  'Notes',
-                  'Playbooks',
-                ],
+                tabs: const <String>['Setups', 'Trades', 'Notes', 'Playbooks'],
                 selectedIndex: _selectedTab,
                 onChanged: (int idx) => setState(() => _selectedTab = idx),
               ),
@@ -712,16 +735,18 @@ class _AiAttachmentSheetState extends State<_AiAttachmentSheet> {
           child: UiInteractive(
             onTap: () => _attachPrompt(
               'Analyze technical setup on ${s.symbol} (${s.timeframe}, ${s.pattern}). '
-              'Direction: ${s.direction.label}. Entry: \$${s.entry.toStringAsFixed(2)}, '
-              'Stop: \$${s.stopLoss.toStringAsFixed(2)}, Target: \$${s.target1.toStringAsFixed(2)} '
-              '(R:R ${s.rrRatio.toStringAsFixed(1)}). Rationale: ${s.rationale}. '
-              'Validate thesis, support/resistance levels, and order book confirmation.',
+                  'Direction: ${s.direction.label}. Entry: \$${s.entry.toStringAsFixed(2)}, '
+                  'Stop: \$${s.stopLoss.toStringAsFixed(2)}, Target: \$${s.target1.toStringAsFixed(2)} '
+                  '(R:R ${s.rrRatio.toStringAsFixed(1)}). Rationale: ${s.rationale}. '
+                  'Validate thesis, support/resistance levels, and order book confirmation.',
               '${s.symbol} Setup',
             ),
             builder: (BuildContext c, UiInteractiveState state) => Container(
               padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
               decoration: BoxDecoration(
-                color: state.hovered ? theme.colors.surfaceHover : theme.colors.surface,
+                color: state.hovered
+                    ? theme.colors.surfaceHover
+                    : theme.colors.surface,
                 borderRadius: context.radius(theme.radii.md),
                 border: Border.all(
                   color: theme.colors.border,
@@ -790,23 +815,26 @@ class _AiAttachmentSheetState extends State<_AiAttachmentSheet> {
       itemBuilder: (BuildContext ctx, int i) {
         final AppTrade t = trades[i];
         final bool isWin = t.pnl >= 0;
-        final String rStr =
-            t.rMultiple != null ? '${t.rMultiple!.toStringAsFixed(1)}R' : '1.0R';
+        final String rStr = t.rMultiple != null
+            ? '${t.rMultiple!.toStringAsFixed(1)}R'
+            : '1.0R';
         return Padding(
           padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
           child: UiInteractive(
             onTap: () => _attachPrompt(
               'Analyze my journal trade: ${t.side.name.toUpperCase()} ${t.ticker} '
-              '(Entry: \$${t.entry.toStringAsFixed(2)}, Exit: ${t.exit != null ? '\$${t.exit!.toStringAsFixed(2)}' : 'Open'}, '
-              'PnL: ${isWin ? '+' : ''}\$${t.pnl.toStringAsFixed(2)}, R:R: $rStr). '
-              'Strategy: ${t.strategy ?? 'Discretionary'}. Notes: ${t.notes ?? 'None'}. '
-              'Provide feedback on execution discipline, trade management, and rule adherence.',
+                  '(Entry: \$${t.entry.toStringAsFixed(2)}, Exit: ${t.exit != null ? '\$${t.exit!.toStringAsFixed(2)}' : 'Open'}, '
+                  'PnL: ${isWin ? '+' : ''}\$${t.pnl.toStringAsFixed(2)}, R:R: $rStr). '
+                  'Strategy: ${t.strategy ?? 'Discretionary'}. Notes: ${t.notes ?? 'None'}. '
+                  'Provide feedback on execution discipline, trade management, and rule adherence.',
               '${t.ticker} Trade',
             ),
             builder: (BuildContext c, UiInteractiveState state) => Container(
               padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
               decoration: BoxDecoration(
-                color: state.hovered ? theme.colors.surfaceHover : theme.colors.surface,
+                color: state.hovered
+                    ? theme.colors.surfaceHover
+                    : theme.colors.surface,
                 borderRadius: context.radius(theme.radii.md),
                 border: Border.all(
                   color: theme.colors.border,
@@ -878,15 +906,17 @@ class _AiAttachmentSheetState extends State<_AiAttachmentSheet> {
           child: UiInteractive(
             onTap: () => _attachPrompt(
               'Review my trade thesis from Note "${n.title}":\n\n'
-              '"${n.content}"\n\n'
-              'Evaluate thesis logic, identify potential macroeconomic or sector headwinds, '
-              'and formulate specific confirmation milestones.',
+                  '"${n.content}"\n\n'
+                  'Evaluate thesis logic, identify potential macroeconomic or sector headwinds, '
+                  'and formulate specific confirmation milestones.',
               'Note "${n.title}"',
             ),
             builder: (BuildContext c, UiInteractiveState state) => Container(
               padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
               decoration: BoxDecoration(
-                color: state.hovered ? theme.colors.surfaceHover : theme.colors.surface,
+                color: state.hovered
+                    ? theme.colors.surfaceHover
+                    : theme.colors.surface,
                 borderRadius: context.radius(theme.radii.md),
                 border: Border.all(
                   color: theme.colors.border,
@@ -937,13 +967,14 @@ class _AiAttachmentSheetState extends State<_AiAttachmentSheet> {
 
   Widget _buildStrategiesList(BuildContext context, String q) {
     final UiTheme theme = context.ui;
-    final List<AppStrategy> strategies =
-        (_strategies ?? const <AppStrategy>[]).where((s) {
-      if (q.isEmpty) return true;
-      return s.name.toLowerCase().contains(q) ||
-          (s.category != null && s.category!.toLowerCase().contains(q)) ||
-          (s.summary != null && s.summary!.toLowerCase().contains(q));
-    }).toList();
+    final List<AppStrategy> strategies = (_strategies ?? const <AppStrategy>[])
+        .where((s) {
+          if (q.isEmpty) return true;
+          return s.name.toLowerCase().contains(q) ||
+              (s.category != null && s.category!.toLowerCase().contains(q)) ||
+              (s.summary != null && s.summary!.toLowerCase().contains(q));
+        })
+        .toList();
 
     if (strategies.isEmpty) {
       return const UiEmptyState(
@@ -967,14 +998,16 @@ class _AiAttachmentSheetState extends State<_AiAttachmentSheet> {
           child: UiInteractive(
             onTap: () => _attachPrompt(
               'Audit my trading playbook "${s.name}" ($categoryText, status: ${s.status.name}). '
-              'Summary: $summaryText. Content: ${s.content}. '
-              'Suggest quantitative edge optimizations, win-rate improvements, and strict risk-management parameters.',
+                  'Summary: $summaryText. Content: ${s.content}. '
+                  'Suggest quantitative edge optimizations, win-rate improvements, and strict risk-management parameters.',
               'Playbook "${s.name}"',
             ),
             builder: (BuildContext c, UiInteractiveState state) => Container(
               padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
               decoration: BoxDecoration(
-                color: state.hovered ? theme.colors.surfaceHover : theme.colors.surface,
+                color: state.hovered
+                    ? theme.colors.surfaceHover
+                    : theme.colors.surface,
                 borderRadius: context.radius(theme.radii.md),
                 border: Border.all(
                   color: theme.colors.border,

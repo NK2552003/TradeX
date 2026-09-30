@@ -409,6 +409,10 @@ class StrategiesScreenState extends State<StrategiesScreen> {
       );
       return;
     }
+    if (ref.id == 'ai_copilot' || ref.kind == AppLinkKind.aiCopilot) {
+      widget.onOpenRef?.call(ref);
+      return;
+    }
     if (ref.kind == AppLinkKind.strategy) {
       _open(ref.id);
       return;

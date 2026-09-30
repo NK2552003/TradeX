@@ -482,3 +482,226 @@ CREATE POLICY note_ticker_links_delete ON note_ticker_links FOR DELETE USING (us
 ALTER TABLE market_history ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS market_history_read ON market_history;
 CREATE POLICY market_history_read ON market_history FOR SELECT USING (true);
+
+-- ============================================================================
+-- 017 AI Assistant RLS
+-- ============================================================================
+ALTER TABLE ai_chart_setups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_threads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_insights ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_quotas ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS ai_chart_setups_manage ON ai_chart_setups;
+CREATE POLICY ai_chart_setups_manage ON ai_chart_setups FOR ALL
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS ai_threads_manage ON ai_threads;
+CREATE POLICY ai_threads_manage ON ai_threads FOR ALL
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS ai_messages_manage ON ai_messages;
+CREATE POLICY ai_messages_manage ON ai_messages FOR ALL
+    USING (EXISTS (SELECT 1 FROM ai_threads WHERE ai_threads.id = ai_messages.thread_id AND ai_threads.user_id = auth.uid()))
+    WITH CHECK (EXISTS (SELECT 1 FROM ai_threads WHERE ai_threads.id = ai_messages.thread_id AND ai_threads.user_id = auth.uid()));
+
+DROP POLICY IF EXISTS ai_insights_manage ON ai_insights;
+CREATE POLICY ai_insights_manage ON ai_insights FOR ALL
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS ai_quotas_select ON ai_quotas;
+CREATE POLICY ai_quotas_select ON ai_quotas FOR SELECT USING (auth.uid() = user_id);
+
+-- ============================================================================
+-- 018 Messages Realtime RLS
+-- ============================================================================
+ALTER TABLE chat_threads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_shared_refs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_reactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_user_presence ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS chat_threads_select ON chat_threads;
+CREATE POLICY chat_threads_select ON chat_threads FOR SELECT
+    USING (EXISTS (SELECT 1 FROM chat_participants WHERE chat_participants.thread_id = chat_threads.id AND chat_participants.user_id = auth.uid()));
+
+DROP POLICY IF EXISTS chat_threads_insert ON chat_threads;
+CREATE POLICY chat_threads_insert ON chat_threads FOR INSERT WITH CHECK (auth.uid() = created_by);
+
+DROP POLICY IF EXISTS chat_threads_update ON chat_threads;
+CREATE POLICY chat_threads_update ON chat_threads FOR UPDATE
+    USING (EXISTS (SELECT 1 FROM chat_participants WHERE chat_participants.thread_id = chat_threads.id AND chat_participants.user_id = auth.uid()));
+
+DROP POLICY IF EXISTS chat_participants_select ON chat_participants;
+CREATE POLICY chat_participants_select ON chat_participants FOR SELECT
+    USING (EXISTS (SELECT 1 FROM chat_participants cp WHERE cp.thread_id = chat_participants.thread_id AND cp.user_id = auth.uid()));
+
+DROP POLICY IF EXISTS chat_participants_manage ON chat_participants;
+CREATE POLICY chat_participants_manage ON chat_participants FOR ALL
+    USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM chat_participants cp WHERE cp.thread_id = chat_participants.thread_id AND cp.user_id = auth.uid() AND cp.role = 'admin'));
+
+DROP POLICY IF EXISTS chat_messages_select ON chat_messages;
+CREATE POLICY chat_messages_select ON chat_messages FOR SELECT
+    USING (EXISTS (SELECT 1 FROM chat_participants WHERE chat_participants.thread_id = chat_messages.thread_id AND chat_participants.user_id = auth.uid()));
+
+DROP POLICY IF EXISTS chat_messages_insert ON chat_messages;
+CREATE POLICY chat_messages_insert ON chat_messages FOR INSERT
+    WITH CHECK (auth.uid() = sender_id AND EXISTS (SELECT 1 FROM chat_participants WHERE chat_participants.thread_id = chat_messages.thread_id AND chat_participants.user_id = auth.uid()));
+
+DROP POLICY IF EXISTS chat_messages_delete ON chat_messages;
+CREATE POLICY chat_messages_delete ON chat_messages FOR DELETE USING (auth.uid() = sender_id);
+
+DROP POLICY IF EXISTS chat_reactions_manage ON chat_reactions;
+CREATE POLICY chat_reactions_manage ON chat_reactions FOR ALL
+    USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM chat_messages m JOIN chat_participants p ON p.thread_id = m.thread_id WHERE m.id = chat_reactions.message_id AND p.user_id = auth.uid()))
+    WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS chat_attachments_manage ON chat_attachments;
+CREATE POLICY chat_attachments_manage ON chat_attachments FOR ALL
+    USING (EXISTS (SELECT 1 FROM chat_messages m JOIN chat_participants p ON p.thread_id = m.thread_id WHERE m.id = chat_attachments.message_id AND p.user_id = auth.uid()));
+
+DROP POLICY IF EXISTS chat_shared_refs_manage ON chat_shared_refs;
+CREATE POLICY chat_shared_refs_manage ON chat_shared_refs FOR ALL
+    USING (EXISTS (SELECT 1 FROM chat_messages m JOIN chat_participants p ON p.thread_id = m.thread_id WHERE m.id = chat_shared_refs.message_id AND p.user_id = auth.uid()));
+
+DROP POLICY IF EXISTS chat_user_presence_select ON chat_user_presence;
+CREATE POLICY chat_user_presence_select ON chat_user_presence FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS chat_user_presence_manage ON chat_user_presence;
+CREATE POLICY chat_user_presence_manage ON chat_user_presence FOR ALL
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================================
+-- 019 Community RLS
+-- ============================================================================
+ALTER TABLE community_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_post_trade_setups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_post_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_bookmarks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_reposts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_follows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_polls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_poll_options ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_poll_votes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS community_posts_read ON community_posts;
+CREATE POLICY community_posts_read ON community_posts FOR SELECT TO authenticated, anon USING (true);
+
+DROP POLICY IF EXISTS community_posts_manage ON community_posts;
+CREATE POLICY community_posts_manage ON community_posts FOR ALL
+    USING (auth.uid() = author_id) WITH CHECK (auth.uid() = author_id);
+
+DROP POLICY IF EXISTS community_setups_read ON community_post_trade_setups;
+CREATE POLICY community_setups_read ON community_post_trade_setups FOR SELECT TO authenticated, anon USING (true);
+
+DROP POLICY IF EXISTS community_setups_manage ON community_post_trade_setups;
+CREATE POLICY community_setups_manage ON community_post_trade_setups FOR ALL
+    USING (EXISTS (SELECT 1 FROM community_posts WHERE id = post_id AND author_id = auth.uid()))
+    WITH CHECK (EXISTS (SELECT 1 FROM community_posts WHERE id = post_id AND author_id = auth.uid()));
+
+DROP POLICY IF EXISTS community_attachments_read ON community_post_attachments;
+CREATE POLICY community_attachments_read ON community_post_attachments FOR SELECT TO authenticated, anon USING (true);
+
+DROP POLICY IF EXISTS community_attachments_manage ON community_post_attachments;
+CREATE POLICY community_attachments_manage ON community_post_attachments FOR ALL
+    USING (EXISTS (SELECT 1 FROM community_posts WHERE id = post_id AND author_id = auth.uid()))
+    WITH CHECK (EXISTS (SELECT 1 FROM community_posts WHERE id = post_id AND author_id = auth.uid()));
+
+DROP POLICY IF EXISTS community_comments_read ON community_comments;
+CREATE POLICY community_comments_read ON community_comments FOR SELECT TO authenticated, anon USING (true);
+
+DROP POLICY IF EXISTS community_comments_insert ON community_comments;
+CREATE POLICY community_comments_insert ON community_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
+
+DROP POLICY IF EXISTS community_comments_manage ON community_comments;
+CREATE POLICY community_comments_manage ON community_comments FOR ALL
+    USING (auth.uid() = author_id) WITH CHECK (auth.uid() = author_id);
+
+DROP POLICY IF EXISTS community_likes_manage ON community_likes;
+CREATE POLICY community_likes_manage ON community_likes FOR ALL
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS community_bookmarks_manage ON community_bookmarks;
+CREATE POLICY community_bookmarks_manage ON community_bookmarks FOR ALL
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS community_reposts_manage ON community_reposts;
+CREATE POLICY community_reposts_manage ON community_reposts FOR ALL
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS community_follows_manage ON community_follows;
+CREATE POLICY community_follows_manage ON community_follows FOR ALL
+    USING (auth.uid() = follower_id) WITH CHECK (auth.uid() = follower_id);
+
+DROP POLICY IF EXISTS community_polls_read ON community_polls;
+CREATE POLICY community_polls_read ON community_polls FOR SELECT TO authenticated, anon USING (true);
+
+DROP POLICY IF EXISTS community_poll_options_read ON community_poll_options;
+CREATE POLICY community_poll_options_read ON community_poll_options FOR SELECT TO authenticated, anon USING (true);
+
+DROP POLICY IF EXISTS community_poll_votes_manage ON community_poll_votes;
+CREATE POLICY community_poll_votes_manage ON community_poll_votes FOR ALL
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================================
+-- 020 Universal Link Graph RLS
+-- ============================================================================
+ALTER TABLE universal_link_edges ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS universal_link_edges_manage ON universal_link_edges;
+CREATE POLICY universal_link_edges_manage ON universal_link_edges FOR ALL
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================================
+-- 021 Unified Comments & Visibility RLS
+-- ============================================================================
+ALTER TABLE unified_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE unified_comment_likes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS unified_comments_select ON unified_comments;
+CREATE POLICY unified_comments_select ON unified_comments FOR SELECT TO authenticated, anon USING (
+    CASE entity_type
+        WHEN 'note' THEN
+            EXISTS (SELECT 1 FROM trader_notes WHERE id = entity_id::uuid AND (is_public = true OR user_id = auth.uid()))
+        WHEN 'strategy' THEN
+            EXISTS (SELECT 1 FROM strategies WHERE id = entity_id::uuid AND (visibility = 'public' OR user_id = auth.uid()))
+        WHEN 'journal' THEN
+            EXISTS (SELECT 1 FROM journal_entries WHERE id = entity_id::uuid AND (is_public = true OR user_id = auth.uid()))
+        WHEN 'post' THEN
+            EXISTS (SELECT 1 FROM community_posts WHERE id = entity_id::uuid AND (is_public = true OR author_id = auth.uid()))
+        ELSE false
+    END
+);
+
+DROP POLICY IF EXISTS unified_comments_insert ON unified_comments;
+CREATE POLICY unified_comments_insert ON unified_comments FOR INSERT TO authenticated WITH CHECK (
+    auth.uid() = author_id AND (
+        CASE entity_type
+            WHEN 'note' THEN
+                EXISTS (SELECT 1 FROM trader_notes WHERE id = entity_id::uuid AND (is_public = true OR user_id = auth.uid()))
+            WHEN 'strategy' THEN
+                EXISTS (SELECT 1 FROM strategies WHERE id = entity_id::uuid AND (visibility = 'public' OR user_id = auth.uid()))
+            WHEN 'journal' THEN
+                EXISTS (SELECT 1 FROM journal_entries WHERE id = entity_id::uuid AND (is_public = true OR user_id = auth.uid()))
+            WHEN 'post' THEN
+                EXISTS (SELECT 1 FROM community_posts WHERE id = entity_id::uuid AND (is_public = true OR author_id = auth.uid()))
+            ELSE false
+        END
+    )
+);
+
+DROP POLICY IF EXISTS unified_comments_manage ON unified_comments;
+CREATE POLICY unified_comments_manage ON unified_comments FOR ALL TO authenticated
+    USING (auth.uid() = author_id)
+    WITH CHECK (auth.uid() = author_id);
+
+DROP POLICY IF EXISTS unified_comment_likes_manage ON unified_comment_likes;
+CREATE POLICY unified_comment_likes_manage ON unified_comment_likes FOR ALL TO authenticated
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+

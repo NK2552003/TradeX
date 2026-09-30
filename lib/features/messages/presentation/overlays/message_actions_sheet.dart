@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
+import 'package:tradex/features/ai_assistant/ai_assistant.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
@@ -231,21 +231,23 @@ class MessageActionsSheet extends StatelessWidget {
   }
 
   void _analyzeWithAi(BuildContext context) {
+    Navigator.of(context).pop();
     final String content = message.hasText
         ? message.body
         : (message.sharedRef?.title ?? message.attachment?.title ?? 'Message');
     final String prompt =
         'Analyze this message/trade setup from our conversation:\n\n"$content"\n\n'
         'Provide technical setup validation, risk:reward assessment, and key levels to monitor.';
-    AiAssistantRepositoryScope.repository.sendPrompt(prompt);
-    UiToastScope.maybeOf(context)?.show(
-      UiToastData(
-        title: 'Sent to AI Copilot',
-        message: 'Analyzing conversation message in AI Assistant...',
-        intent: UiIntent.info,
-      ),
+
+    AiAssistantOverlaySheet.show(
+      context,
+      repository: AiAssistantRepositoryScope.repository,
+      initialPrompt: prompt,
+      contextTitle: 'Chat Message',
+      contextSubtitle: content.length > 50 ? '${content.substring(0, 50)}...' : content,
+      contextIcon: Icons.chat_bubble_outline_rounded,
+      onOpenFullScreen: onNavigateToAi,
     );
-    onNavigateToAi?.call();
   }
 
   Widget _reactionRow(BuildContext context) {

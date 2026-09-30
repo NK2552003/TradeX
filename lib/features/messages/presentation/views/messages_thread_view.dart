@@ -720,7 +720,7 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
       onNavigateToAi: () {
         widget.onOpenRef?.call(const AppLinkRef(
           id: 'ai_copilot',
-          kind: AppLinkKind.strategy,
+          kind: AppLinkKind.aiCopilot,
           title: 'AI Copilot',
           subtitle: 'Message Analysis',
         ));

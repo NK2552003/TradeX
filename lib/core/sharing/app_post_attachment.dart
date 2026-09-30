@@ -91,6 +91,7 @@ class AppWritingPostAttachment extends AppWritingRecordPostAttachment {
             DateTime.fromMillisecondsSinceEpoch(0),
         tags: List<String>.unmodifiable(strategy.tags),
         hasMedia: strategy.hasImages,
+        primaryTicker: strategy.linkedTickers.firstOrNull,
       );
 
   factory AppWritingPostAttachment.manual({
@@ -173,9 +174,9 @@ class AppWritingPostAttachmentCatalog {
       final AppStrategy strategy => AppWritingPostAttachment.strategy(strategy),
       null => null,
     },
-    // Tickers are metadata on a post or Writing Desk record, never the record
+    // Tickers and other kinds are metadata on a post or Writing Desk record, never the record
     // attached to the post.
-    AppLinkKind.ticker => null,
+    AppLinkKind.ticker || _ => null,
   };
 
   List<AppWritingPostAttachment> search({

@@ -10,15 +10,18 @@ class CommunitySendDmDialog extends StatefulWidget {
     super.key,
     required this.repository,
     this.post,
+    this.initialRecipient,
   });
 
   final CommunityRepository repository;
   final CommunityPost? post;
+  final CommunityAuthor? initialRecipient;
 
   static Future<void> show(
     BuildContext context, {
     CommunityPost? post,
     CommunityRepository? repository,
+    CommunityAuthor? initialRecipient,
   }) {
     final repo = repository ?? CommunityRepository();
     return showDialog<void>(
@@ -38,7 +41,11 @@ class CommunitySendDmDialog extends StatefulWidget {
                 width: ctx.ui.borders.hairline,
               ),
             ),
-            child: CommunitySendDmDialog(repository: repo, post: post),
+            child: CommunitySendDmDialog(
+              repository: repo,
+              post: post,
+              initialRecipient: initialRecipient,
+            ),
           ),
         ),
       ),
@@ -53,6 +60,12 @@ class _CommunitySendDmDialogState extends State<CommunitySendDmDialog> {
   String _search = '';
   String _message = '';
   CommunityAuthor? _selectedRecipient;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRecipient = widget.initialRecipient;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +85,9 @@ class _CommunitySendDmDialogState extends State<CommunitySendDmDialog> {
           children: <Widget>[
             Text(
               'Send Message',
-              style: context.uiText.heading.copyWith(fontWeight: FontWeight.w700),
+              style: context.uiText.heading.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const Spacer(),
             UiIconButton(
@@ -131,7 +146,9 @@ class _CommunitySendDmDialogState extends State<CommunitySendDmDialog> {
                         child: Text(
                           '${trader.displayName} (@${trader.handle})',
                           style: context.uiText.caption.copyWith(
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                             color: theme.colors.foreground,
                           ),
                         ),
@@ -217,11 +234,13 @@ class _CommunitySendDmDialogState extends State<CommunitySendDmDialog> {
                         .startConversation(trader);
                     final String shareText = widget.post != null
                         ? (_message.isNotEmpty
-                            ? '$_message\n\nShared post by @${widget.post!.author.handle}: "${widget.post!.body}"'
-                            : 'Shared post by @${widget.post!.author.handle}: "${widget.post!.body}"')
+                              ? '$_message\n\nShared post by @${widget.post!.author.handle}: "${widget.post!.body}"'
+                              : 'Shared post by @${widget.post!.author.handle}: "${widget.post!.body}"')
                         : _message;
-                    MessagesRepositoryScope.repository
-                        .sendMessage(threadId, body: shareText);
+                    MessagesRepositoryScope.repository.sendMessage(
+                      threadId,
+                      body: shareText,
+                    );
                   } catch (_) {}
                   Navigator.of(context).pop();
                   UiToast.show(

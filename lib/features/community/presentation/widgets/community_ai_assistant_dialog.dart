@@ -4,6 +4,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
+import 'package:tradex/features/ai_assistant/presentation/overlays/ai_assistant_overlay_sheet.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
@@ -365,14 +367,21 @@ class CommunityAiAssistantDialog extends StatefulWidget {
     ValueChanged<CommunityPost>? onPostCreated,
     AiChartPreset? initialPreset,
   }) {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext ctx) => CommunityAiAssistantDialog(
-        repository: repository,
-        onPostCreated: onPostCreated,
-        initialPreset: initialPreset,
-      ),
+    final String? prompt = initialPreset != null
+        ? 'Analyze setup for ${initialPreset.symbol}: ${initialPreset.pattern} (${initialPreset.direction}) with Entry: ${initialPreset.entry}, SL: ${initialPreset.stopLoss}, Target: ${initialPreset.target1}. Rationale: ${initialPreset.rationale}'
+        : null;
+
+    return AiAssistantOverlaySheet.show(
+      context,
+      repository: AiAssistantRepositoryScope.repository,
+      initialPrompt: prompt,
+      contextTitle: initialPreset != null
+          ? '${initialPreset.symbol} (${initialPreset.pattern})'
+          : 'Community Market Intelligence',
+      contextSubtitle: initialPreset != null
+          ? 'Confidence: ${initialPreset.confidence}% • R:R: ${initialPreset.rrRatio.toStringAsFixed(1)}'
+          : 'Realtime Sentiment & Technical Flow',
+      contextIcon: Icons.auto_awesome_rounded,
     );
   }
 
@@ -1788,56 +1797,12 @@ class _CommunityAiFloatingBarState extends State<CommunityAiFloatingBar> {
     if (_isOpen) return;
     setState(() => _isOpen = true);
 
-    showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Dismiss AI Suite',
-      barrierColor: Colors.black.withValues(alpha: 0.72),
-      transitionDuration: const Duration(milliseconds: 260),
-      pageBuilder: (
-        BuildContext dialogContext,
-        Animation<double> animation,
-        Animation<double> secondaryAnimation,
-      ) {
-        return _CommunityAiFullViewOverlay(
-          repository: widget.repository,
-          onPostCreated: widget.onPostCreated,
-          telemetryMessage: _telemetryMessages[_telemetryIndex],
-        );
-      },
-      transitionBuilder: (
-        BuildContext dialogContext,
-        Animation<double> animation,
-        Animation<double> secondaryAnimation,
-        Widget child,
-      ) {
-        final CurvedAnimation curvedAnimation = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-          reverseCurve: Curves.easeInCubic,
-        );
-        final bool isMobile = MediaQuery.sizeOf(dialogContext).width < 600;
-        if (isMobile) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.12),
-              end: Offset.zero,
-            ).animate(curvedAnimation),
-            child: FadeTransition(
-              opacity: curvedAnimation,
-              child: child,
-            ),
-          );
-        }
-        return FadeTransition(
-          opacity: curvedAnimation,
-          child: ScaleTransition(
-            scale:
-                Tween<double>(begin: 0.94, end: 1.0).animate(curvedAnimation),
-            child: child,
-          ),
-        );
-      },
+    AiAssistantOverlaySheet.show(
+      context,
+      repository: AiAssistantRepositoryScope.repository,
+      contextTitle: 'Community Market Intelligence',
+      contextSubtitle: _telemetryMessages[_telemetryIndex],
+      contextIcon: Icons.auto_awesome_rounded,
     ).then((_) {
       if (mounted) {
         setState(() => _isOpen = false);
@@ -2078,8 +2043,9 @@ class _CommunityAiFloatingBarState extends State<CommunityAiFloatingBar> {
 // AI Full-View Terminal Overlay
 // ---------------------------------------------------------------------------
 
-class _CommunityAiFullViewOverlay extends StatefulWidget {
-  const _CommunityAiFullViewOverlay({
+class CommunityAiFullViewOverlay extends StatefulWidget {
+  const CommunityAiFullViewOverlay({
+    super.key,
     this.repository,
     this.onPostCreated,
     required this.telemetryMessage,
@@ -2090,12 +2056,12 @@ class _CommunityAiFullViewOverlay extends StatefulWidget {
   final String telemetryMessage;
 
   @override
-  State<_CommunityAiFullViewOverlay> createState() =>
+  State<CommunityAiFullViewOverlay> createState() =>
       _CommunityAiFullViewOverlayState();
 }
 
 class _CommunityAiFullViewOverlayState
-    extends State<_CommunityAiFullViewOverlay> {
+    extends State<CommunityAiFullViewOverlay> {
   final TextEditingController _promptController = TextEditingController();
 
   @override
@@ -2107,10 +2073,13 @@ class _CommunityAiFullViewOverlayState
   void _dispatchPrompt(String prompt) {
     if (prompt.trim().isEmpty) return;
     Navigator.of(context).pop();
-    CommunityAiQuickPromptDialog.show(
+    AiAssistantOverlaySheet.show(
       context,
-      repository: widget.repository,
-      onPostCreated: widget.onPostCreated,
+      repository: AiAssistantRepositoryScope.repository,
+      initialPrompt: prompt.trim(),
+      contextTitle: 'Community Market Intelligence',
+      contextSubtitle: widget.telemetryMessage,
+      contextIcon: Icons.auto_awesome_rounded,
     );
   }
 
@@ -2602,10 +2571,14 @@ class _CommunityAiFullViewOverlayState
         metric: 'Computer Vision • ~840ms',
         onTap: () {
           Navigator.of(context).pop();
-          CommunityAiAssistantDialog.show(
+          AiAssistantOverlaySheet.show(
             context,
-            repository: widget.repository,
-            onPostCreated: widget.onPostCreated,
+            repository: AiAssistantRepositoryScope.repository,
+            initialPrompt:
+                'Scan chart structure for NIFTY 50 and BankNifty. Identify key order blocks, FVG liquidity gaps, and high probability setups.',
+            contextTitle: 'Vision AI Chart Scanner',
+            contextSubtitle: 'Computer Vision • Automated Setup Detection',
+            contextIcon: Icons.center_focus_strong_rounded,
           );
         },
       ),
@@ -2620,10 +2593,12 @@ class _CommunityAiFullViewOverlayState
         metric: '4 Personas • Multi-turn',
         onTap: () {
           Navigator.of(context).pop();
-          CommunityAiQuickPromptDialog.show(
+          AiAssistantOverlaySheet.show(
             context,
-            repository: widget.repository,
-            onPostCreated: widget.onPostCreated,
+            repository: AiAssistantRepositoryScope.repository,
+            contextTitle: 'Community Alpha Copilot',
+            contextSubtitle: 'Multi-turn Technical & Sentiment Copilot',
+            contextIcon: Icons.chat_bubble_outline_rounded,
           );
         },
       ),
@@ -2968,14 +2943,15 @@ class CommunityAiQuickPromptDialog extends StatefulWidget {
     BuildContext context, {
     CommunityRepository? repository,
     ValueChanged<CommunityPost>? onPostCreated,
+    String? initialPrompt,
   }) {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) => CommunityAiQuickPromptDialog(
-        repository: repository,
-        onPostCreated: onPostCreated,
-      ),
+    return AiAssistantOverlaySheet.show(
+      context,
+      repository: AiAssistantRepositoryScope.repository,
+      initialPrompt: initialPrompt,
+      contextTitle: 'Community Alpha Copilot',
+      contextSubtitle: 'Multi-turn Technical & Sentiment Copilot',
+      contextIcon: Icons.chat_bubble_outline_rounded,
     );
   }
 

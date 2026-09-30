@@ -144,8 +144,10 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
 
   double get _currentEntry => double.tryParse(_entryController.text) ?? 100.0;
   double get _currentStop => double.tryParse(_stopLossController.text) ?? 95.0;
-  double get _currentTarget1 => double.tryParse(_target1Controller.text) ?? 110.0;
-  double get _currentQuantity => double.tryParse(_quantityController.text) ?? 50.0;
+  double get _currentTarget1 =>
+      double.tryParse(_target1Controller.text) ?? 110.0;
+  double get _currentQuantity =>
+      double.tryParse(_quantityController.text) ?? 50.0;
 
   double get _calcRiskPerShare => (_currentEntry - _currentStop).abs();
   double get _calcRewardPerShare => (_currentTarget1 - _currentEntry).abs();
@@ -243,8 +245,7 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
                     children: [
                       switch (widget.target) {
                         AiCreateTarget.note ||
-                        AiCreateTarget.chartAnalysis =>
-                          _buildNoteForm(context),
+                        AiCreateTarget.chartAnalysis => _buildNoteForm(context),
                         AiCreateTarget.journal => _buildJournalForm(context),
                         AiCreateTarget.strategy => _buildStrategyForm(context),
                         AiCreateTarget.post => _buildPostForm(context),
@@ -276,7 +277,9 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
           Container(
             padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
             decoration: BoxDecoration(
-              color: widget.target.intent.color(context).withValues(alpha: 0.12),
+              color: widget.target.intent
+                  .color(context)
+                  .withValues(alpha: 0.12),
               borderRadius: context.radius(theme.radii.md),
             ),
             child: Icon(
@@ -293,7 +296,9 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
               children: [
                 Text(
                   widget.target.label,
-                  style: context.uiText.title.copyWith(fontWeight: FontWeight.w700),
+                  style: context.uiText.title.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 Text(
                   widget.target.description,
@@ -355,16 +360,20 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
                 padding: EdgeInsets.only(top: context.sp(theme.spacing.lg)),
                 child: Row(
                   children: [
-                    UiSwitch(
-                      value: _isFavorite,
-                      label: 'Favorite',
-                      onChanged: (v) => setState(() => _isFavorite = v),
+                    Expanded(
+                      child: UiSwitch(
+                        value: _isFavorite,
+                        label: 'Favorite',
+                        onChanged: (v) => setState(() => _isFavorite = v),
+                      ),
                     ),
                     SizedBox(width: context.sp(theme.spacing.md)),
-                    UiSwitch(
-                      value: _isPublic,
-                      label: 'Public',
-                      onChanged: (v) => setState(() => _isPublic = v),
+                    Expanded(
+                      child: UiSwitch(
+                        value: _isPublic,
+                        label: 'Public',
+                        onChanged: (v) => setState(() => _isPublic = v),
+                      ),
                     ),
                   ],
                 ),
@@ -482,13 +491,22 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.calculate_outlined, size: context.sz(16), color: colors.primary),
+                  Icon(
+                    Icons.calculate_outlined,
+                    size: context.sz(16),
+                    color: colors.primary,
+                  ),
                   SizedBox(width: context.sp(theme.spacing.xs)),
-                  Text('Trade Execution Matrix', style: context.uiText.bodyStrong),
+                  Text(
+                    'Trade Execution Matrix',
+                    style: context.uiText.bodyStrong,
+                  ),
                   const Spacer(),
                   UiBadge(
                     label: '${_calcRRRatio.toStringAsFixed(1)}R Ratio',
-                    intent: _calcRRRatio >= 2.0 ? UiIntent.success : UiIntent.warning,
+                    intent: _calcRRRatio >= 2.0
+                        ? UiIntent.success
+                        : UiIntent.warning,
                   ),
                 ],
               ),
@@ -550,10 +568,30 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _metricSnippet(context, 'Risk / Share', '\$${_calcRiskPerShare.toStringAsFixed(2)}', colors.destructive),
-                    _metricSnippet(context, 'Reward / Share', '\$${_calcRewardPerShare.toStringAsFixed(2)}', colors.success),
-                    _metricSnippet(context, 'Total Risk', '\$${_calcTotalRisk.toStringAsFixed(0)}', colors.destructive),
-                    _metricSnippet(context, 'Potential Profit', '\$${_calcTotalReward.toStringAsFixed(0)}', colors.success),
+                    _metricSnippet(
+                      context,
+                      'Risk / Share',
+                      '\$${_calcRiskPerShare.toStringAsFixed(2)}',
+                      colors.destructive,
+                    ),
+                    _metricSnippet(
+                      context,
+                      'Reward / Share',
+                      '\$${_calcRewardPerShare.toStringAsFixed(2)}',
+                      colors.success,
+                    ),
+                    _metricSnippet(
+                      context,
+                      'Total Risk',
+                      '\$${_calcTotalRisk.toStringAsFixed(0)}',
+                      colors.destructive,
+                    ),
+                    _metricSnippet(
+                      context,
+                      'Potential Profit',
+                      '\$${_calcTotalReward.toStringAsFixed(0)}',
+                      colors.success,
+                    ),
                   ],
                 ),
               ),
@@ -569,7 +607,10 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Discipline Score: $_disciplineScore / 5', style: context.uiText.label),
+                  Text(
+                    'Discipline Score: $_disciplineScore / 5',
+                    style: context.uiText.label,
+                  ),
                   SizedBox(height: context.sp(theme.spacing.xs)),
                   Wrap(
                     spacing: context.sp(theme.spacing.xs),
@@ -583,13 +624,17 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
                             vertical: context.sp(theme.spacing.xxs),
                           ),
                           decoration: BoxDecoration(
-                            color: selected ? colors.primary : colors.surfaceMuted,
+                            color: selected
+                                ? colors.primary
+                                : colors.surfaceMuted,
                             borderRadius: context.radius(theme.radii.sm),
                           ),
                           child: Text(
                             '$score ★',
                             style: context.uiText.caption.copyWith(
-                              color: selected ? Colors.white : colors.foreground,
+                              color: selected
+                                  ? Colors.white
+                                  : colors.foreground,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -606,16 +651,20 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
                 padding: EdgeInsets.only(top: context.sp(theme.spacing.lg)),
                 child: Row(
                   children: [
-                    UiSwitch(
-                      value: _isClosed,
-                      label: 'Already Closed',
-                      onChanged: (v) => setState(() => _isClosed = v),
+                    Expanded(
+                      child: UiSwitch(
+                        value: _isClosed,
+                        label: 'Already Closed',
+                        onChanged: (v) => setState(() => _isClosed = v),
+                      ),
                     ),
                     SizedBox(width: context.sp(theme.spacing.md)),
-                    UiSwitch(
-                      value: _isPublic,
-                      label: 'Public',
-                      onChanged: (v) => setState(() => _isPublic = v),
+                    Expanded(
+                      child: UiSwitch(
+                        value: _isPublic,
+                        label: 'Public',
+                        onChanged: (v) => setState(() => _isPublic = v),
+                      ),
                     ),
                   ],
                 ),
@@ -641,11 +690,22 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
     );
   }
 
-  Widget _metricSnippet(BuildContext context, String label, String val, Color color) {
+  Widget _metricSnippet(
+    BuildContext context,
+    String label,
+    String val,
+    Color color,
+  ) {
     return Column(
       children: [
         Text(label, style: context.uiText.caption.copyWith(fontSize: 10)),
-        Text(val, style: context.uiText.numeric.copyWith(fontWeight: FontWeight.bold, color: color)),
+        Text(
+          val,
+          style: context.uiText.numeric.copyWith(
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
       ],
     );
   }
@@ -700,7 +760,12 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
                 value: _strategyStatus,
                 onChanged: (s) => setState(() => _strategyStatus = s),
                 options: AppStrategyStatus.values
-                    .map((s) => UiOption<AppStrategyStatus>(value: s, label: s.name.toUpperCase()))
+                    .map(
+                      (s) => UiOption<AppStrategyStatus>(
+                        value: s,
+                        label: s.name.toUpperCase(),
+                      ),
+                    )
                     .toList(),
               ),
             ),
@@ -723,17 +788,21 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            UiSwitch(
-              value: _isPublic,
-              label: 'Publish to Community Playbooks',
-              onChanged: (v) => setState(() => _isPublic = v),
+            Expanded(
+              child: UiSwitch(
+                value: _isPublic,
+                label: 'Publish to Community Playbooks',
+                onChanged: (v) => setState(() => _isPublic = v),
+              ),
             ),
-            UiSwitch(
-              value: _isFavorite,
-              label: 'Pin as Favorite Playbook',
-              onChanged: (v) => setState(() => _isFavorite = v),
+            SizedBox(width: context.sp(theme.spacing.md)),
+            Expanded(
+              child: UiSwitch(
+                value: _isFavorite,
+                label: 'Pin as Favorite Playbook',
+                onChanged: (v) => setState(() => _isFavorite = v),
+              ),
             ),
           ],
         ),
@@ -743,7 +812,8 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
           controller: _bodyController,
           rows: 10,
           maxRows: 22,
-          hintText: 'Document conditions, entry trigger, stop loss, and targets...',
+          hintText:
+              'Document conditions, entry trigger, stop loss, and targets...',
         ),
       ],
     );
@@ -756,7 +826,13 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
     final theme = context.ui;
     final colors = theme.colors;
 
-    final channels = <String>['Feed', 'Signals', 'Breakouts', 'Macro', 'Crypto'];
+    final channels = <String>[
+      'Feed',
+      'Signals',
+      'Breakouts',
+      'Macro',
+      'Crypto',
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -771,7 +847,9 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
           label: 'Community Channel',
           value: _channel,
           onChanged: (c) => setState(() => _channel = c),
-          options: channels.map((c) => UiOption<String>(value: c, label: '#$c')).toList(),
+          options: channels
+              .map((c) => UiOption<String>(value: c, label: '#$c'))
+              .toList(),
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
 
@@ -782,11 +860,17 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
             decoration: BoxDecoration(
               color: colors.surfaceMuted,
               borderRadius: context.radius(theme.radii.md),
-              border: Border.all(color: colors.border, width: theme.borders.hairline),
+              border: Border.all(
+                color: colors.border,
+                width: theme.borders.hairline,
+              ),
             ),
             child: Row(
               children: [
-                Icon(_draft.setup!.direction.icon, color: _draft.setup!.direction.intent.color(context)),
+                Icon(
+                  _draft.setup!.direction.icon,
+                  color: _draft.setup!.direction.intent.color(context),
+                ),
                 SizedBox(width: context.sp(theme.spacing.sm)),
                 Expanded(
                   child: Column(
@@ -798,12 +882,17 @@ class _AiCreateSheetState extends State<AiCreateSheet> {
                       ),
                       Text(
                         'Entry: ${_draft.setup!.entry} | SL: ${_draft.setup!.stopLoss} | TP: ${_draft.setup!.target1} (${_draft.setup!.rrRatio.toStringAsFixed(1)}R)',
-                        style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
+                        style: context.uiText.caption.copyWith(
+                          color: colors.foregroundMuted,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                UiBadge(label: _draft.setup!.direction.label, intent: _draft.setup!.direction.intent),
+                UiBadge(
+                  label: _draft.setup!.direction.label,
+                  intent: _draft.setup!.direction.intent,
+                ),
               ],
             ),
           ),

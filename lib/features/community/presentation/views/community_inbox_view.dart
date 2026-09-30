@@ -88,7 +88,28 @@ class _CommunityInboxViewState extends State<CommunityInboxView> {
               ),
             )
           else
-            UiIconButton(icon: Icons.info_outline, onPressed: () {}),
+            UiIconButton(
+              icon: Icons.info_outline,
+              tooltip: 'Conversation details',
+              onPressed: () => UiDialog.show<void>(
+                context,
+                child: UiDialog(
+                  title: 'Conversation details',
+                  content: Text(
+                    'Messages with @${_activeConversation!.peer.handle} are '
+                    'private to this conversation. Message delivery and read '
+                    'receipts update here when connected to Realtime.',
+                    style: context.uiText.body,
+                  ),
+                  actions: <Widget>[
+                    UiButton(
+                      label: 'Close',
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
       body: Center(

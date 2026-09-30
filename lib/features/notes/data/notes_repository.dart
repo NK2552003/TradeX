@@ -34,6 +34,8 @@ abstract class NotesRepository {
 
   Future<AppNote> toggleFavorite(String id);
 
+  Future<AppNote> setVisibility(String id, bool isPublic);
+
   Future<AppNote> addComment(String id, String body);
 
   /// Stores an attachment and returns the storage reference to embed in the
@@ -188,10 +190,14 @@ class NotesRepositoryImpl implements NotesRepository {
       _mutate(id, (AppNote note) => note.copyWith(isFavorite: !note.isFavorite));
 
   @override
+  Future<AppNote> setVisibility(String id, bool isPublic) async =>
+      _mutate(id, (AppNote note) => note.copyWith(isPublic: isPublic));
+
+  @override
   Future<AppNote> addComment(String id, String body) async =>
       _mutate(id, (AppNote note) {
         final String content = body.trim();
-        if (!note.isPublic || content.isEmpty) return note;
+        if (content.isEmpty) return note;
         return note.copyWith(
           comments: <AppNoteComment>[
             ...note.comments,
@@ -205,6 +211,7 @@ class NotesRepositoryImpl implements NotesRepository {
           ],
         );
       });
+
 
   @override
   Future<String> uploadAttachment(String noteId, File file) async {

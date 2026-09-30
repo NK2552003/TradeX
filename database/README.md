@@ -36,6 +36,11 @@ fresh project and an upgraded project stop agreeing.
 | `011_note_link_graph.sql` | `note_journal_links` + the four mirror-rebuilding triggers |
 | `012_linked_notes_reads.sql` | `strategy_performance` view, `public_document()` and its two helpers |
 | `016_post_writing_attachments.sql` | prepares posts for one optional public note, journal entry, or strategy attachment |
+| `017_ai_assistant.sql` | `ai_threads`, `ai_messages`, `ai_chart_setups`, `ai_insights`, `ai_quotas` |
+| `018_messages_realtime.sql` | `chat_threads`, `chat_participants`, `chat_messages`, `chat_attachments`, `chat_shared_refs`, `chat_reactions`, `chat_user_presence`, Realtime publication |
+| `019_community.sql` | `community_posts`, `community_post_trade_setups`, `community_post_attachments`, `community_comments`, `community_likes`, `community_bookmarks`, `community_reposts`, `community_follows`, `community_polls`, `community_poll_votes` |
+| `020_universal_link_graph.sql` | `universal_link_edges`, symmetric bidirectional linking procedures (`create_universal_link`, `delete_universal_link`, `get_universal_links`) |
+| `021_unified_comments_and_visibility.sql` | `unified_comments`, `unified_comment_likes`, public/private visibility columns & RPCs (`set_entity_visibility`, `add_entity_comment`, `toggle_entity_comment_like`) |
 
 Two steps in that list are not additive and are worth reading before you run
 them: 010 rewrites `strategies.content` from JSONB to TEXT (a playbook is

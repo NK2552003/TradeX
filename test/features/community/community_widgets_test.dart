@@ -243,6 +243,7 @@ void main() {
             body: CommunityTraderCard(
               trader: trader,
               onFollow: () => followed = true,
+              showWinRate: true,
             ),
           ),
         ),
@@ -251,11 +252,11 @@ void main() {
 
       expect(find.text('Alex Mercer'), findsOneWidget);
       expect(find.text('@alex_m'), findsOneWidget);
-      expect(find.text('Follow'), findsOneWidget);
+      expect(find.byType(UiIconButton), findsOneWidget);
       expect(find.text('73% Win Rate'), findsOneWidget);
       expect(find.textContaining('12.4K Followers'), findsOneWidget);
 
-      await tester.tap(find.text('Follow'));
+      await tester.tap(find.byType(UiIconButton));
       expect(followed, isTrue);
     });
 
@@ -460,8 +461,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Moderation & Safety'), findsOneWidget);
-      expect(find.text('Muted (0)'), findsOneWidget);
-      expect(find.text('Blocked (0)'), findsOneWidget);
+      expect(find.text('Muted'), findsOneWidget);
+      expect(find.text('Blocked'), findsOneWidget);
       expect(find.text('No Muted Accounts'), findsOneWidget);
     });
 
@@ -532,7 +533,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('RBI Maintains Repo Rate at 6.5%'), findsOneWidget);
-      expect(find.text('Bloomberg Quint'), findsOneWidget);
+      expect(find.textContaining('Bloomberg Quint'), findsOneWidget);
     });
 
     testWidgets('CommunityGuidelinesDialog renders compliance rules', (
@@ -543,11 +544,52 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Trader Code of Conduct'), findsOneWidget);
-      expect(
-        find.textContaining('Zero Stock Tipping & Pump Schemes'),
-        findsOneWidget,
+      expect(find.text('Community Code of Conduct'), findsOneWidget);
+      expect(find.text('No Front-Running or Pump & Dump'), findsOneWidget);
+    });
+  });
+
+  group('CommunityEngagementBar desktop layout', () {
+    testWidgets('keeps all primary metrics on one horizontal row', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 900,
+              child: CommunityEngagementBar(
+                comments: 12,
+                reposts: 8,
+                likes: 56,
+                views: 1400,
+                liked: false,
+                reposted: false,
+                bookmarked: false,
+              ),
+            ),
+          ),
+        ),
       );
+      await tester.pumpAndSettle();
+
+      final buttons = find.byType(CommunityEngagementButton);
+      expect(buttons, findsNWidgets(6));
+
+      final double firstMetricY = tester.getCenter(buttons.at(0)).dy;
+      for (int index = 1; index < 4; index++) {
+        expect(
+          tester.getCenter(buttons.at(index)).dy,
+          closeTo(firstMetricY, 0.1),
+        );
+      }
     });
   });
 }

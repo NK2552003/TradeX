@@ -36,4 +36,6 @@ export 'community_share_sheet.dart';
 export 'community_sidebar_widgets.dart';
 export 'community_trade_setup_tile.dart';
 export 'community_trader_card.dart';
+export 'community_audio_mini_player.dart';
+export 'community_host_live_space_dialog.dart';
 

@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
+import 'package:tradex/features/ai_assistant/ai_assistant.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_send_dm_dialog.dart';
 
 /// Bottom-sheet overlay presenting social sharing and DM actions for a post.
 class CommunityShareSheet extends StatelessWidget {
-  const CommunityShareSheet({
-    super.key,
-    required this.post,
-    this.onSendDm,
-  });
+  const CommunityShareSheet({super.key, required this.post, this.onSendDm});
 
   final CommunityPost post;
   final VoidCallback? onSendDm;
@@ -98,7 +94,8 @@ class CommunityShareSheet extends StatelessWidget {
           icon: Icons.send_rounded,
           title: 'Send via Direct Message',
           subtitle: 'Share privately with a fellow trader',
-          onTap: onSendDm ?? () => CommunitySendDmDialog.show(context, post: post),
+          onTap:
+              onSendDm ?? () => CommunitySendDmDialog.show(context, post: post),
         ),
 
         // Option: Analyze with AI Copilot
@@ -109,16 +106,23 @@ class CommunityShareSheet extends StatelessWidget {
           subtitle: 'Validate thesis, sentiment, and setups',
           onTap: () {
             Navigator.of(context).pop();
-            AiAssistantRepositoryScope.repository.sendPrompt(
-              'Analyze community post by @${post.author.handle}:\n\n'
-              '"${post.body}"\n\n'
-              'Provide sentiment breakdown, technical setup validity, and potential counter-thesis risks.',
-            );
-            UiToastScope.maybeOf(context)?.show(
-              UiToastData(
-                title: 'Sent to AI Copilot',
-                message: 'Analyzing @${post.author.handle}\'s post in AI Assistant...',
-                intent: UiIntent.info,
+            final String prompt =
+                'Analyze community post by @${post.author.handle}:\n\n'
+                '"${post.body}"\n\n'
+                'Provide sentiment breakdown, technical setup validity, and potential counter-thesis risks.';
+
+            AiAssistantOverlaySheet.show(
+              context,
+              repository: AiAssistantRepositoryScope.repository,
+              initialPrompt: prompt,
+              contextTitle: 'Post by @${post.author.handle}',
+              contextSubtitle: post.body.length > 50 ? '${post.body.substring(0, 50)}...' : post.body,
+              contextIcon: Icons.public_rounded,
+              contextRef: AppLinkRef(
+                id: post.id,
+                kind: AppLinkKind.communityPost,
+                title: 'Post by @${post.author.handle}',
+                subtitle: post.body,
               ),
             );
           },
@@ -168,14 +172,9 @@ class CommunityShareSheet extends StatelessWidget {
           icon: Icons.chat_rounded,
           title: 'Share via WhatsApp',
           subtitle: 'Send to trade channels & groups',
-          onTap: () {
+          onTap: () async {
             Navigator.of(context).pop();
-            UiToast.show(
-              context,
-              title: 'WhatsApp Share',
-              message: 'Opening WhatsApp share sheet...',
-              intent: UiIntent.primary,
-            );
+            await SharePlus.instance.share(ShareParams(text: _shareText(post)));
           },
         ),
 
@@ -185,14 +184,9 @@ class CommunityShareSheet extends StatelessWidget {
           icon: Icons.share_rounded,
           title: 'Share on X / Twitter',
           subtitle: 'Broadcast to external audience',
-          onTap: () {
+          onTap: () async {
             Navigator.of(context).pop();
-            UiToast.show(
-              context,
-              title: 'X / Twitter Share',
-              message: 'Opening external share...',
-              intent: UiIntent.primary,
-            );
+            await SharePlus.instance.share(ShareParams(text: _shareText(post)));
           },
         ),
       ],
@@ -226,7 +220,11 @@ class CommunityShareSheet extends StatelessWidget {
                 color: theme.colors.surfaceMuted,
                 borderRadius: context.radius(theme.radii.sm),
               ),
-              child: Icon(icon, size: context.sz(18), color: theme.colors.foreground),
+              child: Icon(
+                icon,
+                size: context.sz(18),
+                color: theme.colors.foreground,
+              ),
             ),
             SizedBox(width: context.sp(theme.spacing.sm)),
             Expanded(
@@ -257,4 +255,7 @@ class CommunityShareSheet extends StatelessWidget {
       ),
     );
   }
+
+  static String _shareText(CommunityPost post) =>
+      '${post.body}\n\nShared from TradeX • @${post.author.handle}';
 }

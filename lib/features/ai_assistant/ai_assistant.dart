@@ -9,6 +9,7 @@ library;
 export 'data/ai_assistant_repository.dart';
 export 'models/ai_assistant_models.dart';
 export 'presentation/ai_assistant_root_screen.dart';
+export 'presentation/overlays/ai_assistant_overlay_sheet.dart';
 export 'presentation/overlays/ai_chart_analysis_dialog.dart';
 export 'presentation/overlays/ai_create_sheet.dart';
 export 'presentation/overlays/ai_persona_dialog.dart';
