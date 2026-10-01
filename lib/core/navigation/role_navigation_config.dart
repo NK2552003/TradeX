@@ -73,11 +73,61 @@ class RoleNavigationConfig {
       if (labelFor(entry.value) != null) entry.key: labelFor(entry.value)!,
   };
 
-  static RoleNavigationConfig forRole(UserRole role) => switch (role) {
-    UserRole.customer => _trader,
-    UserRole.affiliate => _affiliate,
-    UserRole.userAdmin => _admin,
-  };
+  static RoleNavigationConfig forRole(UserRole role) {
+    final base = switch (role) {
+      UserRole.customer => _trader,
+      UserRole.affiliate => _affiliate,
+      UserRole.userAdmin => _admin,
+    };
+    return RoleNavigationConfig(
+      role: base.role,
+      workspaceName: base.workspaceName,
+      workspaceLabel: base.workspaceLabel,
+      sections: [
+        ...base.sections.take(base.sections.length - 1),
+        _marketSection,
+        base.sections.last,
+      ],
+      mobilePrimaryItems: base.mobilePrimaryItems,
+      mobileMoreItems: [...base.mobileMoreItems, _marketItem],
+      userMenuItems: base.userMenuItems,
+      notificationTargets: base.notificationTargets,
+      upgradeSectionId: base.upgradeSectionId,
+    );
+  }
+
+  static const _marketItem = AppNavItem(
+    id: 'market',
+    label: 'Market Intelligence',
+    icon: Icons.public_outlined,
+    selectedIcon: Icons.public,
+    subItems: [
+      AppNavItem(
+        id: 'market_news',
+        label: 'News',
+        icon: Icons.newspaper_outlined,
+      ),
+      AppNavItem(
+        id: 'market_movers',
+        label: 'Gainers & Losers',
+        icon: Icons.trending_up,
+      ),
+      AppNavItem(
+        id: 'market_instruments',
+        label: 'Instruments',
+        icon: Icons.candlestick_chart_outlined,
+      ),
+      AppNavItem(
+        id: 'market_screeners',
+        label: 'Screeners',
+        icon: Icons.filter_alt_outlined,
+      ),
+    ],
+  );
+  static const _marketSection = AppNavSection(
+    title: 'Markets',
+    items: [_marketItem],
+  );
 
   static const AppNavItem _profile = AppNavItem(
     id: 'settings_profile',
@@ -99,7 +149,7 @@ class RoleNavigationConfig {
     workspaceLabel: 'Active Trader',
     upgradeSectionId: 'settings_billing',
     notificationTargets: <String, String>{
-      'Alerts': 'watchlists',
+      'Alerts': 'community_feed',
       'AI': 'ai_copilot',
       'Community': 'community',
       'Strategies': 'strategies',

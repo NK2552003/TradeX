@@ -1,3 +1,4 @@
+import 'package:tradex/features/market_data/presentation/market_root_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
@@ -13,8 +14,6 @@ import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_m
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_overview_page.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_payouts_page.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart';
-import 'package:tradex/features/journal/presentation/dashboard_page.dart';
-import 'package:tradex/features/watchlists/presentation/watchlists_page.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/calculators/ui/calculators_screen.dart';
@@ -526,6 +525,14 @@ class _AppScaffoldState extends State<AppScaffold> {
     if (_selectedId == 'search') return _searchPage();
     if (_selectedId == 'notifications') return _notificationsPage();
     if (_selectedId.startsWith('settings')) return _settingsPage();
+    if (_selectedId == 'market' || _selectedId.startsWith('market_')) {
+      return MarketRootScreen(
+        key: const ValueKey('market-root'),
+        destination: _selectedId,
+        onNavigate: _go,
+        onSubpageChanged: _onSubpageChanged,
+      );
+    }
 
     return switch (_effectiveRole) {
       UserRole.customer => _traderPage(),
@@ -638,6 +645,7 @@ class _AppScaffoldState extends State<AppScaffold> {
         ? 'profile'
         : _selectedId.replaceFirst('settings_', '');
     return SettingsRootPage(
+      communityRepository: _communityRepo,
       key: ValueKey<String>('settings_${_effectiveRole.id}_$sectionId'),
       userRole: _effectiveRole,
       initialSectionId: sectionId,
@@ -694,6 +702,7 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   Widget _messagesPage() {
     return MessagesRootScreen(
+      communityRepository: _communityRepo,
       key: _messagesKey,
       userRole: _effectiveRole,
       currentUser: _chromeIdentity,
@@ -719,7 +728,6 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   Widget _traderPage() => switch (_selectedId) {
-    'overview' => const DashboardPage(),
     // The three linked writing surfaces. Each is handed the same three
     // affordances so a link followed out of one lands correctly in the next:
     // `onOpenRef` to leave, `openRequest` to arrive, and — for the two that put
@@ -762,8 +770,6 @@ class _AppScaffoldState extends State<AppScaffold> {
     ),
 
     'calculators' => CalculatorsScreen(onSubpageChanged: _onSubpageChanged),
-    'portfolio' => const DashboardPage(),
-    'watchlists' => const WatchlistsPage(),
     'community' => _communityPage(initialTabIndex: 0),
     'community_feed' => _communityPage(initialTabIndex: 0),
     'community_explore' => _communityPage(initialTabIndex: 1),

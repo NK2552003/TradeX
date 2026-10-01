@@ -1,6 +1,7 @@
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
@@ -36,6 +37,7 @@ class MessagesRootScreen extends StatefulWidget {
     this.onSubpageChanged,
     this.onOpenRef,
     this.repository,
+    this.communityRepository,
     this.searchQuery,
     this.openRequest,
     this.embedInScaffold = true,
@@ -51,6 +53,7 @@ class MessagesRootScreen extends StatefulWidget {
 
   /// Optional shared repository; an internal one is created if omitted.
   final MessagesRepository? repository;
+  final CommunityRepository? communityRepository;
 
   /// Search text pushed from the global top header.
   final String? searchQuery;
@@ -269,6 +272,7 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
           child: SizedBox(
             height: MediaQuery.of(ctx).size.height * 0.88,
             child: TraderProfilePreviewPage(
+              repository: widget.communityRepository,
               displayName: trader.displayName ?? trader.handle,
               handle: trader.handle,
               userRole: widget.userRole,

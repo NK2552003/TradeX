@@ -1,17 +1,137 @@
 [
   {
-    "ticker": "BTC-USD",
-    "price": 64200.5,
-    "change_pct": 2.1
+    "ticker": "NEAR-USD",
+    "price": 5.31,
+    "change_pct": 8.62
+  },
+  {
+    "ticker": "DOT-USD",
+    "price": 1.24,
+    "change_pct": 3.95
+  },
+  {
+    "ticker": "ATOM-USD",
+    "price": 1.77,
+    "change_pct": 2.92
+  },
+  {
+    "ticker": "HBAR-USD",
+    "price": 0.11,
+    "change_pct": 2.66
+  },
+  {
+    "ticker": "XLM-USD",
+    "price": 0.23,
+    "change_pct": 2.38
+  },
+  {
+    "ticker": "VET-USD",
+    "price": 0.01,
+    "change_pct": 2.13
+  },
+  {
+    "ticker": "ALGO-USD",
+    "price": 0.13,
+    "change_pct": 1.8
+  },
+  {
+    "ticker": "ADA-USD",
+    "price": 0.25,
+    "change_pct": 1.72
+  },
+  {
+    "ticker": "MANA-USD",
+    "price": 0.09,
+    "change_pct": 1.45
+  },
+  {
+    "ticker": "DOGE-USD",
+    "price": 0.1,
+    "change_pct": 1.29
+  },
+  {
+    "ticker": "SAND-USD",
+    "price": 0.04,
+    "change_pct": 1.29
+  },
+  {
+    "ticker": "BNB-USD",
+    "price": 767.37,
+    "change_pct": 1.22
+  },
+  {
+    "ticker": "TRX-USD",
+    "price": 0.34,
+    "change_pct": 0.94
+  },
+  {
+    "ticker": "LTC-USD",
+    "price": 67.34,
+    "change_pct": 0.81
+  },
+  {
+    "ticker": "XMR-USD",
+    "price": 545.43,
+    "change_pct": 0.68
+  },
+  {
+    "ticker": "OP-USD",
+    "price": 0.13,
+    "change_pct": 0.61
   },
   {
     "ticker": "ETH-USD",
-    "price": 3480.2,
-    "change_pct": 1.5
+    "price": 2686.56,
+    "change_pct": 0.37
+  },
+  {
+    "ticker": "XRP-USD",
+    "price": 1.49,
+    "change_pct": 0.09
+  },
+  {
+    "ticker": "ARB-USD",
+    "price": 0.0,
+    "change_pct": 0.0
+  },
+  {
+    "ticker": "BTC-USD",
+    "price": 83445.95,
+    "change_pct": -0.21
+  },
+  {
+    "ticker": "FIL-USD",
+    "price": 1.05,
+    "change_pct": -0.71
   },
   {
     "ticker": "SOL-USD",
-    "price": 148.5,
-    "change_pct": 4.2
+    "price": 118.06,
+    "change_pct": -0.84
+  },
+  {
+    "ticker": "LINK-USD",
+    "price": 14.42,
+    "change_pct": -1.21
+  },
+  {
+    "ticker": "ICP-USD",
+    "price": 3.39,
+    "change_pct": -1.46
+  },
+  {
+    "ticker": "ETC-USD",
+    "price": 8.93,
+    "change_pct": -1.74
+  },
+  {
+    "ticker": "AVAX-USD",
+    "price": 11.06,
+    "change_pct": -3.27
+  },
+  {
+    "ticker": "SHIB-USD",
+    "price": 0.0,
+    "change_pct": -3.67
   }
 ]

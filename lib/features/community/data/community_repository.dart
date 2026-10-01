@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'package:tradex/features/market_data/data/asset_market_repository.dart';
+import 'package:tradex/features/market_data/models/market_snapshot.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -15,6 +17,29 @@ class CommunityRepository extends ChangeNotifier {
   CommunityRepository() {
     _initSeedData();
   }
+
+  bool _disposed = false;
+  Future<void>? _marketLoad;
+  String? marketDataError;
+  MarketSnapshot? marketSnapshot;
+  Future<void> loadMarketData({AssetMarketRepository? source}) => _marketLoad ??= _loadMarketData(source ?? AssetMarketRepository());
+  Future<void> _loadMarketData(AssetMarketRepository source) async {
+    try {
+      final snapshot = await source.snapshot();
+      if (_disposed) return;
+      marketSnapshot = snapshot;
+      _news = snapshot.articles.map((a) => CommunityNewsItem(
+        id: a.link.isEmpty ? a.title : a.link, headline: a.title, source: a.publisher,
+        publishedAt: a.publishedAt ?? DateTime(1970), summary: a.summary,
+        articleUrl: a.link, thumbnail: a.thumbnailUrl, relatedTickers: a.tickers,
+      )).toList();
+      notifyListeners();
+    } catch (_) {
+      if (!_disposed) { marketDataError = 'Market assets unavailable'; notifyListeners(); }
+    }
+  }
+  @override
+  void dispose() { _disposed = true; super.dispose(); }
 
   // -------------------------------------------------------------------------
   // Seed Authors
@@ -949,6 +974,22 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
+  /// Keeps a completed host session available to public profile history.
+  void endLiveRoom(String roomId) {
+    final index = _liveRooms.indexWhere((room) => room.id == roomId);
+    if (index < 0 || _liveRooms[index].host.id != currentAuthor.id) return;
+    _liveRooms[index] = _liveRooms[index].copyWith(
+      status: LiveRoomStatus.ended,
+      endedAt: DateTime.now(),
+    );
+    if (_tunedRoomId == roomId) {
+      _tunedRoomId = null;
+      _isAudioMuted = true;
+      _isHandRaised = false;
+    }
+    notifyListeners();
+  }
+
   LiveAudioRoom createLiveRoom({
     required String title,
     required String topic,
@@ -963,11 +1004,11 @@ class CommunityRepository extends ChangeNotifier {
       id: id,
       title: title,
       topic: topic,
-      host: _defaultCurrentUser,
+      host: currentAuthor,
       category: category,
       status: startNow ? LiveRoomStatus.live : LiveRoomStatus.scheduled,
       listenerCount: startNow ? 1 : 0,
-      speakers: <String>[_defaultCurrentUser.displayName],
+      speakers: <String>[currentAuthor.displayName],
       pinnedSetup: pinnedSetup,
       scheduledFor: scheduledFor,
       startedAt: startNow ? DateTime.now() : null,
@@ -1158,7 +1199,7 @@ class CommunityRepository extends ChangeNotifier {
     _attachableRecords = _buildAttachableRecords();
     _seedPosts();
     _seedComments();
-    _seedNews();
+
     _seedTrending();
     _seedNotifications();
     _seedDirectMessages();
@@ -1673,53 +1714,6 @@ class CommunityRepository extends ChangeNotifier {
         ),
       ],
     };
-  }
-
-  void _seedNews() {
-    final now = DateTime.now();
-    _news = <CommunityNewsItem>[
-      CommunityNewsItem(
-        id: 'news_1',
-        headline: 'RBI Holds Repo Rate — Markets Eye Q4 Rate Cut Cycle',
-        source: 'TradeX Market Wire',
-        publishedAt: now.subtract(const Duration(minutes: 45)),
-        category: 'Business & Finance',
-        sentimentScore: 0.2,
-        relatedTickers: <String>['NIFTYBANK', 'HDFCBANK'],
-        postCount: '54K posts',
-      ),
-      CommunityNewsItem(
-        id: 'news_2',
-        headline: 'NVDA Surges 7% After Record Data Center Revenue Beat',
-        source: 'TradeX Market Wire',
-        publishedAt: now.subtract(const Duration(hours: 2)),
-        category: 'Technology',
-        sentimentScore: 0.8,
-        relatedTickers: <String>['NVDA', 'AMD'],
-        postCount: '118K posts',
-      ),
-      CommunityNewsItem(
-        id: 'news_3',
-        headline:
-            'Gold Breaks \$2,700 on Dollar Weakness and Safe Haven Demand',
-        source: 'Reuters Markets',
-        publishedAt: now.subtract(const Duration(hours: 5)),
-        category: 'Commodities',
-        sentimentScore: 0.5,
-        relatedTickers: <String>['GLD', 'GOLDBEES'],
-        postCount: '32K posts',
-      ),
-      CommunityNewsItem(
-        id: 'news_4',
-        headline: 'Reliance Jio IPO Filing Expected by End of Q4 2026',
-        source: 'Economic Times',
-        publishedAt: now.subtract(const Duration(hours: 8)),
-        category: 'IPO Watch',
-        sentimentScore: 0.7,
-        relatedTickers: <String>['RELIANCE'],
-        postCount: '87K posts',
-      ),
-    ];
   }
 
   void _seedTrending() {

@@ -1,4 +1,3 @@
-import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:quiet_dock/quiet_dock.dart';
 
@@ -243,14 +242,18 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _initDockControllers() {
-    final int mainIndex =
-        !_isCommunityRoute ? _dockIndexFor(widget.selectedId) : 0;
-    final int commIndex =
-        _isCommunityRoute ? _dockIndexFor(widget.selectedId) : 0;
-    _mainDockController ??=
-        QuietDockController(initialIndex: mainIndex < 0 ? 0 : mainIndex);
-    _communityDockController ??=
-        QuietDockController(initialIndex: commIndex < 0 ? 0 : commIndex);
+    final int mainIndex = !_isCommunityRoute
+        ? _dockIndexFor(widget.selectedId)
+        : 0;
+    final int commIndex = _isCommunityRoute
+        ? _dockIndexFor(widget.selectedId)
+        : 0;
+    _mainDockController ??= QuietDockController(
+      initialIndex: mainIndex < 0 ? 0 : mainIndex,
+    );
+    _communityDockController ??= QuietDockController(
+      initialIndex: commIndex < 0 ? 0 : commIndex,
+    );
   }
 
   @override
@@ -290,9 +293,7 @@ class _AppShellState extends State<AppShell> {
     }
     WidgetsBinding.instance.addPostFrameCallback((Duration _) {
       if (!mounted) return;
-      if (_activeDockController.index != index) {
-        _activeDockController.goToIndex(index);
-      }
+      _activeDockController.goToIndex(index);
     });
   }
 
@@ -453,7 +454,9 @@ class _AppShellState extends State<AppShell> {
       }
       AppNavItem? activeMoreItem;
       for (final AppNavItem item in widget.mobileMoreItems) {
-        if (item.id == widget.selectedId) {
+        if (item.id == widget.selectedId ||
+            (item.subItems?.any((child) => child.id == widget.selectedId) ??
+                false)) {
           activeMoreItem = item;
           break;
         }
@@ -489,7 +492,7 @@ class _AppShellState extends State<AppShell> {
               ? (activeMoreItem.selectedIcon ?? activeMoreItem.icon)
               : Icons.close_rounded,
           columns: 3,
-           items: _isCommunityRoute
+          items: _isCommunityRoute
               ? <QuickGridItem>[
                   QuickGridItem(
                     icon: Icons.edit_note_rounded,
@@ -517,6 +520,11 @@ class _AppShellState extends State<AppShell> {
                     onTap: () => widget.onSelect('community_bookmarks'),
                   ),
                   QuickGridItem(
+                    icon: Icons.public_outlined,
+                    label: 'Market Intelligence',
+                    onTap: () => widget.onSelect('market'),
+                  ),
+                  QuickGridItem(
                     icon: Icons.calculate_outlined,
                     label: 'Calculators',
                     onTap: () => widget.onSelect('calculators'),
@@ -528,14 +536,14 @@ class _AppShellState extends State<AppShell> {
                   ),
                 ]
               : widget.mobileMoreItems
-                  .map(
-                    (AppNavItem item) => QuickGridItem(
-                      icon: item.icon,
-                      label: item.label,
-                      onTap: () => widget.onSelect(item.id),
-                    ),
-                  )
-                  .toList(),
+                    .map(
+                      (AppNavItem item) => QuickGridItem(
+                        icon: item.icon,
+                        label: item.label,
+                        onTap: () => widget.onSelect(item.id),
+                      ),
+                    )
+                    .toList(),
         ),
         centerActionActive: moreRouteSelected,
         swipeEnabled: false,
@@ -582,7 +590,7 @@ class _AppShellState extends State<AppShell> {
           iconSize: keyboardVisible ? 0 : 22,
           frosted: !keyboardVisible,
           showLabels: false,
-          pageDuration: Duration.zero,
+          pageDuration: theme.motion.normal,
         ),
       );
       Widget dockLayer = dockScaffold;
@@ -792,8 +800,10 @@ class _AppShellState extends State<AppShell> {
                           : 0,
                       child: OverflowBox(
                         alignment: Alignment.centerLeft,
-                        minWidth: context.sz(360) + context.sp(theme.spacing.xs + 3),
-                        maxWidth: context.sz(360) + context.sp(theme.spacing.xs + 3),
+                        minWidth:
+                            context.sz(360) + context.sp(theme.spacing.xs + 3),
+                        maxWidth:
+                            context.sz(360) + context.sp(theme.spacing.xs + 3),
                         child: IgnorePointer(
                           ignoring: !_calculatorVisible,
                           child: Padding(
@@ -826,7 +836,9 @@ class _AppShellState extends State<AppShell> {
                                   children: <Widget>[
                                     Container(
                                       padding: EdgeInsets.symmetric(
-                                        horizontal: context.sp(theme.spacing.md),
+                                        horizontal: context.sp(
+                                          theme.spacing.md,
+                                        ),
                                         vertical: context.sp(theme.spacing.xs),
                                       ),
                                       decoration: BoxDecoration(
@@ -845,12 +857,15 @@ class _AppShellState extends State<AppShell> {
                                             size: context.sz(18),
                                             color: theme.colors.primary,
                                           ),
-                                          SizedBox(width: context.sp(theme.spacing.xs)),
+                                          SizedBox(
+                                            width: context.sp(theme.spacing.xs),
+                                          ),
                                           Text(
                                             'Trading Calculator',
-                                            style: context.uiText.bodyStrong.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
+                                            style: context.uiText.bodyStrong
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
                                           ),
                                           const Spacer(),
                                           UiIconButton(
@@ -1594,10 +1609,7 @@ class AppTopBar extends StatelessWidget {
     final UiTheme theme = context.ui;
     final bool isMobile = context.uiRes.isMobile;
     final bool isCompactHeader =
-        isMobile ||
-        context.uiRes.isTablet ||
-        availableWidth < context.sz(860);
-    final researchLabelVisible = availableWidth >= context.sz(600);
+        isMobile || context.uiRes.isTablet || availableWidth < context.sz(860);
 
     String sectionTitle = this.sectionTitle ?? 'Terminal';
     String pageTitle = title ?? 'Dashboard';
@@ -1663,531 +1675,113 @@ class AppTopBar extends StatelessWidget {
       };
     }
 
-    final Widget breadcrumbWidget = Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
-        if (!isMobile && sectionTitle.isNotEmpty) ...<Widget>[
-          Text(
-            '$sectionTitle / ',
-            style: context.uiText.body.copyWith(
-              color: theme.colors.foregroundSubtle,
-              fontSize: context.fs(13.0),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-        Flexible(
-          child: Text(
-            pageTitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: isMobile
-                ? context.uiText.label.copyWith(
-                    color: theme.colors.foreground,
-                    fontWeight: FontWeight.w600,
-                    decoration: TextDecoration.none,
-                    decorationColor: Colors.transparent,
-                  )
-                : context.uiText.bodyStrong.copyWith(
-                    color: theme.colors.foreground,
-                    fontSize: context.fs(13.0),
-                    fontWeight: FontWeight.w700,
-                  ),
-          ),
-        ),
-        if (showStatusBadge && statusBadgeText.isNotEmpty) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.xs),
-              vertical: context.sp(theme.spacing.xxs * 0.75),
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: context.radius(theme.radii.pill),
-              border: Border.all(
-                color: const Color(0xFF334155),
-                width: theme.borders.hairline,
-              ),
-            ),
-            child: Text(
-              statusBadgeText,
-              style: context.uiText.caption.copyWith(
-                color: const Color(0xFF94A3B8),
-                fontSize: context.fs(11.0),
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ),
-        ],
-      ],
+    final bool showSearchInput = !isCompactHeader && onSearchChanged != null;
+    final Widget titleWidget = Text(
+      isMobile || sectionTitle.isEmpty
+          ? pageTitle
+          : '$sectionTitle / $pageTitle',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: context.uiText.bodyStrong.copyWith(
+        inherit: false,
+        color: theme.colors.foreground,
+        decoration: TextDecoration.none,
+      ),
     );
-
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: isMobile
-            ? EdgeInsets.all(context.sp(theme.spacing.sm))
-            : EdgeInsets.fromLTRB(
-                0,
-                context.sp(theme.spacing.xs),
-                context.sp(theme.spacing.xs + 3),
-                context.sp(theme.spacing.xs),
-              ),
-        child: Container(
+        padding: EdgeInsets.fromLTRB(
+          context.sp(theme.spacing.sm),
+          context.sp(theme.spacing.xs),
+          context.sp(theme.spacing.sm),
+          context.sp(theme.spacing.xs),
+        ),
+        child: UiCard(
           key: const ValueKey<String>('app-header-surface'),
-          height: context.sz(isMobile ? 54 : 50),
-          padding: isMobile
-              ? EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.xs + 2),
-                  vertical: context.sp(theme.spacing.xs),
-                )
-              : EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.md)),
-          decoration: BoxDecoration(
-            color: theme.colors.surface.withValues(alpha: 0.94),
-            borderRadius: context.radius(theme.radii.xl),
-            border: Border.all(
-              color: theme.colors.border,
-              width: theme.borders.hairline,
-            ),
-            boxShadow: theme.shadows.sm,
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(theme.spacing.sm),
+            vertical: context.sp(theme.spacing.xs),
           ),
+          borderRadius: context.radius(theme.radii.lg),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              // Left: Desktop Sidebar toggle (if any)
-              ?leading,
-              if (leading != null) ...<Widget>[
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Container(
-                  width: theme.borders.hairline,
-                  height: context.sz(16),
-                  color: theme.colors.border.withValues(alpha: 0.6),
+              if (leading != null) ...[leading!, UiGap.h(theme.spacing.xs)],
+              if (onBack != null) ...[
+                UiIconButton(
+                  icon: Icons.arrow_back_rounded,
+                  tooltip: 'Back',
+                  size: UiSize.sm,
+                  onPressed: onBack,
                 ),
-                SizedBox(width: context.sp(theme.spacing.sm)),
+                UiGap.h(theme.spacing.xs),
               ],
-              Flexible(
-                child: ClipRect(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: PageTransitionSwitcher(
-                      duration: const Duration(milliseconds: 150),
-                      layoutBuilder: (List<Widget> entries) => Stack(
-                        alignment: Alignment.centerLeft,
-                        children: entries,
-                      ),
-                      transitionBuilder:
-                          (
-                            Widget child,
-                            Animation<double> primaryAnimation,
-                            Animation<double> secondaryAnimation,
-                          ) {
-                            return FadeTransition(
-                              opacity: primaryAnimation,
-                              child: child,
-                            );
-                          },
-                      child: KeyedSubtree(
-                        key: ValueKey<String>(
-                          '${selectedId ?? pageTitle}_${onBack != null}',
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: <Widget>[
-                            if (onBack != null) ...<Widget>[
-                              UiIconButton(
-                                icon: Icons.arrow_back_rounded,
-                                size: UiSize.xs,
-                                variant: UiVariant.ghost,
-                                tooltip: 'Back',
-                                onPressed: onBack,
-                              ),
-                              SizedBox(width: context.sp(theme.spacing.xxs)),
-                              if (activeIcon != null) ...<Widget>[
-                                Icon(
-                                  activeIcon,
-                                  size: context.sz(18),
-                                  color: theme.colors.primary,
-                                ),
-                                SizedBox(width: context.sp(theme.spacing.xs)),
-                              ],
-                            ] else if (showLogo) ...<Widget>[
-                              AppLogoMark(size: context.sz(16), rounded: false),
-                              SizedBox(width: context.sp(theme.spacing.xs)),
-                            ],
-                            Flexible(child: breadcrumbWidget),
-                          ],
-                        ),
-                      ),
-                    ),
+              Expanded(flex: 2, child: titleWidget),
+              if (showStatusBadge && statusBadgeText.isNotEmpty)
+                UiBadge(label: statusBadgeText, size: UiSize.xs),
+              if (showSearchInput) ...[
+                UiGap.h(theme.spacing.md),
+                Expanded(
+                  flex: 3,
+                  child: UiInput.search(
+                    key: searchTargetKey,
+                    value: searchQuery ?? '',
+                    hintText: searchHint ?? 'Search...',
+                    size: UiSize.sm,
+                    onChanged: onSearchChanged,
+                    onClear: () => onSearchChanged?.call(''),
                   ),
                 ),
-              ),
-              // Center: Search Command Pill (Desktop)
-              if (!isCompactHeader)
-                Expanded(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: context.sz(460)),
-                      child: (onSearchChanged != null)
-                          ? Container(
-                              key: searchTargetKey,
-                              height: context.sz(34),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: context.sp(theme.spacing.sm),
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colors.background.withValues(
-                                  alpha: 0.75,
-                                ),
-                                borderRadius: context.radius(theme.radii.md),
-                                border: Border.all(
-                                  color: theme.colors.border,
-                                  width: theme.borders.hairline,
-                                ),
-                              ),
-                              child: Row(
-                                children: <Widget>[
-                                  Icon(
-                                    Icons.search_rounded,
-                                    size: context.sz(15),
-                                    color: theme.colors.foregroundSubtle,
-                                  ),
-                                  SizedBox(width: context.sp(theme.spacing.xs)),
-                                  Expanded(
-                                    child: UiInput(
-                                      value: searchQuery ?? '',
-                                      hintText: searchHint ??
-                                          'Search entries, tickers, playbooks, tags...',
-                                      onChanged: onSearchChanged,
-                                      variant: UiInputVariant.ghost,
-                                      size: UiSize.sm,
-                                      density: UiDensity.compact,
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: context.sp(theme.spacing.xs),
-                                      vertical: context.sp(
-                                        theme.spacing.xxs * 0.5,
-                                      ),
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: theme.colors.surface.withValues(
-                                        alpha: 0.6,
-                                      ),
-                                      borderRadius: context.radius(
-                                        theme.radii.sm,
-                                      ),
-                                      border: Border.all(
-                                        color: theme.colors.border,
-                                        width: theme.borders.hairline,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      '⌘K',
-                                      style: context.uiText.caption.copyWith(
-                                        fontSize: context.fs(10),
-                                        fontWeight: FontWeight.w600,
-                                        color: theme.colors.foregroundMuted,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : UiInteractive(
-                              key: searchTargetKey,
-                              onTap: onSearch,
-                              builder:
-                                  (
-                                    BuildContext ctx,
-                                    UiInteractiveState s,
-                                  ) => AnimatedContainer(
-                                    duration: theme.motion.fast,
-                                    height: ctx.sz(34),
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: ctx.sp(theme.spacing.sm),
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: s.hovered
-                                          ? theme.colors.surfaceHover
-                                          : theme.colors.background
-                                              .withValues(alpha: 0.75),
-                                      borderRadius: ctx.radius(theme.radii.md),
-                                      border: Border.all(
-                                        color: s.hovered
-                                            ? theme.colors.borderStrong
-                                            : theme.colors.border,
-                                        width: theme.borders.hairline,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: <Widget>[
-                                        Icon(
-                                          Icons.search_rounded,
-                                          size: ctx.sz(15),
-                                          color:
-                                              theme.colors.foregroundSubtle,
-                                        ),
-                                        SizedBox(
-                                          width: ctx.sp(theme.spacing.xs),
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            searchHint ??
-                                                'Search entries, tickers, playbooks, tags...',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: ctx.uiText.caption
-                                                .copyWith(
-                                                  color: theme
-                                                      .colors
-                                                      .foregroundSubtle,
-                                                  fontSize: ctx.fs(12.0),
-                                                ),
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: ctx.sp(
-                                              theme.spacing.xs,
-                                            ),
-                                            vertical: ctx.sp(
-                                              theme.spacing.xxs * 0.5,
-                                            ),
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: theme.colors.surface
-                                                .withValues(alpha: 0.6),
-                                            borderRadius: ctx.radius(
-                                              theme.radii.sm,
-                                            ),
-                                            border: Border.all(
-                                              color: theme.colors.border,
-                                              width: theme.borders.hairline,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            '⌘K',
-                                            style: ctx.uiText.caption
-                                                .copyWith(
-                                                  fontSize: ctx.fs(10),
-                                                  fontWeight: FontWeight.w600,
-                                                  color: theme
-                                                      .colors
-                                                      .foregroundMuted,
-                                                ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                            ),
-                    ),
-                  ),
-                )
-              else
-                const Spacer(),
-
-              SizedBox(width: context.sp(theme.spacing.sm)),
-
-              // Right: Action button, Notifications, Help, User Avatar
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget>[
-                  if (isCompactHeader && onSearch != null) ...<Widget>[
-                    UiIconButton(
-                      key: searchTargetKey,
-                      icon: Icons.search_rounded,
-                      size: UiSize.sm,
-                      tooltip: 'Search',
-                      onPressed: onSearch,
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xxs)),
-                  ],
-                  if (onResearch != null) ...<Widget>[
-                    if (researchLabelVisible)
-                      UiButton(
-                        label: researchVisible ? 'Focus mode' : 'Research desk',
-                        variant: UiVariant.ghost,
-                        size: UiSize.sm,
-                        leadingIcon: researchVisible
-                            ? Icons.fullscreen_rounded
-                            : Icons.view_sidebar_outlined,
-                        onPressed: onResearch,
-                      )
-                    else
-                      UiIconButton(
-                        icon: researchVisible
-                            ? Icons.fullscreen_rounded
-                            : Icons.view_sidebar_outlined,
-                        tooltip: researchVisible
-                            ? 'Focus mode'
-                            : 'Research desk',
-                        size: UiSize.sm,
-                        onPressed: onResearch,
-                      ),
-                    UiGap.h(theme.spacing.xxs),
-                  ],
-
-                  if (onCalculator != null) ...<Widget>[
-                    UiIconButton(
-                      icon: Icons.calculate_outlined,
-                      tooltip: calculatorVisible
-                          ? 'Close calculator'
-                          : 'Trading calculator',
-                      size: UiSize.sm,
-                      variant: calculatorVisible
-                          ? UiVariant.primary
-                          : UiVariant.ghost,
-                      onPressed: onCalculator,
-                    ),
-                    UiGap.h(theme.spacing.xxs),
-                  ],
-
-                  if (headerActions.isNotEmpty) ...<Widget>[
-                    ...headerActions,
-                    SizedBox(width: context.sp(theme.spacing.xxs)),
-                  ],
-
-                  // Primary Action Button (e.g. + Log Trade)
-                  if (primaryAction != null)
-                    primaryAction!
-                  else if (primaryActionLabel != null || onPrimaryAction != null)
-                    UiButton(
-                      label: primaryActionLabel ?? 'Log Trade',
-                      leadingIcon: Icons.add_rounded,
-                      variant: UiVariant.primary,
-                      size: UiSize.sm,
-                      hideLabelOnMobile: true,
-                      onPressed: onPrimaryAction ?? onSearch,
-                    ),
-
-                  if (headerActions.isNotEmpty ||
-                      primaryAction != null ||
-                      primaryActionLabel != null ||
-                      onPrimaryAction != null) ...<Widget>[
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    Container(
-                      width: theme.borders.hairline,
-                      height: context.sz(16),
-                      color: theme.colors.border.withValues(alpha: 0.6),
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                  ],
-
-                  // Notifications Icon with emerald badge
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: <Widget>[
-                      UiIconButton(
-                        icon: Icons.notifications_none_rounded,
-                        size: UiSize.sm,
-                        tooltip: 'Notifications',
-                        onPressed: onNotifications,
-                      ),
-                      if (unread > 0)
-                        Positioned(
-                          right: 6,
-                          top: 6,
-                          child: Container(
-                            width: context.sz(7),
-                            height: context.sz(7),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: theme.colors.primary,
-                              border: Border.all(
-                                color: theme.colors.surface,
-                                width: theme.borders.thick,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xxs)),
-
-                  // Help Icon (?)
-                  UiIconButton(
-                    icon: Icons.help_outline_rounded,
-                    size: UiSize.sm,
-                    tooltip: 'Help & Guides',
-                    onPressed: onHelp ?? onAi,
-                  ),
-                  // User Avatar with profile dropdown (hidden on desktop as it already exists in the left sidebar)
-                  if (!context.uiRes.isDesktop) ...<Widget>[
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    _buildUserAvatar(context),
-                  ],
-                ],
-              ),
+                UiGap.h(theme.spacing.sm),
+              ] else if (onSearch != null)
+                UiIconButton(
+                  icon: Icons.search_rounded,
+                  tooltip: 'Search',
+                  size: UiSize.sm,
+                  onPressed: onSearch,
+                ),
+              if (onResearch != null)
+                UiIconButton(
+                  icon: Icons.travel_explore_rounded,
+                  tooltip: 'Research desk',
+                  size: UiSize.sm,
+                  onPressed: onResearch,
+                ),
+              if (onCalculator != null)
+                UiIconButton(
+                  icon: Icons.calculate_outlined,
+                  tooltip: 'Calculators',
+                  size: UiSize.sm,
+                  onPressed: onCalculator,
+                ),
+              ...headerActions,
+              if (primaryAction != null)
+                primaryAction!
+              else if (onPrimaryAction != null && primaryActionLabel != null)
+                UiButton(
+                  label: primaryActionLabel!,
+                  size: UiSize.sm,
+                  onPressed: onPrimaryAction,
+                ),
+              if (onNotifications != null)
+                UiIconButton(
+                  icon: Icons.notifications_none_rounded,
+                  tooltip: 'Notifications',
+                  badgeCount: unread > 0 ? unread : null,
+                  size: UiSize.sm,
+                  onPressed: onNotifications,
+                ),
+              if (onHelp != null || onAi != null)
+                UiIconButton(
+                  icon: Icons.help_outline_rounded,
+                  tooltip: 'Help & Guides',
+                  size: UiSize.sm,
+                  onPressed: onHelp ?? onAi,
+                ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildUserAvatar(BuildContext context) {
-    final String displayName = trader?.displayName?.trim() ?? '';
-    final String handle = trader?.handle.trim() ?? '';
-    final String name = displayName.isNotEmpty
-        ? displayName
-        : (handle.contains('@') ? handle.split('@').first : handle);
-    final String initials = (name.isNotEmpty)
-        ? (name.length >= 2 ? name.substring(0, 2).toUpperCase() : name.toUpperCase())
-        : 'AR';
-
-    final Widget avatarWidget = UiAvatar(
-      name: initials,
-      imageUrl: trader?.avatarUrl,
-      size: UiSize.sm,
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: <Color>[Color(0xFF2563EB), Color(0xFF7C3AED)],
-      ),
-      textColor: Colors.white,
-      textStyle: context.uiText.label.copyWith(
-        fontWeight: FontWeight.w700,
-        fontSize: context.fs(11),
-      ),
-    );
-
-    return UiDropdownMenu(
-      actions: <UiMenuItem>[
-        UiMenuItem(
-          label: name.isNotEmpty ? name : 'Alex Rivers',
-          icon: Icons.person_rounded,
-          onTap: onSettings,
-        ),
-        if (onSettings != null)
-          UiMenuItem(
-            label: 'Settings',
-            icon: Icons.settings_outlined,
-            onTap: onSettings,
-          ),
-        if (onAi != null)
-          UiMenuItem(
-            label: 'AI Copilot',
-            icon: Icons.auto_awesome_outlined,
-            onTap: onAi,
-          ),
-        if (onLogout != null)
-          UiMenuItem(
-            label: 'Log out',
-            icon: Icons.logout_rounded,
-            intent: UiIntent.danger,
-            onTap: onLogout,
-          ),
-      ],
-      child: avatarWidget,
     );
   }
 }

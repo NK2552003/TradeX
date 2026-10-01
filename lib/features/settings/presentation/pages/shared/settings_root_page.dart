@@ -4,6 +4,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/settings/presentation/pages/admin/desk_risk_page.dart';
 import 'package:tradex/features/settings/presentation/pages/admin/organization_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/affiliate/affiliate_settings_page.dart';
@@ -31,9 +32,11 @@ class SettingsRootPage extends StatefulWidget {
     this.onApplyForAffiliate,
     this.onSubpageChanged,
     this.onOpenRef,
+    this.communityRepository,
   });
 
   final UserRole userRole;
+  final CommunityRepository? communityRepository;
   final String? initialSectionId;
   final bool showNavigationPane;
   final VoidCallback? onLogout;
@@ -142,6 +145,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
   Widget _buildDetailPane(String sectionId) {
     return switch (sectionId) {
       'profile' => ProfileSettingsPage(
+        communityRepository: widget.communityRepository,
         userRole: widget.userRole,
         onOpenRef: widget.onOpenRef,
       ),
@@ -162,6 +166,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
       ),
       'help' => const HelpAboutPage(),
       _ => ProfileSettingsPage(
+        communityRepository: widget.communityRepository,
         userRole: widget.userRole,
         onOpenRef: widget.onOpenRef,
       ),
@@ -418,6 +423,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                 icon: Icons.person_outline_rounded,
                 onTap: () => _navigateToSubpage(
                   ProfileSettingsPage(
+                    communityRepository: widget.communityRepository,
                     userRole: widget.userRole,
                     onOpenRef: widget.onOpenRef,
                   ),

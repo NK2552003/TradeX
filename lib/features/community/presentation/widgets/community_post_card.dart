@@ -47,6 +47,7 @@ class CommunityPostCard extends StatefulWidget {
     this.onRepost,
     this.onBookmark,
     this.onShare,
+    this.onCopySetup,
     this.onAuthorTap,
     this.onTagTap,
     this.onQuote,
@@ -70,6 +71,7 @@ class CommunityPostCard extends StatefulWidget {
   final VoidCallback? onRepost;
   final VoidCallback? onBookmark;
   final VoidCallback? onShare;
+  final VoidCallback? onCopySetup;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<String>? onTagTap;
   final ValueChanged<CommunityPost>? onQuote;
@@ -549,7 +551,11 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
         // Embedded Trade Setup Snippet (if any and if showTradeSetup is true)
         if (widget.showTradeSetup && post.tradeSetup != null) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.sm)),
-          CommunityTradeSetupTile(setup: post.tradeSetup!, onTap: widget.onTap),
+          CommunityTradeSetupTile(
+            setup: post.tradeSetup!,
+            onTap: widget.onTap,
+            onLogToJournal: widget.onCopySetup,
+          ),
         ],
 
         // Attached Workspace Record (Note, Trade, Strategy)

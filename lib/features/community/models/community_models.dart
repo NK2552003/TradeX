@@ -806,6 +806,7 @@ class LiveAudioRoom {
     this.pinnedSetup,
     this.scheduledFor,
     this.startedAt,
+    this.endedAt,
     this.isRecording = false,
     this.tags = const <String>[],
     this.hasReminder = false,
@@ -822,6 +823,7 @@ class LiveAudioRoom {
   final LivePinnedSetup? pinnedSetup;
   final DateTime? scheduledFor;
   final DateTime? startedAt;
+  final DateTime? endedAt;
   final bool isRecording;
   final List<String> tags;
   final bool hasReminder;
@@ -841,6 +843,7 @@ class LiveAudioRoom {
     LivePinnedSetup? pinnedSetup,
     DateTime? scheduledFor,
     DateTime? startedAt,
+    DateTime? endedAt,
     bool? isRecording,
     List<String>? tags,
     bool? hasReminder,
@@ -857,6 +860,7 @@ class LiveAudioRoom {
       pinnedSetup: pinnedSetup ?? this.pinnedSetup,
       scheduledFor: scheduledFor ?? this.scheduledFor,
       startedAt: startedAt ?? this.startedAt,
+      endedAt: endedAt ?? this.endedAt,
       isRecording: isRecording ?? this.isRecording,
       tags: tags ?? this.tags,
       hasReminder: hasReminder ?? this.hasReminder,

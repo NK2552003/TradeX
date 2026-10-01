@@ -16,9 +16,11 @@ class ProfileSettingsPage extends StatefulWidget {
     this.userRole = UserRole.customer,
     this.repository,
     this.onOpenRef,
+    this.communityRepository,
   });
 
   final UserRole userRole;
+  final CommunityRepository? communityRepository;
   final ProfileSettingsRepository? repository;
   final void Function(AppLinkRef ref)? onOpenRef;
 
@@ -458,7 +460,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         audienceReach: _selectedAudienceReach,
         payoutMethod: _selectedPayoutMethod,
         isCurrentUser: true,
-        repository: CommunityRepository(),
+        repository: widget.communityRepository,
         author: CommunityAuthor(
           id: _profile?.id ?? 'usr_alex_vance',
           handle: (_profile?.handle ?? '').isNotEmpty ? _profile!.handle : 'alextrades',

@@ -70,7 +70,10 @@ class CommunityPollTile extends StatelessWidget {
 
           // Footer meta: total votes + expiry + Analytics button
           SizedBox(height: context.sp(theme.spacing.sm)),
-          Row(
+          Wrap(
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xs),
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: <Widget>[
               Text(
                 '${uiCompactNumber(poll.totalVotes)} votes',
@@ -101,7 +104,7 @@ class CommunityPollTile extends StatelessWidget {
                   fontSize: context.fs(11),
                 ),
               ),
-              const Spacer(),
+
               UiButton(
                 label: 'Analytics',
                 leadingIcon: Icons.insights_rounded,

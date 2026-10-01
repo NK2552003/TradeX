@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tradex/features/market_data/presentation/market_movers_panel.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
@@ -57,64 +58,7 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
 
   @override
   Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        // 1. Live Trading Floor / Audio Space Card
-        CommunityLiveRoomWidget(
-          repository: widget.repository,
-          room: widget.repository.liveRooms.isNotEmpty
-              ? widget.repository.liveRooms.first
-              : null,
-        ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
-
-        // 2. Subscribe to Premium Card
-        const CommunityPremiumCard(),
-        SizedBox(height: context.sp(theme.spacing.sm)),
-
-        // 3. Today's Market News Card
-        CommunityNewsWidget(
-          items: widget.repository.news,
-          onShowMore: widget.onShowMore,
-        ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
-
-        // 4. What's Happening / Trending in Markets
-        CommunityTrendingWidget(
-          items: widget.repository.trending,
-          onShowMore: widget.onShowMore,
-        ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
-
-        // 5. Who to Follow Card (hidden on tablet to save space)
-        if (widget.showWhoToFollow) ...<Widget>[
-          CommunityWhoToFollowCard(
-            traders: widget.repository.suggestedTraders,
-            onFollow: (author) => widget.onFollow?.call(author),
-            onShowMore: widget.onShowMore,
-          ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-        ],
-
-        // 6. Push Notifications Card (dismissible)
-        if (widget.repository.pushNotificationsPromptVisible) ...<Widget>[
-          CommunityPushNotificationsCard(
-            onDismiss: widget.repository.dismissPushNotificationsPrompt,
-          ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-        ],
-
-        // 6b. Regulatory & Compliance Disclaimer Card
-        const CommunityDisclaimerCard(),
-        SizedBox(height: context.sp(theme.spacing.sm)),
-
-        // 7. Footer Links
-        const CommunityFooterLinks(),
-      ],
-    );
+    return const MarketMoversPanel();
   }
 }
 

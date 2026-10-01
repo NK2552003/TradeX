@@ -1,9 +1,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:tradex/features/market_data/presentation/market_sidebar.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/community/presentation/widgets/community_trade_setup_tile.dart';
 import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_repost_dialog.dart';
@@ -35,6 +38,7 @@ class CommunityPostDetailView extends StatefulWidget {
     required this.currentUser,
     this.onAuthorTap,
     this.onBack,
+    this.showHeader = true,
     this.onOpenRef,
   });
 
@@ -43,6 +47,7 @@ class CommunityPostDetailView extends StatefulWidget {
   final CommunityAuthor currentUser;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final VoidCallback? onBack;
+  final bool showHeader;
   final ValueChanged<AppLinkRef>? onOpenRef;
 
   @override
@@ -145,7 +150,6 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
       );
     }
   }
-
 
   Future<void> _copySetupToJournal(CommunityTradeSetup setup) async {
     final double? entry = double.tryParse(setup.entry);
@@ -449,7 +453,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
                     context.sp(theme.spacing.xs),
                   ),
-                  child: _buildFloatingHeader(context, theme, isMobile: false),
+                  child: widget.showHeader
+                      ? _buildFloatingHeader(context, theme, isMobile: false)
+                      : const SizedBox.shrink(),
                 ),
 
                 // Thread content (post card & comments centered at maxWidth: 700px)
@@ -478,12 +484,19 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                               ),
                               post: _currentPost,
                               variant: CommunityPostCardVariant.boxed,
+                              showAuthorHeader: false,
+                              showTradeSetup: false,
                               repository: widget.repository,
                               currentUser: widget.currentUser,
                               onLike: _handleLike,
                               onRepost: _handleRepost,
                               onBookmark: _handleBookmark,
                               onShare: _handleShare,
+                              onCopySetup: _currentPost.tradeSetup == null
+                                  ? null
+                                  : () => _copySetupToJournal(
+                                      _currentPost.tradeSetup!,
+                                    ),
                               onAuthorTap: widget.onAuthorTap,
                               onOpenRef: widget.onOpenRef,
                               onVotePoll: (idx) => widget.repository.votePoll(
@@ -498,7 +511,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                               comments: comments,
                               currentUser: widget.currentUser,
                               isPublic: _currentPost.isPublic,
-                              canToggleVisibility: _currentPost.author.id == widget.currentUser.id,
+                              canToggleVisibility:
+                                  _currentPost.author.id ==
+                                  widget.currentUser.id,
                               onToggleVisibility: _togglePostVisibility,
                               onAuthorTap: widget.onAuthorTap,
 
@@ -541,19 +556,26 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   _buildAuthorProfileCard(theme, author),
-                  SizedBox(height: context.sp(theme.spacing.md)),
                   if (_currentPost.tradeSetup != null) ...[
-                    _buildTradeSetupBlueprintCard(
-                      theme,
-                      _currentPost.tradeSetup!,
+                    UiGap.v(theme.spacing.md),
+                    UiCard(
+                      title: 'Setup Blueprint',
+                      padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+                      child: CommunityTradeSetupTile(
+                        setup: _currentPost.tradeSetup!,
+                        onLogToJournal: () =>
+                            _copySetupToJournal(_currentPost.tradeSetup!),
+                      ),
                     ),
-                    SizedBox(height: context.sp(theme.spacing.md)),
                   ],
+                  SizedBox(height: context.sp(theme.spacing.md)),
                   _buildThreadActivityCard(theme, comments),
                   SizedBox(height: context.sp(theme.spacing.md)),
                   _buildAuthorRecentSetupsCard(theme, author),
                   SizedBox(height: context.sp(theme.spacing.md)),
                   _buildRiskComplianceCard(theme),
+                  UiGap.v(theme.spacing.md),
+                  const MarketSidebar(),
                 ],
               ),
             ),
@@ -574,7 +596,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
     List<CommunityComment> comments,
   ) {
     final double clearance =
-        context.sz(44) +
+        (widget.showHeader ? context.sz(44) : 0) +
         context.sp(theme.spacing.sm) +
         context.sp(theme.spacing.xs);
 
@@ -608,6 +630,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     onRepost: _handleRepost,
                     onBookmark: _handleBookmark,
                     onShare: _handleShare,
+                    onCopySetup: _currentPost.tradeSetup == null
+                        ? null
+                        : () => _copySetupToJournal(_currentPost.tradeSetup!),
                     onAuthorTap: widget.onAuthorTap,
                     onOpenRef: widget.onOpenRef,
                     onVotePoll: (idx) =>
@@ -620,7 +645,8 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                     comments: comments,
                     currentUser: widget.currentUser,
                     isPublic: _currentPost.isPublic,
-                    canToggleVisibility: _currentPost.author.id == widget.currentUser.id,
+                    canToggleVisibility:
+                        _currentPost.author.id == widget.currentUser.id,
                     onToggleVisibility: _togglePostVisibility,
                     onAuthorTap: widget.onAuthorTap,
 
@@ -647,19 +673,20 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
           ),
         ),
 
-        // Floating Header Pinned at Top
-        Positioned(
-          top: context.sp(theme.spacing.xs),
-          left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-          right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: context.sz(700)),
-              child: _buildFloatingHeader(context, theme, isMobile: isMobile),
+        // Standalone views own a header; the app shell supplies it when embedded.
+        if (widget.showHeader)
+          Positioned(
+            top: context.sp(theme.spacing.xs),
+            left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            right: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: context.sz(700)),
+                child: _buildFloatingHeader(context, theme, isMobile: isMobile),
+              ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -670,194 +697,90 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
 
   Widget _buildAuthorProfileCard(UiTheme theme, CommunityAuthor author) {
     final bool isCurrentUser = author.id == widget.currentUser.id;
-    final Color verifiedColor = author.verifiedColor(theme);
-
     return UiCard(
-      variant: UiCardVariant.surface,
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+      padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
+        children: [
           Row(
-            children: <Widget>[
-              GestureDetector(
+            children: [
+              UiAvatar(
+                name: author.displayName,
+                imageUrl: author.avatarUrl,
+                verified: author.verified,
                 onTap: widget.onAuthorTap == null
                     ? null
                     : () => widget.onAuthorTap!(author),
-                child: UiAvatar(
-                  name: author.displayName,
-                  imageUrl: author.avatarUrl,
-                  size: UiSize.lg,
-                  verified: author.verified,
-                  verifiedColor: verifiedColor,
-                ),
               ),
-              SizedBox(width: context.sp(theme.spacing.sm)),
+              UiGap.h(theme.spacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
+                  children: [
                     Row(
-                      children: <Widget>[
+                      children: [
                         Flexible(
-                          child: GestureDetector(
-                            onTap: widget.onAuthorTap == null
-                                ? null
-                                : () => widget.onAuthorTap!(author),
-                            child: Text(
-                              author.displayName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.uiText.bodyStrong.copyWith(
-                                fontWeight: FontWeight.w700,
-                                fontSize: context.fs(15),
-                              ),
+                          child: Text(
+                            author.displayName,
+                            style: context.uiText.bodyStrong.copyWith(
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                        if (author.verified) ...<Widget>[
-                          const SizedBox(width: 4),
+                        if (author.verified) ...[
+                          UiGap.h(theme.spacing.xxs),
                           Icon(
                             Icons.verified_rounded,
-                            color: verifiedColor,
-                            size: context.sz(14),
+                            size: context.sz(16),
+                            color: author.verifiedColor(theme),
                           ),
                         ],
                       ],
                     ),
-                    const SizedBox(height: 1),
-                    Text(
-                      '@${author.handle}',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
-                      ),
-                    ),
+                    Text('@${author.handle}', style: context.uiText.caption),
                   ],
                 ),
               ),
             ],
           ),
-          if (author.userRole != UserRole.customer ||
-              author.winRate != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: <Widget>[
-                if (author.userRole != UserRole.customer)
-                  UiBadge(
-                    label: author.roleBadgeText,
-                    intent: author.userRole == UserRole.userAdmin
-                        ? UiIntent.danger
-                        : UiIntent.warning,
-                    variant: UiBadgeVariant.solid,
-                    size: UiSize.xs,
-                  ),
-                if (author.winRate != null)
-                  UiBadge(
-                    label: '${author.winRate!.toStringAsFixed(0)}% Win',
-                    intent: author.winRate! >= 60
-                        ? UiIntent.success
-                        : UiIntent.neutral,
-                    variant: UiBadgeVariant.soft,
-                    size: UiSize.xs,
-                  ),
-              ],
-            ),
-          ],
-          if (author.bio != null && author.bio!.isNotEmpty) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            Text(
-              author.bio!,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: context.uiText.caption.copyWith(
-                color: theme.colors.foregroundMuted,
-                height: 1.4,
+          UiGap.v(theme.spacing.md),
+          Wrap(
+            spacing: context.sp(theme.spacing.md),
+            runSpacing: context.sp(theme.spacing.sm),
+            children: [
+              _sidebarStat(
+                theme,
+                label: 'Win Rate',
+                value: author.winRate == null
+                    ? '—'
+                    : '${author.winRate!.toStringAsFixed(1)}%',
+                intent: UiIntent.success,
               ),
-            ),
-          ],
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          const UiDivider(),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-
-          // Verified Metrics Grid
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: _sidebarStat(
-                  theme,
-                  label: 'Win Rate',
-                  value: author.winRate != null
-                      ? '${author.winRate!.toStringAsFixed(1)}%'
-                      : '67.2%',
-                  intent: UiIntent.success,
-                ),
-              ),
-              Expanded(
-                child: _sidebarStat(
-                  theme,
-                  label: 'Followers',
-                  value: uiCompactNumber(author.followers),
-                ),
-              ),
-              Expanded(
-                child: _sidebarStat(theme, label: 'Sharpe', value: '2.14'),
+              _sidebarStat(
+                theme,
+                label: 'Followers',
+                value: uiCompactNumber(author.followers),
               ),
             ],
           ),
-
-          SizedBox(height: context.sp(theme.spacing.md)),
-
-          // Follow / DM Actions or Your Desk Badge
-          if (isCurrentUser)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: theme.colors.surfaceMuted,
-                borderRadius: context.radius(theme.radii.sm),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(
-                    Icons.badge_outlined,
-                    size: context.sz(14),
-                    color: theme.colors.primary,
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  Text(
-                    'Your Trading Desk Profile',
-                    style: context.uiText.caption.copyWith(
-                      color: theme.colors.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: UiButton(
-                    label: author.isFollowing ? 'Following' : 'Follow',
-                    icon: author.isFollowing
-                        ? Icons.check_rounded
-                        : Icons.person_add_rounded,
-                    size: UiSize.sm,
-                    variant: author.isFollowing
-                        ? UiVariant.outline
-                        : UiVariant.primary,
-                    onPressed: () => widget.repository.toggleFollow(author.id),
-                  ),
+          if (!isCurrentUser) ...[
+            UiGap.v(theme.spacing.md),
+            Wrap(
+              spacing: context.sp(theme.spacing.xs),
+              runSpacing: context.sp(theme.spacing.xs),
+              children: [
+                UiButton(
+                  label: author.isFollowing ? 'Following' : 'Follow',
+                  size: UiSize.sm,
+                  leadingIcon: author.isFollowing
+                      ? Icons.check_rounded
+                      : Icons.person_add_rounded,
+                  onPressed: () => widget.repository.toggleFollow(author.id),
                 ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
                 UiIconButton(
                   icon: Icons.mail_outline_rounded,
-                  size: UiSize.sm,
-                  variant: UiVariant.ghost,
                   tooltip: 'Send Direct Message',
+                  size: UiSize.sm,
                   onPressed: () => CommunitySendDmDialog.show(
                     context,
                     repository: widget.repository,
@@ -867,138 +790,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                 ),
               ],
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTradeSetupBlueprintCard(
-    UiTheme theme,
-    CommunityTradeSetup setup,
-  ) {
-    final bool isBullish = setup.isBullish;
-    return UiCard(
-      variant: UiCardVariant.surface,
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Icon(
-                    Icons.candlestick_chart_rounded,
-                    size: context.sz(16),
-                    color: theme.colors.primary,
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  Text(
-                    'Setup Blueprint',
-                    style: context.uiText.label.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: context.fs(13),
-                    ),
-                  ),
-                ],
-              ),
-              UiBadge(
-                label: setup.side.toUpperCase(),
-                intent: isBullish ? UiIntent.success : UiIntent.danger,
-                variant: UiBadgeVariant.solid,
-                size: UiSize.xs,
-              ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.sm),
-              vertical: context.sp(theme.spacing.xs),
-            ),
-            decoration: BoxDecoration(
-              color: theme.colors.surfaceMuted,
-              borderRadius: context.radius(theme.radii.sm),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                Text(
-                  setup.ticker,
-                  style: context.uiText.bodyStrong.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                if (setup.rMultiple != null)
-                  Text(
-                    'R:R ${setup.rMultiple}',
-                    style: context.uiText.caption.copyWith(
-                      color: theme.colors.foregroundMuted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: _sidebarStat(theme, label: 'Entry', value: setup.entry),
-              ),
-              if (setup.stopLoss != null)
-                Expanded(
-                  child: _sidebarStat(
-                    theme,
-                    label: 'Stop Loss',
-                    value: setup.stopLoss!,
-                    intent: UiIntent.danger,
-                  ),
-                ),
-              if (setup.target != null)
-                Expanded(
-                  child: _sidebarStat(
-                    theme,
-                    label: 'Target',
-                    value: setup.target!,
-                    intent: UiIntent.success,
-                  ),
-                ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          const UiDivider(),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          // Interactive Action Buttons matching the setup tile
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: <Widget>[
-              UiButton(
-                label: 'Copy to Journal',
-                leadingIcon: Icons.bookmark_add_outlined,
-                variant: UiVariant.ghost,
-                size: UiSize.xs,
-                onPressed: () => _copySetupToJournal(setup),
-              ),
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              UiButton(
-                label: 'Clone Setup',
-                leadingIcon: Icons.copy_rounded,
-                variant: UiVariant.outline,
-                size: UiSize.xs,
-                onPressed: () {
-                  UiToast.show(
-                    context,
-                    title: 'Setup Cloned',
-                    message:
-                        'Loaded ${setup.ticker} setup into Order Ticket (Paper Desk)',
-                    intent: UiIntent.primary,
-                  );
-                },
-              ),
-            ],
-          ),
+          ],
         ],
       ),
     );
@@ -1169,11 +961,13 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                   color: theme.colors.foregroundSubtle,
                 ),
                 SizedBox(width: context.sp(theme.spacing.xxs)),
-                Text(
-                  'Associated Tickers & Tags',
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundSubtle,
-                    fontWeight: FontWeight.w600,
+                Flexible(
+                  child: Text(
+                    'Associated Tickers & Tags',
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundSubtle,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -1292,10 +1086,15 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            title,
-            style: context.uiText.caption.copyWith(fontWeight: FontWeight.w600),
+          Expanded(
+            child: Text(
+              title,
+              style: context.uiText.caption.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
+          UiGap.h(theme.spacing.xs),
           Text(
             pnl,
             style: context.uiText.numeric.copyWith(

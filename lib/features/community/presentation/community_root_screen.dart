@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -137,14 +138,16 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     _repo = widget.repository ?? CommunityRepository();
     _repo.addListener(_onRepoChanged);
     _repo.updateCurrentAuthor(_currentAuthor);
+    unawaited(_repo.loadMarketData());
     _tabController = TabController(
       length: _hubTabs.length,
       vsync: this,
       initialIndex: widget.initialTabIndex.clamp(0, _hubTabs.length - 1),
     );
+    _mobileNavIndex = _tabController.index.clamp(0, _mobileNavTabs.length - 1);
     // Rebuild on tab change so FAB / badges stay current.
     _tabController.addListener(_onTabChanged);
-    
+
     if (widget.openRequest != null) {
       _applyRequest(widget.openRequest!);
     }
@@ -156,16 +159,18 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     _repo.updateCurrentAuthor(_currentAuthor);
     if (widget.initialTabIndex != oldWidget.initialTabIndex) {
       final int idx = widget.initialTabIndex.clamp(0, _hubTabs.length - 1);
+      _activeSubpage = null;
       if (_tabController.index != idx) {
         _tabController.animateTo(idx);
       }
       _mobileNavIndex = idx.clamp(0, _mobileNavTabs.length - 1);
     }
-    if (widget.openRequest != null && widget.openRequest != oldWidget.openRequest) {
+    if (widget.openRequest != null &&
+        widget.openRequest != oldWidget.openRequest) {
       _applyRequest(widget.openRequest!);
     }
   }
-  
+
   void _applyRequest(AppLinkOpenRequest request) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -179,7 +184,14 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   }
 
   void _onTabChanged() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {
+        _mobileNavIndex = _tabController.index.clamp(
+          0,
+          _mobileNavTabs.length - 1,
+        );
+      });
+    }
   }
 
   void _onRepoChanged() {
@@ -246,6 +258,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         currentUser: _currentAuthor,
         onAuthorTap: _openAuthorProfile,
         onBack: _closeSubpage,
+        showHeader: !widget.embedInScaffold,
         onOpenRef: widget.onOpenRef,
       ),
     );
@@ -266,6 +279,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         author: author,
         repository: _repo,
         isCurrentUser: isMe,
+        showHeader: !widget.embedInScaffold,
         onBack: _closeSubpage,
         onPostTap: _openPostDetail,
         onOpenRef: widget.onOpenRef,
@@ -332,10 +346,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       desktopWidthRatio: 0.44,
       maxWidth: 620,
       minDesktopWidth: 460,
-      child: CommunityModerationListPage(
-        repository: _repo,
-        isEmbedded: true,
-      ),
+      child: CommunityModerationListPage(repository: _repo, isEmbedded: true),
     );
   }
 
@@ -384,7 +395,9 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
           final UiResponsive r = context.uiRes;
           final Widget layout = r.isMobile
               ? _buildMobileLayout(context)
-              : (r.isTablet ? _buildTabletLayout(context) : _buildDesktopLayout(context));
+              : (r.isTablet
+                    ? _buildTabletLayout(context)
+                    : _buildDesktopLayout(context));
 
           final bool isMobile = r.isMobile;
           final bool onFeedTab = _tabController.index == 0;
@@ -393,8 +406,8 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
           // floating dock clearance (~76px). Position the dock just above it.
           final double floatingBottom = isMobile
               ? (widget.embedInScaffold || safeBottom > 50
-                  ? (safeBottom + context.sp(theme.spacing.xs))
-                  : (context.sz(74) + safeBottom))
+                    ? (safeBottom + context.sp(theme.spacing.xs))
+                    : (context.sz(74) + safeBottom))
               : context.sp(theme.spacing.lg);
           final double floatingRight = isMobile
               ? context.sp(theme.spacing.md)
@@ -691,9 +704,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
                   onPostTap: _openPostDetail,
                   onSearchTap: _openSearchPage,
                   onSearchSubmitted: (q) => _openHashtagPage(
-                    q.startsWith('\$') || q.startsWith('#')
-                        ? q
-                        : '\$$q',
+                    q.startsWith('\$') || q.startsWith('#') ? q : '\$$q',
                   ),
                   showWhoToFollow: true,
                 ),
@@ -732,8 +743,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
             child: TabBar(
               controller: _tabController,
               isScrollable: !isDesktop,
-              tabAlignment:
-                  isDesktop ? TabAlignment.fill : TabAlignment.start,
+              tabAlignment: isDesktop ? TabAlignment.fill : TabAlignment.start,
               splashBorderRadius: context.radius(theme.radii.sm),
               labelStyle: context.uiText.bodyStrong.copyWith(
                 fontSize: context.fs(14),
@@ -763,9 +773,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
                 }
 
                 // Desktop: text label only.
-                return Tab(
-                  child: Text(t.label),
-                );
+                return Tab(child: Text(t.label));
               }).toList(),
             ),
           ),
@@ -803,5 +811,3 @@ class _CommunityTab {
   final String label;
   final IconData icon;
 }
-
-

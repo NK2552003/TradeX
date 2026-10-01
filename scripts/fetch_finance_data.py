@@ -1,42 +1,128 @@
 """
-Finance Core Kit — Quotes, Fundamentals, Price History & Rolling News.
-Outputs directly to `assets/data/` (including `assets/data/history/<TICKER>.json`).
+Finance Data Fetcher — scales to thousands of tickers (US + India) using
+batched requests, saves to local JSON files, and optionally to Postgres.
+
+WHY THIS VERSION IS DIFFERENT FROM THE 100-TICKER VERSION:
+At 8,000 tickers, fetching one-ticker-at-a-time (yf.Ticker per symbol) is
+too slow and too likely to get rate-limited. This version:
+  1. Loads tickers from tickers/us_tickers.csv + tickers/in_tickers.csv
+     (generate these once with fetch_ticker_lists.py), falling back to a
+     small built-in list if those files don't exist.
+  2. Fetches quotes + price history in BATCHES via yf.download(), which is
+     dramatically faster than one call per ticker.
+  3. Skips full fundamentals (.info) for the entire universe by default —
+     that call is slow and mostly unnecessary at this scale. Fundamentals
+     are fetched only for a capped subset (FUNDAMENTALS_LIMIT), meant to
+     represent your app's actively-watchlisted tickers, not all 8,000.
+  4. Skips per-ticker news for the entire universe too, for the same
+     reason — news is capped to a subset (NEWS_TICKER_LIMIT).
+
+Usage:
+    pip install yfinance --break-system-packages
+    python fetch_ticker_lists.py      # one-time: download full ticker universe
+    python fetch_finance_data.py      # fetch quotes/history for everyone,
+                                       # fundamentals/news for the capped subset
+
+With Postgres:
+    pip install psycopg2-binary --break-system-packages
+    export DATABASE_URL=postgresql://postgres:devpass@localhost:5432/financeapp
+    python fetch_finance_data.py
+
+Storage strategy (see schema.sql): stock_quotes and news_articles are
+truncated + refilled every run; stock_fundamentals is upserted per ticker;
+stock_price_history keeps a rolling 30-day window, auto-cleaned.
 """
 
 import csv
 import json
 import math
 import os
+from asset_runtime import DATA_DIR as ASSET_DIR, read_json, write_json, merge_news
 import time
 from datetime import datetime, timedelta, timezone
 
-try:
-    import yfinance as yf
-    YFINANCE_AVAILABLE = True
-except ImportError:
-    YFINANCE_AVAILABLE = False
+import yfinance as yf
 
+# Optional Postgres backend — only imported/used if DATABASE_URL is set.
 DB_ENABLED = bool(os.environ.get("DATABASE_URL"))
 if DB_ENABLED:
-    try:
-        import db as dbmod
-    except ImportError:
-        DB_ENABLED = False
+    import db as dbmod
 
-SCRIPT_DIR = os.path.dirname(__file__)
-OUT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "assets", "data"))
-HISTORY_DIR = os.path.join(OUT_DIR, "history")
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
 
-os.makedirs(OUT_DIR, exist_ok=True)
-os.makedirs(HISTORY_DIR, exist_ok=True)
+TICKERS_DIR = str(ASSET_DIR / "tickers")
+US_TICKERS_CSV = os.path.join(TICKERS_DIR, "us_tickers.csv")
+IN_TICKERS_CSV = os.path.join(TICKERS_DIR, "in_tickers.csv")
 
+# Fallback if you haven't run fetch_ticker_lists.py yet
 FALLBACK_US_TICKERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA"]
 FALLBACK_IN_TICKERS = ["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS"]
-ALL_TICKERS = FALLBACK_US_TICKERS + FALLBACK_IN_TICKERS
+
+BATCH_SIZE = 100          # tickers per yf.download() call — keeps each request manageable
+BATCH_PAUSE_SECONDS = 2   # pause between batches, be polite to Yahoo's endpoint
+
+# Fundamentals (.info) and per-ticker news are slow — cap them to a subset.
+# In a real app, this subset should be "tickers the user actually watches",
+# not the full universe. Edit these numbers, or replace with a real
+# watchlist query, once you're past prototyping.
+FUNDAMENTALS_LIMIT = int(os.environ.get("FUNDAMENTALS_LIMIT", "300"))
+NEWS_TICKER_LIMIT = int(os.environ.get("NEWS_TICKER_LIMIT", "100"))       # how many tickers get news fetched (cap for scale)
+NEWS_LIMIT_PER_TICKER = 10    # articles per ticker — yfinance typically has ~10-20 available
+NEWS_RETENTION_DAYS = 7        # keep the full week, not just today's pool
+
+DATA_DIR = str(ASSET_DIR)
+HISTORY_DIR = os.path.join(DATA_DIR, "history")
 
 
 def now_iso():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+
+def is_nan(val):
+    try:
+        return math.isnan(val)
+    except (TypeError, ValueError):
+        return val is None
+
+
+# ---------------------------------------------------------------------------
+# Ticker loading
+# ---------------------------------------------------------------------------
+
+
+def load_tickers_from_csv(path, fallback):
+    if not os.path.exists(path):
+        print(f"  [tickers] {path} not found — using small fallback list. "
+              f"Run fetch_ticker_lists.py to get the full universe.")
+        return fallback
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        tickers = [row["ticker"].strip() for row in reader if row.get("ticker")]
+    print(f"  [tickers] loaded {len(tickers)} tickers from {path}")
+    return tickers
+
+
+US_TICKERS = load_tickers_from_csv(US_TICKERS_CSV, FALLBACK_US_TICKERS)
+INDIA_TICKERS = load_tickers_from_csv(IN_TICKERS_CSV, FALLBACK_IN_TICKERS)
+ALL_TICKERS = list(dict.fromkeys(list(read_json(ASSET_DIR / "quotes.json", {})) + US_TICKERS + INDIA_TICKERS))
+if os.environ.get("MARKET_TICKER_LIMIT"):
+    ALL_TICKERS = ALL_TICKERS[:int(os.environ["MARKET_TICKER_LIMIT"])]
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def ensure_dirs():
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(HISTORY_DIR, exist_ok=True)
+
+
+def save_json(path, data):
+    write_json(path, data)
 
 
 def get_market(ticker):
@@ -52,378 +138,339 @@ def get_exchange(ticker):
         return "NSE"
     if ticker.endswith(".BO"):
         return "BSE"
-    return "NASDAQ"
+    return "US"
 
 
-def fetch_live_finance_data(tickers):
+def chunked(seq, size):
+    for i in range(0, len(seq), size):
+        yield seq[i : i + size]
+
+
+# ---------------------------------------------------------------------------
+# Batched quotes + history (the scalable path — used for ALL tickers)
+# ---------------------------------------------------------------------------
+
+
+def fetch_batch_quotes_and_history(tickers, period="1mo", interval="1d"):
+    """
+    One yf.download() call per batch returns both the latest price (last row)
+    and the full history (all rows) for every ticker in the batch — far
+    faster than calling yf.Ticker() once per symbol.
+    Returns (quotes_dict, history_dict).
+
+    IMPORTANT: current yfinance defaults `multi_level_index=True` even when
+    only ONE ticker is requested — so a single-ticker batch (e.g. a leftover
+    remainder batch) still comes back multi-indexed, not flat. Older code
+    that branched on `len(tickers) > 1` to decide flat-vs-multi-index broke
+    on exactly this case. Explicitly passing `multi_level_index=False` below
+    removes the ambiguity — group_by="ticker" always gives us `data[ticker]`
+    consistently, regardless of batch size.
+    """
     quotes = {}
-    history_map = {}
-    fundamentals = {}
+    history = {}
 
     try:
         data = yf.download(
             tickers,
-            period="1mo",
-            interval="1d",
+            period=period,
+            interval=interval,
             group_by="ticker",
             threads=True,
             progress=False,
-            multi_level_index=False,
+            multi_level_index=False,  # pin the shape explicitly — don't rely on ticker-count branching
         )
-        for ticker in tickers:
-            try:
-                try:
-                    df = data[ticker]
-                except (KeyError, TypeError):
-                    df = data
-                df = df.dropna(how="all")
-                if df.empty:
-                    continue
+    except Exception as e:
+        print(f"  [batch] download failed for batch starting with {tickers[0]}: {e}")
+        return quotes, history
 
-                records = []
-                for date, row in df.iterrows():
-                    records.append({
+    for ticker in tickers:
+        try:
+            # With multi_level_index=False and group_by="ticker", a single-ticker
+            # batch returns a flat frame (no ticker-level column), while a
+            # multi-ticker batch still needs data[ticker]. Try the multi-ticker
+            # path first, fall back to treating `data` itself as this ticker's
+            # frame — this handles both shapes without guessing from len(tickers).
+            try:
+                df = data[ticker]
+            except (KeyError, TypeError):
+                df = data
+
+            df = df.dropna(how="all")
+            if df.empty:
+                continue
+
+            df = df.dropna(subset=["Open", "High", "Low", "Close"])
+            if df.empty:
+                continue
+            records = []
+            for date, row in df.iterrows():
+                records.append(
+                    {
                         "date": date.isoformat(),
                         "open": round(float(row["Open"]), 2),
                         "high": round(float(row["High"]), 2),
                         "low": round(float(row["Low"]), 2),
                         "close": round(float(row["Close"]), 2),
-                        "volume": int(row["Volume"]) if row["Volume"] == row["Volume"] else 0,
-                    })
-
-                history_map[ticker] = {
-                    "ticker": ticker,
-                    "market": get_market(ticker),
-                    "currency": get_currency(ticker),
-                    "period": "1mo",
-                    "interval": "1d",
-                    "data": records,
-                }
-
-                last = df.iloc[-1]
-                prev = df.iloc[-2] if len(df) > 1 else None
-                price = round(float(last["Close"]), 2)
-                prev_close = round(float(prev["Close"]), 2) if prev is not None else None
-                change_pct = round((price - prev_close) / prev_close * 100, 2) if prev_close else 0.0
-
-                quotes[ticker] = {
-                    "ticker": ticker,
-                    "market": get_market(ticker),
-                    "exchange": get_exchange(ticker),
-                    "currency": get_currency(ticker),
-                    "price": price,
-                    "previous_close": prev_close,
-                    "day_high": round(float(last["High"]), 2),
-                    "day_low": round(float(last["Low"]), 2),
-                    "volume": int(last["Volume"]) if last["Volume"] == last["Volume"] else 0,
-                    "change_pct": change_pct,
-                    "updated_at": now_iso(),
-                }
-            except Exception:
-                continue
-
-        # Simple fundamentals fetch for subset
-        for ticker in tickers[:4]:
-            try:
-                info = yf.Ticker(ticker).info
-                if info and info.get("marketCap"):
-                    fundamentals[ticker] = {
-                        "ticker": ticker,
-                        "market": get_market(ticker),
-                        "exchange": get_exchange(ticker),
-                        "currency": get_currency(ticker),
-                        "name": info.get("longName") or info.get("shortName"),
-                        "market_cap": info.get("marketCap"),
-                        "pe_ratio": info.get("trailingPE"),
-                        "sector": info.get("sector"),
-                        "industry": info.get("industry"),
-                        "fifty_two_week_high": info.get("fiftyTwoWeekHigh"),
-                        "fifty_two_week_low": info.get("fiftyTwoWeekLow"),
-                        "dividend_yield": info.get("dividendYield"),
-                        "updated_at": now_iso(),
+                        "volume": 0 if is_nan(row["Volume"]) else int(row["Volume"]),
                     }
-            except Exception:
-                continue
+                )
 
-    except Exception as e:
-        print(f"  Live download failed: {e}")
+            history[ticker] = {
+                "ticker": ticker,
+                "market": get_market(ticker),
+                "currency": get_currency(ticker),
+                "period": period,
+                "interval": interval,
+                "data": records,
+            }
 
-    return quotes, fundamentals, history_map
+            last = df.iloc[-1]
+            prev = df.iloc[-2] if len(df) > 1 else None
+            price = round(float(last["Close"]), 2)
+            previous_close = round(float(prev["Close"]), 2) if prev is not None else None
+            change_pct = (
+                round((price - previous_close) / previous_close * 100, 2)
+                if previous_close
+                else None
+            )
+
+            quotes[ticker] = {
+                "ticker": ticker,
+                "market": get_market(ticker),
+                "exchange": get_exchange(ticker),
+                "currency": get_currency(ticker),
+                "price": price,
+                "previous_close": previous_close,
+                "day_high": round(float(last["High"]), 2),
+                "day_low": round(float(last["Low"]), 2),
+                "volume": 0 if is_nan(last["Volume"]) else int(last["Volume"]),
+                "change_pct": change_pct,
+                "updated_at": now_iso(),
+            }
+        except Exception as e:
+            print(f"  [batch] parse failed for {ticker}: {e}")
+            continue
+
+    return quotes, history
 
 
-def generate_mock_data():
-    quotes = {
-        "AAPL": {
-            "ticker": "AAPL",
-            "market": "US",
-            "exchange": "NASDAQ",
-            "currency": "USD",
-            "price": 227.5,
-            "previous_close": 225.1,
-            "day_high": 228.3,
-            "day_low": 225.9,
-            "volume": 48213000,
-            "change_pct": 1.07,
-            "updated_at": now_iso()
-        },
-        "MSFT": {
-            "ticker": "MSFT",
-            "market": "US",
-            "exchange": "NASDAQ",
-            "currency": "USD",
-            "price": 448.2,
-            "previous_close": 442.0,
-            "day_high": 450.1,
-            "day_low": 441.5,
-            "volume": 21045000,
-            "change_pct": 1.40,
-            "updated_at": now_iso()
-        },
-        "GOOGL": {
-            "ticker": "GOOGL",
-            "market": "US",
-            "exchange": "NASDAQ",
-            "currency": "USD",
-            "price": 165.2,
-            "previous_close": 163.8,
-            "day_high": 166.5,
-            "day_low": 163.0,
-            "volume": 19500000,
-            "change_pct": 0.85,
-            "updated_at": now_iso()
-        },
-        "AMZN": {
-            "ticker": "AMZN",
-            "market": "US",
-            "exchange": "NASDAQ",
-            "currency": "USD",
-            "price": 186.4,
-            "previous_close": 184.2,
-            "day_high": 187.8,
-            "day_low": 183.9,
-            "volume": 24100000,
-            "change_pct": 1.19,
-            "updated_at": now_iso()
-        },
-        "TSLA": {
-            "ticker": "TSLA",
-            "market": "US",
-            "exchange": "NASDAQ",
-            "currency": "USD",
-            "price": 245.8,
-            "previous_close": 240.6,
-            "day_high": 248.1,
-            "day_low": 239.5,
-            "volume": 55000000,
-            "change_pct": 2.16,
-            "updated_at": now_iso()
-        },
-        "NVDA": {
-            "ticker": "NVDA",
-            "market": "US",
-            "exchange": "NASDAQ",
-            "currency": "USD",
-            "price": 128.5,
-            "previous_close": 121.9,
-            "day_high": 129.8,
-            "day_low": 121.5,
-            "volume": 68000000,
-            "change_pct": 5.41,
-            "updated_at": now_iso()
-        },
-        "RELIANCE.NS": {
-            "ticker": "RELIANCE.NS",
-            "market": "IN",
-            "exchange": "NSE",
-            "currency": "INR",
-            "price": 2950.4,
-            "previous_close": 2910.0,
-            "day_high": 2965.0,
-            "day_low": 2905.0,
-            "volume": 5123000,
-            "change_pct": 1.39,
-            "updated_at": now_iso()
-        },
-        "TCS.NS": {
-            "ticker": "TCS.NS",
-            "market": "IN",
-            "exchange": "NSE",
-            "currency": "INR",
-            "price": 4215.0,
-            "previous_close": 4180.0,
-            "day_high": 4230.0,
-            "day_low": 4175.0,
-            "volume": 1890000,
-            "change_pct": 0.84,
-            "updated_at": now_iso()
-        },
-        "INFY.NS": {
-            "ticker": "INFY.NS",
-            "market": "IN",
-            "exchange": "NSE",
-            "currency": "INR",
-            "price": 1890.2,
-            "previous_close": 1872.0,
-            "day_high": 1905.0,
-            "day_low": 1865.0,
-            "volume": 3200000,
-            "change_pct": 0.97,
-            "updated_at": now_iso()
-        },
-        "HDFCBANK.NS": {
-            "ticker": "HDFCBANK.NS",
-            "market": "IN",
-            "exchange": "NSE",
-            "currency": "INR",
-            "price": 1640.5,
-            "previous_close": 1625.0,
-            "day_high": 1652.0,
-            "day_low": 1620.0,
-            "volume": 7800000,
-            "change_pct": 0.95,
-            "updated_at": now_iso()
-        },
-        "ICICIBANK.NS": {
-            "ticker": "ICICIBANK.NS",
-            "market": "IN",
-            "exchange": "NSE",
-            "currency": "INR",
-            "price": 1210.8,
-            "previous_close": 1198.0,
-            "day_high": 1218.0,
-            "day_low": 1195.0,
-            "volume": 4900000,
-            "change_pct": 1.07,
-            "updated_at": now_iso()
-        }
-    }
+# ---------------------------------------------------------------------------
+# Fundamentals + news (slow, per-ticker — capped to a subset, NOT the full universe)
+# ---------------------------------------------------------------------------
 
-    fundamentals = {
-        "AAPL": {
-            "ticker": "AAPL",
-            "market": "US",
-            "exchange": "NASDAQ",
-            "currency": "USD",
-            "name": "Apple Inc.",
-            "market_cap": 3500000000000,
-            "pe_ratio": 32.1,
-            "sector": "Technology",
-            "industry": "Consumer Electronics",
-            "fifty_two_week_high": 240.5,
-            "fifty_two_week_low": 164.0,
-            "dividend_yield": 0.5,
-            "updated_at": now_iso()
-        },
-        "RELIANCE.NS": {
-            "ticker": "RELIANCE.NS",
-            "market": "IN",
-            "exchange": "NSE",
-            "currency": "INR",
-            "name": "Reliance Industries Limited",
-            "market_cap": 19950000000000,
-            "pe_ratio": 28.4,
-            "sector": "Energy & Conglomerate",
-            "industry": "Oil & Gas / Retail / Telecom",
-            "fifty_two_week_high": 3217.9,
-            "fifty_two_week_low": 2220.3,
-            "dividend_yield": 0.35,
-            "updated_at": now_iso()
-        }
-    }
 
-    news = [
-        {
-            "ticker": "RELIANCE.NS",
-            "market": "IN",
-            "title": "Reliance Retail Expands Digital Platform Integration Across Key Markets",
-            "summary": "Strong quarterly performance driven by digital commerce acceleration and expanded footprint in retail and consumer services.",
-            "link": "https://finance.yahoo.com/news/example-reliance",
-            "publisher": "Reuters",
-            "thumbnail_url": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=500",
-            "related_tickers": ["RELIANCE.NS", "TCS.NS"],
-            "content_type": "STORY",
-            "published_at": now_iso()
-        },
-        {
-            "ticker": "AAPL",
-            "market": "US",
-            "title": "Apple Prepares Next-Gen Silicon Upgrades for Flagship Lineup",
-            "summary": "Analyst sentiment turns bullish following supply chain updates indicating strong yield performance on 3nm nodes.",
-            "link": "https://finance.yahoo.com/news/example-apple",
-            "publisher": "Bloomberg",
-            "thumbnail_url": "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=500",
-            "related_tickers": ["AAPL", "MSFT", "NVDA"],
-            "content_type": "STORY",
-            "published_at": now_iso()
-        }
-    ]
-
-    history_map = {}
-    for ticker, q in quotes.items():
-        base = q["price"]
-        history_map[ticker] = {
+def fetch_fundamentals(ticker):
+    try:
+        info = yf.Ticker(ticker).info
+        return {
             "ticker": ticker,
-            "market": q["market"],
-            "currency": q["currency"],
-            "period": "1mo",
-            "interval": "1d",
-            "data": [
-                {"date": "2026-08-10T00:00:00", "open": round(base*0.95, 2), "high": round(base*0.97, 2), "low": round(base*0.94, 2), "close": round(base*0.96, 2), "volume": 51000000},
-                {"date": "2026-08-11T00:00:00", "open": round(base*0.96, 2), "high": round(base*0.99, 2), "low": round(base*0.95, 2), "close": round(base*0.98, 2), "volume": 48000000},
-                {"date": "2026-08-12T00:00:00", "open": round(base*0.98, 2), "high": round(base*1.01, 2), "low": round(base*0.97, 2), "close": base, "volume": q["volume"]}
-            ]
+            "market": get_market(ticker),
+            "exchange": get_exchange(ticker),
+            "currency": get_currency(ticker),
+            "name": info.get("longName") or info.get("shortName"),
+            "market_cap": info.get("marketCap"),
+            "pe_ratio": info.get("trailingPE"),
+            "sector": info.get("sector"),
+            "industry": info.get("industry"),
+            "fifty_two_week_high": info.get("fiftyTwoWeekHigh"),
+            "fifty_two_week_low": info.get("fiftyTwoWeekLow"),
+            "dividend_yield": info.get("dividendYield"),
+            "updated_at": now_iso(),
         }
+    except Exception as e:
+        print(f"  [fundamentals] failed for {ticker}: {e}")
+        return None
 
-    return quotes, fundamentals, news, history_map
+
+def parse_published_at(raw):
+    """
+    Normalizes yfinance's published-time field, which varies by version:
+    sometimes an epoch int, sometimes an ISO string. Returns a
+    timezone-aware datetime, or None if unparseable.
+    """
+    if raw is None:
+        return None
+    try:
+        # epoch seconds (int/float)
+        if isinstance(raw, (int, float)):
+            return datetime.fromtimestamp(raw, tz=timezone.utc)
+        # ISO string, e.g. "2026-09-03T09:00:00Z"
+        cleaned = str(raw).replace("Z", "+00:00")
+        return datetime.fromisoformat(cleaned)
+    except Exception:
+        return None
 
 
-def save_json(target_filename, data):
-    path = os.path.join(OUT_DIR, target_filename)
-    parent = os.path.dirname(path)
-    os.makedirs(parent, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, default=str, ensure_ascii=False)
-    print(f"  saved {path}")
+def fetch_news(ticker, limit=10):
+    """
+    Full-detail news per ticker: title, summary, publisher, thumbnail,
+    related tickers, and normalized published_at — not just a headline+link.
+    """
+    try:
+        articles = []
+        for item in (yf.Ticker(ticker).news or [])[:limit]:
+            content = item.get("content", item)
+
+            published_raw = content.get("pubDate") or item.get("providerPublishTime")
+            published_dt = parse_published_at(published_raw)
+
+            thumbnail = None
+            thumb_block = content.get("thumbnail") or item.get("thumbnail")
+            if isinstance(thumb_block, dict):
+                resolutions = thumb_block.get("resolutions") or []
+                if resolutions:
+                    thumbnail = resolutions[0].get("url")
+                else:
+                    thumbnail = thumb_block.get("url")
+
+            related = (
+                content.get("relatedTickers")
+                or item.get("relatedTickers")
+                or [ticker]
+            )
+
+            articles.append(
+                {
+                    "ticker": ticker,
+                    "market": get_market(ticker),
+                    "title": content.get("title") or item.get("title"),
+                    "summary": content.get("summary") or content.get("description") or item.get("summary"),
+                    "link": (content.get("canonicalUrl", {}) or {}).get("url") or item.get("link"),
+                    "publisher": (content.get("provider", {}) or {}).get("displayName")
+                    or item.get("publisher"),
+                    "thumbnail_url": thumbnail,
+                    "related_tickers": related,
+                    "content_type": content.get("contentType") or item.get("type"),
+                    "published_at": published_dt.isoformat() if published_dt else None,
+                }
+            )
+        return articles
+    except Exception as e:
+        print(f"  [news] failed for {ticker}: {e}")
+        return []
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
 
 def main():
-    print(f"Running fetch_finance_data.py for {len(ALL_TICKERS)} tickers...")
-    quotes = {}
-    fundamentals = {}
-    history_map = {}
-    news = []
+    ensure_dirs()
+    print(f"Tracking {len(ALL_TICKERS)} tickers total "
+          f"({len(US_TICKERS)} US + {len(INDIA_TICKERS)} India)")
+    print(f"Fundamentals will be fetched for the first {FUNDAMENTALS_LIMIT} tickers only.")
+    print(f"News will be fetched for the first {NEWS_TICKER_LIMIT} tickers only.\n")
 
-    if YFINANCE_AVAILABLE:
-        quotes, fundamentals, history_map = fetch_live_finance_data(ALL_TICKERS)
-
-    if not quotes:
-        quotes, fundamentals, news, history_map = generate_mock_data()
-    else:
-        # Fallback news if empty
-        _, _, news, _ = generate_mock_data()
-
-    save_json("quotes.json", quotes)
-    save_json("fundamentals.json", fundamentals)
-    save_json("news.json", news)
-
-    for ticker, hist in history_map.items():
-        save_json(os.path.join("history", f"{ticker}.json"), hist)
-
+    conn = None
     if DB_ENABLED:
-        try:
-            conn = dbmod.get_connection()
-            dbmod.init_schema(conn)
-            dbmod.reset_quotes(conn)
+        conn = dbmod.get_connection()
+        dbmod.init_schema(conn)
+        dbmod.reset_quotes(conn)  # only quotes reset — news is a rolling window, not wiped
+        print("  [db] connected — writing to Postgres in addition to JSON")
+
+    all_quotes = read_json(ASSET_DIR / "quotes.json", {})
+    all_fundamentals = read_json(ASSET_DIR / "fundamentals.json", {})
+    all_news = []
+    fundamentals_done = 0
+    fundamentals_attempted = 0
+    news_done = 0
+
+    batches = list(chunked(ALL_TICKERS, BATCH_SIZE))
+    for i, batch in enumerate(batches, start=1):
+        print(f"Batch {i}/{len(batches)} ({len(batch)} tickers)...")
+
+        quotes, history = fetch_batch_quotes_and_history(batch)
+        all_quotes.update(quotes)
+
+        # Quotes FIRST — upsert_quote() registers the ticker in the shared
+        # `tickers` table, which upsert_history_row() depends on via FK.
+        if conn:
             for q in quotes.values():
                 dbmod.upsert_quote(conn, q)
-            for f in fundamentals.values():
-                dbmod.upsert_fundamentals(conn, f)
-            conn.close()
-            print("  [db] Wrote core finance data to Postgres successfully.")
-        except Exception as e:
-            print(f"  [db] Postgres write failed: {e}")
 
-    print("[Finance Core Kit] Completed successfully.")
+        for ticker, hist in history.items():
+            save_json(os.path.join(HISTORY_DIR, f"{ticker}.json"), hist)
+            if conn:
+                for row in hist["data"]:
+                    dbmod.upsert_history_row(conn, ticker, row)
+
+        # Fundamentals + news: capped subset only, spread across batches
+        for ticker in batch:
+            if fundamentals_attempted < FUNDAMENTALS_LIMIT:
+                fundamentals_attempted += 1
+                fund = fetch_fundamentals(ticker)
+                if fund:
+                    all_fundamentals[ticker] = fund
+                    fundamentals_done += 1
+                    if conn:
+                        dbmod.upsert_fundamentals(conn, fund)
+
+            if news_done < NEWS_TICKER_LIMIT:
+                news = fetch_news(ticker, limit=NEWS_LIMIT_PER_TICKER)
+                all_news.extend(news)
+                news_done += 1
+
+        save_json(os.path.join(DATA_DIR, 'quotes.json'), all_quotes)
+        save_json(os.path.join(DATA_DIR, 'fundamentals.json'), all_fundamentals)
+        save_json(os.path.join(DATA_DIR, 'news.json'), merge_news_with_existing(all_news))
+        print(f"  batch done — {len(all_quotes)} quotes, {fundamentals_done} fundamentals, "
+              f"{news_done} tickers' news so far")
+        time.sleep(BATCH_PAUSE_SECONDS)
+
+    all_news.sort(key=lambda a: a.get("published_at") or "", reverse=True)
+
+    # Keep the full week, deduped by link — merge with anything already
+    # saved from earlier runs so re-running doesn't lose earlier days.
+    all_news = merge_news_with_existing(all_news)
+
+    if conn:
+        for article in all_news:
+            dbmod.insert_news_article(conn, article)  # links article to its related_tickers automatically
+        deleted_hist = dbmod.cleanup_old_history(conn, days=30)
+        deleted_news = dbmod.cleanup_old_news(conn, days=NEWS_RETENTION_DAYS)
+        print(f"  [db] cleanup: removed {deleted_hist} old price_history rows, "
+              f"{deleted_news} news articles past {NEWS_RETENTION_DAYS} days")
+        conn.close()
+
+    save_json(os.path.join(DATA_DIR, "quotes.json"), all_quotes)
+    save_json(os.path.join(DATA_DIR, "fundamentals.json"), all_fundamentals)
+    save_json(os.path.join(DATA_DIR, "news.json"), all_news)
+
+    print(f"\nSummary: {len(all_quotes)} quotes, {len(all_fundamentals)} fundamentals "
+          f"(capped subset), {len(all_news)} news articles "
+          f"(rolling {NEWS_RETENTION_DAYS}-day window), "
+          f"{len(all_quotes)} history files."
+          + ("  [+ written to Postgres]" if DB_ENABLED else ""))
+    print("Done. Files written to ./data/")
+
+
+def merge_news_with_existing(new_articles):
+    """
+    Loads news.json from the previous run (if any), merges in the new
+    articles, dedupes by link, drops anything older than the retention
+    window, and returns the combined week's worth of news.
+    """
+    news_path = os.path.join(DATA_DIR, "news.json")
+    existing = []
+    if os.path.exists(news_path):
+        try:
+            with open(news_path, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+        except Exception:
+            existing = []
+
+    combined = {a.get("link") or a.get("title"): a for a in merge_news(existing, new_articles)}
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=NEWS_RETENTION_DAYS)
+    result = []
+    for a in combined.values():
+        pub = parse_published_at(a.get("published_at"))
+        if pub is None or pub >= cutoff:
+            result.append(a)
+
+    result.sort(key=lambda a: a.get("published_at") or "", reverse=True)
+    return result
 
 
 if __name__ == "__main__":

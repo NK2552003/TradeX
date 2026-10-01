@@ -1,3 +1,5 @@
+import 'package:tradex/features/market_data/models/market_snapshot.dart';
+import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 import 'package:tradex/features/community/data/community_repository.dart';
@@ -30,10 +32,9 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
   final String _searchQuery = '';
   String _selectedCategory = 'All';
 
-  String get _effectiveQuery =>
-      (widget.searchQuery?.trim().isNotEmpty ?? false)
-          ? widget.searchQuery!.trim()
-          : _searchQuery;
+  String get _effectiveQuery => (widget.searchQuery?.trim().isNotEmpty ?? false)
+      ? widget.searchQuery!.trim()
+      : _searchQuery;
 
   static const List<String> _categories = <String>[
     'All',
@@ -93,124 +94,126 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
             children: <Widget>[
               // Category Chips Row
               Wrap(
-            spacing: context.sp(theme.spacing.xs),
-            runSpacing: context.sp(theme.spacing.xs),
-            children: _categories.map((cat) {
-              final isSelected = _selectedCategory == cat;
-              return UiBadge(
-                label: cat,
-                intent: isSelected ? UiIntent.primary : UiIntent.neutral,
-                variant: isSelected
-                    ? UiBadgeVariant.solid
-                    : UiBadgeVariant.soft,
-                size: UiSize.sm,
-                onTap: () => setState(() => _selectedCategory = cat),
-              );
-            }).toList(),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
+                spacing: context.sp(theme.spacing.xs),
+                runSpacing: context.sp(theme.spacing.xs),
+                children: _categories.map((cat) {
+                  final isSelected = _selectedCategory == cat;
+                  return UiBadge(
+                    label: cat,
+                    intent: isSelected ? UiIntent.primary : UiIntent.neutral,
+                    variant: isSelected
+                        ? UiBadgeVariant.solid
+                        : UiBadgeVariant.soft,
+                    size: UiSize.sm,
+                    onTap: () => setState(() => _selectedCategory = cat),
+                  );
+                }).toList(),
+              ),
+              SizedBox(height: context.sp(theme.spacing.md)),
 
-          // Section 1: Trending in Markets
-          UiCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Trending in Markets',
-                  style: context.uiText.heading.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                SizedBox(height: context.sp(theme.spacing.sm)),
-                for (
-                  int i = 0;
-                  i < widget.repository.trending.length;
-                  i++
-                ) ...<Widget>[
-                  if (i > 0)
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: context.sp(theme.spacing.xs),
-                      ),
-                      child: UiDivider(),
-                    ),
-                  _trendRow(context, widget.repository.trending[i]),
-                ],
-              ],
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-
-          // Section 2: Market Wire Headlines
-          UiCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
+              // Section 1: Trending in Markets
+              UiCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Icon(
-                      Icons.newspaper_rounded,
-                      size: context.sz(16),
-                      color: theme.colors.primary,
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
                     Text(
-                      'Market Wire',
+                      'Trending in Markets',
                       style: context.uiText.heading.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                     ),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    for (
+                      int i = 0;
+                      i < widget.repository.trending.length;
+                      i++
+                    ) ...<Widget>[
+                      if (i > 0)
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: context.sp(theme.spacing.xs),
+                          ),
+                          child: UiDivider(),
+                        ),
+                      _trendRow(context, widget.repository.trending[i]),
+                    ],
                   ],
                 ),
-                SizedBox(height: context.sp(theme.spacing.sm)),
-                for (
-                  int i = 0;
-                  i < widget.repository.news.length;
-                  i++
-                ) ...<Widget>[
-                  if (i > 0)
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: context.sp(theme.spacing.xs),
-                      ),
-                      child: UiDivider(),
+              ),
+              SizedBox(height: context.sp(theme.spacing.md)),
+
+              // Section 2: Market Wire Headlines
+              UiCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Icon(
+                          Icons.newspaper_rounded,
+                          size: context.sz(16),
+                          color: theme.colors.primary,
+                        ),
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        Text(
+                          'Market Wire',
+                          style: context.uiText.heading.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
-                  _newsItem(context, widget.repository.news[i]),
-                ],
-              ],
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    for (
+                      int i = 0;
+                      i < widget.repository.news.length;
+                      i++
+                    ) ...<Widget>[
+                      if (i > 0)
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: context.sp(theme.spacing.xs),
+                          ),
+                          child: UiDivider(),
+                        ),
+                      _newsItem(context, widget.repository.news[i]),
+                    ],
+                  ],
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.md)),
 
-          // Section 3: Matching Community Posts
-          Text(
-            'Explore Posts (${filteredPosts.length})',
-            style: context.uiText.heading.copyWith(fontWeight: FontWeight.w700),
-          ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
+              // Section 3: Matching Community Posts
+              Text(
+                'Explore Posts (${filteredPosts.length})',
+                style: context.uiText.heading.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
 
-          if (filteredPosts.isEmpty)
-            const CommunityEmptyState(
-              icon: Icons.search_off_rounded,
-              title: 'No matching posts found',
-              message:
-                  'Try exploring other categories or clearing your search.',
-            )
-          else
-            CommunityPostGrid(
-              posts: filteredPosts,
-              onPostTap: widget.onPostTap,
-              onLike: (id) => widget.repository.toggleLike(id),
-              onRepost: (id) => widget.repository.toggleRepost(id),
-              onBookmark: (id) => widget.repository.toggleBookmark(id),
-              onAuthorTap: widget.onAuthorTap,
-              onOpenRef: widget.onOpenRef,
-            ),
-        ],
+              if (filteredPosts.isEmpty)
+                const CommunityEmptyState(
+                  icon: Icons.search_off_rounded,
+                  title: 'No matching posts found',
+                  message:
+                      'Try exploring other categories or clearing your search.',
+                )
+              else
+                CommunityPostGrid(
+                  posts: filteredPosts,
+                  onPostTap: widget.onPostTap,
+                  onLike: (id) => widget.repository.toggleLike(id),
+                  onRepost: (id) => widget.repository.toggleRepost(id),
+                  onBookmark: (id) => widget.repository.toggleBookmark(id),
+                  onAuthorTap: widget.onAuthorTap,
+                  onOpenRef: widget.onOpenRef,
+                ),
+            ],
+          ),
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 
   Widget _trendRow(BuildContext context, CommunityTrendItem item) {
@@ -286,63 +289,17 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
     );
   }
 
-  Widget _newsItem(BuildContext context, CommunityNewsItem item) {
-    final UiTheme theme = context.ui;
-    final sentimentIntent = item.sentimentScore > 0.3
-        ? UiIntent.success
-        : (item.sentimentScore < -0.2 ? UiIntent.danger : UiIntent.info);
-
-    return InkWell(
-      onTap: () {
-        CommunityArticleSheet.show(context, article: item);
-      },
-      borderRadius: context.radius(theme.radii.sm),
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xxs)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              item.headline,
-              style: context.uiText.bodyStrong.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            if (item.summary != null) ...<Widget>[
-              SizedBox(height: context.sp(theme.spacing.xxs)),
-              Text(
-                item.summary!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.caption.copyWith(
-                  color: theme.colors.foregroundMuted,
-                ),
-              ),
-            ],
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            Row(
-              children: <Widget>[
-                UiBadge(
-                  label: item.category,
-                  intent: sentimentIntent,
-                  variant: UiBadgeVariant.soft,
-                  size: UiSize.xs,
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Expanded(
-                  child: Text(
-                    '${item.source} · ${AppTokens.relativeTime(item.publishedAt)}',
-                    style: context.uiText.caption.copyWith(
-                      color: theme.colors.foregroundSubtle,
-                      fontSize: context.fs(11),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+  Widget _newsItem(BuildContext context, CommunityNewsItem item) =>
+      MarketNewsCard(
+        article: communityMarketArticle(item),
+        snapshot:
+            widget.repository.marketSnapshot ??
+            const MarketSnapshot(instruments: [], articles: []),
+        row: true,
+        onTap: () => CommunityArticleSheet.show(
+          context,
+          article: item,
+          snapshot: widget.repository.marketSnapshot,
         ),
-      ),
-    );
-  }
+      );
 }

@@ -8,6 +8,7 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/community/presentation/widgets/community_space_history.dart';
 import 'package:tradex/features/community/presentation/views/community_post_detail_view.dart';
 import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
 import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
@@ -192,6 +193,16 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         ),
       ],
     };
+
+    tabItems.add(UiTabItem(
+      label: 'Spaces History',
+      icon: Icons.podcasts_rounded,
+      content: CommunitySpaceHistory(
+        handle: widget.handle,
+        authorId: widget.author?.id,
+        repository: widget.repository,
+      ),
+    ));
 
     final Color bannerColor = isAdmin
         ? theme.colors.destructive
@@ -1132,7 +1143,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
               // Rich Interactive Navigation Tabs
               // ---------------------------------------------------------------
               UiTabs(
-                stretch: true,
+                stretch: false,
+                scrollable: true,
                 variant: UiTabsVariant.underline,
                 items: tabItems,
               ),
@@ -2145,7 +2157,10 @@ class _TradeSetupSnippet extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Row(
+          Wrap(
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xs),
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: <Widget>[
               UiBadge(
                 label: side,
@@ -2154,7 +2169,7 @@ class _TradeSetupSnippet extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(ticker, style: context.uiText.bodyStrong),
-              const Spacer(),
+
               UiBadge(
                 label: '$pnl ($rMultiple)',
                 intent: isWin ? UiIntent.bullish : UiIntent.bearish,

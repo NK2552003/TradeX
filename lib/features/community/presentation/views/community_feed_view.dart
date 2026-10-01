@@ -2,6 +2,9 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/community/presentation/widgets/community_live_space_card.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_widgets.dart';
@@ -169,8 +172,9 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                     ),
                     indicatorSize: TabBarIndicatorSize.tab,
                     splashBorderRadius: context.radius(theme.radii.pill),
-                    overlayColor:
-                        WidgetStateProperty.resolveWith<Color?>((states) {
+                    overlayColor: WidgetStateProperty.resolveWith<Color?>((
+                      states,
+                    ) {
                       if (states.contains(WidgetState.selected)) {
                         return Colors.transparent;
                       }
@@ -273,15 +277,17 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     final double effectiveTop = topPadding ?? context.sp(theme.spacing.sm);
 
     final liveRooms = widget.repository.liveRooms;
-    final LiveAudioRoom? featuredRoom =
-        liveRooms.isNotEmpty ? liveRooms.first : null;
+    final LiveAudioRoom? featuredRoom = liveRooms.isNotEmpty
+        ? liveRooms.first
+        : null;
 
     final Widget liveSpaceBanner = featuredRoom == null
         ? const SizedBox.shrink()
         : Padding(
             padding: EdgeInsets.symmetric(
-              horizontal:
-                  context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+              horizontal: context.sp(
+                isMobile ? theme.spacing.sm : theme.spacing.md,
+              ),
               vertical: context.sp(theme.spacing.xxs),
             ),
             child: InkWell(
@@ -309,44 +315,31 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                     color: theme.colors.danger.withValues(alpha: 0.25),
                   ),
                 ),
-                child: Row(
-                  children: <Widget>[
-                    Container(
-                      width: context.sz(8),
-                      height: context.sz(8),
-                      decoration: BoxDecoration(
-                        color: theme.colors.danger,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    Text(
-                      'LIVE SPACE',
-                      style: context.uiText.label.copyWith(
-                        color: theme.colors.danger,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    Expanded(
-                      child: Text(
-                        '${featuredRoom.title} · ${featuredRoom.host.displayName}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.uiText.bodyStrong.copyWith(
-                          fontWeight: FontWeight.w700,
-                          fontSize: context.fs(12.5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: context.sp(theme.spacing.xs),
+                      runSpacing: context.sp(theme.spacing.xs),
+                      children: [
+                        UiBadge(
+                          label: 'LIVE SPACE',
+                          intent: UiIntent.danger,
+                          size: UiSize.xs,
                         ),
-                      ),
+                        UiBadge(
+                          label: '${featuredRoom.listenerCount} listening',
+                          icon: Icons.headphones_rounded,
+                          size: UiSize.xs,
+                        ),
+                      ],
                     ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    UiBadge(
-                      label: '${featuredRoom.listenerCount} listening',
-                      icon: Icons.headphones_rounded,
-                      variant: UiBadgeVariant.soft,
-                      intent: UiIntent.danger,
-                      size: UiSize.xs,
+                    UiGap.v(theme.spacing.xs),
+                    Text(
+                      '${featuredRoom.title} · ${featuredRoom.host.displayName}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.uiText.bodyStrong,
                     ),
                   ],
                 ),
@@ -606,287 +599,12 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     );
   }
 
-  Widget _buildLiveRoomCard(LiveAudioRoom room) {
-    final theme = context.ui;
+  Widget _buildLiveRoomCard(LiveAudioRoom room) => Padding(
+    padding: EdgeInsets.only(bottom: context.sp(context.ui.spacing.sm)),
+    child: CommunityLiveSpaceCard(room: room, repository: widget.repository),
+  );
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
-      child: UiCard(
-        accentColor: theme.colors.danger,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // Header: Badges & Listeners
-            Row(
-              children: <Widget>[
-                Container(
-                  width: context.sz(8),
-                  height: context.sz(8),
-                  decoration: BoxDecoration(
-                    color: theme.colors.danger,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                UiBadge(
-                  label: 'LIVE NOW',
-                  intent: UiIntent.danger,
-                  variant: UiBadgeVariant.soft,
-                  size: UiSize.xs,
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                UiBadge(
-                  label: room.category,
-                  intent: UiIntent.primary,
-                  variant: UiBadgeVariant.outline,
-                  size: UiSize.xs,
-                ),
-                const Spacer(),
-                Icon(
-                  Icons.headphones_rounded,
-                  size: context.sz(14),
-                  color: theme.colors.foregroundMuted,
-                ),
-                SizedBox(width: context.sp(theme.spacing.xxs)),
-                Text(
-                  '${room.listenerCount} listening',
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundMuted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: context.sp(theme.spacing.xs)),
-
-            // Room Title
-            Text(
-              room.title,
-              style: context.uiText.heading.copyWith(
-                fontWeight: FontWeight.w800,
-                fontSize: context.fs(15),
-              ),
-            ),
-            SizedBox(height: context.sp(theme.spacing.xxs)),
-
-            // Room Topic
-            Text(
-              room.topic,
-              style: context.uiText.body.copyWith(
-                fontSize: context.fs(13),
-                color: theme.colors.foregroundMuted,
-              ),
-            ),
-            SizedBox(height: context.sp(theme.spacing.sm)),
-
-            // Pinned setup preview if present
-            if (room.pinnedSetup != null) ...<Widget>[
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.sm),
-                  vertical: context.sp(theme.spacing.xs),
-                ),
-                decoration: BoxDecoration(
-                  color: theme.colors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(theme.radii.md),
-                  border: Border.all(
-                    color: (room.pinnedSetup!.side == 'LONG'
-                            ? theme.colors.success
-                            : theme.colors.danger)
-                        .withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    UiBadge(
-                      label: room.pinnedSetup!.side,
-                      intent: room.pinnedSetup!.side == 'LONG'
-                          ? UiIntent.success
-                          : UiIntent.danger,
-                      size: UiSize.xs,
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    Text(
-                      room.pinnedSetup!.ticker,
-                      style: context.uiText.bodyStrong.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      'Entry: ₹${room.pinnedSetup!.entry.toStringAsFixed(1)} | TGT: ₹${room.pinnedSetup!.target.toStringAsFixed(1)}',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
-                        fontSize: context.fs(11),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: context.sp(theme.spacing.sm)),
-            ],
-
-            // Host & Action Row
-            Row(
-              children: <Widget>[
-                UiAvatar(
-                  name: room.host.displayName,
-                  imageUrl: room.host.avatarUrl,
-                  size: UiSize.sm,
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        room.host.displayName,
-                        style: context.uiText.bodyStrong.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        'Stage: ${room.speakers.join(", ")}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.uiText.caption.copyWith(
-                          color: theme.colors.foregroundMuted,
-                          fontSize: context.fs(11),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                UiButton(
-                  label: 'Tune In',
-                  leadingIcon: Icons.volume_up_rounded,
-                  variant: UiVariant.solid,
-                  intent: UiIntent.primary,
-                  size: UiSize.sm,
-                  onPressed: () {
-                    CommunityLiveRoomSheet.show(
-                      context,
-                      roomId: room.id,
-                      roomTitle: room.title,
-                      hostName: room.host.displayName,
-                      listenerCount: room.listenerCount,
-                      pinnedSetup: room.pinnedSetup,
-                      repository: widget.repository,
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUpcomingRoomCard(LiveAudioRoom room) {
-    final theme = context.ui;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
-      child: UiCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // Time Badge & Category
-            Row(
-              children: <Widget>[
-                Icon(
-                  Icons.alarm_rounded,
-                  size: context.sz(14),
-                  color: theme.colors.primary,
-                ),
-                SizedBox(width: context.sp(theme.spacing.xxs)),
-                Text(
-                  room.scheduledFor != null
-                      ? 'Starts in ${room.scheduledFor!.difference(DateTime.now()).inHours}h ${room.scheduledFor!.difference(DateTime.now()).inMinutes % 60}m'
-                      : 'Scheduled Session',
-                  style: context.uiText.label.copyWith(
-                    color: theme.colors.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                UiBadge(
-                  label: room.category,
-                  intent: UiIntent.neutral,
-                  variant: UiBadgeVariant.outline,
-                  size: UiSize.xs,
-                ),
-                const Spacer(),
-                UiButton(
-                  label: room.hasReminder ? 'Reminder Set' : 'Remind Me',
-                  leadingIcon: room.hasReminder
-                      ? Icons.notifications_active_rounded
-                      : Icons.notifications_none_rounded,
-                  variant: room.hasReminder ? UiVariant.soft : UiVariant.outline,
-                  intent: room.hasReminder ? UiIntent.primary : UiIntent.neutral,
-                  size: UiSize.xs,
-                  onPressed: () => widget.repository.toggleRoomReminder(room.id),
-                ),
-              ],
-            ),
-            SizedBox(height: context.sp(theme.spacing.xs)),
-
-            // Room Title
-            Text(
-              room.title,
-              style: context.uiText.heading.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: context.fs(14.5),
-              ),
-            ),
-            SizedBox(height: context.sp(theme.spacing.xxs)),
-
-            // Room Topic
-            Text(
-              room.topic,
-              style: context.uiText.body.copyWith(
-                fontSize: context.fs(12.5),
-                color: theme.colors.foregroundMuted,
-              ),
-            ),
-            SizedBox(height: context.sp(theme.spacing.sm)),
-
-            // Host & Speakers
-            Row(
-              children: <Widget>[
-                UiAvatar(
-                  name: room.host.displayName,
-                  imageUrl: room.host.avatarUrl,
-                  size: UiSize.xs,
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Text(
-                  'Hosted by ${room.host.displayName}',
-                  style: context.uiText.caption.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (room.speakers.isNotEmpty) ...<Widget>[
-                  Text(
-                    ' · Speakers: ${room.speakers.join(", ")}',
-                    style: context.uiText.caption.copyWith(
-                      color: theme.colors.foregroundMuted,
-                      fontSize: context.fs(11),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Tab 2: Following
-  // ---------------------------------------------------------------------------
+  Widget _buildUpcomingRoomCard(LiveAudioRoom room) => _buildLiveRoomCard(room);
 
   Widget _buildFollowingTab({double? topPadding}) {
     final UiTheme theme = context.ui;
@@ -994,7 +712,9 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
             final item = news[index];
             final sentimentIntent = item.sentimentScore > 0.3
                 ? UiIntent.success
-                : (item.sentimentScore < -0.2 ? UiIntent.danger : UiIntent.info);
+                : (item.sentimentScore < -0.2
+                      ? UiIntent.danger
+                      : UiIntent.info);
 
             return Padding(
               padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
@@ -1177,4 +897,3 @@ class _CommunityKeepAliveTabState extends State<_CommunityKeepAliveTab>
     return widget.child;
   }
 }
-

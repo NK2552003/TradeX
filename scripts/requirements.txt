@@ -1,0 +1,4 @@
+yfinance>=1.2,<2
+requests>=2.32,<3
+# Required only for explicitly requested Postgres imports, not local refreshes:
+# psycopg2-binary>=2.9,<3

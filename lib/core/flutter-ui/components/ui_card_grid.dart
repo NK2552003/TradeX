@@ -14,6 +14,7 @@ class UiCardGrid extends StatelessWidget {
     this.childAspectRatio,
     this.mainAxisExtent,
     this.adaptiveSingleColumn = true,
+    this.intrinsicHeight = false,
   });
 
   final List<Widget> children;
@@ -24,6 +25,9 @@ class UiCardGrid extends StatelessWidget {
   final double? childAspectRatio;
   final double? mainAxisExtent;
   final bool adaptiveSingleColumn;
+
+  /// Keep editorial cards at their natural height as content changes.
+  final bool intrinsicHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -57,8 +61,20 @@ class UiCardGrid extends StatelessWidget {
           );
         }
 
-        final double ratio = childAspectRatio ??
-            (cols == 2 ? 1.45 : (cols == 3 ? 1.65 : 1.95));
+        if (intrinsicHeight) {
+          final width = (constraints.maxWidth - gap * (cols - 1)) / cols;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final child in children)
+                SizedBox(width: width, child: child),
+            ],
+          );
+        }
+
+        final double ratio =
+            childAspectRatio ?? (cols == 2 ? 1.45 : (cols == 3 ? 1.65 : 1.95));
 
         return GridView.builder(
           shrinkWrap: true,

@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_attachment_picker.dart';
@@ -13,13 +17,7 @@ import 'package:tradex/features/community/presentation/widgets/community_schedul
 // Composer Creation Mode
 // ---------------------------------------------------------------------------
 
-enum ComposerMode {
-  post,
-  tradeSetup,
-  chart,
-  poll,
-  attachment,
-}
+enum ComposerMode { post, tradeSetup, chart, poll, attachment }
 
 // ---------------------------------------------------------------------------
 // CommunityComposerCard
@@ -44,7 +42,8 @@ class CommunityComposerCard extends StatefulWidget {
     super.key,
     required this.author,
     required this.repository,
-    this.hintText = "What's happening? Share a setup, thesis, or trading lesson…",
+    this.hintText =
+        "What's happening? Share a setup, thesis, or trading lesson…",
     this.onPostCreated,
     this.quotedPost,
     this.postToEdit,
@@ -107,20 +106,19 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
   final TextEditingController _setupExitCtrl = TextEditingController();
   final TextEditingController _setupSlCtrl = TextEditingController();
   final TextEditingController _setupTargetCtrl = TextEditingController();
+  final TextEditingController _setupCandlesCtrl = TextEditingController();
+  String? _candleError;
   final TextEditingController _setupCatalystCtrl = TextEditingController();
 
   // ---- Dynamic Poll form (2 to 5 options) -----------------------------------
   final TextEditingController _pollQuestionCtrl = TextEditingController();
-  final List<TextEditingController> _pollOptionControllers = <TextEditingController>[
-    TextEditingController(),
-    TextEditingController(),
-  ];
+  final List<TextEditingController> _pollOptionControllers =
+      <TextEditingController>[TextEditingController(), TextEditingController()];
   Duration _pollDuration = const Duration(hours: 24);
   bool _pollAllowMultiple = false;
 
   // ---- Ticker dialog input -------------------------------------------------
   final TextEditingController _tickerInputCtrl = TextEditingController();
-
 
   // ---- Submission state ----------------------------------------------------
   bool _submitting = false;
@@ -149,37 +147,44 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     (
       title: 'Daily Market Outlook',
       icon: Icons.wb_sunny_outlined,
-      text: "📊 **Daily Market Outlook**\n\n• Key Support & Resistance: \n• Macro Trigger / FII Flow: \n• Sector in Focus: \n• Trading Bias for Today: ",
+      text:
+          "📊 **Daily Market Outlook**\n\n• Key Support & Resistance: \n• Macro Trigger / FII Flow: \n• Sector in Focus: \n• Trading Bias for Today: ",
     ),
     (
       title: 'Breakout Trade Thesis',
       icon: Icons.trending_up_rounded,
-      text: "🚀 **Breakout Setup Thesis**\n\n• Technical Catalyst: \n• Volume Confirmation: \n• Invalidation Level: \n• Primary Target: ",
+      text:
+          "🚀 **Breakout Setup Thesis**\n\n• Technical Catalyst: \n• Volume Confirmation: \n• Invalidation Level: \n• Primary Target: ",
     ),
     (
       title: 'Trade Journal Post-Mortem',
       icon: Icons.menu_book_rounded,
-      text: "📝 **Trade Execution Review**\n\n• Setup Executed: \n• What Went Well: \n• Slippage / Mistake: \n• Key Lesson for Next Session: ",
+      text:
+          "📝 **Trade Execution Review**\n\n• Setup Executed: \n• What Went Well: \n• Slippage / Mistake: \n• Key Lesson for Next Session: ",
     ),
     (
       title: 'Educational Playbook',
       icon: Icons.school_outlined,
-      text: "💡 **Trader Education Playbook**\n\n• Concept: \n• Common Retail Trap: \n• High-Probability Entry Trigger: \n• Capital Preservation Rule: ",
+      text:
+          "💡 **Trader Education Playbook**\n\n• Concept: \n• Common Retail Trap: \n• High-Probability Entry Trigger: \n• Capital Preservation Rule: ",
     ),
   ];
 
   static const List<({String name, String url})> _sampleChartPresets = [
     (
       name: 'Bull Flag Breakout',
-      url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=80',
+      url:
+          'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=80',
     ),
     (
       name: 'Order Block Sweep',
-      url: 'https://images.unsplash.com/photo-1642543492481-44e81e3914a7?w=800&auto=format&fit=crop&q=80',
+      url:
+          'https://images.unsplash.com/photo-1642543492481-44e81e3914a7?w=800&auto=format&fit=crop&q=80',
     ),
     (
       name: 'Volume Weighted Reversal',
-      url: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=800&auto=format&fit=crop&q=80',
+      url:
+          'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=800&auto=format&fit=crop&q=80',
     ),
   ];
 
@@ -210,6 +215,19 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     if (p.tradeSetup != null) {
       _activeMode = ComposerMode.tradeSetup;
       final ts = p.tradeSetup!;
+      if (ts.candles.isNotEmpty) {
+        _setupCandlesCtrl.text = const JsonEncoder.withIndent('  ').convert([
+          for (final c in ts.candles)
+            {
+              'time': c.time.toIso8601String(),
+              'open': c.open,
+              'high': c.high,
+              'low': c.low,
+              'close': c.close,
+              'volume': c.volume,
+            },
+        ]);
+      }
       _setupTickerCtrl.text = ts.ticker;
       _tradeSetupSide = ts.side;
       _setupEntryCtrl.text = ts.entry;
@@ -261,6 +279,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     _setupSlCtrl.dispose();
     _setupTargetCtrl.dispose();
     _setupCatalystCtrl.dispose();
+    _setupCandlesCtrl.dispose();
     _tickerInputCtrl.dispose();
     _pollQuestionCtrl.dispose();
     for (final ctrl in _pollOptionControllers) {
@@ -280,8 +299,12 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         ? _body.substring(0, selectionEnd)
         : _body;
     final lastSpace = textToCursor.lastIndexOf(RegExp(r'[\s\n]'));
-    final token = lastSpace == -1 ? textToCursor : textToCursor.substring(lastSpace + 1);
-    if (token.startsWith('@') || token.startsWith('\$') || token.startsWith('#')) {
+    final token = lastSpace == -1
+        ? textToCursor
+        : textToCursor.substring(lastSpace + 1);
+    if (token.startsWith('@') ||
+        token.startsWith('\$') ||
+        token.startsWith('#')) {
       return token;
     }
     return '';
@@ -289,18 +312,23 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
   void _replaceActiveToken(String replacement) {
     final selectionEnd = _bodyCtrl.selection.end;
-    final textToCursor = selectionEnd >= 0 && selectionEnd <= _bodyCtrl.text.length
+    final textToCursor =
+        selectionEnd >= 0 && selectionEnd <= _bodyCtrl.text.length
         ? _bodyCtrl.text.substring(0, selectionEnd)
         : _bodyCtrl.text;
     final lastSpace = textToCursor.lastIndexOf(RegExp(r'[\s\n]'));
-    final prefix = lastSpace == -1 ? '' : textToCursor.substring(0, lastSpace + 1);
+    final prefix = lastSpace == -1
+        ? ''
+        : textToCursor.substring(0, lastSpace + 1);
     final remaining = selectionEnd >= 0 && selectionEnd <= _bodyCtrl.text.length
         ? _bodyCtrl.text.substring(selectionEnd)
         : '';
     final newText = '$prefix$replacement $remaining';
     _bodyCtrl.value = TextEditingValue(
       text: newText,
-      selection: TextSelection.collapsed(offset: prefix.length + replacement.length + 1),
+      selection: TextSelection.collapsed(
+        offset: prefix.length + replacement.length + 1,
+      ),
     );
     setState(() => _body = newText);
   }
@@ -378,13 +406,17 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       return;
     }
 
-    final List<String> lines =
-        text.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    final List<String> lines = text
+        .split('\n')
+        .where((l) => l.trim().isNotEmpty)
+        .toList();
     final StringBuffer polished = StringBuffer();
     polished.writeln('🎯 **Key Trade Thesis & Plan**');
     polished.writeln();
     for (final String line in lines) {
-      if (line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
+      if (line.startsWith('•') ||
+          line.startsWith('-') ||
+          line.startsWith('*')) {
         polished.writeln(line);
       } else {
         polished.writeln('• ${line.trim()}');
@@ -452,7 +484,10 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     for (final String sym in knownTickers) {
       final RegExp regex = RegExp('\\b(?<!\\\$)$sym\\b', caseSensitive: false);
       if (regex.hasMatch(updatedText)) {
-        updatedText = updatedText.replaceAllMapped(regex, (Match m) => '\$$sym');
+        updatedText = updatedText.replaceAllMapped(
+          regex,
+          (Match m) => '\$$sym',
+        );
         if (!_tickers.contains(sym)) {
           _tickers.add(sym);
           addedCount++;
@@ -509,8 +544,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         '🟢 **Bull Case:** Sustained volume above VWAP, call OI unwinding, FII index net-long.\n'
         '🔴 **Bear Risk:** Rejection at daily resistance, India VIX expansion, weakness in US futures.';
 
-    _bodyCtrl.text =
-        current.isEmpty ? catalystBlock.trimLeft() : '$current$catalystBlock';
+    _bodyCtrl.text = current.isEmpty
+        ? catalystBlock.trimLeft()
+        : '$current$catalystBlock';
     setState(() => _body = _bodyCtrl.text);
 
     UiToast.show(
@@ -549,19 +585,107 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       _setupEntryCtrl.text.trim().isNotEmpty;
 
   CommunityTradeSetup? get _buildTradeSetup {
-    if (_activeMode != ComposerMode.tradeSetup || !_setupFormFilled) return null;
+    if (_activeMode != ComposerMode.tradeSetup || !_setupFormFilled) {
+      return null;
+    }
+    final previous = widget.postToEdit?.tradeSetup;
+    final sameExecution =
+        previous != null &&
+        previous.ticker == _setupTickerCtrl.text.trim().toUpperCase() &&
+        previous.side == _tradeSetupSide &&
+        previous.entry == _setupEntryCtrl.text.trim() &&
+        (previous.exit ?? '') == _setupExitCtrl.text.trim() &&
+        (previous.stopLoss ?? '') == _setupSlCtrl.text.trim() &&
+        (previous.target ?? '') == _setupTargetCtrl.text.trim();
     return CommunityTradeSetup(
       ticker: _setupTickerCtrl.text.trim().toUpperCase(),
       side: _tradeSetupSide,
       entry: _setupEntryCtrl.text.trim(),
-      exit: _setupExitCtrl.text.trim().isEmpty ? null : _setupExitCtrl.text.trim(),
-      stopLoss: _setupSlCtrl.text.trim().isEmpty ? null : _setupSlCtrl.text.trim(),
-      target: _setupTargetCtrl.text.trim().isEmpty ? null : _setupTargetCtrl.text.trim(),
+      exit: _setupExitCtrl.text.trim().isEmpty
+          ? null
+          : _setupExitCtrl.text.trim(),
+      stopLoss: _setupSlCtrl.text.trim().isEmpty
+          ? null
+          : _setupSlCtrl.text.trim(),
+      target: _setupTargetCtrl.text.trim().isEmpty
+          ? null
+          : _setupTargetCtrl.text.trim(),
+      candles: _previewCandles,
+      rMultiple: sameExecution ? previous.rMultiple : null,
+      pnl: sameExecution ? previous.pnl : null,
+      isWin: sameExecution ? previous.isWin : null,
     );
   }
 
+  List<UiCandle> get _previewCandles {
+    try {
+      return _parseSetupCandles();
+    } on FormatException {
+      return const <UiCandle>[];
+    }
+  }
+
+  List<UiCandle> _parseSetupCandles() {
+    final text = _setupCandlesCtrl.text.trim();
+    if (text.isEmpty) return const <UiCandle>[];
+    final decoded = jsonDecode(text);
+    if (decoded is! List) {
+      throw const FormatException('Enter an array of OHLC candles.');
+    }
+    final candles = <UiCandle>[];
+    for (final row in decoded) {
+      if (row is! Map) {
+        throw const FormatException('Each candle must be an object.');
+      }
+      double number(String key, {double? fallback}) {
+        final value = row[key];
+        final parsed = value is num
+            ? value.toDouble()
+            : double.tryParse('$value');
+        if (value == null && fallback != null) return fallback;
+        if (parsed == null || !parsed.isFinite) {
+          throw FormatException('Invalid $key value.');
+        }
+        return parsed;
+      }
+
+      final time = DateTime.tryParse('${row['time']}');
+      if (time == null) {
+        throw const FormatException('Each candle needs a valid time.');
+      }
+      final open = number('open'),
+          high = number('high'),
+          low = number('low'),
+          close = number('close');
+      final volume = number('volume', fallback: 0);
+      if (low > high ||
+          open < low ||
+          open > high ||
+          close < low ||
+          close > high ||
+          volume < 0) {
+        throw const FormatException(
+          'High and low must contain open and close; volume cannot be negative.',
+        );
+      }
+      candles.add(
+        UiCandle(
+          time: time,
+          open: open,
+          high: high,
+          low: low,
+          close: close,
+          volume: volume,
+        ),
+      );
+    }
+    candles.sort((a, b) => a.time.compareTo(b.time));
+    return candles;
+  }
+
   CommunityPoll? get _buildPoll {
-    if (_activeMode != ComposerMode.poll || _pollQuestionCtrl.text.trim().isEmpty) {
+    if (_activeMode != ComposerMode.poll ||
+        _pollQuestionCtrl.text.trim().isEmpty) {
       return null;
     }
     final validOptions = _pollOptionControllers
@@ -575,7 +699,11 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       question: _pollQuestionCtrl.text.trim(),
       options: [
         for (int i = 0; i < validOptions.length; i++)
-          CommunityPollOption(id: 'opt_${i + 1}', text: validOptions[i], votes: 0),
+          CommunityPollOption(
+            id: 'opt_${i + 1}',
+            text: validOptions[i],
+            votes: 0,
+          ),
       ],
       expiresAt: DateTime.now().add(_pollDuration),
       allowMultiple: _pollAllowMultiple,
@@ -590,7 +718,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     return CommunityPost(
       id: original?.id ?? 'preview_draft',
       author: widget.author,
-      body: _body.isEmpty ? 'Your market thesis and analysis will appear here...' : _body,
+      body: _body.isEmpty
+          ? 'Your market thesis and analysis will appear here...'
+          : _body,
       createdAt: original?.createdAt ?? (_scheduledFor ?? DateTime.now()),
       tickers: List<String>.unmodifiable(_tickers),
       tags: List<String>.unmodifiable(_tags),
@@ -618,7 +748,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
   Future<void> _submit() async {
     final String body = _body.trim();
-    final bool hasSetup = _activeMode == ComposerMode.tradeSetup && _setupFormFilled;
+    final bool hasSetup =
+        _activeMode == ComposerMode.tradeSetup && _setupFormFilled;
     final bool hasPoll = _activeMode == ComposerMode.poll && _buildPoll != null;
     final bool hasImages = _imageUrls.isNotEmpty;
     final bool hasAttachment = _attachment != null;
@@ -634,10 +765,22 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     }
 
     if (_submitting) return;
+    if (hasSetup) {
+      try {
+        _parseSetupCandles();
+      } on FormatException catch (error) {
+        setState(() => _candleError = error.message);
+        return;
+      }
+    }
 
     setState(() => _submitting = true);
     try {
-      final finalBody = body.isEmpty ? (hasSetup ? 'Shared setup for \$${_setupTickerCtrl.text.trim().toUpperCase()}' : 'Shared market analysis') : body;
+      final finalBody = body.isEmpty
+          ? (hasSetup
+                ? 'Shared setup for \$${_setupTickerCtrl.text.trim().toUpperCase()}'
+                : 'Shared market analysis')
+          : body;
 
       if (widget.postToEdit != null) {
         final p = widget.postToEdit!;
@@ -647,7 +790,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           tickers: List<String>.unmodifiable(_tickers),
           tags: List<String>.unmodifiable(_tags),
           tradeSetup: _buildTradeSetup,
-          clearTradeSetup: _activeMode != ComposerMode.tradeSetup && p.tradeSetup != null,
+          clearTradeSetup:
+              _activeMode != ComposerMode.tradeSetup && p.tradeSetup != null,
           attachment: _attachment,
           clearAttachment: _attachment == null && p.attachment != null,
           poll: _buildPoll,
@@ -719,6 +863,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         _setupSlCtrl.clear();
         _setupTargetCtrl.clear();
         _setupCatalystCtrl.clear();
+        _setupCandlesCtrl.clear();
+        _candleError = null;
         _tradeSetupSide = 'LONG';
         _replyAudience = CommunityReplyAudience.everyone;
       });
@@ -850,11 +996,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                   child: _buildEditorContent(theme, isMobile, activeToken),
                 ),
                 SizedBox(width: spacingMd),
-                Container(
-                  width: 1,
-                  height: 480,
-                  color: theme.colors.border,
-                ),
+                Container(width: 1, height: 480, color: theme.colors.border),
                 SizedBox(width: spacingMd),
                 Expanded(
                   flex: 4,
@@ -922,172 +1064,203 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
   // ---------------------------------------------------------------------------
 
   Widget _buildIdentityHeader(UiTheme theme, bool isMobile) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        UiAvatar(
-          imageUrl: widget.author.avatarUrl,
-          name: widget.author.displayName,
-          size: isMobile ? UiSize.xs : UiSize.sm,
-          verified: false,
-        ),
-        SizedBox(width: context.sp(theme.spacing.xs)),
-        Expanded(
-          child: Row(
-            children: <Widget>[
-              Flexible(
-                child: Text(
-                  widget.author.displayName,
-                  style: context.uiText.bodyStrong.copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontSize: context.fs(13.5),
+        Row(
+          children: <Widget>[
+            UiAvatar(
+              imageUrl: widget.author.avatarUrl,
+              name: widget.author.displayName,
+              size: isMobile ? UiSize.xs : UiSize.sm,
+              verified: false,
+            ),
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            Expanded(
+              child: Row(
+                children: <Widget>[
+                  Flexible(
+                    child: Text(
+                      widget.author.displayName,
+                      style: context.uiText.bodyStrong.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: context.fs(13.5),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  if (widget.author.verified) ...<Widget>[
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.verified_rounded,
+                      size: context.sz(14),
+                      color: widget.author.verifiedColor(theme),
+                    ),
+                  ],
+                  SizedBox(width: context.sp(theme.spacing.xxs)),
+                  Flexible(
+                    child: Text(
+                      '@${widget.author.handle}',
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.foregroundMuted,
+                        fontSize: context.fs(12),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-              if (widget.author.verified) ...<Widget>[
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.verified_rounded,
-                  size: context.sz(14),
-                  color: widget.author.verifiedColor(theme),
-                ),
-              ],
-              SizedBox(width: context.sp(theme.spacing.xxs)),
-              Text(
-                '@${widget.author.handle}',
-                style: context.uiText.caption.copyWith(
-                  color: theme.colors.foregroundMuted,
-                  fontSize: context.fs(12),
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Audience dropdown pill
-        UiDropdownMenu(
-          items: <UiMenuItem>[
-            UiMenuItem(
-              label: 'Everyone',
-              icon: Icons.public_rounded,
-              selected: _replyAudience == CommunityReplyAudience.everyone,
-              onTap: () => setState(() => _replyAudience = CommunityReplyAudience.everyone),
-            ),
-            UiMenuItem(
-              label: 'Followed traders only',
-              icon: Icons.people_outline_rounded,
-              selected: _replyAudience == CommunityReplyAudience.following,
-              onTap: () => setState(() => _replyAudience = CommunityReplyAudience.following),
-            ),
-            UiMenuItem(
-              label: 'Mentioned traders only',
-              icon: Icons.alternate_email_rounded,
-              selected: _replyAudience == CommunityReplyAudience.mentioned,
-              onTap: () => setState(() => _replyAudience = CommunityReplyAudience.mentioned),
             ),
           ],
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.xs),
-              vertical: context.sp(theme.spacing.xxs),
-            ),
-            decoration: BoxDecoration(
-              color: theme.colors.surfaceMuted,
-              borderRadius: context.radius(theme.radii.pill),
-              border: Border.all(color: theme.colors.border),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(
-                  _replyAudience == CommunityReplyAudience.everyone
-                      ? Icons.public_rounded
-                      : (_replyAudience == CommunityReplyAudience.following
-                          ? Icons.people_outline_rounded
-                          : Icons.alternate_email_rounded),
-                  size: context.sz(12),
-                  color: theme.colors.primary,
-                ),
-                SizedBox(width: context.sp(theme.spacing.xxs)),
-                Text(
-                  _replyAudience == CommunityReplyAudience.everyone
-                      ? 'Everyone'
-                      : (_replyAudience == CommunityReplyAudience.following
-                          ? 'Followed'
-                          : 'Mentioned'),
-                  style: context.uiText.caption.copyWith(
-                    fontSize: context.fs(11),
-                    fontWeight: FontWeight.w600,
-                    color: theme.colors.foreground,
+        ),
+        SizedBox(height: context.sp(theme.spacing.xs)),
+        Wrap(
+          spacing: context.sp(theme.spacing.xs),
+          runSpacing: context.sp(theme.spacing.xs),
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: <Widget>[
+            // Audience dropdown pill
+            UiDropdownMenu(
+              items: <UiMenuItem>[
+                UiMenuItem(
+                  label: 'Everyone',
+                  icon: Icons.public_rounded,
+                  selected: _replyAudience == CommunityReplyAudience.everyone,
+                  onTap: () => setState(
+                    () => _replyAudience = CommunityReplyAudience.everyone,
                   ),
                 ),
-                Icon(
-                  Icons.arrow_drop_down_rounded,
-                  size: context.sz(14),
-                  color: theme.colors.foregroundMuted,
+                UiMenuItem(
+                  label: 'Followed traders only',
+                  icon: Icons.people_outline_rounded,
+                  selected: _replyAudience == CommunityReplyAudience.following,
+                  onTap: () => setState(
+                    () => _replyAudience = CommunityReplyAudience.following,
+                  ),
+                ),
+                UiMenuItem(
+                  label: 'Mentioned traders only',
+                  icon: Icons.alternate_email_rounded,
+                  selected: _replyAudience == CommunityReplyAudience.mentioned,
+                  onTap: () => setState(
+                    () => _replyAudience = CommunityReplyAudience.mentioned,
+                  ),
                 ),
               ],
-            ),
-          ),
-        ),
-        SizedBox(width: context.sp(theme.spacing.xs)),
-        // Live Preview Toggle Pill
-        InkWell(
-          onTap: () => setState(() => _isPreviewMode = !_isPreviewMode),
-          borderRadius: context.radius(theme.radii.pill),
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.xs),
-              vertical: context.sp(theme.spacing.xxs),
-            ),
-            decoration: BoxDecoration(
-              color: _isPreviewMode
-                  ? theme.colors.primary.withValues(alpha: 0.15)
-                  : theme.colors.surfaceMuted,
-              borderRadius: context.radius(theme.radii.pill),
-              border: Border.all(
-                color: _isPreviewMode ? theme.colors.primary : theme.colors.border,
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.xs),
+                  vertical: context.sp(theme.spacing.xxs),
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colors.surfaceMuted,
+                  borderRadius: context.radius(theme.radii.pill),
+                  border: Border.all(color: theme.colors.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      _replyAudience == CommunityReplyAudience.everyone
+                          ? Icons.public_rounded
+                          : (_replyAudience == CommunityReplyAudience.following
+                                ? Icons.people_outline_rounded
+                                : Icons.alternate_email_rounded),
+                      size: context.sz(12),
+                      color: theme.colors.primary,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xxs)),
+                    Text(
+                      _replyAudience == CommunityReplyAudience.everyone
+                          ? 'Everyone'
+                          : (_replyAudience == CommunityReplyAudience.following
+                                ? 'Followed'
+                                : 'Mentioned'),
+                      style: context.uiText.caption.copyWith(
+                        fontSize: context.fs(11),
+                        fontWeight: FontWeight.w600,
+                        color: theme.colors.foreground,
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_drop_down_rounded,
+                      size: context.sz(14),
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  ],
+                ),
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(
-                  _isPreviewMode ? Icons.edit_rounded : Icons.visibility_outlined,
-                  size: context.sz(12),
-                  color: _isPreviewMode ? theme.colors.primary : theme.colors.foregroundMuted,
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            // Live Preview Toggle Pill
+            InkWell(
+              onTap: () => setState(() => _isPreviewMode = !_isPreviewMode),
+              borderRadius: context.radius(theme.radii.pill),
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.xs),
+                  vertical: context.sp(theme.spacing.xxs),
                 ),
-                SizedBox(width: context.sp(theme.spacing.xxs)),
-                Text(
-                  _isPreviewMode ? 'Editing' : 'Preview',
-                  style: context.uiText.caption.copyWith(
-                    fontSize: context.fs(11),
-                    fontWeight: FontWeight.w600,
-                    color: _isPreviewMode ? theme.colors.primary : theme.colors.foregroundMuted,
+                decoration: BoxDecoration(
+                  color: _isPreviewMode
+                      ? theme.colors.primary.withValues(alpha: 0.15)
+                      : theme.colors.surfaceMuted,
+                  borderRadius: context.radius(theme.radii.pill),
+                  border: Border.all(
+                    color: _isPreviewMode
+                        ? theme.colors.primary
+                        : theme.colors.border,
                   ),
                 ),
-              ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      _isPreviewMode
+                          ? Icons.edit_rounded
+                          : Icons.visibility_outlined,
+                      size: context.sz(12),
+                      color: _isPreviewMode
+                          ? theme.colors.primary
+                          : theme.colors.foregroundMuted,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xxs)),
+                    Text(
+                      _isPreviewMode ? 'Editing' : 'Preview',
+                      style: context.uiText.caption.copyWith(
+                        fontSize: context.fs(11),
+                        fontWeight: FontWeight.w600,
+                        color: _isPreviewMode
+                            ? theme.colors.primary
+                            : theme.colors.foregroundMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
+            if (widget.postToEdit != null) ...<Widget>[
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              UiBadge(
+                label: 'EDITING',
+                intent: UiIntent.primary,
+                variant: UiBadgeVariant.soft,
+                size: UiSize.xs,
+              ),
+            ],
+            if (widget.onClose != null) ...<Widget>[
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              UiIconButton(
+                icon: Icons.close_rounded,
+                size: UiSize.xs,
+                tooltip: 'Close',
+                onPressed: widget.onClose,
+              ),
+            ],
+          ],
         ),
-        if (widget.postToEdit != null) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          UiBadge(
-            label: 'EDITING',
-            intent: UiIntent.primary,
-            variant: UiBadgeVariant.soft,
-            size: UiSize.xs,
-          ),
-        ],
-        if (widget.onClose != null) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          UiIconButton(
-            icon: Icons.close_rounded,
-            size: UiSize.xs,
-            tooltip: 'Close',
-            onPressed: widget.onClose,
-          ),
-        ],
       ],
     );
   }
@@ -1120,12 +1293,15 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                   label: 'Trade Setup',
                   accentColor: theme.colors.success,
                   selected: _activeMode == ComposerMode.tradeSetup,
-                  onTap: () => setState(() => _activeMode = ComposerMode.tradeSetup),
+                  onTap: () =>
+                      setState(() => _activeMode = ComposerMode.tradeSetup),
                 ),
                 SizedBox(width: gapXs),
                 _ModePill(
                   icon: Icons.image_search_rounded,
-                  label: _imageUrls.isNotEmpty ? 'Chart (${_imageUrls.length})' : 'Chart & Vision',
+                  label: _imageUrls.isNotEmpty
+                      ? 'Chart (${_imageUrls.length})'
+                      : 'Chart & Vision',
                   accentColor: theme.colors.info,
                   selected: _activeMode == ComposerMode.chart,
                   onTap: () => setState(() => _activeMode = ComposerMode.chart),
@@ -1144,7 +1320,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                   label: _attachment != null ? 'Record (1)' : 'Attach Record',
                   accentColor: const Color(0xFF8B5CF6),
                   selected: _activeMode == ComposerMode.attachment,
-                  onTap: () => setState(() => _activeMode = ComposerMode.attachment),
+                  onTap: () =>
+                      setState(() => _activeMode = ComposerMode.attachment),
                 ),
               ],
             ),
@@ -1193,9 +1370,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       decoration: BoxDecoration(
         color: theme.colors.surfaceMuted.withValues(alpha: 0.5),
         borderRadius: context.radius(theme.radii.md),
-        border: Border.all(
-          color: theme.colors.border.withValues(alpha: 0.8),
-        ),
+        border: Border.all(color: theme.colors.border.withValues(alpha: 0.8)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1262,7 +1437,10 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           ),
 
           SizedBox(height: gapXs + 2),
-          Container(height: 1, color: theme.colors.border.withValues(alpha: 0.5)),
+          Container(
+            height: 1,
+            color: theme.colors.border.withValues(alpha: 0.5),
+          ),
           SizedBox(height: gapXs + 2),
 
           // Row 2: Quick-Add Trending Tickers & Tags
@@ -1318,14 +1496,16 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                     decoration: BoxDecoration(
                       color: theme.colors.surface,
                       borderRadius: context.radius(theme.radii.sm),
-                      border: Border.all(
-                        color: theme.colors.border,
-                      ),
+                      border: Border.all(color: theme.colors.border),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        Icon(Icons.add, size: context.sz(11), color: theme.colors.primary),
+                        Icon(
+                          Icons.add,
+                          size: context.sz(11),
+                          color: theme.colors.primary,
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           'Symbol',
@@ -1352,9 +1532,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                       decoration: BoxDecoration(
                         color: theme.colors.surface,
                         borderRadius: context.radius(theme.radii.sm),
-                        border: Border.all(
-                          color: theme.colors.border,
-                        ),
+                        border: Border.all(color: theme.colors.border),
                       ),
                       child: Text(
                         '+#$tag',
@@ -1393,9 +1571,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         decoration: BoxDecoration(
           color: theme.colors.surface,
           borderRadius: context.radius(theme.radii.pill),
-          border: Border.all(
-            color: theme.colors.border,
-          ),
+          border: Border.all(color: theme.colors.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1420,11 +1596,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
   // Step 3: Editor Content Column
   // ---------------------------------------------------------------------------
 
-  Widget _buildEditorContent(
-    UiTheme theme,
-    bool isMobile,
-    String activeToken,
-  ) {
+  Widget _buildEditorContent(UiTheme theme, bool isMobile, String activeToken) {
     final double spacingSm = context.sp(theme.spacing.sm);
     final double spacingXs = context.sp(theme.spacing.xs);
 
@@ -1447,7 +1619,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           CommunityMentionAutocomplete(
             query: activeToken,
             traders: widget.repository.topTraders,
-            onSelectTrader: (trader) => _replaceActiveToken('@${trader.handle}'),
+            onSelectTrader: (trader) =>
+                _replaceActiveToken('@${trader.handle}'),
             onSelectTicker: (ticker) {
               _replaceActiveToken('\$$ticker');
               _addTicker(ticker);
@@ -1480,7 +1653,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         ],
 
         // Mode 2: Chart & Vision Screenshot Studio
-        if (_activeMode == ComposerMode.chart || _imageUrls.isNotEmpty) ...<Widget>[
+        if (_activeMode == ComposerMode.chart ||
+            _imageUrls.isNotEmpty) ...<Widget>[
           SizedBox(height: spacingSm),
           _buildChartStudioCard(theme, isMobile),
         ],
@@ -1492,7 +1666,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         ],
 
         // Mode 4: Attachment Form (Note, Journal, Strategy)
-        if (_activeMode == ComposerMode.attachment || _attachment != null) ...<Widget>[
+        if (_activeMode == ComposerMode.attachment ||
+            _attachment != null) ...<Widget>[
           SizedBox(height: spacingSm),
           _buildAttachmentCard(theme, isMobile),
         ],
@@ -1518,7 +1693,11 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           children: [
             Row(
               children: [
-                Icon(Icons.remove_red_eye_outlined, size: context.sz(15), color: theme.colors.primary),
+                Icon(
+                  Icons.remove_red_eye_outlined,
+                  size: context.sz(15),
+                  color: theme.colors.primary,
+                ),
                 SizedBox(width: gapXs),
                 Text(
                   'Live Feed Preview (How other traders will see this)',
@@ -1552,7 +1731,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
   // ---------------------------------------------------------------------------
 
   Widget _buildActiveBadgesRow(UiTheme theme, double spacingXs) {
-    final bool hasBadges = _sentiment != null ||
+    final bool hasBadges =
+        _sentiment != null ||
         _conviction != 'Standard' ||
         _scheduledFor != null ||
         _tickers.isNotEmpty ||
@@ -1571,10 +1751,14 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             UiBadge(
               label: _sentiment == CommunitySentiment.bullish
                   ? 'BULLISH'
-                  : (_sentiment == CommunitySentiment.bearish ? 'BEARISH' : 'NEUTRAL'),
+                  : (_sentiment == CommunitySentiment.bearish
+                        ? 'BEARISH'
+                        : 'NEUTRAL'),
               intent: _sentiment == CommunitySentiment.bullish
                   ? UiIntent.success
-                  : (_sentiment == CommunitySentiment.bearish ? UiIntent.danger : UiIntent.info),
+                  : (_sentiment == CommunitySentiment.bearish
+                        ? UiIntent.danger
+                        : UiIntent.info),
               variant: UiBadgeVariant.solid,
               size: UiSize.xs,
               onRemove: () => setState(() => _sentiment = null),
@@ -1589,7 +1773,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             ),
           if (_scheduledFor != null)
             UiBadge(
-              label: 'Scheduled: ${_scheduledFor!.hour.toString().padLeft(2, '0')}:${_scheduledFor!.minute.toString().padLeft(2, '0')}',
+              label:
+                  'Scheduled: ${_scheduledFor!.hour.toString().padLeft(2, '0')}:${_scheduledFor!.minute.toString().padLeft(2, '0')}',
               intent: UiIntent.primary,
               variant: UiBadgeVariant.soft,
               size: UiSize.xs,
@@ -1613,7 +1798,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             ),
           if (_imageUrls.isNotEmpty)
             UiBadge(
-              label: '${_imageUrls.length} Chart Image${_imageUrls.length > 1 ? "s" : ""}',
+              label:
+                  '${_imageUrls.length} Chart Image${_imageUrls.length > 1 ? "s" : ""}',
               intent: UiIntent.info,
               variant: UiBadgeVariant.soft,
               size: UiSize.xs,
@@ -1656,14 +1842,16 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           // Header with Side and R:R Badge
-          Row(
+          Wrap(
+            spacing: gapXs,
+            runSpacing: gapXs,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: <Widget>[
               Icon(
                 Icons.candlestick_chart_rounded,
                 size: context.sz(16),
                 color: theme.colors.primary,
               ),
-              SizedBox(width: gapXs),
               Text(
                 'Professional Financial Setup',
                 style: context.uiText.label.copyWith(
@@ -1671,7 +1859,6 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                   color: theme.colors.foreground,
                 ),
               ),
-              const Spacer(),
               if (rrMetrics.badge != null) rrMetrics.badge!,
             ],
           ),
@@ -1683,7 +1870,13 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                for (final inst in <String>['Cash Equity', 'Index Futures', 'Options Buying', 'Options Selling', 'Crypto Perp']) ...[
+                for (final inst in <String>[
+                  'Cash Equity',
+                  'Index Futures',
+                  'Options Buying',
+                  'Options Selling',
+                  'Crypto Perp',
+                ]) ...[
                   InkWell(
                     onTap: () => setState(() => _instrumentType = inst),
                     borderRadius: context.radius(theme.radii.pill),
@@ -1699,15 +1892,21 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                             : theme.colors.surfaceMuted,
                         borderRadius: context.radius(theme.radii.pill),
                         border: Border.all(
-                          color: _instrumentType == inst ? theme.colors.primary : theme.colors.border,
+                          color: _instrumentType == inst
+                              ? theme.colors.primary
+                              : theme.colors.border,
                         ),
                       ),
                       child: Text(
                         inst,
                         style: context.uiText.caption.copyWith(
                           fontSize: context.fs(11),
-                          fontWeight: _instrumentType == inst ? FontWeight.w600 : FontWeight.w500,
-                          color: _instrumentType == inst ? theme.colors.primary : theme.colors.foregroundMuted,
+                          fontWeight: _instrumentType == inst
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: _instrumentType == inst
+                              ? theme.colors.primary
+                              : theme.colors.foregroundMuted,
                         ),
                       ),
                     ),
@@ -1767,7 +1966,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                   hintText: 'Entry Price',
                   prefixText: '₹',
                   size: UiSize.sm,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
               ),
               SizedBox(width: gapXs),
@@ -1777,7 +1978,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                   hintText: 'Exit / Trailing (Optional)',
                   prefixText: '₹',
                   size: UiSize.sm,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
               ),
             ],
@@ -1795,7 +1998,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                   prefixText: '₹',
                   size: UiSize.sm,
                   intent: UiIntent.bearish,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
               ),
               SizedBox(width: gapXs),
@@ -1806,7 +2011,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                   prefixText: '₹',
                   size: UiSize.sm,
                   intent: UiIntent.bullish,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
               ),
             ],
@@ -1870,10 +2077,27 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
           SizedBox(height: gapXs),
 
+          UiTextarea(
+            key: const ValueKey<String>('setup-candles-input'),
+            controller: _setupCandlesCtrl,
+            label: 'Candlestick data (optional)',
+            hintText:
+                '[{"time":"2026-09-30T09:15:00+05:30","open":100,"high":105,"low":99,"close":103,"volume":1200}]',
+            helper:
+                'Paste OHLC candle data to display the chart. Price levels alone do not contain market candles.',
+            rows: 3,
+            maxRows: 6,
+            showCounter: false,
+            errorText: _candleError,
+            onChanged: (_) => setState(() => _candleError = null),
+          ),
+          SizedBox(height: gapXs),
+
           // Setup Invalidation Trigger
           UiInput(
             controller: _setupCatalystCtrl,
-            hintText: 'Invalidation trigger (e.g. 15m candle close below support)...',
+            hintText:
+                'Invalidation trigger (e.g. 15m candle close below support)...',
             leadingIcon: Icons.shield_outlined,
             size: UiSize.xs,
           ),
@@ -1882,13 +2106,28 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     );
   }
 
-  ({bool isValid, double riskPoints, double rewardPoints, double riskPct, double rewardPct, Widget? badge}) _computeRiskReward() {
+  ({
+    bool isValid,
+    double riskPoints,
+    double rewardPoints,
+    double riskPct,
+    double rewardPct,
+    Widget? badge,
+  })
+  _computeRiskReward() {
     final entry = double.tryParse(_setupEntryCtrl.text.trim());
     final sl = double.tryParse(_setupSlCtrl.text.trim());
     final target = double.tryParse(_setupTargetCtrl.text.trim());
 
     if (entry == null || sl == null || target == null || entry <= 0) {
-      return (isValid: false, riskPoints: 0, rewardPoints: 0, riskPct: 0, rewardPct: 0, badge: null);
+      return (
+        isValid: false,
+        riskPoints: 0,
+        rewardPoints: 0,
+        riskPct: 0,
+        rewardPct: 0,
+        badge: null,
+      );
     }
 
     double risk = 0;
@@ -1978,7 +2217,11 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.insert_photo_outlined, size: context.sz(16), color: theme.colors.primary),
+                  Icon(
+                    Icons.insert_photo_outlined,
+                    size: context.sz(16),
+                    color: theme.colors.primary,
+                  ),
                   SizedBox(width: gapXs),
                   Text(
                     'Chart Screenshot & Technical Vision',
@@ -1993,7 +2236,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                 icon: Icons.close,
                 size: UiSize.xs,
                 variant: UiVariant.ghost,
-                onPressed: () => setState(() => _activeMode = ComposerMode.post),
+                onPressed: () =>
+                    setState(() => _activeMode = ComposerMode.post),
               ),
             ],
           ),
@@ -2001,7 +2245,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           SizedBox(height: gapXs),
           Text(
             'Upload or attach TradingView / broker chart screenshots to validate your thesis:',
-            style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
           SizedBox(height: gap),
 
@@ -2097,7 +2343,10 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                             url,
                             fit: BoxFit.cover,
                             errorBuilder: (_, _, _) => Center(
-                              child: Icon(Icons.broken_image_outlined, size: context.sz(20)),
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                size: context.sz(20),
+                              ),
                             ),
                           ),
                         ),
@@ -2150,7 +2399,11 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.poll_rounded, size: context.sz(16), color: theme.colors.primary),
+                  Icon(
+                    Icons.poll_rounded,
+                    size: context.sz(16),
+                    color: theme.colors.primary,
+                  ),
                   SizedBox(width: gapXs),
                   Text(
                     'Democratic Community Poll',
@@ -2165,14 +2418,16 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                 icon: Icons.close,
                 size: UiSize.xs,
                 variant: UiVariant.ghost,
-                onPressed: () => setState(() => _activeMode = ComposerMode.post),
+                onPressed: () =>
+                    setState(() => _activeMode = ComposerMode.post),
               ),
             ],
           ),
           SizedBox(height: gapXs),
           UiInput(
             controller: _pollQuestionCtrl,
-            hintText: 'Ask your market consensus question (e.g. NIFTY expiry bias?)...',
+            hintText:
+                'Ask your market consensus question (e.g. NIFTY expiry bias?)...',
             size: UiSize.sm,
           ),
           SizedBox(height: gapXs),
@@ -2184,7 +2439,12 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                 Expanded(
                   child: UiInput(
                     controller: _pollOptionControllers[i],
-                    hintText: 'Choice ${i + 1} (e.g. ${i == 0 ? "Bullish Breakout" : i == 1 ? "Bear Trap" : "Consolidation"})',
+                    hintText:
+                        'Choice ${i + 1} (e.g. ${i == 0
+                            ? "Bullish Breakout"
+                            : i == 1
+                            ? "Bear Trap"
+                            : "Consolidation"})',
                     size: UiSize.sm,
                   ),
                 ),
@@ -2240,7 +2500,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                   UiToggleGroup<int>(
                     size: UiSize.xs,
                     value: _pollDuration.inHours,
-                    onChanged: (hours) => setState(() => _pollDuration = Duration(hours: hours)),
+                    onChanged: (hours) =>
+                        setState(() => _pollDuration = Duration(hours: hours)),
                     options: const [
                       UiToggleOption(value: 6, label: '6h'),
                       UiToggleOption(value: 24, label: '24h'),
@@ -2299,7 +2560,11 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.library_books_rounded, size: context.sz(16), color: theme.colors.primary),
+                  Icon(
+                    Icons.library_books_rounded,
+                    size: context.sz(16),
+                    color: theme.colors.primary,
+                  ),
                   SizedBox(width: gapXs),
                   Text(
                     'Attach or Create Workspace Record',
@@ -2314,14 +2579,17 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                 icon: Icons.close,
                 size: UiSize.xs,
                 variant: UiVariant.ghost,
-                onPressed: () => setState(() => _activeMode = ComposerMode.post),
+                onPressed: () =>
+                    setState(() => _activeMode = ComposerMode.post),
               ),
             ],
           ),
           SizedBox(height: gapXs),
           Text(
             'Attach a research Note, an executed Journal Trade, or an algorithmic Strategy directly to this post:',
-            style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted),
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
           SizedBox(height: gap),
 
@@ -2406,9 +2674,12 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     );
 
     if (confirmed == true && titleCtrl.text.trim().isNotEmpty) {
-      final id = '${type.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}';
+      final id =
+          '${type.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}';
       final title = titleCtrl.text.trim();
-      final desc = descCtrl.text.trim().isEmpty ? 'Created via Community' : descCtrl.text.trim();
+      final desc = descCtrl.text.trim().isEmpty
+          ? 'Created via Community'
+          : descCtrl.text.trim();
 
       final AppLinkKind kind;
       if (type.toLowerCase() == 'trade') {
@@ -2420,11 +2691,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       }
 
       final record = AppWritingPostAttachment.manual(
-        source: AppLinkRef(
-          kind: kind,
-          id: id,
-          title: title,
-        ),
+        source: AppLinkRef(kind: kind, id: id, title: title),
         excerpt: desc,
         updatedAt: DateTime.now(),
       );
@@ -2455,7 +2722,10 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     final bool hasBody = _body.trim().isNotEmpty;
     final double charRatio = (charCount / 500).clamp(0.0, 1.0);
 
-    return Row(
+    return Wrap(
+      spacing: context.sp(theme.spacing.xs),
+      runSpacing: context.sp(theme.spacing.xs),
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: <Widget>[
         // 1. Market Bias (Bullish, Bearish, Neutral) Selector
         UiDropdownMenu(
@@ -2465,21 +2735,24 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
               icon: Icons.trending_up_rounded,
               intent: UiIntent.success,
               selected: _sentiment == CommunitySentiment.bullish,
-              onTap: () => setState(() => _sentiment = CommunitySentiment.bullish),
+              onTap: () =>
+                  setState(() => _sentiment = CommunitySentiment.bullish),
             ),
             UiMenuItem(
               label: 'Bearish Bias',
               icon: Icons.trending_down_rounded,
               intent: UiIntent.danger,
               selected: _sentiment == CommunitySentiment.bearish,
-              onTap: () => setState(() => _sentiment = CommunitySentiment.bearish),
+              onTap: () =>
+                  setState(() => _sentiment = CommunitySentiment.bearish),
             ),
             UiMenuItem(
               label: 'Neutral / Rangebound',
               icon: Icons.trending_flat_rounded,
               intent: UiIntent.info,
               selected: _sentiment == CommunitySentiment.neutral,
-              onTap: () => setState(() => _sentiment = CommunitySentiment.neutral),
+              onTap: () =>
+                  setState(() => _sentiment = CommunitySentiment.neutral),
             ),
             if (_sentiment != null)
               UiMenuItem(
@@ -2498,15 +2771,15 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
               color: _sentiment == CommunitySentiment.bullish
                   ? theme.colors.success.withValues(alpha: 0.12)
                   : (_sentiment == CommunitySentiment.bearish
-                      ? theme.colors.destructive.withValues(alpha: 0.12)
-                      : theme.colors.surfaceMuted),
+                        ? theme.colors.destructive.withValues(alpha: 0.12)
+                        : theme.colors.surfaceMuted),
               borderRadius: context.radius(theme.radii.pill),
               border: Border.all(
                 color: _sentiment == CommunitySentiment.bullish
                     ? theme.colors.success.withValues(alpha: 0.3)
                     : (_sentiment == CommunitySentiment.bearish
-                        ? theme.colors.destructive.withValues(alpha: 0.3)
-                        : theme.colors.border),
+                          ? theme.colors.destructive.withValues(alpha: 0.3)
+                          : theme.colors.border),
               ),
             ),
             child: Row(
@@ -2518,8 +2791,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                   color: _sentiment == CommunitySentiment.bullish
                       ? theme.colors.success
                       : (_sentiment == CommunitySentiment.bearish
-                          ? theme.colors.destructive
-                          : theme.colors.foregroundMuted),
+                            ? theme.colors.destructive
+                            : theme.colors.foregroundMuted),
                 ),
                 if (!isMobile) ...<Widget>[
                   const SizedBox(width: 4),
@@ -2531,8 +2804,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                       color: _sentiment == CommunitySentiment.bullish
                           ? theme.colors.success
                           : (_sentiment == CommunitySentiment.bearish
-                              ? theme.colors.destructive
-                              : theme.colors.foreground),
+                                ? theme.colors.destructive
+                                : theme.colors.foreground),
                     ),
                   ),
                   Icon(
@@ -2551,7 +2824,12 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         // 2. Timeframe Horizon Selector
         UiDropdownMenu(
           items: <UiMenuItem>[
-            for (final tf in <String>['15m Scalp', 'Intraday', 'Daily Swing', 'Weekly Macro'])
+            for (final tf in <String>[
+              '15m Scalp',
+              'Intraday',
+              'Daily Swing',
+              'Weekly Macro',
+            ])
               UiMenuItem(
                 label: tf,
                 selected: _timeframe == tf,
@@ -2686,8 +2964,6 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           },
         ),
 
-        const Spacer(),
-
         // Circular Character Meter
         if (hasBody) ...<Widget>[
           UiProgressCircle(
@@ -2695,7 +2971,9 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             thickness: 2.2,
             value: charRatio,
             showLabel: false,
-            intent: charCount > 500 ? UiIntent.danger : (charCount > 400 ? UiIntent.warning : UiIntent.primary),
+            intent: charCount > 500
+                ? UiIntent.danger
+                : (charCount > 400 ? UiIntent.warning : UiIntent.primary),
           ),
           SizedBox(width: context.sp(theme.spacing.xxs)),
           Text(
@@ -2711,7 +2989,11 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         ],
 
         // Clear Draft Button if dirty
-        if (hasBody || _tickers.isNotEmpty || _tags.isNotEmpty || _imageUrls.isNotEmpty || _attachment != null) ...<Widget>[
+        if (hasBody ||
+            _tickers.isNotEmpty ||
+            _tags.isNotEmpty ||
+            _imageUrls.isNotEmpty ||
+            _attachment != null) ...<Widget>[
           UiIconButton(
             icon: Icons.delete_outline_rounded,
             tooltip: 'Clear Draft',
@@ -2740,15 +3022,20 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           label: widget.postToEdit != null
               ? 'Save Changes'
               : (_scheduledFor != null
-                  ? 'Schedule'
-                  : (_activeMode == ComposerMode.tradeSetup ? 'Publish Setup' : 'Post Thesis')),
+                    ? 'Schedule'
+                    : (_activeMode == ComposerMode.tradeSetup
+                          ? 'Publish Setup'
+                          : 'Post Thesis')),
           leadingIcon: widget.postToEdit != null
               ? Icons.check_circle_outline_rounded
-              : (_scheduledFor != null ? Icons.schedule_send_rounded : Icons.send_rounded),
+              : (_scheduledFor != null
+                    ? Icons.schedule_send_rounded
+                    : Icons.send_rounded),
           size: UiSize.sm,
           loading: _submitting,
           expandOnMobile: false,
-          onPressed: (_body.trim().isEmpty &&
+          onPressed:
+              (_body.trim().isEmpty &&
                   _attachment == null &&
                   _imageUrls.isEmpty &&
                   _activeMode != ComposerMode.poll &&

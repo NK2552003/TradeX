@@ -18,6 +18,7 @@ class CommunityProfileView extends StatefulWidget {
     required this.repository,
     this.isCurrentUser = false,
     this.onBack,
+    this.showHeader = true,
     this.onFollow,
     this.onPostTap,
     this.onOpenRef,
@@ -28,6 +29,7 @@ class CommunityProfileView extends StatefulWidget {
   final CommunityRepository repository;
   final bool isCurrentUser;
   final VoidCallback? onBack;
+  final bool showHeader;
   final ValueChanged<CommunityAuthor>? onFollow;
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<AppLinkRef>? onOpenRef;
@@ -42,7 +44,8 @@ class _CommunityProfileViewState extends State<CommunityProfileView> {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
 
-    final bool showAppBar = !widget.isCurrentUser && widget.onBack != null;
+    final bool showAppBar =
+        widget.showHeader && !widget.isCurrentUser && widget.onBack != null;
 
     return Scaffold(
       backgroundColor: theme.colors.background,

@@ -1,17 +1,497 @@
 [
   {
+    "ticker": "XRP-USD",
+    "market": "CRYPTO",
+    "title": "Crypto Kicks Off Q4 With More Momentum Than Stocks or Gold: Which Will Carry Bitcoin, XRP, or Solana the Furthest?",
+    "summary": "Bitcoin broke its worst seasonal pattern, XRP is drawing fresh institutional money, and Solana is quietly outpacing both on a key metric that tends to predict which coin moves first when a rally gets real.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/crypto-kicks-off-q4-with-more-momentum-than-stocks-or-gold-which-will-carry-bitcoin-xrp-or-solana-the-furthest/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/xWbHhbJ44KdEYJI_wQijLg--~B/aD0xMjQwO3c9MjQwMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/24_7_wall_st__718/200ec583fd15519de472f6adba8577e3.png",
+    "related_tickers": [
+      "BTC-USD",
+      "ETH-USD",
+      "SOL-USD",
+      "XRP-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T22:14:59+00:00"
+  },
+  {
     "ticker": "BTC-USD",
     "market": "CRYPTO",
-    "title": "Bitcoin Holds Key Support Level as Market Liquidity Expands",
-    "summary": "Institutional inflows into spot ETFs reach new monthly high while long-term holder balances remain steady.",
-    "link": "https://finance.yahoo.com/news/example-btc",
-    "publisher": "CoinDesk",
-    "thumbnail_url": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=500",
+    "title": "Stock Market Today: Dow Knocked Down, Nasdaq Pares Gain; Micron Holds Firm After Earnings Soar",
+    "summary": "Stock Market Today: The Dow Jones index rises Wednesday on surprise inflation data. Micron earnings are due after the close.",
+    "link": "https://www.investors.com/market-trend/stock-market-today/dow-jones-sp500-nasdaq-inflation-data-micron-earnings-mu-stock/?src=A00220&yptr=yahoo",
+    "publisher": "Investor's Business Daily",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/lx0zfVTAwDUjzBOGH14B_Q--~B/aD01NjM7dz0xMDAwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/ibd.com/d7d92a3fe44b5b53d05f7bde480ef5cb.jpg",
+    "related_tickers": [
+      "BTC-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T20:54:22+00:00"
+  },
+  {
+    "ticker": "XRP-USD",
+    "market": "CRYPTO",
+    "title": "A Senate Bill Would Make Small Stablecoin Purchases Tax-Free and Close Crypto’s Wash-Sale Loophole. What Changes for Bitcoin and XRP Holders?",
+    "summary": "Congress is pushing to reshape crypto taxes in two significant ways, and Bitcoin and XRP holders could feel the squeeze before year-end. One proposed change might cost some investors a tax strategy they have relied on for years.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/a-senate-bill-would-make-small-stablecoin-purchases-tax-free-and-close-cryptos-wash-sale-loophole-what-changes-for-bitcoin-and-xrp-holders/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/96YtUWvLtL9iSrCs4BNTFA--~B/aD03Njc7dz0xMzY2O2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/24_7_wall_st__718/856970d0f48ef6e658a6c17de480c056.jpg",
+    "related_tickers": [
+      "BTC-USD",
+      "XRP-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T19:57:11+00:00"
+  },
+  {
+    "ticker": "DOGE-USD",
+    "market": "CRYPTO",
+    "title": "Bitcoin Crossed $85,000 on Cooler Inflation Data, Then Lost It the Same Day. Why Does Bitcoin Keep Failing at $85,000?",
+    "summary": "Bitcoin surged past $85,000 on promising inflation news, then gave it all back within hours. Three forces keep colliding every time buyers push the price to that level, and until one of them breaks, the pattern shows no signs of stopping.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/bitcoin-crossed-85000-on-cooler-inflation-data-then-lost-it-the-same-day-why-does-bitcoin-keep-failing-at-85000/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/yBTf8a2Z0q4VAexSdo8sgw--~B/aD0xMDAwO3c9MTUwMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/24_7_wall_st__718/bae395d5f8493cec8e842276f1a79d3c.jpg",
+    "related_tickers": [
+      "BTC-USD",
+      "DOGE-USD",
+      "ETH-USD",
+      "SOL-USD",
+      "XRP-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T19:37:50+00:00"
+  },
+  {
+    "ticker": "SOL-USD",
+    "market": "CRYPTO",
+    "title": "Lion Group Sells Solana to Invest in Hyperliquid: A Smart Move or a Risky One?",
+    "summary": "Lion Group just dumped its Solana and part of its Bitcoin to double down on a single exchange token while whales are actively selling it. Whether that bet pays off hinges on a few critical price levels and a regulatory decision that could change everything.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/lion-group-sells-solana-to-invest-in-hyperliquid-a-smart-move-or-a-risky-one/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/fucZmvVi7.Yo8j8YVQfnvw--~B/aD0xMDAwO3c9MTUwMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/24_7_wall_st__718/bacb2e365206525421945a5d561232e3.jpg",
+    "related_tickers": [
+      "BTC-USD",
+      "SOL-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T19:09:39+00:00"
+  },
+  {
+    "ticker": "XRP-USD",
+    "market": "CRYPTO",
+    "title": "XRP Price Prediction: Lower Rate Hike Odds Put $1.80 in Focus",
+    "summary": "XRP remains on track for $1.80 as cooler inflation and a bullish 200-day EMA retest support the outlook.",
+    "link": "https://finance.yahoo.com/markets/crypto/articles/xrp-price-prediction-lower-rate-174324236.html",
+    "publisher": "FX Empire",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/ISRcXZo.saxxj1yz7P6oTA--~B/aD00MTA7dz02MTU7YXBwaWQ9eXRhY2h5b24-/https://media.zenfs.com/en/fx_empire_176/dd0054893ec15a0e201fba3de8b27bea.jpg",
+    "related_tickers": [
+      "XRP-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T17:43:24+00:00"
+  },
+  {
+    "ticker": "SOL-USD",
+    "market": "CRYPTO",
+    "title": "Should You Buy Solana or Bitcoin With $1,000?",
+    "summary": "Bitcoin and Solana have taken very different paths over the past year, and the one that lost less is not necessarily the one positioned to grow your retirement savings the most.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/should-you-buy-solana-or-bitcoin-with-1000/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/uO47KcqFuvlAeDIfPBoUVg--~B/aD05OTk7dz0xNTAwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/24_7_wall_st__718/bab238b3806ee037dc4cc896444e22e1.jpg",
+    "related_tickers": [
+      "BTC-USD",
+      "SOL-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T16:00:53+00:00"
+  },
+  {
+    "ticker": "XRP-USD",
+    "market": "CRYPTO",
+    "title": "How Long Does It Take XRP to Recover From a Crash? What the Record Actually Shows",
+    "summary": "XRP once spent seven and a half years clawing back from a single crash, but the market today looks nothing like it did then. Two specific signals will reveal whether this recovery runs faster or stalls out all over again.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/how-long-does-it-take-xrp-to-recover-from-a-crash-what-the-record-actually-shows/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/lKsAWXCIEhdhKVoof.oRnQ--~B/aD05MDM7dz0xNTAwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/24_7_wall_st__718/b9f732b22abac9d5208b2cad1d59bd56.jpg",
+    "related_tickers": [
+      "XRP-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T15:00:24+00:00"
+  },
+  {
+    "ticker": "XRP-USD",
+    "market": "CRYPTO",
+    "title": "Can XRP Supersede SWIFT? Evaluating the Possibilities",
+    "summary": "XRP bulls argue it could upend the global banking network that moves trillions of dollars daily, but Ripple's own fastest-growing product may be quietly making that case harder to defend.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/can-xrp-supersede-swift-evaluating-the-possibilities/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/NYMZqKz0WRksPZCh.rkwxQ--~B/aD0xMDUwO3c9MTUwMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/24_7_wall_st__718/ea22679f0236b7a1df092babb02d9172.jpg",
+    "related_tickers": [
+      "XRP-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T14:30:56+00:00"
+  },
+  {
+    "ticker": "XRP-USD",
+    "market": "CRYPTO",
+    "title": "Could XRP Reach $25 by 2030? Walking Through the Math",
+    "summary": "XRP just posted a 46% gain in 90 days, and some holders are already eyeing a price that would put it nearly on par with Bitcoin's entire market value. Walking through the math reveals just how many things would have to go right to get there.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/could-xrp-reach-25-by-2030-walking-through-the-math/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/LWbp82EUsFRvFZ00PvGUmQ--~B/aD02Njc7dz0xMDAwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/24_7_wall_st__718/9f9650b2a513b2e0b6620cdea45a20ef.jpg",
+    "related_tickers": [
+      "BTC-USD",
+      "XRP-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T14:25:24+00:00"
+  },
+  {
+    "ticker": "BTC-USD",
+    "market": "CRYPTO",
+    "title": "Bitcoin Price Prediction for October 2026",
+    "summary": "Bitcoin has surged nearly 44% over the past three months, but a perfect storm of rising oil prices, slowing ETF inflows, and a Federal Reserve meeting that could change everything threatens to unravel the rally before October is over.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/bitcoin-price-prediction-for-october-2026/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/.eX.YiWNXcLTcrKMqmZcRg--~B/aD0xMDAxO3c9MTUwMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/24_7_wall_st__718/977bb159d4299ec62bba13e6fcc55663.jpg",
+    "related_tickers": [
+      "BTC-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T14:15:55+00:00"
+  },
+  {
+    "ticker": "ETH-USD",
+    "market": "CRYPTO",
+    "title": "Can Ethereum 10x From Here? Walking Through the Math",
+    "summary": "Ethereum just posted a 71% quarterly gain, and the tenfold return chatter is back. But the math behind hitting $26,600 per coin reveals a gauntlet of milestones that most bulls are glossing over.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/can-ethereum-10x-from-here-walking-through-the-math/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/ri9QaxVm4hUhNZx_NmHz.A--~B/aD0xMDAwO3c9MTUwMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/24_7_wall_st__718/9ba1fa41994408b573d416faebbd09ea.jpg",
+    "related_tickers": [
+      "ETH-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T14:00:17+00:00"
+  },
+  {
+    "ticker": "XRP-USD",
+    "market": "CRYPTO",
+    "title": "XRP Open Interest Posts Strongest Growth Since August 2025 as Price Surges 70%",
+    "summary": "XRP has rebounded more than 70% from its late-August lows, while Binance open interest has recorded its strongest growth since August 2025. Binance XRP open ...",
+    "link": "https://www.ccn.com/news/crypto/xrp-price-70-percent-binance-open-interest-growth/",
+    "publisher": "CCN",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/8F43ca.k8reou_31ahFLlA--~B/aD0xMjAwO3c9MTkyMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/ccn_928/59854e46fd7eda135af21ac7d8bfe401",
+    "related_tickers": [
+      "XRP-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T13:32:15+00:00"
+  },
+  {
+    "ticker": "ETH-USD",
+    "market": "CRYPTO",
+    "title": "Standard Chartered Is More Bullish On Ethena Than Bitcoin, Ethereum: Sees 7-Fold Jump By 2028",
+    "summary": "Standard Chartered said Ethena's buyback program and shrinking token supply could support its long-term upside.",
+    "link": "https://stocktwits.com/news-articles/markets/cryptocurrency/standard-chartered-ethena-bullish-bitcoin-ethereum/cZMF7zLRBho",
+    "publisher": "Stocktwits",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/w0xZ7C8Hg2OGEvUcneVvCg--~B/aD03Nzg7dz0xMjgwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/stocktwits_383/eaccf7f04199b6ff859a46a8ee09700a.jpg",
+    "related_tickers": [
+      "ETH-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T13:17:08+00:00"
+  },
+  {
+    "ticker": "XRP-USD",
+    "market": "CRYPTO",
+    "title": "Prediction: This Is What a $1,000 Investment in XRP Will Be Worth in 3 Years",
+    "summary": "Depending on the time horizon, XRP's historical performance data can tell a different story.",
+    "link": "https://www.fool.com/investing/2026/09/30/prediction-this-is-what-a-1000-investment-in-xrp-w/",
+    "publisher": "Motley Fool",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/mk3AuD_lP19jEu4F1avOwg--~B/aD05MzM7dz0xNDAwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/motleyfool.com/8a6367e5456ac421a3fd15d76849b60c.jpg",
+    "related_tickers": [
+      "XRP-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T12:28:00+00:00"
+  },
+  {
+    "ticker": "XRP-USD",
+    "market": "CRYPTO",
+    "title": "BTG Pactual Fund Shares Join CSD BR’s Live XRPL Test",
+    "summary": "In Ripple news, Brazilian financial-market infrastructure operator CSD BR and Ripple announced that CSD BR will mirror selected BTG Pactual investment-fund shares on the XRP Ledger (XRPL) as an additional recording and audit layer. CSD BR, which reports more than BRL 22 trillion in registered assets, will retain its systems ...",
+    "link": "https://www.coinspeaker.com/ripple-news-xrp-ledger-csd-br-test/",
+    "publisher": "Coinspeaker",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/S1xIsgBf4L.SUUpvTzu2Gg--~B/aD00MzI7dz03Njg7YXBwaWQ9eXRhY2h5b24-/https://media.zenfs.com/en/coinspeaker_us_106/f9f0968b6c2c4da7b85de5f12b832e1d",
+    "related_tickers": [
+      "XRP-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T11:49:22+00:00"
+  },
+  {
+    "ticker": "ETH-USD",
+    "market": "CRYPTO",
+    "title": "Bitcoin and ethereum prices today, Wednesday, September 30, 2026: 'Red September' a thing of the past? Monthly gains holding for crypto.",
+    "summary": "Bitcoin opened at $83,624.79 on Wednesday, September 30, 2026, close to flat compared with Tuesday's opening price. As of 7:17 a.m. ET this morning, the price of bitcoin moved higher to $83,767. Ethereum opened at $2,676.74 today, down 0.4% from Tuesday's opening price. Ethereum moved up some this morning to $2,686.56 as of 7:22 a.m. ET.",
+    "link": "https://finance.yahoo.com/personal-finance/investing/article/bitcoin-and-ethereum-prices-today-wednesday-september-30-2026-red-september-a-thing-of-the-past-monthly-gains-holding-for-crypto-113317483.html",
+    "publisher": "Yahoo Personal Finance",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/ZpWX2Yzi4TnvhZyi00u31A--~B/aD0zNTA7dz02MTI7YXBwaWQ9eXRhY2h5b24-/https://d29szjachogqwa.cloudfront.net/images/user-uploaded/bitcoin_4_7197.jpg",
     "related_tickers": [
       "BTC-USD",
       "ETH-USD"
     ],
     "content_type": "STORY",
-    "published_at": "2026-09-28T13:33:08.903Z"
+    "published_at": "2026-09-30T11:33:17+00:00"
+  },
+  {
+    "ticker": "DOGE-USD",
+    "title": "Dogecoin vs XRP: Which Retail Favorite Has the Better Outlook in 2026?",
+    "summary": "Both Dogecoin and XRP have taken a beating this year, but their paths to recovery look nothing alike. One faces a structural headwind that the other simply does not, and that difference could define which coin retail investors regret ignoring in 2026.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/dogecoin-vs-xrp-which-retail-favorite-has-the-better-outlook-in-2026/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/fk2XxLmKK9.fSHITE2U9yg--~B/aD0xMDAwO3c9MTUwMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/24_7_wall_st__718/cdf353b5ef57e5676d4f2764aa4378ac.jpg",
+    "related_tickers": [
+      "DOGE-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T11:30:53+00:00"
+  },
+  {
+    "ticker": "SOL-USD",
+    "market": "CRYPTO",
+    "title": "Which Major Cryptocurrency Has the Most Potential for Growth? Ranking Bitcoin, Ethereum, XRP, and Solana by Distance from Their All-Time Highs",
+    "summary": "Bitcoin, Ethereum, XRP, and Solana all crashed from their 2025 peaks, but one of them stands out as having a uniquely powerful combination of factors that could fuel a sharper recovery than the others.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/which-major-cryptocurrency-has-the-most-potential-for-growth-ranking-bitcoin-ethereum-xrp-and-solana-by-distance-from-their-all-time-highs/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/z38W284_oirM6IBQrUb.3g--~B/aD02Njc7dz0xMDAwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/24_7_wall_st__718/6e1c357342fa574cb191cfe185d13d5d.jpg",
+    "related_tickers": [
+      "ETH-USD",
+      "SOL-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T11:00:49+00:00"
+  },
+  {
+    "ticker": "ETH-USD",
+    "market": "CRYPTO",
+    "title": "Viral ‘Kanye West’ $3.9M Ethereum Wallet Claim as Tom Lee Predicts $5,000 This Year",
+    "summary": "A wallet tracked as Wanyewest69 reportedly sent 1,445 ETH, worth about $3.9 million, to Binance on Sept. 29. Several reports identified the wallet as Kanye ...",
+    "link": "https://www.ccn.com/news/crypto/viral-kanye-west-ethereum-wallet-claim-tom-lee-5000/",
+    "publisher": "CCN",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/gG4FRmDr1XjcF5JHVpVyzQ--~B/aD04NjQ7dz0xNTM2O2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/ccn_928/18c8a50daa01246bcb390ba884ead727",
+    "related_tickers": [
+      "ETH-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T10:47:15+00:00"
+  },
+  {
+    "ticker": "DOGE-USD",
+    "title": "Prediction: Dogecoin Will Plunge to $0.05 in 2027",
+    "summary": "Dogecoin reclaimed the $0.10 milestone last week, but this recovery might be short-lived.",
+    "link": "https://www.fool.com/investing/2026/09/30/prediction-dogecoin-will-plunge-to-005-in-2027/",
+    "publisher": "Motley Fool",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/pJ8GPLMelin79DzqVsPC5w--~B/aD05MzM7dz0xNDAwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/motleyfool.com/d4016ee489c6a02937bb6b0fe36faafb.jpg",
+    "related_tickers": [
+      "DOGE-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T10:23:00+00:00"
+  },
+  {
+    "ticker": "ETH-USD",
+    "market": "CRYPTO",
+    "title": "Tom Lee Says the Biggest Crypto Bull Run Ever Is Starting. Here's Why",
+    "summary": "Tom Lee says crypto is entering its biggest bull cycle ever as BitMine ramps up its Ethereum (ETH) buying.",
+    "link": "https://beincrypto.com/tom-lee-biggest-crypto-bull-cycle-ever/",
+    "publisher": "BeInCrypto",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/ObfOZiPChWzAowQ66Nq8Lw--~B/aD03MjA7dz0xMjgwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/beincrypto_us_662/91ff8525041560207faf609b67b3a773.png",
+    "related_tickers": [
+      "ETH-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T10:14:10+00:00"
+  },
+  {
+    "ticker": "SOL-USD",
+    "market": "CRYPTO",
+    "title": "How Much of Your Portfolio Should Actually Be in Crypto?",
+    "summary": "Crypto bulls and cautious savers rarely agree, but financial experts like Clark Howard and the Ramsey hosts have carved out surprisingly similar rules for when and how much to invest. The answer depends less on market timing and more on a few financial checkboxes most people overlook.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/how-much-of-your-portfolio-should-actually-be-in-crypto/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/Ud0UwQKawlo6JPD_FvCCGQ--~B/aD0xMDAwO3c9MTUwMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/24_7_wall_st__718/b004739823e27bbb13e4ff067de540fb.jpg",
+    "related_tickers": [
+      "ETH-USD",
+      "SOL-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T10:00:11+00:00"
+  },
+  {
+    "ticker": "ETH-USD",
+    "market": "CRYPTO",
+    "title": "Tom Lee Says ETH Could Top $10,000 In The Next 12 Months, Calls Arthur Hayes' Year-End Target 'Conservative'",
+    "summary": "Tom Lee said crypto treasury companies could ramp up buying over the next 12 to 18 months, potentially tightening ETH supply.",
+    "link": "https://stocktwits.com/news-articles/markets/cryptocurrency/tom-lee-says-eth-could-top-10-000-in-the-next-12-months-calls-arthur-hayes-year-end-target-conservative/cZMF2mYRBha",
+    "publisher": "Stocktwits",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/3eQ9QLVOr7EMZFlfCKCuTw--~B/aD04NTQ7dz0xMjgwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/stocktwits_383/d570ad51e629013469ef47c158a04951",
+    "related_tickers": [
+      "ETH-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T09:56:41+00:00"
+  },
+  {
+    "ticker": "SOL-USD",
+    "market": "CRYPTO",
+    "title": "Is Avalanche a Smart Investment in 2026? What It Has to Prove That Solana Already Did",
+    "summary": "Avalanche just posted a stunning one-month surge while Solana coasts along, but a closer look at the numbers reveals whether this rally signals a genuine comeback or a fleeting bounce before deeper losses.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/is-avalanche-a-smart-investment-in-2026-what-it-has-to-prove-that-solana-already-did/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/1bbcb_lFMNFoV6h116CpFQ--~B/aD0xMDAwO3c9MTUwMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/24_7_wall_st__718/de87fd45d6278e7189fbc979ef290660.jpg",
+    "related_tickers": [
+      "SOL-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T07:49:59+00:00"
+  },
+  {
+    "ticker": "SOL-USD",
+    "market": "CRYPTO",
+    "title": "Best Crypto to Buy and Hold for 10 Years: Bitcoin, Ethereum, XRP, or Solana?",
+    "summary": "Bitcoin, Ethereum, XRP, and Solana have all taken significant hits over the past year, leaving long-term investors wondering which one has the fundamentals to survive the next decade and actually grow their money by 2036.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/best-crypto-to-buy-and-hold-for-10-years-bitcoin-ethereum-xrp-or-solana/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/9kBfGQ_Ka7VIXWkAO.Doaw--~B/aD03Njg7dz0xMzc2O2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/24_7_wall_st__718/f203797d063d1214ce367311e4d55ecb",
+    "related_tickers": [
+      "SOL-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T07:18:10+00:00"
+  },
+  {
+    "ticker": "SOL-USD",
+    "market": "CRYPTO",
+    "title": "Chainlink vs Solana: Which Is the Better Buy After Chainlink’s 96% Quarter?",
+    "summary": "Chainlink just outpaced Solana by a wide margin this quarter, but momentum alone does not crown a winner when one asset is seven times smaller and still sitting 71% below its peak.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/30/chainlink-vs-solana-which-is-the-better-buy-after-chainlinks-96-quarter/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/Qc6SLP6Naq6BDfiX6yJZeQ--~B/aD0xMDAwO3c9MTUwMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/24_7_wall_st__718/1ea1eea17eee78558217df3dd0f87777.jpg",
+    "related_tickers": [
+      "SOL-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-30T07:00:24+00:00"
+  },
+  {
+    "ticker": "SOL-USD",
+    "market": "CRYPTO",
+    "title": "Cathie Wood increases stake in surging crypto ETF",
+    "summary": "Cathie Wood’s ARK Invest buys more shares of the 3iQ Solana Staking ETF.",
+    "link": "https://www.thestreet.com/crypto/markets/cathie-wood-increases-stake-in-surging-crypto-etf",
+    "publisher": "TheStreet",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/WT8gxRZk0xvPQrs1O7s.0A--~B/aD0yNTYwO3c9Mzg0MDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/thestreet_881/5668f525bd9c8b3ab6f92ea678700eab.jpg",
+    "related_tickers": [
+      "SOL-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-29T18:25:02+00:00"
+  },
+  {
+    "ticker": "DOGE-USD",
+    "title": "Inside an Alleged $1.2B Ponzi Scheme That Left Investors Holding Crashed Stock",
+    "summary": "Z Squared began trading on Nasdaq in April, part of a plan to get investors out of a private-equity fund.",
+    "link": "https://www.barrons.com/articles/zquared-ponzi-investors-stock-sec-ab4aa78c?siteid=yhoof2&yptr=yahoo",
+    "publisher": "Barrons.com",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/40nWMHZJiY6giwkKBCN2aQ--~B/aD02NDA7dz0xMjgwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/Barrons.com/b9000554ec7c6502ed38e723b1b84bfb.jpg",
+    "related_tickers": [
+      "DOGE-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-29T13:04:00+00:00"
+  },
+  {
+    "ticker": "DOGE-USD",
+    "title": "California governor signs 'Opposite of Trump' bill",
+    "summary": "California Governor Gavin Newsom announces “The Opposite of Trump.”",
+    "link": "https://www.thestreet.com/crypto/markets/california-governor-signs-opposite-of-trump-bill",
+    "publisher": "TheStreet",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/HZndg6V3UhjbUgkYpNKARA--~B/aD0yNTM4O3c9Mzg0MDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/thestreet_881/f42d2356477702a69bf6664a07f4508c.jpg",
+    "related_tickers": [
+      "DOGE-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-28T17:42:00+00:00"
+  },
+  {
+    "ticker": "DOGE-USD",
+    "title": "Can Dogecoin Reach $1 Before XRP Hits $5?",
+    "summary": "Dogecoin and XRP are both chasing massive price milestones, but the gap between where they trade now and where they need to go tells two very different stories about which coin faces a steeper climb.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/28/can-dogecoin-reach-1-before-xrp-hits-5/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/fk2XxLmKK9.fSHITE2U9yg--~B/aD0xMDAwO3c9MTUwMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/24_7_wall_st__718/cdf353b5ef57e5676d4f2764aa4378ac.jpg",
+    "related_tickers": [
+      "DOGE-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-28T16:30:58+00:00"
+  },
+  {
+    "ticker": "DOGE-USD",
+    "title": "Meme Coins Are Heating Back Up Again. Is This an Early Sign That the Crypto Bull Market Is Back?",
+    "summary": "Meme coins only tend to run during bull markets, and they're currently running.",
+    "link": "https://www.fool.com/investing/2026/09/27/meme-coins-are-heating-back-up-again-is-this-an-ea/",
+    "publisher": "Motley Fool",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/sNZlAnTL_mAf9zL_c7.25g--~B/aD0xMTIwO3c9MTQwMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/motleyfool.com/e92a4cd070d4ff2731738d6e8d40f79c.jpg",
+    "related_tickers": [
+      "DOGE-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-27T10:54:00+00:00"
+  },
+  {
+    "ticker": "DOGE-USD",
+    "title": "Dogecoin ETFs Hit Record Week After Bitwise Exit Plans. Will Price React?",
+    "summary": "Dogecoin ETFs drew a record $2.89 million in one week as Bitwise shuts BWOW. See where all the money went.",
+    "link": "https://beincrypto.com/dogecoin-etf-record-weekly-inflows-bitwise/",
+    "publisher": "BeInCrypto",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/2nEYRx99aekq0nYRZssVBA--~B/aD0xMzMyO3c9MjM2ODthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/beincrypto_us_662/f81b3ebad0edd4bfbc521c063a300e01.jpg",
+    "related_tickers": [
+      "DOGE-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-27T08:51:36+00:00"
+  },
+  {
+    "ticker": "DOGE-USD",
+    "title": "Bitcoin’s Share of the Crypto Market Drops Below 60%: What Happens Next?",
+    "summary": "Bitcoin's dominance just slipped below 60% for the fourth time in history, and the previous three crossings each ended very differently. One crucial factor sets this moment apart from all of them, and it changes everything about what comes next.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/26/bitcoins-share-of-the-crypto-market-drops-below-60-what-happens-next/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/Jwk2qMSwB1WvWMYz5MaBbg--~B/aD05OTY7dz0xNTAwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/24_7_wall_st__718/cfb048af868c4e170d1542ce8abe90f7.jpg",
+    "related_tickers": [
+      "DOGE-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-26T17:09:14+00:00"
+  },
+  {
+    "ticker": "DOGE-USD",
+    "title": "XRP vs. Dogecoin: Which Discount Closes First?",
+    "summary": "Both XRP and Dogecoin are trading at a discount to what the average past-year buyer paid, but the forces driving each coin's recovery could not be more different. One has institutional money buying real coins, and the other is riding borrowed leverage with its only regulated fund heading for the exit.",
+    "link": "https://247wallst.com/investing/cryptocurrency/2026/09/26/xrp-vs-dogecoin-which-discount-closes-first/",
+    "publisher": "24/7 Wall St.",
+    "thumbnail_url": "https://s.yimg.com/uu/api/res/1.2/uZ_NDQnwwoO0GXQ1hcZzYw--~B/aD0xMDAwO3c9MTUwMDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/24_7_wall_st__718/971a407aa487645b2d1c4ca0900abb4d.jpg",
+    "related_tickers": [
+      "DOGE-USD"
+    ],
+    "content_type": "STORY",
+    "published_at": "2026-09-26T16:30:20+00:00"
   }
 ]

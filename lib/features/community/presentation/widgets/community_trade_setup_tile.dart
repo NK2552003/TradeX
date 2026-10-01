@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 
@@ -29,81 +31,54 @@ class CommunityTradeSetupTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // Header row: Ticker + Side badge + PnL / Outcome
-          Row(
-            children: <Widget>[
-              Icon(
-                Icons.candlestick_chart_rounded,
-                size: context.sz(18),
-                color: theme.colors.primary,
+          Wrap(
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xs),
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(setup.ticker, style: context.uiText.bodyStrong),
+              UiBadge(
+                label: setup.side,
+                intent: setup.isBullish ? UiIntent.success : UiIntent.danger,
+                size: UiSize.xs,
               ),
-              SizedBox(width: context.sp(theme.spacing.xs)),
-              Expanded(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Flexible(
-                      child: Text(
-                        setup.ticker,
-                        style: context.uiText.bodyStrong.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: theme.colors.foreground,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    UiBadge(
-                      label: setup.side,
-                      intent: setup.isBullish
-                          ? UiIntent.success
-                          : UiIntent.danger,
-                      variant: UiBadgeVariant.solid,
-                      size: UiSize.xs,
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: context.sp(theme.spacing.xs)),
               if (setup.pnl != null)
-                Text(
-                  setup.pnl!,
-                  style: context.uiText.numeric.copyWith(
-                    color: (setup.isWin ?? true)
-                        ? theme.colors.bullish
-                        : theme.colors.bearish,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              if (setup.rMultiple != null || _computeRiskReward() != null) ...<Widget>[
-                SizedBox(width: context.sp(theme.spacing.xs)),
+                Text(setup.pnl!, style: context.uiText.numeric),
+              if (setup.rMultiple != null || _computeRiskReward() != null)
                 UiBadge(
                   label: setup.rMultiple ?? _computeRiskReward()!,
                   intent: (setup.isWin ?? true)
                       ? UiIntent.success
                       : UiIntent.danger,
-                  variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
-              ],
             ],
           ),
+          UiGap.v(theme.spacing.xs),
 
-          SizedBox(height: context.sp(theme.spacing.xs)),
-
-          // 2x2 Grid of Trade Metrics
-          Row(
-            children: <Widget>[
-              Expanded(child: _metricBox(context, 'Entry', setup.entry)),
-              if (setup.exit != null)
-                Expanded(child: _metricBox(context, 'Exit', setup.exit!)),
-              if (setup.stopLoss != null)
-                Expanded(
-                  child: _metricBox(context, 'Stop Loss', setup.stopLoss!),
-                ),
-              if (setup.target != null)
-                Expanded(child: _metricBox(context, 'Target', setup.target!)),
-            ],
+          // Keep the execution levels readable in the narrow desktop sidebar.
+          LayoutBuilder(
+            builder: (context, box) {
+              final metrics = <String, String>{
+                'Entry': setup.entry,
+                if (setup.exit != null) 'Exit': setup.exit!,
+                if (setup.stopLoss != null) 'Stop Loss': setup.stopLoss!,
+                if (setup.target != null) 'Target': setup.target!,
+              };
+              final columns = box.maxWidth >= 600 ? metrics.length : 2;
+              final gap = context.sp(theme.spacing.xs);
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (final metric in metrics.entries)
+                    SizedBox(
+                      width: (box.maxWidth - gap * (columns - 1)) / columns,
+                      child: _metricBox(context, metric.key, metric.value),
+                    ),
+                ],
+              );
+            },
           ),
 
           // Embedded Candlestick Chart
@@ -124,8 +99,10 @@ class CommunityTradeSetupTile extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.xs)),
 
           // Execution Bridge & Journal Action Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xs),
             children: [
               UiButton(
                 label: 'Copy Setup to Journal',
@@ -195,7 +172,9 @@ class CommunityTradeSetupTile extends StatelessWidget {
 
   String? _computeRiskReward() {
     if (setup.rMultiple != null) return setup.rMultiple;
-    final entry = double.tryParse(setup.entry.replaceAll(RegExp(r'[^0-9.]'), ''));
+    final entry = double.tryParse(
+      setup.entry.replaceAll(RegExp(r'[^0-9.]'), ''),
+    );
     final sl = setup.stopLoss != null
         ? double.tryParse(setup.stopLoss!.replaceAll(RegExp(r'[^0-9.]'), ''))
         : null;

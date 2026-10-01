@@ -1,74 +1,118 @@
 {
   "ticker": "ICICIBANK.NS",
   "market": "IN",
-  "fetched_at": "2026-09-28T13:33:08.810Z",
+  "fetched_at": "2026-10-01T03:12:08.570Z",
   "summary": {
     "name": "ICICI Bank Limited",
-    "sector": "Energy & Retail",
-    "industry": "Conglomerate",
-    "website": "https://www.icicibank.com",
-    "description": "ICICI Bank Limited is a leading player in the market delivering high value to global investors.",
-    "market_cap": 20000000000000,
-    "pe_ratio": 28.4,
-    "forward_pe": 25.1,
-    "peg_ratio": 1.9,
-    "eps": 104.5,
-    "dividend_yield": 0.4,
-    "beta": 1.1,
-    "fifty_two_week_high": 515.43,
-    "fifty_two_week_low": 367.52,
-    "fifty_day_average": 439.24,
-    "two_hundred_day_average": 416.83,
-    "avg_volume": 55000000,
-    "shares_outstanding": 15400000000,
-    "float_shares": 15300000000,
-    "held_percent_insiders": 0.45,
-    "held_percent_institutions": 0.35,
-    "short_ratio": 1.4,
-    "target_mean_price": 537.84,
-    "recommendation": "buy",
-    "number_of_analyst_opinions": 38,
-    "employees": 164000,
+    "sector": "Financial Services",
+    "industry": "Banks - Regional",
+    "website": "https://www.icici.bank.in",
+    "description": "ICICI Bank Limited, together with its subsidiaries, engages in the provision of various banking and financial services to corporate and retail customers in India and internationally. The company operates through Retail Banking, Wholesale Banking, Treasury, Other Banking, Life Insurance, General Insurance, and Others segments. The company offers asset management, securities brokerage, private equity, foreign exchange, agricultural and rural banking, equities underwriting, depositary share accounts, consumer durable goods financing, corporate salary and current account, savings and sovereign gold bonds, insurance policies, public offerings, investment, credit and protection, retail inward remittances, certificates of deposits, and payment and transaction banking products and services. It is also involved in the fee and commission-based activities; distribution of financial products; venture capital and real estate fund management business; treasury and rural banking operations; financial solutions; working capital financing; I-Process services, mutual funds, investment banking, and pension funds; and advisory activities. In addition, the company provides savings, salary, capital gains scheme, Hindu undivided family savings, real estate regulatory authority, government e-marketplace, current, trade, escrow, and foreign currency accounts. Further, it offers personal, home, car, education, gold, automobile, and commercial business loans, as well as loans against time deposits, securities, and property; and working capital loans, as well as credit, debit, prepaid, travel, forex, commercial, and corporate cards. Additionally, the company provides fixed income products; investment products; payments; general, accident, life, health, vehicle, and travel insurance products; cash management and merchant services; capital market and securities market services; and forex, derivatives, bullion, and bonds. The company was founded in 1955 and is headquartered in Mumbai, India.",
+    "market_cap": 9487704391680,
+    "pe_ratio": 17.087265,
+    "forward_pe": 14.060637,
+    "peg_ratio": 0.53,
+    "eps": 77.35,
+    "dividend_yield": 0.91,
+    "beta": 0.26,
+    "fifty_two_week_high": 1480.0,
+    "fifty_two_week_low": 1187.6,
+    "fifty_day_average": 1402.686,
+    "two_hundred_day_average": 1351.3135,
+    "avg_volume": 10570920,
+    "shares_outstanding": 7178409931,
+    "float_shares": 7144351019,
+    "held_percent_insiders": 0.0353,
+    "held_percent_institutions": 0.59208,
+    "short_ratio": null,
+    "target_mean_price": 1747.4524,
+    "recommendation": "strong_buy",
+    "number_of_analyst_opinions": 42,
+    "employees": 124029,
     "country": "India",
-    "exchange": "NSE"
+    "exchange": "NSI"
   },
   "quote": {
-    "price": 448.2,
-    "previous_close": 442.82,
-    "day_high": 452.68,
-    "day_low": 441.48,
-    "volume": 5123000,
-    "change_pct": 1.25,
+    "price": 1321.699951171875,
+    "previous_close": 1292.199951171875,
+    "day_high": 1337.0,
+    "day_low": 1295.300048828125,
+    "volume": 14095232,
+    "change_pct": 2.28,
     "currency": "INR",
-    "market_cap": 20000000000000,
-    "updated_at": "2026-09-28T13:33:08.810Z"
+    "market_cap": null,
+    "updated_at": "2026-10-01T03:12:07.665Z"
   },
   "news": [
     {
-      "ticker": "ICICIBANK.NS",
-      "title": "ICICI Bank Limited Reports Strong Financial Results and Market Expansion",
-      "summary": "Key momentum seen across major operational units with bullish analyst outlook for ICICIBANK.NS.",
-      "link": "https://finance.yahoo.com/news/icicibank.ns-earnings-report",
-      "publisher": "Reuters",
-      "thumbnail_url": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=500",
-      "related_tickers": [
-        "ICICIBANK.NS"
-      ],
-      "content_type": "STORY",
-      "published_at": "2026-09-28T13:33:08.810Z"
+      "title": "Apple Pay launches in India with Axis Bank partnership",
+      "summary": "The rollout is limited to Axis Bank Visa and Mastercard credit cards at launch, entering a market dominated by UPI, Google Pay, and PhonePe",
+      "link": "https://qz.com/apple-pay-launches-india-axis-bank-093026",
+      "publisher": "Quartz",
+      "published_at": "2026-09-30T12:55:26Z"
     },
     {
-      "ticker": "ICICIBANK.NS",
-      "title": "Analyst Sentiment Remains Positive for ICICIBANK.NS Following Strategic Roadmap Update",
-      "summary": "Institutional investors double down on growth expectations amidst broader macroeconomic tailwinds.",
-      "link": "https://finance.yahoo.com/news/icicibank.ns-analyst-update",
-      "publisher": "Bloomberg",
-      "thumbnail_url": "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=500",
-      "related_tickers": [
-        "ICICIBANK.NS"
-      ],
-      "content_type": "STORY",
-      "published_at": "2026-09-28T13:33:08.810Z"
+      "title": "Apple Pay to launch in India next month with Axis Bank- report",
+      "summary": "Axis Bank is the fourth-largest credit card issuer in the country.",
+      "link": "https://www.electronicpaymentsinternational.com/news/apple-pay-to-launch-in-india-next-month-with-axis-bank-report/",
+      "publisher": "Electronic Payments",
+      "published_at": "2026-09-21T07:24:44Z"
+    },
+    {
+      "title": "India and Russia Are Finding Another Way Around the Dollar",
+      "summary": "India and Russia are linking their payment systems and pushing BRICS toward local-currency trade, giving both countries another way to move money without touching the dollar.",
+      "link": "https://app.moby.co/home/news/news-india-and-russia-are-finding-another-way-around-the-dollar?utm_source=yahoo_finance&utm_medium=rss",
+      "publisher": "Moby",
+      "published_at": "2026-09-11T15:18:36Z"
+    },
+    {
+      "title": "ICICI Prudential AMC gets clearance to buy up to 9.95% of four lenders",
+      "summary": "The fund house is now allowed to acquire up to 9.95% of CSB Bank, DCB Bank and AU Small Finance Bank, and Kotak Mahindra.",
+      "link": "https://www.retailbankerinternational.com/news/icici-prudential-amc-gets-clearance-to-buy-up-to-9-95-of-four-lenders/",
+      "publisher": "Retail Banker International",
+      "published_at": "2026-09-11T11:57:15Z"
+    },
+    {
+      "title": "Asian Equities Traded in the US as American Depositary Receipts Rise in Wednesday Trading",
+      "summary": "Asian equities traded in the US as American depositary receipts were tracking higher Wednesday morni",
+      "link": "https://finance.yahoo.com/markets/world-indices/articles/asian-equities-traded-us-american-143931763.html",
+      "publisher": "MT Newswires",
+      "published_at": "2026-09-02T14:39:31Z"
+    },
+    {
+      "title": "Asian Equities Traded in the US as American Depositary Receipts Start Week Lower in Monday Trading",
+      "summary": "Asian equities traded in the US as American depositary receipts started the week lower Monday mornin",
+      "link": "https://finance.yahoo.com/markets/world-indices/articles/asian-equities-traded-us-american-144332208.html",
+      "publisher": "MT Newswires",
+      "published_at": "2026-08-31T14:43:32Z"
+    },
+    {
+      "title": "Asian Equities Traded in the US as American Depositary Receipts Head Slightly Lower in Thursday Trading",
+      "summary": "Asian equities traded in the US as American depositary receipts were tracking lower Thursday morning",
+      "link": "https://finance.yahoo.com/markets/world-indices/articles/asian-equities-traded-us-american-145341703.html",
+      "publisher": "MT Newswires",
+      "published_at": "2026-08-27T14:53:41Z"
+    },
+    {
+      "title": "Prudential to sell 2% stake in ICICI Prudential AMC worth about $333 million",
+      "summary": "BENGALURU, Aug 26 (Reuters) - British insurer Prudential Plc plans to sell up to a 2% stake in ICICI Prudential Asset Management Company through the open market to help meet minimum public",
+      "link": "https://sg.finance.yahoo.com/news/prudential-sell-2-stake-icici-104449355.html",
+      "publisher": "Reuters",
+      "published_at": "2026-08-26T10:44:49Z"
+    },
+    {
+      "title": "Asian Equities Traded in the US as American Depositary Receipts Rise in Tuesday Trading",
+      "summary": "Asian equities traded in the US as American depositary receipts were tracking higher Tuesday morning",
+      "link": "https://finance.yahoo.com/markets/world-indices/articles/asian-equities-traded-us-american-144411158.html",
+      "publisher": "MT Newswires",
+      "published_at": "2026-08-25T14:44:11Z"
+    },
+    {
+      "title": "Asian Equities Traded in the US as American Depositary Receipts Decline in Thursday Trading",
+      "summary": "Asian equities traded in the US as American depositary receipts were trending lower Thursday morning",
+      "link": "https://finance.yahoo.com/markets/world-indices/articles/asian-equities-traded-us-american-143754359.html",
+      "publisher": "MT Newswires",
+      "published_at": "2026-08-20T14:37:54Z"
     }
   ],
   "chart": {
@@ -76,111 +120,1216 @@
     "interval": "1d",
     "data": [
       {
-        "date": "2026-08-10T00:00:00",
-        "open": 425.79,
-        "high": 434.75,
-        "low": 421.31,
-        "close": 430.27,
-        "volume": 4500000
+        "date": "2026-03-30T00:00:00+05:30",
+        "open": 1206.33,
+        "high": 1212.38,
+        "low": 1190.36,
+        "close": 1195.82,
+        "volume": 23952775
       },
       {
-        "date": "2026-08-11T00:00:00",
-        "open": 430.27,
-        "high": 443.72,
-        "low": 425.79,
-        "close": 439.24,
-        "volume": 5200000
+        "date": "2026-04-01T00:00:00+05:30",
+        "open": 1217.83,
+        "high": 1223.68,
+        "low": 1199.88,
+        "close": 1202.56,
+        "volume": 25472333
       },
       {
-        "date": "2026-08-12T00:00:00",
-        "open": 439.24,
-        "high": 452.68,
-        "low": 434.75,
-        "close": 448.2,
-        "volume": 5123000
+        "date": "2026-04-02T00:00:00+05:30",
+        "open": 1186.0,
+        "high": 1211.88,
+        "low": 1177.67,
+        "close": 1205.64,
+        "volume": 20851722
+      },
+      {
+        "date": "2026-04-06T00:00:00+05:30",
+        "open": 1202.86,
+        "high": 1224.08,
+        "low": 1190.46,
+        "close": 1221.11,
+        "volume": 10058414
+      },
+      {
+        "date": "2026-04-07T00:00:00+05:30",
+        "open": 1218.73,
+        "high": 1239.95,
+        "low": 1206.43,
+        "close": 1235.09,
+        "volume": 25600557
+      },
+      {
+        "date": "2026-04-08T00:00:00+05:30",
+        "open": 1299.05,
+        "high": 1322.35,
+        "low": 1281.6,
+        "close": 1298.26,
+        "volume": 25148651
+      },
+      {
+        "date": "2026-04-09T00:00:00+05:30",
+        "open": 1289.03,
+        "high": 1297.07,
+        "low": 1265.23,
+        "close": 1270.59,
+        "volume": 22923062
+      },
+      {
+        "date": "2026-04-10T00:00:00+05:30",
+        "open": 1278.22,
+        "high": 1312.93,
+        "low": 1277.73,
+        "close": 1310.85,
+        "volume": 18174755
+      },
+      {
+        "date": "2026-04-13T00:00:00+05:30",
+        "open": 1293.99,
+        "high": 1345.66,
+        "low": 1285.86,
+        "close": 1339.8,
+        "volume": 30572141
+      },
+      {
+        "date": "2026-04-15T00:00:00+05:30",
+        "open": 1346.65,
+        "high": 1353.39,
+        "low": 1326.81,
+        "close": 1336.83,
+        "volume": 23827473
+      },
+      {
+        "date": "2026-04-16T00:00:00+05:30",
+        "open": 1340.7,
+        "high": 1355.47,
+        "low": 1329.0,
+        "close": 1334.25,
+        "volume": 24017236
+      },
+      {
+        "date": "2026-04-17T00:00:00+05:30",
+        "open": 1335.74,
+        "high": 1341.59,
+        "low": 1322.85,
+        "close": 1335.54,
+        "volume": 18151993
+      },
+      {
+        "date": "2026-04-20T00:00:00+05:30",
+        "open": 1353.29,
+        "high": 1364.89,
+        "low": 1341.69,
+        "close": 1344.86,
+        "volume": 21551520
+      },
+      {
+        "date": "2026-04-21T00:00:00+05:30",
+        "open": 1356.56,
+        "high": 1381.45,
+        "low": 1348.63,
+        "close": 1376.79,
+        "volume": 23312455
+      },
+      {
+        "date": "2026-04-22T00:00:00+05:30",
+        "open": 1368.46,
+        "high": 1368.56,
+        "low": 1353.59,
+        "close": 1356.17,
+        "volume": 13613487
+      },
+      {
+        "date": "2026-04-23T00:00:00+05:30",
+        "open": 1337.13,
+        "high": 1342.68,
+        "low": 1332.27,
+        "close": 1336.73,
+        "volume": 20111792
+      },
+      {
+        "date": "2026-04-24T00:00:00+05:30",
+        "open": 1325.13,
+        "high": 1337.52,
+        "low": 1312.93,
+        "close": 1315.11,
+        "volume": 14056743
+      },
+      {
+        "date": "2026-04-27T00:00:00+05:30",
+        "open": 1316.8,
+        "high": 1324.73,
+        "low": 1299.94,
+        "close": 1303.11,
+        "volume": 15385625
+      },
+      {
+        "date": "2026-04-28T00:00:00+05:30",
+        "open": 1303.31,
+        "high": 1306.68,
+        "low": 1275.94,
+        "close": 1281.2,
+        "volume": 16774778
+      },
+      {
+        "date": "2026-04-29T00:00:00+05:30",
+        "open": 1283.88,
+        "high": 1285.96,
+        "low": 1265.53,
+        "close": 1270.29,
+        "volume": 11716030
+      },
+      {
+        "date": "2026-04-30T00:00:00+05:30",
+        "open": 1250.46,
+        "high": 1261.56,
+        "low": 1248.47,
+        "close": 1252.84,
+        "volume": 17740110
+      },
+      {
+        "date": "2026-05-01T00:00:00+05:30",
+        "open": 1252.84,
+        "high": 1252.84,
+        "low": 1252.84,
+        "close": 1252.84,
+        "volume": 0
+      },
+      {
+        "date": "2026-05-04T00:00:00+05:30",
+        "open": 1253.73,
+        "high": 1271.48,
+        "low": 1253.73,
+        "close": 1260.18,
+        "volume": 14597051
+      },
+      {
+        "date": "2026-05-05T00:00:00+05:30",
+        "open": 1253.43,
+        "high": 1256.11,
+        "low": 1235.09,
+        "close": 1240.84,
+        "volume": 24447935
+      },
+      {
+        "date": "2026-05-06T00:00:00+05:30",
+        "open": 1251.45,
+        "high": 1272.08,
+        "low": 1241.63,
+        "close": 1268.8,
+        "volume": 22909586
+      },
+      {
+        "date": "2026-05-07T00:00:00+05:30",
+        "open": 1273.96,
+        "high": 1283.18,
+        "low": 1262.56,
+        "close": 1268.31,
+        "volume": 25028552
+      },
+      {
+        "date": "2026-05-08T00:00:00+05:30",
+        "open": 1268.9,
+        "high": 1268.9,
+        "low": 1250.66,
+        "close": 1254.23,
+        "volume": 11137424
+      },
+      {
+        "date": "2026-05-11T00:00:00+05:30",
+        "open": 1248.87,
+        "high": 1265.04,
+        "low": 1241.53,
+        "close": 1255.81,
+        "volume": 18980488
+      },
+      {
+        "date": "2026-05-12T00:00:00+05:30",
+        "open": 1245.5,
+        "high": 1249.37,
+        "low": 1225.96,
+        "close": 1229.93,
+        "volume": 21110708
+      },
+      {
+        "date": "2026-05-13T00:00:00+05:30",
+        "open": 1227.95,
+        "high": 1238.76,
+        "low": 1216.94,
+        "close": 1225.27,
+        "volume": 19490295
+      },
+      {
+        "date": "2026-05-14T00:00:00+05:30",
+        "open": 1228.74,
+        "high": 1246.19,
+        "low": 1225.67,
+        "close": 1235.58,
+        "volume": 16535600
+      },
+      {
+        "date": "2026-05-15T00:00:00+05:30",
+        "open": 1236.18,
+        "high": 1247.48,
+        "low": 1231.62,
+        "close": 1234.1,
+        "volume": 11745614
+      },
+      {
+        "date": "2026-05-18T00:00:00+05:30",
+        "open": 1225.17,
+        "high": 1243.22,
+        "low": 1221.7,
+        "close": 1240.64,
+        "volume": 13918850
+      },
+      {
+        "date": "2026-05-19T00:00:00+05:30",
+        "open": 1240.64,
+        "high": 1245.8,
+        "low": 1219.52,
+        "close": 1230.43,
+        "volume": 38929053
+      },
+      {
+        "date": "2026-05-20T00:00:00+05:30",
+        "open": 1219.72,
+        "high": 1229.34,
+        "low": 1213.07,
+        "close": 1226.96,
+        "volume": 14953103
+      },
+      {
+        "date": "2026-05-21T00:00:00+05:30",
+        "open": 1234.89,
+        "high": 1237.86,
+        "low": 1224.08,
+        "close": 1232.41,
+        "volume": 14394386
+      },
+      {
+        "date": "2026-05-22T00:00:00+05:30",
+        "open": 1231.62,
+        "high": 1260.18,
+        "low": 1231.62,
+        "close": 1253.73,
+        "volume": 11601085
+      },
+      {
+        "date": "2026-05-25T00:00:00+05:30",
+        "open": 1260.37,
+        "high": 1282.69,
+        "low": 1260.28,
+        "close": 1281.0,
+        "volume": 13853923
+      },
+      {
+        "date": "2026-05-26T00:00:00+05:30",
+        "open": 1279.22,
+        "high": 1290.92,
+        "low": 1265.53,
+        "close": 1268.41,
+        "volume": 18400405
+      },
+      {
+        "date": "2026-05-27T00:00:00+05:30",
+        "open": 1275.25,
+        "high": 1282.59,
+        "low": 1256.11,
+        "close": 1262.06,
+        "volume": 18366272
+      },
+      {
+        "date": "2026-05-28T00:00:00+05:30",
+        "open": 1262.06,
+        "high": 1262.06,
+        "low": 1262.06,
+        "close": 1262.06,
+        "volume": 0
+      },
+      {
+        "date": "2026-05-29T00:00:00+05:30",
+        "open": 1264.44,
+        "high": 1277.03,
+        "low": 1237.47,
+        "close": 1245.9,
+        "volume": 31007884
+      },
+      {
+        "date": "2026-06-01T00:00:00+05:30",
+        "open": 1246.59,
+        "high": 1251.35,
+        "low": 1225.57,
+        "close": 1229.34,
+        "volume": 9911975
+      },
+      {
+        "date": "2026-06-02T00:00:00+05:30",
+        "open": 1222.69,
+        "high": 1227.35,
+        "low": 1210.49,
+        "close": 1216.35,
+        "volume": 17920892
+      },
+      {
+        "date": "2026-06-03T00:00:00+05:30",
+        "open": 1209.7,
+        "high": 1237.86,
+        "low": 1203.55,
+        "close": 1231.62,
+        "volume": 13934754
+      },
+      {
+        "date": "2026-06-04T00:00:00+05:30",
+        "open": 1221.9,
+        "high": 1251.75,
+        "low": 1221.9,
+        "close": 1241.24,
+        "volume": 19461560
+      },
+      {
+        "date": "2026-06-05T00:00:00+05:30",
+        "open": 1246.49,
+        "high": 1254.42,
+        "low": 1239.55,
+        "close": 1251.55,
+        "volume": 10166393
+      },
+      {
+        "date": "2026-06-08T00:00:00+05:30",
+        "open": 1235.98,
+        "high": 1243.52,
+        "low": 1232.71,
+        "close": 1239.75,
+        "volume": 10714196
+      },
+      {
+        "date": "2026-06-09T00:00:00+05:30",
+        "open": 1244.51,
+        "high": 1269.2,
+        "low": 1242.23,
+        "close": 1264.34,
+        "volume": 22368579
+      },
+      {
+        "date": "2026-06-10T00:00:00+05:30",
+        "open": 1260.67,
+        "high": 1295.08,
+        "low": 1260.67,
+        "close": 1282.49,
+        "volume": 25951584
+      },
+      {
+        "date": "2026-06-11T00:00:00+05:30",
+        "open": 1275.74,
+        "high": 1321.86,
+        "low": 1275.74,
+        "close": 1305.99,
+        "volume": 35919374
+      },
+      {
+        "date": "2026-06-12T00:00:00+05:30",
+        "open": 1318.88,
+        "high": 1333.06,
+        "low": 1307.68,
+        "close": 1329.59,
+        "volume": 18339846
+      },
+      {
+        "date": "2026-06-15T00:00:00+05:30",
+        "open": 1343.28,
+        "high": 1351.31,
+        "low": 1314.22,
+        "close": 1316.5,
+        "volume": 16172921
+      },
+      {
+        "date": "2026-06-16T00:00:00+05:30",
+        "open": 1320.77,
+        "high": 1326.12,
+        "low": 1315.21,
+        "close": 1323.15,
+        "volume": 13069159
+      },
+      {
+        "date": "2026-06-17T00:00:00+05:30",
+        "open": 1330.78,
+        "high": 1334.75,
+        "low": 1322.25,
+        "close": 1325.62,
+        "volume": 8026424
+      },
+      {
+        "date": "2026-06-18T00:00:00+05:30",
+        "open": 1322.45,
+        "high": 1335.64,
+        "low": 1320.27,
+        "close": 1331.08,
+        "volume": 13467985
+      },
+      {
+        "date": "2026-06-19T00:00:00+05:30",
+        "open": 1329.29,
+        "high": 1340.99,
+        "low": 1320.86,
+        "close": 1335.24,
+        "volume": 9057322
+      },
+      {
+        "date": "2026-06-22T00:00:00+05:30",
+        "open": 1341.69,
+        "high": 1351.31,
+        "low": 1337.13,
+        "close": 1341.09,
+        "volume": 4814845
+      },
+      {
+        "date": "2026-06-23T00:00:00+05:30",
+        "open": 1346.65,
+        "high": 1357.65,
+        "low": 1320.37,
+        "close": 1327.11,
+        "volume": 11884879
+      },
+      {
+        "date": "2026-06-24T00:00:00+05:30",
+        "open": 1329.39,
+        "high": 1366.08,
+        "low": 1329.39,
+        "close": 1362.12,
+        "volume": 16440708
+      },
+      {
+        "date": "2026-06-25T00:00:00+05:30",
+        "open": 1370.35,
+        "high": 1392.26,
+        "low": 1368.56,
+        "close": 1375.9,
+        "volume": 17173209
+      },
+      {
+        "date": "2026-06-26T00:00:00+05:30",
+        "open": 1375.9,
+        "high": 1375.9,
+        "low": 1375.9,
+        "close": 1375.9,
+        "volume": 0
+      },
+      {
+        "date": "2026-06-29T00:00:00+05:30",
+        "open": 1378.38,
+        "high": 1390.28,
+        "low": 1371.64,
+        "close": 1376.0,
+        "volume": 13249405
+      },
+      {
+        "date": "2026-06-30T00:00:00+05:30",
+        "open": 1390.28,
+        "high": 1390.28,
+        "low": 1354.68,
+        "close": 1363.7,
+        "volume": 18398057
+      },
+      {
+        "date": "2026-07-01T00:00:00+05:30",
+        "open": 1359.94,
+        "high": 1373.52,
+        "low": 1356.27,
+        "close": 1368.26,
+        "volume": 11948034
+      },
+      {
+        "date": "2026-07-02T00:00:00+05:30",
+        "open": 1370.35,
+        "high": 1393.25,
+        "low": 1365.29,
+        "close": 1388.3,
+        "volume": 15779429
+      },
+      {
+        "date": "2026-07-03T00:00:00+05:30",
+        "open": 1402.18,
+        "high": 1408.13,
+        "low": 1394.15,
+        "close": 1399.6,
+        "volume": 12901785
+      },
+      {
+        "date": "2026-07-06T00:00:00+05:30",
+        "open": 1400.2,
+        "high": 1419.63,
+        "low": 1399.8,
+        "close": 1414.97,
+        "volume": 12306949
+      },
+      {
+        "date": "2026-07-07T00:00:00+05:30",
+        "open": 1419.63,
+        "high": 1421.02,
+        "low": 1398.21,
+        "close": 1402.87,
+        "volume": 15664178
+      },
+      {
+        "date": "2026-07-08T00:00:00+05:30",
+        "open": 1398.51,
+        "high": 1406.44,
+        "low": 1364.4,
+        "close": 1369.06,
+        "volume": 10573142
+      },
+      {
+        "date": "2026-07-09T00:00:00+05:30",
+        "open": 1371.34,
+        "high": 1391.87,
+        "low": 1365.79,
+        "close": 1369.16,
+        "volume": 13948838
+      },
+      {
+        "date": "2026-07-10T00:00:00+05:30",
+        "open": 1378.08,
+        "high": 1396.43,
+        "low": 1377.98,
+        "close": 1389.49,
+        "volume": 6409645
+      },
+      {
+        "date": "2026-07-13T00:00:00+05:30",
+        "open": 1381.85,
+        "high": 1401.19,
+        "low": 1374.71,
+        "close": 1397.72,
+        "volume": 10091437
+      },
+      {
+        "date": "2026-07-14T00:00:00+05:30",
+        "open": 1388.3,
+        "high": 1400.0,
+        "low": 1380.36,
+        "close": 1395.93,
+        "volume": 14133017
+      },
+      {
+        "date": "2026-07-15T00:00:00+05:30",
+        "open": 1401.09,
+        "high": 1416.06,
+        "low": 1397.42,
+        "close": 1404.36,
+        "volume": 12961648
+      },
+      {
+        "date": "2026-07-16T00:00:00+05:30",
+        "open": 1408.23,
+        "high": 1411.8,
+        "low": 1394.44,
+        "close": 1406.34,
+        "volume": 10165264
+      },
+      {
+        "date": "2026-07-17T00:00:00+05:30",
+        "open": 1410.21,
+        "high": 1442.94,
+        "low": 1407.83,
+        "close": 1432.23,
+        "volume": 11112550
+      },
+      {
+        "date": "2026-07-20T00:00:00+05:30",
+        "open": 1432.42,
+        "high": 1467.63,
+        "low": 1427.47,
+        "close": 1447.99,
+        "volume": 22236415
+      },
+      {
+        "date": "2026-07-21T00:00:00+05:30",
+        "open": 1457.71,
+        "high": 1461.58,
+        "low": 1444.42,
+        "close": 1450.87,
+        "volume": 18269907
+      },
+      {
+        "date": "2026-07-22T00:00:00+05:30",
+        "open": 1454.14,
+        "high": 1454.14,
+        "low": 1426.37,
+        "close": 1428.66,
+        "volume": 8345136
+      },
+      {
+        "date": "2026-07-23T00:00:00+05:30",
+        "open": 1420.52,
+        "high": 1433.91,
+        "low": 1414.67,
+        "close": 1422.61,
+        "volume": 12409328
+      },
+      {
+        "date": "2026-07-24T00:00:00+05:30",
+        "open": 1416.06,
+        "high": 1427.96,
+        "low": 1403.57,
+        "close": 1420.92,
+        "volume": 10870914
+      },
+      {
+        "date": "2026-07-27T00:00:00+05:30",
+        "open": 1423.7,
+        "high": 1436.89,
+        "low": 1416.86,
+        "close": 1433.61,
+        "volume": 10608300
+      },
+      {
+        "date": "2026-07-28T00:00:00+05:30",
+        "open": 1430.24,
+        "high": 1433.81,
+        "low": 1405.75,
+        "close": 1418.84,
+        "volume": 19486209
+      },
+      {
+        "date": "2026-07-29T00:00:00+05:30",
+        "open": 1430.44,
+        "high": 1436.39,
+        "low": 1416.56,
+        "close": 1425.88,
+        "volume": 10856166
+      },
+      {
+        "date": "2026-07-30T00:00:00+05:30",
+        "open": 1419.14,
+        "high": 1430.14,
+        "low": 1410.71,
+        "close": 1421.91,
+        "volume": 14141173
+      },
+      {
+        "date": "2026-07-31T00:00:00+05:30",
+        "open": 1422.31,
+        "high": 1429.85,
+        "low": 1419.43,
+        "close": 1423.4,
+        "volume": 8752440
+      },
+      {
+        "date": "2026-08-03T00:00:00+05:30",
+        "open": 1442.0,
+        "high": 1460.0,
+        "low": 1433.0,
+        "close": 1460.0,
+        "volume": 7706747
+      },
+      {
+        "date": "2026-08-04T00:00:00+05:30",
+        "open": 1452.0,
+        "high": 1454.6,
+        "low": 1430.8,
+        "close": 1454.6,
+        "volume": 11458963
+      },
+      {
+        "date": "2026-08-05T00:00:00+05:30",
+        "open": 1454.6,
+        "high": 1454.6,
+        "low": 1431.2,
+        "close": 1450.1,
+        "volume": 11723296
+      },
+      {
+        "date": "2026-08-06T00:00:00+05:30",
+        "open": 1460.0,
+        "high": 1460.0,
+        "low": 1448.3,
+        "close": 1457.5,
+        "volume": 14954726
+      },
+      {
+        "date": "2026-08-07T00:00:00+05:30",
+        "open": 1451.0,
+        "high": 1455.0,
+        "low": 1418.2,
+        "close": 1421.0,
+        "volume": 14395789
+      },
+      {
+        "date": "2026-08-10T00:00:00+05:30",
+        "open": 1428.1,
+        "high": 1441.9,
+        "low": 1415.5,
+        "close": 1431.8,
+        "volume": 12749354
+      },
+      {
+        "date": "2026-08-11T00:00:00+05:30",
+        "open": 1432.1,
+        "high": 1434.0,
+        "low": 1412.2,
+        "close": 1429.6,
+        "volume": 10471914
+      },
+      {
+        "date": "2026-08-12T00:00:00+05:30",
+        "open": 1429.4,
+        "high": 1435.0,
+        "low": 1418.6,
+        "close": 1431.7,
+        "volume": 8201733
+      },
+      {
+        "date": "2026-08-13T00:00:00+05:30",
+        "open": 1429.0,
+        "high": 1429.0,
+        "low": 1406.4,
+        "close": 1406.8,
+        "volume": 11408206
+      },
+      {
+        "date": "2026-08-14T00:00:00+05:30",
+        "open": 1403.0,
+        "high": 1417.8,
+        "low": 1401.0,
+        "close": 1417.0,
+        "volume": 6097934
+      },
+      {
+        "date": "2026-08-17T00:00:00+05:30",
+        "open": 1418.0,
+        "high": 1423.6,
+        "low": 1407.0,
+        "close": 1415.3,
+        "volume": 5605603
+      },
+      {
+        "date": "2026-08-18T00:00:00+05:30",
+        "open": 1410.0,
+        "high": 1416.6,
+        "low": 1406.3,
+        "close": 1412.0,
+        "volume": 8345198
+      },
+      {
+        "date": "2026-08-19T00:00:00+05:30",
+        "open": 1412.0,
+        "high": 1416.0,
+        "low": 1391.5,
+        "close": 1402.0,
+        "volume": 10304210
+      },
+      {
+        "date": "2026-08-20T00:00:00+05:30",
+        "open": 1407.8,
+        "high": 1413.0,
+        "low": 1403.3,
+        "close": 1411.9,
+        "volume": 8425049
+      },
+      {
+        "date": "2026-08-21T00:00:00+05:30",
+        "open": 1417.0,
+        "high": 1420.0,
+        "low": 1411.2,
+        "close": 1420.0,
+        "volume": 4565280
+      },
+      {
+        "date": "2026-08-24T00:00:00+05:30",
+        "open": 1420.5,
+        "high": 1425.5,
+        "low": 1408.7,
+        "close": 1415.0,
+        "volume": 5307113
+      },
+      {
+        "date": "2026-08-25T00:00:00+05:30",
+        "open": 1408.0,
+        "high": 1424.9,
+        "low": 1408.0,
+        "close": 1422.7,
+        "volume": 7983249
+      },
+      {
+        "date": "2026-08-26T00:00:00+05:30",
+        "open": 1423.1,
+        "high": 1446.0,
+        "low": 1423.1,
+        "close": 1430.0,
+        "volume": 4177066
+      },
+      {
+        "date": "2026-08-27T00:00:00+05:30",
+        "open": 1445.0,
+        "high": 1453.8,
+        "low": 1433.1,
+        "close": 1443.0,
+        "volume": 11539716
+      },
+      {
+        "date": "2026-08-28T00:00:00+05:30",
+        "open": 1435.0,
+        "high": 1439.8,
+        "low": 1418.9,
+        "close": 1422.8,
+        "volume": 8625738
+      },
+      {
+        "date": "2026-08-31T00:00:00+05:30",
+        "open": 1422.8,
+        "high": 1454.0,
+        "low": 1419.0,
+        "close": 1454.0,
+        "volume": 15331697
+      },
+      {
+        "date": "2026-09-01T00:00:00+05:30",
+        "open": 1442.9,
+        "high": 1446.7,
+        "low": 1422.8,
+        "close": 1438.0,
+        "volume": 10627608
+      },
+      {
+        "date": "2026-09-02T00:00:00+05:30",
+        "open": 1425.1,
+        "high": 1436.0,
+        "low": 1420.7,
+        "close": 1426.5,
+        "volume": 8515824
+      },
+      {
+        "date": "2026-09-03T00:00:00+05:30",
+        "open": 1438.3,
+        "high": 1452.0,
+        "low": 1430.0,
+        "close": 1430.0,
+        "volume": 10503351
+      },
+      {
+        "date": "2026-09-04T00:00:00+05:30",
+        "open": 1432.1,
+        "high": 1438.3,
+        "low": 1421.4,
+        "close": 1423.2,
+        "volume": 6693889
+      },
+      {
+        "date": "2026-09-07T00:00:00+05:30",
+        "open": 1428.0,
+        "high": 1434.4,
+        "low": 1422.6,
+        "close": 1427.5,
+        "volume": 8035111
+      },
+      {
+        "date": "2026-09-08T00:00:00+05:30",
+        "open": 1424.0,
+        "high": 1424.9,
+        "low": 1396.3,
+        "close": 1399.4,
+        "volume": 12123411
+      },
+      {
+        "date": "2026-09-09T00:00:00+05:30",
+        "open": 1395.9,
+        "high": 1402.5,
+        "low": 1385.5,
+        "close": 1389.1,
+        "volume": 14229080
+      },
+      {
+        "date": "2026-09-10T00:00:00+05:30",
+        "open": 1385.9,
+        "high": 1393.0,
+        "low": 1373.9,
+        "close": 1384.5,
+        "volume": 10580641
+      },
+      {
+        "date": "2026-09-11T00:00:00+05:30",
+        "open": 1371.6,
+        "high": 1389.0,
+        "low": 1367.6,
+        "close": 1379.3,
+        "volume": 7064417
+      },
+      {
+        "date": "2026-09-14T00:00:00+05:30",
+        "open": 1379.3,
+        "high": 1379.3,
+        "low": 1379.3,
+        "close": 1379.3,
+        "volume": 0
+      },
+      {
+        "date": "2026-09-15T00:00:00+05:30",
+        "open": 1379.3,
+        "high": 1390.0,
+        "low": 1350.4,
+        "close": 1350.4,
+        "volume": 10133488
+      },
+      {
+        "date": "2026-09-16T00:00:00+05:30",
+        "open": 1359.0,
+        "high": 1361.4,
+        "low": 1348.0,
+        "close": 1358.8,
+        "volume": 9625762
+      },
+      {
+        "date": "2026-09-17T00:00:00+05:30",
+        "open": 1352.0,
+        "high": 1363.0,
+        "low": 1347.6,
+        "close": 1347.6,
+        "volume": 7867524
+      },
+      {
+        "date": "2026-09-18T00:00:00+05:30",
+        "open": 1351.9,
+        "high": 1359.8,
+        "low": 1338.9,
+        "close": 1338.9,
+        "volume": 7509409
+      },
+      {
+        "date": "2026-09-21T00:00:00+05:30",
+        "open": 1347.8,
+        "high": 1352.0,
+        "low": 1340.4,
+        "close": 1345.0,
+        "volume": 5705598
+      },
+      {
+        "date": "2026-09-22T00:00:00+05:30",
+        "open": 1343.0,
+        "high": 1347.2,
+        "low": 1333.8,
+        "close": 1339.6,
+        "volume": 6433249
+      },
+      {
+        "date": "2026-09-23T00:00:00+05:30",
+        "open": 1339.9,
+        "high": 1344.5,
+        "low": 1333.5,
+        "close": 1340.0,
+        "volume": 4758314
+      },
+      {
+        "date": "2026-09-24T00:00:00+05:30",
+        "open": 1333.1,
+        "high": 1347.8,
+        "low": 1330.1,
+        "close": 1334.5,
+        "volume": 8653920
+      },
+      {
+        "date": "2026-09-25T00:00:00+05:30",
+        "open": 1332.9,
+        "high": 1340.8,
+        "low": 1312.0,
+        "close": 1326.8,
+        "volume": 10841310
+      },
+      {
+        "date": "2026-09-28T00:00:00+05:30",
+        "open": 1321.1,
+        "high": 1323.8,
+        "low": 1300.0,
+        "close": 1302.0,
+        "volume": 6327946
+      },
+      {
+        "date": "2026-09-29T00:00:00+05:30",
+        "open": 1295.7,
+        "high": 1304.8,
+        "low": 1291.0,
+        "close": 1292.2,
+        "volume": 14811396
+      },
+      {
+        "date": "2026-09-30T00:00:00+05:30",
+        "open": 1295.3,
+        "high": 1337.0,
+        "low": 1295.3,
+        "close": 1321.7,
+        "volume": 14095232
       }
     ]
   },
   "options": {
-    "expirations": [
-      "2026-10-16",
-      "2026-11-20",
-      "2026-12-18"
-    ],
-    "chains": {
-      "2026-10-16": {
-        "calls": [
-          {
-            "strike": 470.6,
-            "lastPrice": 3.2,
-            "bid": 3.1,
-            "ask": 3.3,
-            "volume": 1200,
-            "openInterest": 4500,
-            "impliedVolatility": 0.25,
-            "inTheMoney": false,
-            "contractSymbol": "ICICIBANK.NS261016C00230000"
-          }
-        ],
-        "puts": [
-          {
-            "strike": 425.8,
-            "lastPrice": 2.8,
-            "bid": 2.7,
-            "ask": 2.9,
-            "volume": 850,
-            "openInterest": 3100,
-            "impliedVolatility": 0.24,
-            "inTheMoney": false,
-            "contractSymbol": "ICICIBANK.NS261016P00210000"
-          }
-        ]
-      }
-    }
+    "expirations": [],
+    "chains": {}
   },
   "dividends_and_splits": {
     "dividends": [
       {
-        "date": "2026-08-01T00:00:00",
-        "amount": 0.25
+        "date": "2003-08-04T09:15:00+05:30",
+        "amount": 1.363636
+      },
+      {
+        "date": "2004-09-02T09:15:00+05:30",
+        "amount": 1.363636
+      },
+      {
+        "date": "2005-08-04T09:15:00+05:30",
+        "amount": 1.545455
+      },
+      {
+        "date": "2006-07-06T09:15:00+05:30",
+        "amount": 1.545455
+      },
+      {
+        "date": "2007-06-14T09:15:00+05:30",
+        "amount": 1.818182
+      },
+      {
+        "date": "2008-07-10T09:15:00+05:30",
+        "amount": 2.0
+      },
+      {
+        "date": "2009-06-11T09:15:00+05:30",
+        "amount": 2.0
+      },
+      {
+        "date": "2010-06-10T09:15:00+05:30",
+        "amount": 2.181818
+      },
+      {
+        "date": "2011-06-02T09:15:00+05:30",
+        "amount": 2.545455
+      },
+      {
+        "date": "2012-05-31T09:15:00+05:30",
+        "amount": 3.0
+      },
+      {
+        "date": "2013-05-30T09:15:00+05:30",
+        "amount": 3.636364
+      },
+      {
+        "date": "2014-06-04T09:15:00+05:30",
+        "amount": 4.181818
+      },
+      {
+        "date": "2014-06-05T09:15:00+05:30",
+        "amount": 4.181818
+      },
+      {
+        "date": "2015-06-04T09:15:00+05:30",
+        "amount": 4.545455
+      },
+      {
+        "date": "2016-06-16T09:15:00+05:30",
+        "amount": 4.545455
+      },
+      {
+        "date": "2017-06-20T09:15:00+05:30",
+        "amount": 2.272727
+      },
+      {
+        "date": "2018-08-24T09:15:00+05:30",
+        "amount": 1.5
+      },
+      {
+        "date": "2019-07-22T09:15:00+05:30",
+        "amount": 1.0
+      },
+      {
+        "date": "2021-07-29T09:15:00+05:30",
+        "amount": 2.0
+      },
+      {
+        "date": "2022-08-08T09:15:00+05:30",
+        "amount": 5.0
+      },
+      {
+        "date": "2023-08-09T09:15:00+05:30",
+        "amount": 8.0
+      },
+      {
+        "date": "2024-08-12T09:15:00+05:30",
+        "amount": 10.0
+      },
+      {
+        "date": "2025-08-12T09:15:00+05:30",
+        "amount": 11.0
+      },
+      {
+        "date": "2026-08-03T09:15:00+05:30",
+        "amount": 12.0
       }
     ],
     "splits": [
       {
-        "date": "2020-08-31T00:00:00",
-        "ratio": 4.0
+        "date": "2014-12-04T09:15:00+05:30",
+        "ratio": 5.0
+      },
+      {
+        "date": "2017-06-20T09:15:00+05:30",
+        "ratio": 1.1
       }
     ]
   },
   "recommendations": [
     {
       "period": "0m",
-      "strongBuy": 12,
-      "buy": 22,
-      "hold": 5,
-      "sell": 1,
+      "strongBuy": 5,
+      "buy": 37,
+      "hold": 0,
+      "sell": 0,
+      "strongSell": 0
+    },
+    {
+      "period": "-1m",
+      "strongBuy": 5,
+      "buy": 37,
+      "hold": 0,
+      "sell": 0,
+      "strongSell": 0
+    },
+    {
+      "period": "-2m",
+      "strongBuy": 5,
+      "buy": 36,
+      "hold": 0,
+      "sell": 0,
+      "strongSell": 0
+    },
+    {
+      "period": "-3m",
+      "strongBuy": 5,
+      "buy": 33,
+      "hold": 2,
+      "sell": 0,
       "strongSell": 0
     }
   ],
   "holders": {
     "major_holders": [
       {
-        "Value": "0.05",
-        "Breakdown": "% of Shares Held by All Insiders"
+        "Value": 0.0353
+      },
+      {
+        "Value": 0.59208
+      },
+      {
+        "Value": 0.61375
+      },
+      {
+        "Value": 442.0
       }
     ],
-    "institutional_holders": [
-      {
-        "Holder": "Vanguard Group Inc",
-        "Shares": 1300000000,
-        "Date Reported": "2026-06-30",
-        "% Out": 0.084,
-        "Value": 295000000000
-      }
-    ]
+    "institutional_holders": []
   },
   "not_available": {
     "conversations": "Yahoo's discussion/comment system is not exposed by any API — website-rendered only.",
     "components": "No reliable free source for full ETF/index holdings lists via yfinance."
-  }
+  },
+  "data_source": "yahoo",
+  "retained_fields": []
 }

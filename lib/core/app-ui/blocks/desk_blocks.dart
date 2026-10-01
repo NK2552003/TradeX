@@ -54,12 +54,7 @@ class AppWorkspaceMasthead extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            Expanded(
-              child: Text(
-                title,
-                style: context.uiText.heading,
-              ),
-            ),
+            Expanded(child: Text(title, style: context.uiText.heading)),
             if (trailing != null) ...<Widget>[
               SizedBox(width: context.sp(theme.spacing.sm)),
               trailing!,
@@ -261,20 +256,23 @@ class _AppWeekStripState extends State<AppWeekStrip> {
 
   // Chip geometry, resolved from tokens so the whole strip rescales per device.
   double _itemWidth(BuildContext context) => context.sz(48);
-  double _itemMargin(BuildContext context) => context.sp(context.ui.spacing.xxs);
+  double _itemMargin(BuildContext context) =>
+      context.sp(context.ui.spacing.xxs);
   double _stripHeight(BuildContext context) => context.sz(64);
 
   void _scrollToSelected({required bool animate}) {
     if (!_scrollCtrl.hasClients || !mounted) return;
-    final int index =
-        _days.indexWhere((DateTime d) => AppTokens.isSameDay(d, widget.selected));
+    final int index = _days.indexWhere(
+      (DateTime d) => AppTokens.isSameDay(d, widget.selected),
+    );
     if (index == -1) return;
     final double total = _itemWidth(context) + _itemMargin(context) * 2;
     final double viewport = _scrollCtrl.position.viewportDimension;
-    final double target =
-        (index * total) - (viewport / 2) + (total / 2);
-    final double clamped =
-        target.clamp(0.0, _scrollCtrl.position.maxScrollExtent);
+    final double target = (index * total) - (viewport / 2) + (total / 2);
+    final double clamped = target.clamp(
+      0.0,
+      _scrollCtrl.position.maxScrollExtent,
+    );
     if (animate) {
       _scrollCtrl.animateTo(
         clamped,
@@ -330,8 +328,8 @@ class _AppWeekStripState extends State<AppWeekStrip> {
                   color: isSelected
                       ? c.primary
                       : isToday
-                          ? c.borderStrong
-                          : c.border,
+                      ? c.borderStrong
+                      : c.border,
                   width: theme.borders.hairline,
                 ),
               ),
@@ -342,8 +340,9 @@ class _AppWeekStripState extends State<AppWeekStrip> {
                     AppTokens.weekdayInitial(d),
                     style: context.uiText.caption.copyWith(
                       color: dowColor,
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                     ),
                   ),
                   SizedBox(height: context.sp(theme.spacing.xxs)),
@@ -361,9 +360,11 @@ class _AppWeekStripState extends State<AppWeekStrip> {
                             mainAxisSize: MainAxisSize.min,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: <Widget>[
-                              for (int dotIdx = 0;
-                                  dotIdx < dayDots.length && dotIdx < 3;
-                                  dotIdx++) ...<Widget>[
+                              for (
+                                int dotIdx = 0;
+                                dotIdx < dayDots.length && dotIdx < 3;
+                                dotIdx++
+                              ) ...<Widget>[
                                 if (dotIdx > 0) SizedBox(width: context.sz(2)),
                                 Container(
                                   width: context.sz(4),
@@ -494,8 +495,10 @@ class _QuickLinkCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final Color accent = link.intent.color(context);
-    final BorderSide rule =
-        BorderSide(color: color.border, width: theme.borders.hairline);
+    final BorderSide rule = BorderSide(
+      color: color.border,
+      width: theme.borders.hairline,
+    );
 
     return UiInteractive(
       onTap: link.onTap,
@@ -617,7 +620,10 @@ class AppWorkspaceCalendarBar extends StatelessWidget {
     final String monthLabel =
         '${_fullMonths[selectedDay.month - 1]} ${selectedDay.year}';
 
-    return Row(
+    return Wrap(
+      spacing: context.sp(theme.spacing.xs),
+      runSpacing: context.sp(theme.spacing.xs),
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: <Widget>[
         Icon(
           Icons.calendar_today_rounded,
@@ -641,7 +647,7 @@ class AppWorkspaceCalendarBar extends StatelessWidget {
             leadingIcon: Icons.my_location_rounded,
             onPressed: onJumpToday,
           ),
-        const Spacer(),
+
         UiToggleGroup<bool>(
           value: isMonthView,
           size: UiSize.xs,
@@ -731,10 +737,16 @@ class _AppWorkspaceMonthCalendarState extends State<AppWorkspaceMonthCalendar> {
     final UiColors c = theme.colors;
     final DateTime today = AppTokens.dateOnly(DateTime.now());
 
-    final DateTime firstDayOfMonth =
-        DateTime(_displayedMonth.year, _displayedMonth.month, 1);
-    final int daysInMonth =
-        DateTime(_displayedMonth.year, _displayedMonth.month + 1, 0).day;
+    final DateTime firstDayOfMonth = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month,
+      1,
+    );
+    final int daysInMonth = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month + 1,
+      0,
+    ).day;
     final int leadingEmptyDays = (firstDayOfMonth.weekday - 1) % 7;
 
     final Map<DateTime, List<Color>> normalizedMarkers =
@@ -816,9 +828,15 @@ class _AppWorkspaceMonthCalendarState extends State<AppWorkspaceMonthCalendar> {
                 return const SizedBox.shrink();
               }
               final int dayNum = index - leadingEmptyDays + 1;
-              final DateTime date =
-                  DateTime(_displayedMonth.year, _displayedMonth.month, dayNum);
-              final bool isSelected = AppTokens.isSameDay(date, widget.selected);
+              final DateTime date = DateTime(
+                _displayedMonth.year,
+                _displayedMonth.month,
+                dayNum,
+              );
+              final bool isSelected = AppTokens.isSameDay(
+                date,
+                widget.selected,
+              );
               final bool isCurrentDay = AppTokens.isSameDay(date, today);
               final List<Color>? dots = normalizedMarkers[date];
               final bool hasDots = dots != null && dots.isNotEmpty;
@@ -826,8 +844,8 @@ class _AppWorkspaceMonthCalendarState extends State<AppWorkspaceMonthCalendar> {
               final Color textColor = isSelected
                   ? c.onPrimary
                   : isCurrentDay
-                      ? c.primary
-                      : c.foreground;
+                  ? c.primary
+                  : c.foreground;
 
               return UiInteractive(
                 onTap: () => widget.onSelect(date),
@@ -839,8 +857,8 @@ class _AppWorkspaceMonthCalendarState extends State<AppWorkspaceMonthCalendar> {
                       color: isSelected
                           ? c.primary
                           : state.hovered
-                              ? c.surfaceHover
-                              : Colors.transparent,
+                          ? c.surfaceHover
+                          : Colors.transparent,
                       borderRadius: context.radius(theme.radii.sm),
                       border: isCurrentDay && !isSelected
                           ? Border.all(
@@ -869,11 +887,12 @@ class _AppWorkspaceMonthCalendarState extends State<AppWorkspaceMonthCalendar> {
                                   mainAxisSize: MainAxisSize.min,
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: <Widget>[
-                                    for (int d = 0;
-                                        d < dots.length && d < 3;
-                                        d++) ...<Widget>[
-                                      if (d > 0)
-                                        SizedBox(width: context.sz(2)),
+                                    for (
+                                      int d = 0;
+                                      d < dots.length && d < 3;
+                                      d++
+                                    ) ...<Widget>[
+                                      if (d > 0) SizedBox(width: context.sz(2)),
                                       Container(
                                         width: context.sz(4),
                                         height: context.sz(4),
@@ -1036,7 +1055,8 @@ class _AppWorkspaceSectionCarouselState
             if (!mounted || !_scrollController.hasClients) return;
             final ScrollPosition position = _scrollController.position;
             final bool canLeft = position.pixels > 4;
-            final bool canRight = position.pixels < position.maxScrollExtent - 4;
+            final bool canRight =
+                position.pixels < position.maxScrollExtent - 4;
             if (canLeft != _canScrollLeft || canRight != _canScrollRight) {
               setState(() {
                 _canScrollLeft = canLeft;
@@ -1063,10 +1083,7 @@ class _AppWorkspaceSectionCarouselState
                 children: <Widget>[
                   for (int i = 0; i < limited.length; i++) ...<Widget>[
                     if (i > 0) SizedBox(width: gap),
-                    SizedBox(
-                      width: cardWidth,
-                      child: limited[i],
-                    ),
+                    SizedBox(width: cardWidth, child: limited[i]),
                   ],
                 ],
               ),
@@ -1242,4 +1259,3 @@ class _AppWorkspaceSectionCarouselState
     );
   }
 }
-
