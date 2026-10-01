@@ -5,6 +5,7 @@ import 'package:tradex/features/market_data/models/market_snapshot.dart';
 /// Sole asset adapter for the finance kits. Symbols are kept exactly as exported.
 class AssetMarketRepository {
   AssetMarketRepository({AssetBundle? bundle}) : _bundle = bundle ?? rootBundle;
+  static final shared = AssetMarketRepository();
   final AssetBundle _bundle;
   final Map<String, Future<dynamic>> _cache = {};
   Future<dynamic> read(String path) => _cache.putIfAbsent(
@@ -27,6 +28,7 @@ class AssetMarketRepository {
       read('all_news'),
       read('stock_detail'),
       read('manifest'),
+      read('screeners'),
     ]);
     final quotes = Map<String, dynamic>.from(values[0] as Map);
     final fundamentals = Map<String, dynamic>.from(values[1] as Map);
@@ -67,7 +69,7 @@ class AssetMarketRepository {
       ..sort((a, b) => b.volume.compareTo(a.volume));
     final sparks = <String, List<double>>{};
     await Future.wait(
-      {...ranked.take(50), ...ranked.reversed.take(50), ...active.take(50)}.map(
+      {...ranked.take(10), ...ranked.reversed.take(10), ...active.take(10)}.map(
         (q) async {
           if (q.spark.isNotEmpty) return;
           try {
@@ -121,8 +123,46 @@ class AssetMarketRepository {
     final topicRows = await Future.wait(
       paths.map((p) => topic(p.substring(9, p.length - 5))),
     );
+    final screens = {
+      for (final screen in flattenScreens(values[5] as Map).entries)
+        screen.key: screen.value
+            .map((row) => screenInstrument(row, quotes, fundamentals))
+            .whereType<MarketInstrument>()
+            .toList(),
+    };
+    final visibleSymbols = {
+      for (final key in ['top_gainers', 'top_losers', 'most_active'])
+        for (final q in (screens[key] ?? <MarketInstrument>[]).take(10))
+          q.symbol,
+    };
+    await Future.wait(
+      visibleSymbols.map((symbol) async {
+        try {
+          final rows = (await history(symbol))['data'] as List? ?? [];
+          sparks[symbol] = rows
+              .map((c) => (c['close'] as num?)?.toDouble())
+              .whereType<double>()
+              .where((v) => v.isFinite)
+              .toList();
+        } catch (_) {
+          /* Not every screen result has a tracked history. */
+        }
+      }),
+    );
     return MarketSnapshot(
+      manifest: Map<String, dynamic>.from(values[4] as Map),
+      screenerPayloads: Map<String, dynamic>.from(values[5] as Map),
       instruments: enriched,
+      screeners: {
+        for (final entry in screens.entries)
+          entry.key: entry.value
+              .map(
+                (q) => sparks.containsKey(q.symbol)
+                    ? q.withHistory(sparks[q.symbol]!)
+                    : q,
+              )
+              .toList(),
+      },
       articles: articles,
       topics: {
         for (var i = 0; i < paths.length; i++)
@@ -138,7 +178,29 @@ class AssetMarketRepository {
       );
     } catch (_) {
       final quotes = await read('quotes') as Map;
-      if (!quotes.containsKey(symbol)) rethrow;
+      Map? quote = quotes[symbol] as Map?;
+      if (quote == null) {
+        for (final rows in flattenScreens(
+          await read('screeners') as Map,
+        ).values) {
+          for (final row in rows) {
+            if ((row['symbol'] ?? row['ticker']) == symbol) {
+              final q = screenInstrument(row, quotes, {});
+              if (q != null) {
+                quote = {
+                  'ticker': symbol,
+                  'market': q.market,
+                  'price': q.price,
+                  'change_pct': q.changePercent,
+                  'currency': q.currency,
+                  'name': q.name,
+                };
+              }
+            }
+          }
+        }
+      }
+      if (quote == null) rethrow;
       final funds = await read('fundamentals') as Map;
       Map<String, dynamic> chart;
       try {
@@ -148,12 +210,12 @@ class AssetMarketRepository {
       }
       return {
         'ticker': symbol,
-        'market': (quotes[symbol] as Map)['market'],
-        'quote': quotes[symbol],
-        'summary': funds[symbol] ?? {},
+        'market': quote['market'],
+        'quote': quote,
+        'summary': funds[symbol] ?? {'name': quote['name'] ?? symbol},
         'chart': chart,
         'data_source': 'quote_and_history',
-        'fetched_at': (quotes[symbol] as Map)['updated_at'],
+        'fetched_at': quote['updated_at'],
       };
     }
   }
@@ -169,4 +231,70 @@ class AssetMarketRepository {
                 MarketArticle.fromJson(Map<String, dynamic>.from(raw as Map)),
           )
           .toList();
+}
+
+Map<String, List<Map<String, dynamic>>> flattenScreens(Map raw) {
+  final result = <String, List<Map<String, dynamic>>>{};
+  for (final entry in raw.entries) {
+    final value = entry.value;
+    if (value is List || value is Map && value['quotes'] is List) {
+      final rows = value is List ? value : value['quotes'] as List;
+      result['${entry.key}'] = rows
+          .whereType<Map>()
+          .map((r) => Map<String, dynamic>.from(r))
+          .toList();
+    } else if (entry.key == 'sector_breakdown' && value is Map) {
+      result['${entry.key}'] = [
+        for (final e in value.entries)
+          if (e.value is Map)
+            {'name': e.key, ...Map<String, dynamic>.from(e.value as Map)},
+      ];
+    } else if (entry.key == 'world_indices_by_continent' && value is Map) {
+      for (final region in value.entries) {
+        result['Indices · ${region.key}'] = [
+          for (final e in (region.value as Map).entries)
+            if (e.value is Map)
+              {'ticker': e.key, ...Map<String, dynamic>.from(e.value as Map)},
+        ];
+      }
+    }
+  }
+  return result;
+}
+
+MarketInstrument? screenInstrument(
+  Map<String, dynamic> row,
+  Map quotes,
+  Map funds,
+) {
+  final symbol = row['symbol'] ?? row['ticker'];
+  if (symbol is! String) return null;
+  final quote = quotes[symbol] as Map? ?? {};
+  final price = row['regularMarketPrice'] ?? row['price'] ?? quote['price'];
+  if (price is! num || !price.isFinite) return null;
+  final change = row['regularMarketChange'] as num?;
+  return MarketInstrument.fromJson({
+    ...row,
+    ...quote,
+    'ticker': symbol,
+    'price': price,
+    'name':
+        row['longName'] ??
+        row['shortName'] ??
+        row['name'] ??
+        quote['name'] ??
+        symbol,
+    'change_pct':
+        row['regularMarketChangePercent'] ??
+        row['change_pct'] ??
+        quote['change_pct'] ??
+        0,
+    'previous_close': change != null ? price - change : quote['previous_close'],
+    'volume': row['regularMarketVolume'] ?? quote['volume'] ?? 0,
+    'currency':
+        row['currency'] ??
+        quote['currency'] ??
+        (symbol.endsWith('.NS') ? 'INR' : 'USD'),
+    'market': quote['market'] ?? (symbol.endsWith('-USD') ? 'CRYPTO' : 'US'),
+  }, Map<String, dynamic>.from(funds[symbol] as Map? ?? {}));
 }

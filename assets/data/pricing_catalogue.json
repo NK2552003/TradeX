@@ -297,6 +297,8 @@
     "retry": "Try again",
     "back": "Back",
     "error": "Unable to load pricing",
-    "billing_suffix": "/month"
+    "billing_suffix": "/month",
+    "annual_savings": "saved with annual billing",
+    "feature": "Feature"
   }
 }

@@ -213,11 +213,15 @@ class MarketNewsView extends StatelessWidget {
         UiGap.v(context.ui.spacing.lg),
         Text('All market news', style: context.uiText.heading),
         for (final article in articles.skip(1).take(limit)) ...[
-          MarketNewsCard(
-            article: article,
-            snapshot: snapshot,
-            row: true,
-            onTap: () => onArticle(article),
+          UiDeferred(
+            key: ValueKey(article.link.isEmpty ? article.title : article.link),
+            estimatedHeight: context.uiRes.isMobile ? 320 : 180,
+            builder: (_) => MarketNewsCard(
+              article: article,
+              snapshot: snapshot,
+              row: true,
+              onTap: () => onArticle(article),
+            ),
           ),
           UiDivider(),
         ],

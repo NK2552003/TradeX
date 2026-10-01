@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
@@ -45,12 +47,10 @@ class CommunityFeedList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
-    final int headerCount = header != null ? 1 : 0;
-    final int totalCount = headerCount + posts.length;
 
-    final double topEdgeOffset =
-        (padding is EdgeInsets) ? (padding as EdgeInsets).top : 0.0;
+    final double topEdgeOffset = (padding is EdgeInsets)
+        ? (padding as EdgeInsets).top
+        : 0.0;
 
     if (posts.isEmpty && header == null) {
       final empty =
@@ -77,37 +77,31 @@ class CommunityFeedList extends StatelessWidget {
       return empty;
     }
 
-    Widget list = ListView.separated(
+    Widget list = UiLazyList(
       controller: controller,
       padding: padding ?? EdgeInsets.zero,
-      itemCount: totalCount,
-      separatorBuilder: (BuildContext ctx, int index) {
-        return Container(
-          height: theme.borders.hairline,
-          color: theme.colors.border.withValues(alpha: 0.6),
-        );
-      },
+      headerBuilder: header == null ? null : (_) => header!,
+      itemCount: posts.length,
       itemBuilder: (BuildContext ctx, int index) {
-        if (header != null && index == 0) {
-          return header!;
-        }
-
-        final postIndex = index - headerCount;
-        final post = posts[postIndex];
-
-        return CommunityPostCard(
-          key: ValueKey<String>(post.id),
-          post: post,
-          variant: CommunityPostCardVariant.feed,
-          repository: repository,
-          currentUser: currentUser,
-          onTap: () => onPostTap?.call(post),
-          onLike: () => onLike?.call(post.id),
-          onRepost: () => onRepost?.call(post.id),
-          onBookmark: () => onBookmark?.call(post.id),
-          onAuthorTap: onAuthorTap,
-          onTagTap: onTagTap,
-          onOpenRef: onOpenRef,
+        final post = posts[index];
+        return Column(
+          children: [
+            if (index > 0) const UiDivider(spacing: 0),
+            CommunityPostCard(
+              key: ValueKey<String>(post.id),
+              post: post,
+              variant: CommunityPostCardVariant.feed,
+              repository: repository,
+              currentUser: currentUser,
+              onTap: () => onPostTap?.call(post),
+              onLike: () => onLike?.call(post.id),
+              onRepost: () => onRepost?.call(post.id),
+              onBookmark: () => onBookmark?.call(post.id),
+              onAuthorTap: onAuthorTap,
+              onTagTap: onTagTap,
+              onOpenRef: onOpenRef,
+            ),
+          ],
         );
       },
     );

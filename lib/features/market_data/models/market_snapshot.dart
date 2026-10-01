@@ -22,7 +22,8 @@ class MarketInstrument {
     Map<String, dynamic> quote,
     Map<String, dynamic> fundamental, {
     List<double> history = const [],
-  }) : symbol = quote['ticker'] as String,
+  }) : raw = Map<String, dynamic>.unmodifiable({...fundamental, ...quote}),
+       symbol = quote['ticker'] as String,
        name =
            fundamental['name'] as String? ??
            quote['name'] as String? ??
@@ -35,6 +36,24 @@ class MarketInstrument {
        volume = (quote['volume'] as num? ?? 0).toDouble(),
        spark = history,
        updatedAt = DateTime.tryParse('${quote['updated_at']}');
+  MarketInstrument withHistory(List<double> history) =>
+      MarketInstrument.fromJson(
+        {
+          ...raw,
+          'ticker': symbol,
+          'name': name,
+          'currency': currency,
+          'market': market,
+          'price': price,
+          'change_pct': changePercent,
+          'previous_close': previousClose,
+          'volume': volume,
+          'updated_at': updatedAt?.toIso8601String(),
+        },
+        {'name': name},
+        history: history,
+      );
+  final Map<String, dynamic> raw;
   final String symbol, name, currency, market;
   final double price, changePercent, volume;
   final double? previousClose;
@@ -48,18 +67,26 @@ class MarketSnapshot {
     required this.instruments,
     required this.articles,
     this.topics = const {},
+    this.screeners = const {},
+    this.manifest = const {},
+    this.screenerPayloads = const {},
   });
+  final Map<String, dynamic> manifest, screenerPayloads;
   final List<MarketInstrument> instruments;
   final List<MarketArticle> articles;
   final Map<String, List<MarketArticle>> topics;
+  final Map<String, List<MarketInstrument>> screeners;
   List<MarketInstrument> get gainers =>
-      instruments.where((q) => q.changePercent > 0).toList()
-        ..sort((a, b) => b.changePercent.compareTo(a.changePercent));
+      screeners['top_gainers'] ??
+      (instruments.where((q) => q.changePercent > 0).toList()
+        ..sort((a, b) => b.changePercent.compareTo(a.changePercent)));
   List<MarketInstrument> get losers =>
-      instruments.where((q) => q.changePercent < 0).toList()
-        ..sort((a, b) => a.changePercent.compareTo(b.changePercent));
+      screeners['top_losers'] ??
+      (instruments.where((q) => q.changePercent < 0).toList()
+        ..sort((a, b) => a.changePercent.compareTo(b.changePercent)));
   List<MarketInstrument> get mostActive =>
-      [...instruments]..sort((a, b) => b.volume.compareTo(a.volume));
+      screeners['most_active'] ??
+      ([...instruments]..sort((a, b) => b.volume.compareTo(a.volume)));
   List<MarketInstrument> get trending {
     final counts = <String, int>{};
     for (final article in articles) {

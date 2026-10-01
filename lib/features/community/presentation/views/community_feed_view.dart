@@ -700,7 +700,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: context.sz(700)),
-        child: ListView.builder(
+        child: UiLazyList(
           padding: EdgeInsets.only(
             top: effectiveTop,
             left: context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),

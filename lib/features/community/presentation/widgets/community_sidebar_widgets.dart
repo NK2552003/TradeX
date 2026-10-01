@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/features/market_data/presentation/market_movers_panel.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/community/presentation/widgets/community_article_sheet.dart';
+import 'package:tradex/features/market_data/models/market_snapshot.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_advisor_disclosure_sheet.dart';
@@ -20,6 +24,7 @@ class CommunitySidebar extends StatefulWidget {
     required this.repository,
     this.onFollow,
     this.onShowMore,
+    this.onExplore,
     this.onPostTap,
     this.onSearchTap,
     this.onSearchSubmitted,
@@ -29,6 +34,7 @@ class CommunitySidebar extends StatefulWidget {
   final CommunityRepository repository;
   final ValueChanged<CommunityAuthor>? onFollow;
   final VoidCallback? onShowMore;
+  final VoidCallback? onExplore;
   final ValueChanged<CommunityPost>? onPostTap;
   final VoidCallback? onSearchTap;
   final ValueChanged<String>? onSearchSubmitted;
@@ -58,7 +64,66 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
 
   @override
   Widget build(BuildContext context) {
-    return const MarketMoversPanel();
+    final gap = context.ui.spacing.sm;
+    Widget deferred(WidgetBuilder builder, double height) => Padding(
+      padding: EdgeInsets.only(bottom: context.sp(gap)),
+      child: UiDeferred(builder: builder, estimatedHeight: height),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.onSearchTap != null) ...[
+          CommunitySearchWidget(
+            value: '',
+            onChanged: (_) {},
+            onTap: widget.onSearchTap,
+            onSubmitted: widget.onSearchSubmitted,
+          ),
+          UiGap.v(gap),
+        ],
+        if (widget.repository.liveRooms.isNotEmpty)
+          CommunityLiveRoomWidget(
+            room: widget.repository.liveRooms.first,
+            repository: widget.repository,
+          ),
+        UiGap.v(gap),
+        deferred((_) => const CommunityPremiumCard(), 200),
+        deferred((_) => const MarketMoversPanel(), 650),
+        deferred(
+          (_) => CommunityNewsWidget(
+            items: widget.repository.news,
+            snapshot: widget.repository.marketSnapshot,
+            onShowMore: widget.onExplore,
+          ),
+          300,
+        ),
+        deferred(
+          (_) => CommunityTrendingWidget(
+            items: widget.repository.trending,
+            onShowMore: widget.onExplore,
+          ),
+          300,
+        ),
+        if (widget.showWhoToFollow)
+          deferred(
+            (_) => CommunityWhoToFollowCard(
+              traders: widget.repository.suggestedTraders,
+              onFollow: (author) => widget.onFollow?.call(author),
+              onShowMore: widget.onShowMore,
+            ),
+            300,
+          ),
+        if (widget.repository.pushNotificationsPromptVisible)
+          deferred(
+            (_) => CommunityPushNotificationsCard(
+              onDismiss: widget.repository.dismissPushNotificationsPrompt,
+            ),
+            200,
+          ),
+        deferred((_) => const CommunityDisclaimerCard(), 200),
+        deferred((_) => const CommunityFooterLinks(), 80),
+      ],
+    );
   }
 }
 
@@ -277,10 +342,12 @@ class CommunityNewsWidget extends StatelessWidget {
     super.key,
     required this.items,
     this.onShowMore,
+    this.snapshot,
     this.onDismiss,
   });
 
   final List<CommunityNewsItem> items;
+  final MarketSnapshot? snapshot;
   final VoidCallback? onShowMore;
   final VoidCallback? onDismiss;
 
@@ -312,7 +379,17 @@ class CommunityNewsWidget extends StatelessWidget {
                 ),
                 child: UiDivider(),
               ),
-            _newsRow(context, items[i]),
+            UiCard(
+              variant: UiCardVariant.ghost,
+              borderless: true,
+              padding: EdgeInsets.zero,
+              onTap: () => CommunityArticleSheet.show(
+                context,
+                article: items[i],
+                snapshot: snapshot,
+              ),
+              child: _newsRow(context, items[i]),
+            ),
           ],
           SizedBox(height: context.sp(theme.spacing.sm)),
           UiButton(

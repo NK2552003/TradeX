@@ -639,6 +639,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
                           repository: _repo,
                           onFollow: (author) => _repo.toggleFollow(author.id),
                           onShowMore: _openNetworkPage,
+                          onExplore: () => _tabController.animateTo(1),
                           onPostTap: _openPostDetail,
                           onSearchTap: _openSearchPage,
                           onSearchSubmitted: (q) => _openHashtagPage(
@@ -701,6 +702,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
                   repository: _repo,
                   onFollow: (author) => _repo.toggleFollow(author.id),
                   onShowMore: _openNetworkPage,
+                  onExplore: () => _tabController.animateTo(1),
                   onPostTap: _openPostDetail,
                   onSearchTap: _openSearchPage,
                   onSearchSubmitted: (q) => _openHashtagPage(

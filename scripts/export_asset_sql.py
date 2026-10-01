@@ -19,6 +19,17 @@ def clean(value):
     return value
 
 
+def date_value(value):
+    if value is None:
+        return None
+    if isinstance(value, (int, float)) or str(value).isdigit():
+        timestamp = float(value)
+        if timestamp > 10_000_000_000:
+            timestamp /= 1000
+        return datetime.fromtimestamp(timestamp, timezone.utc).date().isoformat()
+    return str(value)[:10]
+
+
 def sql(value):
     if value is None:
         return 'NULL'
@@ -95,11 +106,20 @@ def export():
     symbols.update(t['ticker'] for t in loaded.get('tickers/universe.json', []))
     symbols.update(r.get('symbol') or r.get('ticker') for values in screen_rows.values() for r in values if r.get('symbol') or r.get('ticker'))
     symbols.update(t for article in news for t in article.get('related_tickers', []) if isinstance(t, str))
+    universe_markets = {row['ticker']: row['market'] for row in loaded.get('tickers/universe.json', [])}
+    screen_names = {r.get('symbol') or r.get('ticker'): r.get('longName') or r.get('shortName') or r.get('name') for values in screen_rows.values() for r in values}
     for symbol in sorted(symbols):
         q = quotes.get(symbol, {})
         detail = details.get(symbol, {})
         summary = detail.get('summary') or fundamentals.get(symbol, {})
-        rows.append(upsert('tickers', {'ticker': symbol, 'market': q.get('market') or detail.get('market'), 'exchange': q.get('exchange'), 'currency': q.get('currency'), 'name': summary.get('name')}, ['ticker']))
+        rows.append(upsert('tickers', {'ticker': symbol, 'market': q.get('market') or detail.get('market') or universe_markets.get(symbol), 'exchange': q.get('exchange'), 'currency': q.get('currency'), 'name': summary.get('name') or screen_names.get(symbol)}, ['ticker']))
+    for continent, values in screens.get('world_indices_by_continent', {}).items():
+        for symbol, value in values.items():
+            if isinstance(value, dict):
+                rows.append(upsert('index_metadata', {'ticker': symbol, 'continent': continent}, ['ticker']))
+    for sector, value in screens.get('sector_breakdown', {}).items():
+        if isinstance(value, dict) and value.get('ticker'):
+            rows.append(upsert('sector_metadata', {'ticker': value['ticker'], 'sector_name': sector}, ['ticker']))
     for symbol, quote in quotes.items():
         rows.append(upsert('stock_quotes', {key: quote.get(key) for key in ['ticker','price','previous_close','day_high','day_low','volume','change_pct','updated_at']}, ['ticker']))
     for symbol, detail in details.items():
@@ -111,9 +131,11 @@ def export():
             symbol = history['ticker']
             for candle in history.get('data', []):
                 rows.append(upsert('stock_price_history', {'ticker': symbol, 'date': candle['date'][:10], **{k: candle.get(k) for k in ['open','high','low','close','volume']}}, ['ticker','date']))
+    exported_at = datetime.now(timezone.utc).isoformat()
     for name, values in screen_rows.items():
         kind = 'crypto' if name.startswith('crypto_') else ('index' if name.startswith('world_indices_') else ('sector' if name == 'sector_breakdown' else 'screener'))
         rows.append(upsert('screener_categories', {'name': name, 'category_type': kind}, ['name']))
+        rows.append(f"INSERT INTO market_screener_snapshots(category_id,payload,exported_at) SELECT id,{sql(screens.get(name, values))},{sql(exported_at)} FROM screener_categories WHERE name = {sql(name)} ON CONFLICT(category_id) DO UPDATE SET payload = EXCLUDED.payload, exported_at = EXCLUDED.exported_at;")
         rows.append(f"DELETE FROM screener_results WHERE category_id = (SELECT id FROM screener_categories WHERE name = {sql(name)});")
         for rank, record in enumerate(values, 1):
             symbol = record.get('symbol') or record.get('ticker')
@@ -142,7 +164,7 @@ def export():
         for key, kind in [('major_holders','major'), ('institutional_holders','institutional')]:
             for holder in (detail.get('holders') or {}).get(key, []):
                 fields = {'ticker': symbol, 'holder_type': kind, 'holder_name': str(holder.get('Holder') or holder.get('Breakdown') or holder.get('Value') or holder),
-                          'shares': holder.get('Shares'), 'date_reported': str(holder['Date Reported'])[:10] if holder.get('Date Reported') else None, 'pct_out': holder.get('pctHeld'), 'value': holder.get('Value') if kind == 'institutional' else None}
+                          'shares': holder.get('Shares'), 'date_reported': date_value(holder.get('Date Reported')), 'pct_out': holder.get('pctHeld'), 'value': holder.get('Value') if kind == 'institutional' else None}
                 rows.append(f"INSERT INTO holders({','.join(fields)}) VALUES ({','.join(sql(v) for v in fields.values())});")
     for symbol, value in fundamentals.items():
         fields = ['market_cap','pe_ratio','forward_pe','peg_ratio','eps','sector','industry','fifty_two_week_high','fifty_two_week_low','fifty_day_average','two_hundred_day_average','dividend_yield','beta','avg_volume','shares_outstanding']
@@ -167,7 +189,7 @@ def export():
                 rows.append(f"INSERT INTO news_article_topics (article_id, topic_id) SELECT a.id, t.id FROM news_articles a CROSS JOIN news_topics t WHERE a.link = {sql(article['link'])} AND t.name = {sql(topic)} ON CONFLICT DO NOTHING;")
     rows.append('COMMIT;')
     (SEEDS / '04_market_assets.sql').write_text('\n'.join(rows) + '\n')
-    manifest = {'generated_at': datetime.now(timezone.utc).isoformat(), 'quote_count': len(quotes), 'detail_count': len(details),
+    manifest = {'generated_at': datetime.now(timezone.utc).isoformat(), 'quote_count': len(quotes), 'detail_count': len(details), 'history_count': sum(p.startswith('history/') for p in loaded),
                 'article_count': len({a.get('link') for a in news}), 'files': sorted(loaded),
                 'screeners_source': 'Yahoo Finance kits from Downloads/files (1)', 'news_fetch_limit_per_symbol': 20,
                 'universe_count': len(loaded.get('tickers/universe.json', [])), 'screener_category_count': len(screen_rows),

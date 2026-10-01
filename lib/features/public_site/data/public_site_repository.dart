@@ -26,30 +26,50 @@ class MockPublicSiteRepository implements PublicSiteRepository {
 }
 
 class DatabasePublicSiteRepository implements PublicSiteRepository {
-  DatabasePublicSiteRepository(this.client);
+  DatabasePublicSiteRepository(
+    this.client, {
+    PublicSiteRepository? fallback,
+    this.requestTimeout = const Duration(seconds: 8),
+  }) : _fallback = fallback ?? MockPublicSiteRepository();
   final SupabaseClient client;
+  final PublicSiteRepository _fallback;
+  final Duration requestTimeout;
   @override
   Future<PublicSiteContent> landing() async {
-    final row = await client
-        .from('public_site_pages')
-        .select('content')
-        .eq('id', 'landing')
-        .eq('published', true)
-        .single();
-    return PublicSiteContent.fromJson(
-      Map<String, dynamic>.from(row['content'] as Map),
-    );
+    try {
+      final row = await client
+          .from('public_site_pages')
+          .select('content')
+          .eq('id', 'landing')
+          .eq('published', true)
+          .maybeSingle()
+          .timeout(requestTimeout);
+      final content = row?['content'];
+      if (content is! Map || content.isEmpty) return _fallback.landing();
+      return PublicSiteContent.fromJson(Map<String, dynamic>.from(content));
+    } catch (_) {
+      return _fallback.landing();
+    }
   }
 
   @override
   Future<Map<String, dynamic>> pricing() async {
-    final row = await client
-        .from('pricing_catalogues')
-        .select('catalogue')
-        .eq('id', 'default')
-        .eq('published', true)
-        .single();
-    return Map<String, dynamic>.from(row['catalogue'] as Map);
+    try {
+      final row = await client
+          .from('pricing_catalogues')
+          .select('catalogue')
+          .eq('id', 'default')
+          .eq('published', true)
+          .maybeSingle()
+          .timeout(requestTimeout);
+      final content = row?['catalogue'];
+      if (content is! Map || (content['plans'] as List? ?? []).isEmpty) {
+        return _fallback.pricing();
+      }
+      return Map<String, dynamic>.from(content);
+    } catch (_) {
+      return _fallback.pricing();
+    }
   }
 }
 

@@ -103,6 +103,11 @@ class RoleNavigationConfig {
     selectedIcon: Icons.public,
     subItems: [
       AppNavItem(
+        id: 'market_overview',
+        label: 'Overview',
+        icon: Icons.public_outlined,
+      ),
+      AppNavItem(
         id: 'market_news',
         label: 'News',
         icon: Icons.newspaper_outlined,
@@ -121,6 +126,11 @@ class RoleNavigationConfig {
         id: 'market_screeners',
         label: 'Screeners',
         icon: Icons.filter_alt_outlined,
+      ),
+      AppNavItem(
+        id: 'market_coverage',
+        label: 'Data coverage',
+        icon: Icons.dataset_outlined,
       ),
     ],
   );

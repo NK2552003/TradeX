@@ -53,5 +53,12 @@ class FinancePipelineTests(unittest.TestCase):
             screeners.run_predefined('day_gainers', label='top_gainers')
             save.assert_called_once_with('top_gainers', response)
 
+class AssetSqlDateTests(unittest.TestCase):
+    def test_holder_epoch_seconds_and_milliseconds(self):
+        import export_asset_sql
+        self.assertEqual(export_asset_sql.date_value(1782777600), '2026-06-30')
+        self.assertEqual(export_asset_sql.date_value(1782777600000), '2026-06-30')
+        self.assertEqual(export_asset_sql.date_value('2026-06-30T00:00:00Z'), '2026-06-30')
+
 if __name__ == '__main__':
     unittest.main()

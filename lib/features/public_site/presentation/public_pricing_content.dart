@@ -27,18 +27,45 @@ class PublicPricingContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(catalogue.text('title'), style: context.uiText.heading),
-        UiGap.v(theme.spacing.sm),
-        Text(catalogue.text('description'), style: context.uiText.body),
-        UiGap.v(theme.spacing.md),
-        UiToggleGroup<bool>(
-          options: [
-            UiToggleOption(label: catalogue.text('monthly'), value: false),
-            UiToggleOption(label: catalogue.text('annual'), value: true),
-          ],
-          value: annual,
-          onChanged: onAnnualChanged,
+        Text(
+          catalogue.text('title'),
+          textAlign: TextAlign.center,
+          style: context.uiText.heading.copyWith(
+            fontSize: context.fs(context.uiRes.isMobile ? 28 : 40),
+          ),
         ),
+        UiGap.v(theme.spacing.sm),
+        Text(
+          catalogue.text('description'),
+          textAlign: TextAlign.center,
+          style: context.uiText.body.copyWith(
+            color: theme.colors.foregroundMuted,
+          ),
+        ),
+        UiGap.v(theme.spacing.md),
+        Center(
+          child: SizedBox(
+            width: context.sz(320),
+            child: UiToggleGroup<bool>(
+              options: [
+                UiToggleOption(label: catalogue.text('monthly'), value: false),
+                UiToggleOption(label: catalogue.text('annual'), value: true),
+              ],
+              value: annual,
+              onChanged: onAnnualChanged,
+            ),
+          ),
+        ),
+        if (annual) ...[
+          UiGap.v(theme.spacing.sm),
+          Center(
+            child: UiBadge(
+              label:
+                  "${catalogue.annualDiscountPercent}% ${catalogue.text('annual_savings')}",
+              intent: UiIntent.success,
+            ),
+          ),
+        ],
         UiGap.v(theme.spacing.lg),
         LayoutBuilder(
           builder: (context, box) {
@@ -49,9 +76,13 @@ class PublicPricingContent extends StatelessWidget {
                 : 1;
             final gap = context.sp(theme.spacing.md);
             final width = (box.maxWidth - gap * (columns - 1)) / columns;
-            return Wrap(
-              spacing: gap,
-              runSpacing: gap,
+            return UiCardGrid(
+              equalHeight: true,
+              intrinsicHeight: true,
+              mobileColumns: columns,
+              tabletColumns: columns,
+              desktopColumns: columns,
+              largeColumns: columns,
               children: [
                 for (final plan in catalogue.plans)
                   SizedBox(
@@ -63,15 +94,30 @@ class PublicPricingContent extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (plan.badgeLabel != null)
-                            UiBadge(label: plan.badgeLabel!),
+                          SizedBox(
+                            height: context.sz(24),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: plan.badgeLabel != null
+                                  ? UiBadge(
+                                      label: plan.badgeLabel!,
+                                      intent: plan.highlighted
+                                          ? UiIntent.primary
+                                          : UiIntent.neutral,
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                          ),
                           Text(plan.name, style: context.uiText.heading),
                           UiGap.v(theme.spacing.xs),
                           Text(plan.subtitle, style: context.uiText.body),
                           UiGap.v(theme.spacing.md),
                           Text(
                             plan.priceLabel(isAnnual: annual),
-                            style: context.uiText.numeric,
+                            style: context.uiText.numeric.copyWith(
+                              fontSize: context.fs(36),
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           Text(
                             plan.periodLabel(isAnnual: annual),
@@ -98,6 +144,7 @@ class PublicPricingContent extends StatelessWidget {
                             ),
                             UiGap.v(theme.spacing.xs),
                           ],
+                          if (columns > 1) const Spacer(),
                           UiGap.v(theme.spacing.sm),
                           UiButton(
                             label: busyPlan == plan.id
@@ -107,6 +154,9 @@ class PublicPricingContent extends StatelessWidget {
                                 : plan.ctaLabel,
                             loading: busyPlan == plan.id,
                             expand: true,
+                            variant: plan.highlighted
+                                ? UiVariant.solid
+                                : UiVariant.outline,
                             onPressed: busyPlan == null
                                 ? () => onSelect(plan)
                                 : null,
@@ -126,62 +176,49 @@ class PublicPricingContent extends StatelessWidget {
           Text(catalogue.text('matrix'), style: context.uiText.heading),
           for (final category in catalogue.categories) ...[
             UiGap.v(theme.spacing.md),
-            UiCard(
-              title: category.name,
-              child: Column(
-                children: [
-                  for (final row in category.rows) ...[
-                    UiGap.v(theme.spacing.sm),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(row.title, style: context.uiText.bodyStrong),
-                    ),
-                    if (row.tooltip != null)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          row.tooltip!,
-                          style: context.uiText.caption,
-                        ),
+            UiDeferred(
+              estimatedHeight: 400,
+              builder: (_) => UiCard(
+                title: category.name,
+                child: UiTable<PlanComparisonRow>(
+                  stackOnMobile: true,
+                  columns: [
+                    UiTableColumn(
+                      header: catalogue.text('feature'),
+                      flex: 2,
+                      cell: (context, row) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(row.title, style: context.uiText.bodyStrong),
+                          if (row.tooltip != null)
+                            Text(row.tooltip!, style: context.uiText.caption),
+                        ],
                       ),
-                    UiGap.v(theme.spacing.xs),
-                    Wrap(
-                      spacing: context.sp(theme.spacing.md),
-                      runSpacing: context.sp(theme.spacing.xs),
-                      children: [
-                        for (final plan in catalogue.plans)
-                          SizedBox(
-                            width: context.sz(200),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    '${plan.name}: ',
-                                    style: context.uiText.caption,
-                                  ),
-                                ),
-                                if (row.valueForTier(plan.tier) is bool)
-                                  Icon(
-                                    row.valueForTier(plan.tier) == true
-                                        ? Icons.check_rounded
-                                        : Icons.remove_rounded,
-                                    size: context.sz(16),
-                                  )
-                                else
-                                  Expanded(
-                                    child: Text(
-                                      '${row.valueForTier(plan.tier) ?? "—"}',
-                                      style: context.uiText.body,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                      ],
                     ),
-                    UiDivider(),
+                    for (final plan in catalogue.plans)
+                      UiTableColumn(
+                        header: plan.name,
+                        cell: (context, row) {
+                          final value = row.valueForTier(plan.tier);
+                          return value is bool
+                              ? Icon(
+                                  value
+                                      ? Icons.check_rounded
+                                      : Icons.remove_rounded,
+                                  size: context.sz(18),
+                                  color: value
+                                      ? theme.colors.success
+                                      : theme.colors.foregroundMuted,
+                                )
+                              : Text(
+                                  '${value ?? "—"}',
+                                  style: context.uiText.body,
+                                );
+                        },
+                      ),
                   ],
-                ],
+                  rows: category.rows,
+                ),
               ),
             ),
           ],

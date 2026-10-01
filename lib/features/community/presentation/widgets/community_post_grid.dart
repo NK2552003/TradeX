@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
@@ -80,17 +82,21 @@ class CommunityPostGrid extends StatelessWidget {
                 SizedBox(height: gap),
             itemBuilder: (BuildContext ctx, int index) {
               final post = posts[index];
-              return CommunityPostCard(
-                key: ValueKey<String>(post.id),
-                post: post,
-                variant: CommunityPostCardVariant.boxed,
-                onTap: () => onPostTap?.call(post),
-                onLike: () => onLike?.call(post.id),
-                onRepost: () => onRepost?.call(post.id),
-                onBookmark: () => onBookmark?.call(post.id),
-                onAuthorTap: onAuthorTap,
-                onTagTap: onTagTap,
-                onOpenRef: onOpenRef,
+              return UiDeferred(
+                key: ValueKey(post.id),
+                estimatedHeight: _estimateHeight(post),
+                builder: (_) => CommunityPostCard(
+                  key: ValueKey<String>(post.id),
+                  post: post,
+                  variant: CommunityPostCardVariant.boxed,
+                  onTap: () => onPostTap?.call(post),
+                  onLike: () => onLike?.call(post.id),
+                  onRepost: () => onRepost?.call(post.id),
+                  onBookmark: () => onBookmark?.call(post.id),
+                  onAuthorTap: onAuthorTap,
+                  onTagTap: onTagTap,
+                  onOpenRef: onOpenRef,
+                ),
               );
             },
           );
@@ -131,19 +137,23 @@ class CommunityPostGrid extends StatelessWidget {
                         i++
                       ) ...<Widget>[
                         if (i > 0) SizedBox(height: gap),
-                        CommunityPostCard(
-                          key: ValueKey<String>(columnBuckets[c][i].id),
-                          post: columnBuckets[c][i],
-                          variant: CommunityPostCardVariant.boxed,
-                          onTap: () => onPostTap?.call(columnBuckets[c][i]),
-                          onLike: () => onLike?.call(columnBuckets[c][i].id),
-                          onRepost: () =>
-                              onRepost?.call(columnBuckets[c][i].id),
-                          onBookmark: () =>
-                              onBookmark?.call(columnBuckets[c][i].id),
-                          onAuthorTap: onAuthorTap,
-                          onTagTap: onTagTap,
-                          onOpenRef: onOpenRef,
+                        UiDeferred(
+                          key: ValueKey(columnBuckets[c][i].id),
+                          estimatedHeight: _estimateHeight(columnBuckets[c][i]),
+                          builder: (_) => CommunityPostCard(
+                            key: ValueKey<String>(columnBuckets[c][i].id),
+                            post: columnBuckets[c][i],
+                            variant: CommunityPostCardVariant.boxed,
+                            onTap: () => onPostTap?.call(columnBuckets[c][i]),
+                            onLike: () => onLike?.call(columnBuckets[c][i].id),
+                            onRepost: () =>
+                                onRepost?.call(columnBuckets[c][i].id),
+                            onBookmark: () =>
+                                onBookmark?.call(columnBuckets[c][i].id),
+                            onAuthorTap: onAuthorTap,
+                            onTagTap: onTagTap,
+                            onOpenRef: onOpenRef,
+                          ),
                         ),
                       ],
                     ],

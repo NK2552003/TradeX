@@ -22,24 +22,41 @@ class CommunityRepository extends ChangeNotifier {
   Future<void>? _marketLoad;
   String? marketDataError;
   MarketSnapshot? marketSnapshot;
-  Future<void> loadMarketData({AssetMarketRepository? source}) => _marketLoad ??= _loadMarketData(source ?? AssetMarketRepository());
+  Future<void> loadMarketData({AssetMarketRepository? source}) =>
+      _marketLoad ??= _loadMarketData(source ?? AssetMarketRepository());
   Future<void> _loadMarketData(AssetMarketRepository source) async {
     try {
       final snapshot = await source.snapshot();
       if (_disposed) return;
       marketSnapshot = snapshot;
-      _news = snapshot.articles.map((a) => CommunityNewsItem(
-        id: a.link.isEmpty ? a.title : a.link, headline: a.title, source: a.publisher,
-        publishedAt: a.publishedAt ?? DateTime(1970), summary: a.summary,
-        articleUrl: a.link, thumbnail: a.thumbnailUrl, relatedTickers: a.tickers,
-      )).toList();
+      _news = snapshot.articles
+          .map(
+            (a) => CommunityNewsItem(
+              id: a.link.isEmpty ? a.title : a.link,
+              headline: a.title,
+              source: a.publisher,
+              publishedAt: a.publishedAt ?? DateTime(1970),
+              summary: a.summary,
+              articleUrl: a.link,
+              thumbnail: a.thumbnailUrl,
+              relatedTickers: a.tickers,
+            ),
+          )
+          .toList();
       notifyListeners();
     } catch (_) {
-      if (!_disposed) { marketDataError = 'Market assets unavailable'; notifyListeners(); }
+      if (!_disposed) {
+        marketDataError = 'Market assets unavailable';
+        notifyListeners();
+      }
     }
   }
+
   @override
-  void dispose() { _disposed = true; super.dispose(); }
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 
   // -------------------------------------------------------------------------
   // Seed Authors
@@ -93,20 +110,59 @@ class CommunityRepository extends ChangeNotifier {
   // -------------------------------------------------------------------------
 
   List<CommunityPost> get forYouPosts => _forYouPosts
-      .where((p) => !_mutedUsers.contains(p.author.id) && !_blockedUsers.contains(p.author.id))
+      .where(
+        (p) =>
+            !_mutedUsers.contains(p.author.id) &&
+            !_blockedUsers.contains(p.author.id),
+      )
       .toList();
   List<CommunityPost> get followingPosts => _followingPosts
-      .where((p) => !_mutedUsers.contains(p.author.id) && !_blockedUsers.contains(p.author.id))
+      .where(
+        (p) =>
+            !_mutedUsers.contains(p.author.id) &&
+            !_blockedUsers.contains(p.author.id),
+      )
       .toList();
   List<CommunityPost> get signalPosts => _signalPosts
-      .where((p) => !_mutedUsers.contains(p.author.id) && !_blockedUsers.contains(p.author.id))
+      .where(
+        (p) =>
+            !_mutedUsers.contains(p.author.id) &&
+            !_blockedUsers.contains(p.author.id),
+      )
       .toList();
   List<CommunityPost> get bookmarkedPosts => _bookmarkedPosts;
-  List<CommunityAuthor> get suggestedTraders => _suggestedTraders
-      .where((a) => !_blockedUsers.contains(a.id))
-      .toList();
+  List<CommunityAuthor> get suggestedTraders =>
+      _suggestedTraders.where((a) => !_blockedUsers.contains(a.id)).toList();
   List<MapEntry<CommunityAuthor, double>> get leaderboard => _leaderboard;
   List<CommunityNewsItem> get news => _news;
+  Map<String, List<CommunityNewsItem>> get newsByCategory {
+    final snapshot = marketSnapshot;
+    if (snapshot == null) {
+      final groups = <String, List<CommunityNewsItem>>{};
+      for (final item in _news) {
+        (groups[item.category] ??= []).add(item);
+      }
+      return groups;
+    }
+    final byId = {for (final item in _news) item.id: item};
+    final groups = <String, List<CommunityNewsItem>>{
+      for (final topic in snapshot.topics.entries)
+        topic.key: topic.value
+            .map((a) => byId[a.link.isEmpty ? a.title : a.link])
+            .whereType<CommunityNewsItem>()
+            .toList(),
+    };
+    final categorized = groups.values
+        .expand((items) => items)
+        .map((item) => item.id)
+        .toSet();
+    final remaining = _news
+        .where((item) => !categorized.contains(item.id))
+        .toList();
+    if (remaining.isNotEmpty) groups['other_market_news'] = remaining;
+    return groups;
+  }
+
   List<CommunityTrendItem> get trending => _trending;
   List<CommunityNotificationItem> get notifications => _notifications;
   bool get pushNotificationsPromptVisible => _pushNotificationsPromptVisible;
@@ -130,6 +186,7 @@ class CommunityRepository extends ChangeNotifier {
       orElse: () => null,
     );
   }
+
   bool get isTunedIntoLiveRoom => _tunedRoomId != null;
   bool get isAudioMuted => _isAudioMuted;
   bool get isHandRaised => _isHandRaised;
@@ -150,7 +207,8 @@ class CommunityRepository extends ChangeNotifier {
   );
 
   CommunityAuthor? _currentAuthorOverride;
-  CommunityAuthor get currentAuthor => _currentAuthorOverride ?? _defaultCurrentUser;
+  CommunityAuthor get currentAuthor =>
+      _currentAuthorOverride ?? _defaultCurrentUser;
   set currentAuthor(CommunityAuthor author) {
     _currentAuthorOverride = author;
     notifyListeners();
@@ -167,24 +225,32 @@ class CommunityRepository extends ChangeNotifier {
 
   List<CommunityMuteEntry> loadMutedUsers() {
     final now = DateTime.now();
-    return _mutedUsers.map((id) => CommunityMuteEntry(userId: id, mutedAt: now)).toList();
+    return _mutedUsers
+        .map((id) => CommunityMuteEntry(userId: id, mutedAt: now))
+        .toList();
   }
 
   List<CommunityBlockEntry> loadBlockedUsers() {
     final now = DateTime.now();
-    return _blockedUsers.map((id) => CommunityBlockEntry(userId: id, blockedAt: now)).toList();
+    return _blockedUsers
+        .map((id) => CommunityBlockEntry(userId: id, blockedAt: now))
+        .toList();
   }
 
   List<String> get customFeedTabs => List<String>.unmodifiable(_customFeedTabs);
   List<CommunityConversation> get conversations => _conversations;
-  List<CommunityConversation> loadConversations() => List<CommunityConversation>.unmodifiable(_conversations);
+  List<CommunityConversation> loadConversations() =>
+      List<CommunityConversation>.unmodifiable(_conversations);
 
   /// Writing Desk records the current user may attach to a new post — sourced
   /// from their notes, journal entries and strategies. Sorted most-recent first.
   List<AppWritingPostAttachment> get attachableRecords => _attachableRecords;
 
   void addAttachableRecord(AppWritingPostAttachment record) {
-    _attachableRecords = <AppWritingPostAttachment>[record, ..._attachableRecords];
+    _attachableRecords = <AppWritingPostAttachment>[
+      record,
+      ..._attachableRecords,
+    ];
     notifyListeners();
   }
 
@@ -445,8 +511,9 @@ class CommunityRepository extends ChangeNotifier {
     }
 
     if (modified) {
-      _commentsByPost = Map<String, List<CommunityComment>>.from(_commentsByPost)
-        ..[postId] = list;
+      _commentsByPost = Map<String, List<CommunityComment>>.from(
+        _commentsByPost,
+      )..[postId] = list;
       notifyListeners();
     }
   }
@@ -615,7 +682,6 @@ class CommunityRepository extends ChangeNotifier {
   }
 
   List<CommunityPost> _editPostInList(
-
     List<CommunityPost> list,
     String id,
     String newBody, {
@@ -679,8 +745,9 @@ class CommunityRepository extends ChangeNotifier {
         final opt = updatedOptions[optionIndex];
         if (currentIndices.contains(optionIndex)) {
           currentIndices.remove(optionIndex);
-          updatedOptions[optionIndex] =
-              opt.copyWith(votes: (opt.votes - 1).clamp(0, 999999));
+          updatedOptions[optionIndex] = opt.copyWith(
+            votes: (opt.votes - 1).clamp(0, 999999),
+          );
         } else {
           currentIndices.add(optionIndex);
           updatedOptions[optionIndex] = opt.copyWith(votes: opt.votes + 1);
@@ -689,8 +756,9 @@ class CommunityRepository extends ChangeNotifier {
           poll: poll.copyWith(
             options: updatedOptions,
             votedOptionIndices: currentIndices,
-            votedOptionIndex:
-                currentIndices.isEmpty ? null : currentIndices.first,
+            votedOptionIndex: currentIndices.isEmpty
+                ? null
+                : currentIndices.first,
           ),
         );
       } else {
@@ -712,7 +780,11 @@ class CommunityRepository extends ChangeNotifier {
   /// @backend POST /api/v1/community/reports
   /// Body: { "target_id": String, "reason": String, "notes": String? }
   /// Returns: { "report_id": String, "status": "received" }
-  void reportPost(String postId, CommunityReportReason reason, {String? notes}) {
+  void reportPost(
+    String postId,
+    CommunityReportReason reason, {
+    String? notes,
+  }) {
     // Dispatched to moderation queue.
     notifyListeners();
   }
@@ -773,7 +845,10 @@ class CommunityRepository extends ChangeNotifier {
     final insights = CommunityPostInsights(
       postId: postId,
       impressions: math.max(post?.views ?? 240, 320),
-      engagements: (post?.likes ?? 12) + (post?.reposts ?? 4) + (post?.comments ?? 3) * 2,
+      engagements:
+          (post?.likes ?? 12) +
+          (post?.reposts ?? 4) +
+          (post?.comments ?? 3) * 2,
       detailExpands: ((post?.views ?? 200) * 0.18).round(),
       profileVisits: ((post?.views ?? 200) * 0.05).round(),
       linkClicks: ((post?.views ?? 200) * 0.08).round(),
@@ -790,7 +865,8 @@ class CommunityRepository extends ChangeNotifier {
     if (query.trim().isEmpty) return _forYouPosts;
     final q = query.toLowerCase();
     return _forYouPosts.where((p) {
-      final matchesText = p.body.toLowerCase().contains(q) ||
+      final matchesText =
+          p.body.toLowerCase().contains(q) ||
           p.author.displayName.toLowerCase().contains(q) ||
           p.author.handle.toLowerCase().contains(q) ||
           p.tickers.any((t) => t.toLowerCase().contains(q)) ||
@@ -831,7 +907,10 @@ class CommunityRepository extends ChangeNotifier {
   /// @backend GET /api/v1/community/tags/{hashtag}/posts
   /// Returns: `List<CommunityPost>` JSON
   List<CommunityPost> fetchHashtagPosts(String hashtag) {
-    final clean = hashtag.replaceAll('#', '').replaceAll('\$', '').toLowerCase();
+    final clean = hashtag
+        .replaceAll('#', '')
+        .replaceAll('\$', '')
+        .toLowerCase();
     return _forYouPosts.where((p) {
       return p.tickers.any((t) => t.toLowerCase() == clean) ||
           p.tags.any((t) => t.toLowerCase() == clean) ||
@@ -863,7 +942,8 @@ class CommunityRepository extends ChangeNotifier {
   /// @backend GET /api/v1/community/inbox/{peerId}/messages
   /// Returns: `List<CommunityChatMessage>` JSON
   List<CommunityChatMessage> messagesForConversation(String conversationId) {
-    return _messagesByConversation[conversationId] ?? const <CommunityChatMessage>[];
+    return _messagesByConversation[conversationId] ??
+        const <CommunityChatMessage>[];
   }
 
   /// @backend POST /api/v1/community/inbox/{peerId}/messages
@@ -885,7 +965,9 @@ class CommunityRepository extends ChangeNotifier {
       sharedPost: sharedPost,
     );
     final convId = 'conv_$peerId';
-    final existingMsgs = List<CommunityChatMessage>.from(_messagesByConversation[convId] ?? []);
+    final existingMsgs = List<CommunityChatMessage>.from(
+      _messagesByConversation[convId] ?? [],
+    );
     existingMsgs.add(msg);
     _messagesByConversation[convId] = existingMsgs;
 
@@ -1892,15 +1974,13 @@ class CommunityRepository extends ChangeNotifier {
       LiveAudioRoom(
         id: 'room_post_expiry',
         title: 'Post-Expiry Debrief & Journaling',
-        topic: 'Analyzing gamma squeezes, mistake reviews, and journaling execution stats',
+        topic:
+            'Analyzing gamma squeezes, mistake reviews, and journaling execution stats',
         host: _elenaRostova,
         category: 'Education',
         status: LiveRoomStatus.scheduled,
         listenerCount: 0,
-        speakers: const <String>[
-          'Elena Rostova',
-          'Sarah Chen, Quant',
-        ],
+        speakers: const <String>['Elena Rostova', 'Sarah Chen, Quant'],
         scheduledFor: now.add(const Duration(hours: 4)),
         isRecording: true,
         tags: const <String>['#Debrief', '#RiskManagement', '#Journal'],
@@ -1913,10 +1993,7 @@ class CommunityRepository extends ChangeNotifier {
         category: 'Macro',
         status: LiveRoomStatus.scheduled,
         listenerCount: 0,
-        speakers: const <String>[
-          'Priya Sharma',
-          'Rajesh Patel',
-        ],
+        speakers: const <String>['Priya Sharma', 'Rajesh Patel'],
         scheduledFor: now.add(const Duration(hours: 18)),
         isRecording: true,
         tags: const <String>['#PreMarket', '#Macro', '#Levels'],

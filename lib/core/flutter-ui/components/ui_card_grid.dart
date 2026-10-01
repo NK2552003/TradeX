@@ -15,6 +15,7 @@ class UiCardGrid extends StatelessWidget {
     this.mainAxisExtent,
     this.adaptiveSingleColumn = true,
     this.intrinsicHeight = false,
+    this.equalHeight = false,
   });
 
   final List<Widget> children;
@@ -28,6 +29,9 @@ class UiCardGrid extends StatelessWidget {
 
   /// Keep editorial cards at their natural height as content changes.
   final bool intrinsicHeight;
+
+  /// Align variable-height card actions across each responsive row.
+  final bool equalHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +60,32 @@ class UiCardGrid extends StatelessWidget {
               for (int i = 0; i < children.length; i++) ...<Widget>[
                 if (i > 0) SizedBox(height: gap),
                 children[i],
+              ],
+            ],
+          );
+        }
+
+        if (equalHeight) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int start = 0; start < children.length; start += cols) ...[
+                if (start > 0) SizedBox(height: gap),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (int column = 0; column < cols; column++) ...[
+                        if (column > 0) SizedBox(width: gap),
+                        Expanded(
+                          child: start + column < children.length
+                              ? children[start + column]
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ],
           );

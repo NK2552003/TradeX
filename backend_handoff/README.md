@@ -22,6 +22,7 @@ not be described as live until the relevant repository has been swapped.
 | Unified Comments & Visibility | [12 Unified Comments & Visibility](12-Unified_Comments_And_Visibility/HOW_IT_WORKS.md) | Unified polymorphic comment thread system, reactions, and public/private visibility across Notes, Strategies, Journals, and Posts. |
 | Markets, news and watchlists | [07 Markets](07-Markets/HOW_IT_WORKS.md), [04 News](04-News/HOW_IT_WORKS.md), [05 Watchlist](05-Watchlist/HOW_IT_WORKS.md) | Treat market data as sourced data with timestamps and provenance. |
 
+| Landing and pricing | [13 Public Site](13-Public_Site/HOW_IT_WORKS.md) | Published JSON catalogues, bundled preview fallback and trusted administration writes. |
 | Calculator history | [06 Calculator History](06-Calculator_History/HOW_IT_WORKS.md) | Persist owner-only history with retention limits. |
 
 The schema and RLS policies are authoritative for database access. Feature

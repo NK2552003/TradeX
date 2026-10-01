@@ -229,9 +229,11 @@ class TradeXFooter extends StatelessWidget {
               );
             }
 
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
+            return Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: context.sp(theme.spacing.md),
+              runSpacing: context.sp(theme.spacing.sm),
               children: <Widget>[
                 Text(
                   'TradeX Technologies Pvt. Ltd. © ${DateTime.now().year}. All rights reserved.',
@@ -240,7 +242,9 @@ class TradeXFooter extends StatelessWidget {
                     fontSize: 12,
                   ),
                 ),
-                Row(
+                Wrap(
+                  spacing: context.sp(theme.spacing.md),
+                  runSpacing: context.sp(theme.spacing.xs),
                   children: <Widget>[
                     _buildSmallFooterAction(
                       context,
@@ -362,12 +366,14 @@ class TradeXFooter extends StatelessWidget {
                   ),
                 ),
                 SizedBox(width: context.sp(theme.spacing.xs)),
-                Text(
-                  'All Systems Operational (NSE/BSE Tick Sync)',
-                  style: context.uiText.caption.copyWith(
-                    fontSize: 11,
-                    color: colors.foregroundMuted,
-                    fontWeight: FontWeight.w500,
+                Flexible(
+                  child: Text(
+                    'All Systems Operational (NSE/BSE Tick Sync)',
+                    style: context.uiText.caption.copyWith(
+                      fontSize: 11,
+                      color: colors.foregroundMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
@@ -386,7 +392,8 @@ class TradeXFooter extends StatelessWidget {
               onTap: () => UiToast.show(
                 context,
                 title: 'Twitter Community',
-                message: 'Follow @TradeXHQ for market updates and quant setups.',
+                message:
+                    'Follow @TradeXHQ for market updates and quant setups.',
                 intent: UiIntent.primary,
               ),
             ),
@@ -398,7 +405,8 @@ class TradeXFooter extends StatelessWidget {
               onTap: () => UiToast.show(
                 context,
                 title: 'Trader Discord',
-                message: 'Join 14,000+ verified Indian traders discussing market setups.',
+                message:
+                    'Join 14,000+ verified Indian traders discussing market setups.',
                 intent: UiIntent.primary,
               ),
             ),
@@ -410,7 +418,8 @@ class TradeXFooter extends StatelessWidget {
               onTap: () => UiToast.show(
                 context,
                 title: 'YouTube Channel',
-                message: 'Watch step-by-step quant journaling and broker auto-sync tutorials.',
+                message:
+                    'Watch step-by-step quant journaling and broker auto-sync tutorials.',
                 intent: UiIntent.primary,
               ),
             ),
@@ -455,12 +464,30 @@ class TradeXFooter extends StatelessWidget {
       colors,
       title: 'PLATFORM',
       actions: <_FooterLinkAction>[
-        _FooterLinkAction('Live Market Intelligence', () => onNavigateToSection?.call('showcase')),
-        _FooterLinkAction('Trader & Creator Personas', () => onNavigateToSection?.call('personas')),
-        _FooterLinkAction('Core Features & Discipline', () => onNavigateToSection?.call('features')),
-        _FooterLinkAction('Pricing & Plans', () => onNavigateToSection?.call('pricing')),
-        _FooterLinkAction('Frequently Asked Questions', () => onNavigateToSection?.call('faq')),
-        _FooterLinkAction('Join as Affiliate Partner', () => onGetStartedAffiliate?.call()),
+        _FooterLinkAction(
+          'Live Market Intelligence',
+          () => onNavigateToSection?.call('showcase'),
+        ),
+        _FooterLinkAction(
+          'Trader & Creator Personas',
+          () => onNavigateToSection?.call('personas'),
+        ),
+        _FooterLinkAction(
+          'Core Features & Discipline',
+          () => onNavigateToSection?.call('features'),
+        ),
+        _FooterLinkAction(
+          'Pricing & Plans',
+          () => onNavigateToSection?.call('pricing'),
+        ),
+        _FooterLinkAction(
+          'Frequently Asked Questions',
+          () => onNavigateToSection?.call('faq'),
+        ),
+        _FooterLinkAction(
+          'Join as Affiliate Partner',
+          () => onGetStartedAffiliate?.call(),
+        ),
       ],
     );
   }
@@ -476,12 +503,54 @@ class TradeXFooter extends StatelessWidget {
       colors,
       title: 'INDIAN BROKERS & TAX',
       actions: <_FooterLinkAction>[
-        _FooterLinkAction('Zerodha Kite Connect Auto-Sync', () => _showBrokerModal(context, 'Zerodha Kite Connect', 'Synchronize orders, executions, and chart snapshots directly from Zerodha Kite in real time.')),
-        _FooterLinkAction('Upstox API v2 Integration', () => _showBrokerModal(context, 'Upstox API v2', 'Seamlessly import Upstox F&O, equity trades, and charges into your quantitative journal.')),
-        _FooterLinkAction('Angel One SmartAPI Bridge', () => _showBrokerModal(context, 'Angel One SmartAPI', 'Direct bridging with Angel One for algorithmic execution tracking and slippage audit.')),
-        _FooterLinkAction('Dhan HQ Realtime Webhooks', () => _showBrokerModal(context, 'Dhan HQ Webhooks', 'Instant webhook order logging and multi-leg option strategy tracking with Dhan.')),
-        _FooterLinkAction('Groww & Finvasia Importers', () => _showBrokerModal(context, 'Groww & Finvasia', '1-click CSV trade book import with automated format detection.')),
-        _FooterLinkAction('ITR-2 / ITR-3 Capital Gains Export', () => _showBrokerModal(context, 'Indian Tax Audit Export', 'Generate CA-ready turnover statements, STCG/LTCG capital gains sheets, and audit trade books.')),
+        _FooterLinkAction(
+          'Zerodha Kite Connect Auto-Sync',
+          () => _showBrokerModal(
+            context,
+            'Zerodha Kite Connect',
+            'Synchronize orders, executions, and chart snapshots directly from Zerodha Kite in real time.',
+          ),
+        ),
+        _FooterLinkAction(
+          'Upstox API v2 Integration',
+          () => _showBrokerModal(
+            context,
+            'Upstox API v2',
+            'Seamlessly import Upstox F&O, equity trades, and charges into your quantitative journal.',
+          ),
+        ),
+        _FooterLinkAction(
+          'Angel One SmartAPI Bridge',
+          () => _showBrokerModal(
+            context,
+            'Angel One SmartAPI',
+            'Direct bridging with Angel One for algorithmic execution tracking and slippage audit.',
+          ),
+        ),
+        _FooterLinkAction(
+          'Dhan HQ Realtime Webhooks',
+          () => _showBrokerModal(
+            context,
+            'Dhan HQ Webhooks',
+            'Instant webhook order logging and multi-leg option strategy tracking with Dhan.',
+          ),
+        ),
+        _FooterLinkAction(
+          'Groww & Finvasia Importers',
+          () => _showBrokerModal(
+            context,
+            'Groww & Finvasia',
+            '1-click CSV trade book import with automated format detection.',
+          ),
+        ),
+        _FooterLinkAction(
+          'ITR-2 / ITR-3 Capital Gains Export',
+          () => _showBrokerModal(
+            context,
+            'Indian Tax Audit Export',
+            'Generate CA-ready turnover statements, STCG/LTCG capital gains sheets, and audit trade books.',
+          ),
+        ),
       ],
     );
   }
@@ -497,11 +566,20 @@ class TradeXFooter extends StatelessWidget {
       colors,
       title: 'DOCUMENTATION & LEGAL',
       actions: <_FooterLinkAction>[
-        _FooterLinkAction('Security & Client Encryption', () => _showSecurity(context)),
+        _FooterLinkAction(
+          'Security & Client Encryption',
+          () => _showSecurity(context),
+        ),
         _FooterLinkAction('Privacy Policy', () => _showPrivacyPolicy(context)),
         _FooterLinkAction('Terms of Service', () => _showTerms(context)),
-        _FooterLinkAction('SEBI Risk Compliance Notes', () => _showSebiNotes(context)),
-        _FooterLinkAction('Live System Status & Uptime', () => _showStatus(context)),
+        _FooterLinkAction(
+          'SEBI Risk Compliance Notes',
+          () => _showSebiNotes(context),
+        ),
+        _FooterLinkAction(
+          'Live System Status & Uptime',
+          () => _showStatus(context),
+        ),
       ],
     );
   }
@@ -600,7 +678,11 @@ class TradeXFooter extends StatelessWidget {
   }
 
   // Dialog Content Helpers
-  void _showBrokerModal(BuildContext context, String broker, String description) {
+  void _showBrokerModal(
+    BuildContext context,
+    String broker,
+    String description,
+  ) {
     _showInfoModal(
       context,
       title: broker,

@@ -1,0 +1,18 @@
+{
+  "ticker": "ARCLW",
+  "market": "US",
+  "currency": "USD",
+  "period": "exported_snapshot",
+  "interval": "1d",
+  "data_source": "preserved_sql_export",
+  "data": [
+    {
+      "date": "2026-09-18",
+      "open": 0.06,
+      "high": 0.07,
+      "low": 0.07,
+      "close": 0.07,
+      "volume": 8.0
+    }
+  ]
+}

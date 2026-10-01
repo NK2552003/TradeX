@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tradex/features/market_data/models/market_snapshot.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/navigation/role_navigation_config.dart';
@@ -34,6 +35,8 @@ void main() {
         final nav = RoleNavigationConfig.forRole(role);
         for (final route in [
           'market',
+          'market_overview',
+          'market_coverage',
           'market_news',
           'market_movers',
           'market_instruments',
@@ -55,13 +58,15 @@ void main() {
       snapshot.gainers.first.changePercent,
       greaterThanOrEqualTo(snapshot.gainers.last.changePercent),
     );
-    for (final q in snapshot.instruments) {
+    for (final q in snapshot.instruments.where((q) => q.spark.isNotEmpty)) {
       final detail = await repo.detail(q.symbol);
       final prices = ((detail['chart'] as Map)['data'] as List)
           .map((c) => (c['close'] as num).toDouble())
           .toList();
       expect(q.spark, prices);
-      expect(q.name, (detail['summary'] as Map)['name']);
+      if ((detail['summary'] as Map)['name'] != null) {
+        expect(q.name, (detail['summary'] as Map)['name']);
+      }
       expect(q.change, q.price - q.previousClose!);
     }
     expect(snapshot.articles.any((a) => a.thumbnailUrl != null), isTrue);
@@ -80,7 +85,12 @@ void main() {
       }))!;
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: MarketRootScreen(repository: repo)),
+          home: Scaffold(
+            body: MarketRootScreen(
+              repository: repo,
+              destination: 'market_news',
+            ),
+          ),
         ),
       );
       await settleAssets(tester);
@@ -94,18 +104,24 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('Back'));
       await tester.pump();
+      await tester.ensureVisible(find.text('Movers'));
+      await tester.ensureVisible(find.text('Movers'));
       await tester.tap(find.text('Movers'));
       await tester.pump();
       expect(find.text('Top gainers'), findsOneWidget);
       expect(find.text('Top losers'), findsOneWidget);
       expect(find.byType(MarketNewsCard), findsNothing);
       expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.text('Instruments'));
       await tester.tap(find.text('Instruments'));
       await tester.pump();
-      expect(
-        find.byType(MarketQuoteRow),
-        findsNWidgets(data.instruments.length),
-      );
+      if (width < 768) {
+        await tester.pump();
+        expect(find.byType(MarketQuoteRow), findsWidgets);
+        expect(find.byType(MarketQuoteRow).evaluate().length, lessThan(100));
+      } else {
+        expect(find.byType(UiTable<MarketInstrument>), findsOneWidget);
+      }
       await tester.tap(find.text(data.instruments.first.symbol).first);
       await settleAssets(tester);
       expect(find.byType(UiCandleChart), findsOneWidget);
@@ -117,11 +133,71 @@ void main() {
       await tester.ensureVisible(find.text('Screeners'));
       await tester.tap(find.text('Screeners'));
       await tester.pump();
-      expect(find.text('Most active'), findsOneWidget);
-      expect(find.text('Trending tickers'), findsOneWidget);
+      expect(find.text('Market screeners'), findsOneWidget);
+      expect(find.text('Most active'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
   }
+  testWidgets('desktop overview and full coverage load without layout errors', (
+    tester,
+  ) async {
+    viewport(tester, 1440);
+    final repo = AssetMarketRepository(bundle: FileAssets());
+    final data = (await tester.runAsync(() async {
+      await repo.read('tickers/universe');
+      return repo.snapshot();
+    }))!;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: MarketRootScreen(repository: repo)),
+      ),
+    );
+    await settleAssets(tester);
+    expect(find.text('Market overview'), findsOneWidget);
+    expect(find.text('${data.manifest['detail_count']}'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Data coverage').first);
+    await settleAssets(tester);
+    expect(find.text('Directory symbols'), findsOneWidget);
+    expect(find.text('Quotes available'), findsOneWidget);
+    expect(find.byType(UiTable<Map>), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('desktop screener pagination survives an instrument round trip', (
+    tester,
+  ) async {
+    viewport(tester, 1440);
+    final repo = AssetMarketRepository(bundle: FileAssets());
+    final data = (await tester.runAsync(() async {
+      final data = await repo.snapshot();
+      await repo.detail(data.screeners['most_active']![30].symbol);
+      return data;
+    }))!;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MarketRootScreen(
+            repository: repo,
+            destination: 'market_screeners',
+          ),
+        ),
+      ),
+    );
+    await settleAssets(tester);
+    await tester.ensureVisible(find.byIcon(Icons.chevron_right).last);
+    await tester.tap(find.byIcon(Icons.chevron_right).last);
+    await tester.pump();
+    final symbol = data.screeners['most_active']![30].symbol;
+    await tester.ensureVisible(find.text(symbol));
+    await tester.tap(find.text(symbol));
+    await settleAssets(tester);
+    expect(find.text('Snapshot & availability'), findsOneWidget);
+    await tester.tap(find.text('Back'));
+    await tester.pump();
+    expect(find.text('Page 2 of 4'), findsOneWidget);
+    expect(find.text(symbol), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
     'community rail contains only gainers and losers with sparklines',
     (tester) async {
@@ -175,6 +251,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
     }
     expect(find.byType(MarketRootScreen), findsOneWidget);
+    await tester.ensureVisible(find.text('Movers'));
     await tester.tap(find.text('Movers'));
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));

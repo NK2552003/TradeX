@@ -128,7 +128,15 @@ class MarketMoversList extends StatelessWidget {
         if (quotes.isEmpty)
           UiEmptyState(title: 'No ${title.toLowerCase()} in this snapshot'),
         for (final quote in quotes.take(limit)) ...[
-          MarketQuoteRow(quote: quote, onTap: () => onTap(quote)),
+          if (limit <= 10)
+            MarketQuoteRow(quote: quote, onTap: () => onTap(quote))
+          else
+            UiDeferred(
+              key: ValueKey(quote.symbol),
+              estimatedHeight: 80,
+              builder: (_) =>
+                  MarketQuoteRow(quote: quote, onTap: () => onTap(quote)),
+            ),
           const UiDivider(spacing: 0),
         ],
       ],
@@ -145,7 +153,7 @@ class MarketMoversPanel extends StatefulWidget {
 
 class _MarketMoversPanelState extends State<MarketMoversPanel> {
   late final AssetMarketRepository _repo =
-      widget.repository ?? AssetMarketRepository();
+      widget.repository ?? AssetMarketRepository.shared;
   late Future<MarketSnapshot> _future = _repo.snapshot();
   void _open(MarketInstrument quote) => Navigator.of(context).push(
     MaterialPageRoute<void>(

@@ -1,6 +1,7 @@
 # Public site and asset data
 
-Apply migration `023_public_site_and_market_assets.sql`, then the generated seeds
+Apply migrations `023_public_site_and_market_assets.sql` and
+`024_market_screener_snapshots.sql`, then the generated seeds
 `database/seeds/03_public_site.sql` and `04_market_assets.sql` to your local database.
 The existing schema must be installed first. Both seeds are repeatable and retain
 canonical integer article IDs by upserting on `news_articles.link`.
@@ -14,8 +15,11 @@ comparison contract without requiring UI changes for content edits.
 
 `MockPublicSiteRepository` loads `assets/data/pricing_catalogue.json` and
 `landing_page.json` with the same JSON structures. Configured Supabase uses
-`DatabasePublicSiteRepository`; failed database reads show an error and retry
-instead of silently displaying a different catalogue. No catalogue public write
+`DatabasePublicSiteRepository`. Missing/unpublished rows, missing tables and
+requests exceeding eight seconds resolve through the same bundled catalogue
+contract. This allows local previews before migrations/seeds are applied. Both
+landing and pricing remain usable when that configured backend is unavailable.
+A failed bundled read still exposes an error/retry state. No catalogue public write
 policies exist. Public reads expose only published rows.
 
 Plan selection validates plan ID and cycle, then updates the existing local
@@ -43,3 +47,15 @@ bundled snapshots with timestamps, not a live tick stream. Screener rankings are
 computed from exported quotes; categories absent from the universe stay empty.
 Unavailable providers may use the scripts' existing mock fallback, labelled in
 full stock details. The refresh manifest records exported counts and file paths.
+
+## Landing layout restoration
+
+The landing layout is restored from commit `7749e2cb` (before `6ff24195`
+replaced it). Preserve its sticky navigation, centered hero, app showcase,
+workspace/persona cards, feature cards, pricing, FAQ and detailed footer. Mobile
+retains the earlier carousel and Trader/Affiliate/sign-in actions. The repository
+continues to supply pricing with its bounded database request and bundled fallback;
+restoration does not replace the pricing data contract. Desktop off-screen sections
+use `UiDeferred`, and section navigation re-aligns after deferred content mounts.
+Pricing comparison categories also mount near the viewport. Avoid replacing the
+landing layout when adjusting backend content or the independent markets feature.

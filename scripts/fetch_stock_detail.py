@@ -157,8 +157,8 @@ def fetch_options(t):
             try:
                 chain = t.option_chain(exp)
                 chains[exp] = {
-                    "calls": json.loads(chain.calls.to_json(orient="records")),
-                    "puts": json.loads(chain.puts.to_json(orient="records")),
+                    "calls": json.loads(chain.calls.to_json(orient="records", date_format="iso")),
+                    "puts": json.loads(chain.puts.to_json(orient="records", date_format="iso")),
                 }
             except Exception as e:
                 print(f"    [options] expiration {exp} failed: {e}")
@@ -188,7 +188,7 @@ def fetch_recommendations(t):
         recs = t.recommendations
         if recs is None or recs.empty:
             return []
-        return json.loads(recs.to_json(orient="records"))
+        return json.loads(recs.to_json(orient="records", date_format="iso"))
     except Exception as e:
         print(f"  [recommendations] failed: {e}")
         return []
@@ -199,8 +199,8 @@ def fetch_holders(t):
         major = t.major_holders
         institutional = t.institutional_holders
         return {
-            "major_holders": json.loads(major.to_json(orient="records")) if major is not None else [],
-            "institutional_holders": json.loads(institutional.to_json(orient="records"))
+            "major_holders": json.loads(major.to_json(orient="records", date_format="iso")) if major is not None else [],
+            "institutional_holders": json.loads(institutional.to_json(orient="records", date_format="iso"))
             if institutional is not None
             else [],
         }

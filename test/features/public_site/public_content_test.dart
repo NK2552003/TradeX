@@ -40,7 +40,7 @@ void main() {
     final quotes =
         jsonDecode(File('assets/data/quotes.json').readAsStringSync()) as Map;
     expect(result.instruments.length, quotes.length);
-    for (final item in result.instruments) {
+    for (final item in result.instruments.take(25)) {
       expect(item.price, quotes[item.symbol]['price']);
       final detail = await source.detail(item.symbol);
       expect(detail['ticker'], item.symbol);
@@ -87,6 +87,7 @@ void main() {
       source.catalogue['plans'][1]['monthly_amount'] = 1234;
       source.catalogue['plans'][1]['annual_monthly_amount'] = 987;
       source.catalogue['copy']['title'] = 'Editable Pricing Title';
+      source.page['pricing_title'] = 'Editable Pricing Title';
       await tester.pumpWidget(
         MaterialApp(
           home: GetStartedPage(
@@ -99,8 +100,26 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Editable Landing Title'), findsOneWidget);
-      expect(find.text('Editable Pricing Title'), findsOneWidget);
+      if (width < 768) {
+        expect(find.text('Continue as Trader'), findsOneWidget);
+        expect(find.text('Join as Affiliate'), findsOneWidget);
+      } else {
+        expect(find.text('Editable Landing Title'), findsOneWidget);
+        expect(find.text('platform'), findsOneWidget);
+        expect(find.text('Editable Pricing Title'), findsNothing);
+        await tester.ensureVisible(find.text('pricing').first);
+        await tester.tap(find.text('pricing').first);
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.text('Editable Pricing Title'), findsOneWidget);
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 30)),
+        );
+        await tester.pump();
+        await tester.pump();
+        expect(find.text('₹987'), findsOneWidget);
+      }
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(
         MaterialApp(

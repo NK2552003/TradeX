@@ -16,7 +16,10 @@ def main():
         cluster = base / 'cluster'
         env = {**os.environ, 'LC_ALL': 'C'}
         def command(args, **kwargs):
-            return subprocess.run(args, env=env, check=True, capture_output=True, text=True, **kwargs)
+            result = subprocess.run(args, env=env, capture_output=True, text=True, **kwargs)
+            if result.returncode:
+                raise RuntimeError(result.stderr[-2000:])
+            return result
         command(['initdb', '-D', str(cluster), '-A', 'trust', '--no-locale', '-E', 'UTF8'])
         started = False
         try:
@@ -30,12 +33,15 @@ def main():
             start = schema.index('CREATE TABLE IF NOT EXISTS tickers (')
             end = schema.index('COMMIT;', start)
             query(schema[start:end])
-            query((ROOT / 'database/migrations/023_public_site_and_market_assets.sql').read_text())
+            for migration in ['023_public_site_and_market_assets.sql', '024_market_screener_snapshots.sql']:
+                query((ROOT / 'database/migrations' / migration).read_text())
             for _ in range(2):  # A repeated export must not duplicate articles or instruments.
                 for name in ['03_public_site.sql', '04_market_assets.sql']:
                     query((ROOT / 'database/seeds' / name).read_text())
             import json
             manifest = json.loads((ROOT / 'assets/data/manifest.json').read_text())
+            assert int(query('SELECT count(*) FROM stock_quotes;')) == manifest['quote_count']
+            assert int(query('SELECT count(*) FROM market_screener_snapshots;')) == manifest['screener_category_count']
             assert int(query('SELECT count(*) FROM stock_details;')) == manifest['detail_count']
             assert int(query('SELECT count(*) FROM news_articles;')) == manifest['article_count']
             assert query("SELECT jsonb_array_length(catalogue->'plans') FROM pricing_catalogues WHERE id = 'default';") == '3'
