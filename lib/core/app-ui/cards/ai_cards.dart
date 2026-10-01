@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
@@ -13,12 +14,14 @@ class AppAiMessageBubble extends StatelessWidget {
     required this.message,
     this.onCopy,
     this.onRetry,
+    this.onShare,
     this.onSourceTap,
   });
 
   final AppAiMessage message;
   final VoidCallback? onCopy;
   final VoidCallback? onRetry;
+  final VoidCallback? onShare;
   final ValueChanged<String>? onSourceTap;
 
   @override
@@ -68,12 +71,30 @@ class AppAiMessageBubble extends StatelessWidget {
         children: <Widget>[
           if (message.pending)
             const UiTypingIndicator(label: 'Thinking…')
-          else
+          else if (mine)
             Text(
               message.body,
               style: context.uiText.body.copyWith(
                 color: mine ? theme.colors.onPrimary : theme.colors.foreground,
               ),
+            )
+          else
+            MarkdownBody(
+              data: message.body,
+              selectable: true,
+              styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
+                  .copyWith(
+                    p: context.uiText.body.copyWith(
+                      color: theme.colors.foreground,
+                    ),
+                    code: context.uiText.numeric.copyWith(
+                      color: theme.colors.foreground,
+                      backgroundColor: theme.colors.surface,
+                    ),
+                    blockquote: context.uiText.body.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  ),
             ),
           if (message.sources.isNotEmpty) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.sm)),
@@ -130,6 +151,13 @@ class AppAiMessageBubble extends StatelessWidget {
                     tooltip: 'Regenerate',
                     onPressed: onRetry,
                   ),
+                  if (onShare != null)
+                    UiIconButton(
+                      icon: Icons.send_outlined,
+                      size: UiSize.sm,
+                      tooltip: 'Share in message',
+                      onPressed: onShare,
+                    ),
                   if (message.sentAt != null)
                     Text(
                       AppTokens.relativeTime(message.sentAt!),
@@ -233,7 +261,10 @@ class AppAiAnalysisCard extends StatelessWidget {
                 ],
                 if (insight.sentimentScore != null) ...<Widget>[
                   SizedBox(height: context.sp(theme.spacing.md)),
-                  Row(
+                  Wrap(
+                    spacing: context.sp(theme.spacing.xs),
+                    runSpacing: context.sp(theme.spacing.xs),
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: <Widget>[
                       UiBadge(
                         label: AppTokens.sentimentLabel(
@@ -246,22 +277,14 @@ class AppAiAnalysisCard extends StatelessWidget {
                                   ? UiIntent.bearish
                                   : UiIntent.neutral),
                       ),
-                      if (insight.tickers.isNotEmpty) ...<Widget>[
-                        SizedBox(width: context.sp(theme.spacing.xs)),
-                        for (final String t in insight.tickers)
-                          Padding(
-                            padding: EdgeInsets.only(
-                              right: context.sp(theme.spacing.xs),
-                            ),
-                            child: UiBadge(
-                              label: '\$$t',
-                              intent: UiIntent.primary,
-                              onTap: onTickerTap == null
-                                  ? null
-                                  : () => onTickerTap!(t),
-                            ),
-                          ),
-                      ],
+                      for (final String t in insight.tickers)
+                        UiBadge(
+                          label: '\$$t',
+                          intent: UiIntent.primary,
+                          onTap: onTickerTap == null
+                              ? null
+                              : () => onTickerTap!(t),
+                        ),
                     ],
                   ),
                 ],

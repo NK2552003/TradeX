@@ -14,8 +14,10 @@ class UiField extends StatelessWidget {
     super.key,
     required this.child,
     this.label,
-    this.helper,
-    this.error,
+    String? helper,
+    String? helperText,
+    String? error,
+    String? errorText,
     this.warning,
     this.success,
     this.required = false,
@@ -27,7 +29,8 @@ class UiField extends StatelessWidget {
     this.density = UiDensity.comfortable,
     this.counter,
     this.enabled = true,
-  });
+  }) : helper = helperText ?? helper,
+       error = errorText ?? error;
 
   final Widget child;
   final String? label;

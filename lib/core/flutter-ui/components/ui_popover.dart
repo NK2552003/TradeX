@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
@@ -8,26 +10,45 @@ import 'ui_dialog.dart';
 class UiPopover extends StatelessWidget {
   const UiPopover({
     super.key,
-    required this.trigger,
+    Widget? trigger,
+    Widget? child,
     required this.content,
     this.width,
-  });
+  }) : trigger = trigger ?? child ?? const SizedBox.shrink();
 
   final Widget trigger;
-  final WidgetBuilder content;
+  final dynamic content;
   /// Panel width in logical points (scaled internally).
   final double? width;
+
+  Widget _resolveContent(BuildContext context) {
+    if (content is Widget Function(BuildContext)) {
+      return (content as Widget Function(BuildContext))(context);
+    }
+    if (content is Widget) {
+      return content as Widget;
+    }
+    return const SizedBox.shrink();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
     return UiInteractive(
       onTap: () {
+        final Widget resolved = _resolveContent(context);
         if (context.uiRes.isMobile) {
-          UiDialog.show<void>(context, child: content(context));
+          UiDialog.show<void>(context, child: resolved);
         } else {
-          final RenderBox box = context.findRenderObject() as RenderBox;
+          final RenderBox? box = context.findRenderObject() as RenderBox?;
+          if (box == null || !box.hasSize) return;
           final Offset o = box.localToGlobal(Offset.zero);
+          final double screenWidth = MediaQuery.sizeOf(context).width;
+          final double effectiveWidth = math.min(
+            context.sz(width ?? 300),
+            screenWidth - 32,
+          );
+
           showMenu<void>(
             context: context,
             color: theme.colors.surface,
@@ -50,10 +71,10 @@ class UiPopover extends StatelessWidget {
                 enabled: false,
                 padding: EdgeInsets.zero,
                 child: SizedBox(
-                  width: context.sz(width ?? 300),
+                  width: effectiveWidth,
                   child: Padding(
                     padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
-                    child: content(context),
+                    child: resolved,
                   ),
                 ),
               ),

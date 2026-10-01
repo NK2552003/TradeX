@@ -423,12 +423,20 @@ class _UiTableState<T> extends State<UiTable<T>> {
       bodyContent = SingleChildScrollView(child: bodyContent);
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Container(
+    final double minTableWidth = cols.fold<double>(
+          0.0,
+          (double acc, UiTableColumn<T> c) =>
+              acc + (c.width != null ? context.sz(c.width!) : 80.0),
+        ) +
+        (widget.selectable ? 40.0 : 0.0) +
+        (widget.expandableWhen != null ? 40.0 : 0.0);
+
+    return LayoutBuilder(
+      builder: (BuildContext ctx, BoxConstraints constraints) {
+        final bool needsHScroll = constraints.maxWidth < minTableWidth;
+        final Widget tableContainer = Container(
           decoration: BoxDecoration(
-            borderRadius: context.radius(theme.radii.lg),
+            borderRadius: ctx.radius(theme.radii.lg),
             border: Border.all(
               color: theme.colors.border,
               width: theme.borders.hairline,
@@ -444,16 +452,33 @@ class _UiTableState<T> extends State<UiTable<T>> {
                   width: double.infinity,
                   color: theme.colors.surfaceMuted,
                   padding: EdgeInsets.symmetric(
-                    horizontal: context.sp(theme.spacing.lg),
-                    vertical: context.sp(theme.spacing.md),
+                    horizontal: ctx.sp(theme.spacing.lg),
+                    vertical: ctx.sp(theme.spacing.md),
                   ),
                   child: widget.footer,
                 ),
             ],
           ),
-        ),
-        if (widget.pageSize != null) _pager(context),
-      ],
+        );
+
+        final Widget responsiveTable = needsHScroll
+            ? SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: minTableWidth,
+                  child: tableContainer,
+                ),
+              )
+            : tableContainer;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            responsiveTable,
+            if (widget.pageSize != null) _pager(context),
+          ],
+        );
+      },
     );
   }
 

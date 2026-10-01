@@ -49,6 +49,9 @@ class UiInput extends StatefulWidget {
     this.prefixText,
     this.suffixText,
     this.suffix,
+    this.label,
+    this.helperText,
+    this.errorText,
     this.intent,
     this.semanticLabel,
     this.expand = true,
@@ -74,6 +77,9 @@ class UiInput extends StatefulWidget {
     this.showCounter = false,
     this.autofocus = false,
     this.focusNode,
+    this.label,
+    this.helperText,
+    this.errorText,
     this.intent,
     this.semanticLabel,
     this.expand = true,
@@ -112,6 +118,9 @@ class UiInput extends StatefulWidget {
     this.size = UiSize.md,
     this.autofocus = false,
     this.focusNode,
+    this.label,
+    this.helperText,
+    this.errorText,
     this.semanticLabel,
     this.expand = true,
   }) : leadingIcon = Icons.search,
@@ -153,6 +162,9 @@ class UiInput extends StatefulWidget {
     String? suffixText,
     Widget? trailing,
     bool decimals = true,
+    String? label,
+    String? helperText,
+    String? errorText,
   }) : this(
          key: key,
          controller: controller,
@@ -168,6 +180,9 @@ class UiInput extends StatefulWidget {
          prefixText: prefixText,
          suffixText: suffixText,
          trailing: trailing,
+         label: label,
+         helperText: helperText,
+         errorText: errorText,
          textAlign: TextAlign.end,
          keyboardType: TextInputType.numberWithOptions(
            decimal: decimals,
@@ -185,6 +200,9 @@ class UiInput extends StatefulWidget {
   final String? value;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final String? label;
+  final String? helperText;
+  final String? errorText;
 
   /// Called after the clear affordance empties the field.
   final VoidCallback? onClear;
@@ -339,8 +357,9 @@ class _UiInputState extends State<UiInput> {
         borderColor = _hovered ? c.borderStrong : c.border;
         break;
     }
+    final bool isGhost = widget.variant == UiInputVariant.ghost;
     if (_validation != UiValidationState.none) borderColor = accent;
-    if (_focused) borderColor = accent;
+    if (_focused && !isGhost) borderColor = accent;
 
     final Widget field = AnimatedContainer(
       duration: theme.motion.fast,
@@ -349,7 +368,7 @@ class _UiInputState extends State<UiInput> {
         minHeight: multiline ? 0 : widget.size.height(context) * f,
       ),
       padding: EdgeInsets.symmetric(
-        horizontal: underline ? 0 : context.sp(theme.spacing.md) * f,
+        horizontal: underline || isGhost ? 0 : context.sp(theme.spacing.md) * f,
         vertical: multiline ? context.sp(theme.spacing.md) * f : 0,
       ),
       decoration: BoxDecoration(
@@ -366,11 +385,15 @@ class _UiInputState extends State<UiInput> {
                       : theme.borders.hairline,
                 ),
               )
-            : Border.all(
-                color: borderColor,
-                width: _focused ? theme.borders.thick : theme.borders.hairline,
-              ),
-        boxShadow: _focused && !underline
+            : isGhost
+                ? null
+                : Border.all(
+                    color: borderColor,
+                    width: _focused
+                        ? theme.borders.thick
+                        : theme.borders.hairline,
+                  ),
+        boxShadow: _focused && !underline && !isGhost
             ? uiGlow(context, accent, alpha: 0.18)
             : null,
       ),
@@ -490,7 +513,7 @@ class _UiInputState extends State<UiInput> {
       ),
     );
 
-    return MouseRegion(
+    final Widget coreField = MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       cursor: widget.enabled
@@ -502,6 +525,37 @@ class _UiInputState extends State<UiInput> {
         child: field,
       ),
     );
+
+    if (widget.label != null || widget.helperText != null || widget.errorText != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (widget.label != null) ...<Widget>[
+            Text(
+              widget.label!,
+              style: context.uiText.label.copyWith(
+                color: c.foregroundMuted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: context.sp(theme.spacing.xs)),
+          ],
+          coreField,
+          if (widget.errorText != null || widget.helperText != null) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.xs)),
+            Text(
+              widget.errorText ?? widget.helperText!,
+              style: context.uiText.caption.copyWith(
+                color: widget.errorText != null ? c.destructive : c.foregroundSubtle,
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    return coreField;
   }
 
   Widget _textField(BuildContext context, UiColors c) => TextField(

@@ -41,10 +41,12 @@ enum UiNavStyle {
 /// Primary app navigation: bottom bar / side rail with badges, labels,
 /// safe-area padding, optional floating action slot and header/footer slots.
 class UiTabNavigation extends StatelessWidget {
-  const UiTabNavigation({
+  UiTabNavigation({
     super.key,
-    required this.items,
-    required this.index,
+    List<UiNavItem>? items,
+    int? index,
+    int? selectedIndex,
+    this.views,
     this.onChanged,
     this.style = UiNavStyle.adaptive,
     this.intent = UiIntent.primary,
@@ -55,10 +57,12 @@ class UiTabNavigation extends StatelessWidget {
     this.footer,
     this.extendedRail = false,
     this.enabled = true,
-  });
+  }) : index = selectedIndex ?? index ?? 0,
+       items = items ?? _defaultItemsForViews(views);
 
   final List<UiNavItem> items;
   final int index;
+  final List<Widget>? views;
   final ValueChanged<int>? onChanged;
 
   final UiNavStyle style;
@@ -77,6 +81,17 @@ class UiTabNavigation extends StatelessWidget {
   final bool extendedRail;
   final bool enabled;
 
+  static List<UiNavItem> _defaultItemsForViews(List<Widget>? views) {
+    if (views == null || views.isEmpty) return const <UiNavItem>[];
+    return List<UiNavItem>.generate(
+      views.length,
+      (int i) => UiNavItem(
+        label: 'Tab ${i + 1}',
+        icon: Icons.tab_rounded,
+      ),
+    );
+  }
+
   bool _isRail(BuildContext context) {
     switch (style) {
       case UiNavStyle.rail:
@@ -90,7 +105,48 @@ class UiTabNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _isRail(context) ? _buildRail(context) : _buildBar(context);
+    return LayoutBuilder(
+      builder: (BuildContext ctx, BoxConstraints constraints) {
+        final bool isRail = _isRail(ctx);
+        final bool hasBoundedHeight = constraints.hasBoundedHeight;
+        final bool hasBoundedWidth = constraints.hasBoundedWidth;
+        final Widget nav = isRail
+            ? _buildRail(ctx, hasBoundedHeight: hasBoundedHeight)
+            : _buildBar(ctx);
+
+        if (views != null && views!.isNotEmpty) {
+          final int safeIdx = index.clamp(0, views!.length - 1);
+          final Widget currentView = views![safeIdx];
+          if (isRail) {
+            final Widget viewWidget = hasBoundedWidth
+                ? Expanded(child: currentView)
+                : currentView;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: hasBoundedHeight
+                  ? CrossAxisAlignment.stretch
+                  : CrossAxisAlignment.start,
+              children: <Widget>[
+                nav,
+                viewWidget,
+              ],
+            );
+          } else {
+            final Widget viewWidget = hasBoundedHeight
+                ? Expanded(child: currentView)
+                : currentView;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                viewWidget,
+                nav,
+              ],
+            );
+          }
+        }
+        return nav;
+      },
+    );
   }
 
   Widget _buildBar(BuildContext context) {
@@ -155,9 +211,37 @@ class UiTabNavigation extends StatelessWidget {
     );
   }
 
-  Widget _buildRail(BuildContext context) {
+  Widget _buildRail(BuildContext context, {bool hasBoundedHeight = true}) {
     final theme = context.ui;
     final c = theme.colors;
+
+    final Widget itemsList = SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (int i = 0; i < items.length; i++)
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.sp(theme.spacing.sm),
+                vertical: context.sp(theme.spacing.xxs),
+              ),
+              child: _NavButton(
+                item: items[i],
+                selected: i == index,
+                intent: intent,
+                density: density,
+                showLabel: showLabels,
+                vertical: !extendedRail,
+                enabled: enabled && items[i].enabled,
+                onTap: () {
+                  items[i].onTap?.call();
+                  onChanged?.call(i);
+                },
+              ),
+            ),
+        ],
+      ),
+    );
 
     return Container(
       width: context.sz(extendedRail ? 220 : 76),
@@ -169,6 +253,7 @@ class UiTabNavigation extends StatelessWidget {
         ),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (header != null) ...<Widget>[
             Padding(
@@ -177,34 +262,10 @@ class UiTabNavigation extends StatelessWidget {
             ),
             SizedBox(height: context.sp(theme.spacing.sm)),
           ],
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: <Widget>[
-                  for (int i = 0; i < items.length; i++)
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: context.sp(theme.spacing.sm),
-                        vertical: context.sp(theme.spacing.xxs),
-                      ),
-                      child: _NavButton(
-                        item: items[i],
-                        selected: i == index,
-                        intent: intent,
-                        density: density,
-                        showLabel: showLabels,
-                        vertical: !extendedRail,
-                        enabled: enabled && items[i].enabled,
-                        onTap: () {
-                          items[i].onTap?.call();
-                          onChanged?.call(i);
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
+          if (hasBoundedHeight)
+            Expanded(child: itemsList)
+          else
+            itemsList,
           if (footer != null) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.sm)),
             Padding(

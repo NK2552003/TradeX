@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
-import 'package:tradex/features/community/data/community_repository.dart';
+import 'package:tradex/features/community/data/supabase_post_repository.dart';
 
 class CommunityPage extends StatefulWidget {
   const CommunityPage({super.key, this.repository});
 
-  final CommunityRepository? repository;
+  final SupabasePostRepository? repository;
 
   @override
   State<CommunityPage> createState() => _CommunityPageState();
 }
 
 class _CommunityPageState extends State<CommunityPage> {
-  late final CommunityRepository _repo;
+  late final SupabasePostRepository _repo;
   bool _loading = true;
   List<AppPost> _posts = [];
   String _postDraft = '';
@@ -27,7 +29,7 @@ class _CommunityPageState extends State<CommunityPage> {
   @override
   void initState() {
     super.initState();
-    _repo = widget.repository ?? CommunityRepositoryImpl();
+    _repo = widget.repository ?? SupabasePostRepositoryImpl();
     _loadFeed();
   }
 
@@ -135,7 +137,9 @@ class _CommunityPageState extends State<CommunityPage> {
       UiToast.show(
         context,
         title: isSaved ? 'Bookmark Removed' : 'Post Saved',
-        message: isSaved ? 'Post removed from saved bookmarks.' : 'Post saved to your bookmarks.',
+        message: isSaved
+            ? 'Post removed from saved bookmarks.'
+            : 'Post saved to your bookmarks.',
         intent: UiIntent.success,
       );
     } catch (e) {
@@ -209,7 +213,10 @@ class _CommunityPageState extends State<CommunityPage> {
                   children: [
                     Row(
                       children: [
-                        Text('Discussion & Replies', style: context.uiText.bodyStrong),
+                        Text(
+                          'Discussion & Replies',
+                          style: context.uiText.bodyStrong,
+                        ),
                         const Spacer(),
                         UiIconButton(
                           icon: Icons.close,
@@ -224,7 +231,8 @@ class _CommunityPageState extends State<CommunityPage> {
                       child: comments.isEmpty
                           ? const UiEmptyState(
                               title: 'No replies yet',
-                              message: 'Be the first trader to join the discussion.',
+                              message:
+                                  'Be the first trader to join the discussion.',
                               icon: Icons.forum_outlined,
                             )
                           : ListView.separated(
@@ -237,22 +245,33 @@ class _CommunityPageState extends State<CommunityPage> {
                                     vertical: context.sp(context.ui.spacing.sm),
                                   ),
                                   child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       UiAvatar(
-                                        name: c.author.displayName ?? c.author.handle,
+                                        name:
+                                            c.author.displayName ??
+                                            c.author.handle,
                                         imageUrl: c.author.avatarUrl,
                                       ),
-                                      SizedBox(width: context.sp(context.ui.spacing.sm)),
+                                      SizedBox(
+                                        width: context.sp(
+                                          context.ui.spacing.sm,
+                                        ),
+                                      ),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               '@${c.author.handle}',
                                               style: context.uiText.bodyStrong,
                                             ),
-                                            Text(c.body, style: context.uiText.body),
+                                            Text(
+                                              c.body,
+                                              style: context.uiText.body,
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -269,7 +288,8 @@ class _CommunityPageState extends State<CommunityPage> {
                           child: UiInput(
                             hintText: 'Add a reply...',
                             value: commentText,
-                            onChanged: (v) => setModalState(() => commentText = v),
+                            onChanged: (v) =>
+                                setModalState(() => commentText = v),
                           ),
                         ),
                         SizedBox(width: context.sp(context.ui.spacing.sm)),
@@ -339,7 +359,8 @@ class _CommunityPageState extends State<CommunityPage> {
 
     return AppPageBlock(
       title: 'Trader Community',
-      subtitle: 'Share setups, debate quant hypotheses, and follow top performers',
+      subtitle:
+          'Share setups, debate quant hypotheses, and follow top performers',
       child: SingleChildScrollView(
         padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
         child: Row(

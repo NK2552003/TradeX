@@ -12,6 +12,9 @@ class UiCrumb {
   final IconData? icon;
 }
 
+/// Type alias for [UiCrumb] adhering to AGENTS.md component specification.
+typedef UiBreadcrumbItem = UiCrumb;
+
 /// Breadcrumb trail (Journal / June 2026 / AAPL long).
 ///
 /// A trail is written by whatever page hosts it, so any crumb can carry a title
@@ -22,10 +25,11 @@ class UiCrumb {
 class UiBreadcrumbs extends StatelessWidget {
   const UiBreadcrumbs({
     super.key,
-    required this.crumbs,
+    List<UiCrumb>? crumbs,
+    List<UiCrumb>? items,
     this.maxVisible,
     this.maxCrumbWidth,
-  });
+  }) : crumbs = crumbs ?? items ?? const <UiCrumb>[];
 
   final List<UiCrumb> crumbs;
 

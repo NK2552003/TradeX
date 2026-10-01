@@ -7,7 +7,7 @@ import 'ui_common.dart';
 class UiBarChart extends StatelessWidget {
   const UiBarChart({
     super.key,
-    required this.data,
+    this.data = const <UiChartPoint>[],
     required this.series,
     this.height,
     this.showGrid = true,

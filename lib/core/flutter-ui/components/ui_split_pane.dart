@@ -11,15 +11,21 @@ import 'ui_common.dart';
 class UiSplitPane extends StatefulWidget {
   const UiSplitPane({
     super.key,
-    required this.primary,
-    required this.detail,
-    this.initialRatio = 0.35,
+    Widget? primary,
+    Widget? detail,
+    Widget? left,
+    Widget? right,
+    double? initialRatio,
+    double? splitRatio,
     this.minRatio = 0.2,
     this.maxRatio = 0.6,
     this.detailVisible = false,
+    this.showDetail = true,
     this.resizable = true,
     this.splitFrom = UiDeviceType.tablet,
-  });
+  })  : primary = primary ?? left ?? const SizedBox.shrink(),
+        detail = detail ?? right ?? const SizedBox.shrink(),
+        initialRatio = splitRatio ?? initialRatio ?? 0.35;
 
   final Widget primary;
   final Widget detail;
@@ -29,6 +35,9 @@ class UiSplitPane extends StatefulWidget {
 
   /// Only used on single-pane (phone) layouts.
   final bool detailVisible;
+
+  /// Hide the secondary pane without remounting the primary pane.
+  final bool showDetail;
   final bool resizable;
 
   /// Smallest device class that renders both panes.
@@ -62,34 +71,37 @@ class _UiSplitPaneState extends State<UiSplitPane> {
         return LayoutBuilder(
           builder: (BuildContext c, BoxConstraints box) {
             final double width = box.maxWidth;
-            final double primaryWidth = width * _ratio;
+            final double primaryWidth = widget.showDetail
+                ? width * _ratio.clamp(widget.minRatio, widget.maxRatio)
+                : width;
             return Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 SizedBox(width: primaryWidth, child: widget.primary),
-                MouseRegion(
-                  cursor: widget.resizable
-                      ? SystemMouseCursors.resizeLeftRight
-                      : SystemMouseCursors.basic,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onHorizontalDragUpdate: widget.resizable
-                        ? (DragUpdateDetails d) => setState(() {
-                            _ratio = ((primaryWidth + d.delta.dx) / width)
-                                .clamp(widget.minRatio, widget.maxRatio);
-                          })
-                        : null,
-                    child: Container(
-                      width: ctx.sz(theme.spacing.sm),
-                      alignment: Alignment.center,
+                if (widget.showDetail)
+                  MouseRegion(
+                    cursor: widget.resizable
+                        ? SystemMouseCursors.resizeLeftRight
+                        : SystemMouseCursors.basic,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onHorizontalDragUpdate: widget.resizable
+                          ? (DragUpdateDetails d) => setState(() {
+                              _ratio = ((primaryWidth + d.delta.dx) / width)
+                                  .clamp(widget.minRatio, widget.maxRatio);
+                            })
+                          : null,
                       child: Container(
-                        width: theme.borders.hairline,
-                        color: theme.colors.border,
+                        width: ctx.sz(theme.spacing.sm),
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: theme.borders.hairline,
+                          color: theme.colors.border,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Expanded(child: widget.detail),
+                if (widget.showDetail) Expanded(child: widget.detail),
               ],
             );
           },

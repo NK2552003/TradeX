@@ -11,7 +11,11 @@ class UiCardGrid extends StatelessWidget {
     this.tabletColumns = 2,
     this.desktopColumns = 3,
     this.largeColumns = 4,
-    this.childAspectRatio = 1.95,
+    this.childAspectRatio,
+    this.mainAxisExtent,
+    this.adaptiveSingleColumn = true,
+    this.intrinsicHeight = false,
+    this.equalHeight = false,
   });
 
   final List<Widget> children;
@@ -19,7 +23,15 @@ class UiCardGrid extends StatelessWidget {
   final int tabletColumns;
   final int desktopColumns;
   final int largeColumns;
-  final double childAspectRatio;
+  final double? childAspectRatio;
+  final double? mainAxisExtent;
+  final bool adaptiveSingleColumn;
+
+  /// Keep editorial cards at their natural height as content changes.
+  final bool intrinsicHeight;
+
+  /// Align variable-height card actions across each responsive row.
+  final bool equalHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +51,61 @@ class UiCardGrid extends StatelessWidget {
           cols = largeColumns;
         }
         final double gap = context.sp(theme.spacing.md);
+
+        if (cols == 1 && adaptiveSingleColumn) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (int i = 0; i < children.length; i++) ...<Widget>[
+                if (i > 0) SizedBox(height: gap),
+                children[i],
+              ],
+            ],
+          );
+        }
+
+        if (equalHeight) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int start = 0; start < children.length; start += cols) ...[
+                if (start > 0) SizedBox(height: gap),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (int column = 0; column < cols; column++) ...[
+                        if (column > 0) SizedBox(width: gap),
+                        Expanded(
+                          child: start + column < children.length
+                              ? children[start + column]
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          );
+        }
+
+        if (intrinsicHeight) {
+          final width = (constraints.maxWidth - gap * (cols - 1)) / cols;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final child in children)
+                SizedBox(width: width, child: child),
+            ],
+          );
+        }
+
+        final double ratio =
+            childAspectRatio ?? (cols == 2 ? 1.45 : (cols == 3 ? 1.65 : 1.95));
+
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -48,7 +115,8 @@ class UiCardGrid extends StatelessWidget {
             crossAxisCount: cols,
             mainAxisSpacing: gap,
             crossAxisSpacing: gap,
-            childAspectRatio: childAspectRatio,
+            childAspectRatio: mainAxisExtent == null ? ratio : 1.0,
+            mainAxisExtent: mainAxisExtent,
           ),
           itemBuilder: (BuildContext _, int i) => children[i],
         );

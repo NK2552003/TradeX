@@ -1,6 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/public_site/data/public_site_repository.dart';
+import 'package:tradex/features/public_site/models/public_site_content.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/data/repositories/subscription_pricing_repository.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
@@ -26,11 +30,13 @@ class GetStartedPage extends StatefulWidget {
     required this.onGetStarted,
     required this.onSignIn,
     this.onViewFullPricing,
+    this.repository,
   });
 
   final void Function(UserRole role) onGetStarted;
   final VoidCallback onSignIn;
   final VoidCallback? onViewFullPricing;
+  final PublicSiteRepository? repository;
 
   @override
   State<GetStartedPage> createState() => _GetStartedPageState();
@@ -44,12 +50,18 @@ class _GetStartedPageState extends State<GetStartedPage> {
   final GlobalKey _pricingKey = GlobalKey();
   final GlobalKey _faqKey = GlobalKey();
 
-  final SubscriptionPricingRepository _pricingRepo =
-      SubscriptionPricingRepositoryImpl();
+  late final PublicSiteRepository _content =
+      widget.repository ?? publicSiteRepository();
+  late final SubscriptionPricingRepository _pricingRepo =
+      SubscriptionPricingRepositoryImpl(content: _content);
+  PublicSiteContent? _page;
   bool _isAnnualPricing = true;
   String _selectedLandingFaqCategory = 'all';
-  late Future<PricingCatalogueResponse> _pricingFuture = _pricingRepo
-      .getPricingCatalogue(annual: _isAnnualPricing);
+  Future<PricingCatalogueResponse>? _pricingRequest;
+  Future<PricingCatalogueResponse> get _pricingFuture => _pricingRequest ??=
+      _pricingRepo.getPricingCatalogue(annual: _isAnnualPricing);
+  set _pricingFuture(Future<PricingCatalogueResponse> value) =>
+      _pricingRequest = value;
 
   final ValueNotifier<bool> _isScrolledNotifier = ValueNotifier<bool>(false);
 
@@ -57,6 +69,14 @@ class _GetStartedPageState extends State<GetStartedPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _content
+        .landing()
+        .then((page) {
+          if (mounted) setState(() => _page = page);
+        })
+        .catchError((Object _) {
+          /* Keep the restored page usable if editorial content is unavailable. */
+        });
   }
 
   @override
@@ -75,15 +95,22 @@ class _GetStartedPageState extends State<GetStartedPage> {
     }
   }
 
-  void _scrollToKey(GlobalKey key) {
+  Future<void> _scrollToKey(GlobalKey key) async {
     final BuildContext? ctx = key.currentContext;
     if (ctx != null) {
-      Scrollable.ensureVisible(
+      await Scrollable.ensureVisible(
         ctx,
         duration: const Duration(milliseconds: 650),
         curve: Curves.easeInOutCubic,
         alignment: 0.06,
       );
+      if (mounted && ctx.mounted) {
+        await Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 150),
+          alignment: 0.06,
+        );
+      }
     }
   }
 
@@ -193,93 +220,102 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   ),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: context.sz(1400),
-                      ),
+                      constraints: BoxConstraints(maxWidth: context.sz(1400)),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           _buildHero(context, theme, colors, responsive),
-                          SizedBox(
-                            height: context.sp(theme.spacing.xxxl) * 2,
-                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
 
                           // Real App Components Showcase Grid
                           KeyedSubtree(
                             key: _showcaseKey,
-                            child: _buildShowcaseGrid(
-                              context,
-                              theme,
-                              colors,
-                              responsive,
+                            child: UiDeferred(
+                              estimatedHeight: 500,
+                              builder: (_) => _buildShowcaseGrid(
+                                context,
+                                theme,
+                                colors,
+                                responsive,
+                              ),
                             ),
                           ),
 
-                          SizedBox(
-                            height: context.sp(theme.spacing.xxxl) * 2,
-                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
 
                           // 2 Types of Users / Personas Section
                           KeyedSubtree(
                             key: _personasKey,
-                            child: _buildUserTypesSection(
-                              context,
-                              theme,
-                              colors,
-                              responsive,
+                            child: UiDeferred(
+                              estimatedHeight: 500,
+                              builder: (_) => _buildUserTypesSection(
+                                context,
+                                theme,
+                                colors,
+                                responsive,
+                              ),
                             ),
                           ),
 
-                          SizedBox(
-                            height: context.sp(theme.spacing.xxxl) * 2,
-                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
 
                           // Feature Cards below showcase
                           KeyedSubtree(
                             key: _featuresKey,
-                            child: _buildFeaturesGrid(
-                              context,
-                              theme,
-                              colors,
-                              responsive,
+                            child: UiDeferred(
+                              estimatedHeight: 400,
+                              builder: (_) => _buildFeaturesGrid(
+                                context,
+                                theme,
+                                colors,
+                                responsive,
+                              ),
                             ),
                           ),
 
-                          SizedBox(
-                            height: context.sp(theme.spacing.xxxl) * 2,
-                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
 
                           // Dedicated Desktop Pricing Section
                           KeyedSubtree(
                             key: _pricingKey,
-                            child: _buildPricingSection(
-                              context,
-                              theme,
-                              colors,
-                              responsive,
+                            child: UiDeferred(
+                              estimatedHeight: 500,
+                              builder: (_) => _buildPricingSection(
+                                context,
+                                theme,
+                                colors,
+                                responsive,
+                              ),
                             ),
                           ),
 
-                          SizedBox(
-                            height: context.sp(theme.spacing.xxxl) * 2,
-                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
 
                           // Landing Page FAQ Section
                           KeyedSubtree(
                             key: _faqKey,
-                            child: _buildFaqSection(
+                            child: UiDeferred(
+                              estimatedHeight: 400,
+                              builder: (_) => _buildFaqSection(
+                                context,
+                                theme,
+                                colors,
+                                responsive,
+                              ),
+                            ),
+                          ),
+
+                          SizedBox(height: context.sp(theme.spacing.xxxl) * 2),
+                          // Claude-styled Detailed Footer
+                          UiDeferred(
+                            estimatedHeight: 450,
+                            builder: (_) => _buildFooter(
                               context,
                               theme,
                               colors,
                               responsive,
                             ),
                           ),
-
-                          SizedBox(
-                            height: context.sp(theme.spacing.xxxl) * 2,
-                          ),
-                          // Claude-styled Detailed Footer
-                          _buildFooter(context, theme, colors, responsive),
 
                           SizedBox(
                             height: context.sp(theme.spacing.xxxl) * 2,
@@ -317,11 +353,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     return const LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black,
-                        Colors.black,
-                        Colors.transparent,
-                      ],
+                      colors: [Colors.black, Colors.black, Colors.transparent],
                       stops: [0.0, 0.45, 1.0],
                     ).createShader(bounds);
                   },
@@ -391,17 +423,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
             right: context.sp(theme.spacing.xl),
             bottom: context.sp(theme.spacing.lg),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const AppLogoMark(size: 24),
-              SizedBox(width: context.sp(theme.spacing.sm)),
-              Text(
-                'TradeX',
-                style: context.uiText.bodyStrong.copyWith(fontSize: 18),
-              ),
-            ],
-          ),
+          child: const Center(child: AppLogo(size: 24, tagline: 'TRADEX')),
         ),
 
         // Carousel
@@ -416,7 +438,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
               SizedBox(
                 width: double.infinity,
                 child: UiButton(
-                  label: 'Get Started Free',
+                  label: 'Continue as Trader',
                   variant: UiVariant.primary,
                   intent: UiIntent.primary,
                   size: UiSize.lg,
@@ -427,10 +449,22 @@ class _GetStartedPageState extends State<GetStartedPage> {
               SizedBox(
                 width: double.infinity,
                 child: UiButton(
-                  label: 'Already a Customer? Sign In',
+                  label: 'Join as Affiliate',
                   variant: UiVariant.outline,
-                  intent: UiIntent.neutral,
+                  intent: UiIntent.primary,
                   size: UiSize.lg,
+                  leadingIcon: Icons.handshake_outlined,
+                  onPressed: () => widget.onGetStarted(UserRole.affiliate),
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+              SizedBox(
+                width: double.infinity,
+                child: UiButton(
+                  label: 'Already have an account? Sign in',
+                  variant: UiVariant.ghost,
+                  intent: UiIntent.neutral,
+                  size: UiSize.sm,
                   leadingIcon: Icons.login_rounded,
                   onPressed: widget.onSignIn,
                 ),
@@ -453,7 +487,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
         horizontal: context.sp(
           responsive.isMobile ? theme.spacing.lg : theme.spacing.xl,
         ),
-        vertical: context.sp(responsive.isMobile ? theme.spacing.sm : theme.spacing.md),
+        vertical: context.sp(
+          responsive.isMobile ? theme.spacing.sm : theme.spacing.md,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -473,65 +509,59 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     curve: Curves.easeInOutCubic,
                   );
                 },
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const AppLogoMark(size: 24),
-                    SizedBox(width: context.sp(theme.spacing.sm)),
-                    Text(
-                      'TRADEX',
-                      style: context.uiText.display.copyWith(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ],
-                ),
+                child: const AppLogo(size: 20, tagline: 'TRADEX'),
               ),
             ),
 
             // Center: Navigation Links (Desktop)
             if (!responsive.isMobile)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _HeaderNavLink(
-                    label: 'home',
-                    onTap: () {
-                      _scrollController.animateTo(
-                        0.0,
-                        duration: const Duration(milliseconds: 500),
-                        curve: Curves.easeInOutCubic,
-                      );
-                    },
+              Expanded(
+                child: Align(
+                  alignment: Alignment.center,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _HeaderNavLink(
+                          label: 'home',
+                          onTap: () {
+                            _scrollController.animateTo(
+                              0.0,
+                              duration: const Duration(milliseconds: 500),
+                              curve: Curves.easeInOutCubic,
+                            );
+                          },
+                        ),
+                        SizedBox(width: context.sp(theme.spacing.xl)),
+                        _HeaderNavLink(
+                          label: 'platform',
+                          onTap: () => _scrollToKey(_showcaseKey),
+                        ),
+                        SizedBox(width: context.sp(theme.spacing.xl)),
+                        _HeaderNavLink(
+                          label: 'solutions',
+                          onTap: () => _scrollToKey(_personasKey),
+                        ),
+                        SizedBox(width: context.sp(theme.spacing.xl)),
+                        _HeaderNavLink(
+                          label: 'features',
+                          onTap: () => _scrollToKey(_featuresKey),
+                        ),
+                        SizedBox(width: context.sp(theme.spacing.xl)),
+                        _HeaderNavLink(
+                          label: 'pricing',
+                          onTap: () => _scrollToKey(_pricingKey),
+                        ),
+                        SizedBox(width: context.sp(theme.spacing.xl)),
+                        _HeaderNavLink(
+                          label: 'faq',
+                          onTap: () => _scrollToKey(_faqKey),
+                        ),
+                      ],
+                    ),
                   ),
-                  SizedBox(width: context.sp(theme.spacing.xl)),
-                  _HeaderNavLink(
-                    label: 'platform',
-                    onTap: () => _scrollToKey(_showcaseKey),
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xl)),
-                  _HeaderNavLink(
-                    label: 'solutions',
-                    onTap: () => _scrollToKey(_personasKey),
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xl)),
-                  _HeaderNavLink(
-                    label: 'features',
-                    onTap: () => _scrollToKey(_featuresKey),
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xl)),
-                  _HeaderNavLink(
-                    label: 'pricing',
-                    onTap: () => _scrollToKey(_pricingKey),
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xl)),
-                  _HeaderNavLink(
-                    label: 'faq',
-                    onTap: () => _scrollToKey(_faqKey),
-                  ),
-                ],
+                ),
               ),
 
             // Right: Primary + GET TRADEX CTA Button
@@ -587,7 +617,10 @@ class _GetStartedPageState extends State<GetStartedPage> {
         ),
         SizedBox(height: context.sp(theme.spacing.xl)),
         Text(
-          'The Foundation for your\nTrading System',
+          _page
+                  ?.text('title')
+                  .replaceFirst('Trading System', '\nTrading System') ??
+              'The Foundation for your\nTrading System',
           textAlign: TextAlign.center,
           style: context.uiText.display.copyWith(
             fontSize: responsive.isMobile ? 32.0 : 48.0,
@@ -601,7 +634,8 @@ class _GetStartedPageState extends State<GetStartedPage> {
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: context.sz(680)),
           child: Text(
-            'A complete ecosystem combining AI analysis, quantitative journaling, and community. Built for precision, clarity, and intelligent execution. Open for traders.',
+            _page?.text('description') ??
+                'A complete ecosystem combining AI analysis, quantitative journaling, and community. Built for precision, clarity, and intelligent execution. Open for traders.',
             textAlign: TextAlign.center,
             style: context.uiText.body.copyWith(
               color: colors.foregroundMuted,
@@ -611,8 +645,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
           ),
         ),
         SizedBox(height: context.sp(theme.spacing.xl)),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Wrap(
+          alignment: WrapAlignment.center,
+          runSpacing: context.sp(theme.spacing.sm),
           children: [
             UiButton(
               label: 'Get Started Free',
@@ -717,7 +752,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
         LayoutBuilder(
           builder: (context, constraints) {
             final double spacing = context.sp(theme.spacing.lg);
-            final int cols = responsive.isMobile ? 1 : 3;
+            final int cols = constraints.maxWidth >= 1100 ? 3 : 1;
             final double colWidth =
                 (constraints.maxWidth - (spacing * (cols - 1))) / cols;
 
@@ -746,18 +781,10 @@ class _GetStartedPageState extends State<GetStartedPage> {
                       UiToggleGroup<String>(
                         expand: true,
                         options: const [
-                          UiToggleOption<String>(
-                            label: '1D',
-                            value: '1d',
-                            icon: Icons.today,
-                          ),
+                          UiToggleOption<String>(label: '1D', value: '1d'),
                           UiToggleOption<String>(label: '1W', value: '1w'),
                           UiToggleOption<String>(label: '1M', value: '1m'),
-                          UiToggleOption<String>(
-                            label: '1Y',
-                            value: '1y',
-                            badge: 'new',
-                          ),
+                          UiToggleOption<String>(label: '1Y', value: '1y'),
                         ],
                         value: '1m',
                         variant: UiToggleGroupVariant.segmented,
@@ -766,7 +793,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                       SizedBox(height: spacing),
                       for (int i = 0; i < _previewStrategies.length; i++) ...[
                         if (i > 0) SizedBox(height: spacing),
-                        AppStrategyPerformanceCard(strategy: _previewStrategies[i]),
+                        AppStrategyPerformanceCard(
+                          strategy: _previewStrategies[i],
+                        ),
                       ],
                     ],
                   ),
@@ -809,11 +838,11 @@ class _GetStartedPageState extends State<GetStartedPage> {
           theme,
           colors,
           icon: Icons.people_outline_rounded,
-          label: 'Two Ecosystem Roles',
+          label: 'Choose Your Role',
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
         Text(
-          'Built for Both Traders & Creators',
+          'Built for Traders & Affiliates',
           textAlign: TextAlign.center,
           style: context.uiText.display.copyWith(
             fontSize: responsive.isMobile ? 24.0 : 32.0,
@@ -825,7 +854,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: context.sz(640)),
           child: Text(
-            'TradeX bridges quantitative execution discipline for active market participants with powerful monetization tools for trading educators and strategy authors.',
+            'Choose the workspace that matches what you do. Trade with more discipline, or grow the TradeX community as an affiliate.',
             textAlign: TextAlign.center,
             style: context.uiText.body.copyWith(
               color: colors.foregroundMuted,
@@ -855,11 +884,11 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   width: colWidth,
                   icon: Icons.candlestick_chart_rounded,
                   iconColor: const Color(0xFF84CC16),
-                  badgeText: 'INDIVIDUAL TRADERS',
+                  badgeText: 'TRADER',
                   badgeIntent: UiIntent.primary,
-                  title: 'Quantitative Trader',
+                  title: 'Trader',
                   subtitle:
-                      'For discretionary, F&O, equity swing, and quant algorithmic traders seeking structured risk discipline and automated logging.',
+                      'For active market participants who want structured risk, sharper execution, and one reliable place for every trade decision.',
                   features: const <String>[
                     '1-Click Auto-Sync with Zerodha, Upstox, Angel One & Dhan',
                     'AI Setup Detection (Double Tops, FVG Gaps, Order Blocks)',
@@ -872,7 +901,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   onPressed: () => widget.onGetStarted(UserRole.customer),
                 ),
 
-                // Role 2: Strategy Creator & Educator (Affiliate)
+                // Role 2: Affiliate
                 _buildPersonaCard(
                   context,
                   theme,
@@ -880,17 +909,17 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   width: colWidth,
                   icon: Icons.groups_rounded,
                   iconColor: colors.primary,
-                  badgeText: 'CREATORS & MENTORS',
+                  badgeText: 'AFFILIATE',
                   badgeIntent: UiIntent.success,
-                  title: 'Strategy Creator & Partner',
+                  title: 'Affiliate',
                   subtitle:
-                      'For trading educators, signal providers, and desk managers looking to publish verified strategies and earn recurring revenue.',
+                      'For partners who introduce serious traders to TradeX and want transparent referrals, commissions, and campaign reporting.',
                   features: const <String>[
-                    'Monetize Proprietary Strategies with Paywalled Subscriptions',
-                    'Up to 30% Recurring Tiered Commission on Referred Traders',
+                    'Share Trackable Links Across Your Audience and Community',
+                    'Earn Up to 30% Recurring Commission on Referred Traders',
                     'Real-Time Conversion Dashboard & Custom Link Generator',
-                    'Private Subscriber Feeds, Discussion Circles & Chat',
-                    'Algorithmic Verified Desk Badge & Leaderboard Rank',
+                    'Campaign-Level Performance and Payout Visibility',
+                    'Partner Resources, Creative Assets & Priority Support',
                   ],
                   ctaLabel: 'Apply as Affiliate Partner',
                   ctaPrimary: false,
@@ -922,27 +951,13 @@ class _GetStartedPageState extends State<GetStartedPage> {
   }) {
     return SizedBox(
       width: width,
-      child: Container(
+      child: UiCard(
+        variant: UiCardVariant.outlined,
+        selected: ctaPrimary,
+        intent: badgeIntent,
+        accentColor: iconColor,
+        hoverLift: true,
         padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: context.radius(theme.radii.xl),
-          border: Border.all(
-            color: ctaPrimary
-                ? const Color(0xFF84CC16).withValues(alpha: 0.35)
-                : colors.border,
-            width: ctaPrimary ? 1.5 : theme.borders.hairline,
-          ),
-          boxShadow: ctaPrimary
-              ? <BoxShadow>[
-                  BoxShadow(
-                    color: const Color(0xFF84CC16).withValues(alpha: 0.06),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                ]
-              : null,
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -1089,22 +1104,16 @@ class _GetStartedPageState extends State<GetStartedPage> {
         SizedBox(height: context.sp(theme.spacing.xl)),
         LayoutBuilder(
           builder: (context, constraints) {
-            final double spacing = context.sp(theme.spacing.lg);
-            final int cols = responsive.isMobile
-                ? 1
-                : (responsive.isDesktop ? 4 : 2);
-            final double colWidth =
-                (constraints.maxWidth - (spacing * (cols - 1))) / cols;
-
-            return Wrap(
-              spacing: spacing,
-              runSpacing: spacing,
+            return UiCardGrid(
+              intrinsicHeight: true,
+              equalHeight: true,
+              desktopColumns: 4,
+              largeColumns: 4,
               children: List.generate(_features.length, (idx) {
                 final item = _features[idx];
 
-                return SizedBox(
-                  width: colWidth,
-                  height: 320,
+                return ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 320),
                   child: Container(
                     padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
                     decoration: BoxDecoration(
@@ -1223,72 +1232,51 @@ class _GetStartedPageState extends State<GetStartedPage> {
         // Accordion from dynamic future
         FutureBuilder<PricingCatalogueResponse>(
           future: _pricingFuture,
-          builder: (
-            BuildContext context,
-            AsyncSnapshot<PricingCatalogueResponse> snapshot,
-          ) {
-            final List<PricingFaqItem> allFaqs = snapshot.hasData
-                ? snapshot.data!.faqs
-                : const <PricingFaqItem>[];
+          builder:
+              (
+                BuildContext context,
+                AsyncSnapshot<PricingCatalogueResponse> snapshot,
+              ) {
+                final List<PricingFaqItem> allFaqs = snapshot.hasData
+                    ? snapshot.data!.faqs
+                    : const <PricingFaqItem>[];
 
-            // Rich categorized FAQs for the landing page
-            final List<PricingFaqItem> landingFaqs = <PricingFaqItem>[
-              ...allFaqs,
-              const PricingFaqItem(
-                id: 'faq_landing_1',
-                category: 'trading',
-                question: 'Which Indian brokers can I auto-sync with TradeX?',
-                answer:
-                    'TradeX integrates with Zerodha Kite Connect, Upstox API, Angel One SmartAPI, Dhan HQ, and Groww. Executions, order timestamps, slippage, and chart snapshots are logged into your journal in real time without manual entry.',
-              ),
-              const PricingFaqItem(
-                id: 'faq_landing_2',
-                category: 'security',
-                question:
-                    'How does TradeX safeguard my broker API credentials and trading secrets?',
-                answer:
-                    'TradeX utilizes client-side AES-256 GCM token encryption and non-custodial broker bridging. We never have withdrawal access or custody of your funds. All strategy notes and quantitative rules remain private and encrypted.',
-              ),
-              const PricingFaqItem(
-                id: 'faq_landing_3',
-                category: 'security',
-                question:
-                    'Can I export my journal data for Indian Income Tax filing (ITR-2 / ITR-3)?',
-                answer:
-                    'Yes. You can generate audit-ready trade books, PnL statements, STCG/LTCG capital gains summaries, and turnover reports formatted specifically for Indian Chartered Accountants and tax filing portals.',
-              ),
-            ];
+                // Rich categorized FAQs for the landing page
+                final List<PricingFaqItem> landingFaqs = [
+                  ...allFaqs,
+                  ...?_page?.faqs,
+                ];
 
-            final List<PricingFaqItem> filtered =
-                _selectedLandingFaqCategory == 'all'
+                final List<PricingFaqItem> filtered =
+                    _selectedLandingFaqCategory == 'all'
                     ? landingFaqs
                     : landingFaqs
-                        .where(
-                          (PricingFaqItem f) =>
-                              f.category == _selectedLandingFaqCategory,
-                        )
-                        .toList();
+                          .where(
+                            (PricingFaqItem f) =>
+                                f.category == _selectedLandingFaqCategory,
+                          )
+                          .toList();
 
-            return ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: context.sz(860)),
-              child: UiAccordion(
-                items: <UiAccordionItem>[
-                  for (final PricingFaqItem item in filtered)
-                    UiAccordionItem(
-                      title: item.question,
-                      content: Text(
-                        item.answer,
-                        style: context.uiText.body.copyWith(
-                          color: colors.foregroundMuted,
-                          height: 1.6,
-                          fontSize: 14.0,
+                return ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: context.sz(860)),
+                  child: UiAccordion(
+                    items: <UiAccordionItem>[
+                      for (final PricingFaqItem item in filtered)
+                        UiAccordionItem(
+                          title: item.question,
+                          content: Text(
+                            item.answer,
+                            style: context.uiText.body.copyWith(
+                              color: colors.foregroundMuted,
+                              height: 1.6,
+                              fontSize: 14.0,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                ],
-              ),
-            );
-          },
+                    ],
+                  ),
+                );
+              },
         ),
       ],
     );
@@ -1349,7 +1337,6 @@ class _GetStartedPageState extends State<GetStartedPage> {
     );
   }
 
-
   Widget _buildPricingSection(
     BuildContext context,
     UiTheme theme,
@@ -1369,7 +1356,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
         Text(
-          'Scale Your Trading Edge',
+          _page?.text('pricing_title') ?? 'Scale Your Trading Edge',
           textAlign: TextAlign.center,
           style: context.uiText.display.copyWith(
             fontSize: responsive.isMobile ? 24.0 : 32.0,
@@ -1412,7 +1399,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   if (!_isAnnualPricing) return;
                   setState(() {
                     _isAnnualPricing = false;
-                    _pricingFuture = _pricingRepo.getPricingCatalogue(annual: false);
+                    _pricingFuture = _pricingRepo.getPricingCatalogue(
+                      annual: false,
+                    );
                   });
                 },
                 child: AnimatedContainer(
@@ -1422,7 +1411,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     vertical: context.sp(theme.spacing.xs),
                   ),
                   decoration: BoxDecoration(
-                    color: !_isAnnualPricing ? colors.surface : Colors.transparent,
+                    color: !_isAnnualPricing
+                        ? colors.surface
+                        : Colors.transparent,
                     borderRadius: context.radius(theme.radii.pill),
                   ),
                   child: Text(
@@ -1442,7 +1433,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   if (_isAnnualPricing) return;
                   setState(() {
                     _isAnnualPricing = true;
-                    _pricingFuture = _pricingRepo.getPricingCatalogue(annual: true);
+                    _pricingFuture = _pricingRepo.getPricingCatalogue(
+                      annual: true,
+                    );
                   });
                 },
                 child: AnimatedContainer(
@@ -1452,7 +1445,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     vertical: context.sp(theme.spacing.xs),
                   ),
                   decoration: BoxDecoration(
-                    color: _isAnnualPricing ? colors.surface : Colors.transparent,
+                    color: _isAnnualPricing
+                        ? colors.surface
+                        : Colors.transparent,
                     borderRadius: context.radius(theme.radii.pill),
                   ),
                   child: Row(
@@ -1486,39 +1481,42 @@ class _GetStartedPageState extends State<GetStartedPage> {
         // 3 Cards FutureBuilder
         FutureBuilder<PricingCatalogueResponse>(
           future: _pricingFuture,
-          builder: (
-            BuildContext context,
-            AsyncSnapshot<PricingCatalogueResponse> snapshot,
-          ) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final List<PricingPlanModel> plans = snapshot.data!.plans;
-
-            return LayoutBuilder(
-              builder: (BuildContext ctx, BoxConstraints constraints) {
-                return IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      for (int i = 0; i < plans.length; i++) ...<Widget>[
-                        if (i > 0) SizedBox(width: context.sp(theme.spacing.lg)),
-                        Expanded(
-                          child: _buildLandingPricingCard(
-                            context,
-                            theme,
-                            colors,
-                            plans[i],
-                          ),
+          builder:
+              (
+                BuildContext context,
+                AsyncSnapshot<PricingCatalogueResponse> snapshot,
+              ) {
+                if (!snapshot.hasData) {
+                  if (snapshot.hasError) {
+                    return UiEmptyState(
+                      title: 'Pricing unavailable',
+                      actionLabel: 'Try again',
+                      onActionPressed: () => setState(
+                        () => _pricingFuture = _pricingRepo.getPricingCatalogue(
+                          annual: _isAnnualPricing,
                         ),
-                      ],
-                    ],
-                  ),
+                      ),
+                    );
+                  }
+                  return const Center(
+                    child: UiSkeleton(width: 240, height: 180),
+                  );
+                }
+
+                final List<PricingPlanModel> plans = snapshot.data!.plans;
+
+                return UiCardGrid(
+                  equalHeight: true,
+                  intrinsicHeight: true,
+                  tabletColumns: 1,
+                  desktopColumns: 3,
+                  largeColumns: 3,
+                  children: [
+                    for (final plan in plans)
+                      _buildLandingPricingCard(context, theme, colors, plan),
+                  ],
                 );
               },
-            );
-          },
         ),
         SizedBox(height: context.sp(theme.spacing.xl)),
         Row(
@@ -1575,8 +1573,11 @@ class _GetStartedPageState extends State<GetStartedPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: context.sp(theme.spacing.sm),
+            runSpacing: context.sp(theme.spacing.xs),
             children: <Widget>[
               Text(
                 plan.name,
@@ -1648,39 +1649,37 @@ class _GetStartedPageState extends State<GetStartedPage> {
           SizedBox(height: context.sp(theme.spacing.lg)),
           const UiDivider(),
           SizedBox(height: context.sp(theme.spacing.sm)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                for (final String f in plan.featuresSummary.take(6))
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      vertical: context.sp(theme.spacing.xxs),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Icon(
-                          Icons.check_rounded,
-                          size: context.sz(14),
-                          color: isFeatured ? colors.primary : colors.bullish,
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.xs)),
-                        Expanded(
-                          child: Text(
-                            f,
-                            style: context.uiText.caption.copyWith(
-                              color: colors.foregroundMuted,
-                              fontSize: 13.0,
-                              height: 1.4,
-                            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              for (final String f in plan.featuresSummary.take(6))
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: context.sp(theme.spacing.xxs),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Icon(
+                        Icons.check_rounded,
+                        size: context.sz(14),
+                        color: isFeatured ? colors.primary : colors.bullish,
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      Expanded(
+                        child: Text(
+                          f,
+                          style: context.uiText.caption.copyWith(
+                            color: colors.foregroundMuted,
+                            fontSize: 13.0,
+                            height: 1.4,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         ],
       ),
@@ -1689,10 +1688,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
 }
 
 class _HeaderNavLink extends StatefulWidget {
-  const _HeaderNavLink({
-    required this.label,
-    required this.onTap,
-  });
+  const _HeaderNavLink({required this.label, required this.onTap});
 
   final String label;
   final VoidCallback onTap;
@@ -1718,7 +1714,7 @@ class _HeaderNavLinkState extends State<_HeaderNavLink> {
           behavior: HitTestBehavior.opaque,
           onTap: widget.onTap,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
+            duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
             padding: EdgeInsets.symmetric(
               horizontal: context.sp(theme.spacing.xxs),
@@ -1727,21 +1723,25 @@ class _HeaderNavLinkState extends State<_HeaderNavLink> {
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: _isHovered ? colors.foreground : Colors.transparent,
+                  color: _isHovered
+                      ? colors.foreground
+                      : colors.foreground.withValues(alpha: 0.0),
                   width: 2,
                 ),
               ),
             ),
-            child: Text(
-              widget.label,
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
               style: context.uiText.body.copyWith(
                 color: _isHovered
                     ? colors.foreground
                     : colors.foregroundMuted.withValues(alpha: 0.75),
-                fontWeight: _isHovered ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: FontWeight.w500,
                 fontSize: 15.0,
                 letterSpacing: -0.2,
               ),
+              child: Text(widget.label),
             ),
           ),
         ),
@@ -1749,5 +1749,3 @@ class _HeaderNavLinkState extends State<_HeaderNavLink> {
     );
   }
 }
-
-

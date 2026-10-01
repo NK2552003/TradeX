@@ -1,0 +1,65 @@
+{
+  "brand": "TradeX",
+  "title": "The Foundation for your Trading System",
+  "description": "AI analysis, quantitative journaling, market intelligence, and community in one workspace. Built for precision, clarity, and disciplined execution.",
+  "signin_label": "Sign in",
+  "start_label": "Get Started Free",
+  "pricing_label": "Explore Plans",
+  "features_title": "Tools for Every Trading Decision",
+  "roles_title": "Choose Your Workspace",
+  "pricing_title": "Plans for Your Trading Workspace",
+  "faq_title": "Frequently Asked Questions",
+  "footer": "TradeX · A workspace for disciplined traders. Market information is provided for research; it is not investment advice.",
+  "retry_label": "Try again",
+  "error_title": "Unable to load page content",
+  "features": [
+    {
+      "title": "Institutional Community",
+      "description": "Share setups, discuss markets, and follow traders across a curated community.",
+      "icon": "forum"
+    },
+    {
+      "title": "Quantitative Journaling",
+      "description": "Record execution, review equity curves, and connect notes with your trading playbooks.",
+      "icon": "book"
+    },
+    {
+      "title": "Market Intelligence",
+      "description": "Browse market news, instrument snapshots, price history, and company fundamentals.",
+      "icon": "news"
+    },
+    {
+      "title": "AI Trading Assistant",
+      "description": "Review charts and trading ideas with context from your workspace.",
+      "icon": "ai"
+    }
+  ],
+  "roles": [
+    {
+      "id": "customer",
+      "title": "Trader",
+      "description": "Build discipline with journals, strategies, notes, and a trading community.",
+      "cta": "Get Started as Trader"
+    },
+    {
+      "id": "affiliate",
+      "title": "Affiliate",
+      "description": "Grow your audience with referral links, campaign tracking, and transparent commissions.",
+      "cta": "Apply as Affiliate"
+    }
+  ],
+  "faqs": [
+    {
+      "id": "landing_records",
+      "category": "features",
+      "question": "How do notes, journals, and strategies connect?",
+      "answer": "Link your private writing records and selectively publish individual records to the community."
+    },
+    {
+      "id": "landing_roles",
+      "category": "general",
+      "question": "Who can join TradeX?",
+      "answer": "Traders can create a trading workspace. Affiliates can apply for a partner workspace."
+    }
+  ]
+}

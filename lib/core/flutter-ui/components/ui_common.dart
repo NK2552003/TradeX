@@ -15,6 +15,8 @@ class UiOption<T> {
     this.trailingLabel,
     this.badge,
     this.group,
+    this.intent,
+    this.tooltip,
     this.enabled = true,
   });
 
@@ -31,6 +33,12 @@ class UiOption<T> {
 
   /// Optional group header this option belongs to.
   final String? group;
+
+  /// Semantic intent color override (e.g. bullish, bearish).
+  final UiIntent? intent;
+
+  /// Tooltip message shown on hover or long press.
+  final String? tooltip;
   final bool enabled;
 
   UiOption<T> copyWith({
@@ -41,6 +49,8 @@ class UiOption<T> {
     String? trailingLabel,
     String? badge,
     String? group,
+    UiIntent? intent,
+    String? tooltip,
     bool? enabled,
   }) => UiOption<T>(
     value: value ?? this.value,
@@ -50,6 +60,8 @@ class UiOption<T> {
     trailingLabel: trailingLabel ?? this.trailingLabel,
     badge: badge ?? this.badge,
     group: group ?? this.group,
+    intent: intent ?? this.intent,
+    tooltip: tooltip ?? this.tooltip,
     enabled: enabled ?? this.enabled,
   );
 }
@@ -61,6 +73,9 @@ enum UiSize { xs, sm, md, lg, xl }
 /// Visual treatments available to actionable / container components.
 enum UiVariant {
   primary,
+
+  /// Solid filled background matching intent color (alias for primary solid treatment).
+  solid,
   secondary,
   ghost,
   outline,
@@ -397,6 +412,7 @@ class UiInteractive extends StatefulWidget {
     this.focusNode,
     this.autofocus = false,
     this.forceState,
+    this.trackHover = true,
   });
 
   final Widget Function(BuildContext context, UiInteractiveState state) builder;
@@ -414,6 +430,7 @@ class UiInteractive extends StatefulWidget {
   final FocusNode? focusNode;
   final bool autofocus;
   final UiInteractiveState? forceState;
+  final bool trackHover;
 
   @override
   State<UiInteractive> createState() => _UiInteractiveState();
@@ -462,7 +479,7 @@ class _UiInteractiveState extends State<UiInteractive> {
         mouseCursor: widget.enabled
             ? widget.cursor
             : SystemMouseCursors.forbidden,
-        onShowHoverHighlight: _setHover,
+        onShowHoverHighlight: widget.trackHover ? _setHover : null,
         onShowFocusHighlight: _setFocus,
         shortcuts: const <ShortcutActivator, Intent>{
           SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
@@ -542,7 +559,7 @@ String uiCompactNumber(num value) {
   if (abs >= 1e9) return '${(v / 1e9).toStringAsFixed(1)}B';
   if (abs >= 1e6) return '${(v / 1e6).toStringAsFixed(1)}M';
   if (abs >= 1e3) return '${(v / 1e3).toStringAsFixed(1)}K';
-  if (abs >= 100) return v.toStringAsFixed(0);
+  if (v == v.roundToDouble() || abs >= 100) return v.toStringAsFixed(0);
   return v.toStringAsFixed(2);
 }
 

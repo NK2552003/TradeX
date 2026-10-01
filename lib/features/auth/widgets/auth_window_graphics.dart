@@ -8,8 +8,6 @@ import 'package:tradex/features/auth/models/auth_user_role.dart';
 /// no illustrations, icons-as-art, or image/SVG assets anywhere here.
 enum AuthScene {
   /// Portfolio + market view: equity curve, headline stats, watchlist.
-  markets,
-
   /// AI + community view: an AI insight, a logged trade, a community post.
   social,
 }
@@ -26,7 +24,7 @@ class AuthWindowGraphics extends StatefulWidget {
     super.key,
     this.role = UserRole.customer,
     this.title = 'TradeX',
-    this.scene = AuthScene.markets,
+    this.scene = AuthScene.social,
     this.height,
     this.compact = false,
   });
@@ -57,36 +55,6 @@ class _AuthWindowGraphicsState extends State<AuthWindowGraphics> {
       .where((AppTrade t) => t.outcome != AppOutcome.open)
       .toList(growable: false);
 
-  late final List<AppSeriesPoint> _equity = _demo.equitySeries(points: 36);
-
-  /// Account equity against the index it trades. Both lines are rebased to 100
-  /// so a ₹5,00,000 book and a 24,000-point index can share one axis.
-  late final List<UiChartPoint> _areaData = _rebasedEquityVsIndex();
-
-  late final List<AppTicker> _tickers = _demo.tickers(limit: 3);
-
-  late final AppStat _statPnl = AppStat(
-    label: 'Total P/L',
-    value: _closedTrades.fold<double>(
-      0,
-      (double sum, AppTrade t) => sum + t.pnl,
-    ),
-    delta: _equityChangePercent,
-    icon: Icons.trending_up_rounded,
-    spark: <double>[
-      for (final AppSeriesPoint p in _demo.equitySeries(points: 8)) p.value,
-    ],
-    formatter: (num v) => '₹${v.toStringAsFixed(0)}',
-  );
-
-  late final AppStat _statWinRate = AppStat(
-    label: 'Win Rate',
-    value: _winRate,
-    delta: null,
-    icon: Icons.emoji_events_outlined,
-    suffix: '%',
-  );
-
   /// The account's best closed trade — the one a reader would be shown on the
   /// dashboard, not a hand-written example.
   late final AppTrade _trade = _closedTrades.isEmpty
@@ -99,51 +67,6 @@ class _AuthWindowGraphicsState extends State<AuthWindowGraphics> {
 
   late final AppPost _post = _demo.posts(limit: 1).first;
 
-  /// Share of closed trades that finished green, to one decimal.
-  double get _winRate {
-    if (_closedTrades.isEmpty) return 0;
-    final int wins = _closedTrades
-        .where((AppTrade t) => t.outcome == AppOutcome.win)
-        .length;
-    return double.parse((wins / _closedTrades.length * 100).toStringAsFixed(1));
-  }
-
-  /// Percentage move in equity across the charted window, which is what the
-  /// delta on the P/L card is measuring.
-  double get _equityChangePercent {
-    if (_equity.length < 2) return 0;
-    final double first = _equity.first.value;
-    if (first == 0) return 0;
-    return double.parse(
-      ((_equity.last.value - first) / first * 100).toStringAsFixed(1),
-    );
-  }
-
-  List<UiChartPoint> _rebasedEquityVsIndex() {
-    final List<AppCandle> index = _demo.candles(
-      'NIFTY50',
-      count: _equity.length,
-    );
-    final int points = _equity.length < index.length
-        ? _equity.length
-        : index.length;
-    if (points == 0) return const <UiChartPoint>[];
-    final double equityBase = _equity.first.value == 0
-        ? 1
-        : _equity.first.value;
-    final double indexBase = index.first.close == 0 ? 1 : index.first.close;
-    return <UiChartPoint>[
-      for (int i = 0; i < points; i++)
-        UiChartPoint(
-          label: _equity[i].label,
-          values: <double>[
-            _equity[i].value / equityBase * 100,
-            index[i].close / indexBase * 100,
-          ],
-        ),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
@@ -152,11 +75,6 @@ class _AuthWindowGraphicsState extends State<AuthWindowGraphics> {
     final double pad = context.sp(
       widget.compact ? theme.spacing.md : theme.spacing.lg,
     );
-
-    final List<UiChartSeries> areaSeries = <UiChartSeries>[
-      UiChartSeries(name: 'Equity', color: colors.primary),
-      UiChartSeries(name: 'NIFTY 50', color: colors.borderStrong),
-    ];
 
     return Container(
       height: widget.height ?? (isMobile ? 420 : 520),
@@ -232,84 +150,16 @@ class _AuthWindowGraphicsState extends State<AuthWindowGraphics> {
             child: SingleChildScrollView(
               physics: const ClampingScrollPhysics(),
               padding: EdgeInsets.all(pad),
-              child: widget.scene == AuthScene.markets
-                  ? _MarketsScene(
-                      areaData: _areaData,
-                      areaSeries: areaSeries,
-                      tickers: _tickers,
-                      statPnl: _statPnl,
-                      statWinRate: _statWinRate,
-                      gap: context.sp(theme.spacing.md),
-                    )
-                  : _SocialScene(
-                      insight: _insight,
-                      trade: _trade,
-                      post: _post,
-                      gap: context.sp(theme.spacing.md),
-                    ),
+              child: _SocialScene(
+                insight: _insight,
+                trade: _trade,
+                post: _post,
+                gap: context.sp(theme.spacing.md),
+              ),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _MarketsScene extends StatelessWidget {
-  const _MarketsScene({
-    required this.areaData,
-    required this.areaSeries,
-    required this.tickers,
-    required this.statPnl,
-    required this.statWinRate,
-    required this.gap,
-  });
-
-  final List<UiChartPoint> areaData;
-  final List<UiChartSeries> areaSeries;
-  final List<AppTicker> tickers;
-  final AppStat statPnl;
-  final AppStat statWinRate;
-  final double gap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(child: AppStatCard(stat: statPnl, dense: true)),
-            SizedBox(width: gap),
-            Expanded(child: AppStatCard(stat: statWinRate, dense: true)),
-          ],
-        ),
-        SizedBox(height: gap),
-        UiAreaChartCard(
-          title: 'Equity Curve',
-          subtitle: 'Account vs index, rebased to 100',
-          data: areaData,
-          series: areaSeries,
-          height: 190,
-          showGrid: false,
-          showAxisLabels: false,
-          interactive: false,
-          curved: true,
-          glow: true,
-        ),
-        SizedBox(height: gap),
-        Text(
-          'Watchlist',
-          style: context.uiText.label.copyWith(
-            color: context.ui.colors.foregroundSubtle,
-          ),
-        ),
-        SizedBox(height: gap * 0.5),
-        for (final t in tickers) ...[
-          AppTickerCard(ticker: t, dense: true),
-          if (t != tickers.last) SizedBox(height: gap * 0.5),
-        ],
-      ],
     );
   }
 }

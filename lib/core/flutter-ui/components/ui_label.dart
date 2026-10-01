@@ -7,15 +7,18 @@ class UiLabel extends StatelessWidget {
   const UiLabel({
     super.key,
     required this.text,
-    this.required = false,
+    bool required = false,
+    bool? isRequired,
     this.disabled = false,
     this.helper,
-  });
+    this.maxLines = 2,
+  }) : required = isRequired ?? required;
 
   final String text;
   final bool required;
   final bool disabled;
   final String? helper;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +43,7 @@ class UiLabel extends StatelessWidget {
                 ),
             ],
           ),
-          maxLines: 1,
+          maxLines: maxLines,
           overflow: TextOverflow.ellipsis,
         ),
         if (helper != null) ...<Widget>[

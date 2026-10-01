@@ -41,10 +41,25 @@ class UiAccordionItem {
   final Widget? trailing;
   final String? badge;
 
-  /// Tints the header text/icon and shows an accent stripe.
+  /// Tints the header text/icon without adding a heavy edge stripe.
   final UiIntent? intent;
   final bool enabled;
   final bool initiallyOpen;
+}
+
+class UiAccordionSection extends UiAccordionItem {
+  UiAccordionSection({
+    required super.title,
+    required Widget child,
+    super.subtitle,
+    super.leadingIcon,
+    super.leading,
+    super.trailing,
+    super.badge,
+    super.intent,
+    super.enabled = true,
+    super.initiallyOpen = false,
+  }) : super(content: child);
 }
 
 /// Expand/collapse list. Single or multiple open sections, controlled or
@@ -52,7 +67,8 @@ class UiAccordionItem {
 class UiAccordion extends StatefulWidget {
   const UiAccordion({
     super.key,
-    required this.items,
+    List<UiAccordionItem>? items,
+    List<UiAccordionSection>? sections,
     this.allowMultiple = false,
     this.initiallyOpen = const <int>{},
     this.openIndices,
@@ -64,7 +80,7 @@ class UiAccordion extends StatefulWidget {
     this.chevronLeading = false,
     this.dividers = true,
     this.enabled = true,
-  });
+  }) : items = items ?? sections ?? const <UiAccordionItem>[];
 
   final List<UiAccordionItem> items;
   final bool allowMultiple;
@@ -241,11 +257,6 @@ class _UiAccordionTile extends StatelessWidget {
                       : (open && variant != UiAccordionVariant.ghost
                             ? c.surfaceMuted
                             : const Color(0x00000000)),
-                  border: accent != null
-                      ? Border(
-                          left: BorderSide(color: accent, width: ctx.sz(3)),
-                        )
-                      : null,
                 ),
                 foregroundDecoration: s.focused
                     ? uiFocusRing(ctx, BorderRadius.zero)

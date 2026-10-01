@@ -8,20 +8,28 @@ class UiAvatar extends StatelessWidget {
   const UiAvatar({
     super.key,
     this.imageUrl,
+    this.imageProvider,
     this.name = '',
     this.size = UiSize.md,
     this.online = false,
     this.verified = false,
     this.verifiedColor,
+    this.gradient,
+    this.textStyle,
+    this.textColor,
     this.onTap,
   });
 
   final String? imageUrl;
+  final ImageProvider? imageProvider;
   final String name;
   final UiSize size;
   final bool online;
   final bool verified;
   final Color? verifiedColor;
+  final Gradient? gradient;
+  final TextStyle? textStyle;
+  final Color? textColor;
   final VoidCallback? onTap;
 
   double _dim(BuildContext context) => size.avatar(context);
@@ -47,25 +55,36 @@ class UiAvatar extends StatelessWidget {
       height: dim,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: theme.colors.surfaceMuted,
+        color: gradient == null ? theme.colors.surfaceMuted : null,
+        gradient: gradient,
         border: Border.all(
           color: theme.colors.border,
           width: theme.borders.hairline,
         ),
-        image: (imageUrl == null || imageUrl!.isEmpty)
-            ? null
-            : DecorationImage(
-                image: NetworkImage(imageUrl!),
+        image: imageProvider != null
+            ? DecorationImage(
+                image: imageProvider!,
                 fit: BoxFit.cover,
                 onError: (Object error, StackTrace? stackTrace) {},
-              ),
+              )
+            : (imageUrl == null || imageUrl!.isEmpty)
+                ? null
+                : DecorationImage(
+                    image: NetworkImage(imageUrl!),
+                    fit: BoxFit.cover,
+                    onError: (Object error, StackTrace? stackTrace) {},
+                  ),
       ),
       alignment: Alignment.center,
-      child: imageUrl == null
+      child: (imageUrl == null && imageProvider == null)
           ? Text(
               _initials,
-              style: context.uiText.label.copyWith(
-                color: theme.colors.foregroundMuted,
+              style: (textStyle ?? context.uiText.label).copyWith(
+                color: textColor ??
+                    (gradient != null
+                        ? Colors.white
+                        : theme.colors.foregroundMuted),
+                fontWeight: gradient != null ? FontWeight.w700 : null,
               ),
             )
           : null,
@@ -115,9 +134,10 @@ class UiAvatarGroup extends StatelessWidget {
   const UiAvatarGroup({
     super.key,
     required this.avatars,
-    this.max = 4,
+    int? max,
+    int? maxVisible,
     this.size = UiSize.sm,
-  });
+  }) : max = maxVisible ?? max ?? 4;
 
   final List<UiAvatar> avatars;
   final int max;
@@ -132,9 +152,13 @@ class UiAvatarGroup extends StatelessWidget {
         ? context.sz(theme.sizes.avatarSm)
         : context.sz(theme.sizes.avatarMd);
     final double overlap = dim * 0.35;
+    final double totalWidth = shown.isEmpty
+        ? 0
+        : ((shown.length - 1 + (overflow > 0 ? 1 : 0)) * (dim - overlap) + dim);
 
     return SizedBox(
       height: dim,
+      width: totalWidth,
       child: Stack(
         children: <Widget>[
           for (int i = 0; i < shown.length; i++)

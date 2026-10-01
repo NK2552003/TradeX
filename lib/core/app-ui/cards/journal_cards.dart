@@ -36,7 +36,7 @@ class AppTradeCard extends StatelessWidget {
         onTap: onTap,
         selected: selected,
         accentColor: plColor,
-        padding: dense ? EdgeInsets.all(context.sp(theme.spacing.md)) : null,
+        padding: dense ? EdgeInsets.all(context.sp(theme.spacing.sm)) : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -54,7 +54,7 @@ class AppTradeCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      SizedBox(width: context.sp(theme.spacing.sm)),
+                      SizedBox(width: context.sp(theme.spacing.xs)),
                       UiBadge(
                         label: AppTokens.sideLabel(trade.side),
                         intent: AppTokens.sideIntent(trade.side),
@@ -66,7 +66,7 @@ class AppTradeCard extends StatelessWidget {
                 ?trailing,
               ],
             ),
-            SizedBox(height: context.sp(theme.spacing.sm)),
+            SizedBox(height: context.sp(theme.spacing.xs)),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
@@ -80,9 +80,9 @@ class AppTradeCard extends StatelessWidget {
                 UiBadge.delta(trade.pnlPercent),
               ],
             ),
-            SizedBox(height: context.sp(theme.spacing.sm)),
+            SizedBox(height: context.sp(theme.spacing.xs)),
             Wrap(
-              spacing: context.sp(theme.spacing.sm),
+              spacing: context.sp(theme.spacing.xs),
               runSpacing: context.sp(theme.spacing.xs),
               children: <Widget>[
                 _meta(context, 'Entry', AppTokens.money(trade.entry)),
@@ -94,7 +94,7 @@ class AppTradeCard extends StatelessWidget {
               ],
             ),
             if (!dense && trade.tags.isNotEmpty) ...<Widget>[
-              SizedBox(height: context.sp(theme.spacing.md)),
+              SizedBox(height: context.sp(theme.spacing.sm)),
               Wrap(
                 spacing: context.sp(theme.spacing.xs),
                 runSpacing: context.sp(theme.spacing.xs),
@@ -141,6 +141,110 @@ class AppTradeCard extends StatelessWidget {
   );
 }
 
+/// A compact journal reference used inside notes.
+///
+/// It intentionally carries less chrome than the full trade card: a status dot,
+/// the trade identity, and the two figures needed to recognise the execution.
+/// Notes can also supply [onRemove] while editing without changing the card's
+/// reading-view shape.
+class AppLinkedJournalCard extends StatelessWidget {
+  const AppLinkedJournalCard({
+    super.key,
+    required this.trade,
+    this.onTap,
+    this.onRemove,
+  });
+
+  final AppTrade trade;
+  final VoidCallback? onTap;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final Color status = AppTokens.outcomeIntent(trade.outcome).color(context);
+
+    return AppHoverLift(
+      child: UiCard(
+        onTap: onTap,
+        variant: UiCardVariant.outlined,
+        density: UiDensity.compact,
+        padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+        child: Row(
+          children: <Widget>[
+            Icon(Icons.circle, size: context.sz(8), color: status),
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Wrap(
+                    spacing: context.sp(theme.spacing.xs),
+                    runSpacing: context.sp(theme.spacing.xxs),
+                    children: [
+                      Text(
+                        trade.ticker,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.uiText.bodyStrong,
+                      ),
+                      Text(
+                        AppTokens.sideLabel(trade.side),
+                        style: context.uiText.caption.copyWith(color: status),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: context.sp(theme.spacing.xxs)),
+                  Text(
+                    <String>[
+                      AppTokens.shortDate(trade.openedAt),
+                      if (trade.strategy case final String strategy) strategy,
+                    ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                Text(
+                  AppTokens.signedMoney(trade.pnl),
+                  style: context.uiText.numeric.copyWith(
+                    color: AppTokens.pl(context, trade.pnl),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (trade.rMultiple case final double multiple)
+                  Text(
+                    AppTokens.rr(multiple),
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                    ),
+                  ),
+              ],
+            ),
+            if (onRemove != null) ...<Widget>[
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              UiIconButton(
+                icon: Icons.close_rounded,
+                tooltip: 'Unlink journal entry',
+                size: UiSize.sm,
+                onPressed: onRemove,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Compact P/L summary for a group of trades (day, week, ticker).
 class AppPnlSummaryCard extends StatelessWidget {
   const AppPnlSummaryCard({
@@ -183,7 +287,7 @@ class AppPnlSummaryCard extends StatelessWidget {
             style: context.uiText.title.copyWith(color: plColor),
           ),
           if (spark.isNotEmpty) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
+            SizedBox(height: context.sp(theme.spacing.sm)),
             UiSparkChart(values: spark, color: plColor, filled: true),
           ],
         ],
@@ -225,7 +329,7 @@ class AppLessonCard extends StatelessWidget {
                 size: context.sz(theme.sizes.iconMd),
                 color: intent.color(context),
               ),
-              SizedBox(width: context.sp(theme.spacing.sm)),
+              SizedBox(width: context.sp(theme.spacing.xs)),
               Expanded(
                 child: Text(
                   title,
@@ -235,7 +339,7 @@ class AppLessonCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
+          SizedBox(height: context.sp(theme.spacing.xs)),
           Text(
             body,
             style: context.uiText.body.copyWith(
@@ -243,7 +347,7 @@ class AppLessonCard extends StatelessWidget {
             ),
           ),
           if (tags.isNotEmpty) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
+            SizedBox(height: context.sp(theme.spacing.sm)),
             Wrap(
               spacing: context.sp(theme.spacing.xs),
               children: tags.map((String t) => UiBadge(label: '#$t')).toList(),
@@ -318,17 +422,14 @@ class AppScreenshotImportCard extends StatelessWidget {
                     ),
             ),
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
+          SizedBox(height: context.sp(theme.spacing.sm)),
           if (parsing)
             Row(
               children: <Widget>[
-                SizedBox(
-                  width: context.sz(theme.sizes.iconSm),
-                  height: context.sz(theme.sizes.iconSm),
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: theme.colors.primary,
-                  ),
+                UiProgressCircle(
+                  size: theme.sizes.iconSm,
+                  thickness: 2,
+                  intent: UiIntent.primary,
                 ),
                 SizedBox(width: context.sp(theme.spacing.sm)),
                 Expanded(
@@ -389,13 +490,13 @@ class AppChecklistCard extends StatelessWidget {
             value: items.isEmpty ? 0 : done / items.length,
             intent: UiIntent.primary,
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
+          SizedBox(height: context.sp(theme.spacing.sm)),
           ...AppMotion.stagger(
             items
                 .map(
                   (AppChecklistItem item) => Padding(
                     padding: EdgeInsets.only(
-                      bottom: context.sp(theme.spacing.sm),
+                      bottom: context.sp(theme.spacing.xs),
                     ),
                     child: UiCheckbox(
                       value: item.done,
@@ -459,7 +560,7 @@ class AppPsychologyCard extends StatelessWidget {
             ),
           ),
           if (note != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.md)),
+            SizedBox(height: context.sp(theme.spacing.sm)),
             Text(
               note!,
               style: context.uiText.body.copyWith(
@@ -485,9 +586,9 @@ class AppTradeCardSkeleton extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           UiSkeleton(width: context.sz(120), height: context.sz(16)),
-          SizedBox(height: context.sp(theme.spacing.md)),
+          SizedBox(height: context.sp(theme.spacing.sm)),
           UiSkeleton(width: context.sz(160), height: context.sz(28)),
-          SizedBox(height: context.sp(theme.spacing.md)),
+          SizedBox(height: context.sp(theme.spacing.sm)),
           UiSkeleton(height: context.sz(12)),
         ],
       ),

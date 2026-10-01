@@ -18,28 +18,19 @@ enum UiToggleGroupVariant {
   underline,
 }
 
-class UiToggleOption<T> {
+class UiToggleOption<T> extends UiOption<T> {
   const UiToggleOption({
-    required this.value,
-    required this.label,
-    this.icon,
-    this.intent,
-    this.badge,
-    this.tooltip,
-    this.enabled = true,
+    required super.value,
+    required super.label,
+    super.icon,
+    super.intent,
+    super.badge,
+    super.tooltip,
+    super.description,
+    super.trailingLabel,
+    super.group,
+    super.enabled = true,
   });
-
-  final T value;
-  final String label;
-  final IconData? icon;
-
-  /// Overrides the selected-pill color (e.g. bullish for Buy, bearish for Sell).
-  final UiIntent? intent;
-
-  /// Small count/label chip rendered after the label.
-  final String? badge;
-  final String? tooltip;
-  final bool enabled;
 }
 
 /// Segmented control (Buy / Sell, 1D / 1W / 1M) with single or multi select.
@@ -63,13 +54,13 @@ class UiToggleGroup<T> extends StatelessWidget {
     this.expand = false,
     this.iconOnly = false,
     this.enabled = true,
-    this.scrollableOnMobile = true,
+    this.scrollWhenTight = true,
     this.allowEmpty = true,
     this.label,
     this.semanticLabel,
   });
 
-  final List<UiToggleOption<T>> options;
+  final List<UiOption<T>> options;
 
   /// Selected value (single-select mode).
   final T? value;
@@ -91,7 +82,15 @@ class UiToggleGroup<T> extends StatelessWidget {
   final bool expand;
   final bool iconOnly;
   final bool enabled;
-  final bool scrollableOnMobile;
+
+  /// Scroll horizontally instead of overflowing when the segments need more
+  /// width than the box allows.
+  ///
+  /// This is a question about the box, not about the screen: a five-segment
+  /// control is perfectly comfortable on a 1600 px desktop and clips its last
+  /// segment inside a 340 dp index rail on the same screen. Turn it off only for
+  /// a group you would rather see clip than scroll.
+  final bool scrollWhenTight;
 
   /// When false, the last selected item cannot be deselected in multi mode.
   final bool allowEmpty;
@@ -99,10 +98,10 @@ class UiToggleGroup<T> extends StatelessWidget {
   final String? label;
   final String? semanticLabel;
 
-  bool _isSelected(UiToggleOption<T> o) =>
+  bool _isSelected(UiOption<T> o) =>
       multiple ? values.contains(o.value) : o.value == value;
 
-  void _tap(UiToggleOption<T> o) {
+  void _tap(UiOption<T> o) {
     if (!multiple) {
       onChanged?.call(o.value);
       return;
@@ -119,126 +118,150 @@ class UiToggleGroup<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.ui;
-    final c = theme.colors;
-    final BorderRadius radius = context.radius(size.radius(context));
-    final bool vertical = orientation == UiOrientation.vertical;
-    final bool effectiveExpand =
-        expand ||
-        (context.uiRes.isMobile && variant != UiToggleGroupVariant.pill);
+    return LayoutBuilder(
+      builder: (BuildContext ctx, BoxConstraints constraints) {
+        final theme = ctx.ui;
+        final c = theme.colors;
+        final BorderRadius radius = ctx.radius(size.radius(ctx));
+        final bool vertical = orientation == UiOrientation.vertical;
+        final bool hasBoundedWidth = constraints.hasBoundedWidth;
+        final bool effectiveExpand =
+            (expand ||
+                (ctx.uiRes.isMobile && variant != UiToggleGroupVariant.pill)) &&
+            hasBoundedWidth;
 
-    final List<Widget> items = <Widget>[
-      for (int i = 0; i < options.length; i++)
-        _UiToggleButton<T>(
-          option: options[i],
-          selected: _isSelected(options[i]),
-          size: size,
-          variant: variant,
-          density: density,
-          groupIntent: intent,
-          iconOnly: iconOnly,
-          first: i == 0,
-          last: i == options.length - 1,
-          onTap:
-              enabled &&
-                  options[i].enabled &&
-                  (onChanged != null || onValuesChanged != null)
-              ? () => _tap(options[i])
-              : null,
-        ),
-    ];
+        final List<Widget> items = <Widget>[
+          for (int i = 0; i < options.length; i++)
+            _UiToggleButton<T>(
+              option: options[i],
+              selected: _isSelected(options[i]),
+              size: size,
+              variant: variant,
+              density: density,
+              groupIntent: intent,
+              iconOnly: iconOnly,
+              first: i == 0,
+              last: i == options.length - 1,
+              onTap:
+                  enabled &&
+                      options[i].enabled &&
+                      (onChanged != null || onValuesChanged != null)
+                  ? () => _tap(options[i])
+                  : null,
+            ),
+        ];
 
-    final Widget flow = vertical
-        ? Column(
+        final Widget flow = vertical
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: items,
+              )
+            : Row(
+                mainAxisSize:
+                    effectiveExpand ? MainAxisSize.max : MainAxisSize.min,
+                children: <Widget>[
+                  for (final Widget item in items)
+                    effectiveExpand ? Expanded(child: item) : item,
+                ],
+              );
+
+        Widget container;
+        switch (variant) {
+          case UiToggleGroupVariant.segmented:
+            container = Container(
+              // Keep the buttons at their full token height while making the
+              // complete segmented control align with other controls of this size.
+              padding: EdgeInsets.all(ctx.sz(2)),
+              decoration: BoxDecoration(
+                color: c.surfaceMuted,
+                borderRadius: radius,
+                border: Border.all(
+                  color: c.border,
+                  width: theme.borders.hairline,
+                ),
+              ),
+              child: flow,
+            );
+            break;
+          case UiToggleGroupVariant.joined:
+            container = Container(
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                border: Border.all(
+                  color: c.border,
+                  width: theme.borders.hairline,
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: flow,
+            );
+            break;
+          case UiToggleGroupVariant.pill:
+            container = Wrap(
+              spacing: ctx.sp(theme.spacing.xs),
+              runSpacing: ctx.sp(theme.spacing.xs),
+              children: items,
+            );
+            break;
+          case UiToggleGroupVariant.underline:
+            container = DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: c.border,
+                    width: theme.borders.hairline,
+                  ),
+                ),
+              ),
+              child: flow,
+            );
+            break;
+        }
+
+        if (label != null) {
+          container = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: items,
-          )
-        : Row(
-            mainAxisSize: effectiveExpand ? MainAxisSize.max : MainAxisSize.min,
             children: <Widget>[
-              for (final Widget item in items)
-                effectiveExpand ? Expanded(child: item) : item,
+              Text(
+                label!,
+                style: ctx.uiText.label.copyWith(color: c.foregroundMuted),
+              ),
+              SizedBox(height: ctx.sp(theme.spacing.xs)),
+              container,
             ],
           );
+        }
 
-    Widget container;
-    switch (variant) {
-      case UiToggleGroupVariant.segmented:
-        container = Container(
-          padding: EdgeInsets.all(context.sz(3)),
-          decoration: BoxDecoration(
-            color: c.surfaceMuted,
-            borderRadius: radius,
-            border: Border.all(color: c.border, width: theme.borders.hairline),
-          ),
-          child: flow,
+        final Widget result = Semantics(
+          label: semanticLabel,
+          enabled: enabled,
+          child: Opacity(opacity: enabled ? 1 : 0.6, child: container),
         );
-        break;
-      case UiToggleGroupVariant.joined:
-        container = Container(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            border: Border.all(color: c.border, width: theme.borders.hairline),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: flow,
-        );
-        break;
-      case UiToggleGroupVariant.pill:
-        container = Wrap(
-          spacing: context.sp(theme.spacing.xs),
-          runSpacing: context.sp(theme.spacing.xs),
-          children: items,
-        );
-        break;
-      case UiToggleGroupVariant.underline:
-        container = DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: c.border,
-                width: theme.borders.hairline,
+
+        if (!vertical &&
+            !effectiveExpand &&
+            scrollWhenTight &&
+            variant != UiToggleGroupVariant.pill &&
+            hasBoundedWidth) {
+          // The minimum width is what keeps this invisible when it is not needed:
+          // the track still fills the box it was given, segments still hug the
+          // leading edge, and the viewport only starts scrolling once the segments
+          // genuinely need more room than the box has.
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: constraints.maxWidth,
               ),
+              child: result,
             ),
-          ),
-          child: flow,
-        );
-        break;
-    }
-
-    if (label != null) {
-      container = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text(
-            label!,
-            style: context.uiText.label.copyWith(color: c.foregroundMuted),
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          container,
-        ],
-      );
-    }
-
-    final Widget result = Semantics(
-      label: semanticLabel,
-      enabled: enabled,
-      child: Opacity(opacity: enabled ? 1 : 0.6, child: container),
+          );
+        }
+        return result;
+      },
     );
-
-    if (!vertical &&
-        !effectiveExpand &&
-        scrollableOnMobile &&
-        variant != UiToggleGroupVariant.pill &&
-        context.uiRes.isMobile) {
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: result,
-      );
-    }
-    return result;
   }
 }
 
@@ -256,7 +279,7 @@ class _UiToggleButton<T> extends StatelessWidget {
     this.groupIntent,
   });
 
-  final UiToggleOption<T> option;
+  final UiOption<T> option;
   final bool selected;
   final UiSize size;
   final UiToggleGroupVariant variant;

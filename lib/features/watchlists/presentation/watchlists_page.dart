@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/watchlists/data/watchlist_repository.dart';
 
 class WatchlistsPage extends StatefulWidget {
@@ -53,7 +55,8 @@ class _WatchlistsPageState extends State<WatchlistsPage> {
 
     return AppPageBlock(
       title: 'Market Watchlists',
-      subtitle: 'Real-time quotes, technical scanners, and price alert thresholds',
+      subtitle:
+          'Real-time quotes, technical scanners, and price alert thresholds',
       actions: [
         UiButton(
           label: 'Add Symbol',

@@ -353,13 +353,17 @@ class AppTraderCard extends StatelessWidget {
               trader: trader,
               size: UiSize.lg,
               trailingLabel: trader.tradingStyle,
-              trailing: UiButton(
-                label: trader.isFollowing ? 'Following' : 'Follow',
+              trailing: UiIconButton(
+                icon: trader.isFollowing
+                    ? Icons.check_rounded
+                    : Icons.person_add_rounded,
                 variant: trader.isFollowing
                     ? UiVariant.outline
                     : UiVariant.primary,
                 size: UiSize.sm,
-                expandOnMobile: false,
+                tooltip: trader.isFollowing
+                    ? 'Following @${trader.handle}'
+                    : 'Follow @${trader.handle}',
                 onPressed: onFollow,
               ),
             ),
@@ -375,7 +379,10 @@ class AppTraderCard extends StatelessWidget {
               ),
             ],
             SizedBox(height: context.sp(theme.spacing.md)),
-            Row(
+            Wrap(
+              spacing: context.sp(theme.spacing.lg),
+              runSpacing: context.sp(theme.spacing.sm),
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: <Widget>[
                 _stat(context, 'Followers', uiCompactNumber(trader.followers)),
                 _stat(context, 'Following', uiCompactNumber(trader.following)),
@@ -402,20 +409,17 @@ class AppTraderCard extends StatelessWidget {
 
   Widget _stat(BuildContext context, String label, String value) {
     final UiTheme theme = context.ui;
-    return Padding(
-      padding: EdgeInsets.only(right: context.sp(theme.spacing.lg)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(value, style: context.uiText.bodyStrong),
-          Text(
-            label,
-            style: context.uiText.caption.copyWith(
-              color: theme.colors.foregroundMuted,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(value, style: context.uiText.bodyStrong),
+        Text(
+          label,
+          style: context.uiText.caption.copyWith(
+            color: theme.colors.foregroundMuted,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -539,19 +543,17 @@ class AppCommentCard extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: context.sp(theme.spacing.xs)),
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: context.sp(theme.spacing.sm),
+                  runSpacing: context.sp(theme.spacing.xxs),
                   children: <Widget>[
-                    Flexible(
-                      child: Text(
-                        AppTokens.relativeTime(comment.createdAt),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.uiText.caption.copyWith(
-                          color: theme.colors.foregroundSubtle,
-                        ),
+                    Text(
+                      AppTokens.relativeTime(comment.createdAt),
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.foregroundSubtle,
                       ),
                     ),
-                    SizedBox(width: context.sp(theme.spacing.md)),
                     UiButton(
                       label: '${AppTokens.count(comment.likes)} likes',
                       variant: UiVariant.ghost,
@@ -768,6 +770,7 @@ class AppAiInsightCard extends StatelessWidget {
             SizedBox(height: context.sp(theme.spacing.md)),
             Wrap(
               spacing: context.sp(theme.spacing.xs),
+              runSpacing: context.sp(theme.spacing.xs),
               children: insight.tickers
                   .map((String t) => UiBadge(label: '\$$t'))
                   .toList(),

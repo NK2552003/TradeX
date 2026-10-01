@@ -88,15 +88,7 @@ class _AppUiExampleAppState extends State<AppUiExampleApp> {
                       isFavorite: true,
                     ),
                   ),
-                  SizedBox(height: context.sp(theme.spacing.md)),
-                  const AppTickerCard(
-                    ticker: AppTicker(
-                      symbol: 'AAPL',
-                      name: 'Apple Inc.',
-                      price: 224.50,
-                      changePercent: 1.85,
-                    ),
-                  ),
+
                   SizedBox(height: context.sp(theme.spacing.md)),
                   const AppTraderCard(
                     trader: AppTrader(
@@ -184,6 +176,28 @@ class _AppUiExampleAppState extends State<AppUiExampleApp> {
                   ),
                 ],
               ),
+            ),
+            SizedBox(height: context.sp(theme.spacing.xl)),
+            _buildSection(
+              context,
+              title: '5. Canonical Domain Cards (AGENTS.md)',
+              child: Column(
+                children: <Widget>[
+                  const PortfolioSummaryCard(),
+                  SizedBox(height: context.sp(theme.spacing.md)),
+                  const AssetAllocationCard(),
+                  SizedBox(height: context.sp(theme.spacing.md)),
+                  const PositionCard(),
+                  SizedBox(height: context.sp(theme.spacing.md)),
+                  const AiInsightCard(),
+                ],
+              ),
+            ),
+            SizedBox(height: context.sp(theme.spacing.xl)),
+            _buildSection(
+              context,
+              title: '6. Canonical Screen Blocks (AGENTS.md)',
+              child: const MarketBlocks(),
             ),
           ],
         ),

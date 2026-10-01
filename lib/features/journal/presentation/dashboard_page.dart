@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/journal/data/supabase_trade_repository.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key, this.repository});
 
-  final JournalRepository? repository;
+  final SupabaseTradeRepository? repository;
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  late final JournalRepository _repo;
+  late final SupabaseTradeRepository _repo;
   bool _loading = true;
   Map<String, dynamic>? _stats;
   List<AppTrade> _recentTrades = [];
@@ -20,7 +22,7 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    _repo = widget.repository ?? JournalRepositoryImpl();
+    _repo = widget.repository ?? SupabaseTradeRepositoryImpl();
     _loadDashboard();
   }
 
@@ -51,13 +53,16 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     final totalPnlVal = (_stats?['total_pnl'] as num?)?.toDouble() ?? 12450.0;
-    final winRateVal = (_stats?['win_rate_percent'] as num?)?.toDouble() ?? 68.4;
+    final winRateVal =
+        (_stats?['win_rate_percent'] as num?)?.toDouble() ?? 68.4;
     final avgRrVal = (_stats?['avg_rr'] as num?)?.toDouble() ?? 2.4;
-    final bestTradeVal = (_stats?['best_trade_pnl'] as num?)?.toDouble() ?? 3200.0;
+    final bestTradeVal =
+        (_stats?['best_trade_pnl'] as num?)?.toDouble() ?? 3200.0;
 
     return AppPageBlock(
       title: 'Executive Dashboard',
-      subtitle: 'Portfolio equity, daily PnL performance, and key trading metrics',
+      subtitle:
+          'Portfolio equity, daily PnL performance, and key trading metrics',
       actions: [
         UiButton(
           label: 'Export Report',
@@ -81,16 +86,29 @@ class _DashboardPageState extends State<DashboardPage> {
           children: [
             AppStatGridBlock(
               stats: [
-                AppStat(label: 'Net Profit', value: totalPnlVal, delta: 14.2, suffix: '\$'),
-                AppStat(label: 'Win Rate', value: winRateVal, delta: 2.1, suffix: '%'),
+                AppStat(
+                  label: 'Net Profit',
+                  value: totalPnlVal,
+                  delta: 14.2,
+                  suffix: '\$',
+                ),
+                AppStat(
+                  label: 'Win Rate',
+                  value: winRateVal,
+                  delta: 2.1,
+                  suffix: '%',
+                ),
                 AppStat(label: 'Avg R:R', value: avgRrVal, delta: 0.0),
-                AppStat(label: 'Best Trade', value: bestTradeVal, delta: 100.0, suffix: '\$'),
+                AppStat(
+                  label: 'Best Trade',
+                  value: bestTradeVal,
+                  delta: 100.0,
+                  suffix: '\$',
+                ),
               ],
             ),
             UiGap.v(context.sp(theme.spacing.xl)),
-            AppRecentTradesBlock(
-              trades: _recentTrades,
-            ),
+            AppRecentTradesBlock(trades: _recentTrades),
           ],
         ),
       ),

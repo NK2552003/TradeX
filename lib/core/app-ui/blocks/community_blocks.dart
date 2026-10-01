@@ -171,13 +171,17 @@ class AppSuggestedTradersBlock extends StatelessWidget {
               child: AppTraderRow(
                 trader: traders[i],
                 onTap: onOpen == null ? null : () => onOpen!(traders[i]),
-                trailing: UiButton(
-                  label: traders[i].isFollowing ? 'Following' : 'Follow',
+                trailing: UiIconButton(
+                  icon: traders[i].isFollowing
+                      ? Icons.check_rounded
+                      : Icons.person_add_rounded,
                   variant: traders[i].isFollowing
                       ? UiVariant.outline
                       : UiVariant.primary,
                   size: UiSize.sm,
-                  expandOnMobile: false,
+                  tooltip: traders[i].isFollowing
+                      ? 'Following @${traders[i].handle}'
+                      : 'Follow @${traders[i].handle}',
                   onPressed: onFollow == null
                       ? null
                       : () => onFollow!(traders[i]),

@@ -40,6 +40,38 @@ dependencies:
   flutter_dotenv: ^5.2.1
   quiet_dock: ^0.1.0
   animations: ^3.0.0
+  http: ^1.2.0
+  shared_preferences: 2.5.5
+  url_launcher: 6.3.2
+
+  # ── Trader Notes: markdown authoring, preview and export ──────────────────
+  # Rendering + parsing the note body (GFM, plus the math/highlight/mermaid
+  # extensions markdown_kit layers on top).
+  flutter_markdown: 0.7.7+1
+  markdown: 7.3.1
+  flutter_math_fork: 0.7.4
+  flutter_highlight: 0.7.0
+  highlight: 0.7.0
+  # Attachments: screenshots from the gallery, .md/.txt/.pdf imports.
+  image_picker: 1.2.3
+  file_picker: 8.3.7
+  # Dictation for the note body.
+  speech_to_text: 7.4.0
+  # Export: share sheet, PDF generation.
+  #
+  # No `syncfusion_flutter_pdf`: it caps `intl` below 0.20.0, which collides with
+  # the `animations` -> `material_ui` -> `intl ^0.20.2` chain this app already
+  # depends on. Consequence: imported `.pdf` files attach as-is rather than being
+  # text-extracted into the note body. `.md` / `.txt` imports are unaffected.
+  share_plus: 12.0.2
+  pdf: 3.12.0
+  path_provider: 2.1.6
+  path: 1.9.1
+  # In-note ```chart``` blocks.
+  fl_chart: 1.2.0
+  # Note ids.
+  uuid: 4.5.3
+  html: ^0.15.7
 
 dev_dependencies:
   flutter_test:
@@ -71,6 +103,29 @@ flutter:
     - assets/data/stock_detail/
     - assets/data/by_topic/
     - assets/data/tickers/
+    # Embedded in generated note PDFs — the `pdf` package cannot reach system
+    # fonts, so the export bundles its own.
+    - assets/fonts/
+
+  fonts:
+    - family: NotoSans
+      fonts:
+        - asset: assets/fonts/NotoSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSans-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/NotoSans-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/NotoSans-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: NotoSansMono
+      fonts:
+        - asset: assets/fonts/NotoSansMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSansMono-Bold.ttf
+          weight: 700
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

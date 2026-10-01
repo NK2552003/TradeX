@@ -61,6 +61,14 @@ class _UiSearchFieldState extends State<UiSearchField> {
   bool _focused = false;
 
   @override
+  void didUpdateWidget(UiSearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != null && widget.value != _controller.text) {
+      _controller.text = widget.value!;
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -118,9 +126,12 @@ class _UiSearchFieldState extends State<UiSearchField> {
               boxShadow: theme.shadows.sm,
             ),
             clipBehavior: Clip.antiAlias,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: context.sz(260)),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
                 for (final UiSearchSuggestion s in widget.suggestions)
                   UiInteractive(
                     onTap: () => widget.onSuggestionTap?.call(s),
@@ -172,6 +183,8 @@ class _UiSearchFieldState extends State<UiSearchField> {
                         ),
                   ),
               ],
+                ),
+              ),
             ),
           ),
         ],

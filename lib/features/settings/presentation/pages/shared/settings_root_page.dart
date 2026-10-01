@@ -4,6 +4,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/settings/presentation/pages/admin/desk_risk_page.dart';
 import 'package:tradex/features/settings/presentation/pages/admin/organization_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/affiliate/affiliate_settings_page.dart';
@@ -30,9 +31,12 @@ class SettingsRootPage extends StatefulWidget {
     this.subscriptionTier = AppTier.free,
     this.onApplyForAffiliate,
     this.onSubpageChanged,
+    this.onOpenRef,
+    this.communityRepository,
   });
 
   final UserRole userRole;
+  final CommunityRepository? communityRepository;
   final String? initialSectionId;
   final bool showNavigationPane;
   final VoidCallback? onLogout;
@@ -41,6 +45,7 @@ class SettingsRootPage extends StatefulWidget {
   final VoidCallback? onApplyForAffiliate;
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
   onSubpageChanged;
+  final void Function(AppLinkRef ref)? onOpenRef;
 
   @override
   State<SettingsRootPage> createState() => _SettingsRootPageState();
@@ -139,7 +144,11 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
 
   Widget _buildDetailPane(String sectionId) {
     return switch (sectionId) {
-      'profile' => ProfileSettingsPage(userRole: widget.userRole),
+      'profile' => ProfileSettingsPage(
+        communityRepository: widget.communityRepository,
+        userRole: widget.userRole,
+        onOpenRef: widget.onOpenRef,
+      ),
       'affiliate_perks' => TraderAffiliatePerksPage(
         onUpgradeToAffiliate: widget.onApplyForAffiliate,
       ),
@@ -156,7 +165,11 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
         onSubscriptionTierChanged: widget.onSubscriptionTierChanged,
       ),
       'help' => const HelpAboutPage(),
-      _ => ProfileSettingsPage(userRole: widget.userRole),
+      _ => ProfileSettingsPage(
+        communityRepository: widget.communityRepository,
+        userRole: widget.userRole,
+        onOpenRef: widget.onOpenRef,
+      ),
     };
   }
 
@@ -326,7 +339,6 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = context.uiRes.isMobile;
     final sections = _getSectionsForRole();
 
     // Ensure selectedSectionId exists in active role's sections
@@ -334,13 +346,13 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
       _selectedSectionId = sections.first['id'] as String;
     }
 
-    // Wide layouts use the application sidebar as the single navigation
-    // source. The settings overview is only a mobile drill-in surface.
-    final Widget root = !widget.showNavigationPane || !isMobile
-        ? _buildDetailPane(_selectedSectionId)
-        : (isMobile
-              ? _buildSettingsOverview(context)
-              : _buildNavigationSplit(context, sections));
+    // A parent Settings selection is a chooser at every width. This matters on
+    // tablet, where the compact application rail intentionally exposes only
+    // the parent icon. Selecting a concrete `settings_<section>` destination
+    // still lands directly on its detail page.
+    final Widget root = widget.showNavigationPane
+        ? _buildSettingsOverview(context)
+        : _buildDetailPane(_selectedSectionId);
 
     // The switcher now wraps every width, not just the phone layout: a drill-in
     // is a page everywhere, so the slide that used to be mobile-only is the
@@ -379,142 +391,6 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
     );
   }
 
-  /// Tablet/desktop layout with settings navigation beside the detail pane.
-  Widget _buildNavigationSplit(
-    BuildContext context,
-    List<Map<String, dynamic>> sections,
-  ) {
-    final theme = context.ui;
-    final colors = theme.colors;
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: context.sz(1120)),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // In-Page Navigation Pane (~240px)
-            SizedBox(
-              width: context.uiRes.isTablet ? context.sz(220) : context.sz(250),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  vertical: context.sp(theme.spacing.lg),
-                  horizontal: context.sp(theme.spacing.sm),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: context.sp(theme.spacing.sm),
-                        vertical: context.sp(theme.spacing.xs),
-                      ),
-                      child: Row(
-                        children: [
-                          Text('Settings', style: context.uiText.heading),
-                          SizedBox(width: context.sp(theme.spacing.xs)),
-                          UiBadge(
-                            label: widget.userRole.shortTitle,
-                            intent: widget.userRole.badgeIntent,
-                            size: UiSize.xs,
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: context.sp(theme.spacing.sm)),
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: sections.length,
-                        separatorBuilder: (context, index) =>
-                            SizedBox(height: context.sp(theme.spacing.xxs)),
-                        itemBuilder: (context, index) {
-                          final s = sections[index];
-                          final isSelected = _selectedSectionId == s['id'];
-
-                          return UiInteractive(
-                            onTap: () => setState(
-                              () => _selectedSectionId = s['id'] as String,
-                            ),
-                            builder: (context, state) => Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: context.sp(theme.spacing.sm),
-                                vertical: context.sp(theme.spacing.xs + 2),
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? colors.primary.withValues(alpha: 0.12)
-                                    : (state.hovered
-                                          ? colors.surfaceHover
-                                          : Colors.transparent),
-                                borderRadius: context.radius(theme.radii.md),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? colors.primary
-                                      : Colors.transparent,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    s['icon'] as IconData,
-                                    size: context.sz(18),
-                                    color: isSelected
-                                        ? colors.primary
-                                        : colors.foregroundMuted,
-                                  ),
-                                  SizedBox(width: context.sp(theme.spacing.sm)),
-                                  Expanded(
-                                    child: Text(
-                                      s['title'] as String,
-                                      style: context.uiText.bodyStrong.copyWith(
-                                        color: isSelected
-                                            ? colors.primary
-                                            : colors.foreground,
-                                        fontWeight: isSelected
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    UiDivider(),
-                    SizedBox(height: context.sp(theme.spacing.xs)),
-                    UiButton(
-                      label: 'Log Out',
-                      leadingIcon: Icons.logout_rounded,
-                      variant: UiVariant.ghost,
-                      intent: UiIntent.danger,
-                      size: UiSize.sm,
-                      onPressed: _showLogoutDialog,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Divider between left nav and detail pane
-            Container(
-              width: 1,
-              color: colors.border,
-              margin: EdgeInsets.symmetric(
-                vertical: context.sp(theme.spacing.md),
-              ),
-            ),
-
-            // Detail Pane
-            Expanded(child: _buildDetailPane(_selectedSectionId)),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildSettingsOverview(BuildContext context) {
     final theme = context.ui;
     final double pagePadding = context.sp(theme.spacing.md);
@@ -546,7 +422,11 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                           : 'Administrator credentials and desk division'),
                 icon: Icons.person_outline_rounded,
                 onTap: () => _navigateToSubpage(
-                  ProfileSettingsPage(userRole: widget.userRole),
+                  ProfileSettingsPage(
+                    communityRepository: widget.communityRepository,
+                    userRole: widget.userRole,
+                    onOpenRef: widget.onOpenRef,
+                  ),
                   widget.userRole == UserRole.customer
                       ? 'Personal Profile'
                       : (widget.userRole == UserRole.affiliate

@@ -22,9 +22,17 @@ class UiTimelineEntry {
   final Widget? trailing;
 }
 
+/// Type alias for [UiTimelineEntry] adhering to AGENTS.md component specification.
+typedef UiTimelineItem = UiTimelineEntry;
+
 /// Vertical timeline: version history, activity log, audit trail.
 class UiTimeline extends StatelessWidget {
-  const UiTimeline({super.key, required this.entries, this.onTap});
+  const UiTimeline({
+    super.key,
+    List<UiTimelineEntry>? entries,
+    List<UiTimelineEntry>? items,
+    this.onTap,
+  }) : entries = entries ?? items ?? const <UiTimelineEntry>[];
 
   final List<UiTimelineEntry> entries;
   final ValueChanged<int>? onTap;

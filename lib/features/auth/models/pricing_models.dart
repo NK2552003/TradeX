@@ -42,7 +42,9 @@ class PricingPlanModel {
   /// Billing period subtext.
   String periodLabel({required bool isAnnual}) {
     if (monthlyAmount <= 0) return 'free forever';
-    return isAnnual ? 'per month, billed annually' : 'per month, billed monthly';
+    return isAnnual
+        ? 'per month, billed annually'
+        : 'per month, billed monthly';
   }
 
   factory PricingPlanModel.fromJson(Map<String, dynamic> json) {
@@ -211,6 +213,7 @@ class PricingCatalogueResponse {
     required this.plans,
     required this.categories,
     required this.faqs,
+    this.copy = const {},
     this.annualDiscountPercent = 20,
     this.annualMonthsBilled = 10,
     this.footerDisclaimer =
@@ -220,12 +223,17 @@ class PricingCatalogueResponse {
   final List<PricingPlanModel> plans;
   final List<PlanFeatureCategory> categories;
   final List<PricingFaqItem> faqs;
+  final Map<String, String> copy;
+  String text(String key) => copy[key] ?? '';
   final int annualDiscountPercent;
   final int annualMonthsBilled;
   final String footerDisclaimer;
 
   factory PricingCatalogueResponse.fromJson(Map<String, dynamic> json) {
     return PricingCatalogueResponse(
+      copy: (json['copy'] as Map? ?? {}).map(
+        (key, value) => MapEntry(key.toString(), value.toString()),
+      ),
       plans:
           (json['plans'] as List<dynamic>?)
               ?.map((e) => PricingPlanModel.fromJson(e as Map<String, dynamic>))
@@ -234,8 +242,7 @@ class PricingCatalogueResponse {
       categories:
           (json['categories'] as List<dynamic>?)
               ?.map(
-                (e) =>
-                    PlanFeatureCategory.fromJson(e as Map<String, dynamic>),
+                (e) => PlanFeatureCategory.fromJson(e as Map<String, dynamic>),
               )
               .toList() ??
           const <PlanFeatureCategory>[],
@@ -251,6 +258,7 @@ class PricingCatalogueResponse {
   }
 
   Map<String, dynamic> toJson() => {
+    'copy': copy,
     'plans': plans.map((p) => p.toJson()).toList(),
     'categories': categories.map((c) => c.toJson()).toList(),
     'faqs': faqs.map((f) => f.toJson()).toList(),

@@ -8,9 +8,11 @@ import 'ui_common.dart';
 class UiDatePicker extends StatelessWidget {
   const UiDatePicker({
     super.key,
-    this.value,
+    DateTime? value,
+    DateTime? selectedDate,
     this.range,
-    this.onChanged,
+    ValueChanged<DateTime>? onChanged,
+    ValueChanged<DateTime>? onDateSelected,
     this.onRangeChanged,
     this.rangeMode = false,
     this.hintText = 'Pick a date',
@@ -18,7 +20,8 @@ class UiDatePicker extends StatelessWidget {
     this.enabled = true,
     this.firstDate,
     this.lastDate,
-  });
+  })  : value = selectedDate ?? value,
+        onChanged = onDateSelected ?? onChanged;
 
   final DateTime? value;
   final DateTimeRange? range;

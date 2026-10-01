@@ -10,16 +10,19 @@ class UiTagInput extends StatefulWidget {
   const UiTagInput({
     super.key,
     required this.tags,
-    required this.onChanged,
+    ValueChanged<List<String>>? onChanged,
+    ValueChanged<List<String>>? onTagsChanged,
+    this.label,
     this.hintText = 'Add a tag',
     this.suggestions = const <String>[],
     this.maxTags,
     this.prefix,
     this.intent = UiIntent.primary,
-  });
+  }) : onChanged = onTagsChanged ?? onChanged;
 
   final List<String> tags;
-  final ValueChanged<List<String>> onChanged;
+  final ValueChanged<List<String>>? onChanged;
+  final String? label;
   final String hintText;
   final List<String> suggestions;
   final int? maxTags;
@@ -46,12 +49,12 @@ class _UiTagInputState extends State<UiTagInput> {
     if (tag.isEmpty) return;
     if (widget.tags.contains(tag)) return;
     if (widget.maxTags != null && widget.tags.length >= widget.maxTags!) return;
-    widget.onChanged(<String>[...widget.tags, tag]);
+    widget.onChanged?.call(<String>[...widget.tags, tag]);
     _controller.clear();
   }
 
   void _remove(String tag) =>
-      widget.onChanged(widget.tags.where((String t) => t != tag).toList());
+      widget.onChanged?.call(widget.tags.where((String t) => t != tag).toList());
 
   @override
   Widget build(BuildContext context) {
@@ -139,6 +142,7 @@ class _UiTagInputState extends State<UiTagInput> {
             ),
           ),
         UiInput(
+          label: widget.label,
           controller: _controller,
           hintText: widget.hintText,
           leadingIcon: Icons.sell_outlined,

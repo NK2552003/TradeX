@@ -91,6 +91,9 @@ class UiCandleOverlay {
 
 enum UiPriceChartType { candles, hollow, line, area }
 
+/// Alias for UiCandle as referenced in component catalogue.
+typedef CandleData = UiCandle;
+
 /// Candlestick / OHLC price chart with an optional volume pane, moving-average
 /// overlays, price lines, trade markers and a crosshair read-out.
 ///
@@ -98,7 +101,8 @@ enum UiPriceChartType { candles, hollow, line, area }
 class UiCandleChart extends StatefulWidget {
   const UiCandleChart({
     super.key,
-    required this.candles,
+    List<UiCandle>? candles,
+    List<UiCandle>? data,
     this.type = UiPriceChartType.candles,
     this.overlays = const <UiCandleOverlay>[],
     this.priceLines = const <UiPriceLine>[],
@@ -109,7 +113,7 @@ class UiCandleChart extends StatefulWidget {
     this.interactive = true,
     this.priceFormatter,
     this.onHoverIndex,
-  });
+  }) : candles = candles ?? data ?? const <UiCandle>[];
 
   final List<UiCandle> candles;
   final UiPriceChartType type;

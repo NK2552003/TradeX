@@ -1,23 +1,27 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
 
-/// Continuously scrolling ticker tape (market movers strip).
+/// Continuous scrolling ticker text or widget banner (e.g. live prices, breaking news).
 class UiMarquee extends StatefulWidget {
   const UiMarquee({
     super.key,
-    required this.children,
-    this.speed = 40,
-    this.spacing,
-    this.paused = false,
+    required this.text,
+    this.textStyle,
+    this.velocity = 40.0,
+    this.blankSpace = 48.0,
+    this.pauseOnHover = true,
+    this.padding = EdgeInsets.zero,
   });
 
-  final List<Widget> children;
-
-  /// Logical pixels per second.
-  final double speed;
-  final double? spacing;
-  final bool paused;
+  final String text;
+  final TextStyle? textStyle;
+  final double velocity;
+  final double blankSpace;
+  final bool pauseOnHover;
+  final EdgeInsetsGeometry padding;
 
   @override
   State<UiMarquee> createState() => _UiMarqueeState();
@@ -25,54 +29,100 @@ class UiMarquee extends StatefulWidget {
 
 class _UiMarqueeState extends State<UiMarquee>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 20),
-  )..repeat();
-  final ScrollController _scroll = ScrollController();
-  Duration _last = Duration.zero;
+  late final ScrollController _scrollController = ScrollController();
+  bool _hovered = false;
+  bool _running = false;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _controller.addListener(_tick);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startScroll());
   }
 
-  void _tick() {
-    if (widget.paused || !_scroll.hasClients) return;
-    final Duration now = _controller.lastElapsedDuration ?? Duration.zero;
-    final double dt = ((now - _last).inMicroseconds / 1e6).clamp(0.0, 0.05);
-    _last = now;
-    final double max = _scroll.position.maxScrollExtent;
-    if (max <= 0) return;
-    double next = _scroll.offset + widget.speed * dt;
-    if (next >= max) next = 0;
-    _scroll.jumpTo(next);
+  void _startScroll() async {
+    if (!mounted) return;
+    _running = true;
+    while (mounted && _running) {
+      if (!_hovered &&
+          _scrollController.hasClients &&
+          _scrollController.position.hasContentDimensions) {
+        final double max = _scrollController.position.maxScrollExtent;
+        if (max > 0) {
+          final double current = _scrollController.offset;
+          final double remaining = max - current;
+          final int durationMs = ((remaining / widget.velocity) * 1000).toInt();
+          if (durationMs > 50) {
+            await _scrollController.animateTo(
+              max,
+              duration: Duration(milliseconds: durationMs),
+              curve: Curves.linear,
+            );
+          }
+          if (mounted && _scrollController.hasClients) {
+            _scrollController.jumpTo(0);
+          }
+        }
+      }
+      if (!mounted || !_running) break;
+      final Completer<void> completer = Completer<void>();
+      _timer?.cancel();
+      _timer = Timer(const Duration(milliseconds: 100), () {
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      });
+      await completer.future;
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
-    _scroll.dispose();
+    _running = false;
+    _timer?.cancel();
+    _timer = null;
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final double gap = context.sp(widget.spacing ?? context.uiSpace.xl);
-    final List<Widget> loop = <Widget>[...widget.children, ...widget.children];
-    return SingleChildScrollView(
-      controller: _scroll,
-      scrollDirection: Axis.horizontal,
-      physics: const NeverScrollableScrollPhysics(),
-      child: Row(
-        children: <Widget>[
-          for (final Widget child in loop)
-            Padding(
-              padding: EdgeInsets.only(right: gap),
-              child: child,
+    final theme = context.ui;
+    final TextStyle style = widget.textStyle ??
+        context.uiText.body.copyWith(
+          color: theme.colors.foreground,
+          fontWeight: FontWeight.w500,
+        );
+
+    final Widget textWidget = Text(
+      widget.text,
+      style: style,
+      maxLines: 1,
+      softWrap: false,
+    );
+
+    return MouseRegion(
+      onEnter: widget.pauseOnHover ? (_) => setState(() => _hovered = true) : null,
+      onExit: widget.pauseOnHover ? (_) => setState(() => _hovered = false) : null,
+      child: Padding(
+        padding: widget.padding,
+        child: ClipRect(
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                textWidget,
+                SizedBox(width: widget.blankSpace),
+                textWidget,
+                SizedBox(width: widget.blankSpace),
+                textWidget,
+              ],
             ),
-        ],
+          ),
+        ),
       ),
     );
   }

@@ -4,6 +4,8 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/session_trader.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
+import 'package:tradex/features/community/data/community_repository.dart';
+import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
@@ -13,10 +15,14 @@ class ProfileSettingsPage extends StatefulWidget {
     super.key,
     this.userRole = UserRole.customer,
     this.repository,
+    this.onOpenRef,
+    this.communityRepository,
   });
 
   final UserRole userRole;
+  final CommunityRepository? communityRepository;
   final ProfileSettingsRepository? repository;
+  final void Function(AppLinkRef ref)? onOpenRef;
 
   @override
   State<ProfileSettingsPage> createState() => _ProfileSettingsPageState();
@@ -453,6 +459,19 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         channelHandle: _channelHandleController.text.trim(),
         audienceReach: _selectedAudienceReach,
         payoutMethod: _selectedPayoutMethod,
+        isCurrentUser: true,
+        repository: widget.communityRepository,
+        author: CommunityAuthor(
+          id: _profile?.id ?? 'usr_alex_vance',
+          handle: (_profile?.handle ?? '').isNotEmpty ? _profile!.handle : 'alextrades',
+          displayName: (_displayNameController.text.trim().isNotEmpty
+                  ? _displayNameController.text.trim()
+                  : _profile?.displayName) ??
+              'Alex Vance',
+          userRole: widget.userRole,
+          avatarUrl: _profile?.avatarUrl,
+        ),
+        onOpenRef: widget.onOpenRef,
       ),
     );
   }

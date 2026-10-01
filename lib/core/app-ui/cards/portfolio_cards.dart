@@ -134,42 +134,62 @@ class AppWinRateCard extends StatelessWidget {
     final UiTheme theme = context.ui;
     return UiCard(
       title: title,
-      child: Row(
-        children: <Widget>[
-          AppReveal(
-            builder: (BuildContext context, double t) => UiProgressCircle(
-              value: (winRate / 100 * t).clamp(0, 1),
-              size: 104,
-              intent: winRate >= 50 ? UiIntent.bullish : UiIntent.bearish,
-              center: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(
-                    '${(winRate * t).toStringAsFixed(0)}%',
-                    style: context.uiText.heading,
-                  ),
-                  Text(
-                    'win',
-                    style: context.uiText.caption.copyWith(
-                      color: theme.colors.foregroundMuted,
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final bool narrow = constraints.maxWidth < 260;
+          final Widget circle = Center(
+            child: AppReveal(
+              builder: (BuildContext context, double t) => UiProgressCircle(
+                value: (winRate / 100 * t).clamp(0, 1),
+                size: narrow ? 84 : 104,
+                intent: winRate >= 50 ? UiIntent.bullish : UiIntent.bearish,
+                center: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      '${(winRate * t).toStringAsFixed(0)}%',
+                      style: context.uiText.heading,
                     ),
-                  ),
-                ],
+                    Text(
+                      'win',
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.foregroundMuted,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          SizedBox(width: context.sp(theme.spacing.lg)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          );
+
+          final Widget breakdown = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              _row(context, 'Wins', wins, UiIntent.bullish),
+              _row(context, 'Losses', losses, UiIntent.bearish),
+              _row(context, 'Break-even', breakeven, UiIntent.neutral),
+            ],
+          );
+
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                _row(context, 'Wins', wins, UiIntent.bullish),
-                _row(context, 'Losses', losses, UiIntent.bearish),
-                _row(context, 'Break-even', breakeven, UiIntent.neutral),
+                circle,
+                SizedBox(height: context.sp(theme.spacing.md)),
+                breakdown,
               ],
-            ),
-          ),
-        ],
+            );
+          }
+
+          return Row(
+            children: <Widget>[
+              circle,
+              SizedBox(width: context.sp(theme.spacing.lg)),
+              Expanded(child: breakdown),
+            ],
+          );
+        },
       ),
     );
   }

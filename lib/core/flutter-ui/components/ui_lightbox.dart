@@ -7,20 +7,46 @@ import 'ui_icon_button.dart';
 /// Full-screen image viewer: pinch/scroll zoom, swipe between images,
 /// swipe-down to dismiss, optional download/share action.
 class UiLightbox extends StatefulWidget {
-  const UiLightbox({
+  UiLightbox({
     super.key,
-    required this.imageUrls,
+    List<String>? imageUrls,
+    String? mediaUrl,
+    String? imageUrl,
     this.initialIndex = 0,
     this.caption,
     this.onDownload,
     this.onShare,
-  });
+  }) : imageUrls = imageUrls ??
+            (mediaUrl != null
+                ? <String>[mediaUrl]
+                : (imageUrl != null ? <String>[imageUrl] : const <String>[]));
 
   final List<String> imageUrls;
   final int initialIndex;
   final String? caption;
   final VoidCallback? onDownload;
   final VoidCallback? onShare;
+
+  /// Convenience to open lightbox full-screen modal.
+  static Future<void> show(
+    BuildContext context, {
+    required String mediaUrl,
+    String? caption,
+    VoidCallback? onDownload,
+    VoidCallback? onShare,
+  }) {
+    return Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        opaque: false,
+        pageBuilder: (_, _, _) => UiLightbox(
+          mediaUrl: mediaUrl,
+          caption: caption,
+          onDownload: onDownload,
+          onShare: onShare,
+        ),
+      ),
+    );
+  }
 
   @override
   State<UiLightbox> createState() => _UiLightboxState();

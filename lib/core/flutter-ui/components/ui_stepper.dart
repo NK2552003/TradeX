@@ -18,10 +18,11 @@ class UiStepper extends StatelessWidget {
   const UiStepper({
     super.key,
     required this.steps,
-    required this.currentIndex,
+    int? currentIndex,
+    int? currentStep,
     this.onStepTap,
     this.forceVertical = false,
-  });
+  }) : currentIndex = currentStep ?? currentIndex ?? 0;
 
   final List<UiStepperStep> steps;
   final int currentIndex;
@@ -32,7 +33,7 @@ class UiStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final bool isMobile = context.uiRes.isMobile;
-    final bool vertical = forceVertical;
+    final bool vertical = forceVertical || (isMobile && steps.length > 2);
 
     Widget dot(int i) {
       final bool done = i < currentIndex;

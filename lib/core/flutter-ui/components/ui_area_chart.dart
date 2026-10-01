@@ -5,12 +5,13 @@ import 'ui_badge.dart';
 import 'ui_card.dart';
 import 'ui_chart_base.dart';
 import 'ui_common.dart';
+import 'ui_toggle_group.dart';
 
 /// Area chart. Named configuration of [UiChart] with filled series.
 class UiAreaChart extends StatelessWidget {
   const UiAreaChart({
     super.key,
-    required this.data,
+    this.data = const <UiChartPoint>[],
     required this.series,
     this.height,
     this.showGrid = true,
@@ -77,18 +78,20 @@ class UiAreaChart extends StatelessWidget {
   );
 }
 
-class UiAreaChartCard extends StatelessWidget {
+class UiAreaChartCard extends StatefulWidget {
   const UiAreaChartCard({
     super.key,
-    required this.data,
+    this.data = const <UiChartPoint>[],
     required this.series,
     this.title,
     this.subtitle,
-    this.metricValue,
+    String? metricValue,
+    String? value,
     this.metricChange,
     this.isBullish,
     this.initialTimeframe,
-    this.timeframes,
+    List<String>? timeframes,
+    List<String>? timeframeOptions,
     this.onTimeframeChanged,
     this.height,
     this.showGrid = true,
@@ -105,7 +108,9 @@ class UiAreaChartCard extends StatelessWidget {
     this.gradientColors,
     this.showDots = false,
     this.thresholds = const <UiChartThreshold>[],
-  }) : glow = lineGlow ?? glow;
+  })  : metricValue = value ?? metricValue,
+        timeframes = timeframeOptions ?? timeframes,
+        glow = lineGlow ?? glow;
 
   final List<UiChartPoint> data;
   final List<UiChartSeries> series;
@@ -133,58 +138,101 @@ class UiAreaChartCard extends StatelessWidget {
   final List<UiChartThreshold> thresholds;
 
   @override
+  State<UiAreaChartCard> createState() => _UiAreaChartCardState();
+}
+
+class _UiAreaChartCardState extends State<UiAreaChartCard> {
+  late String? _currentTimeframe =
+      widget.initialTimeframe ?? widget.timeframes?.firstOrNull;
+
+  @override
   Widget build(BuildContext context) {
     final theme = context.ui;
     final Widget chart = UiAreaChart(
-      data: data,
-      series: series,
-      height: height,
-      showGrid: showGrid,
-      showAxisLabels: showAxisLabels,
-      showLegend: showLegend,
-      valueFormatter: valueFormatter,
-      curved: curved,
-      interactive: interactive,
-      toggleableLegend: toggleableLegend,
-      stacked: stacked,
-      glow: glow,
-      fillOpacity: fillOpacity,
-      gradientColors: gradientColors,
-      showDots: showDots,
-      thresholds: thresholds,
+      data: widget.data,
+      series: widget.series,
+      height: widget.height,
+      showGrid: widget.showGrid,
+      showAxisLabels: widget.showAxisLabels,
+      showLegend: widget.showLegend,
+      valueFormatter: widget.valueFormatter,
+      curved: widget.curved,
+      interactive: widget.interactive,
+      toggleableLegend: widget.toggleableLegend,
+      stacked: widget.stacked,
+      glow: widget.glow,
+      fillOpacity: widget.fillOpacity,
+      gradientColors: widget.gradientColors,
+      showDots: widget.showDots,
+      thresholds: widget.thresholds,
     );
 
-    if (metricValue == null && metricChange == null) {
-      return UiCard(title: title, subtitle: subtitle, child: chart);
+    final bool hasPills =
+        widget.timeframes != null && widget.timeframes!.isNotEmpty;
+    final Widget? switcher = hasPills
+        ? SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: UiToggleGroup<String>(
+              value: _currentTimeframe ?? widget.timeframes!.first,
+              options: widget.timeframes!
+                  .map((String t) => UiOption<String>(label: t, value: t))
+                  .toList(),
+              size: UiSize.sm,
+              onChanged: (String val) {
+                setState(() => _currentTimeframe = val);
+                widget.onTimeframeChanged?.call(val);
+              },
+            ),
+          )
+        : null;
+
+    if (widget.metricValue == null &&
+        widget.metricChange == null &&
+        !hasPills) {
+      return UiCard(
+        title: widget.title,
+        subtitle: widget.subtitle,
+        child: chart,
+      );
     }
 
     return UiCard(
-      title: title,
-      subtitle: subtitle,
+      title: widget.title,
+      subtitle: widget.subtitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: context.sp(theme.spacing.md),
+            runSpacing: context.sp(theme.spacing.sm),
             children: <Widget>[
-              if (metricValue != null)
-                Flexible(
-                  child: Text(
-                    metricValue!,
-                    style: context.uiText.heading,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              if (metricChange != null) ...<Widget>[
-                SizedBox(width: context.sp(theme.spacing.sm)),
-                UiBadge(
-                  label: metricChange!,
-                  intent: isBullish == false
-                      ? UiIntent.danger
-                      : UiIntent.success,
-                ),
-              ],
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: <Widget>[
+                  if (widget.metricValue != null)
+                    Flexible(
+                      child: Text(
+                        widget.metricValue!,
+                        style: context.uiText.heading,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  if (widget.metricChange != null) ...<Widget>[
+                    SizedBox(width: context.sp(theme.spacing.sm)),
+                    UiBadge(
+                      label: widget.metricChange!,
+                      intent: widget.isBullish == false
+                          ? UiIntent.danger
+                          : UiIntent.success,
+                    ),
+                  ],
+                ],
+              ),
+              ?switcher,
             ],
           ),
           SizedBox(height: context.sp(theme.spacing.md)),

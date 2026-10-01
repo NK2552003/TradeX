@@ -1,33 +1,35 @@
 """
-Stock Detail Kit — Per-stock "everything" fetcher.
-Pulls all detail available for a ticker into a single combined JSON file:
-summary, quote, dedicated news, price history chart, options chains, dividends & splits,
-recommendations, and holders.
+Per-stock "everything" fetcher — pulls all detail available for ONE ticker
+into a single combined JSON file: summary, quote, news, price history, and
+options chain. This is the closest real equivalent to Yahoo Finance's
+per-stock tabs (Summary / News / Chart / Historical Data / Options).
 
-Outputs directly to `assets/data/stock_detail/<TICKER>.json` and `assets/data/stock_detail.json`.
+WHAT'S NOT INCLUDED (and why):
+  - "Conversations" tab — Yahoo's comment/discussion system. Not exposed by
+    any API; it's rendered by their website's own backend.
+  - "Components" (for ETFs/indices) — no reliable free source for full
+    holdings lists via yfinance. Some ETF-level summary stats are included
+    via get_funds_data() where available, but not a full components list.
+
+Usage:
+    pip install yfinance --break-system-packages
+    python fetch_stock_detail.py AAPL
+    python fetch_stock_detail.py RELIANCE.NS
 """
 
 import json
 import os
+from asset_runtime import DATA_DIR as ASSET_DIR, read_json, write_json, merge_news
 import sys
 from datetime import datetime, timezone
 
-try:
-    import yfinance as yf
-    YFINANCE_AVAILABLE = True
-except ImportError:
-    YFINANCE_AVAILABLE = False
+import yfinance as yf
 
 DB_ENABLED = bool(os.environ.get("DATABASE_URL"))
 if DB_ENABLED:
-    try:
-        import db as dbmod
-    except ImportError:
-        DB_ENABLED = False
+    import db as dbmod
 
-SCRIPT_DIR = os.path.dirname(__file__)
-OUT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "assets", "data", "stock_detail"))
-os.makedirs(OUT_DIR, exist_ok=True)
+OUT_DIR = str(ASSET_DIR / "stock_detail")
 
 
 def now_iso():
@@ -38,19 +40,8 @@ def get_market(ticker):
     return "IN" if ticker.endswith(".NS") or ticker.endswith(".BO") else "US"
 
 
-def get_currency(ticker):
-    return "INR" if get_market(ticker) == "IN" else "USD"
-
-
-def get_exchange(ticker):
-    if ticker.endswith(".NS"):
-        return "NSE"
-    if ticker.endswith(".BO"):
-        return "BSE"
-    return "NASDAQ"
-
-
-def fetch_summary_live(t):
+def fetch_summary(t):
+    """Summary tab equivalent — company profile + key stats."""
     try:
         info = t.info
         return {
@@ -84,98 +75,102 @@ def fetch_summary_live(t):
             "exchange": info.get("exchange"),
         }
     except Exception as e:
-        print(f"  [summary] failed for {t.ticker}: {e}")
+        print(f"  [summary] failed: {e}")
         return None
 
 
-def fetch_quote_live(t):
+def fetch_quote(t):
     try:
         fi = t.fast_info
-        price = round(float(fi["last_price"]), 2)
-        prev = round(float(fi["previous_close"]), 2) if fi.get("previous_close") else None
+        price = fi["last_price"]
+        prev = fi["previous_close"]
         return {
             "price": price,
             "previous_close": prev,
-            "day_high": round(float(fi["day_high"]), 2) if fi.get("day_high") else price,
-            "day_low": round(float(fi["day_low"]), 2) if fi.get("day_low") else price,
-            "volume": int(fi["last_volume"]) if fi.get("last_volume") else 0,
-            "change_pct": round((price - prev) / prev * 100, 2) if prev else 0.0,
-            "currency": fi.get("currency") or get_currency(t.ticker),
+            "day_high": fi["day_high"],
+            "day_low": fi["day_low"],
+            "volume": fi["last_volume"],
+            "change_pct": round((price - prev) / prev * 100, 2) if prev else None,
+            "currency": fi.get("currency"),
             "market_cap": fi.get("market_cap"),
             "updated_at": now_iso(),
         }
     except Exception as e:
-        print(f"  [quote] failed for {t.ticker}: {e}")
+        print(f"  [quote] failed: {e}")
         return None
 
 
-def fetch_news_detail_live(t, limit=20):
+def fetch_news_detail(t, limit=20):
     try:
         articles = []
         for item in (t.news or [])[:limit]:
             content = item.get("content", item)
-            thumb = None
-            tb = content.get("thumbnail") or item.get("thumbnail")
-            if isinstance(tb, dict):
-                res = tb.get("resolutions") or []
-                thumb = res[0].get("url") if res else tb.get("url")
-            articles.append({
-                "ticker": t.ticker,
-                "title": content.get("title") or item.get("title"),
-                "summary": content.get("summary") or content.get("description") or item.get("summary"),
-                "link": (content.get("canonicalUrl", {}) or {}).get("url") or item.get("link"),
-                "publisher": (content.get("provider", {}) or {}).get("displayName") or item.get("publisher"),
-                "thumbnail_url": thumb,
-                "related_tickers": content.get("relatedTickers") or item.get("relatedTickers") or [t.ticker],
-                "content_type": content.get("contentType") or item.get("type") or "STORY",
-                "published_at": content.get("pubDate") or item.get("providerPublishTime") or now_iso(),
-            })
+            articles.append(
+                {
+                    "title": content.get("title") or item.get("title"),
+                    "summary": content.get("summary") or item.get("summary"),
+                    "link": (content.get("canonicalUrl", {}) or {}).get("url") or item.get("link"),
+                    "publisher": (content.get("provider", {}) or {}).get("displayName") or item.get("publisher"),
+                    "published_at": content.get("pubDate") or item.get("providerPublishTime"),
+                }
+            )
         return articles
     except Exception as e:
-        print(f"  [news] failed for {t.ticker}: {e}")
+        print(f"  [news] failed: {e}")
         return []
 
 
-def fetch_chart_live(t, period="6mo", interval="1d"):
+def fetch_chart(t, period="6mo", interval="1d"):
+    """Chart tab equivalent — OHLCV history."""
     try:
         hist = t.history(period=period, interval=interval)
         records = []
         for date, row in hist.iterrows():
-            records.append({
-                "date": date.isoformat(),
-                "open": round(float(row["Open"]), 2),
-                "high": round(float(row["High"]), 2),
-                "low": round(float(row["Low"]), 2),
-                "close": round(float(row["Close"]), 2),
-                "volume": int(row["Volume"]) if row["Volume"] == row["Volume"] else 0,
-            })
+            records.append(
+                {
+                    "date": date.isoformat(),
+                    "open": round(float(row["Open"]), 2),
+                    "high": round(float(row["High"]), 2),
+                    "low": round(float(row["Low"]), 2),
+                    "close": round(float(row["Close"]), 2),
+                    "volume": int(row["Volume"]) if row["Volume"] == row["Volume"] else 0,
+                }
+            )
         return {"period": period, "interval": interval, "data": records}
     except Exception as e:
-        print(f"  [chart] failed for {t.ticker}: {e}")
+        print(f"  [chart] failed: {e}")
         return None
 
 
-def fetch_options_live(t):
+def fetch_options(t):
+    """
+    Options tab equivalent — full options chain for every available
+    expiration date. Can be large for liquid tickers (many strikes).
+    """
     try:
         expirations = t.options
         if not expirations:
             return {"expirations": [], "chains": {}}
+
         chains = {}
-        for exp in expirations[:3]:
+        for exp in expirations:
             try:
                 chain = t.option_chain(exp)
                 chains[exp] = {
-                    "calls": json.loads(chain.calls.to_json(orient="records")),
-                    "puts": json.loads(chain.puts.to_json(orient="records")),
+                    "calls": json.loads(chain.calls.to_json(orient="records", date_format="iso")),
+                    "puts": json.loads(chain.puts.to_json(orient="records", date_format="iso")),
                 }
-            except Exception:
+            except Exception as e:
+                print(f"    [options] expiration {exp} failed: {e}")
                 continue
+
         return {"expirations": list(expirations), "chains": chains}
-    except Exception:
+    except Exception as e:
+        print(f"  [options] failed (may not be available for this ticker/market): {e}")
         return {"expirations": [], "chains": {}}
 
 
-def fetch_dividends_and_splits_live(t):
+def fetch_dividends_and_splits(t):
     try:
         divs = t.dividends
         splits = t.splits
@@ -183,258 +178,143 @@ def fetch_dividends_and_splits_live(t):
             "dividends": [{"date": d.isoformat(), "amount": float(v)} for d, v in divs.items()],
             "splits": [{"date": d.isoformat(), "ratio": float(v)} for d, v in splits.items()],
         }
-    except Exception:
+    except Exception as e:
+        print(f"  [dividends/splits] failed: {e}")
         return {"dividends": [], "splits": []}
 
 
-def fetch_recommendations_live(t):
+def fetch_recommendations(t):
     try:
         recs = t.recommendations
         if recs is None or recs.empty:
             return []
-        return json.loads(recs.to_json(orient="records"))
-    except Exception:
+        return json.loads(recs.to_json(orient="records", date_format="iso"))
+    except Exception as e:
+        print(f"  [recommendations] failed: {e}")
         return []
 
 
-def fetch_holders_live(t):
+def fetch_holders(t):
     try:
         major = t.major_holders
         institutional = t.institutional_holders
         return {
-            "major_holders": json.loads(major.to_json(orient="records")) if major is not None else [],
-            "institutional_holders": json.loads(institutional.to_json(orient="records")) if institutional is not None else [],
+            "major_holders": json.loads(major.to_json(orient="records", date_format="iso")) if major is not None else [],
+            "institutional_holders": json.loads(institutional.to_json(orient="records", date_format="iso"))
+            if institutional is not None
+            else [],
         }
-    except Exception:
+    except Exception as e:
+        print(f"  [holders] failed: {e}")
         return {"major_holders": [], "institutional_holders": []}
-
-
-def generate_mock_detail(ticker):
-    market = get_market(ticker)
-    is_in = market == "IN"
-    base_price = 2950.4 if ticker == "RELIANCE.NS" else (4215.0 if ticker == "TCS.NS" else (227.5 if ticker == "AAPL" else 448.2))
-    name = {
-        "AAPL": "Apple Inc.",
-        "MSFT": "Microsoft Corporation",
-        "GOOGL": "Alphabet Inc.",
-        "AMZN": "Amazon.com Inc.",
-        "TSLA": "Tesla Inc.",
-        "NVDA": "NVIDIA Corporation",
-        "RELIANCE.NS": "Reliance Industries Limited",
-        "TCS.NS": "Tata Consultancy Services",
-        "INFY.NS": "Infosys Limited",
-        "HDFCBANK.NS": "HDFC Bank Limited",
-        "ICICIBANK.NS": "ICICI Bank Limited",
-    }.get(ticker, ticker)
-
-    return {
-        "ticker": ticker,
-        "market": market,
-        "fetched_at": now_iso(),
-        "summary": {
-            "name": name,
-            "sector": "Energy & Retail" if is_in else "Technology",
-            "industry": "Conglomerate" if is_in else "Consumer Electronics",
-            "website": f"https://www.{ticker.lower().replace('.ns', '')}.com",
-            "description": f"{name} is a leading player in the market delivering high value to global investors.",
-            "market_cap": 20000000000000 if is_in else 3500000000000,
-            "pe_ratio": 28.4 if is_in else 32.1,
-            "forward_pe": 25.1,
-            "peg_ratio": 1.9,
-            "eps": 104.5 if is_in else 6.9,
-            "dividend_yield": 0.4,
-            "beta": 1.1,
-            "fifty_two_week_high": round(base_price * 1.15, 2),
-            "fifty_two_week_low": round(base_price * 0.82, 2),
-            "fifty_day_average": round(base_price * 0.98, 2),
-            "two_hundred_day_average": round(base_price * 0.93, 2),
-            "avg_volume": 55000000,
-            "shares_outstanding": 15400000000,
-            "float_shares": 15300000000,
-            "held_percent_insiders": 0.45 if is_in else 0.001,
-            "held_percent_institutions": 0.35 if is_in else 0.62,
-            "short_ratio": 1.4,
-            "target_mean_price": round(base_price * 1.2, 2),
-            "recommendation": "buy",
-            "number_of_analyst_opinions": 38,
-            "employees": 164000,
-            "country": "India" if is_in else "United States",
-            "exchange": get_exchange(ticker),
-        },
-        "quote": {
-            "price": base_price,
-            "previous_close": round(base_price * 0.988, 2),
-            "day_high": round(base_price * 1.01, 2),
-            "day_low": round(base_price * 0.985, 2),
-            "volume": 5123000 if is_in else 48213000,
-            "change_pct": 1.25,
-            "currency": get_currency(ticker),
-            "market_cap": 20000000000000 if is_in else 3500000000000,
-            "updated_at": now_iso(),
-        },
-        "news": [
-            {
-                "ticker": ticker,
-                "title": f"{name} Reports Strong Financial Results and Market Expansion",
-                "summary": f"Key momentum seen across major operational units with bullish analyst outlook for {ticker}.",
-                "link": f"https://finance.yahoo.com/news/{ticker.lower()}-earnings-report",
-                "publisher": "Reuters",
-                "thumbnail_url": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=500",
-                "related_tickers": [ticker],
-                "content_type": "STORY",
-                "published_at": now_iso(),
-            },
-            {
-                "ticker": ticker,
-                "title": f"Analyst Sentiment Remains Positive for {ticker} Following Strategic Roadmap Update",
-                "summary": "Institutional investors double down on growth expectations amidst broader macroeconomic tailwinds.",
-                "link": f"https://finance.yahoo.com/news/{ticker.lower()}-analyst-update",
-                "publisher": "Bloomberg",
-                "thumbnail_url": "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=500",
-                "related_tickers": [ticker],
-                "content_type": "STORY",
-                "published_at": now_iso(),
-            }
-        ],
-        "chart": {
-            "period": "6mo",
-            "interval": "1d",
-            "data": [
-                {"date": "2026-08-10T00:00:00", "open": round(base_price*0.95, 2), "high": round(base_price*0.97, 2), "low": round(base_price*0.94, 2), "close": round(base_price*0.96, 2), "volume": 4500000},
-                {"date": "2026-08-11T00:00:00", "open": round(base_price*0.96, 2), "high": round(base_price*0.99, 2), "low": round(base_price*0.95, 2), "close": round(base_price*0.98, 2), "volume": 5200000},
-                {"date": "2026-08-12T00:00:00", "open": round(base_price*0.98, 2), "high": round(base_price*1.01, 2), "low": round(base_price*0.97, 2), "close": base_price, "volume": 5123000},
-            ]
-        },
-        "options": {
-            "expirations": ["2026-10-16", "2026-11-20", "2026-12-18"],
-            "chains": {
-                "2026-10-16": {
-                    "calls": [
-                        {
-                            "strike": round(base_price * 1.05, 1),
-                            "lastPrice": 3.2,
-                            "bid": 3.1,
-                            "ask": 3.3,
-                            "volume": 1200,
-                            "openInterest": 4500,
-                            "impliedVolatility": 0.25,
-                            "inTheMoney": False,
-                            "contractSymbol": f"{ticker}261016C00230000"
-                        }
-                    ],
-                    "puts": [
-                        {
-                            "strike": round(base_price * 0.95, 1),
-                            "lastPrice": 2.8,
-                            "bid": 2.7,
-                            "ask": 2.9,
-                            "volume": 850,
-                            "openInterest": 3100,
-                            "impliedVolatility": 0.24,
-                            "inTheMoney": False,
-                            "contractSymbol": f"{ticker}261016P00210000"
-                        }
-                    ]
-                }
-            }
-        },
-        "dividends_and_splits": {
-            "dividends": [{"date": "2026-08-01T00:00:00", "amount": 0.25}],
-            "splits": [{"date": "2020-08-31T00:00:00", "ratio": 4.0}]
-        },
-        "recommendations": [
-            {"period": "0m", "strongBuy": 12, "buy": 22, "hold": 5, "sell": 1, "strongSell": 0}
-        ],
-        "holders": {
-            "major_holders": [{"Value": "0.05", "Breakdown": "% of Shares Held by All Insiders"}],
-            "institutional_holders": [
-                {"Holder": "Vanguard Group Inc", "Shares": 1300000000, "Date Reported": "2026-06-30", "% Out": 0.084, "Value": 295000000000}
-            ]
-        },
-        "not_available": {
-            "conversations": "Yahoo's discussion/comment system is not exposed by any API — website-rendered only.",
-            "components": "No reliable free source for full ETF/index holdings lists via yfinance."
-        }
-    }
 
 
 def fetch_all_detail(ticker):
     print(f"Fetching full detail for {ticker}...")
-    detail = None
+    t = yf.Ticker(ticker)
+    market = get_market(ticker)
 
-    if YFINANCE_AVAILABLE:
-        try:
-            t = yf.Ticker(ticker)
-            market = get_market(ticker)
-            summary = fetch_summary_live(t)
-            quote = fetch_quote_live(t)
-            news = fetch_news_detail_live(t)
-            chart = fetch_chart_live(t)
-            options = fetch_options_live(t)
-            div_splits = fetch_dividends_and_splits_live(t)
-            recommendations = fetch_recommendations_live(t)
-            holders = fetch_holders_live(t)
+    summary = fetch_summary(t)
+    quote = fetch_quote(t)
+    news = fetch_news_detail(t)
+    chart = fetch_chart(t)
+    options = fetch_options(t)
+    div_splits = fetch_dividends_and_splits(t)
+    recommendations = fetch_recommendations(t)
+    holders = fetch_holders(t)
 
-            if summary or quote:
-                detail = {
-                    "ticker": ticker,
-                    "market": market,
-                    "fetched_at": now_iso(),
-                    "summary": summary,
-                    "quote": quote,
-                    "news": news,
-                    "chart": chart,
-                    "options": options,
-                    "dividends_and_splits": div_splits,
-                    "recommendations": recommendations,
-                    "holders": holders,
-                    "not_available": {
-                        "conversations": "Yahoo's discussion/comment system is not exposed by any API — website-rendered only.",
-                        "components": "No reliable free source for full ETF/index holdings lists via yfinance."
-                    }
-                }
-        except Exception as e:
-            print(f"  Live fetch failed for {ticker}: {e}. Falling back to mock data.")
+    detail = {
+        "ticker": ticker,
+        "market": market,
+        "fetched_at": now_iso(),
+        "summary": summary,
+        "quote": quote,
+        "news": news,
+        "chart": chart,
+        "options": options,
+        "dividends_and_splits": div_splits,
+        "recommendations": recommendations,
+        "holders": holders,
+        "not_available": {
+            "conversations": "Yahoo's discussion/comment system is not exposed by any API — website-rendered only.",
+            "components": "No reliable free source for full ETF/index holdings lists via yfinance.",
+        },
+    }
 
-    if not detail:
-        detail = generate_mock_detail(ticker)
-
+    os.makedirs(OUT_DIR, exist_ok=True)
     path = os.path.join(OUT_DIR, f"{ticker}.json")
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(detail, f, indent=2, default=str, ensure_ascii=False)
+    previous = read_json(path, {})
+    retained = []
+    for key, value in list(detail.items()):
+        if (not value or (key == 'chart' and not value.get('data'))) and previous.get(key):
+            detail[key] = previous[key]
+            retained.append(key)
+    detail['data_source'] = 'yahoo'
+    detail['retained_fields'] = retained
+    if retained:
+        detail['previous_fetched_at'] = previous.get('fetched_at')
+    write_json(path, detail)
     print(f"  saved {path}")
 
-    # Also update single stock_detail.json summary file under assets/data/
-    summary_path = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "assets", "data", "stock_detail.json"))
-    summary_dict = {}
-    if os.path.exists(summary_path):
-        try:
-            with open(summary_path, "r", encoding="utf-8") as f:
-                summary_dict = json.load(f)
-        except Exception:
-            summary_dict = {}
-    summary_dict[ticker] = detail
-    with open(summary_path, "w", encoding="utf-8") as f:
-        json.dump(summary_dict, f, indent=2, default=str, ensure_ascii=False)
-
     if DB_ENABLED:
-        try:
-            conn = dbmod.get_connection()
-            dbmod.init_schema(conn)
-            dbmod.upsert_ticker(conn, ticker, market=detail["market"], name=(detail.get("summary") or {}).get("name"))
-            if detail.get("quote"):
-                dbmod.upsert_quote(conn, {**detail["quote"], "ticker": ticker, "market": detail["market"]})
-            if detail.get("summary"):
-                dbmod.upsert_fundamentals(conn, {**detail["summary"], "ticker": ticker, "market": detail["market"]})
-            conn.close()
-            print(f"  [db] wrote full detail for {ticker} to Postgres")
-        except Exception as e:
-            print(f"  [db] failed for {ticker}: {e}")
+        write_detail_to_db(ticker, market, summary, quote, options, div_splits, recommendations, holders)
 
     return detail
 
 
+def write_detail_to_db(ticker, market, summary, quote, options, div_splits, recommendations, holders):
+    conn = dbmod.get_connection()
+    dbmod.init_schema(conn)
+
+    dbmod.upsert_ticker(conn, ticker, market=market, name=(summary or {}).get("name"))
+
+    if quote:
+        dbmod.upsert_quote(conn, {
+            "ticker": ticker, "market": market,
+            "exchange": (summary or {}).get("exchange"), "currency": quote.get("currency"),
+            "price": quote.get("price"), "previous_close": quote.get("previous_close"),
+            "day_high": quote.get("day_high"), "day_low": quote.get("day_low"),
+            "volume": quote.get("volume"), "change_pct": quote.get("change_pct"),
+            "updated_at": quote.get("updated_at"),
+        })
+
+    if summary:
+        dbmod.upsert_fundamentals(conn, {
+            "ticker": ticker, "market": market,
+            "exchange": summary.get("exchange"), "currency": (quote or {}).get("currency"),
+            "name": summary.get("name"), "market_cap": summary.get("market_cap"),
+            "pe_ratio": summary.get("pe_ratio"), "forward_pe": summary.get("forward_pe"),
+            "peg_ratio": summary.get("peg_ratio"), "eps": summary.get("eps"),
+            "sector": summary.get("sector"), "industry": summary.get("industry"),
+            "fifty_two_week_high": summary.get("fifty_two_week_high"),
+            "fifty_two_week_low": summary.get("fifty_two_week_low"),
+            "fifty_day_average": summary.get("fifty_day_average"),
+            "two_hundred_day_average": summary.get("two_hundred_day_average"),
+            "dividend_yield": summary.get("dividend_yield"), "beta": summary.get("beta"),
+            "avg_volume": summary.get("avg_volume"), "shares_outstanding": summary.get("shares_outstanding"),
+            "updated_at": now_iso(),
+        })
+
+    if options and options.get("chains"):
+        dbmod.replace_options(conn, ticker, options["chains"])
+
+    if div_splits:
+        dbmod.replace_dividends_and_splits(conn, ticker, div_splits.get("dividends", []), div_splits.get("splits", []))
+
+    if recommendations:
+        for rec in recommendations:
+            dbmod.insert_recommendation_snapshot(conn, ticker, rec)
+
+    if holders:
+        dbmod.replace_holders(conn, ticker, holders.get("major_holders", []), holders.get("institutional_holders", []))
+
+    conn.close()
+    print(f"  [db] wrote full detail for {ticker} to Postgres")
+
+
 if __name__ == "__main__":
-    tickers = sys.argv[1:] if len(sys.argv) > 1 else ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS"]
-    for ticker in tickers:
+    symbols = sys.argv[1:] or list(read_json(ASSET_DIR / 'quotes.json', {}))[:int(os.environ.get('DETAIL_TICKER_LIMIT', '12'))]
+    if not symbols:
+        raise RuntimeError('Run fetch_finance_data.py first or supply ticker arguments')
+    for ticker in symbols:
         fetch_all_detail(ticker)

@@ -14,6 +14,7 @@ SCRIPTS = [
     "fetch_stock_detail.py",
     "fetch_news.py",
     "screeners.py",
+    "export_asset_sql.py",
 ]
 
 
@@ -24,12 +25,16 @@ def run_refresh():
 
     for s in SCRIPTS:
         script_path = os.path.join(SCRIPT_DIR, s)
+        if not os.path.exists(script_path):
+            raise FileNotFoundError(script_path)
         if os.path.exists(script_path):
             print(f"--> Running {s}...")
             try:
-                subprocess.run([sys.executable, script_path], check=True)
+                child_env = os.environ.copy()
+                child_env.pop("DATABASE_URL", None)  # Asset refresh never mutates a remote database.
+                subprocess.run([sys.executable, "-u", script_path], check=True, env=child_env)
             except Exception as e:
-                print(f"    Failed running {s}: {e}")
+                raise RuntimeError(f"Failed running {s}") from e
 
     print("\nRefresh cycle completed.")
 

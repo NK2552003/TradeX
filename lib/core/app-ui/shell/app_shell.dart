@@ -1,11 +1,12 @@
-import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:quiet_dock/quiet_dock.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
+import '../../../features/calculators/ui/calculators_screen.dart';
 import '../brand/app_logo.dart';
 import '../models/app_models.dart';
 import '../motion/app_motion.dart';
+import '../motion/page_transition.dart';
 import '../theme/app_tokens.dart';
 
 /// Adaptive application shell.
@@ -23,11 +24,22 @@ class AppShell extends StatefulWidget {
     this.trader,
     this.tier = AppTier.free,
     this.onSearch,
+    this.searchQuery,
+    this.searchHint,
+    this.onSearchChanged,
+    this.searchTargetKey,
+    this.headerActions = const <Widget>[],
     this.onNotifications,
     this.onSettings,
     this.onAi,
     this.unreadNotifications = 0,
     this.primaryAction,
+    this.primaryActionLabel,
+    this.onPrimaryAction,
+    this.onHelp,
+    this.statusBadgeText = '',
+    this.showStatusBadge = false,
+    this.sidebarFooter,
     this.mobilePrimaryItems,
     this.mobileMoreItems = const <AppNavItem>[],
     this.userMenuItems = const <AppNavItem>[],
@@ -39,20 +51,38 @@ class AppShell extends StatefulWidget {
     this.pageIcon,
     this.onBack,
     this.pagePlaceholderBuilder,
+    this.researchPanelBuilder,
   });
 
   final List<AppNavSection> sections;
   final String selectedId;
   final ValueChanged<String> onSelect;
   final Widget child;
+
+  /// Full-height companion panel, outside the page and its header. The builder
+  /// receives a close callback and an overlay flag, so navigation can dismiss
+  /// a temporary drawer while leaving a docked pane open.
+  final Widget Function(BuildContext context, VoidCallback close, bool overlay)?
+  researchPanelBuilder;
   final AppTrader? trader;
   final AppTier tier;
   final VoidCallback? onSearch;
+  final String? searchQuery;
+  final String? searchHint;
+  final ValueChanged<String>? onSearchChanged;
+  final GlobalKey? searchTargetKey;
+  final List<Widget> headerActions;
   final VoidCallback? onNotifications;
   final VoidCallback? onSettings;
   final VoidCallback? onAi;
+  final VoidCallback? onHelp;
   final int unreadNotifications;
   final Widget? primaryAction;
+  final String? primaryActionLabel;
+  final VoidCallback? onPrimaryAction;
+  final String statusBadgeText;
+  final bool showStatusBadge;
+  final Widget? sidebarFooter;
   final List<AppNavItem>? mobilePrimaryItems;
   final List<AppNavItem> mobileMoreItems;
   final List<AppNavItem> userMenuItems;
@@ -90,29 +120,112 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   bool _collapsed = false;
-  bool _navigationForward = true;
+  bool _researchVisible = true;
 
-  /// The dock owns its own page index and reads `initialIndex` exactly once, so
-  /// the shell drives it through a controller instead. Without this, navigation
-  /// that starts anywhere but the dock — the top bar, the quick grid, a
-  /// cross-link between pages — would leave the dock on the previous
-  /// destination while a different page is on screen.
-  late final QuietDockController _dockController;
+  /// Two separate dock controllers: one for main workspace navigation, and
+  /// one for the community sub-experience navigation. This prevents index
+  /// cross-contamination and placeholder/skeleton flashes when toggling between
+  /// the main dock and community dock.
+  QuietDockController? _mainDockController;
+  QuietDockController? _communityDockController;
+
+  QuietDockController get _activeDockController {
+    if (_isCommunityRoute) {
+      return _communityDockController ??= QuietDockController(
+        initialIndex: (_dockIndexFor(widget.selectedId) < 0)
+            ? 0
+            : _dockIndexFor(widget.selectedId),
+      );
+    }
+    return _mainDockController ??= QuietDockController(
+      initialIndex: (_dockIndexFor(widget.selectedId) < 0)
+          ? 0
+          : _dockIndexFor(widget.selectedId),
+    );
+  }
+
+  bool _calculatorVisible = false;
+  bool _hasEverOpenedCalculator = false;
+
+  void _openCalculator() {
+    if (widget.selectedId == 'calculators') return;
+    setState(() {
+      _calculatorVisible = true;
+      _hasEverOpenedCalculator = true;
+      _collapsed = true;
+    });
+  }
+
+  void _closeCalculator() {
+    setState(() {
+      _calculatorVisible = false;
+      _collapsed = false;
+    });
+  }
+
+  void _toggleCalculator() {
+    if (widget.selectedId == 'calculators') return;
+    if (_calculatorVisible) {
+      _closeCalculator();
+    } else {
+      _openCalculator();
+    }
+  }
+
+  bool get _isCommunityRoute =>
+      widget.selectedId == 'community' ||
+      widget.selectedId.startsWith('community_');
 
   List<AppNavItem> get _flatItems =>
       widget.sections.expand((AppNavSection s) => s.items).toList();
 
   /// The (at most four) destinations the phone dock shows.
-  List<AppNavItem> get _dockItems =>
-      (widget.mobilePrimaryItems ?? _flatItems.take(4).toList())
-          .take(4)
-          .toList();
+  List<AppNavItem> get _dockItems {
+    if (_isCommunityRoute) {
+      return const <AppNavItem>[
+        AppNavItem(
+          id: 'community_feed',
+          label: 'Feed',
+          icon: Icons.dynamic_feed_outlined,
+          selectedIcon: Icons.dynamic_feed_rounded,
+        ),
+        AppNavItem(
+          id: 'community_explore',
+          label: 'Explore',
+          icon: Icons.explore_outlined,
+          selectedIcon: Icons.explore_rounded,
+        ),
+        AppNavItem(
+          id: 'community_network',
+          label: 'Network',
+          icon: Icons.people_outline_rounded,
+          selectedIcon: Icons.people_rounded,
+        ),
+        AppNavItem(
+          id: 'community_profile',
+          label: 'Profile',
+          icon: Icons.person_outline_rounded,
+          selectedIcon: Icons.person_rounded,
+        ),
+      ];
+    }
+    return (widget.mobilePrimaryItems ?? _flatItems.take(4).toList())
+        .take(4)
+        .toList();
+  }
 
   /// Dock slot that owns [id], or -1 when no slot does.
   ///
   /// Every settings surface answers to the single `settings` slot: the sidebar
   /// lists them individually, the dock cannot.
   int _dockIndexFor(String id) {
+    if (_isCommunityRoute) {
+      if (id == 'community' || id == 'community_feed') return 0;
+      if (id == 'community_explore') return 1;
+      if (id == 'community_network') return 2;
+      if (id == 'community_profile') return 3;
+      return 0;
+    }
     final List<AppNavItem> items = _dockItems;
     final int direct = items.indexWhere((AppNavItem item) => item.id == id);
     if (direct >= 0) return direct;
@@ -125,13 +238,34 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
-    final int index = _dockIndexFor(widget.selectedId);
-    _dockController = QuietDockController(initialIndex: index < 0 ? 0 : index);
+    _initDockControllers();
+  }
+
+  void _initDockControllers() {
+    final int mainIndex = !_isCommunityRoute
+        ? _dockIndexFor(widget.selectedId)
+        : 0;
+    final int commIndex = _isCommunityRoute
+        ? _dockIndexFor(widget.selectedId)
+        : 0;
+    _mainDockController ??= QuietDockController(
+      initialIndex: mainIndex < 0 ? 0 : mainIndex,
+    );
+    _communityDockController ??= QuietDockController(
+      initialIndex: commIndex < 0 ? 0 : commIndex,
+    );
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    _initDockControllers();
   }
 
   @override
   void dispose() {
-    _dockController.dispose();
+    _mainDockController?.dispose();
+    _communityDockController?.dispose();
     super.dispose();
   }
 
@@ -143,30 +277,23 @@ class _AppShellState extends State<AppShell> {
   void didUpdateWidget(covariant AppShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedId != widget.selectedId) {
-      final List<AppNavItem> items = _dockItems;
-      final int previous = items.indexWhere(
-        (AppNavItem item) => item.id == oldWidget.selectedId,
-      );
-      final int next = items.indexWhere(
-        (AppNavItem item) => item.id == widget.selectedId,
-      );
-      _navigationForward = previous < 0 || next < 0 || next >= previous;
+      if (widget.selectedId == 'calculators' && _calculatorVisible) {
+        _closeCalculator();
+      }
       _syncDock();
     }
   }
 
   /// Slides the dock to whichever slot owns the new destination.
-  ///
-  /// Deferred to the end of the frame: the dock is a descendant, and moving it
-  /// from here would mark it dirty while this build is still running.
   void _syncDock() {
     final int index = _dockIndexFor(widget.selectedId);
     if (index < 0) return;
+    if (_activeDockController.index != index) {
+      _activeDockController.syncIndex(index);
+    }
     WidgetsBinding.instance.addPostFrameCallback((Duration _) {
       if (!mounted) return;
-      if (_dockController.index != index) {
-        _dockController.goToIndex(index);
-      }
+      _activeDockController.goToIndex(index);
     });
   }
 
@@ -187,38 +314,8 @@ class _AppShellState extends State<AppShell> {
     // of its neighbours.
     Widget surface({required Widget child, required String childKey}) {
       final BorderRadius borderRadius = context.radius(theme.radii.xl);
-      final Widget switcher = PageTransitionSwitcher(
-        duration: const Duration(milliseconds: 250),
-        reverse: !_navigationForward,
-        layoutBuilder: (List<Widget> entries) => Stack(
-          alignment: Alignment.topLeft,
-          children: entries,
-        ),
-        transitionBuilder: (
-          Widget child,
-          Animation<double> primaryAnimation,
-          Animation<double> secondaryAnimation,
-        ) {
-          if (r.isMobile) {
-            return SharedAxisTransition(
-              animation: primaryAnimation,
-              secondaryAnimation: secondaryAnimation,
-              transitionType: SharedAxisTransitionType.horizontal,
-              fillColor: Colors.transparent,
-              child: child,
-            );
-          }
-          return FadeThroughTransition(
-            animation: primaryAnimation,
-            secondaryAnimation: secondaryAnimation,
-            fillColor: Colors.transparent,
-            child: child,
-          );
-        },
-        child: KeyedSubtree(
-          key: ValueKey<String>(childKey),
-          child: child,
-        ),
+      final Widget switcher = UiStaggeredPageTransition(
+        child: KeyedSubtree(key: ValueKey<String>(childKey), child: child),
       );
 
       return Container(
@@ -250,44 +347,78 @@ class _AppShellState extends State<AppShell> {
       );
     }
 
+    final String surfaceKey = widget.child.key != null
+        ? 'page_${widget.selectedId}_${widget.child.key}'
+        : 'page_${widget.selectedId}';
     final Widget contentSurface = surface(
       child: widget.child,
-      childKey: 'page_${widget.selectedId}',
+      childKey: surfaceKey,
     );
 
-    final Widget topBar = AppTopBar(
-      trader: widget.trader,
-      tier: widget.tier,
-      onSearch: widget.onSearch,
-      onNotifications: widget.onNotifications,
-      onSettings: widget.onSettings,
-      onAi: widget.onAi,
-      unread: widget.unreadNotifications,
-      showLogo: r.isMobile,
-      title: widget.pageTitle,
-      sectionTitle: widget.pageSectionTitle,
-      selectedId: widget.selectedId,
-      sections: widget.sections,
-      mobilePrimaryItems: widget.mobilePrimaryItems,
-      mobileMoreItems: widget.mobileMoreItems,
-      pageIcon: widget.pageIcon,
-      onBack: widget.onBack,
-      leading: r.isMobile
-          ? null
-          : UiIconButton(
-              icon: _collapsed ? Icons.menu_open_rounded : Icons.menu_rounded,
-              size: UiSize.sm,
-              tooltip: 'Toggle sidebar',
-              onPressed: _toggleDesktopSidebar,
-            ),
-    );
+    void openResearchOverlay() {
+      UiDrawer.show<void>(
+        context,
+        title: 'Research desk',
+        showHeader: false,
+        contentPadding: EdgeInsets.zero,
+        scrollable: false,
+        child: Builder(
+          builder: (overlayContext) => widget.researchPanelBuilder!(
+            overlayContext,
+            () => Navigator.of(overlayContext).pop(),
+            true,
+          ),
+        ),
+      );
+    }
 
-    final Widget workspace = Column(
-      children: <Widget>[
-        topBar,
-        Expanded(child: contentSurface),
-      ],
-    );
+    Widget topBar({bool researchVisible = false, VoidCallback? onResearch}) =>
+        AppTopBar(
+          researchVisible: researchVisible,
+          onResearch: onResearch,
+          onCalculator: (r.isMobile || widget.selectedId == 'calculators')
+              ? null
+              : _toggleCalculator,
+          calculatorVisible: _calculatorVisible,
+          trader: widget.trader,
+          tier: widget.tier,
+          onSearch: widget.onSearch,
+          searchQuery: widget.searchQuery,
+          searchHint: widget.searchHint,
+          onSearchChanged: widget.onSearchChanged,
+          searchTargetKey: widget.searchTargetKey,
+          headerActions: widget.headerActions,
+          primaryAction: widget.primaryAction,
+          primaryActionLabel: widget.primaryActionLabel,
+          onPrimaryAction: widget.onPrimaryAction,
+          onHelp: widget.onHelp,
+          onLogout: widget.onLogout,
+          statusBadgeText: widget.statusBadgeText,
+          showStatusBadge: widget.showStatusBadge,
+          onNotifications: widget.onNotifications,
+          onSettings: widget.onSettings,
+          onAi: widget.onAi,
+          unread: widget.unreadNotifications,
+          showLogo: false,
+          title: widget.pageTitle,
+          sectionTitle: widget.pageSectionTitle,
+          selectedId: widget.selectedId,
+          sections: widget.sections,
+          mobilePrimaryItems: widget.mobilePrimaryItems,
+          mobileMoreItems: widget.mobileMoreItems,
+          pageIcon: widget.pageIcon,
+          onBack: widget.onBack,
+          leading: r.isMobile
+              ? null
+              : UiIconButton(
+                  icon: _collapsed
+                      ? Icons.menu_open_rounded
+                      : Icons.notes_rounded,
+                  size: UiSize.sm,
+                  tooltip: 'Toggle sidebar',
+                  onPressed: _toggleDesktopSidebar,
+                ),
+        );
 
     if (r.isMobile) {
       // QuietDockScaffold intentionally extends its body beneath the floating
@@ -316,17 +447,25 @@ class _AppShellState extends State<AppShell> {
       // A destination reached from the quick grid or the top bar owns no dock
       // slot, so the page the dock is already showing hosts it.
       final int activeIndex = selectedIndex < 0
-          ? _dockController.index
+          ? _activeDockController.index
           : selectedIndex;
+      if (_activeDockController.index != activeIndex) {
+        _activeDockController.syncIndex(activeIndex);
+      }
       AppNavItem? activeMoreItem;
       for (final AppNavItem item in widget.mobileMoreItems) {
-        if (item.id == widget.selectedId) {
+        if (item.id == widget.selectedId ||
+            (item.subItems?.any((child) => child.id == widget.selectedId) ??
+                false)) {
           activeMoreItem = item;
           break;
         }
       }
       final bool moreRouteSelected = activeMoreItem != null;
       final Widget dockScaffold = QuietDockScaffold(
+        key: ValueKey<String>(
+          'quiet_dock_${_isCommunityRoute ? "community" : "main"}',
+        ),
         destinations: destinations
             .map(
               (AppNavItem item) => QuietDockDestination(
@@ -338,32 +477,76 @@ class _AppShellState extends State<AppShell> {
             )
             .toList(),
         initialIndex: activeIndex,
-        controller: _dockController,
+        controller: _activeDockController,
         onDestinationSelected: (int index) {
           if (index >= 0 && index < destinations.length) {
-            _dockController.goToIndex(index);
             widget.onSelect(destinations[index].id);
           }
         },
         centerAction: QuietDockCenterAction(
-          semanticLabel: 'More tools',
-          icon: Icons.grid_view_rounded,
+          semanticLabel: _isCommunityRoute ? 'Switch to App' : 'More tools',
+          icon: _isCommunityRoute
+              ? Icons.apps_rounded
+              : Icons.grid_view_rounded,
           closeIcon: moreRouteSelected
               ? (activeMoreItem.selectedIcon ?? activeMoreItem.icon)
               : Icons.close_rounded,
           columns: 3,
-          items: widget.mobileMoreItems
-              .map(
-                (AppNavItem item) => QuickGridItem(
-                  icon: item.icon,
-                  label: item.label,
-                  onTap: () => widget.onSelect(item.id),
-                ),
-              )
-              .toList(),
+          items: _isCommunityRoute
+              ? <QuickGridItem>[
+                  QuickGridItem(
+                    icon: Icons.edit_note_rounded,
+                    label: 'Writing Desk',
+                    onTap: () => widget.onSelect('workspace'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.menu_book_rounded,
+                    label: 'Journal',
+                    onTap: () => widget.onSelect('journal'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.account_tree_outlined,
+                    label: 'Strategies',
+                    onTap: () => widget.onSelect('strategies'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.edit_note_rounded,
+                    label: 'Notes',
+                    onTap: () => widget.onSelect('notes'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.bookmark_outline_rounded,
+                    label: 'Bookmarks',
+                    onTap: () => widget.onSelect('community_bookmarks'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.public_outlined,
+                    label: 'Market Intelligence',
+                    onTap: () => widget.onSelect('market'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.calculate_outlined,
+                    label: 'Calculators',
+                    onTap: () => widget.onSelect('calculators'),
+                  ),
+                  QuickGridItem(
+                    icon: Icons.settings_outlined,
+                    label: 'Settings',
+                    onTap: () => widget.onSelect('settings'),
+                  ),
+                ]
+              : widget.mobileMoreItems
+                    .map(
+                      (AppNavItem item) => QuickGridItem(
+                        icon: item.icon,
+                        label: item.label,
+                        onTap: () => widget.onSelect(item.id),
+                      ),
+                    )
+                    .toList(),
         ),
         centerActionActive: moreRouteSelected,
-        swipeEnabled: true,
+        swipeEnabled: false,
         lazy: true,
         keepAlive: false,
         useRail: false,
@@ -407,7 +590,7 @@ class _AppShellState extends State<AppShell> {
           iconSize: keyboardVisible ? 0 : 22,
           frosted: !keyboardVisible,
           showLabels: false,
-          pageDuration: const Duration(milliseconds: 200),
+          pageDuration: theme.motion.normal,
         ),
       );
       Widget dockLayer = dockScaffold;
@@ -450,7 +633,11 @@ class _AppShellState extends State<AppShell> {
       // only screen content participates in destination swipe transitions.
       final Widget mobileShell = Column(
         children: <Widget>[
-          topBar,
+          topBar(
+            onResearch: widget.researchPanelBuilder == null
+                ? null
+                : openResearchOverlay,
+          ),
           Expanded(child: dockLayer),
         ],
       );
@@ -459,6 +646,9 @@ class _AppShellState extends State<AppShell> {
         color: theme.colors.background,
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
+            if (constraints.maxHeight < 80.0) {
+              return const SizedBox.shrink();
+            }
             final double keyboardTop =
                 mediaQuery.size.height - mediaQuery.viewInsets.bottom;
             final double visibleHeight = keyboardVisible
@@ -486,7 +676,7 @@ class _AppShellState extends State<AppShell> {
       trader: widget.trader,
       workspaceName: widget.workspaceName,
       tierLabel: widget.tierLabel,
-      footer: widget.primaryAction,
+      footer: widget.sidebarFooter,
       onNavigate: widget.onSelect,
       onUserLogout: widget.onLogout,
       userMenuItems: widget.userMenuItems,
@@ -501,30 +691,211 @@ class _AppShellState extends State<AppShell> {
             trader: widget.trader,
             workspaceName: widget.workspaceName,
             tierLabel: widget.tierLabel,
+            footer: widget.sidebarFooter,
             onNavigate: widget.onSelect,
             onUserLogout: widget.onLogout,
             userMenuItems: widget.userMenuItems,
           )
         : ClipRect(
             child: AnimatedContainer(
-              duration: theme.motion.normal,
-              curve: theme.motion.curve,
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeInOutCubic,
               width: _collapsed ? 0 : context.sz(244),
               child: OverflowBox(
-                alignment: Alignment.centerLeft,
+                alignment: Alignment.centerRight,
                 minWidth: context.sz(244),
                 maxWidth: context.sz(244),
-                child: expandedSidebar,
+                child: IgnorePointer(
+                  ignoring: _collapsed,
+                  child: expandedSidebar,
+                ),
               ),
             ),
           );
 
     return Scaffold(
       backgroundColor: theme.colors.background,
-      body: Row(
-        children: <Widget>[
-          adaptiveSidebar,
-          Expanded(child: workspace),
+      body: Column(
+        children: [
+          Expanded(
+            child: Row(
+              children: <Widget>[
+                adaptiveSidebar,
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, box) {
+                      final canDock = box.maxWidth >= 1080;
+                      final hasResearch = widget.researchPanelBuilder != null;
+                      final visible =
+                          hasResearch && canDock && _researchVisible;
+                      void closeResearch() =>
+                          setState(() => _researchVisible = false);
+                      final workspace = Column(
+                        children: [
+                          topBar(
+                            researchVisible: visible,
+                            onResearch: !hasResearch
+                                ? null
+                                : () {
+                                    if (canDock) {
+                                      setState(
+                                        () => _researchVisible =
+                                            !_researchVisible,
+                                      );
+                                    } else {
+                                      openResearchOverlay();
+                                    }
+                                  },
+                          ),
+                          Expanded(child: contentSurface),
+                        ],
+                      );
+                      // Keep the primary branch mounted when Focus mode changes width.
+                      return UiSplitPane(
+                        key: const ValueKey('app-research-split'),
+                        showDetail: visible,
+                        initialRatio: .70,
+                        minRatio: .64,
+                        maxRatio: .74,
+                        primary: workspace,
+                        detail: visible
+                            ? SafeArea(
+                                left: false,
+                                child: Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    0,
+                                    context.sp(theme.spacing.xs),
+                                    context.sp(theme.spacing.xs + 3),
+                                    context.sp(theme.spacing.xs + 3),
+                                  ),
+                                  child: UiCard(
+                                    key: const ValueKey('app-research-surface'),
+                                    padding: EdgeInsets.zero,
+                                    variant: UiCardVariant.elevated,
+                                    child: ClipRRect(
+                                      borderRadius: context.radius(
+                                        theme.radii.xl,
+                                      ),
+                                      child: widget.researchPanelBuilder!(
+                                        context,
+                                        closeResearch,
+                                        false,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      );
+                    },
+                  ),
+                ),
+                if (!r.isMobile && widget.selectedId != 'calculators')
+                  ClipRect(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeInOutCubic,
+                      width: _calculatorVisible
+                          ? (context.sz(360) + context.sp(theme.spacing.xs + 3))
+                          : 0,
+                      child: OverflowBox(
+                        alignment: Alignment.centerLeft,
+                        minWidth:
+                            context.sz(360) + context.sp(theme.spacing.xs + 3),
+                        maxWidth:
+                            context.sz(360) + context.sp(theme.spacing.xs + 3),
+                        child: IgnorePointer(
+                          ignoring: !_calculatorVisible,
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              0,
+                              context.sp(theme.spacing.xs),
+                              context.sp(theme.spacing.xs + 3),
+                              context.sp(theme.spacing.xs + 3),
+                            ),
+                            child: Container(
+                              width: context.sz(360),
+                              decoration: BoxDecoration(
+                                color: theme.colors.surface,
+                                borderRadius: context.radius(theme.radii.xl),
+                                border: Border.all(
+                                  color: theme.colors.border,
+                                  width: theme.borders.hairline,
+                                ),
+                                boxShadow: <BoxShadow>[
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.16),
+                                    blurRadius: 16,
+                                    offset: const Offset(-2, 4),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: context.radius(theme.radii.xl),
+                                child: Column(
+                                  children: <Widget>[
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: context.sp(
+                                          theme.spacing.md,
+                                        ),
+                                        vertical: context.sp(theme.spacing.xs),
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: theme.colors.surface,
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: theme.colors.border,
+                                            width: theme.borders.hairline,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: <Widget>[
+                                          Icon(
+                                            Icons.calculate_rounded,
+                                            size: context.sz(18),
+                                            color: theme.colors.primary,
+                                          ),
+                                          SizedBox(
+                                            width: context.sp(theme.spacing.xs),
+                                          ),
+                                          Text(
+                                            'Trading Calculator',
+                                            style: context.uiText.bodyStrong
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                          const Spacer(),
+                                          UiIconButton(
+                                            icon: Icons.close_rounded,
+                                            size: UiSize.xs,
+                                            tooltip: 'Close Calculator',
+                                            onPressed: _closeCalculator,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: _hasEverOpenedCalculator
+                                          ? const CalculatorsScreen(
+                                              initiallyOpened: true,
+                                            )
+                                          : const SizedBox.shrink(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1155,16 +1526,26 @@ class _AppNavTileState extends State<AppNavTile> {
   }
 }
 
-/// Top app bar: search, notifications, avatar and tier chip.
+/// Top app bar: breadcrumb with Live badge, centered wide search, primary action, notifications, help and user avatar.
 class AppTopBar extends StatelessWidget {
   const AppTopBar({
     super.key,
     this.trader,
     this.tier = AppTier.free,
     this.onSearch,
+    this.searchQuery,
+    this.searchHint,
+    this.onSearchChanged,
+    this.searchTargetKey,
+    this.headerActions = const <Widget>[],
+    this.primaryAction,
+    this.primaryActionLabel,
+    this.onPrimaryAction,
     this.onNotifications,
     this.onSettings,
     this.onAi,
+    this.onHelp,
+    this.onLogout,
     this.unread = 0,
     this.leading,
     this.showLogo = false,
@@ -1176,14 +1557,30 @@ class AppTopBar extends StatelessWidget {
     this.mobileMoreItems,
     this.pageIcon,
     this.onBack,
+    this.onResearch,
+    this.researchVisible = false,
+    this.onCalculator,
+    this.calculatorVisible = false,
+    this.statusBadgeText = '',
+    this.showStatusBadge = false,
   });
 
   final AppTrader? trader;
   final AppTier tier;
   final VoidCallback? onSearch;
+  final String? searchQuery;
+  final String? searchHint;
+  final ValueChanged<String>? onSearchChanged;
+  final GlobalKey? searchTargetKey;
+  final List<Widget> headerActions;
+  final Widget? primaryAction;
+  final String? primaryActionLabel;
+  final VoidCallback? onPrimaryAction;
   final VoidCallback? onNotifications;
   final VoidCallback? onSettings;
   final VoidCallback? onAi;
+  final VoidCallback? onHelp;
+  final VoidCallback? onLogout;
   final int unread;
   final Widget? leading;
   final bool showLogo;
@@ -1195,15 +1592,24 @@ class AppTopBar extends StatelessWidget {
   final List<AppNavItem>? mobileMoreItems;
   final IconData? pageIcon;
   final VoidCallback? onBack;
+  final VoidCallback? onResearch;
+  final bool researchVisible;
+  final VoidCallback? onCalculator;
+  final bool calculatorVisible;
+  final String statusBadgeText;
+  final bool showStatusBadge;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) =>
+        _buildHeader(context, constraints.maxWidth),
+  );
+
+  Widget _buildHeader(BuildContext context, double availableWidth) {
     final UiTheme theme = context.ui;
     final bool isMobile = context.uiRes.isMobile;
     final bool isCompactHeader =
-        isMobile ||
-        context.uiRes.isTablet ||
-        context.uiRes.width < context.sz(1180);
+        isMobile || context.uiRes.isTablet || availableWidth < context.sz(860);
 
     String sectionTitle = this.sectionTitle ?? 'Terminal';
     String pageTitle = title ?? 'Dashboard';
@@ -1230,7 +1636,9 @@ class AppTopBar extends StatelessWidget {
       }
     }
 
-    if (activeIcon == null && mobilePrimaryItems != null && selectedId != null) {
+    if (activeIcon == null &&
+        mobilePrimaryItems != null &&
+        selectedId != null) {
       for (final item in mobilePrimaryItems!) {
         if (item.id == selectedId) {
           activeIcon = item.icon;
@@ -1267,317 +1675,109 @@ class AppTopBar extends StatelessWidget {
       };
     }
 
-    final Widget breadcrumbWidget = (sections != null && selectedId != null && !isMobile)
-        ? UiBreadcrumbs(
-            crumbs: <UiCrumb>[
-              UiCrumb(label: sectionTitle),
-              UiCrumb(label: pageTitle),
-            ],
-          )
-        : Text(
-            pageTitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: isMobile
-                ? context.uiText.label.copyWith(
-                    color: theme.colors.foreground,
-                    fontWeight: FontWeight.w600,
-                    decoration: TextDecoration.none,
-                    decorationColor: Colors.transparent,
-                  )
-                : context.uiText.subheading,
-          );
-
+    final bool showSearchInput = !isCompactHeader && onSearchChanged != null;
+    final Widget titleWidget = Text(
+      isMobile || sectionTitle.isEmpty
+          ? pageTitle
+          : '$sectionTitle / $pageTitle',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: context.uiText.bodyStrong.copyWith(
+        inherit: false,
+        color: theme.colors.foreground,
+        decoration: TextDecoration.none,
+      ),
+    );
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: isMobile
-            ? EdgeInsets.all(context.sp(theme.spacing.sm))
-            : EdgeInsets.fromLTRB(
-                0,
-                context.sp(theme.spacing.xs),
-                context.sp(theme.spacing.xs + 3),
-                context.sp(theme.spacing.xs),
-              ),
-        child: Container(
+        padding: EdgeInsets.fromLTRB(
+          context.sp(theme.spacing.sm),
+          context.sp(theme.spacing.xs),
+          context.sp(theme.spacing.sm),
+          context.sp(theme.spacing.xs),
+        ),
+        child: UiCard(
           key: const ValueKey<String>('app-header-surface'),
-          height: context.sz(isMobile ? 56 : 50),
-          padding: isMobile
-              ? EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.xs + 2),
-                  vertical: context.sp(theme.spacing.xs),
-                )
-              : EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.md)),
-          decoration: BoxDecoration(
-            color: theme.colors.surface.withValues(alpha: 0.94),
-            borderRadius: context.radius(theme.radii.xl),
-            border: Border.all(
-              color: theme.colors.border,
-              width: theme.borders.hairline,
-            ),
-            boxShadow: theme.shadows.sm,
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(theme.spacing.sm),
+            vertical: context.sp(theme.spacing.xs),
           ),
+          borderRadius: context.radius(theme.radii.lg),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              // Left: Desktop Sidebar toggle (if any)
-              ?leading,
-              if (leading != null) ...<Widget>[
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Container(
-                  width: theme.borders.hairline,
-                  height: context.sz(16),
-                  color: theme.colors.border.withValues(alpha: 0.6),
+              if (leading != null) ...[leading!, UiGap.h(theme.spacing.xs)],
+              if (onBack != null) ...[
+                UiIconButton(
+                  icon: Icons.arrow_back_rounded,
+                  tooltip: 'Back',
+                  size: UiSize.sm,
+                  onPressed: onBack,
                 ),
-                SizedBox(width: context.sp(theme.spacing.sm)),
+                UiGap.h(theme.spacing.xs),
               ],
-              Expanded(
-                child: ClipRect(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: PageTransitionSwitcher(
-                      duration: const Duration(milliseconds: 220),
-                      reverse: onBack == null,
-                      layoutBuilder: (List<Widget> entries) => Stack(
-                        alignment: Alignment.centerLeft,
-                        children: entries,
-                      ),
-                      transitionBuilder: (
-                        Widget child,
-                        Animation<double> primaryAnimation,
-                        Animation<double> secondaryAnimation,
-                      ) {
-                        return SharedAxisTransition(
-                          animation: primaryAnimation,
-                          secondaryAnimation: secondaryAnimation,
-                          transitionType: SharedAxisTransitionType.horizontal,
-                          fillColor: Colors.transparent,
-                          child: child,
-                        );
-                      },
-                      child: KeyedSubtree(
-                        key: ValueKey<String>(
-                          '${selectedId ?? pageTitle}_${onBack != null}',
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: <Widget>[
-                            if (onBack != null) ...<Widget>[
-                              UiIconButton(
-                                icon: Icons.arrow_back_rounded,
-                                size: UiSize.xs,
-                                variant: UiVariant.ghost,
-                                tooltip: 'Back',
-                                onPressed: onBack,
-                              ),
-                              SizedBox(width: context.sp(theme.spacing.xxs)),
-                              if (activeIcon != null) ...<Widget>[
-                                Icon(
-                                  activeIcon,
-                                  size: context.sz(18),
-                                  color: theme.colors.primary,
-                                ),
-                                SizedBox(width: context.sp(theme.spacing.xs)),
-                              ],
-                            ] else if (showLogo) ...<Widget>[
-                              AppLogoMark(size: context.sz(16), rounded: false),
-                              SizedBox(width: context.sp(theme.spacing.xs)),
-                            ],
-                            Flexible(child: breadcrumbWidget),
-                          ],
-                        ),
-                      ),
-                    ),
+              Expanded(flex: 2, child: titleWidget),
+              if (showStatusBadge && statusBadgeText.isNotEmpty)
+                UiBadge(label: statusBadgeText, size: UiSize.xs),
+              if (showSearchInput) ...[
+                UiGap.h(theme.spacing.md),
+                Expanded(
+                  flex: 3,
+                  child: UiInput.search(
+                    key: searchTargetKey,
+                    value: searchQuery ?? '',
+                    hintText: searchHint ?? 'Search...',
+                    size: UiSize.sm,
+                    onChanged: onSearchChanged,
+                    onClear: () => onSearchChanged?.call(''),
                   ),
                 ),
-              ),
-              SizedBox(width: context.sp(theme.spacing.md)),
-              SizedBox(
-                width: context.sz(isCompactHeader ? 116 : 560),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    // Center-Right: Search Command Pill (Desktop)
-                    if (!isCompactHeader) ...<Widget>[
-                      UiInteractive(
-                        onTap: onSearch,
-                        builder: (BuildContext ctx, UiInteractiveState s) =>
-                            AnimatedContainer(
-                              duration: theme.motion.fast,
-                              width: ctx.sz(250),
-                              height: ctx.sz(32),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: ctx.sp(theme.spacing.sm),
-                              ),
-                              decoration: BoxDecoration(
-                                color: s.hovered
-                                    ? theme.colors.surfaceHover
-                                    : theme.colors.background.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                borderRadius: ctx.radius(theme.radii.md),
-                                border: Border.all(
-                                  color: s.hovered
-                                      ? theme.colors.borderStrong
-                                      : theme.colors.border,
-                                  width: theme.borders.hairline,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.search_rounded,
-                                    size: ctx.sz(15),
-                                    color: theme.colors.foregroundSubtle,
-                                  ),
-                                  SizedBox(width: ctx.sp(theme.spacing.xs)),
-                                  Expanded(
-                                    child: Text(
-                                      'Search symbols, orders...',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: ctx.uiText.caption.copyWith(
-                                        color: theme.colors.foregroundSubtle,
-                                        fontSize: ctx.fs(12.0),
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 5.0,
-                                      vertical: 1.5,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: theme.colors.surface,
-                                      borderRadius: ctx.radius(theme.radii.sm),
-                                      border: Border.all(
-                                        color: theme.colors.border,
-                                        width: theme.borders.hairline,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      '⌘K',
-                                      style: ctx.uiText.caption.copyWith(
-                                        fontSize: ctx.fs(10),
-                                        fontWeight: FontWeight.w600,
-                                        color: theme.colors.foregroundMuted,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.sm)),
-
-                      // Market Live Status Pill
-                      Container(
-                        height: context.sz(28),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: context.sp(theme.spacing.sm),
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colors.bullish.withValues(alpha: 0.08),
-                          borderRadius: context.radius(theme.radii.pill),
-                          border: Border.all(
-                            color: theme.colors.bullish.withValues(alpha: 0.3),
-                            width: theme.borders.hairline,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: context.sz(6.5),
-                              height: context.sz(6.5),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: theme.colors.bullish,
-                              ),
-                            ),
-                            SizedBox(width: context.sp(theme.spacing.xs)),
-                            Text(
-                              'NSE/BSE LIVE',
-                              style: context.uiText.caption.copyWith(
-                                color: theme.colors.bullish,
-                                fontWeight: FontWeight.w600,
-                                fontSize: context.fs(11.0),
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.sm)),
-
-                      // Vertical subtle separator
-                      Container(
-                        width: theme.borders.hairline,
-                        height: context.sz(18),
-                        color: theme.colors.border.withValues(alpha: 0.6),
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.xs)),
-                    ],
-
-                    // Search Icon on Mobile
-                    if (isCompactHeader)
-                      UiIconButton(
-                        icon: Icons.search_rounded,
-                        size: UiSize.sm,
-                        tooltip: 'Search',
-                        onPressed: onSearch,
-                      ),
-
-                    // Notifications Icon with perfectly positioned badge
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: <Widget>[
-                        UiIconButton(
-                          icon: Icons.notifications_none_rounded,
-                          size: UiSize.sm,
-                          tooltip: 'Notifications',
-                          onPressed: onNotifications,
-                        ),
-                        if (unread > 0)
-                          Positioned(
-                            right: 6,
-                            top: 6,
-                            child: Container(
-                              width: context.sz(7),
-                              height: context.sz(7),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: theme.colors.bearish,
-                                border: Border.all(
-                                  color: theme.colors.surface,
-                                  width: theme.borders.thick,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.xxs)),
-
-                    if (isMobile)
-                      UiIconButton(
-                        icon: Icons.auto_awesome_rounded,
-                        size: UiSize.sm,
-                        tooltip: 'AI Assistant',
-                        onPressed: onAi,
-                      )
-                    else
-                      UiIconButton(
-                        icon: Icons.settings_outlined,
-                        size: UiSize.sm,
-                        tooltip: 'Settings',
-                        onPressed: onSettings,
-                      ),
-                  ],
+                UiGap.h(theme.spacing.sm),
+              ] else if (onSearch != null)
+                UiIconButton(
+                  icon: Icons.search_rounded,
+                  tooltip: 'Search',
+                  size: UiSize.sm,
+                  onPressed: onSearch,
                 ),
-              ),
+              if (onResearch != null)
+                UiIconButton(
+                  icon: Icons.travel_explore_rounded,
+                  tooltip: 'Research desk',
+                  size: UiSize.sm,
+                  onPressed: onResearch,
+                ),
+              if (onCalculator != null)
+                UiIconButton(
+                  icon: Icons.calculate_outlined,
+                  tooltip: 'Calculators',
+                  size: UiSize.sm,
+                  onPressed: onCalculator,
+                ),
+              ...headerActions,
+              if (primaryAction != null)
+                primaryAction!
+              else if (onPrimaryAction != null && primaryActionLabel != null)
+                UiButton(
+                  label: primaryActionLabel!,
+                  size: UiSize.sm,
+                  onPressed: onPrimaryAction,
+                ),
+              if (onNotifications != null)
+                UiIconButton(
+                  icon: Icons.notifications_none_rounded,
+                  tooltip: 'Notifications',
+                  badgeCount: unread > 0 ? unread : null,
+                  size: UiSize.sm,
+                  onPressed: onNotifications,
+                ),
+              if (onHelp != null || onAi != null)
+                UiIconButton(
+                  icon: Icons.help_outline_rounded,
+                  tooltip: 'Help & Guides',
+                  size: UiSize.sm,
+                  onPressed: onHelp ?? onAi,
+                ),
             ],
           ),
         ),

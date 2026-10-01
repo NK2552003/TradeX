@@ -176,6 +176,41 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                           height: 1.5,
                         ),
                       ),
+                      SizedBox(height: context.sp(theme.spacing.md)),
+                      Wrap(
+                        spacing: context.sp(theme.spacing.sm),
+                        runSpacing: context.sp(theme.spacing.xs),
+                        children: [
+                          UiButton(
+                            label: 'Apply for Affiliate',
+                            leadingIcon: Icons.assignment_outlined,
+                            variant: UiVariant.primary,
+                            intent: UiIntent.warning,
+                            size: UiSize.sm,
+                            onPressed: () {
+                              if (widget.onUpgradeToAffiliate != null) {
+                                widget.onUpgradeToAffiliate!();
+                              } else {
+                                UiToast.show(
+                                  context,
+                                  title: 'Application required',
+                                  message:
+                                      'Affiliate tools unlock only after administrator approval.',
+                                  intent: UiIntent.warning,
+                                );
+                              }
+                            },
+                          ),
+                          UiButton(
+                            label: 'Copy Referral Link',
+                            leadingIcon: Icons.link_rounded,
+                            variant: UiVariant.outline,
+                            intent: UiIntent.neutral,
+                            size: UiSize.sm,
+                            onPressed: _copyReferralLink,
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),

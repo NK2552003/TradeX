@@ -10,10 +10,12 @@ import 'ui_empty_state.dart';
 ///
 /// This is the wrapper the screen specs call for so Loading / Error / Empty
 /// never have to be re-implemented per screen.
-class UiAsyncView extends StatelessWidget {
+class UiAsyncView<T> extends StatelessWidget {
   const UiAsyncView({
     super.key,
-    required this.builder,
+    this.builder,
+    this.state,
+    this.data,
     this.loading = false,
     this.loadingMessage,
     this.error,
@@ -27,7 +29,9 @@ class UiAsyncView extends StatelessWidget {
     this.errorTitle = 'Something went wrong',
   });
 
-  final WidgetBuilder builder;
+  final dynamic builder;
+  final dynamic state;
+  final T? data;
   final bool loading;
   final String? loadingMessage;
   final String? error;
@@ -42,7 +46,29 @@ class UiAsyncView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) {
+    bool isLoading = loading;
+    String? err = error;
+    bool empty = isEmpty;
+    T? resolvedData = data;
+
+    if (state != null) {
+      if (state is AsyncSnapshot) {
+        final AsyncSnapshot snap = state as AsyncSnapshot;
+        if (snap.connectionState == ConnectionState.waiting) {
+          isLoading = true;
+        } else if (snap.hasError) {
+          err = snap.error?.toString() ?? 'An unexpected error occurred';
+        } else {
+          resolvedData = snap.data as T?;
+          if (resolvedData == null ||
+              (resolvedData is Iterable && resolvedData.isEmpty)) {
+            empty = true;
+          }
+        }
+      }
+    }
+
+    if (isLoading) {
       return loadingBuilder?.call(context) ??
           Padding(
             padding: EdgeInsets.all(context.sp(context.uiSpace.xl)),
@@ -72,10 +98,10 @@ class UiAsyncView extends StatelessWidget {
             ),
           );
     }
-    if (error != null) {
+    if (err != null) {
       return UiEmptyState(
         title: errorTitle,
-        message: error,
+        message: err,
         icon: Icons.error_outline,
         action: onRetry == null
             ? null
@@ -88,7 +114,7 @@ class UiAsyncView extends StatelessWidget {
               ),
       );
     }
-    if (isEmpty) {
+    if (empty) {
       return UiEmptyState(
         title: emptyTitle,
         message: emptyMessage,
@@ -96,7 +122,20 @@ class UiAsyncView extends StatelessWidget {
         action: emptyAction,
       );
     }
-    return builder(context);
+    if (builder != null) {
+      if (builder is Widget Function(BuildContext)) {
+        return (builder as Widget Function(BuildContext))(context);
+      }
+      if (builder is Widget Function(T)) {
+        return (builder as Widget Function(T))(resolvedData as T);
+      }
+      try {
+        return (builder as dynamic)(resolvedData ?? context) as Widget;
+      } catch (_) {
+        return (builder as dynamic)(context) as Widget;
+      }
+    }
+    return const SizedBox.shrink();
   }
 }
 

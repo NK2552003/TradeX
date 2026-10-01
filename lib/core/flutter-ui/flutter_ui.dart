@@ -71,9 +71,15 @@ export 'components/ui_progress_circle.dart';
 export 'components/ui_category_bar.dart';
 export 'components/ui_bar_list.dart';
 export 'components/ui_tracker.dart';
+export 'components/ui_marquee.dart';
+export 'components/ui_data_panel.dart';
+export 'components/ui_stat_strip.dart';
+export 'components/ui_key_value_table.dart';
+export 'components/ui_range_meter.dart';
 
 // Charts
 export 'components/ui_chart_base.dart';
+export 'components/ui_waterfall_chart.dart';
 export 'components/ui_line_chart.dart';
 export 'components/ui_area_chart.dart';
 export 'components/ui_bar_chart.dart';
@@ -89,7 +95,6 @@ export 'components/ui_breadcrumbs.dart';
 export 'components/ui_pagination.dart';
 export 'components/ui_stepper.dart';
 export 'components/ui_timeline.dart';
-export 'components/ui_marquee.dart';
 
 // State & async
 export 'components/ui_async_view.dart';
@@ -103,3 +108,6 @@ export 'components/ui_lightbox.dart';
 export 'components/ui_remote_image.dart';
 export 'components/ui_editor_toolbar.dart';
 export 'components/ui_typing_indicator.dart';
+
+export 'components/ui_deferred.dart';
+export 'components/ui_lazy_list.dart';

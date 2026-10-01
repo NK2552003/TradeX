@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 
@@ -39,30 +38,16 @@ class _SplashScreenState extends State<SplashScreen>
     curve: const Interval(0.0, 0.8, curve: Curves.easeOutCubic),
   );
 
-  double _progress = 0.0;
-  Timer? _timer;
-
   @override
   void initState() {
     super.initState();
-    _animController.forward();
-
-    _timer = Timer.periodic(const Duration(milliseconds: 32), (t) {
-      if (!mounted) return;
-      setState(() {
-        _progress += 0.02;
-        if (_progress >= 1.0) {
-          _progress = 1.0;
-          _timer?.cancel();
-          Future.delayed(const Duration(milliseconds: 350), widget.onFinish);
-        }
-      });
+    _animController.forward().then((_) {
+      if (mounted) widget.onFinish();
     });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
     _animController.dispose();
     super.dispose();
   }
@@ -113,7 +98,7 @@ class _SplashScreenState extends State<SplashScreen>
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(2),
                           child: LinearProgressIndicator(
-                            value: _progress,
+                            value: _animController.value,
                             backgroundColor: colors.border,
                             valueColor: AlwaysStoppedAnimation<Color>(
                               colors.primary,

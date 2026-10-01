@@ -1,52 +1,145 @@
 {
   "Americas": {
-    "^GSPC": {
-      "price": 5850.2,
-      "change_pct": 0.4
-    },
-    "^DJI": {
-      "price": 42100.5,
-      "change_pct": 0.2
+    "^RUT": {
+      "price": 2796.86,
+      "change_pct": -0.39
     },
     "^IXIC": {
-      "price": 18400.1,
-      "change_pct": 0.6
+      "price": 26861.06,
+      "change_pct": 0.24
+    },
+    "^GSPTSE": {
+      "price": 35235.87,
+      "change_pct": -0.63
+    },
+    "^MXX": {
+      "price": 64214.4,
+      "change_pct": -1.38
+    },
+    "^GSPC": {
+      "price": 7651.54,
+      "change_pct": -0.25
+    },
+    "^IPSA": null,
+    "^MERV": {
+      "price": 2819323.0,
+      "change_pct": 1.32
+    },
+    "^BVSP": {
+      "price": 186340.0,
+      "change_pct": 1.37
+    },
+    "^DJI": {
+      "price": 50906.1,
+      "change_pct": -0.86
     }
   },
   "Europe": {
-    "^FTSE": {
-      "price": 8300.1,
-      "change_pct": -0.1
+    "^AEX": {
+      "price": 1114.9,
+      "change_pct": -0.47
     },
     "^GDAXI": {
-      "price": 19200.4,
-      "change_pct": 0.3
+      "price": 25199.19,
+      "change_pct": -0.79
+    },
+    "^STOXX50E": {
+      "price": 6269.02,
+      "change_pct": -0.81
+    },
+    "FTSEMIB.MI": {
+      "price": 51372.0,
+      "change_pct": -0.84
+    },
+    "^IBEX": {
+      "price": 19426.2,
+      "change_pct": -0.47
+    },
+    "^ATX": {
+      "price": 6856.0,
+      "change_pct": -1.13
+    },
+    "^FTSE": {
+      "price": 10606.0,
+      "change_pct": -0.29
+    },
+    "^OMXS30": {
+      "price": 3268.98,
+      "change_pct": null
+    },
+    "^FCHI": {
+      "price": 7964.51,
+      "change_pct": -0.89
+    },
+    "^SSMI": {
+      "price": 13830.34,
+      "change_pct": -0.59
     }
   },
   "Asia": {
-    "^N225": {
-      "price": 38900.5,
-      "change_pct": 0.8
+    "^JKSE": {
+      "price": 6062.46,
+      "change_pct": -0.14
     },
-    "^NSEI": {
-      "price": 25800.2,
-      "change_pct": 0.55
+    "^HSI": {
+      "price": 24613.27,
+      "change_pct": 0.37
+    },
+    "^KS11": {
+      "price": 6884.89,
+      "change_pct": 0.69
+    },
+    "^KLSE": {
+      "price": 1640.08,
+      "change_pct": -0.67
+    },
+    "000001.SS": {
+      "price": 3842.2,
+      "change_pct": 0.31
+    },
+    "^TWII": {
+      "price": 48010.31,
+      "change_pct": 0.15
     },
     "^BSESN": {
-      "price": 84200.1,
-      "change_pct": 0.52
+      "price": 72480.29,
+      "change_pct": -0.07
+    },
+    "^NSEI": {
+      "price": 22620.45,
+      "change_pct": -0.42
+    },
+    "^N225": {
+      "price": 68355.81,
+      "change_pct": 2.4
+    },
+    "^STI": {
+      "price": 5695.53,
+      "change_pct": 0.35
     }
   },
   "Middle East & Africa": {
     "^CASE30": {
-      "price": 30500.0,
-      "change_pct": 0.15
+      "price": 51894.8,
+      "change_pct": null
+    },
+    "^J203.JO": {
+      "price": 108506.9,
+      "change_pct": -0.85
+    },
+    "^TA125.TA": {
+      "price": 4075.62,
+      "change_pct": -0.21
     }
   },
   "Oceania": {
     "^AXJO": {
-      "price": 8200.3,
-      "change_pct": 0.25
+      "price": 8641.3,
+      "change_pct": -1.68
+    },
+    "^NZ50": {
+      "price": 13703.66,
+      "change_pct": -0.94
     }
   }
 }

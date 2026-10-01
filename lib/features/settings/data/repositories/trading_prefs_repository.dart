@@ -229,4 +229,3 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
     return List<AppChecklistItem>.from(_checklist);
   }
 }
-

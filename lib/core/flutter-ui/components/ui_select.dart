@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
+import 'ui_button.dart';
+import 'ui_dialog.dart';
 import 'ui_common.dart';
 import 'ui_input.dart';
 
@@ -31,6 +33,7 @@ class UiSelect<T> extends StatelessWidget {
     this.width,
     this.minWidth,
     this.maxWidth,
+    this.expand = false,
   });
 
   final List<UiOption<T>> options;
@@ -52,6 +55,7 @@ class UiSelect<T> extends StatelessWidget {
   final ValueChanged<List<T>>? onValuesChanged;
   final IconData? leadingIcon;
   final bool searchable;
+
   /// Fixed width in logical points (scaled internally). Overrides
   /// [minWidth]/[maxWidth] when set.
   final double? width;
@@ -59,6 +63,7 @@ class UiSelect<T> extends StatelessWidget {
   /// Width bounds in logical points (scaled internally).
   final double? minWidth;
   final double? maxWidth;
+  final bool expand;
 
   UiOption<T>? get _selected {
     for (final UiOption<T> o in options) {
@@ -67,7 +72,69 @@ class UiSelect<T> extends StatelessWidget {
     return null;
   }
 
+  Future<void> _openMulti(BuildContext context) async {
+    final List<T> current = List<T>.from(values ?? <T>[]);
+    final List<T>? picked = await UiDialog.show<List<T>>(
+      context,
+      child: StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setStateDialog) {
+          return UiDialog(
+            title: label ?? hintText,
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(ctx).height * .55,
+              ),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (BuildContext c2, int i) {
+                  final UiOption<T> opt = options[i];
+                  final bool isSelected = current.contains(opt.value);
+                  return CheckboxListTile(
+                    title: Text(opt.label),
+                    value: isSelected,
+                    onChanged: opt.enabled
+                        ? (bool? v) {
+                            setStateDialog(() {
+                              if (v == true) {
+                                current.add(opt.value);
+                              } else {
+                                current.remove(opt.value);
+                              }
+                            });
+                          }
+                        : null,
+                  );
+                },
+              ),
+            ),
+            actions: <Widget>[
+              UiButton(
+                label: 'Cancel',
+                variant: UiVariant.ghost,
+                onPressed: () => Navigator.of(ctx).pop(null),
+              ),
+              UiButton(
+                label: 'Done',
+                variant: UiVariant.solid,
+                intent: UiIntent.primary,
+                onPressed: () => Navigator.of(ctx).pop(current),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (picked != null) {
+      onValuesChanged?.call(picked);
+    }
+  }
+
   Future<void> _open(BuildContext context) async {
+    if (multiple) {
+      await _openMulti(context);
+      return;
+    }
     final T? picked = context.uiRes.isMobile
         ? await _showSheet(context)
         : await _showMenu(context);
@@ -75,45 +142,24 @@ class UiSelect<T> extends StatelessWidget {
   }
 
   Future<T?> _showSheet(BuildContext context) {
-    final theme = context.ui;
-    return showModalBottomSheet<T>(
-      context: context,
-      backgroundColor: theme.colors.surface,
-      barrierColor: theme.colors.overlay,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(context.sz(theme.radii.xxl)),
-        ),
-      ),
-      builder: (BuildContext ctx) => SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(ctx.sp(theme.spacing.lg)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              if (label != null) ...<Widget>[
-                Text(
-                  label!,
-                  style: ctx.uiText.heading.copyWith(
-                    color: theme.colors.foreground,
-                  ),
-                ),
-                SizedBox(height: ctx.sp(theme.spacing.md)),
-              ],
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: options.length,
-                  itemBuilder: (BuildContext c2, int i) => _UiSelectRow<T>(
-                    option: options[i],
-                    selected: options[i].value == value,
-                    onTap: () => Navigator.of(c2).pop(options[i].value),
-                  ),
-                ),
+    return UiDialog.show<T>(
+      context,
+      child: Builder(
+        builder: (ctx) => UiDialog(
+          title: label ?? hintText,
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(ctx).height * .55,
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: options.length,
+              itemBuilder: (c2, i) => _UiSelectRow<T>(
+                option: options[i],
+                selected: options[i].value == value,
+                onTap: () => Navigator.of(c2).pop(options[i].value),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -159,67 +205,136 @@ class UiSelect<T> extends StatelessWidget {
     final theme = context.ui;
     final c = theme.colors;
     final UiOption<T>? sel = _selected;
+    final bool explicitlySized = expand || width != null || maxWidth != null;
 
-    return UiInteractive(
-      enabled: enabled && onChanged != null,
-      onTap: () => _open(context),
-      semanticLabel: label ?? hintText,
-      builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
-        duration: theme.motion.fast,
-        height: size.height(ctx),
-        width: width == null ? null : ctx.sz(width!),
-        constraints: width != null
-            ? null
-            : BoxConstraints(
-                minWidth: ctx.sz(minWidth ?? 120),
-                maxWidth: maxWidth == null ? double.infinity : ctx.sz(maxWidth!),
-              ),
-        padding: EdgeInsets.symmetric(horizontal: ctx.sp(theme.spacing.md)),
-        decoration: BoxDecoration(
-          color: enabled ? c.surface : c.disabledBackground,
-          borderRadius: ctx.radius(theme.radii.lg),
-          border: Border.all(
-            color: error
-                ? c.destructive
-                : s.hovered
-                ? c.borderStrong
-                : c.border,
-            width: theme.borders.hairline,
-          ),
+    final Widget selectedLabel;
+    if (multiple && values != null && values!.isNotEmpty) {
+      final List<String> selectedLabels = options
+          .where((UiOption<T> o) => values!.contains(o.value))
+          .map((UiOption<T> o) => o.label)
+          .toList();
+      selectedLabel = Text(
+        selectedLabels.isEmpty ? hintText : selectedLabels.join(', '),
+        overflow: TextOverflow.ellipsis,
+        style: context.uiText.body.copyWith(
+          color: selectedLabels.isEmpty
+              ? c.foregroundSubtle
+              : enabled
+              ? c.foreground
+              : c.disabledForeground,
         ),
-        child: Row(
-          mainAxisSize: width == null && maxWidth == null ? MainAxisSize.min : MainAxisSize.max,
-          children: <Widget>[
-            if (leadingIcon != null || sel?.icon != null) ...<Widget>[
-              Icon(
-                sel?.icon ?? leadingIcon,
-                size: size.icon(ctx),
-                color: c.foregroundMuted,
-              ),
-              SizedBox(width: ctx.sp(theme.spacing.sm)),
-            ],
-            Flexible(
-              child: Text(
-                sel?.label ?? hintText,
-                overflow: TextOverflow.ellipsis,
-                style: ctx.uiText.body.copyWith(
-                  color: sel == null
-                      ? c.foregroundSubtle
-                      : enabled
-                      ? c.foreground
-                      : c.disabledForeground,
+      );
+    } else {
+      selectedLabel = Text(
+        sel?.label ?? hintText,
+        overflow: TextOverflow.ellipsis,
+        style: context.uiText.body.copyWith(
+          color: sel == null
+              ? c.foregroundSubtle
+              : enabled
+              ? c.foreground
+              : c.disabledForeground,
+        ),
+      );
+    }
+
+    final Widget selectBox = LayoutBuilder(
+      builder: (BuildContext layoutContext, BoxConstraints available) {
+        final bool fillsAvailableWidth =
+            explicitlySized || available.hasBoundedWidth;
+        return UiInteractive(
+          enabled: enabled && (onChanged != null || onValuesChanged != null),
+          onTap: () => _open(layoutContext),
+          semanticLabel: label ?? hintText,
+          builder: (BuildContext ctx, UiInteractiveState s) =>
+              AnimatedContainer(
+                duration: theme.motion.fast,
+                height: size.height(ctx),
+                width: expand
+                    ? double.infinity
+                    : (width == null ? null : ctx.sz(width!)),
+                constraints: width != null
+                    ? null
+                    : BoxConstraints(
+                        minWidth: ctx.sz(minWidth ?? 120),
+                        maxWidth: maxWidth == null
+                            ? double.infinity
+                            : ctx.sz(maxWidth!),
+                      ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: ctx.sp(theme.spacing.md),
+                ),
+                decoration: BoxDecoration(
+                  color: enabled ? c.surface : c.disabledBackground,
+                  borderRadius: ctx.radius(theme.radii.lg),
+                  border: Border.all(
+                    color: (error || errorText != null)
+                        ? c.destructive
+                        : s.hovered
+                        ? c.borderStrong
+                        : c.border,
+                    width: theme.borders.hairline,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: fillsAvailableWidth
+                      ? MainAxisSize.max
+                      : MainAxisSize.min,
+                  children: <Widget>[
+                    if (leadingIcon != null || sel?.icon != null) ...<Widget>[
+                      Icon(
+                        sel?.icon ?? leadingIcon,
+                        size: size.icon(ctx),
+                        color: c.foregroundMuted,
+                      ),
+                      SizedBox(width: ctx.sp(theme.spacing.sm)),
+                    ],
+                    if (fillsAvailableWidth)
+                      Expanded(child: selectedLabel)
+                    else
+                      Flexible(child: selectedLabel),
+                    SizedBox(width: ctx.sp(theme.spacing.xs)),
+                    Icon(
+                      Icons.keyboard_arrow_down,
+                      size: size.icon(ctx),
+                      color: c.foregroundSubtle,
+                    ),
+                  ],
                 ),
               ),
+        );
+      },
+    );
+
+    if (label == null && helperText == null && errorText == null) {
+      return selectBox;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        if (label != null) ...<Widget>[
+          Text(
+            label!,
+            style: context.uiText.label.copyWith(
+              color: c.foregroundMuted,
+              fontWeight: FontWeight.w600,
             ),
-            SizedBox(width: ctx.sp(theme.spacing.xs)),
-            Icon(
-              Icons.keyboard_arrow_down,
-              size: size.icon(ctx),
-              color: c.foregroundSubtle,
+          ),
+          SizedBox(height: context.sp(theme.spacing.xxs)),
+        ],
+        selectBox,
+        if (errorText != null || helperText != null) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.xxs)),
+          Text(
+            errorText ?? helperText!,
+            style: context.uiText.caption.copyWith(
+              color: errorText != null ? c.destructive : c.foregroundSubtle,
             ),
-          ],
-        ),
-      ),
+          ),
+        ],
+      ],
     );
   }
 }

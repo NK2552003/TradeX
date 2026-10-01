@@ -12,10 +12,37 @@ class UiTrackerBlock {
 
 /// Uptime/streak tracker (e.g. daily trading streak, signal accuracy history).
 class UiTracker extends StatelessWidget {
-  const UiTracker({super.key, required this.blocks, this.height});
+  UiTracker({
+    super.key,
+    List<UiTrackerBlock>? blocks,
+    List<dynamic>? values,
+    this.height,
+  }) : blocks = blocks ?? _mapValues(values ?? const <dynamic>[]);
 
   final List<UiTrackerBlock> blocks;
   final double? height;
+
+  static List<UiTrackerBlock> _mapValues(List<dynamic> items) {
+    return items.map((dynamic item) {
+      if (item is UiTrackerBlock) return item;
+      if (item is UiIntent) return UiTrackerBlock(intent: item);
+      if (item is bool) {
+        return UiTrackerBlock(
+          intent: item ? UiIntent.success : UiIntent.danger,
+          tooltip: item ? 'Active' : 'Inactive',
+        );
+      }
+      if (item is num) {
+        return UiTrackerBlock(
+          intent: item > 0
+              ? UiIntent.success
+              : (item < 0 ? UiIntent.danger : UiIntent.neutral),
+          tooltip: item.toString(),
+        );
+      }
+      return const UiTrackerBlock(intent: UiIntent.neutral);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {

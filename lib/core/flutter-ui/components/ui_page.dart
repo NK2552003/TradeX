@@ -4,17 +4,29 @@ import '../theme/ui_theme.dart';
 
 /// Page scaffold: max content width, responsive padding, optional sticky header.
 class UiPage extends StatelessWidget {
-  const UiPage({
+  UiPage({
     super.key,
     required this.child,
-    this.header,
+    Widget? header,
+    String? title,
+    String? subtitle,
+    List<Widget>? actions,
     this.scrollable = true,
+    this.scrollController,
     this.maxWidth,
-  });
+  }) : header = header ??
+            (title != null
+                ? UiHeader(
+                    title: title,
+                    subtitle: subtitle,
+                    actions: actions ?? const <Widget>[],
+                  )
+                : null);
 
   final Widget child;
   final Widget? header;
   final bool scrollable;
+  final ScrollController? scrollController;
   /// Content column cap in logical points (scaled internally).
   final double? maxWidth;
 
@@ -33,9 +45,14 @@ class UiPage extends StatelessWidget {
       vertical: context.sp(theme.spacing.sm),
     );
 
+    final double? rawMaxWidth = maxWidth;
+    final double maxW = (rawMaxWidth == null || rawMaxWidth.isInfinite)
+        ? (rawMaxWidth ?? context.sz(theme.sizes.maxContentWidth))
+        : context.sz(rawMaxWidth);
+
     Widget body = ConstrainedBox(
       constraints: BoxConstraints(
-        maxWidth: context.sz(maxWidth ?? theme.sizes.maxContentWidth),
+        maxWidth: maxW,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -63,6 +80,7 @@ class UiPage extends StatelessWidget {
     return SafeArea(
       child: scrollable
           ? SingleChildScrollView(
+              controller: scrollController,
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: body,
             )
@@ -151,7 +169,7 @@ class UiHeader extends StatelessWidget {
           children: <Widget>[
             Expanded(child: identity),
             SizedBox(width: context.sp(theme.spacing.md)),
-            Flexible(child: actionRow),
+            actionRow,
           ],
         );
       },

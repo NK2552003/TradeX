@@ -7,7 +7,8 @@ import 'ui_common.dart';
 class UiRangeSlider extends StatelessWidget {
   const UiRangeSlider({
     super.key,
-    required this.range,
+    RangeValues? range,
+    RangeValues? values,
     required this.onChanged,
     this.min = 0,
     this.max = 100,
@@ -16,7 +17,11 @@ class UiRangeSlider extends StatelessWidget {
     this.valueFormatter,
     this.enabled = true,
     this.intent = UiIntent.primary,
-  });
+  }) : assert(
+         range != null || values != null,
+         'Either range or values must be provided',
+       ),
+       range = values ?? range ?? const RangeValues(0, 100);
 
   final RangeValues range;
   final ValueChanged<RangeValues>? onChanged;

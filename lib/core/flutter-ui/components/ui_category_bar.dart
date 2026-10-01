@@ -14,15 +14,18 @@ class UiCategorySegment {
   final Color? color;
 }
 
+typedef UiCategoryItem = UiCategorySegment;
+
 /// Stacked proportional bar (portfolio allocation, sentiment split).
 class UiCategoryBar extends StatelessWidget {
   const UiCategoryBar({
     super.key,
-    required this.segments,
+    List<UiCategorySegment>? segments,
+    List<UiCategorySegment>? categories,
     this.marker,
     this.showLegend = true,
     this.thickness,
-  });
+  }) : segments = categories ?? segments ?? const <UiCategorySegment>[];
 
   final List<UiCategorySegment> segments;
 

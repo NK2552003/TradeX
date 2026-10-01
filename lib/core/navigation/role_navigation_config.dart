@@ -73,11 +73,71 @@ class RoleNavigationConfig {
       if (labelFor(entry.value) != null) entry.key: labelFor(entry.value)!,
   };
 
-  static RoleNavigationConfig forRole(UserRole role) => switch (role) {
-    UserRole.customer => _trader,
-    UserRole.affiliate => _affiliate,
-    UserRole.userAdmin => _admin,
-  };
+  static RoleNavigationConfig forRole(UserRole role) {
+    final base = switch (role) {
+      UserRole.customer => _trader,
+      UserRole.affiliate => _affiliate,
+      UserRole.userAdmin => _admin,
+    };
+    return RoleNavigationConfig(
+      role: base.role,
+      workspaceName: base.workspaceName,
+      workspaceLabel: base.workspaceLabel,
+      sections: [
+        ...base.sections.take(base.sections.length - 1),
+        _marketSection,
+        base.sections.last,
+      ],
+      mobilePrimaryItems: base.mobilePrimaryItems,
+      mobileMoreItems: [...base.mobileMoreItems, _marketItem],
+      userMenuItems: base.userMenuItems,
+      notificationTargets: base.notificationTargets,
+      upgradeSectionId: base.upgradeSectionId,
+    );
+  }
+
+  static const _marketItem = AppNavItem(
+    id: 'market',
+    label: 'Market Intelligence',
+    icon: Icons.public_outlined,
+    selectedIcon: Icons.public,
+    subItems: [
+      AppNavItem(
+        id: 'market_overview',
+        label: 'Overview',
+        icon: Icons.public_outlined,
+      ),
+      AppNavItem(
+        id: 'market_news',
+        label: 'News',
+        icon: Icons.newspaper_outlined,
+      ),
+      AppNavItem(
+        id: 'market_movers',
+        label: 'Gainers & Losers',
+        icon: Icons.trending_up,
+      ),
+      AppNavItem(
+        id: 'market_instruments',
+        label: 'Instruments',
+        icon: Icons.candlestick_chart_outlined,
+      ),
+      AppNavItem(
+        id: 'market_screeners',
+        label: 'Screeners',
+        icon: Icons.filter_alt_outlined,
+      ),
+      AppNavItem(
+        id: 'market_coverage',
+        label: 'Data coverage',
+        icon: Icons.dataset_outlined,
+      ),
+    ],
+  );
+  static const _marketSection = AppNavSection(
+    title: 'Markets',
+    items: [_marketItem],
+  );
 
   static const AppNavItem _profile = AppNavItem(
     id: 'settings_profile',
@@ -99,25 +159,19 @@ class RoleNavigationConfig {
     workspaceLabel: 'Active Trader',
     upgradeSectionId: 'settings_billing',
     notificationTargets: <String, String>{
-      'Alerts': 'watchlists',
+      'Alerts': 'community_feed',
       'AI': 'ai_copilot',
       'Community': 'community',
-      'Risk': 'portfolio',
       'Strategies': 'strategies',
       'Billing': 'settings_billing',
+      'Notes': 'notes',
     },
     mobilePrimaryItems: <AppNavItem>[
       AppNavItem(
-        id: 'overview',
-        label: 'Home',
-        icon: Icons.dashboard_outlined,
-        selectedIcon: Icons.dashboard_rounded,
-      ),
-      AppNavItem(
-        id: 'journal',
-        label: 'Journal',
-        icon: Icons.receipt_long_outlined,
-        selectedIcon: Icons.receipt_long_rounded,
+        id: 'workspace',
+        label: 'Writing Desk',
+        icon: Icons.edit_note_outlined,
+        selectedIcon: Icons.edit_note_rounded,
       ),
       AppNavItem(
         id: 'community',
@@ -125,23 +179,19 @@ class RoleNavigationConfig {
         icon: Icons.forum_outlined,
         selectedIcon: Icons.forum_rounded,
       ),
+      AppNavItem(
+        id: 'calculators',
+        label: 'Calculators',
+        icon: Icons.calculate_outlined,
+        selectedIcon: Icons.calculate_rounded,
+      ),
       _settingsDock,
     ],
     mobileMoreItems: <AppNavItem>[
       AppNavItem(
-        id: 'strategies',
-        label: 'Strategy Notes',
-        icon: Icons.account_tree_outlined,
-      ),
-      AppNavItem(
-        id: 'watchlists',
-        label: 'Watchlist',
-        icon: Icons.visibility_outlined,
-      ),
-      AppNavItem(
-        id: 'portfolio',
-        label: 'Portfolio',
-        icon: Icons.pie_chart_outline_rounded,
+        id: 'calculators',
+        label: 'Calculators',
+        icon: Icons.calculate_outlined,
       ),
       AppNavItem(
         id: 'ai_copilot',
@@ -181,34 +231,36 @@ class RoleNavigationConfig {
         title: 'Workspace',
         items: <AppNavItem>[
           AppNavItem(
-            id: 'overview',
-            label: 'Dashboard',
-            icon: Icons.dashboard_outlined,
-            selectedIcon: Icons.dashboard_rounded,
+            id: 'workspace',
+            label: 'Writing Desk',
+            icon: Icons.edit_note_outlined,
+            selectedIcon: Icons.edit_note_rounded,
+            subItems: <AppNavItem>[
+              AppNavItem(
+                id: 'journal',
+                label: 'Journal',
+                icon: Icons.receipt_long_outlined,
+                selectedIcon: Icons.receipt_long_rounded,
+              ),
+              AppNavItem(
+                id: 'strategies',
+                label: 'Strategies',
+                icon: Icons.account_tree_outlined,
+                selectedIcon: Icons.account_tree_rounded,
+              ),
+              AppNavItem(
+                id: 'notes',
+                label: 'Notes',
+                icon: Icons.note_alt_outlined,
+                selectedIcon: Icons.note_alt_rounded,
+              ),
+            ],
           ),
           AppNavItem(
-            id: 'journal',
-            label: 'Trade Journal',
-            icon: Icons.receipt_long_outlined,
-            selectedIcon: Icons.receipt_long_rounded,
-          ),
-          AppNavItem(
-            id: 'strategies',
-            label: 'Strategy Notes',
-            icon: Icons.account_tree_outlined,
-            selectedIcon: Icons.account_tree_rounded,
-          ),
-          AppNavItem(
-            id: 'watchlists',
-            label: 'Watchlist',
-            icon: Icons.visibility_outlined,
-            selectedIcon: Icons.visibility_rounded,
-          ),
-          AppNavItem(
-            id: 'portfolio',
-            label: 'Portfolio',
-            icon: Icons.pie_chart_outline_rounded,
-            selectedIcon: Icons.pie_chart_rounded,
+            id: 'calculators',
+            label: 'Calculators',
+            icon: Icons.calculate_outlined,
+            selectedIcon: Icons.calculate_rounded,
           ),
         ],
       ),
@@ -220,6 +272,38 @@ class RoleNavigationConfig {
             label: 'Community',
             icon: Icons.forum_outlined,
             selectedIcon: Icons.forum_rounded,
+            subItems: <AppNavItem>[
+              AppNavItem(
+                id: 'community_feed',
+                label: 'Feed',
+                icon: Icons.dynamic_feed_outlined,
+                selectedIcon: Icons.dynamic_feed_rounded,
+              ),
+              AppNavItem(
+                id: 'community_explore',
+                label: 'Explore',
+                icon: Icons.explore_outlined,
+                selectedIcon: Icons.explore_rounded,
+              ),
+              AppNavItem(
+                id: 'community_network',
+                label: 'Network',
+                icon: Icons.group_outlined,
+                selectedIcon: Icons.group_rounded,
+              ),
+              AppNavItem(
+                id: 'community_profile',
+                label: 'My Profile',
+                icon: Icons.person_outline_rounded,
+                selectedIcon: Icons.person_rounded,
+              ),
+              AppNavItem(
+                id: 'community_bookmarks',
+                label: 'Bookmarks',
+                icon: Icons.bookmark_border_rounded,
+                selectedIcon: Icons.bookmark_rounded,
+              ),
+            ],
           ),
           AppNavItem(
             id: 'messages',
@@ -301,6 +385,7 @@ class RoleNavigationConfig {
       'AI': 'ai_copilot',
       'Community': 'community',
       'Billing': 'payouts',
+      'Notes': 'notes',
     },
     mobilePrimaryItems: <AppNavItem>[
       AppNavItem(
@@ -323,6 +408,12 @@ class RoleNavigationConfig {
       _settingsDock,
     ],
     mobileMoreItems: <AppNavItem>[
+      AppNavItem(id: 'notes', label: 'Notes', icon: Icons.note_alt_outlined),
+      AppNavItem(
+        id: 'strategies',
+        label: 'Strategies',
+        icon: Icons.account_tree_outlined,
+      ),
       AppNavItem(
         id: 'marketing',
         label: 'Media Kit',
@@ -396,6 +487,18 @@ class RoleNavigationConfig {
             label: 'Payout History',
             icon: Icons.account_balance_wallet_outlined,
           ),
+          AppNavItem(
+            id: 'notes',
+            label: 'Notes',
+            icon: Icons.note_alt_outlined,
+            selectedIcon: Icons.note_alt_rounded,
+          ),
+          AppNavItem(
+            id: 'strategies',
+            label: 'Strategies',
+            icon: Icons.account_tree_outlined,
+            selectedIcon: Icons.account_tree_rounded,
+          ),
         ],
       ),
       AppNavSection(
@@ -406,6 +509,38 @@ class RoleNavigationConfig {
             label: 'Community',
             icon: Icons.forum_outlined,
             selectedIcon: Icons.forum_rounded,
+            subItems: <AppNavItem>[
+              AppNavItem(
+                id: 'community_feed',
+                label: 'Feed',
+                icon: Icons.dynamic_feed_outlined,
+                selectedIcon: Icons.dynamic_feed_rounded,
+              ),
+              AppNavItem(
+                id: 'community_explore',
+                label: 'Explore',
+                icon: Icons.explore_outlined,
+                selectedIcon: Icons.explore_rounded,
+              ),
+              AppNavItem(
+                id: 'community_network',
+                label: 'Network',
+                icon: Icons.group_outlined,
+                selectedIcon: Icons.group_rounded,
+              ),
+              AppNavItem(
+                id: 'community_profile',
+                label: 'My Profile',
+                icon: Icons.person_outline_rounded,
+                selectedIcon: Icons.person_rounded,
+              ),
+              AppNavItem(
+                id: 'community_bookmarks',
+                label: 'Bookmarks',
+                icon: Icons.bookmark_border_rounded,
+                selectedIcon: Icons.bookmark_rounded,
+              ),
+            ],
           ),
           AppNavItem(
             id: 'messages',
@@ -482,6 +617,7 @@ class RoleNavigationConfig {
       'Risk': 'org_risk',
       'Alerts': 'org_audit',
       'Billing': 'settings_organization',
+      'Notes': 'notes',
     },
     mobilePrimaryItems: <AppNavItem>[
       AppNavItem(
@@ -506,6 +642,16 @@ class RoleNavigationConfig {
     ],
     mobileMoreItems: <AppNavItem>[
       AppNavItem(
+        id: 'notes',
+        label: 'Desk Notes',
+        icon: Icons.note_alt_outlined,
+      ),
+      AppNavItem(
+        id: 'strategies',
+        label: 'Strategies',
+        icon: Icons.account_tree_outlined,
+      ),
+      AppNavItem(
         id: 'org_audit',
         label: 'Execution Audit',
         icon: Icons.history_edu_outlined,
@@ -524,6 +670,11 @@ class RoleNavigationConfig {
         id: 'ai_copilot',
         label: 'AI Risk Assistant',
         icon: Icons.auto_awesome_outlined,
+      ),
+      AppNavItem(
+        id: 'messages',
+        label: 'Messages',
+        icon: Icons.chat_bubble_outline_rounded,
       ),
       AppNavItem(
         id: 'settings_organization',
@@ -596,6 +747,18 @@ class RoleNavigationConfig {
             icon: Icons.fact_check_outlined,
             selectedIcon: Icons.fact_check_rounded,
           ),
+          AppNavItem(
+            id: 'notes',
+            label: 'Desk Notes',
+            icon: Icons.note_alt_outlined,
+            selectedIcon: Icons.note_alt_rounded,
+          ),
+          AppNavItem(
+            id: 'strategies',
+            label: 'Strategies',
+            icon: Icons.account_tree_outlined,
+            selectedIcon: Icons.account_tree_rounded,
+          ),
         ],
       ),
       AppNavSection(
@@ -606,6 +769,12 @@ class RoleNavigationConfig {
             label: 'AI Risk Assistant',
             icon: Icons.auto_awesome_outlined,
             selectedIcon: Icons.auto_awesome_rounded,
+          ),
+          AppNavItem(
+            id: 'messages',
+            label: 'Messages',
+            icon: Icons.chat_bubble_outline_rounded,
+            selectedIcon: Icons.chat_bubble_rounded,
           ),
         ],
       ),

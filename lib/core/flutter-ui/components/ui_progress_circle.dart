@@ -3,27 +3,45 @@ import 'package:flutter/material.dart';
 import '../theme/ui_theme.dart';
 import 'ui_common.dart';
 
-/// Circular progress ring with centered content.
+/// Circular progress ring with centered content, or indeterminate spinner when value is null.
 class UiProgressCircle extends StatelessWidget {
   const UiProgressCircle({
     super.key,
-    required this.value,
+    this.value,
     this.size,
     this.thickness,
     this.intent = UiIntent.primary,
     this.center,
+    this.showLabel = true,
   });
 
-  final double value;
+  final double? value;
   final double? size;
   final double? thickness;
   final UiIntent intent;
   final Widget? center;
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
     final double dim = context.sz(size ?? 96);
+    final double actualThickness = context.sz(thickness ?? theme.sizes.trackThickness);
+
+    if (value == null) {
+      return SizedBox(
+        width: dim,
+        height: dim,
+        child: CircularProgressIndicator(
+          strokeWidth: actualThickness,
+          color: intent.color(context),
+          backgroundColor: theme.colors.surfaceMuted,
+        ),
+      );
+    }
+
+    final double safeValue = value!.clamp(0, 1);
+    final bool canShowLabel = showLabel && dim >= 40;
     return SizedBox(
       width: dim,
       height: dim,
@@ -33,19 +51,21 @@ class UiProgressCircle extends StatelessWidget {
           CustomPaint(
             size: Size.square(dim),
             painter: _RingPainter(
-              value: value.clamp(0, 1),
+              value: safeValue,
               activeColor: intent.color(context),
               trackColor: theme.colors.surfaceMuted,
-              thickness: context.sz(thickness ?? theme.sizes.trackThickness),
+              thickness: actualThickness,
             ),
           ),
-          center ??
-              Text(
-                '${(value.clamp(0, 1) * 100).toStringAsFixed(0)}%',
-                style: context.uiText.bodyStrong.copyWith(
-                  color: theme.colors.foreground,
-                ),
+          if (center != null)
+            center!
+          else if (canShowLabel)
+            Text(
+              '${(safeValue * 100).toStringAsFixed(0)}%',
+              style: context.uiText.bodyStrong.copyWith(
+                color: theme.colors.foreground,
               ),
+            ),
         ],
       ),
     );

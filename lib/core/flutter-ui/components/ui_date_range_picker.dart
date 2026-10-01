@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
+import 'ui_dialog.dart';
 import 'ui_calendar.dart';
 import 'ui_common.dart';
 import 'ui_date_picker.dart';
@@ -50,18 +51,25 @@ class UiDateRangePreset {
 
 /// Date range picker: a field that opens presets plus a range calendar.
 class UiDateRangePicker extends StatelessWidget {
-  const UiDateRangePicker({
+  UiDateRangePicker({
     super.key,
-    this.value,
-    this.onChanged,
+    DateTimeRange? value,
+    DateTime? startDate,
+    DateTime? endDate,
+    ValueChanged<DateTimeRange>? onChanged,
+    ValueChanged<DateTimeRange>? onRangeSelected,
     this.hintText = 'Pick a range',
     this.size = UiSize.md,
     this.enabled = true,
+    this.presets,
     this.firstDate,
     this.lastDate,
-    this.presets,
     this.showPresets = true,
-  });
+  })  : value = value ??
+            (startDate != null && endDate != null
+                ? DateTimeRange(start: startDate, end: endDate)
+                : null),
+        onChanged = onRangeSelected ?? onChanged;
 
   final DateTimeRange? value;
   final ValueChanged<DateTimeRange>? onChanged;
@@ -82,71 +90,77 @@ class UiDateRangePicker extends StatelessWidget {
     final List<UiDateRangePreset> items =
         presets ?? UiDateRangePreset.defaults();
 
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      barrierColor: theme.colors.overlay,
-      isScrollControlled: true,
-      builder: (BuildContext ctx) => SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(ctx.sp(theme.spacing.lg)),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: ctx.sz(760)),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  if (showPresets && items.isNotEmpty) ...<Widget>[
-                    Wrap(
-                      spacing: ctx.sp(theme.spacing.xs),
-                      runSpacing: ctx.sp(theme.spacing.xs),
-                      children: <Widget>[
-                        for (final UiDateRangePreset p in items)
-                          UiInteractive(
-                            onTap: () {
-                              onChanged?.call(p.resolve(DateTime.now()));
-                              Navigator.of(ctx).pop();
-                            },
-                            builder: (BuildContext c2, UiInteractiveState s) =>
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: c2.sp(theme.spacing.md),
-                                    vertical: c2.sp(theme.spacing.xs),
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: s.hovered
-                                        ? theme.colors.surfaceHover
-                                        : theme.colors.surfaceMuted,
-                                    borderRadius: c2.radius(theme.radii.pill),
-                                    border: Border.all(
-                                      color: theme.colors.border,
-                                      width: theme.borders.hairline,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    p.label,
-                                    style: c2.uiText.caption.copyWith(
-                                      color: theme.colors.foreground,
-                                    ),
-                                  ),
-                                ),
-                          ),
+    await UiDialog.show<void>(
+      context,
+      maxWidth: 760,
+      child: Builder(
+        builder: (BuildContext ctx) => UiDialog(
+          title: 'Date range',
+          content: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.all(ctx.sp(theme.spacing.lg)),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: ctx.sz(760)),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      if (showPresets && items.isNotEmpty) ...<Widget>[
+                        Wrap(
+                          spacing: ctx.sp(theme.spacing.xs),
+                          runSpacing: ctx.sp(theme.spacing.xs),
+                          children: <Widget>[
+                            for (final UiDateRangePreset p in items)
+                              UiInteractive(
+                                onTap: () {
+                                  onChanged?.call(p.resolve(DateTime.now()));
+                                  Navigator.of(ctx).pop();
+                                },
+                                builder:
+                                    (BuildContext c2, UiInteractiveState s) =>
+                                        Container(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: c2.sp(theme.spacing.md),
+                                            vertical: c2.sp(theme.spacing.xs),
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: s.hovered
+                                                ? theme.colors.surfaceHover
+                                                : theme.colors.surfaceMuted,
+                                            borderRadius: c2.radius(
+                                              theme.radii.pill,
+                                            ),
+                                            border: Border.all(
+                                              color: theme.colors.border,
+                                              width: theme.borders.hairline,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            p.label,
+                                            style: c2.uiText.caption.copyWith(
+                                              color: theme.colors.foreground,
+                                            ),
+                                          ),
+                                        ),
+                              ),
+                          ],
+                        ),
+                        SizedBox(height: ctx.sp(theme.spacing.lg)),
                       ],
-                    ),
-                    SizedBox(height: ctx.sp(theme.spacing.lg)),
-                  ],
-                  UiCalendar(
-                    range: value,
-                    rangeMode: true,
-                    firstDate: firstDate,
-                    lastDate: lastDate,
-                    onRangeSelected: (DateTimeRange r) {
-                      onChanged?.call(r);
-                      Navigator.of(ctx).pop();
-                    },
+                      UiCalendar(
+                        range: value,
+                        rangeMode: true,
+                        firstDate: firstDate,
+                        lastDate: lastDate,
+                        onRangeSelected: (DateTimeRange r) {
+                          onChanged?.call(r);
+                          Navigator.of(ctx).pop();
+                        },
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

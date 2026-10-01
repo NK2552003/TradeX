@@ -94,6 +94,7 @@ class UiResponsive {
   bool get isDesktop =>
       deviceType == UiDeviceType.desktop ||
       deviceType == UiDeviceType.largeDesktop;
+  bool get isLargeDesktop => deviceType == UiDeviceType.largeDesktop;
   bool get isCompact => isMobile;
   bool get isLandscape => orientation == Orientation.landscape;
 
@@ -171,10 +172,12 @@ class UiResponsiveBuilder extends StatelessWidget {
   final Widget Function(BuildContext context, UiResponsive r) builder;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (BuildContext ctx, BoxConstraints _) =>
-        builder(ctx, UiResponsive.of(ctx)),
-  );
+  Widget build(BuildContext context) {
+    final r = UiResponsive.of(context);
+    return LayoutBuilder(
+      builder: (BuildContext ctx, BoxConstraints _) => builder(ctx, r),
+    );
+  }
 }
 
 /// Responsive layout switch.

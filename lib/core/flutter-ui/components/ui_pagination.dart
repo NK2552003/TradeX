@@ -8,11 +8,14 @@ import 'ui_icon_button.dart';
 class UiPagination extends StatelessWidget {
   const UiPagination({
     super.key,
-    required this.page,
-    required this.pageCount,
+    int? page,
+    int? currentPage,
+    int? pageCount,
+    int? totalPages,
     required this.onPageChanged,
     this.totalLabel,
-  });
+  }) : page = page ?? (currentPage != null ? (currentPage > 0 ? currentPage - 1 : currentPage) : 0),
+       pageCount = pageCount ?? totalPages ?? 1;
 
   /// Zero-based page index.
   final int page;

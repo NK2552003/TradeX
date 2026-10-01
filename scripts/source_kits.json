@@ -1,0 +1,52 @@
+{
+  "source": "Downloads/files (1)",
+  "archives": {
+    "finance_news_kit.zip": {
+      "sha256": "3309d92abbd7620a4455f4fae5cff47af6800ddbc942328738b65f6eca2cc553",
+      "files": {
+        "news_kit/README.md": "b739b43839f15bca0a738f06cb26316afef3461b28f5cf689a081ea9d9ac3b78",
+        "news_kit/.env.example": "4087a85583385c6497bbc1b513b173895adcf35bfba219b1600b2e010c647711",
+        "news_kit/schema.sql": "5a7043e8224ab1c0ff19fea0ad878b4a9b3512fb7fc7a4ad5725dd423d025a01",
+        "news_kit/db.py": "5ac246b6382002512aa279af6bbea72442d29f160f9f933a8c95bef9906b7d7b",
+        "news_kit/fetch_news.py": "fd8a1daefc0af1f2c603a5fc97840598a1ffd75b0ef643177258f8eaaec2f041",
+        "news_kit/DATABASE.md": "62c61c9a4b4de520549f6558811327cdc00e1df0cf34ffd192d56b0118f98cc3"
+      }
+    },
+    "finance_screeners_kit.zip": {
+      "sha256": "f38cc6b339135b0764517bdd40bdb46f88c5786c42bf1386699447270e0dfd90",
+      "files": {
+        "finance_screeners_kit/README.md": "299587f50d801db49b3e47981f752dabd4ea4c00e274be7129ab6f567aa7a0b5",
+        "finance_screeners_kit/screeners.py": "d5c195841b621d8c98b331b40a5da3860d46d9f81d5e91fd0e89c601087e7005",
+        "finance_screeners_kit/.env.example": "4087a85583385c6497bbc1b513b173895adcf35bfba219b1600b2e010c647711",
+        "finance_screeners_kit/schema.sql": "5a7043e8224ab1c0ff19fea0ad878b4a9b3512fb7fc7a4ad5725dd423d025a01",
+        "finance_screeners_kit/db.py": "5ac246b6382002512aa279af6bbea72442d29f160f9f933a8c95bef9906b7d7b",
+        "finance_screeners_kit/DATABASE.md": "62c61c9a4b4de520549f6558811327cdc00e1df0cf34ffd192d56b0118f98cc3"
+      }
+    },
+    "finance_core_kit.zip": {
+      "sha256": "fdc93fd6a0ce0764c8dae7832b758fb5ac081cb91f83f843f757c75c35dbb7a3",
+      "files": {
+        "finance_core_kit/fetch_finance_data.py": "0b8eead3841670699871414ab4b283d7a1a4edc40a5ec44023997d3cd4fbf367",
+        "finance_core_kit/fetch_ticker_lists.py": "ee5d9e74b5b1bb8d0adf3d78ca1abcd73c9943d2b741b239a976c7a810b6fd15",
+        "finance_core_kit/README.md": "83bff8d02fa5782494fd0a6fa591a320819ce08119eb6ff36caa35ae21ad38a4",
+        "finance_core_kit/serve_data.py": "edaf1d77e9b5b026362ae88f7f08af174957ea5562f5ea56a9d3d4dce43de833",
+        "finance_core_kit/refresh_loop.py": "15a5f72c11da395c67dad11778c3c6f5b1399a284495eb9bd042b774e6d3fba9",
+        "finance_core_kit/.env.example": "4087a85583385c6497bbc1b513b173895adcf35bfba219b1600b2e010c647711",
+        "finance_core_kit/schema.sql": "5a7043e8224ab1c0ff19fea0ad878b4a9b3512fb7fc7a4ad5725dd423d025a01",
+        "finance_core_kit/db.py": "5ac246b6382002512aa279af6bbea72442d29f160f9f933a8c95bef9906b7d7b",
+        "finance_core_kit/DATABASE.md": "62c61c9a4b4de520549f6558811327cdc00e1df0cf34ffd192d56b0118f98cc3"
+      }
+    },
+    "finance_stock_detail_kit.zip": {
+      "sha256": "7c93ac9799ed99d789a133762830bcd0a19815a71977c4eb659252ae6fe6f3cb",
+      "files": {
+        "finance_stock_detail_kit/README.md": "97b6032b3cc045dc0b1ad826d39f74768ee91fb38bad17ad5fe97287e85fa1e4",
+        "finance_stock_detail_kit/.env.example": "4087a85583385c6497bbc1b513b173895adcf35bfba219b1600b2e010c647711",
+        "finance_stock_detail_kit/schema.sql": "5a7043e8224ab1c0ff19fea0ad878b4a9b3512fb7fc7a4ad5725dd423d025a01",
+        "finance_stock_detail_kit/fetch_stock_detail.py": "12e1949f1804e4c2b4cd48478d6aa04285f39c20c14f0cc4bc4f23f2750baa68",
+        "finance_stock_detail_kit/db.py": "5ac246b6382002512aa279af6bbea72442d29f160f9f933a8c95bef9906b7d7b",
+        "finance_stock_detail_kit/DATABASE.md": "62c61c9a4b4de520549f6558811327cdc00e1df0cf34ffd192d56b0118f98cc3"
+      }
+    }
+  }
+}

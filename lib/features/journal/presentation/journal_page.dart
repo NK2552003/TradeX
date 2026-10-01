@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/features/journal/data/journal_repository.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/journal/data/supabase_trade_repository.dart';
 
 class JournalPage extends StatefulWidget {
   const JournalPage({super.key, this.repository});
 
-  final JournalRepository? repository;
+  final SupabaseTradeRepository? repository;
 
   @override
   State<JournalPage> createState() => _JournalPageState();
 }
 
 class _JournalPageState extends State<JournalPage> {
-  late final JournalRepository _repo;
+  late final SupabaseTradeRepository _repo;
   bool _loading = true;
   List<AppTrade> _trades = [];
   String _query = '';
@@ -22,7 +24,7 @@ class _JournalPageState extends State<JournalPage> {
   @override
   void initState() {
     super.initState();
-    _repo = widget.repository ?? JournalRepositoryImpl();
+    _repo = widget.repository ?? SupabaseTradeRepositoryImpl();
     _loadEntries();
   }
 
@@ -98,7 +100,8 @@ class _JournalPageState extends State<JournalPage> {
               UiEmptyState(
                 icon: Icons.auto_stories_outlined,
                 title: 'No Journal Entries Found',
-                message: 'Start by logging your first trade setup or clearing your active filters.',
+                message:
+                    'Start by logging your first trade setup or clearing your active filters.',
                 action: UiButton(
                   label: 'Refresh',
                   leadingIcon: Icons.refresh,

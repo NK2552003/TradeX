@@ -7,6 +7,7 @@ class UiBarListItem {
   const UiBarListItem({
     required this.label,
     required this.value,
+    this.percentage,
     this.icon,
     this.onTap,
     this.color,
@@ -14,6 +15,7 @@ class UiBarListItem {
 
   final String label;
   final num value;
+  final double? percentage;
   final IconData? icon;
   final VoidCallback? onTap;
   final Color? color;
@@ -55,9 +57,9 @@ class UiBarList extends StatelessWidget {
               builder: (BuildContext ctx, UiInteractiveState s) => Stack(
                 children: <Widget>[
                   FractionallySizedBox(
-                    widthFactor: max == 0
-                        ? 0
-                        : (items[i].value.abs() / max).clamp(0, 1),
+                    widthFactor: (items[i].percentage ??
+                            (max == 0 ? 0.0 : items[i].value.abs() / max))
+                        .clamp(0.0, 1.0),
                     child: Container(
                       height: ctx.sz(theme.sizes.controlHeightSm),
                       decoration: BoxDecoration(

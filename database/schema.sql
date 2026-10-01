@@ -87,14 +87,36 @@ CREATE TABLE IF NOT EXISTS device_tokens (
   UNIQUE (user_id, token)
 );
 
+-- A playbook is markdown, not structured data: `content` is TEXT. The
+-- performance figures a playbook displays (win rate, average R, net P&L) are
+-- deliberately NOT columns here — they are derived from the journal entries
+-- filed under it, by the strategy_performance view below. Storing them would
+-- mean every journal write has to remember to update its parent.
+-- Column rationale: migrations/010_strategy_notes.sql
 CREATE TABLE IF NOT EXISTS strategies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
   title TEXT NOT NULL,
-  content JSONB NOT NULL,
+  summary TEXT,
+  content TEXT NOT NULL DEFAULT '',
   category TEXT,
+  status TEXT NOT NULL DEFAULT 'draft'
+    CHECK (status IN ('draft', 'testing', 'live', 'retired')),
   is_favorite BOOLEAN NOT NULL DEFAULT false,
-  visibility TEXT NOT NULL DEFAULT 'private',
+  visibility TEXT NOT NULL DEFAULT 'private'
+    CHECK (visibility IN ('private', 'public')),
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  linked_tickers TEXT[] NOT NULL DEFAULT '{}',
+  -- Mirrors, rebuilt by trigger from journal_entries.strategy_id and
+  -- trader_notes.strategy_id. Never written by a client.
+  linked_note_ids UUID[] NOT NULL DEFAULT '{}',
+  linked_journal_ids UUID[] NOT NULL DEFAULT '{}',
+  version_count INTEGER NOT NULL DEFAULT 1 CHECK (version_count >= 0),
+  word_count INTEGER NOT NULL DEFAULT 0 CHECK (word_count >= 0),
+  checklist_done INTEGER NOT NULL DEFAULT 0 CHECK (checklist_done >= 0),
+  checklist_total INTEGER NOT NULL DEFAULT 0 CHECK (checklist_total >= checklist_done),
+  has_images BOOLEAN NOT NULL DEFAULT false,
+  has_code BOOLEAN NOT NULL DEFAULT false,
   ai_summary TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -103,16 +125,44 @@ CREATE TABLE IF NOT EXISTS strategies (
 CREATE TABLE IF NOT EXISTS strategy_versions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   strategy_id UUID NOT NULL REFERENCES strategies(id) ON DELETE CASCADE ON UPDATE CASCADE,
-  content JSONB NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  summary TEXT,
+  note TEXT,
   version_number INTEGER NOT NULL,
+  -- Nulled rather than cascaded: losing the author must not lose the revision.
+  author_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  is_current BOOLEAN NOT NULL DEFAULT false,
+  word_count INTEGER NOT NULL DEFAULT 0 CHECK (word_count >= 0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (strategy_id, version_number)
 );
 
+-- Attachment metadata for the private `strategy-attachments` bucket. The bytes
+-- live in storage; this row is what RLS can reason about. Object keys are
+-- `<user_id>/<strategy_id>/<uuid><ext>`, which is what lets the storage owner
+-- policies be prefix matches instead of joins.
+CREATE TABLE IF NOT EXISTS strategy_attachments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  strategy_id UUID NOT NULL REFERENCES strategies(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  storage_path TEXT NOT NULL UNIQUE,
+  filename TEXT NOT NULL,
+  mime_type TEXT,
+  byte_size BIGINT CHECK (byte_size IS NULL OR byte_size BETWEEN 0 AND 10485760),
+  is_image BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- A journal entry is a trade AND the write-up attached to it: one row, never
+-- two. Splitting them would let one exist without the other, which is the
+-- failure mode this feature exists to prevent. Column rationale:
+-- migrations/009_journal_notes.sql
 CREATE TABLE IF NOT EXISTS journal_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  title TEXT NOT NULL DEFAULT '',
   ticker TEXT,
   content TEXT NOT NULL,
   entry_price NUMERIC,
@@ -120,20 +170,38 @@ CREATE TABLE IF NOT EXISTS journal_entries (
   stop_loss NUMERIC,
   target NUMERIC,
   size NUMERIC,
-  side TEXT,
+  side TEXT CHECK (side IS NULL OR side IN ('long', 'short')),
   pnl NUMERIC,
-  screenshots TEXT[] DEFAULT '{}',
-  psychology TEXT,
+  pnl_percent NUMERIC,
+  r_multiple NUMERIC,
+  opened_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  closed_at TIMESTAMPTZ,
+  screenshots TEXT[] DEFAULT '{}',       -- legacy, write-frozen: see 009
+  psychology TEXT,                        -- legacy free text
+  psychology_score INTEGER CHECK (psychology_score IS NULL OR psychology_score BETWEEN 1 AND 10),
   mistakes_made TEXT,
   lessons_learned TEXT,
-  strategy_id UUID REFERENCES strategies(id) ON DELETE CASCADE ON UPDATE CASCADE,
-  outcome TEXT,
-  outcome_source TEXT NOT NULL DEFAULT 'auto',
+  -- SET NULL, never CASCADE: deleting a playbook unfiles its trades, it does
+  -- not destroy the trader's record of them.
+  strategy_id UUID REFERENCES strategies(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  outcome TEXT CHECK (outcome IS NULL OR outcome IN ('win', 'loss', 'breakeven', 'open')),
+  outcome_source TEXT NOT NULL DEFAULT 'auto' CHECK (outcome_source IN ('auto', 'manual')),
   tags TEXT[] DEFAULT '{}',
-  is_public BOOLEAN NOT NULL DEFAULT false,
+  linked_note_ids UUID[] NOT NULL DEFAULT '{}',   -- mirror of note_journal_links
+  word_count INTEGER NOT NULL DEFAULT 0 CHECK (word_count >= 0),
+  checklist_done INTEGER NOT NULL DEFAULT 0 CHECK (checklist_done >= 0),
+  checklist_total INTEGER NOT NULL DEFAULT 0 CHECK (checklist_total >= checklist_done),
+  has_images BOOLEAN NOT NULL DEFAULT false,
+  has_code BOOLEAN NOT NULL DEFAULT false,
+  is_public BOOLEAN NOT NULL DEFAULT false,   -- always false: no public route
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- An open trade has no exit and no close. A "closed" row with no exit price
+  -- silently corrupts every playbook win rate derived from it.
+  CONSTRAINT journal_entries_open_has_no_exit
+    CHECK (outcome IS DISTINCT FROM 'open' OR (exit_price IS NULL AND closed_at IS NULL))
 );
+
 
 CREATE TABLE IF NOT EXISTS journal_entry_links (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -143,6 +211,101 @@ CREATE TABLE IF NOT EXISTS journal_entry_links (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (source_entry_id, target_entry_id),
   CHECK (source_entry_id <> target_entry_id)
+);
+
+-- Attachment metadata for the private `journal-attachments` bucket. Unlike the
+-- note and strategy equivalents this one has no public reader at any depth --
+-- there is no public journal route, so there is nobody to grant.
+CREATE TABLE IF NOT EXISTS journal_entry_attachments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entry_id UUID NOT NULL REFERENCES journal_entries(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  storage_path TEXT NOT NULL UNIQUE,
+  filename TEXT NOT NULL,
+  mime_type TEXT,
+  byte_size BIGINT CHECK (byte_size IS NULL OR byte_size BETWEEN 0 AND 10485760),
+  is_image BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Long-form markdown notes. Column notes and rationale: migrations/007_trader_notes.sql
+CREATE TABLE IF NOT EXISTS trader_notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  title TEXT NOT NULL DEFAULT '',
+  content TEXT NOT NULL DEFAULT '',
+  note_type TEXT NOT NULL DEFAULT 'general'
+    CHECK (note_type IN ('general', 'analysis', 'plan', 'review', 'idea', 'cheat_sheet')),
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  linked_tickers TEXT[] NOT NULL DEFAULT '{}',
+  strategy_id UUID REFERENCES strategies(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  linked_journal_ids UUID[] NOT NULL DEFAULT '{}',
+  is_public BOOLEAN NOT NULL DEFAULT false,
+  word_count INTEGER NOT NULL DEFAULT 0 CHECK (word_count >= 0),
+  checklist_done INTEGER NOT NULL DEFAULT 0 CHECK (checklist_done >= 0),
+  checklist_total INTEGER NOT NULL DEFAULT 0 CHECK (checklist_total >= checklist_done),
+  has_images BOOLEAN NOT NULL DEFAULT false,
+  has_code BOOLEAN NOT NULL DEFAULT false,
+  view_count INTEGER NOT NULL DEFAULT 0 CHECK (view_count >= 0),
+  like_count INTEGER NOT NULL DEFAULT 0 CHECK (like_count >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS trader_note_likes (
+  note_id UUID NOT NULL REFERENCES trader_notes(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (note_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS trader_note_comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  note_id UUID NOT NULL REFERENCES trader_notes(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  content TEXT NOT NULL CHECK (length(btrim(content)) BETWEEN 1 AND 2000),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS trader_note_views (
+  note_id UUID NOT NULL REFERENCES trader_notes(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  viewed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (note_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS trader_note_attachments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  note_id UUID NOT NULL REFERENCES trader_notes(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  storage_path TEXT NOT NULL UNIQUE,
+  filename TEXT NOT NULL,
+  mime_type TEXT,
+  byte_size BIGINT CHECK (byte_size IS NULL OR byte_size BETWEEN 0 AND 10485760),
+  is_image BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- The one genuine many-to-many edge in the link graph, and its source of truth.
+-- `trader_notes.linked_journal_ids` and `journal_entries.linked_note_ids` are
+-- mirrors of this table, rebuilt by trigger. The other two edge types are
+-- many-to-one and need no join table: journal -> strategy is
+-- `journal_entries.strategy_id`, note -> strategy is `trader_notes.strategy_id`.
+-- Rationale: migrations/011_note_link_graph.sql
+CREATE TABLE IF NOT EXISTS note_journal_links (
+  note_id UUID NOT NULL REFERENCES trader_notes(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  entry_id UUID NOT NULL REFERENCES journal_entries(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  -- Denormalised owner. Both ends already carry one, but without it every RLS
+  -- check on this table needs two subqueries -- on the hot path of every
+  -- linked-records panel in the app. Assigned by trigger, never by a client.
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Linking twice is the same as linking once: the client writes both ends of
+  -- every edge, so a duplicate insert is expected traffic, not an error.
+  PRIMARY KEY (note_id, entry_id)
 );
 
 CREATE TABLE IF NOT EXISTS watchlists (
@@ -181,11 +344,19 @@ CREATE TABLE IF NOT EXISTS posts (
   image_url TEXT,
   ticker TEXT,
   content_type TEXT NOT NULL DEFAULT 'market_discussion',
+  -- A post can stand alone or carry exactly one Writing Desk record. SET NULL
+  -- preserves the conversation if its source is later deleted.
+  note_id UUID REFERENCES trader_notes(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  journal_entry_id UUID REFERENCES journal_entries(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  strategy_id UUID REFERENCES strategies(id) ON DELETE SET NULL ON UPDATE CASCADE,
   likes_count INTEGER NOT NULL DEFAULT 0,
   comments_count INTEGER NOT NULL DEFAULT 0,
   views_count INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT posts_one_writing_attachment CHECK (
+    num_nonnulls(note_id, journal_entry_id, strategy_id) <= 1
+  )
 );
 
 CREATE TABLE IF NOT EXISTS post_views (
@@ -232,10 +403,16 @@ CREATE TABLE IF NOT EXISTS likes (
 
 CREATE TABLE IF NOT EXISTS ai_insights (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  ticker TEXT NOT NULL,
-  summary TEXT NOT NULL,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  ticker TEXT,
+  summary TEXT,
   indicators JSONB,
   generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  title TEXT NOT NULL DEFAULT '',
+  body TEXT NOT NULL DEFAULT '',
+  confidence NUMERIC(5, 4) DEFAULT 0.8500,
+  sentiment_score NUMERIC(5, 4) DEFAULT 0.0000,
+  tickers TEXT[] NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -341,10 +518,58 @@ CREATE INDEX IF NOT EXISTS idx_journal_entries_user_created ON journal_entries(u
 CREATE INDEX IF NOT EXISTS idx_journal_entries_user_ticker ON journal_entries(user_id, ticker);
 CREATE INDEX IF NOT EXISTS idx_journal_entries_user_strategy ON journal_entries(user_id, strategy_id);
 CREATE INDEX IF NOT EXISTS idx_journal_entries_tags_gin ON journal_entries USING GIN (tags);
+-- The order the journal index actually reads: newest trade first, per owner.
+-- Not created_at -- a trade backfilled today belongs where it happened.
+CREATE INDEX IF NOT EXISTS idx_journal_entries_user_sortdate
+  ON journal_entries(user_id, (COALESCE(closed_at, opened_at)) DESC);
+-- The prompt the journal leads with: trades with no playbook. Partial, because
+-- a filed trade never needs to appear in this query again.
+CREATE INDEX IF NOT EXISTS idx_journal_entries_unfiled
+  ON journal_entries(user_id) WHERE strategy_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_journal_entries_notes_gin
+  ON journal_entries USING GIN (linked_note_ids);
+CREATE INDEX IF NOT EXISTS idx_journal_entries_search_gin
+  ON journal_entries USING GIN (
+    to_tsvector('english',
+      coalesce(title, '') || ' ' || coalesce(ticker, '') || ' ' || content)
+  );
+CREATE INDEX IF NOT EXISTS idx_journal_entry_attachments_entry
+  ON journal_entry_attachments(entry_id);
+CREATE INDEX IF NOT EXISTS idx_journal_entry_attachments_user
+  ON journal_entry_attachments(user_id);
+CREATE INDEX IF NOT EXISTS idx_trader_notes_user_updated ON trader_notes(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_trader_notes_user_type ON trader_notes(user_id, note_type);
+CREATE INDEX IF NOT EXISTS idx_trader_notes_user_strategy ON trader_notes(user_id, strategy_id);
+CREATE INDEX IF NOT EXISTS idx_trader_notes_tags_gin ON trader_notes USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_trader_notes_tickers_gin ON trader_notes USING GIN (linked_tickers);
+CREATE INDEX IF NOT EXISTS idx_trader_notes_public_updated ON trader_notes(updated_at DESC)
+  WHERE is_public = true;
+CREATE INDEX IF NOT EXISTS idx_trader_note_comments_note_created
+  ON trader_note_comments(note_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_trader_notes_search_gin ON trader_notes
+  USING GIN (to_tsvector('english', title || ' ' || content));
+CREATE INDEX IF NOT EXISTS idx_trader_note_attachments_note ON trader_note_attachments(note_id);
+CREATE INDEX IF NOT EXISTS idx_trader_note_attachments_user ON trader_note_attachments(user_id);
+CREATE INDEX IF NOT EXISTS idx_note_journal_links_entry ON note_journal_links(entry_id);
+CREATE INDEX IF NOT EXISTS idx_note_journal_links_user ON note_journal_links(user_id);
 CREATE INDEX IF NOT EXISTS idx_strategies_user_category ON strategies(user_id, category);
 CREATE INDEX IF NOT EXISTS idx_strategies_public_visibility ON strategies(visibility) WHERE visibility = 'public';
+CREATE INDEX IF NOT EXISTS idx_strategies_user_updated ON strategies(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_strategies_user_status ON strategies(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_strategies_tags_gin ON strategies USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_strategies_tickers_gin ON strategies USING GIN (linked_tickers);
+CREATE INDEX IF NOT EXISTS idx_strategies_journal_gin ON strategies USING GIN (linked_journal_ids);
+CREATE INDEX IF NOT EXISTS idx_strategy_attachments_strategy ON strategy_attachments(strategy_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_attachments_user ON strategy_attachments(user_id);
+-- Exactly one live revision per playbook. Without this, "restore v3" can leave
+-- two rows claiming to be current and the history screen shows two live badges.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_strategy_versions_current
+  ON strategy_versions(strategy_id) WHERE is_current;
 CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_type_created ON posts(content_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_note ON posts(note_id) WHERE note_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_journal_entry ON posts(journal_entry_id) WHERE journal_entry_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_strategy ON posts(strategy_id) WHERE strategy_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_notifications_user_read_created ON notifications(user_id, read_at, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_insight_requests_user_kind_requested ON ai_insight_requests(user_id, kind, requested_at);
 CREATE INDEX IF NOT EXISTS idx_watchlist_items_armed_threshold ON watchlist_items(alert_armed, price_alert_threshold)
@@ -372,6 +597,9 @@ $$;
 DO $$
 DECLARE t TEXT;
 BEGIN
+  -- Every table with an `updated_at` column belongs in this list. Deliberately
+  -- absent: note_journal_links, trader_note_likes and trader_note_views, which
+  -- are append-only join rows with a created_at and nothing to touch.
   FOREACH t IN ARRAY ARRAY[
     'profiles',
     'affiliate_profiles',
@@ -381,8 +609,13 @@ BEGIN
     'device_tokens',
     'strategies',
     'strategy_versions',
+    'strategy_attachments',
     'journal_entries',
     'journal_entry_links',
+    'journal_entry_attachments',
+    'trader_notes',
+    'trader_note_attachments',
+    'trader_note_comments',
     'watchlists',
     'watchlist_items',
     'posts',
@@ -403,6 +636,33 @@ BEGIN
     EXECUTE format('CREATE TRIGGER trg_%I_updated_at BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION set_updated_at();', t, t);
   END LOOP;
 END $$;
+
+CREATE OR REPLACE FUNCTION refresh_trader_note_engagement_counts()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE affected_note_id UUID;
+BEGIN
+  affected_note_id := COALESCE(NEW.note_id, OLD.note_id);
+  UPDATE trader_notes
+  SET like_count = (SELECT count(*) FROM trader_note_likes WHERE note_id = affected_note_id),
+      view_count = (SELECT count(*) FROM trader_note_views WHERE note_id = affected_note_id)
+  WHERE id = affected_note_id;
+  RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_trader_note_like_counts ON trader_note_likes;
+CREATE TRIGGER trg_trader_note_like_counts
+AFTER INSERT OR DELETE ON trader_note_likes
+FOR EACH ROW EXECUTE FUNCTION refresh_trader_note_engagement_counts();
+
+DROP TRIGGER IF EXISTS trg_trader_note_view_counts ON trader_note_views;
+CREATE TRIGGER trg_trader_note_view_counts
+AFTER INSERT OR DELETE ON trader_note_views
+FOR EACH ROW EXECUTE FUNCTION refresh_trader_note_engagement_counts();
 
 CREATE OR REPLACE FUNCTION notify_new_message()
 RETURNS TRIGGER
@@ -549,6 +809,298 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_signup();
 
+-- A post may reference only an owned, already-public Writing Desk record.
+-- This validates the privacy boundary without making publication a side effect
+-- of post creation. See migrations/016_post_writing_attachments.sql.
+CREATE OR REPLACE FUNCTION validate_post_writing_attachment()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  source_owner UUID;
+  source_public BOOLEAN;
+BEGIN
+  IF NEW.note_id IS NOT NULL THEN
+    SELECT user_id, is_public INTO source_owner, source_public
+      FROM trader_notes WHERE id = NEW.note_id;
+  ELSIF NEW.journal_entry_id IS NOT NULL THEN
+    SELECT e.user_id, e.is_public AND p.public_journals
+      INTO source_owner, source_public
+      FROM journal_entries e
+      JOIN profiles p ON p.id = e.user_id
+      WHERE e.id = NEW.journal_entry_id;
+  ELSIF NEW.strategy_id IS NOT NULL THEN
+    SELECT user_id, visibility = 'public' INTO source_owner, source_public
+      FROM strategies WHERE id = NEW.strategy_id;
+  ELSE
+    RETURN NEW;
+  END IF;
+
+  IF source_owner IS NULL OR source_owner <> NEW.user_id THEN
+    RAISE EXCEPTION 'A post attachment must belong to the post author';
+  END IF;
+  IF source_public IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'A post attachment must be public before it is posted';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_posts_validate_writing_attachment ON posts;
+CREATE TRIGGER trg_posts_validate_writing_attachment
+  BEFORE INSERT OR UPDATE OF user_id, note_id, journal_entry_id, strategy_id
+  ON posts
+  FOR EACH ROW EXECUTE FUNCTION validate_post_writing_attachment();
+
+-- ---------------------------------------------------------------------------
+-- Link graph maintenance. The join table and the two `strategy_id` columns are
+-- the source of truth; the four `linked_*_ids` arrays are mirrors, rebuilt here
+-- and never written by a client. Rationale: migrations/011_note_link_graph.sql
+--
+-- Two triggers on note_journal_links, because the two jobs need opposite
+-- timings: ownership has to be settled BEFORE the row lands, and the mirrors
+-- can only be rebuilt AFTER.
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION validate_note_journal_link()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  n_owner UUID;
+  e_owner UUID;
+BEGIN
+  SELECT user_id INTO n_owner FROM trader_notes    WHERE id = NEW.note_id;
+  SELECT user_id INTO e_owner FROM journal_entries WHERE id = NEW.entry_id;
+  IF n_owner IS NULL OR e_owner IS NULL OR n_owner <> e_owner THEN
+    RAISE EXCEPTION 'note_journal_links: note and entry must share one owner';
+  END IF;
+  NEW.user_id := n_owner;   -- never trust a client-supplied owner
+  RETURN NEW;
+END $$;
+
+CREATE OR REPLACE FUNCTION sync_note_journal_mirrors()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  n_id UUID := COALESCE(NEW.note_id,  OLD.note_id);
+  e_id UUID := COALESCE(NEW.entry_id, OLD.entry_id);
+BEGIN
+  -- Recompute, never increment. An append that runs twice leaves a duplicate id
+  -- in the array, and the client's union then renders one link as two.
+  -- Both UPDATEs may match zero rows: on a cascade delete the parent is already
+  -- gone. That is correct and silent -- do not look the parent up first.
+  UPDATE trader_notes SET linked_journal_ids = COALESCE(
+    (SELECT array_agg(entry_id ORDER BY created_at DESC)
+       FROM note_journal_links WHERE note_id = n_id), '{}')
+   WHERE id = n_id;
+
+  UPDATE journal_entries SET linked_note_ids = COALESCE(
+    (SELECT array_agg(note_id ORDER BY created_at DESC)
+       FROM note_journal_links WHERE entry_id = e_id), '{}')
+   WHERE id = e_id;
+
+  RETURN NULL;
+END $$;
+
+DROP TRIGGER IF EXISTS trg_note_journal_links_validate ON note_journal_links;
+CREATE TRIGGER trg_note_journal_links_validate
+  BEFORE INSERT ON note_journal_links
+  FOR EACH ROW EXECUTE FUNCTION validate_note_journal_link();
+
+DROP TRIGGER IF EXISTS trg_note_journal_links_sync ON note_journal_links;
+CREATE TRIGGER trg_note_journal_links_sync
+  AFTER INSERT OR DELETE ON note_journal_links
+  FOR EACH ROW EXECUTE FUNCTION sync_note_journal_mirrors();
+
+-- The strategy mirrors work the same way, driven from the child tables.
+CREATE OR REPLACE FUNCTION rebuild_strategy_mirrors(p_strategy UUID)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  IF p_strategy IS NULL THEN RETURN; END IF;
+  UPDATE strategies SET
+    linked_journal_ids = COALESCE((
+      SELECT array_agg(e.id ORDER BY COALESCE(e.closed_at, e.opened_at) DESC)
+        FROM journal_entries e WHERE e.strategy_id = p_strategy), '{}'),
+    linked_note_ids = COALESCE((
+      SELECT array_agg(n.id ORDER BY n.updated_at DESC)
+        FROM trader_notes n WHERE n.strategy_id = p_strategy), '{}')
+   WHERE id = p_strategy;
+END $$;
+
+-- Rebuild for BOTH the old and the new strategy_id. Rebuilding only the new one
+-- is the bug to avoid: refiling a trade would leave it listed under the playbook
+-- it just left, forever.
+CREATE OR REPLACE FUNCTION sync_strategy_mirrors()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  IF TG_OP <> 'INSERT' THEN PERFORM rebuild_strategy_mirrors(OLD.strategy_id); END IF;
+  IF TG_OP <> 'DELETE' THEN PERFORM rebuild_strategy_mirrors(NEW.strategy_id); END IF;
+  RETURN NULL;
+END $$;
+
+-- `UPDATE OF strategy_id` fires when the column appears in the SET list, not
+-- only when its value changes. That is fine: the rebuild is idempotent.
+DROP TRIGGER IF EXISTS trg_journal_entries_strategy_mirror ON journal_entries;
+CREATE TRIGGER trg_journal_entries_strategy_mirror
+  AFTER INSERT OR DELETE OR UPDATE OF strategy_id ON journal_entries
+  FOR EACH ROW EXECUTE FUNCTION sync_strategy_mirrors();
+
+DROP TRIGGER IF EXISTS trg_trader_notes_strategy_mirror ON trader_notes;
+CREATE TRIGGER trg_trader_notes_strategy_mirror
+  AFTER INSERT OR DELETE OR UPDATE OF strategy_id ON trader_notes
+  FOR EACH ROW EXECUTE FUNCTION sync_strategy_mirrors();
+
+-- ---------------------------------------------------------------------------
+-- Derived reads. Nothing below stores anything.
+-- Rationale: migrations/012_linked_notes_reads.sql
+-- ---------------------------------------------------------------------------
+
+-- `security_invoker = true` is load-bearing. Without it the view runs with its
+-- owner's rights and bypasses RLS, which would let any authenticated user read
+-- every other trader's playbook performance.
+CREATE OR REPLACE VIEW strategy_performance WITH (security_invoker = true) AS
+WITH closed AS (
+  SELECT strategy_id, user_id, pnl, r_multiple,
+         COALESCE(closed_at, opened_at) AS at
+    FROM journal_entries
+   WHERE strategy_id IS NOT NULL
+     AND outcome IS DISTINCT FROM 'open'
+)
+SELECT
+  s.id                                                     AS strategy_id,
+  s.user_id,
+  COUNT(c.*)                                               AS trades,
+  COALESCE(SUM(c.pnl), 0)                                  AS net_pnl,
+  CASE WHEN COUNT(c.*) = 0 THEN 0
+       ELSE ROUND(100.0 * COUNT(c.*) FILTER (WHERE c.pnl > 0) / COUNT(c.*), 2)
+  END                                                      AS win_rate,
+  COALESCE(AVG(c.r_multiple), 0)                           AS avg_r
+FROM strategies s
+LEFT JOIN closed c ON c.strategy_id = s.id
+GROUP BY s.id, s.user_id;
+
+-- win_rate is 0..100 here, matching AppStrategy.winRate. AppJournalStats.winRate
+-- and the two stat-row models are 0..1. Do not convert between them anywhere.
+
+GRANT SELECT ON strategy_performance TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Public read path. `public_document` is the ONLY entry point for an
+-- unauthenticated reader. A visitor has no workspace, so a visitor cannot build
+-- the link graph the app builds client-side: for an anonymous caller a
+-- watch-all read would return every public record in the product to render one
+-- document. One record, refs already resolved, is a different read.
+-- ---------------------------------------------------------------------------
+
+-- Aggregates over rows the caller cannot select. SECURITY DEFINER by necessity;
+-- the `< 5` floor is why it is not a leak: a playbook with one closed trade
+-- behind it would not report a statistic, it would report that trade's outcome.
+CREATE OR REPLACE FUNCTION public_strategy_performance(p_id uuid)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT CASE WHEN COUNT(*) < 5 THEN NULL ELSE jsonb_build_object(
+           'total_trades', COUNT(*),
+           'win_rate',     ROUND(100.0 * COUNT(*) FILTER (WHERE c.pnl > 0)
+                                 / NULLIF(COUNT(*), 0), 2),
+           'avg_r',        ROUND(AVG(c.r_multiple)::numeric, 2),
+           'net_pnl',      ROUND(SUM(c.pnl)::numeric, 2)
+         ) END
+    FROM journal_entries c
+   WHERE c.strategy_id = p_id
+     AND c.outcome IS DISTINCT FROM 'open';
+$$;
+
+-- Which refs survive the strip. Journal entries never do -- the share contract
+-- publishes a playbook's figures, not the trades behind them. Both arms
+-- re-check the publish flag on BOTH ends: this is reachable by anon, so its
+-- arguments are hostile input.
+CREATE OR REPLACE FUNCTION public_refs(p_kind text, p_id uuid)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT COALESCE(jsonb_agg(r ORDER BY r ->> 'title'), '[]'::jsonb)
+  FROM (
+    SELECT jsonb_build_object(
+             'kind', 'note', 'id', n.id,
+             'title', n.title, 'subtitle', n.note_type
+           ) AS r
+      FROM trader_notes n
+      JOIN strategies s ON s.id = n.strategy_id
+     WHERE p_kind = 'strategy'
+       AND s.id = p_id AND s.visibility = 'public'
+       AND n.is_public
+    UNION ALL
+    SELECT jsonb_build_object(
+             'kind', 'strategy', 'id', s.id,
+             'title', s.title, 'subtitle', s.summary
+           )
+      FROM trader_notes n
+      JOIN strategies s ON s.id = n.strategy_id
+     WHERE p_kind = 'note'
+       AND n.id = p_id AND n.is_public
+       AND s.visibility = 'public'
+  ) refs;
+$$;
+
+-- A SECURITY DEFINER function bypasses RLS. That is the point, and it is also
+-- why the column list below IS the security boundary: there is no second check
+-- behind it. Deliberately absent: both mirror arrays, the raw user_id (handle is
+-- the public identity), version_count, and every owner-scoped flag.
+--
+-- A missing record and a private record return the same thing: no row, hence
+-- NULL. Do not raise not-found for one and forbidden for the other -- that
+-- difference is an oracle a script can walk to enumerate which ids exist.
+CREATE OR REPLACE FUNCTION public_document(p_kind text, p_id uuid)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT jsonb_build_object(
+           'kind', 'strategy', 'id', s.id, 'name', s.title,
+           'summary', s.summary, 'body', s.content, 'status', s.status,
+           'tags', s.tags, 'tickers', s.linked_tickers,
+           'updated_at', s.updated_at,
+           'author', jsonb_build_object('handle', p.handle,
+                                        'display_name', p.display_name,
+                                        'avatar_url', p.avatar_url),
+           'performance', public_strategy_performance(s.id),
+           'refs', public_refs('strategy', s.id)
+         )
+    FROM strategies s JOIN profiles p ON p.id = s.user_id
+   WHERE p_kind = 'strategy' AND s.id = p_id AND s.visibility = 'public'
+  UNION ALL
+  SELECT jsonb_build_object(
+           'kind', 'note', 'id', n.id, 'title', n.title,
+           'body', n.content, 'note_type', n.note_type,
+           'tags', n.tags, 'tickers', n.linked_tickers,
+           'updated_at', n.updated_at,
+           'like_count', n.like_count, 'view_count', n.view_count,
+           'author', jsonb_build_object('handle', p.handle,
+                                        'display_name', p.display_name,
+                                        'avatar_url', p.avatar_url),
+           'refs', public_refs('note', n.id)
+         )
+    FROM trader_notes n JOIN profiles p ON p.id = n.user_id
+   WHERE p_kind = 'note' AND n.id = p_id AND n.is_public
+   LIMIT 1;
+$$;
+
+-- One door. The two helpers are never granted: inside a SECURITY DEFINER
+-- function the effective role is the owner, so the nested EXECUTE checks pass
+-- against the owner and anon still cannot call them directly.
+REVOKE EXECUTE ON FUNCTION public_document(text, uuid)        FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public_refs(text, uuid)            FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public_strategy_performance(uuid)  FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public_document(text, uuid)        TO anon, authenticated;
 -- Trader Preferences & Risk Checklists Table
 CREATE TABLE IF NOT EXISTS public.trader_preferences (
   user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -835,4 +1387,965 @@ CREATE TABLE IF NOT EXISTS holders (
 
 CREATE INDEX IF NOT EXISTS idx_holders_ticker ON holders(ticker, holder_type);
 
+COMMIT;
+BEGIN;
+
+-- Instruments
+CREATE TABLE IF NOT EXISTS instruments (
+    symbol TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    exchange TEXT,
+    asset_class TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Quotes
+CREATE TABLE IF NOT EXISTS quotes (
+    symbol TEXT PRIMARY KEY REFERENCES instruments(symbol) ON DELETE CASCADE,
+    price NUMERIC NOT NULL,
+    previous_close NUMERIC,
+    day_high NUMERIC,
+    day_low NUMERIC,
+    volume BIGINT,
+    change_pct NUMERIC,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- News Tickers
+CREATE TABLE IF NOT EXISTS news_tickers (
+    article_id INTEGER NOT NULL REFERENCES news_articles(id) ON DELETE CASCADE,
+    symbol TEXT NOT NULL REFERENCES instruments(symbol) ON DELETE CASCADE,
+    PRIMARY KEY (article_id, symbol)
+);
+CREATE INDEX IF NOT EXISTS idx_news_tickers_symbol ON news_tickers(symbol);
+
+-- News Bookmarks
+CREATE TABLE IF NOT EXISTS news_bookmarks (
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    article_id INTEGER NOT NULL REFERENCES news_articles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, article_id)
+);
+
+-- Ticker Linking with Notes (Join Table instead of relying only on TEXT[])
+CREATE TABLE IF NOT EXISTS note_ticker_links (
+    note_id UUID NOT NULL REFERENCES trader_notes(id) ON DELETE CASCADE,
+    symbol TEXT NOT NULL REFERENCES instruments(symbol) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (note_id, symbol)
+);
+CREATE INDEX IF NOT EXISTS idx_note_ticker_links_symbol ON note_ticker_links(symbol);
+CREATE INDEX IF NOT EXISTS idx_note_ticker_links_user ON note_ticker_links(user_id);
+
+-- Mirror sync for note_ticker_links -> trader_notes.linked_tickers
+CREATE OR REPLACE FUNCTION sync_note_ticker_mirrors()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  n_id UUID := COALESCE(NEW.note_id, OLD.note_id);
+BEGIN
+  UPDATE trader_notes SET linked_tickers = COALESCE(
+    (SELECT array_agg(symbol ORDER BY created_at DESC)
+       FROM note_ticker_links WHERE note_id = n_id), '{}')
+   WHERE id = n_id;
+  RETURN NULL;
+END $$;
+
+DROP TRIGGER IF EXISTS trg_note_ticker_links_sync ON note_ticker_links;
+CREATE TRIGGER trg_note_ticker_links_sync
+  AFTER INSERT OR DELETE ON note_ticker_links
+  FOR EACH ROW EXECUTE FUNCTION sync_note_ticker_mirrors();
+
+COMMIT;
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS market_history (
+    symbol TEXT NOT NULL REFERENCES instruments(symbol) ON DELETE CASCADE,
+    time TIMESTAMPTZ NOT NULL,
+    open NUMERIC NOT NULL,
+    high NUMERIC NOT NULL,
+    low NUMERIC NOT NULL,
+    close NUMERIC NOT NULL,
+    volume BIGINT NOT NULL,
+    PRIMARY KEY (symbol, time)
+);
+
+-- Timeseries hypertable if using TimescaleDB, otherwise regular B-tree index
+CREATE INDEX IF NOT EXISTS idx_market_history_time ON market_history(time DESC);
+
+COMMIT;
+BEGIN;
+
+ALTER TABLE instruments 
+ADD COLUMN IF NOT EXISTS currency TEXT,
+ADD COLUMN IF NOT EXISTS market TEXT,
+ADD COLUMN IF NOT EXISTS sector TEXT,
+ADD COLUMN IF NOT EXISTS industry TEXT,
+ADD COLUMN IF NOT EXISTS market_cap BIGINT,
+ADD COLUMN IF NOT EXISTS pe_ratio NUMERIC,
+ADD COLUMN IF NOT EXISTS fifty_two_week_high NUMERIC,
+ADD COLUMN IF NOT EXISTS fifty_two_week_low NUMERIC,
+ADD COLUMN IF NOT EXISTS dividend_yield NUMERIC;
+
+COMMIT;
+
+-- ============================================================================
+-- 017: AI Copilot & Assistant
+-- ============================================================================
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS ai_chart_setups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    title TEXT NOT NULL DEFAULT '',
+    symbol TEXT NOT NULL,
+    timeframe TEXT NOT NULL DEFAULT '15m',
+    pattern TEXT NOT NULL DEFAULT '',
+    direction TEXT NOT NULL CHECK (direction IN ('long', 'short')),
+    entry NUMERIC(16, 4) NOT NULL,
+    stop_loss NUMERIC(16, 4) NOT NULL,
+    target1 NUMERIC(16, 4) NOT NULL,
+    target2 NUMERIC(16, 4) NOT NULL,
+    confidence INTEGER NOT NULL DEFAULT 80 CHECK (confidence >= 0 AND confidence <= 100),
+    rationale TEXT NOT NULL DEFAULT '',
+    preview_url TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS ai_threads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    title TEXT NOT NULL DEFAULT 'New Conversation',
+    persona TEXT NOT NULL DEFAULT 'swing'
+        CHECK (persona IN ('swing', 'scalp', 'options', 'macro', 'risk')),
+    pinned BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS ai_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    thread_id UUID NOT NULL REFERENCES ai_threads(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+    body TEXT NOT NULL DEFAULT '',
+    pending BOOLEAN NOT NULL DEFAULT false,
+    error TEXT,
+    sources TEXT[] NOT NULL DEFAULT '{}',
+    attachments TEXT[] NOT NULL DEFAULT '{}',
+    chart_setup_id UUID REFERENCES ai_chart_setups(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+
+
+CREATE TABLE IF NOT EXISTS ai_quotas (
+    user_id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    daily_limit INTEGER NOT NULL DEFAULT 50,
+    daily_used INTEGER NOT NULL DEFAULT 0 CHECK (daily_used >= 0),
+    reset_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '1 day'),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_threads_user_updated ON ai_threads(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_messages_thread_created ON ai_messages(thread_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_ai_chart_setups_user_symbol ON ai_chart_setups(user_id, symbol);
+CREATE INDEX IF NOT EXISTS idx_ai_insights_user_created ON ai_insights(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_insights_tickers ON ai_insights USING GIN(tickers);
+
+COMMIT;
+
+-- ============================================================================
+-- 018: Realtime Messaging
+-- ============================================================================
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS chat_threads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    type TEXT NOT NULL DEFAULT 'direct' CHECK (type IN ('direct', 'group', 'desk')),
+    title TEXT,
+    created_by UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    is_pinned BOOLEAN NOT NULL DEFAULT false,
+    is_archived BOOLEAN NOT NULL DEFAULT false,
+    is_request BOOLEAN NOT NULL DEFAULT false,
+    last_message_preview TEXT NOT NULL DEFAULT '',
+    last_message_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS chat_participants (
+    thread_id UUID NOT NULL REFERENCES chat_threads(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+    last_read_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (thread_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    thread_id UUID NOT NULL REFERENCES chat_threads(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    sender_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    body TEXT NOT NULL DEFAULT '',
+    reply_to_id UUID REFERENCES chat_messages(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    system_notice BOOLEAN NOT NULL DEFAULT false,
+    status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sending', 'sent', 'delivered', 'read', 'failed')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS chat_attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    message_id UUID NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('image', 'chart', 'document', 'tradeSetup', 'voice')),
+    url TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    file_size_bytes BIGINT,
+    duration_seconds INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS chat_shared_refs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    message_id UUID NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    ref_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    subtitle TEXT,
+    ticker TEXT,
+    tags TEXT[] NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS chat_reactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    message_id UUID NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    emoji TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (message_id, user_id, emoji)
+);
+
+CREATE TABLE IF NOT EXISTS chat_user_presence (
+    user_id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    status TEXT NOT NULL DEFAULT 'offline' CHECK (status IN ('online', 'away', 'busy', 'offline')),
+    last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_participants_user ON chat_participants(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created ON chat_messages(thread_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_chat_attachments_msg ON chat_attachments(message_id);
+CREATE INDEX IF NOT EXISTS idx_chat_shared_refs_msg ON chat_shared_refs(message_id);
+CREATE INDEX IF NOT EXISTS idx_chat_reactions_msg ON chat_reactions(message_id);
+
+CREATE OR REPLACE FUNCTION update_chat_thread_last_message()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE chat_threads
+    SET last_message_preview = CASE 
+            WHEN NEW.body <> '' THEN SUBSTRING(NEW.body FROM 1 FOR 120)
+            ELSE 'Attachment'
+        END,
+        last_message_at = NEW.created_at,
+        updated_at = NEW.created_at
+    WHERE id = NEW.thread_id;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_chat_thread_last_message ON chat_messages;
+CREATE TRIGGER trigger_chat_thread_last_message
+    AFTER INSERT ON chat_messages
+    FOR EACH ROW
+    EXECUTE FUNCTION update_chat_thread_last_message();
+
+COMMIT;
+
+-- ============================================================================
+-- 019: Social Trading Community
+-- ============================================================================
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS community_posts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    author_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    title TEXT NOT NULL DEFAULT '',
+    body TEXT NOT NULL,
+    excerpt TEXT,
+    kind TEXT NOT NULL DEFAULT 'standard'
+        CHECK (kind IN ('standard', 'analysis', 'playbook', 'signal', 'poll')),
+    channel_id TEXT NOT NULL DEFAULT 'general',
+    tickers TEXT[] NOT NULL DEFAULT '{}',
+    tags TEXT[] NOT NULL DEFAULT '{}',
+    views_count INTEGER NOT NULL DEFAULT 0 CHECK (views_count >= 0),
+    likes_count INTEGER NOT NULL DEFAULT 0 CHECK (likes_count >= 0),
+    comments_count INTEGER NOT NULL DEFAULT 0 CHECK (comments_count >= 0),
+    reposts_count INTEGER NOT NULL DEFAULT 0 CHECK (reposts_count >= 0),
+    bookmarks_count INTEGER NOT NULL DEFAULT 0 CHECK (bookmarks_count >= 0),
+    is_pinned BOOLEAN NOT NULL DEFAULT false,
+    is_featured BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS community_post_trade_setups (
+    post_id UUID PRIMARY KEY REFERENCES community_posts(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    ticker TEXT NOT NULL,
+    side TEXT NOT NULL CHECK (side IN ('long', 'short')),
+    entry NUMERIC(16, 4) NOT NULL,
+    stop_loss NUMERIC(16, 4) NOT NULL,
+    target1 NUMERIC(16, 4) NOT NULL,
+    target2 NUMERIC(16, 4),
+    timeframe TEXT NOT NULL DEFAULT '15m',
+    chart_url TEXT
+);
+
+CREATE TABLE IF NOT EXISTS community_post_attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_id UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    kind TEXT NOT NULL,
+    ref_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    url TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS community_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_id UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    author_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    parent_id UUID REFERENCES community_comments(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    body TEXT NOT NULL,
+    likes_count INTEGER NOT NULL DEFAULT 0 CHECK (likes_count >= 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS community_likes (
+    post_id UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (post_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS community_bookmarks (
+    post_id UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (post_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS community_reposts (
+    post_id UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    commentary TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (post_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS community_follows (
+    follower_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    following_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (follower_id, following_id),
+    CHECK (follower_id <> following_id)
+);
+
+CREATE TABLE IF NOT EXISTS community_polls (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_id UUID UNIQUE NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    question TEXT NOT NULL,
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS community_poll_options (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    poll_id UUID NOT NULL REFERENCES community_polls(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    option_text TEXT NOT NULL,
+    votes_count INTEGER NOT NULL DEFAULT 0 CHECK (votes_count >= 0)
+);
+
+CREATE TABLE IF NOT EXISTS community_poll_votes (
+    poll_id UUID NOT NULL REFERENCES community_polls(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    option_id UUID NOT NULL REFERENCES community_poll_options(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (poll_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_community_posts_channel_created ON community_posts(channel_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_community_posts_author ON community_posts(author_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_community_posts_tickers ON community_posts USING GIN(tickers);
+CREATE INDEX IF NOT EXISTS idx_community_posts_tags ON community_posts USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_community_comments_post_created ON community_comments(post_id, created_at ASC);
+
+CREATE OR REPLACE FUNCTION update_community_post_likes()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE community_posts SET likes_count = likes_count + 1 WHERE id = NEW.post_id;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE community_posts SET likes_count = GREATEST(0, likes_count - 1) WHERE id = OLD.post_id;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_community_post_likes ON community_likes;
+CREATE TRIGGER trigger_community_post_likes
+    AFTER INSERT OR DELETE ON community_likes
+    FOR EACH ROW EXECUTE FUNCTION update_community_post_likes();
+
+CREATE OR REPLACE FUNCTION update_community_post_comments()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE community_posts SET comments_count = comments_count + 1 WHERE id = NEW.post_id;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE community_posts SET comments_count = GREATEST(0, comments_count - 1) WHERE id = OLD.post_id;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_community_post_comments ON community_comments;
+CREATE TRIGGER trigger_community_post_comments
+    AFTER INSERT OR DELETE ON community_comments
+    FOR EACH ROW EXECUTE FUNCTION update_community_post_comments();
+
+COMMIT;
+
+-- ============================================================================
+-- 020: Universal Bidirectional Link Graph
+-- ============================================================================
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS universal_link_edges (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    source_kind TEXT NOT NULL
+        CHECK (source_kind IN ('note', 'journal', 'strategy', 'aiCopilot', 'communityPost', 'messageThread', 'ticker', 'trader')),
+    source_id TEXT NOT NULL,
+    target_kind TEXT NOT NULL
+        CHECK (target_kind IN ('note', 'journal', 'strategy', 'aiCopilot', 'communityPost', 'messageThread', 'ticker', 'trader')),
+    target_id TEXT NOT NULL,
+    label TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, source_kind, source_id, target_kind, target_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_universal_links_source 
+    ON universal_link_edges(user_id, source_kind, source_id);
+
+CREATE INDEX IF NOT EXISTS idx_universal_links_target 
+    ON universal_link_edges(user_id, target_kind, target_id);
+
+CREATE OR REPLACE FUNCTION create_universal_link(
+    p_src_kind TEXT,
+    p_src_id TEXT,
+    p_tgt_kind TEXT,
+    p_tgt_id TEXT,
+    p_label TEXT DEFAULT NULL,
+    p_metadata JSONB DEFAULT '{}'::jsonb
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp AS $$
+DECLARE
+    v_user UUID := auth.uid();
+BEGIN
+    IF v_user IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    IF p_src_kind = p_tgt_kind AND p_src_id = p_tgt_id THEN
+        RETURN;
+    END IF;
+
+    INSERT INTO universal_link_edges (user_id, source_kind, source_id, target_kind, target_id, label, metadata)
+    VALUES (v_user, p_src_kind, p_src_id, p_tgt_kind, p_tgt_id, p_label, p_metadata)
+    ON CONFLICT (user_id, source_kind, source_id, target_kind, target_id) DO NOTHING;
+
+    INSERT INTO universal_link_edges (user_id, source_kind, source_id, target_kind, target_id, label, metadata)
+    VALUES (v_user, p_tgt_kind, p_tgt_id, p_src_kind, p_src_id, p_label, p_metadata)
+    ON CONFLICT (user_id, source_kind, source_id, target_kind, target_id) DO NOTHING;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION delete_universal_link(
+    p_src_kind TEXT,
+    p_src_id TEXT,
+    p_tgt_kind TEXT,
+    p_tgt_id TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp AS $$
+DECLARE
+    v_user UUID := auth.uid();
+BEGIN
+    IF v_user IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    DELETE FROM universal_link_edges
+    WHERE user_id = v_user
+      AND ((source_kind = p_src_kind AND source_id = p_src_id AND target_kind = p_tgt_kind AND target_id = p_tgt_id)
+        OR (source_kind = p_tgt_kind AND source_id = p_tgt_id AND target_kind = p_src_kind AND target_id = p_src_id));
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION get_universal_links(
+    p_kind TEXT,
+    p_id TEXT
+)
+RETURNS TABLE (
+    id UUID,
+    target_kind TEXT,
+    target_id TEXT,
+    label TEXT,
+    metadata JSONB,
+    created_at TIMESTAMPTZ
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, pg_temp AS $$
+    SELECT 
+        id,
+        target_kind,
+        target_id,
+        label,
+        metadata,
+        created_at
+    FROM universal_link_edges
+    WHERE user_id = auth.uid()
+      AND source_kind = p_kind
+      AND source_id = p_id
+    ORDER BY created_at DESC;
+$$;
+
+-- ============================================================================
+-- 021 Unified Comments & Visibility
+-- ============================================================================
+
+ALTER TABLE journal_entries 
+  ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT false;
+
+CREATE INDEX IF NOT EXISTS idx_journal_entries_public ON journal_entries(is_public) WHERE is_public = true;
+
+ALTER TABLE community_posts 
+  ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'public' 
+    CHECK (visibility IN ('public', 'unlisted', 'private'));
+
+CREATE INDEX IF NOT EXISTS idx_community_posts_visibility ON community_posts(visibility, is_public);
+
+CREATE TABLE IF NOT EXISTS unified_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_type TEXT NOT NULL CHECK (entity_type IN ('note', 'strategy', 'journal', 'post')),
+    entity_id TEXT NOT NULL,
+    author_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    parent_id UUID REFERENCES unified_comments(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    body TEXT NOT NULL CHECK (length(trim(body)) > 0),
+    sentiment TEXT CHECK (sentiment IS NULL OR sentiment IN ('BULLISH', 'BEARISH', 'NEUTRAL')),
+    likes_count INTEGER NOT NULL DEFAULT 0 CHECK (likes_count >= 0),
+    reply_count INTEGER NOT NULL DEFAULT 0 CHECK (reply_count >= 0),
+    is_pinned BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS unified_comment_likes (
+    comment_id UUID NOT NULL REFERENCES unified_comments(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    reaction TEXT NOT NULL DEFAULT '👍' CHECK (reaction IN ('👍', '🚀', '💡', '🔥', '❤️')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (comment_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_unified_comments_entity 
+  ON unified_comments(entity_type, entity_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_unified_comments_parent 
+  ON unified_comments(parent_id) 
+  WHERE parent_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_unified_comments_author 
+  ON unified_comments(author_id);
+
+CREATE INDEX IF NOT EXISTS idx_unified_comment_likes_user 
+  ON unified_comment_likes(user_id);
+
+CREATE OR REPLACE FUNCTION trg_unified_comments_reply_count()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp AS $$
+BEGIN
+    IF TG_OP = 'INSERT' AND NEW.parent_id IS NOT NULL THEN
+        UPDATE unified_comments
+        SET reply_count = reply_count + 1
+        WHERE id = NEW.parent_id;
+    ELSIF TG_OP = 'DELETE' AND OLD.parent_id IS NOT NULL THEN
+        UPDATE unified_comments
+        SET reply_count = GREATEST(0, reply_count - 1)
+        WHERE id = OLD.parent_id;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS unified_comments_reply_count_trg ON unified_comments;
+CREATE TRIGGER unified_comments_reply_count_trg
+AFTER INSERT OR DELETE ON unified_comments
+FOR EACH ROW EXECUTE FUNCTION trg_unified_comments_reply_count();
+
+CREATE OR REPLACE FUNCTION trg_unified_comment_likes_count()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE unified_comments
+        SET likes_count = likes_count + 1
+        WHERE id = NEW.comment_id;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE unified_comments
+        SET likes_count = GREATEST(0, likes_count - 1)
+        WHERE id = OLD.comment_id;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS unified_comment_likes_count_trg ON unified_comment_likes;
+CREATE TRIGGER unified_comment_likes_count_trg
+AFTER INSERT OR DELETE ON unified_comment_likes
+FOR EACH ROW EXECUTE FUNCTION trg_unified_comment_likes_count();
+
+CREATE OR REPLACE FUNCTION set_entity_visibility(
+    p_entity_type TEXT,
+    p_entity_id TEXT,
+    p_is_public BOOLEAN
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp AS $$
+DECLARE
+    v_user UUID := auth.uid();
+    v_rows_affected INTEGER := 0;
+BEGIN
+    IF v_user IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    CASE p_entity_type
+        WHEN 'note' THEN
+            UPDATE trader_notes
+            SET is_public = p_is_public, updated_at = now()
+            WHERE id = p_entity_id::uuid AND user_id = v_user;
+            GET DIAGNOSTICS v_rows_affected = ROW_COUNT;
+
+        WHEN 'strategy' THEN
+            UPDATE strategies
+            SET visibility = (CASE WHEN p_is_public THEN 'public' ELSE 'private' END),
+                updated_at = now()
+            WHERE id = p_entity_id::uuid AND user_id = v_user;
+            GET DIAGNOSTICS v_rows_affected = ROW_COUNT;
+
+        WHEN 'journal' THEN
+            UPDATE journal_entries
+            SET is_public = p_is_public, updated_at = now()
+            WHERE id = p_entity_id::uuid AND user_id = v_user;
+            GET DIAGNOSTICS v_rows_affected = ROW_COUNT;
+
+        WHEN 'post' THEN
+            UPDATE community_posts
+            SET is_public = p_is_public,
+                visibility = (CASE WHEN p_is_public THEN 'public' ELSE 'private' END),
+                updated_at = now()
+            WHERE id = p_entity_id::uuid AND author_id = v_user;
+            GET DIAGNOSTICS v_rows_affected = ROW_COUNT;
+
+        ELSE
+            RAISE EXCEPTION 'Invalid entity type: %', p_entity_type;
+    END CASE;
+
+    RETURN (v_rows_affected > 0);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION add_entity_comment(
+    p_entity_type TEXT,
+    p_entity_id TEXT,
+    p_body TEXT,
+    p_parent_id UUID DEFAULT NULL,
+    p_sentiment TEXT DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp AS $$
+DECLARE
+    v_user UUID := auth.uid();
+    v_comment_id UUID;
+    v_is_public BOOLEAN := false;
+    v_owner_id UUID;
+BEGIN
+    IF v_user IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    IF length(trim(p_body)) = 0 THEN
+        RAISE EXCEPTION 'Comment body cannot be empty';
+    END IF;
+
+    CASE p_entity_type
+        WHEN 'note' THEN
+            SELECT is_public, user_id INTO v_is_public, v_owner_id
+            FROM trader_notes WHERE id = p_entity_id::uuid;
+        WHEN 'strategy' THEN
+            SELECT (visibility = 'public'), user_id INTO v_is_public, v_owner_id
+            FROM strategies WHERE id = p_entity_id::uuid;
+        WHEN 'journal' THEN
+            SELECT is_public, user_id INTO v_is_public, v_owner_id
+            FROM journal_entries WHERE id = p_entity_id::uuid;
+        WHEN 'post' THEN
+            SELECT is_public, author_id INTO v_is_public, v_owner_id
+            FROM community_posts WHERE id = p_entity_id::uuid;
+        ELSE
+            RAISE EXCEPTION 'Invalid entity type: %', p_entity_type;
+    END CASE;
+
+    IF NOT v_is_public AND v_owner_id <> v_user THEN
+        RAISE EXCEPTION 'Cannot comment on private % belonging to another user', p_entity_type;
+    END IF;
+
+    INSERT INTO unified_comments (
+        entity_type,
+        entity_id,
+        author_id,
+        parent_id,
+        body,
+        sentiment
+    )
+    VALUES (
+        p_entity_type,
+        p_entity_id,
+        v_user,
+        p_parent_id,
+        trim(p_body),
+        p_sentiment
+    )
+    RETURNING id INTO v_comment_id;
+
+    RETURN v_comment_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION toggle_entity_comment_like(
+    p_comment_id UUID,
+    p_reaction TEXT DEFAULT '👍'
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp AS $$
+DECLARE
+    v_user UUID := auth.uid();
+    v_existing TEXT;
+    v_liked BOOLEAN;
+    v_likes_count INTEGER;
+BEGIN
+    IF v_user IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    SELECT reaction INTO v_existing
+    FROM unified_comment_likes
+    WHERE comment_id = p_comment_id AND user_id = v_user;
+
+    IF v_existing IS NOT NULL AND v_existing = p_reaction THEN
+        DELETE FROM unified_comment_likes
+        WHERE comment_id = p_comment_id AND user_id = v_user;
+        v_liked := false;
+    ELSE
+        INSERT INTO unified_comment_likes (comment_id, user_id, reaction)
+        VALUES (p_comment_id, v_user, p_reaction)
+        ON CONFLICT (comment_id, user_id)
+        DO UPDATE SET reaction = EXCLUDED.reaction, created_at = now();
+        v_liked := true;
+    END IF;
+
+    SELECT likes_count INTO v_likes_count
+    FROM unified_comments WHERE id = p_comment_id;
+
+    RETURN jsonb_build_object(
+        'liked', v_liked,
+        'reaction', (CASE WHEN v_liked THEN p_reaction ELSE NULL END),
+        'likes_count', COALESCE(v_likes_count, 0)
+    );
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 022 Live Audio Spaces & Trading Floors
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS community_live_rooms (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    host_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+    topic TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT 'Options Trading',
+    status TEXT NOT NULL DEFAULT 'live' CHECK (status IN ('live', 'scheduled', 'ended')),
+    listener_count INTEGER NOT NULL DEFAULT 1 CHECK (listener_count >= 0),
+    speaker_count INTEGER NOT NULL DEFAULT 1 CHECK (speaker_count >= 1),
+    started_at TIMESTAMPTZ,
+    scheduled_for TIMESTAMPTZ,
+    ended_at TIMESTAMPTZ,
+    recording_available BOOLEAN NOT NULL DEFAULT true,
+    recording_url TEXT,
+    tags TEXT[] NOT NULL DEFAULT '{}',
+    pinned_ticker TEXT,
+    pinned_side TEXT CHECK (pinned_side IS NULL OR pinned_side IN ('LONG', 'SHORT')),
+    pinned_entry NUMERIC(16, 4),
+    pinned_stop_loss NUMERIC(16, 4),
+    pinned_target NUMERIC(16, 4),
+    pinned_note TEXT,
+    poll_bullish_votes INTEGER NOT NULL DEFAULT 0 CHECK (poll_bullish_votes >= 0),
+    poll_bearish_votes INTEGER NOT NULL DEFAULT 0 CHECK (poll_bearish_votes >= 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS community_live_room_participants (
+    room_id UUID NOT NULL REFERENCES community_live_rooms(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    role TEXT NOT NULL DEFAULT 'listener' CHECK (role IN ('host', 'cohost', 'speaker', 'listener')),
+    is_muted BOOLEAN NOT NULL DEFAULT true,
+    is_hand_raised BOOLEAN NOT NULL DEFAULT false,
+    hand_raised_at TIMESTAMPTZ,
+    joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (room_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS community_live_room_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    room_id UUID NOT NULL REFERENCES community_live_rooms(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    sender_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    message TEXT NOT NULL CHECK (length(trim(message)) > 0),
+    is_pinned BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS community_live_room_questions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    room_id UUID NOT NULL REFERENCES community_live_rooms(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    author_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    question TEXT NOT NULL CHECK (length(trim(question)) > 0),
+    upvotes_count INTEGER NOT NULL DEFAULT 0 CHECK (upvotes_count >= 0),
+    is_answered BOOLEAN NOT NULL DEFAULT false,
+    answered_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS community_live_room_question_upvotes (
+    question_id UUID NOT NULL REFERENCES community_live_room_questions(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (question_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS community_live_room_reminders (
+    room_id UUID NOT NULL REFERENCES community_live_rooms(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    notified BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (room_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_community_live_rooms_status ON community_live_rooms(status, scheduled_for, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_community_live_rooms_host ON community_live_rooms(host_id);
+CREATE INDEX IF NOT EXISTS idx_community_live_room_participants_room ON community_live_room_participants(room_id, role);
+CREATE INDEX IF NOT EXISTS idx_community_live_room_messages_room ON community_live_room_messages(room_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_community_live_room_questions_room ON community_live_room_questions(room_id, is_answered, upvotes_count DESC);
+CREATE INDEX IF NOT EXISTS idx_community_live_room_reminders_user ON community_live_room_reminders(user_id);
+
+COMMIT;
+
+
+
+-- Public catalogue and complete asset detail contract (migration 023).
+BEGIN;
+
+-- Editorial catalogue: JSON matches PricingCatalogueResponse.fromJson exactly.
+-- Prices live only in this published document; entitlement/payment records remain
+-- in subscriptions and are never written through a public catalogue endpoint.
+CREATE TABLE IF NOT EXISTS pricing_catalogues (
+    id TEXT PRIMARY KEY,
+    catalogue JSONB NOT NULL CHECK (
+        catalogue ?& ARRAY['plans', 'categories', 'faqs', 'copy']
+        AND jsonb_typeof(catalogue) = 'object'
+        AND jsonb_typeof(catalogue->'plans') = 'array'
+        AND jsonb_typeof(catalogue->'categories') = 'array'
+        AND jsonb_typeof(catalogue->'faqs') = 'array'
+        AND jsonb_typeof(catalogue->'copy') = 'object'
+    ),
+    published BOOLEAN NOT NULL DEFAULT false,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public_site_pages (
+    id TEXT PRIMARY KEY,
+    content JSONB NOT NULL CHECK (jsonb_typeof(content) = 'object'),
+    published BOOLEAN NOT NULL DEFAULT false,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Retains the complete export (options, holders, recommendations, company
+-- details and chart) while existing normalized quote/history/news tables remain
+-- canonical. This is not a second article schema.
+CREATE TABLE IF NOT EXISTS stock_details (
+    ticker VARCHAR(20) PRIMARY KEY REFERENCES tickers(ticker) ON DELETE CASCADE,
+    detail JSONB NOT NULL CHECK (jsonb_typeof(detail) = 'object' AND detail->>'ticker' = ticker),
+    fetched_at TIMESTAMPTZ NOT NULL
+);
+
+ALTER TABLE pricing_catalogues ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public_site_pages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stock_details ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS pricing_catalogues_public_read ON pricing_catalogues;
+CREATE POLICY pricing_catalogues_public_read ON pricing_catalogues
+    FOR SELECT TO anon, authenticated USING (published);
+DROP POLICY IF EXISTS public_site_pages_public_read ON public_site_pages;
+CREATE POLICY public_site_pages_public_read ON public_site_pages
+    FOR SELECT TO anon, authenticated USING (published);
+DROP POLICY IF EXISTS stock_details_read ON stock_details;
+CREATE POLICY stock_details_read ON stock_details FOR SELECT TO authenticated USING (true);
+GRANT SELECT ON pricing_catalogues, public_site_pages TO anon, authenticated;
+GRANT SELECT ON stock_details TO authenticated;
+-- No public write policies. Publish via trusted administration/service role.
+COMMIT;
+BEGIN;
+-- Preserve Yahoo counts, nested index/sector payloads and fields in the exact
+-- asset contract. Normalized screener_results remain the ranked query interface.
+CREATE TABLE IF NOT EXISTS market_screener_snapshots (
+    category_id INTEGER PRIMARY KEY REFERENCES screener_categories(id) ON DELETE CASCADE,
+    payload JSONB NOT NULL,
+    exported_at TIMESTAMPTZ NOT NULL,
+    CHECK (jsonb_typeof(payload) IN ('object', 'array'))
+);
+ALTER TABLE market_screener_snapshots ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS market_screener_snapshots_read ON market_screener_snapshots;
+CREATE POLICY market_screener_snapshots_read ON market_screener_snapshots
+    FOR SELECT TO authenticated USING (true);
+GRANT SELECT ON market_screener_snapshots TO authenticated;
 COMMIT;
