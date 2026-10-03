@@ -13,6 +13,7 @@ class CommunityBookmarksView extends StatefulWidget {
     this.onPostTap,
     this.onAuthorTap,
     this.onOpenRef,
+    this.onTagTap,
   });
 
   final CommunityRepository repository;
@@ -20,6 +21,7 @@ class CommunityBookmarksView extends StatefulWidget {
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final ValueChanged<String>? onTagTap;
 
   @override
   State<CommunityBookmarksView> createState() => _CommunityBookmarksViewState();
@@ -157,6 +159,7 @@ class _CommunityBookmarksViewState extends State<CommunityBookmarksView> {
                   onBookmark: () => widget.repository.toggleBookmark(post.id),
                   onAuthorTap: widget.onAuthorTap,
                   onOpenRef: widget.onOpenRef,
+                  onTagTap: widget.onTagTap,
                 ),
               ),
         ],

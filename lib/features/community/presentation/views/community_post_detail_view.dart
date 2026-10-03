@@ -40,6 +40,7 @@ class CommunityPostDetailView extends StatefulWidget {
     this.onBack,
     this.showHeader = true,
     this.onOpenRef,
+    this.onTagTap,
   });
 
   final CommunityPost post;
@@ -49,6 +50,7 @@ class CommunityPostDetailView extends StatefulWidget {
   final VoidCallback? onBack;
   final bool showHeader;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final ValueChanged<String>? onTagTap;
 
   @override
   State<CommunityPostDetailView> createState() =>
@@ -499,6 +501,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                                     ),
                               onAuthorTap: widget.onAuthorTap,
                               onOpenRef: widget.onOpenRef,
+                              onTagTap: widget.onTagTap,
                               onVotePoll: (idx) => widget.repository.votePoll(
                                 widget.post.id,
                                 idx,
@@ -516,6 +519,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                                   widget.currentUser.id,
                               onToggleVisibility: _togglePostVisibility,
                               onAuthorTap: widget.onAuthorTap,
+                              onTagTap: widget.onTagTap,
 
                               onAddComment:
                                   (text, {parentCommentId, sentiment}) async {
@@ -635,6 +639,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                         : () => _copySetupToJournal(_currentPost.tradeSetup!),
                     onAuthorTap: widget.onAuthorTap,
                     onOpenRef: widget.onOpenRef,
+                    onTagTap: widget.onTagTap,
                     onVotePoll: (idx) =>
                         widget.repository.votePoll(widget.post.id, idx),
                   ),
@@ -649,6 +654,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                         _currentPost.author.id == widget.currentUser.id,
                     onToggleVisibility: _togglePostVisibility,
                     onAuthorTap: widget.onAuthorTap,
+                    onTagTap: widget.onTagTap,
 
                     onAddComment: (text, {parentCommentId, sentiment}) async {
                       widget.repository.addComment(

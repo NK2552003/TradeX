@@ -249,6 +249,23 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     widget.onSubpageChanged?.call(null, null, null);
   }
 
+  void _handleTagTap(String tag) {
+    if (tag.startsWith(r'$')) {
+      final String symbol = tag.substring(1).trim().toUpperCase();
+      if (symbol.isNotEmpty && widget.onOpenRef != null) {
+        widget.onOpenRef!(
+          AppLinkRef(
+            kind: AppLinkKind.ticker,
+            id: symbol,
+            title: symbol,
+          ),
+        );
+        return;
+      }
+    }
+    _openHashtagPage(tag);
+  }
+
   void _openPostDetail(CommunityPost post) {
     _openSubpage(
       title: 'Post',
@@ -260,6 +277,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         onBack: _closeSubpage,
         showHeader: !widget.embedInScaffold,
         onOpenRef: widget.onOpenRef,
+        onTagTap: _handleTagTap,
       ),
     );
   }
@@ -308,6 +326,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         onAuthorTap: _openAuthorProfile,
         onBack: _closeSubpage,
         onOpenRef: widget.onOpenRef,
+        onTagTap: _handleTagTap,
       ),
     );
   }
@@ -320,7 +339,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         currentUser: _currentAuthor,
         onPostTap: _openPostDetail,
         onAuthorTap: _openAuthorProfile,
-        onHashtagTap: _openHashtagPage,
+        onHashtagTap: _handleTagTap,
         onBack: _closeSubpage,
         onOpenRef: widget.onOpenRef,
       ),
@@ -453,6 +472,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       onAuthorTap: _openAuthorProfile,
       onCompose: _showMobileComposer,
       onOpenRef: widget.onOpenRef,
+      onTagTap: _handleTagTap,
       searchQuery: widget.searchQuery,
     ),
     // 1 — Explore
@@ -461,6 +481,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       onPostTap: _openPostDetail,
       onAuthorTap: _openAuthorProfile,
       onOpenRef: widget.onOpenRef,
+      onTagTap: _handleTagTap,
       searchQuery: widget.searchQuery,
     ),
     // 2 — Network
@@ -485,6 +506,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       onPostTap: _openPostDetail,
       onAuthorTap: _openAuthorProfile,
       onOpenRef: widget.onOpenRef,
+      onTagTap: _handleTagTap,
     ),
   ];
 

@@ -71,6 +71,12 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   /// Mobile tab index: 0 = Chat, 1 = Insights, 2 = Create.
   int _mobileTab = 0;
 
+  /// Tablet content tab: 0 = Chat, 1 = Insights, 2 = Create.
+  int _wideTab = 0;
+
+  /// Desktop side-panel tab: 0 = Insights, 1 = Create.
+  int _sideTab = 0;
+
   /// Secondary mobile panel currently pushed.
   _MobilePanel _mobilePanel = _MobilePanel.none;
 
@@ -309,68 +315,58 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildTablet(BuildContext context) {
-    final UiTheme theme = context.ui;
-    final UiColors colors = theme.colors;
-    final double railWidth = context.sz(300);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        SizedBox(
-          width: railWidth,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(
-                right: BorderSide(color: colors.border, width: theme.borders.hairline),
-              ),
-            ),
-            child: _historyRail(context),
+    return UiSplitPane(
+      initialRatio: 0.32,
+      minRatio: 0.24,
+      maxRatio: 0.46,
+      primary: _historyRail(context),
+      detail: Column(
+        children: <Widget>[
+          _wideTabBar(
+            context,
+            const <String>['Chat', 'Insights', 'Create'],
+            _wideTab,
+            (int i) => setState(() => _wideTab = i),
           ),
-        ),
-        Expanded(
-          child: DefaultTabController(
-            length: 3,
-            child: Column(
-              children: <Widget>[
-                Container(
-                  decoration: BoxDecoration(
-                    color: theme.colors.surface,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: theme.colors.border,
-                        width: theme.borders.hairline,
-                      ),
-                    ),
-                  ),
-                  child: TabBar(
-                    labelStyle: context.uiText.bodyStrong.copyWith(
-                      fontSize: context.fs(12.5),
-                    ),
-                    unselectedLabelStyle: context.uiText.caption,
-                    indicatorColor: theme.colors.primary,
-                    labelColor: theme.colors.foreground,
-                    unselectedLabelColor: theme.colors.foregroundMuted,
-                    tabs: const <Widget>[
-                      Tab(text: 'Chat'),
-                      Tab(text: 'Insights'),
-                      Tab(text: 'Create'),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: <Widget>[
-                      _chatView(context, showHeader: true),
-                      _insightsView(context),
-                      _createView(context),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+          Expanded(child: _wideTabContent(context)),
+        ],
+      ),
     );
+  }
+
+  /// A themed tab bar (shared [UiTabs]) used by both wide layouts in place of a
+  /// raw Material [TabBar].
+  Widget _wideTabBar(
+    BuildContext context,
+    List<String> labels,
+    int index,
+    ValueChanged<int> onChanged,
+  ) {
+    final UiTheme theme = context.ui;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        context.sp(theme.spacing.md),
+        context.sp(theme.spacing.sm),
+        context.sp(theme.spacing.md),
+        context.sp(theme.spacing.xxs),
+      ),
+      child: UiTabs(
+        items: <UiTabItem>[
+          for (final String label in labels) UiTabItem(label: label),
+        ],
+        index: index,
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _wideTabContent(BuildContext context) {
+    return switch (_wideTab) {
+      0 => _chatView(context, showHeader: true),
+      1 => _insightsView(context),
+      2 => _createView(context),
+      _ => _chatView(context, showHeader: true),
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -378,81 +374,29 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildDesktop(BuildContext context) {
-    final UiTheme theme = context.ui;
-    final UiColors colors = theme.colors;
-    final double railWidth = context.sz(280);
-    final double insightsWidth = context.sz(340);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        SizedBox(
-          width: railWidth,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(
-                right: BorderSide(color: colors.border, width: theme.borders.hairline),
-              ),
-            ),
-            child: _historyRail(context),
-          ),
-        ),
-        Expanded(child: _chatView(context, showHeader: true)),
-        SizedBox(
-          width: insightsWidth,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(color: colors.border, width: theme.borders.hairline),
-              ),
-            ),
-            child: _desktopSidePanel(context),
-          ),
-        ),
-      ],
+    return UiThreePane(
+      railWidth: 280,
+      listRatio: 0.6,
+      rail: _historyRail(context),
+      list: _chatView(context, showHeader: true),
+      detail: _desktopSidePanel(context),
     );
   }
 
   /// Desktop right side-panel with tabs for Insights and Create.
   Widget _desktopSidePanel(BuildContext context) {
-    final UiTheme theme = context.ui;
-    return DefaultTabController(
-      length: 2,
-      child: Column(
-        children: <Widget>[
-          Container(
-            decoration: BoxDecoration(
-              color: theme.colors.surface,
-              border: Border(
-                bottom: BorderSide(
-                  color: theme.colors.border,
-                  width: theme.borders.hairline,
-                ),
-              ),
-            ),
-            child: TabBar(
-              labelStyle: context.uiText.bodyStrong.copyWith(
-                fontSize: context.fs(12.5),
-              ),
-              unselectedLabelStyle: context.uiText.caption,
-              indicatorColor: theme.colors.primary,
-              labelColor: theme.colors.foreground,
-              unselectedLabelColor: theme.colors.foregroundMuted,
-              tabs: const <Widget>[
-                Tab(text: 'Insights'),
-                Tab(text: 'Create'),
-              ],
-            ),
-          ),
-          Expanded(
-            child: TabBarView(
-              children: <Widget>[
-                _insightsView(context),
-                _createView(context),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return Column(
+      children: <Widget>[
+        _wideTabBar(
+          context,
+          const <String>['Insights', 'Create'],
+          _sideTab,
+          (int i) => setState(() => _sideTab = i),
+        ),
+        Expanded(
+          child: _sideTab == 0 ? _insightsView(context) : _createView(context),
+        ),
+      ],
     );
   }
 
@@ -499,12 +443,23 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
   }
 
   Widget _historyRail(BuildContext context) {
-    return AiHistoryView(
-      repository: _repo,
-      selectedThreadId: _repo.activeThreadId,
-      onSelectThread: _selectThread,
-      onNewThread: () => _repo.newThread(),
-      searchQuery: _searchQuery,
+    return Column(
+      children: <Widget>[
+        AppPaneHeader(
+          title: 'Conversations',
+          subtitle: 'AI history & setups',
+          dense: true,
+        ),
+        Expanded(
+          child: AiHistoryView(
+            repository: _repo,
+            selectedThreadId: _repo.activeThreadId,
+            onSelectThread: _selectThread,
+            onNewThread: () => _repo.newThread(),
+            searchQuery: _searchQuery,
+          ),
+        ),
+      ],
     );
   }
 
@@ -512,7 +467,11 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
     return Column(
       children: <Widget>[
         if (!widget.embedInScaffold)
-          _panelHeader(context, 'Conversation history'),
+          AppPaneHeader(
+            title: 'Conversation history',
+            leadingBack: _closePanel,
+            dense: true,
+          ),
         Expanded(
           child: AiHistoryView(
             repository: _repo,
@@ -529,42 +488,6 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _panelHeader(BuildContext context, String title) {
-    final UiTheme theme = context.ui;
-    final UiColors colors = theme.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border(
-          bottom: BorderSide(color: colors.border, width: theme.borders.hairline),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: context.sp(theme.spacing.xs),
-            vertical: context.sp(theme.spacing.xs),
-          ),
-          child: Row(
-            children: <Widget>[
-              UiIconButton(
-                icon: Icons.arrow_back_rounded,
-                tooltip: 'Back',
-                size: UiSize.sm,
-                onPressed: _closePanel,
-              ),
-              SizedBox(width: context.sp(theme.spacing.xxs)),
-              Expanded(
-                child: Text(title, style: context.uiText.bodyStrong),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

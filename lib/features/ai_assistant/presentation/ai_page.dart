@@ -3,9 +3,10 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/ai_assistant/data/ai_repository.dart';
 
 class AiPage extends StatefulWidget {
-  const AiPage({super.key, this.repository});
+  const AiPage({super.key, this.repository, this.onOpenRef});
 
   final AiRepository? repository;
+  final void Function(AppLinkRef ref)? onOpenRef;
 
   @override
   State<AiPage> createState() => _AiPageState();
@@ -97,6 +98,7 @@ class _AiPageState extends State<AiPage> {
               child: AppAiChatBlock(
                 messages: _aiMessages,
                 onSend: _handleSendMessage,
+                onOpenRef: widget.onOpenRef,
               ),
             ),
             if (!context.uiRes.isMobile) ...[

@@ -5,6 +5,7 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import '../models/market_snapshot.dart';
 import 'market_movers_panel.dart';
 import 'market_news_widgets.dart';
+import 'market_layout.dart';
 
 String marketSnapshotDate(Map<String, dynamic> manifest) {
   final date = DateTime.tryParse('${manifest['generated_at']}')?.toLocal();
@@ -25,115 +26,198 @@ class MarketOverviewView extends StatelessWidget {
   final ValueChanged<MarketArticle> onArticle;
   final ValueChanged<int> onSection;
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Text('Market overview', style: context.uiText.heading),
-      UiGap.v(context.ui.spacing.sm),
-      Text(
-        'Start with market movers, explore a screen, then open a company for its chart, research and news.',
-        style: context.uiText.body,
-      ),
-      UiGap.v(context.ui.spacing.xs),
-      Text(
-        'Bundled market snapshot · ${marketSnapshotDate(snapshot.manifest)}',
-        style: context.uiText.caption,
-      ),
-      UiGap.v(context.ui.spacing.md),
-      UiCardGrid(
-        intrinsicHeight: true,
-        desktopColumns: 4,
-        largeColumns: 4,
-        children: [
-          UiMetricCard(
-            title: 'Priced instruments',
-            value: '${snapshot.instruments.length}',
-            subtitle: 'US and India',
-            onTap: () => onSection(3),
+  Widget build(BuildContext context) {
+    final advancing = snapshot.instruments
+        .where((q) => q.changePercent > 0)
+        .length;
+    final declining = snapshot.instruments
+        .where((q) => q.changePercent < 0)
+        .length;
+    final unchanged = snapshot.instruments.length - advancing - declining;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        MarketPageHeading(
+          title: 'Market overview',
+          description:
+              'Your research starting point · ${marketSnapshotDate(snapshot.manifest)}',
+          action: const UiBadge(
+            label: 'Bundled snapshot',
+            icon: Icons.schedule,
+            variant: UiBadgeVariant.outline,
           ),
-          UiMetricCard(
-            title: 'Market screens',
-            value: '${snapshot.screeners.length}',
-            subtitle: 'Stocks, funds, crypto & indices',
-            onTap: () => onSection(4),
-          ),
-          UiMetricCard(
-            title: 'News articles',
-            value: '${snapshot.articles.length}',
-            subtitle: '${snapshot.topics.length} research topics',
-            onTap: () => onSection(1),
-          ),
-          UiMetricCard(
-            title: 'Full company profiles',
-            value: '${snapshot.manifest['detail_count'] ?? 0}',
-            subtitle: 'See detailed coverage',
-            onTap: () => onSection(5),
-          ),
-        ],
-      ),
-      UiGap.v(context.ui.spacing.lg),
-      UiCardGrid(
-        intrinsicHeight: true,
-        desktopColumns: 3,
-        largeColumns: 3,
-        children: [
-          MarketMoversList(
-            title: 'Top gainers',
-            quotes: snapshot.gainers,
-            limit: 5,
-            onTap: onInstrument,
-          ),
-          MarketMoversList(
-            title: 'Top losers',
-            quotes: snapshot.losers,
-            limit: 5,
-            onTap: onInstrument,
-          ),
-          MarketMoversList(
-            title: 'Most active',
-            quotes: snapshot.mostActive,
-            limit: 5,
-            onTap: onInstrument,
-          ),
-        ],
-      ),
-      UiGap.v(context.ui.spacing.lg),
-      UiCard(
-        title: 'Explore global markets',
-        child: Wrap(
-          spacing: context.sp(context.ui.spacing.sm),
-          runSpacing: context.sp(context.ui.spacing.sm),
-          children: [
-            UiButton(
-              label: 'All screeners',
-              variant: UiVariant.outline,
-              leadingIcon: Icons.filter_alt_outlined,
-              onPressed: () => onSection(4),
-            ),
-            UiButton(
-              label: 'Instrument directory',
-              variant: UiVariant.outline,
-              leadingIcon: Icons.search,
-              onPressed: () => onSection(3),
-            ),
-            UiButton(
-              label: 'Data coverage',
-              variant: UiVariant.ghost,
-              onPressed: () => onSection(5),
-            ),
-          ],
         ),
-      ),
-      if (snapshot.articles.isNotEmpty) ...[
-        UiGap.v(context.ui.spacing.lg),
-        Text('Latest market story', style: context.uiText.heading),
-        MarketNewsCard(
-          article: snapshot.articles.first,
-          snapshot: snapshot,
-          featured: true,
-          onTap: () => onArticle(snapshot.articles.first),
+        MarketTwoPanel(
+          primary: UiCard(
+            title: 'Market pulse',
+            subtitle: 'Breadth across the instruments in this snapshot',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                UiStatStrip(
+                  stats: [
+                    UiStat(
+                      label: 'Advancing',
+                      value: '$advancing',
+                      intent: UiIntent.success,
+                    ),
+                    UiStat(
+                      label: 'Declining',
+                      value: '$declining',
+                      intent: UiIntent.danger,
+                    ),
+                    UiStat(label: 'Unchanged', value: '$unchanged'),
+                  ],
+                ),
+                UiGap.v(context.ui.spacing.md),
+                if (snapshot.instruments.isNotEmpty)
+                  UiCategoryBar(
+                    segments: [
+                      UiCategorySegment(
+                        label: 'Advancing',
+                        value: advancing.toDouble(),
+                        color: context.ui.colors.success,
+                      ),
+                      UiCategorySegment(
+                        label: 'Declining',
+                        value: declining.toDouble(),
+                        color: context.ui.colors.danger,
+                      ),
+                      UiCategorySegment(
+                        label: 'Unchanged',
+                        value: unchanged.toDouble(),
+                        color: context.ui.colors.foregroundMuted,
+                      ),
+                    ],
+                  ),
+                UiGap.v(context.ui.spacing.lg),
+                UiHeader(
+                  title: 'Session leaders',
+                  actions: [
+                    UiButton(
+                      label: 'All movers',
+                      variant: UiVariant.ghost,
+                      onPressed: () => onSection(2),
+                    ),
+                  ],
+                ),
+                UiGap.v(context.ui.spacing.sm),
+                UiCardGrid(
+                  intrinsicHeight: true,
+                  desktopColumns: 2,
+                  largeColumns: 2,
+                  children: [
+                    if (snapshot.gainers.isNotEmpty)
+                      UiMetricCard(
+                        title: 'Top gainer · ${snapshot.gainers.first.symbol}',
+                        value:
+                            '${snapshot.gainers.first.changePercent.toStringAsFixed(2)}%',
+                        isPositive: true,
+                        subtitle: snapshot.gainers.first.name,
+                        onTap: () => onInstrument(snapshot.gainers.first),
+                      ),
+                    if (snapshot.losers.isNotEmpty)
+                      UiMetricCard(
+                        title: 'Top loser · ${snapshot.losers.first.symbol}',
+                        value:
+                            '${snapshot.losers.first.changePercent.toStringAsFixed(2)}%',
+                        isPositive: false,
+                        subtitle: snapshot.losers.first.name,
+                        onTap: () => onInstrument(snapshot.losers.first),
+                      ),
+                  ],
+                ),
+                UiGap.v(context.ui.spacing.lg),
+                UiHeader(
+                  title: 'Most active',
+                  subtitle: 'Ranked by reported trading volume',
+                  actions: [
+                    UiButton(
+                      label: 'Explore',
+                      variant: UiVariant.ghost,
+                      onPressed: () => onSection(3),
+                    ),
+                  ],
+                ),
+                for (final quote in snapshot.mostActive.take(8)) ...[
+                  MarketQuoteRow(
+                    quote: quote,
+                    onTap: () => onInstrument(quote),
+                  ),
+                  const UiDivider(spacing: 0),
+                ],
+                if (snapshot.instruments.isEmpty)
+                  const UiEmptyState(title: 'No quotes in this snapshot'),
+              ],
+            ),
+          ),
+          secondary: UiCard(
+            title: 'Research briefing',
+            subtitle: 'Headlines and the scope of your data',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (snapshot.articles.isNotEmpty)
+                  MarketNewsCard(
+                    article: snapshot.articles.first,
+                    snapshot: snapshot,
+                    onTap: () => onArticle(snapshot.articles.first),
+                  ),
+                for (final article in snapshot.articles.skip(1).take(2))
+                  MarketNewsCard(
+                    article: article,
+                    snapshot: snapshot,
+                    textOnly: true,
+                    onTap: () => onArticle(article),
+                  ),
+                UiButton(
+                  label: 'Open newsroom',
+                  trailingIcon: Icons.arrow_forward,
+                  variant: UiVariant.outline,
+                  onPressed: () => onSection(1),
+                ),
+                const UiDivider(),
+                Text('Research coverage', style: context.uiText.subheading),
+                UiGap.v(context.ui.spacing.sm),
+                UiStatStrip(
+                  stats: [
+                    UiStat(
+                      label: 'Priced instruments',
+                      value: '${snapshot.instruments.length}',
+                    ),
+                    UiStat(
+                      label: 'Market screens',
+                      value: '${snapshot.screeners.length}',
+                    ),
+                    UiStat(
+                      label: 'News articles',
+                      value: '${snapshot.articles.length}',
+                    ),
+                    UiStat(
+                      label: 'Full company profiles',
+                      value: '${snapshot.manifest['detail_count'] ?? 0}',
+                    ),
+                  ],
+                ),
+                UiGap.v(context.ui.spacing.md),
+                UiButton(
+                  label: 'Explore screeners',
+                  leadingIcon: Icons.filter_alt_outlined,
+                  variant: UiVariant.soft,
+                  onPressed: () => onSection(4),
+                ),
+                UiGap.v(context.ui.spacing.sm),
+                UiButton(
+                  label: 'Data coverage',
+                  leadingIcon: Icons.dataset_outlined,
+                  variant: UiVariant.ghost,
+                  onPressed: () => onSection(5),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
-    ],
-  );
+    );
+  }
 }

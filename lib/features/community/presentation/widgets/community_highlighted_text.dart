@@ -18,7 +18,8 @@ class CommunityHighlightedText extends StatelessWidget {
   final bool selectable;
 
   static final RegExp _tagRegex =
-      RegExp(r'(\$[A-Za-z0-9_]+|#[A-Za-z0-9_]+|@[A-Za-z0-9_]+)');
+      RegExp(r'(\$[A-Za-z\^][A-Za-z0-9_\.\-]{0,9}\b|#[A-Za-z0-9_]+|@[A-Za-z0-9_]+)');
+  static RegExp get tagRegex => _tagRegex;
 
   @override
   Widget build(BuildContext context) {

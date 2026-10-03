@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 
 /// Everything the journal feature needs from storage.
 ///
@@ -86,6 +87,20 @@ class JournalRepositoryImpl implements JournalRepository {
     _seeded = true;
     _entries.addAll(DemoDataSource.instance.trades());
     _nextId = _entries.length;
+    for (final AppTrade t in _entries) {
+      final Set<String> tickers = <String>{
+        if (t.ticker.isNotEmpty) t.ticker,
+        ...EntityTickerLinksRepository.extractTickers(t.content),
+      };
+      if (tickers.isNotEmpty) {
+        EntityTickerLinksRepository.instance.recordLinks(
+          entityType: 'journal',
+          entityId: t.id,
+          tickers: tickers,
+          contextSource: 'trade_instrument',
+        );
+      }
+    }
   }
 
   List<AppTrade> _snapshot() {
@@ -148,6 +163,22 @@ class JournalRepositoryImpl implements JournalRepository {
         .withDerivedCounts();
     _entries.insert(0, saved);
     _publish();
+
+    final Set<String> tickers = <String>{
+      if (saved.ticker.isNotEmpty) saved.ticker,
+      ...EntityTickerLinksRepository.extractTickers(saved.content),
+    };
+    if (tickers.isNotEmpty) {
+      unawaited(
+        EntityTickerLinksRepository.instance.recordLinks(
+          entityType: 'journal',
+          entityId: saved.id,
+          tickers: tickers,
+          contextSource: 'trade_instrument',
+        ),
+      );
+    }
+
     return saved;
   }
 
@@ -164,6 +195,29 @@ class JournalRepositoryImpl implements JournalRepository {
       _entries[at] = saved;
     }
     _publish();
+
+    final Set<String> tickers = <String>{
+      if (saved.ticker.isNotEmpty) saved.ticker,
+      ...EntityTickerLinksRepository.extractTickers(saved.content),
+    };
+    if (tickers.isNotEmpty) {
+      unawaited(
+        EntityTickerLinksRepository.instance.recordLinks(
+          entityType: 'journal',
+          entityId: saved.id,
+          tickers: tickers,
+          contextSource: 'trade_instrument',
+        ),
+      );
+    } else {
+      unawaited(
+        EntityTickerLinksRepository.instance.removeLinks(
+          entityType: 'journal',
+          entityId: saved.id,
+        ),
+      );
+    }
+
     return saved;
   }
 
@@ -180,6 +234,12 @@ class JournalRepositoryImpl implements JournalRepository {
     _seed();
     _entries.removeWhere((AppTrade t) => t.id == id);
     _publish();
+    unawaited(
+      EntityTickerLinksRepository.instance.removeLinks(
+        entityType: 'journal',
+        entityId: id,
+      ),
+    );
   }
 
   AppTrade _mutate(String id, AppTrade Function(AppTrade entry) change) {

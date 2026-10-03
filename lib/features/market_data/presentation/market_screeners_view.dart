@@ -4,6 +4,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import '../models/market_snapshot.dart';
 import 'market_instrument_view.dart';
+import 'market_layout.dart';
 
 class MarketScreenersView extends StatefulWidget {
   const MarketScreenersView({
@@ -125,33 +126,61 @@ class _MarketScreenersViewState extends State<MarketScreenersView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Market screeners', style: context.uiText.heading),
-        UiGap.v(context.ui.spacing.sm),
-        Text(
-          'Browse equities, funds, crypto, global indices and technical screens. Open an instrument for its dossier, or expand a row to inspect every exported field.',
-          style: context.uiText.body,
+        const MarketPageHeading(
+          title: 'Market screeners',
+          description:
+              'Discover opportunities across equities, funds, crypto and global indices.',
         ),
-        UiGap.v(context.ui.spacing.md),
-        if (context.uiRes.isMobile) ...[
-          UiSelect<String>(
-            value: selected,
-            options: [
-              for (final key in screens.keys)
-                UiOption(label: marketFieldLabel(key), value: key),
-            ],
-            onChanged: (value) => setState(() => _category = value),
+        MarketTwoPanel(
+          secondaryFirstOnMobile: true,
+          primary: table,
+          secondary: UiCard(
+            title: 'Screen library',
+            subtitle: '${screens.length} curated screens',
+            child: LayoutBuilder(
+              builder: (context, box) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  UiSelect<String>(
+                    value: selected,
+                    options: [
+                      for (final key in screens.keys)
+                        UiOption(label: marketFieldLabel(key), value: key),
+                    ],
+                    onChanged: (value) => setState(() => _category = value),
+                  ),
+                  UiGap.v(context.ui.spacing.md),
+                  UiStatStrip(
+                    stats: [
+                      UiStat(
+                        label: 'In this snapshot',
+                        value: '${quotes.length}',
+                      ),
+                      UiStat(
+                        label: 'Provider matches',
+                        value: '${total ?? '—'}',
+                      ),
+                    ],
+                  ),
+                  UiGap.v(context.ui.spacing.md),
+                  UiCard(
+                    title: 'Browse categories',
+                    collapsible: true,
+                    initiallyExpanded: !context.uiRes.isMobile,
+                    variant: UiCardVariant.ghost,
+                    padding: EdgeInsets.zero,
+                    child: selector,
+                  ),
+                  UiGap.v(context.ui.spacing.md),
+                  Text(
+                    'Open a symbol for its research dossier. Expand a result to inspect all available fields.',
+                    style: context.uiText.caption,
+                  ),
+                ],
+              ),
+            ),
           ),
-          UiGap.v(context.ui.spacing.md),
-          table,
-        ] else
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(width: context.sz(230), child: selector),
-              UiGap.h(context.ui.spacing.md),
-              Expanded(child: table),
-            ],
-          ),
+        ),
       ],
     );
   }

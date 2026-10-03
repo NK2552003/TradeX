@@ -4,6 +4,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
+import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/strategies/data/strategies_repository.dart';
 
@@ -268,9 +269,37 @@ class AppLinkGraphService {
       // trader adds or removes. Changing it means editing the trade.
       case AppLinkKind.ticker:
       case AppLinkKind.aiCopilot:
-      case AppLinkKind.communityPost:
-      case AppLinkKind.messageThread:
         return;
+      case AppLinkKind.communityPost:
+        if (attach) {
+          await EntityTickerLinksRepository.instance.recordLinks(
+            entityType: 'community_post',
+            entityId: ownerId,
+            tickers: <String>[symbol],
+            contextSource: 'manual',
+          );
+        } else {
+          await EntityTickerLinksRepository.instance.removeLinks(
+            entityType: 'community_post',
+            entityId: ownerId,
+            ticker: symbol,
+          );
+        }
+      case AppLinkKind.messageThread:
+        if (attach) {
+          await EntityTickerLinksRepository.instance.recordLinks(
+            entityType: 'message',
+            entityId: ownerId,
+            tickers: <String>[symbol],
+            contextSource: 'manual',
+          );
+        } else {
+          await EntityTickerLinksRepository.instance.removeLinks(
+            entityType: 'message',
+            entityId: ownerId,
+            ticker: symbol,
+          );
+        }
     }
   }
 

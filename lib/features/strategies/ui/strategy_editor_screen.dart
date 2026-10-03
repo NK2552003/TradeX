@@ -62,6 +62,7 @@ class StrategyEditorScreen extends StatefulWidget {
     this.onDeleted,
     this.detailsOnly = false,
     this.initialMode = StrategyEditorMode.write,
+    this.onOpenLink,
   });
 
   /// The playbook being edited. An empty [AppStrategy.id] is an unsaved draft,
@@ -82,6 +83,9 @@ class StrategyEditorScreen extends StatefulWidget {
 
   /// Production record routes use focused forms; writing lives in Notes.
   final bool detailsOnly;
+
+  /// Follows a record/ticker link tapped in the preview tab.
+  final void Function(AppLinkRef ref)? onOpenLink;
 
   @override
   State<StrategyEditorScreen> createState() => StrategyEditorScreenState();
@@ -238,7 +242,14 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
       content: _body.text,
       status: _status,
       tags: List<String>.unmodifiable(_tags),
-      linkedTickers: List<String>.unmodifiable(_tickers),
+      linkedTickers: List<String>.unmodifiable(<String>{
+        ..._tickers,
+        for (final m in RegExp(
+          r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)',
+        ).allMatches(_body.text))
+          if (m.group(1)?.toUpperCase() case final String sym)
+            if (sym.isNotEmpty) sym,
+      }),
       linkedNoteIds: List<String>.unmodifiable(_linkedNoteIds),
       linkedJournalIds: List<String>.unmodifiable(_linkedJournalIds),
       createdAt: _strategy.createdAt,
@@ -1736,6 +1747,7 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
             outlineController: _outline,
             imageResolver: StrategyAttachments.resolve,
             emptyPlaceholder: 'No rules written yet — switch to Write.',
+            onOpenRef: widget.onOpenLink,
           ),
     );
     // In the narrow layout UiPage already scrolls; nesting another one would

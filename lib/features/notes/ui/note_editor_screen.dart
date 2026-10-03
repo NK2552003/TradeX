@@ -58,6 +58,7 @@ class NoteEditorScreen extends StatefulWidget {
     this.sourceDocument,
     this.initialMode = NoteEditorMode.write,
     this.detailsOnly = false,
+    this.onOpenLink,
   });
 
   /// The note being edited. An empty [AppNote.id] means an unsaved draft, which
@@ -78,6 +79,9 @@ class NoteEditorScreen extends StatefulWidget {
 
   final NoteEditorMode initialMode;
   final bool detailsOnly;
+
+  /// Follows a record/ticker link tapped in the preview tab.
+  final void Function(AppLinkRef ref)? onOpenLink;
 
   @override
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
@@ -261,12 +265,22 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       }
       return null;
     }
+    final Set<String> mergedTickers = <String>{..._tickers};
+    final tickerMatches = RegExp(
+      r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)',
+    ).allMatches(_body.text);
+    for (final m in tickerMatches) {
+      final sym = m.group(1)?.toUpperCase();
+      if (sym != null && sym.isNotEmpty) {
+        mergedTickers.add(sym);
+      }
+    }
     final AppNote draft = _note.copyWith(
       title: _effectiveTitle,
       content: _body.text,
       noteType: _type,
       tags: _tags,
-      linkedTickers: _tickers,
+      linkedTickers: mergedTickers.toList(),
       isPublic: _isPublic,
       strategyId: _strategyId,
       strategyName: _strategyNameFor(_strategyId),
@@ -1271,6 +1285,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               using: widget.sourceDocument?.resolveImage,
             ),
             emptyPlaceholder: 'Nothing to read yet — switch to Write.',
+            onOpenRef: widget.onOpenLink,
           ),
     );
     // In the narrow layout UiPage already scrolls; nesting another one would

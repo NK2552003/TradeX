@@ -1324,7 +1324,7 @@ enum AppLinkKind {
     AppLinkKind.note => 'notes',
     AppLinkKind.journal => 'journal',
     AppLinkKind.strategy => 'strategies',
-    AppLinkKind.ticker => 'markets',
+    AppLinkKind.ticker => 'market',
     AppLinkKind.aiCopilot => 'ai_copilot',
     AppLinkKind.communityPost => 'community_feed',
     AppLinkKind.messageThread => 'messages',

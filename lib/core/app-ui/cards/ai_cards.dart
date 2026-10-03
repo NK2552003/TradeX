@@ -1,5 +1,9 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:markdown/markdown.dart' as md;
+import 'package:tradex/core/linking/link_graph.dart';
+import 'package:tradex/core/markdown_kit/markdown_kit.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
@@ -16,6 +20,8 @@ class AppAiMessageBubble extends StatelessWidget {
     this.onRetry,
     this.onShare,
     this.onSourceTap,
+    this.onOpenRef,
+    this.actionsBuilder,
   });
 
   final AppAiMessage message;
@@ -23,11 +29,20 @@ class AppAiMessageBubble extends StatelessWidget {
   final VoidCallback? onRetry;
   final VoidCallback? onShare;
   final ValueChanged<String>? onSourceTap;
+  final void Function(AppLinkRef ref)? onOpenRef;
+
+  /// Optional extra actions rendered beneath a settled (non-pending) answer —
+  /// e.g. "Save note", "Log trade". Returns null/empty to add nothing, so
+  /// existing call sites that omit it are unaffected.
+  final List<Widget>? Function(AppAiMessage message)? actionsBuilder;
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final bool mine = message.role == AppAiRole.user;
+    final List<Widget> extraActions =
+        (message.pending ? null : actionsBuilder?.call(message)) ??
+        const <Widget>[];
 
     if (message.role == AppAiRole.system) {
       return Padding(
@@ -72,16 +87,33 @@ class AppAiMessageBubble extends StatelessWidget {
           if (message.pending)
             const UiTypingIndicator(label: 'Thinking…')
           else if (mine)
-            Text(
-              message.body,
-              style: context.uiText.body.copyWith(
-                color: mine ? theme.colors.onPrimary : theme.colors.foreground,
-              ),
-            )
+            _buildUserMessageText(context, theme)
           else
             MarkdownBody(
               data: message.body,
               selectable: true,
+              inlineSyntaxes: <md.InlineSyntax>[
+                TickerInlineSyntax(),
+              ],
+              builders: <String, MarkdownElementBuilder>{
+                'ticker': TickerElementBuilder(onOpenRef: onOpenRef),
+              },
+              onTapLink: (text, href, title) {
+                if (href != null) {
+                  final Uri? uri = Uri.tryParse(href);
+                  if (uri != null && AppDeepLink.isInternal(uri)) {
+                    final target = AppDeepLink.target(uri);
+                    if (target != null && onOpenRef != null) {
+                      onOpenRef!(AppLinkRef(
+                        kind: target.kind,
+                        id: target.id,
+                        title: text.isNotEmpty ? text : target.id,
+                      ));
+                      return;
+                    }
+                  }
+                }
+              },
               styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
                   .copyWith(
                     p: context.uiText.body.copyWith(
@@ -168,9 +200,79 @@ class AppAiMessageBubble extends StatelessWidget {
                 ],
               ),
             ),
+          if (extraActions.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(top: context.sp(theme.spacing.xxs)),
+              child: Wrap(
+                spacing: context.sp(theme.spacing.xs),
+                runSpacing: context.sp(theme.spacing.xs),
+                children: extraActions,
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  static final RegExp _tickerRegex =
+      RegExp(r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)');
+
+  Widget _buildUserMessageText(BuildContext context, UiTheme theme) {
+    final TextStyle baseStyle = context.uiText.body.copyWith(
+      color: theme.colors.onPrimary,
+    );
+    final String text = message.body;
+    final Iterable<Match> matches = _tickerRegex.allMatches(text);
+    if (matches.isEmpty) {
+      return Text(text, style: baseStyle);
+    }
+
+    final List<InlineSpan> spans = <InlineSpan>[];
+    int lastIndex = 0;
+    for (final Match match in matches) {
+      if (match.start > lastIndex) {
+        spans.add(
+          TextSpan(
+            text: text.substring(lastIndex, match.start),
+            style: baseStyle,
+          ),
+        );
+      }
+      final String rawTicker = match.group(0)!;
+      final String symbol = match.group(1)!.toUpperCase();
+      spans.add(
+        TextSpan(
+          text: rawTicker,
+          style: baseStyle.copyWith(
+            fontWeight: FontWeight.bold,
+            decoration: TextDecoration.underline,
+            decorationColor: theme.colors.onPrimary.withValues(alpha: 0.6),
+          ),
+          recognizer: onOpenRef == null
+              ? null
+              : (TapGestureRecognizer()
+                ..onTap = () {
+                  onOpenRef!(
+                    AppLinkRef(
+                      kind: AppLinkKind.ticker,
+                      id: symbol,
+                      title: symbol,
+                    ),
+                  );
+                }),
+        ),
+      );
+      lastIndex = match.end;
+    }
+    if (lastIndex < text.length) {
+      spans.add(
+        TextSpan(
+          text: text.substring(lastIndex),
+          style: baseStyle,
+        ),
+      );
+    }
+    return Text.rich(TextSpan(children: spans), style: baseStyle);
   }
 }
 

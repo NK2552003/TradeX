@@ -78,6 +78,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     'notifications': 'Notifications',
     'search': 'Search',
     'affiliate_application': 'Affiliate Application',
+    'market': 'Market Data',
   };
 
   final AppSession _session = AppSession.instance;
@@ -473,7 +474,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// Role permissions still govern the destination. Writing screens handle
   /// same-kind links locally; ticker links arrive at the matching Markets detail.
   void _openLinkRef(AppLinkRef ref, {bool writing = false}) {
-    final String? destination = writing
+    final String destination = writing
         ? 'notes'
         : (ref.id == 'ai_copilot' || ref.kind == AppLinkKind.aiCopilot
               ? 'ai_copilot'
@@ -485,13 +486,13 @@ class _AppScaffoldState extends State<AppScaffold> {
                         AppLinkKind.aiCopilot => 'ai_copilot',
                         AppLinkKind.communityPost => 'community_feed',
                         AppLinkKind.messageThread => 'messages',
+                        AppLinkKind.ticker => 'market',
                         AppLinkKind.note =>
                           ref.id.startsWith('community')
                               ? 'community_feed'
                               : 'notes',
-                        _ => ref.kind.destinationId,
                       }));
-    if (destination == null || !_canReach(destination)) return;
+    if (!_canReach(destination)) return;
     setState(() {
       if (_selectedId != destination) _destinationHistory.add(_selectedId);
       _selectedId = destination;
@@ -529,6 +530,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       return MarketRootScreen(
         key: const ValueKey('market-root'),
         destination: _selectedId,
+        openRequest: _linkRequest,
         onNavigate: _go,
         onSubpageChanged: _onSubpageChanged,
       );

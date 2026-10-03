@@ -15,6 +15,11 @@ import 'package:tradex/features/messages/presentation/overlays/share_to_conversa
 /// Community, Workspace) with optional pre-populated context (record title,
 /// initial prompt, and links). Eliminates blank screens and provides immediate,
 /// in-place interactive quantitative AI assistance without navigating away.
+///
+/// The conversation itself is rendered by the shared [AppAiChatBlock], so the
+/// bubbles, markdown, sources, prompt chips and composer read identically to
+/// the full-screen Copilot. Per-answer create actions (Save note / Log trade /
+/// Strategy / Post) are injected through [AppAiChatBlock.messageActionsBuilder].
 class AiAssistantOverlaySheet extends StatefulWidget {
   const AiAssistantOverlaySheet({
     super.key,
@@ -72,10 +77,6 @@ class AiAssistantOverlaySheet extends StatefulWidget {
 }
 
 class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
-  final TextEditingController _promptController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-  final FocusNode _focusNode = FocusNode();
-
   late final AiAssistantRepository _repo = widget.repository;
   bool _contextDismissed = false;
 
@@ -84,8 +85,8 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
     super.initState();
     _repo.addListener(_onRepoChange);
 
-    // If an initial prompt was provided and thread is empty or prompt isn't already sent,
-    // execute it immediately so the user sees real answers right away.
+    // Fire an initial prompt (if provided and not already the last message) so
+    // the reader sees a real answer the moment the sheet opens.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (widget.initialPrompt != null &&
@@ -93,47 +94,19 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
         final String prompt = widget.initialPrompt!.trim();
         final bool alreadySent =
             _repo.messages.isNotEmpty && _repo.messages.last.body == prompt;
-        if (!alreadySent) {
-          _repo.sendPrompt(prompt);
-        }
+        if (!alreadySent) _repo.sendPrompt(prompt);
       }
-      _scrollToBottom();
     });
   }
 
   @override
   void dispose() {
     _repo.removeListener(_onRepoChange);
-    _promptController.dispose();
-    _scrollController.dispose();
-    _focusNode.dispose();
     super.dispose();
   }
 
   void _onRepoChange() {
-    if (!mounted) return;
-    setState(() {});
-    _scrollToBottom();
-  }
-
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
-        );
-      }
-    });
-  }
-
-  void _send() {
-    final String text = _promptController.text.trim();
-    if (text.isEmpty) return;
-    _promptController.clear();
-    _repo.sendPrompt(text);
-    _scrollToBottom();
+    if (mounted) setState(() {});
   }
 
   void _openPersonaChooser() async {
@@ -155,7 +128,8 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
       setup: setup ??
           AiChartSetup(
             id: 'setup_${DateTime.now().millisecondsSinceEpoch}',
-            title: 'Setup: ${widget.contextRef?.title ?? widget.contextTitle ?? "Market Analysis"}',
+            title:
+                'Setup: ${widget.contextRef?.title ?? widget.contextTitle ?? "Market Analysis"}',
             symbol: widget.contextRef?.title ?? widget.contextTitle ?? 'NIFTY',
             timeframe: '15m',
             direction: AiTradeDirection.long,
@@ -168,6 +142,17 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
             rationale: 'Trend continuation & momentum breakout',
           ),
       onOpenRef: widget.onOpenRef,
+    );
+  }
+
+  void _copyMessage(AppAiMessage message) {
+    Clipboard.setData(ClipboardData(text: message.body));
+    UiToastScope.maybeOf(context)?.show(
+      UiToastData(
+        title: 'Copied',
+        message: 'Analysis copied to clipboard.',
+        intent: UiIntent.info,
+      ),
     );
   }
 
@@ -196,6 +181,59 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
         );
       },
     );
+  }
+
+  /// Per-answer "turn this into…" actions, surfaced beneath each settled
+  /// assistant message through [AppAiChatBlock.messageActionsBuilder]. Copy /
+  /// regenerate / share come from the shared bubble's own action row.
+  List<Widget> _createActions(AppAiMessage message) {
+    if (message.role != AppAiRole.assistant || message.pending) {
+      return const <Widget>[];
+    }
+    return <Widget>[
+      UiButton(
+        label: 'Copy',
+        leadingIcon: Icons.copy_all_outlined,
+        size: UiSize.xs,
+        variant: UiVariant.ghost,
+        onPressed: () => _copyMessage(message),
+      ),
+      UiButton(
+        label: 'Save Note',
+        leadingIcon: Icons.sticky_note_2_outlined,
+        size: UiSize.xs,
+        variant: UiVariant.soft,
+        onPressed: () => _openCreateSheet(AiCreateTarget.note),
+      ),
+      UiButton(
+        label: 'Log Trade',
+        leadingIcon: Icons.menu_book_outlined,
+        size: UiSize.xs,
+        variant: UiVariant.soft,
+        onPressed: () => _openCreateSheet(AiCreateTarget.journal),
+      ),
+      UiButton(
+        label: 'Strategy',
+        leadingIcon: Icons.account_tree_outlined,
+        size: UiSize.xs,
+        variant: UiVariant.soft,
+        onPressed: () => _openCreateSheet(AiCreateTarget.strategy),
+      ),
+      UiButton(
+        label: 'Post',
+        leadingIcon: Icons.forum_outlined,
+        size: UiSize.xs,
+        variant: UiVariant.soft,
+        onPressed: () => _openCreateSheet(AiCreateTarget.post),
+      ),
+      UiButton(
+        label: 'Share',
+        leadingIcon: Icons.send_outlined,
+        size: UiSize.xs,
+        variant: UiVariant.ghost,
+        onPressed: () => _shareToDm(message),
+      ),
+    ];
   }
 
   List<String> get _contextualChips {
@@ -281,10 +319,32 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
             if (!_contextDismissed && widget.contextTitle != null)
               _buildContextBar(context, theme, colors),
             Expanded(
-              child: _buildMessagesList(context, theme, colors),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.md),
+                  vertical: context.sp(theme.spacing.xs),
+                ),
+                child: AppAiChatBlock(
+                  messages: _repo.messages,
+                  generating: _repo.generating,
+                  prompts: <AppAiPrompt>[
+                    for (final String chip in _contextualChips)
+                      AppAiPrompt(label: chip, prompt: chip),
+                  ],
+                  onSend: (String text) => _repo.sendPrompt(text),
+                  onStop: _repo.stop,
+                  onCopy: _copyMessage,
+                  onRetry: _repo.regenerate,
+                  onShare: _shareToDm,
+                  onOpenRef: widget.onOpenRef,
+                  messageActionsBuilder: _createActions,
+                  emptyTitle: 'How can Copilot assist you?',
+                  emptyMessage:
+                      'Ask about position sizing, technical structure, '
+                      'execution auditing, or stress-test this setup.',
+                ),
+              ),
             ),
-            _buildQuickPromptsBar(context, theme, colors),
-            _buildComposer(context, theme, colors),
           ],
         ),
       ),
@@ -415,357 +475,6 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
             tooltip: 'Detach Context',
             onPressed: () => setState(() => _contextDismissed = true),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessagesList(
-    BuildContext context,
-    UiTheme theme,
-    UiColors colors,
-  ) {
-    final List<AppAiMessage> msgs = _repo.messages;
-
-    if (msgs.isEmpty && !_repo.generating) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-          child: UiEmptyState(
-            icon: Icons.auto_awesome_rounded,
-            title: 'How can Copilot assist you?',
-            message:
-                'Ask about position sizing, technical structure, execution auditing, or stress-test this setup.',
-          ),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      controller: _scrollController,
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-      itemCount: msgs.length + (_repo.generating ? 1 : 0),
-      itemBuilder: (BuildContext ctx, int index) {
-        if (index == msgs.length && _repo.generating) {
-          return _buildGeneratingIndicator(context, theme, colors);
-        }
-        final AppAiMessage m = msgs[index];
-        return _buildMessageItem(context, theme, colors, m);
-      },
-    );
-  }
-
-  Widget _buildGeneratingIndicator(
-    BuildContext context,
-    UiTheme theme,
-    UiColors colors,
-  ) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: colors.primary.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.auto_awesome_rounded,
-              color: colors.primary,
-              size: context.sz(14),
-            ),
-          ),
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          Expanded(
-            child: Container(
-              padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
-              decoration: BoxDecoration(
-                color: colors.surfaceMuted,
-                borderRadius: context.radius(theme.radii.lg),
-                border: Border.all(
-                  color: colors.border,
-                  width: theme.borders.hairline,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  const UiTypingIndicator(),
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  Text(
-                    'Analyzing with ${_repo.persona.label} lens...',
-                    style: context.uiText.caption.copyWith(
-                      color: colors.foregroundMuted,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessageItem(
-    BuildContext context,
-    UiTheme theme,
-    UiColors colors,
-    AppAiMessage msg,
-  ) {
-    final bool isUser = msg.role == AppAiRole.user;
-
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        children: <Widget>[
-          if (!isUser) ...<Widget>[
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: colors.primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.auto_awesome_rounded,
-                color: colors.primary,
-                size: context.sz(14),
-              ),
-            ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-          ],
-          Flexible(
-            child: Column(
-              crossAxisAlignment:
-                  isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              children: <Widget>[
-                Container(
-                  padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
-                  decoration: BoxDecoration(
-                    color: isUser ? colors.primary : colors.surfaceMuted,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(
-                        context.radius(theme.radii.lg).topLeft.x,
-                      ),
-                      topRight: Radius.circular(
-                        context.radius(theme.radii.lg).topLeft.x,
-                      ),
-                      bottomLeft: isUser
-                          ? Radius.circular(
-                              context.radius(theme.radii.lg).topLeft.x,
-                            )
-                          : Radius.zero,
-                      bottomRight: isUser
-                          ? Radius.zero
-                          : Radius.circular(
-                              context.radius(theme.radii.lg).topLeft.x,
-                            ),
-                    ),
-                    border: isUser
-                        ? null
-                        : Border.all(
-                            color: colors.border,
-                            width: theme.borders.hairline,
-                          ),
-                  ),
-                  child: Text(
-                    msg.body,
-                    style: context.uiText.body.copyWith(
-                      color: isUser ? colors.onPrimary : colors.foreground,
-                      height: 1.4,
-                      fontSize: context.fs(13.5),
-                    ),
-                  ),
-                ),
-                if (!isUser) ...<Widget>[
-                  SizedBox(height: context.sp(theme.spacing.xxs)),
-                  _buildMessageActions(context, theme, colors, msg),
-                ],
-              ],
-            ),
-          ),
-          if (isUser) ...<Widget>[
-            SizedBox(width: context.sp(theme.spacing.xs)),
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: colors.surfaceMuted,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.person_rounded,
-                color: colors.foregroundMuted,
-                size: context.sz(14),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessageActions(
-    BuildContext context,
-    UiTheme theme,
-    UiColors colors,
-    AppAiMessage msg,
-  ) {
-    return Wrap(
-      spacing: context.sp(theme.spacing.xs),
-      runSpacing: 4,
-      children: <Widget>[
-        UiButton(
-          label: 'Copy',
-          leadingIcon: Icons.copy_rounded,
-          size: UiSize.xs,
-          variant: UiVariant.ghost,
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: msg.body));
-            UiToastScope.maybeOf(context)?.show(
-              UiToastData(
-                title: 'Copied',
-                message: 'Analysis copied to clipboard.',
-                intent: UiIntent.info,
-              ),
-            );
-          },
-        ),
-        UiButton(
-          label: 'Save Note',
-          leadingIcon: Icons.sticky_note_2_outlined,
-          size: UiSize.xs,
-          variant: UiVariant.ghost,
-          onPressed: () => _openCreateSheet(AiCreateTarget.note),
-        ),
-        UiButton(
-          label: 'Log Trade',
-          leadingIcon: Icons.menu_book_outlined,
-          size: UiSize.xs,
-          variant: UiVariant.ghost,
-          onPressed: () => _openCreateSheet(AiCreateTarget.journal),
-        ),
-        UiButton(
-          label: 'Strategy',
-          leadingIcon: Icons.account_tree_outlined,
-          size: UiSize.xs,
-          variant: UiVariant.ghost,
-          onPressed: () => _openCreateSheet(AiCreateTarget.strategy),
-        ),
-        UiButton(
-          label: 'Post',
-          leadingIcon: Icons.forum_outlined,
-          size: UiSize.xs,
-          variant: UiVariant.ghost,
-          onPressed: () => _openCreateSheet(AiCreateTarget.post),
-        ),
-        UiButton(
-          label: 'Share',
-          leadingIcon: Icons.share_outlined,
-          size: UiSize.xs,
-          variant: UiVariant.ghost,
-          onPressed: () => _shareToDm(msg),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickPromptsBar(
-    BuildContext context,
-    UiTheme theme,
-    UiColors colors,
-  ) {
-    final List<String> chips = _contextualChips;
-
-    return Container(
-      height: 38,
-      margin: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.md)),
-        itemCount: chips.length,
-        separatorBuilder: (_, _) =>
-            SizedBox(width: context.sp(theme.spacing.xs)),
-        itemBuilder: (BuildContext ctx, int i) {
-          final String prompt = chips[i];
-          return ActionChip(
-            label: Text(
-              prompt,
-              style: context.uiText.caption.copyWith(
-                color: colors.foreground,
-                fontWeight: FontWeight.w500,
-                fontSize: context.fs(11),
-              ),
-            ),
-            backgroundColor: colors.surfaceMuted,
-            side: BorderSide(
-              color: colors.border,
-              width: theme.borders.hairline,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: context.radius(theme.radii.pill),
-            ),
-            onPressed: () {
-              _repo.sendPrompt(prompt);
-              _scrollToBottom();
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildComposer(
-    BuildContext context,
-    UiTheme theme,
-    UiColors colors,
-  ) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(theme.spacing.md),
-        vertical: context.sp(theme.spacing.xs),
-      ),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border(
-          top: BorderSide(
-            color: colors.border,
-            width: theme.borders.hairline,
-          ),
-        ),
-      ),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: UiInput(
-              controller: _promptController,
-              focusNode: _focusNode,
-              hintText: 'Ask Copilot about risk, structure, execution...',
-              onSubmitted: (_) => _send(),
-            ),
-          ),
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          if (_repo.generating)
-            UiIconButton(
-              icon: Icons.stop_rounded,
-              size: UiSize.md,
-              intent: UiIntent.danger,
-              tooltip: 'Stop Generation',
-              onPressed: () => _repo.stop(),
-            )
-          else
-            UiIconButton(
-              icon: Icons.send_rounded,
-              size: UiSize.md,
-              intent: UiIntent.primary,
-              tooltip: 'Send Prompt',
-              onPressed: _send,
-            ),
         ],
       ),
     );

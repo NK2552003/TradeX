@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
@@ -7,6 +8,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 
 /// In-memory reactive repository backing the community platform.
 ///
@@ -577,6 +579,23 @@ class CommunityRepository extends ChangeNotifier {
       _signalPosts = <CommunityPost>[post, ..._signalPosts];
     }
     notifyListeners();
+
+    final Set<String> linkedTickers = <String>{
+      ...tickers,
+      if (tradeSetup?.ticker != null && tradeSetup!.ticker.isNotEmpty)
+        tradeSetup.ticker,
+      ...EntityTickerLinksRepository.extractTickers(body),
+    };
+    if (linkedTickers.isNotEmpty) {
+      unawaited(
+        EntityTickerLinksRepository.instance.recordLinks(
+          entityType: 'community_post',
+          entityId: post.id,
+          tickers: linkedTickers,
+          contextSource: tradeSetup != null ? 'setup' : 'inline',
+        ),
+      );
+    }
   }
 
   /// @backend DELETE /api/v1/community/posts/{postId}
@@ -587,6 +606,13 @@ class CommunityRepository extends ChangeNotifier {
     _signalPosts = _signalPosts.where((p) => p.id != postId).toList();
     _bookmarkedPosts = _bookmarkedPosts.where((p) => p.id != postId).toList();
     notifyListeners();
+
+    unawaited(
+      EntityTickerLinksRepository.instance.removeLinks(
+        entityType: 'community_post',
+        entityId: postId,
+      ),
+    );
   }
 
   /// @backend PATCH /api/v1/community/posts/{postId}
@@ -660,6 +686,30 @@ class CommunityRepository extends ChangeNotifier {
       imageUrls: imageUrls,
     );
     notifyListeners();
+
+    final Set<String> linkedTickers = <String>{
+      ...?tickers,
+      if (tradeSetup?.ticker != null && tradeSetup!.ticker.isNotEmpty)
+        tradeSetup.ticker,
+      ...EntityTickerLinksRepository.extractTickers(newBody),
+    };
+    if (linkedTickers.isNotEmpty) {
+      unawaited(
+        EntityTickerLinksRepository.instance.recordLinks(
+          entityType: 'community_post',
+          entityId: postId,
+          tickers: linkedTickers,
+          contextSource: tradeSetup != null ? 'setup' : 'inline',
+        ),
+      );
+    } else {
+      unawaited(
+        EntityTickerLinksRepository.instance.removeLinks(
+          entityType: 'community_post',
+          entityId: postId,
+        ),
+      );
+    }
   }
 
   CommunityPost? setPostVisibility(String postId, bool isPublic) {

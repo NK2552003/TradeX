@@ -18,6 +18,7 @@ class CommunityHashtagPage extends StatefulWidget {
     this.onAuthorTap,
     this.onBack,
     this.onOpenRef,
+    this.onTagTap,
   });
 
   final String tag;
@@ -27,6 +28,7 @@ class CommunityHashtagPage extends StatefulWidget {
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final VoidCallback? onBack;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final ValueChanged<String>? onTagTap;
 
   @override
   State<CommunityHashtagPage> createState() => _CommunityHashtagPageState();
@@ -230,6 +232,7 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage> {
                                       widget.currentUser ??
                                       widget.repository.currentAuthor,
                                   onOpenRef: widget.onOpenRef,
+                                  onTagTap: widget.onTagTap,
                                 ),
                               ),
                             );
@@ -237,6 +240,7 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage> {
                         },
                         onAuthorTap: widget.onAuthorTap,
                         onOpenRef: widget.onOpenRef,
+                        onTagTap: widget.onTagTap,
                       ),
               ),
             ],

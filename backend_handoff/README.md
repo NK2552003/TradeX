@@ -24,6 +24,8 @@ not be described as live until the relevant repository has been swapped.
 
 | Landing and pricing | [13 Public Site](13-Public_Site/HOW_IT_WORKS.md) | Published JSON catalogues, bundled preview fallback and trusted administration writes. |
 | Calculator history | [06 Calculator History](06-Calculator_History/HOW_IT_WORKS.md) | Persist owner-only history with retention limits. |
+| Entity Ticker Links | [15 Entity Ticker Links](15-Entity_Ticker_Links/HOW_IT_WORKS.md) | Dedicated relational link table (`entity_ticker_links`) maintaining durable ticker associations across Notes, Journals, Strategies, Community, and Messages under daily market data updates. |
+
 
 The schema and RLS policies are authoritative for database access. Feature
 documents specify the client-facing payloads and operational behavior.

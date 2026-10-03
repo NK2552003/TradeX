@@ -115,7 +115,7 @@ void main() {
       await tester.ensureVisible(find.text('Instruments'));
       await tester.tap(find.text('Instruments'));
       await tester.pump();
-      if (width < 768) {
+      if (width < 1100) {
         await tester.pump();
         expect(find.byType(MarketQuoteRow), findsWidgets);
         expect(find.byType(MarketQuoteRow).evaluate().length, lessThan(100));
@@ -158,8 +158,8 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Data coverage').first);
     await settleAssets(tester);
-    expect(find.text('Directory symbols'), findsOneWidget);
-    expect(find.text('Quotes available'), findsOneWidget);
+    expect(find.text('DIRECTORY SYMBOLS'), findsOneWidget);
+    expect(find.text('QUOTES AVAILABLE'), findsOneWidget);
     expect(find.byType(UiTable<Map>), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

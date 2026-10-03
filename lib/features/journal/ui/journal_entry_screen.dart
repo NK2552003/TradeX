@@ -751,6 +751,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
               outlineController: _outline,
               imageResolver: JournalAttachments.resolve,
               emptyPlaceholder: 'This entry has no write-up yet.',
+              onOpenRef: widget.onOpenLink,
             )
           else
             UiCallout(
@@ -850,6 +851,15 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
             spacing: context.sp(theme.spacing.xs),
             runSpacing: context.sp(theme.spacing.xs),
             children: <Widget>[
+              UiBadge(
+                label: '\$${_entry.ticker}',
+                intent: UiIntent.info,
+                variant: UiBadgeVariant.outline,
+                size: UiSize.xs,
+                onTap: widget.onOpenLink == null
+                    ? null
+                    : () => widget.onOpenLink!(_graph.tickerRef(_entry.ticker)),
+              ),
               UiBadge(
                 label: AppTokens.outcomeLabel(_entry.outcome),
                 intent: AppTokens.outcomeIntent(_entry.outcome),

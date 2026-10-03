@@ -5,6 +5,7 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
 import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
+import 'market_layout.dart';
 
 String marketFieldLabel(String key) {
   final value = key
@@ -126,6 +127,7 @@ class MarketInstrumentView extends StatefulWidget {
 
 class _MarketInstrumentViewState extends State<MarketInstrumentView> {
   int _section = 0;
+  int _chartMode = 0;
   late final Future<Map<String, dynamic>> _future = widget.repository.detail(
     widget.instrument.symbol,
   );
@@ -298,67 +300,183 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
           ),
         ),
       ];
+      final MarketInstrument inst = widget.instrument;
+      final List<UiCandle> candles =
+          (chart['data'] as List? ?? const <dynamic>[]).isNotEmpty
+          ? assetCandles(chart['data'] as List)
+          : <UiCandle>[];
+      final bool hasChart = candles.isNotEmpty;
+      final UiCandle? latest = hasChart ? candles.last : null;
+      final double price = inst.price != 0 ? inst.price : (latest?.close ?? 0);
+      final UiIntent plIntent = AppTokens.plIntent(inst.changePercent);
+      String px(double? v) =>
+          v == null ? '—' : '${inst.currency} ${v.toStringAsFixed(2)}';
+      final List<UiStat> stats = <UiStat>[
+        if (latest != null) UiStat(label: 'Open', value: px(latest.open)),
+        if (latest != null) UiStat(label: 'High', value: px(latest.high)),
+        if (latest != null) UiStat(label: 'Low', value: px(latest.low)),
+        if (inst.previousClose != null)
+          UiStat(label: 'Prev close', value: px(inst.previousClose)),
+        if (latest != null)
+          UiStat(label: 'Volume', value: AppTokens.count(latest.volume)),
+      ];
       return SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              '${summary['name'] ?? widget.instrument.name}',
-              style: context.uiText.heading,
+            MarketPageHeading(
+              title: '${summary['name'] ?? inst.name}',
+              description: '${inst.symbol} · Instrument research',
+              action: UiBadge(
+                label: detail['data_source'] == 'mock'
+                    ? 'Sample data'
+                    : 'Market snapshot',
+                variant: UiBadgeVariant.outline,
+              ),
             ),
-            UiGap.v(context.ui.spacing.sm),
-            Wrap(
-              spacing: context.sp(context.ui.spacing.sm),
-              runSpacing: context.sp(context.ui.spacing.xs),
-              children: [
-                UiBadge(label: widget.instrument.symbol),
-                UiBadge(label: widget.instrument.currency),
-                UiBadge(
-                  label: detail['data_source'] == 'mock'
-                      ? 'Sample data'
-                      : 'Market snapshot',
+            MarketTwoPanel(
+              secondaryFirstOnMobile: true,
+              primary: UiCard(
+                title: 'Price & research',
+                child: LayoutBuilder(
+                  builder: (context, box) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        spacing: context.sp(context.ui.spacing.md),
+                        runSpacing: context.sp(context.ui.spacing.sm),
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            'Price history',
+                            style: context.uiText.subheading,
+                          ),
+                          if (hasChart)
+                            UiToggleGroup<int>(
+                              value: _chartMode,
+                              onChanged: (value) =>
+                                  setState(() => _chartMode = value),
+                              options: const [
+                                UiOption(label: 'Candles', value: 0),
+                                UiOption(label: 'Line', value: 1),
+                              ],
+                            ),
+                        ],
+                      ),
+                      UiGap.v(context.ui.spacing.md),
+                      if (!hasChart)
+                        const UiEmptyState(
+                          title: 'No price history in this snapshot',
+                        )
+                      else if (_chartMode == 0)
+                        UiCandleChart(
+                          candles: candles,
+                          height: box.maxWidth < 600 ? 220 : 340,
+                        )
+                      else
+                        UiAreaChart(
+                          height: box.maxWidth < 600 ? 220 : 340,
+                          showLegend: false,
+                          data: [
+                            for (final candle in candles)
+                              UiChartPoint(
+                                label:
+                                    '${candle.time.year}-${candle.time.month}-${candle.time.day}',
+                                values: [candle.close],
+                              ),
+                          ],
+                          series: [
+                            UiChartSeries(
+                              name: 'Close',
+                              type: UiChartSeriesType.area,
+                              color: plIntent.color(context),
+                            ),
+                          ],
+                        ),
+                      UiGap.v(context.ui.spacing.lg),
+                      if (box.maxWidth < 600)
+                        UiAccordion(allowMultiple: true, items: sections)
+                      else ...[
+                        UiTabs(
+                          items: [
+                            for (final section in sections)
+                              UiTabItem(label: section.title),
+                          ],
+                          index: _section,
+                          scrollable: true,
+                          onChanged: (value) =>
+                              setState(() => _section = value),
+                        ),
+                        UiGap.v(context.ui.spacing.md),
+                        Text(
+                          sections[_section].title,
+                          style: context.uiText.subheading,
+                        ),
+                        UiGap.v(context.ui.spacing.md),
+                        sections[_section].content,
+                      ],
+                    ],
+                  ),
                 ),
-              ],
-            ),
-            UiGap.v(context.ui.spacing.sm),
-            Text(
-              'Quote updated: ${detail['quote']?['updated_at'] ?? widget.instrument.updatedAt?.toIso8601String() ?? 'Unavailable'}',
-              style: context.uiText.caption,
-            ),
-            UiGap.v(context.ui.spacing.md),
-            Text(
-              '${summary['description'] ?? ''}',
-              style: context.uiText.body,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            UiGap.v(context.ui.spacing.md),
-            if ((chart['data'] as List? ?? []).isNotEmpty)
-              UiCard(
-                child: UiCandleChart(
-                  candles: assetCandles(chart['data'] as List),
-                  height: context.uiRes.isMobile ? 220 : 340,
+              ),
+              secondary: UiCard(
+                title: 'Quote snapshot',
+                subtitle: inst.symbol,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(px(price), style: context.uiText.title),
+                    UiGap.v(context.ui.spacing.sm),
+                    Wrap(
+                      spacing: context.sp(context.ui.spacing.sm),
+                      children: [
+                        UiBadge(
+                          label: AppTokens.signedPercent(inst.changePercent),
+                          intent: plIntent,
+                          icon: AppTokens.plIcon(inst.changePercent),
+                        ),
+                        if (inst.market.isNotEmpty)
+                          UiBadge(
+                            label: inst.market,
+                            variant: UiBadgeVariant.outline,
+                          ),
+                      ],
+                    ),
+                    UiGap.v(context.ui.spacing.md),
+                    Text(
+                      'Quote updated: ${detail['quote']?['updated_at'] ?? inst.updatedAt?.toIso8601String() ?? 'Unavailable'}',
+                      style: context.uiText.caption,
+                    ),
+                    if (stats.isNotEmpty) ...[
+                      const UiDivider(),
+                      UiStatStrip(stats: stats),
+                    ],
+                    if ('${summary['description'] ?? ''}'.isNotEmpty) ...[
+                      const UiDivider(),
+                      UiCard(
+                        title: 'About the company',
+                        collapsible: true,
+                        initiallyExpanded: false,
+                        variant: UiCardVariant.ghost,
+                        padding: EdgeInsets.zero,
+                        child: Text(
+                          '${summary['description']}',
+                          style: context.uiText.body,
+                        ),
+                      ),
+                    ],
+                    const UiDivider(),
+                    Text('Research sections', style: context.uiText.bodyStrong),
+                    UiGap.v(context.ui.spacing.sm),
+                    Text(
+                      'Fundamentals · Company news · Price history · Options · Dividends · Analysts · Ownership · Data availability',
+                      style: context.uiText.caption,
+                    ),
+                  ],
                 ),
               ),
-            UiGap.v(context.ui.spacing.md),
-            if (context.uiRes.isMobile)
-              UiAccordion(allowMultiple: true, items: sections)
-            else ...[
-              UiTabs(
-                items: [
-                  for (final section in sections)
-                    UiTabItem(label: section.title),
-                ],
-                index: _section,
-                scrollable: true,
-                onChanged: (i) => setState(() => _section = i),
-              ),
-              UiGap.v(context.ui.spacing.md),
-              UiCard(
-                title: sections[_section].title,
-                child: sections[_section].content,
-              ),
-            ],
+            ),
           ],
         ),
       );

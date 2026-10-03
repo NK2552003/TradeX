@@ -8,13 +8,17 @@ class MarketArticle {
       thumbnailUrl = row['thumbnail_url'] as String?,
       link = row['link'] as String? ?? '',
       publishedAt = DateTime.tryParse('${row['published_at']}'),
+      contentType = row['content_type'] as String? ?? 'STORY',
       tickers = (row['related_tickers'] as List? ?? [row['ticker']])
           .whereType<String>()
           .toList();
-  final String title, summary, publisher, link;
+  final String title, summary, publisher, link, contentType;
   final String? thumbnailUrl;
   final DateTime? publishedAt;
   final List<String> tickers;
+
+  bool get isVideo =>
+      contentType.toUpperCase() == 'VIDEO' || link.contains('/video/');
 }
 
 class MarketInstrument {
@@ -98,6 +102,8 @@ class MarketSnapshot {
       ...instruments,
     ]..sort((a, b) => (counts[b.symbol] ?? 0).compareTo(counts[a.symbol] ?? 0));
   }
+  List<MarketArticle> get videos =>
+      articles.where((a) => a.isVideo).toList();
 }
 
 List<UiCandle> assetCandles(List<dynamic> rows) => rows.map((raw) {

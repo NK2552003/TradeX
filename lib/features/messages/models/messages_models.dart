@@ -120,6 +120,10 @@ class MessageAttachment {
     this.url,
     this.thumbnailUrl,
     this.sizeLabel,
+    this.direction,
+    this.entry,
+    this.stop,
+    this.target,
   });
 
   final String id;
@@ -129,6 +133,14 @@ class MessageAttachment {
   final String? url;
   final String? thumbnailUrl;
   final String? sizeLabel;
+
+  /// Trade-setup levels, only set when [kind] is [MessageAttachmentKind.tradeSetup].
+  /// [direction] is 'long' or 'short'; the reward:risk is derived from the three
+  /// price levels when all are present.
+  final String? direction;
+  final double? entry;
+  final double? stop;
+  final double? target;
 }
 
 // ---------------------------------------------------------------------------

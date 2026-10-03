@@ -486,3 +486,21 @@ Ref: conversations.user_b_id > profiles.id [delete: cascade, update: cascade]
 Ref: messages.conversation_id > conversations.id [delete: cascade, update: cascade]
 Ref: messages.sender_id > profiles.id [delete: cascade, update: cascade]
 Ref: notifications.user_id > profiles.id [delete: cascade, update: cascade]
+
+Table entity_ticker_links {
+  id uuid [pk]
+  user_id uuid [not null]
+  entity_type text [not null, note: 'note | journal | strategy | community_post | message']
+  entity_id text [not null]
+  ticker varchar(20) [not null]
+  context_source text [not null, default: 'inline', note: 'inline | manual | tag | setup | shared_ref']
+  price_at_link numeric
+  metadata jsonb [not null, default: '{}']
+  created_at timestamptz
+  updated_at timestamptz
+
+  note: 'Persistent relational ticker references across writing desk, community, and messages. Survives daily ticker data and symbol updates.'
+}
+
+Ref: entity_ticker_links.user_id > profiles.id [delete: cascade, update: cascade]
+

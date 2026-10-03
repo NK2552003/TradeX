@@ -60,9 +60,9 @@ void main() {
       // Suggestions pills for strategy context
       expect(find.textContaining('Stress-test'), findsOneWidget);
 
-      // Send prompt field & button
+      // Send prompt field & button (shared AppAiChatBlock composer)
       expect(find.byType(UiInput), findsOneWidget);
-      expect(find.byIcon(Icons.send_rounded), findsWidgets);
+      expect(find.byIcon(Icons.arrow_upward), findsWidgets);
     });
 
     testWidgets('entering prompt and sending adds user message', (
@@ -111,8 +111,8 @@ void main() {
       await tester.enterText(find.byType(UiInput), 'What is the risk-to-reward?');
       await tester.pump();
 
-      // Tap send
-      await tester.tap(find.byTooltip('Send Prompt'));
+      // Tap send (shared composer tooltip)
+      await tester.tap(find.byTooltip('Send'));
       await tester.pump();
 
       // Stop generation so timer doesn't linger

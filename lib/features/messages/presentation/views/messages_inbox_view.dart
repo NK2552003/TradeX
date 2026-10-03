@@ -91,6 +91,24 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
         repo.requestCount > 0 &&
         widget.onOpenRequests != null;
 
+    // Default-view-only accents: who is live right now, and how much is unread.
+    final List<MessageThread> live = showPinned
+        ? results
+            .where((MessageThread t) => !t.isGroup && t.presence.isLive)
+            .take(12)
+            .toList()
+        : const <MessageThread>[];
+    int unreadTotal = 0;
+    int unreadChats = 0;
+    if (showPinned) {
+      for (final MessageThread t in results) {
+        if (t.unread > 0) {
+          unreadTotal += t.unread;
+          unreadChats++;
+        }
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -107,6 +125,15 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
                     bottom: context.sp(theme.spacing.xl),
                   ),
                   children: <Widget>[
+                    if (showPinned && unreadTotal > 0)
+                      _unreadSummary(context, unreadTotal, unreadChats),
+                    if (live.isNotEmpty) ...<Widget>[
+                      const MessagesSectionHeader(
+                        title: 'Active now',
+                        icon: Icons.bolt_rounded,
+                      ),
+                      _presenceStrip(context, live),
+                    ],
                     if (pinned.isNotEmpty) ...<Widget>[
                       const MessagesSectionHeader(
                         title: 'Pinned',
@@ -131,6 +158,80 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
       selected: thread.id == widget.selectedThreadId,
       onTap: () => widget.onOpenThread?.call(thread),
       onLongPress: () => widget.onThreadLongPress?.call(thread),
+    );
+  }
+
+  Widget _unreadSummary(BuildContext context, int unreadTotal, int chats) {
+    final UiTheme theme = context.ui;
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(theme.spacing.xs),
+        vertical: context.sp(theme.spacing.xs),
+      ),
+      child: Row(
+        children: <Widget>[
+          UiBadge(
+            label: '$unreadTotal',
+            intent: UiIntent.primary,
+            size: UiSize.xs,
+          ),
+          Expanded(
+            child: Text(
+              unreadTotal == 1
+                  ? '1 unread message'
+                  : '$unreadTotal unread across $chats ${chats == 1 ? 'chat' : 'chats'}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _presenceStrip(BuildContext context, List<MessageThread> live) {
+    final UiTheme theme = context.ui;
+    return SizedBox(
+      height: context.sz(92),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(
+          horizontal: context.sp(theme.spacing.xs),
+          vertical: context.sp(theme.spacing.xxs),
+        ),
+        itemCount: live.length,
+        separatorBuilder: (BuildContext _, int _) =>
+            SizedBox(width: context.sp(theme.spacing.sm)),
+        itemBuilder: (BuildContext ctx, int i) {
+          final MessageThread t = live[i];
+          return SizedBox(
+            width: ctx.sz(64),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                MessagesThreadAvatar(
+                  thread: t,
+                  size: UiSize.lg,
+                  onTap: () => widget.onOpenThread?.call(t),
+                ),
+                SizedBox(height: ctx.sp(theme.spacing.xxs)),
+                Text(
+                  t.peer.displayName ?? '@${t.peer.handle}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: ctx.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
