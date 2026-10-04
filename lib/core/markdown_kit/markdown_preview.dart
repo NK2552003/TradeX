@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:tradex/core/app-ui/models/app_models.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/core/markdown_kit/code_block.dart';
 import 'package:tradex/core/markdown_kit/html_block.dart';
 import 'package:tradex/core/markdown_kit/inline_balance.dart';
 import 'package:tradex/core/markdown_kit/markdown_outline.dart';
 import 'package:tradex/core/markdown_kit/math_syntax.dart';
 import 'package:tradex/core/markdown_kit/scrollable_table.dart';
+import 'package:tradex/core/markdown_kit/ticker_syntax.dart';
 
 /// Renders Markdown with (near-)full GitHub-Flavored-Markdown support plus
 /// the extras a note/journal app benefits from: LaTeX math (`$x$`,
@@ -28,6 +31,8 @@ class RichMarkdownPreview extends StatelessWidget {
     this.selectable = true,
     this.shrinkWrap = true,
     this.outlineController,
+    this.onOpenRef,
+    this.onTapLink,
   });
 
   /// Raw markdown source.
@@ -45,6 +50,13 @@ class RichMarkdownPreview extends StatelessWidget {
   /// caller can show a floating "jump to section" index — see
   /// [MarkdownOutlineFab].
   final MarkdownOutlineController? outlineController;
+
+  /// When provided, following a record/ticker link inside this markdown document
+  /// (e.g. `$AAPL`, `[Tesla](tradex://ticker/TSLA)`) delegates here.
+  final void Function(AppLinkRef ref)? onOpenRef;
+
+  /// Fallback handler for standard non-internal hyperlinks.
+  final void Function(String text, String? href, String title)? onTapLink;
 
   @override
   Widget build(BuildContext context) {
@@ -200,12 +212,14 @@ class RichMarkdownPreview extends StatelessWidget {
       selectable: selectable,
       data: _ensureTrailingInlineContent(source),
       inlineSyntaxes: <md.InlineSyntax>[
+        TickerInlineSyntax(),
         MathBlockSyntax(),
         MathInlineSyntax(),
         HighlightMarkSyntax(),
         HtmlPlaceholderSyntax(),
       ],
       builders: <String, MarkdownElementBuilder>{
+        'ticker': TickerElementBuilder(onOpenRef: onOpenRef),
         'pre': RichCodeBlockBuilder(dark: dark),
         'math_inline': MathInlineBuilder(),
         'math_block': MathBlockBuilder(),
@@ -227,6 +241,23 @@ class RichMarkdownPreview extends StatelessWidget {
         // extraction is line-based and deliberately conservative, so an
         // edge case could in principle slip through to here).
         'table': tableBuilder,
+      },
+      onTapLink: (String text, String? href, String title) {
+        if (href != null) {
+          final Uri? uri = Uri.tryParse(href);
+          if (uri != null && AppDeepLink.isInternal(uri)) {
+            final target = AppDeepLink.target(uri);
+            if (target != null && onOpenRef != null) {
+              onOpenRef!(AppLinkRef(
+                kind: target.kind,
+                id: target.id,
+                title: text.isNotEmpty ? text : target.id,
+              ));
+              return;
+            }
+          }
+        }
+        onTapLink?.call(text, href, title);
       },
 
       sizedImageBuilder: imageResolver == null
@@ -568,8 +599,17 @@ String _neutralizeToken(String text, String token) {
 /// Same idea as [_neutralizeToken] for a single `$`, but skips straight
 /// over any `$$` pair (already settled by the earlier pass) so a balanced
 /// math block is never miscounted as two dangling single dollars.
+/// Also skips tickers / cashtags (e.g. `$NVDA`, `$AAPL`) so they are not
+/// mistaken for unclosed LaTeX math delimiters.
 String _neutralizeSingleDollar(String text) {
   final List<int> positions = <int>[];
+  final RegExp tickerPattern =
+      RegExp(r'(?<![\$\w])\$[A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9}\b(?!\$)');
+  final Set<int> tickerDollarPositions = <int>{};
+  for (final Match m in tickerPattern.allMatches(text)) {
+    tickerDollarPositions.add(m.start);
+  }
+
   int i = 0;
   while (i < text.length) {
     if (text[i] == r'$' && (i == 0 || text[i - 1] != '\\')) {
@@ -579,6 +619,10 @@ String _neutralizeSingleDollar(String text) {
       }
       if (i > 0 && text[i - 1] == r'$') {
         i += 1; // closing half of a `$$` token — already handled
+        continue;
+      }
+      if (tickerDollarPositions.contains(i)) {
+        i += 1; // cashtag / ticker token — handled by TickerInlineSyntax
         continue;
       }
       positions.add(i);

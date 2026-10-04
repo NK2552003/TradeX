@@ -5,7 +5,7 @@ import 'package:tradex/features/market_data/models/market_snapshot.dart';
 /// Sole asset adapter for the finance kits. Symbols are kept exactly as exported.
 class AssetMarketRepository {
   AssetMarketRepository({AssetBundle? bundle}) : _bundle = bundle ?? rootBundle;
-  static final shared = AssetMarketRepository();
+  static AssetMarketRepository shared = AssetMarketRepository();
   final AssetBundle _bundle;
   final Map<String, Future<dynamic>> _cache = {};
   Future<dynamic> read(String path) => _cache.putIfAbsent(
@@ -88,13 +88,7 @@ class AssetMarketRepository {
     final enriched = instruments
         .map(
           (q) => sparks.containsKey(q.symbol)
-              ? MarketInstrument.fromJson(
-                  Map<String, dynamic>.from(quotes[q.symbol] as Map),
-                  Map<String, dynamic>.from(
-                    fundamentals[q.symbol] as Map? ?? {},
-                  ),
-                  history: sparks[q.symbol]!,
-                )
+              ? q.withHistory(sparks[q.symbol]!)
               : q,
         )
         .toList();
@@ -220,8 +214,10 @@ class AssetMarketRepository {
     }
   }
 
-  Future<Map<String, dynamic>> history(String symbol) async =>
-      Map<String, dynamic>.from(await read('history/$symbol') as Map);
+  Future<Map<String, dynamic>> history(String symbol) async {
+    return Map<String, dynamic>.from(await read('history/$symbol') as Map);
+  }
+
   Future<Map<String, dynamic>> screeners() async =>
       Map<String, dynamic>.from(await read('screeners') as Map);
   Future<List<MarketArticle>> topic(String topic) async =>

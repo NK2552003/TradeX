@@ -488,6 +488,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
             outlineController: _outline,
             imageResolver: NoteAttachments.resolve,
             emptyPlaceholder: 'This note has no body yet.',
+            onOpenRef: widget.onOpenLink,
           ),
           if (_bundle.isNotEmpty) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.xl)),
@@ -724,6 +725,9 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
             label: '\$$ticker',
             intent: UiIntent.info,
             variant: UiBadgeVariant.outline,
+            onTap: widget.onOpenLink == null
+                ? null
+                : () => widget.onOpenLink!(_graph.tickerRef(ticker)),
           ),
         for (final String tag in _note.tags)
           UiBadge(label: '#$tag', variant: UiBadgeVariant.ghost),

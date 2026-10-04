@@ -455,6 +455,20 @@ class AppLinkGraph {
       for (final node in md.Document().parseLines(document.value.split('\n'))) {
         visit(node);
       }
+
+      final tickerMatches = RegExp(
+        r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)',
+      ).allMatches(document.value);
+      for (final m in tickerMatches) {
+        final sym = m.group(1)?.toUpperCase();
+        if (sym != null && sym.isNotEmpty) {
+          final to = (AppLinkKind.ticker, sym);
+          if (to != document.key) {
+            edges.putIfAbsent(document.key, () => {}).add(to);
+            edges.putIfAbsent(to, () => {}).add(document.key);
+          }
+        }
+      }
     }
     return edges;
   }

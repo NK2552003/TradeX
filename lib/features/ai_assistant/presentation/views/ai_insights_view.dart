@@ -109,8 +109,91 @@ class _AiInsightsViewState extends State<AiInsightsView> {
               title: 'Chart Setups',
               icon: Icons.show_chart,
             ),
+            if (_repository.chartSetups.length >= 2)
+              _buildSetupAnalytics(_repository.chartSetups),
             _buildChartSetups(),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// A compact read on the active chart setups: long/short mix as a donut with
+  /// the average confidence in its centre. Derived entirely from the setups the
+  /// repository already exposes.
+  Widget _buildSetupAnalytics(List<AiChartSetup> setups) {
+    final UiColors colors = context.uiColors;
+    final int longs =
+        setups.where((s) => s.direction == AiTradeDirection.long).length;
+    final int shorts = setups.length - longs;
+    final double avgConf =
+        setups.map((s) => s.confidence).fold<num>(0, (a, b) => a + b) /
+        setups.length;
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(context.ui.spacing.md),
+        vertical: context.sp(context.ui.spacing.xs),
+      ),
+      child: UiCard(
+        title: 'Setups at a glance',
+        subtitle: '${setups.length} active chart setups',
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final bool isTight = constraints.maxWidth < 260;
+            final Widget chart = Center(
+              child: UiDonutChart(
+                size: isTight ? 96 : 120,
+                showLegend: false,
+                centerLabel: '${avgConf.round()}%\nconf',
+                slices: <UiDonutSlice>[
+                  UiDonutSlice(
+                    label: 'Long',
+                    value: longs.toDouble(),
+                    color: colors.bullish,
+                  ),
+                  UiDonutSlice(
+                    label: 'Short',
+                    value: shorts.toDouble(),
+                    color: colors.bearish,
+                  ),
+                ],
+              ),
+            );
+            final Widget stats = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                UiBadge(label: 'Long · $longs', intent: UiIntent.bullish),
+                SizedBox(height: context.sp(context.ui.spacing.xs)),
+                UiBadge(label: 'Short · $shorts', intent: UiIntent.bearish),
+                SizedBox(height: context.sp(context.ui.spacing.xs)),
+                Text(
+                  'Average confidence ${avgConf.round()}%',
+                  style: context.uiText.caption.copyWith(
+                    color: context.ui.colors.foregroundMuted,
+                  ),
+                ),
+              ],
+            );
+            if (isTight) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  chart,
+                  SizedBox(height: context.sp(context.ui.spacing.sm)),
+                  stats,
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                chart,
+                SizedBox(width: context.sp(context.ui.spacing.md)),
+                Expanded(child: stats),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -145,22 +228,27 @@ class _AiInsightsViewState extends State<AiInsightsView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.candlestick_chart_rounded,
-                            size: context.sz(20),
-                            color: context.ui.colors.primary,
-                          ),
-                          SizedBox(width: context.sp(context.ui.spacing.xs)),
-                          Text(
-                            '${setup.symbol} • ${setup.timeframe}',
-                            style: context.uiText.bodyStrong,
-                          ),
-                        ],
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.candlestick_chart_rounded,
+                              size: context.sz(20),
+                              color: context.ui.colors.primary,
+                            ),
+                            SizedBox(width: context.sp(context.ui.spacing.xs)),
+                            Flexible(
+                              child: Text(
+                                '${setup.symbol} • ${setup.timeframe}',
+                                style: context.uiText.bodyStrong,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      SizedBox(width: context.sp(context.ui.spacing.xs)),
                       UiBadge(
                         label: setup.direction.label,
                         intent: setup.direction.intent,
@@ -174,27 +262,34 @@ class _AiInsightsViewState extends State<AiInsightsView> {
                     style: context.uiText.body,
                   ),
                   SizedBox(height: context.sp(context.ui.spacing.xs)),
-                  Row(
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: context.sp(context.ui.spacing.sm),
+                    runSpacing: context.sp(context.ui.spacing.xs),
                     children: [
-                      Text(
-                        'Entry: ${AppTokens.price(setup.entry)}',
-                        style: context.uiText.bodyStrong,
+                      Wrap(
+                        spacing: context.sp(context.ui.spacing.sm),
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            'Entry: ${AppTokens.price(setup.entry)}',
+                            style: context.uiText.bodyStrong,
+                          ),
+                          Text(
+                            'SL: ${AppTokens.price(setup.stopLoss)}',
+                            style: context.uiText.caption.copyWith(
+                              color: context.ui.colors.destructive,
+                            ),
+                          ),
+                          Text(
+                            'TP: ${AppTokens.price(setup.target1)}',
+                            style: context.uiText.caption.copyWith(
+                              color: context.ui.colors.bullish,
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(width: context.sp(context.ui.spacing.sm)),
-                      Text(
-                        'SL: ${AppTokens.price(setup.stopLoss)}',
-                        style: context.uiText.caption.copyWith(
-                          color: context.ui.colors.destructive,
-                        ),
-                      ),
-                      SizedBox(width: context.sp(context.ui.spacing.sm)),
-                      Text(
-                        'TP: ${AppTokens.price(setup.target1)}',
-                        style: context.uiText.caption.copyWith(
-                          color: context.ui.colors.bullish,
-                        ),
-                      ),
-                      const Spacer(),
                       UiBadge(
                         label: 'R:R ${setup.rrRatio.toStringAsFixed(1)}',
                         variant: UiBadgeVariant.outline,
@@ -203,70 +298,84 @@ class _AiInsightsViewState extends State<AiInsightsView> {
                     ],
                   ),
                   SizedBox(height: context.sp(context.ui.spacing.xs)),
-                  Row(
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: context.sp(context.ui.spacing.xs),
+                    runSpacing: context.sp(context.ui.spacing.xs),
                     children: [
-                      Icon(
-                        Icons.monitor_heart,
-                        size: 16,
-                        color: context.ui.colors.foregroundMuted,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Confidence: ${setup.confidence}%',
-                        style: context.uiText.caption.copyWith(
-                          color: context.ui.colors.foregroundMuted,
-                        ),
-                      ),
-                      const Spacer(),
-                      UiButton(
-                        label: 'Send in DM',
-                        icon: Icons.send_outlined,
-                        size: UiSize.xs,
-                        variant: UiVariant.ghost,
-                        onPressed: () {
-                          ShareToConversationDialog.show(
-                            context,
-                            initialText:
-                                '📈 AI Setup: ${setup.symbol} (${setup.timeframe})\n'
-                                'Direction: ${setup.direction.label}\n'
-                                'Pattern: ${setup.pattern}\n'
-                                'Entry: ${AppTokens.price(setup.entry)} | Stop: ${AppTokens.price(setup.stopLoss)} | TP1: ${AppTokens.price(setup.target1)}\n'
-                                'Confidence: ${setup.confidence}%\n'
-                                'Rationale: ${setup.rationale}',
-                          );
-                        },
-                      ),
-                      SizedBox(width: context.sp(context.ui.spacing.xs)),
-                      SizedBox(width: context.sp(context.ui.spacing.xs)),
-                      UiDropdownMenu(
-                        alignRight: true,
-                        items: [
-                          UiMenuItem(
-                            label: 'Log Trade',
-                            icon: Icons.menu_book_outlined,
-                            onPressed: () => widget.onCreateFromSetup(setup, AiCreateTarget.journal),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.monitor_heart,
+                            size: 16,
+                            color: context.ui.colors.foregroundMuted,
                           ),
-                          UiMenuItem(
-                            label: 'Save as Note',
-                            icon: Icons.sticky_note_2_outlined,
-                            onPressed: () => widget.onCreateFromSetup(setup, AiCreateTarget.note),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Confidence: ${setup.confidence}%',
+                              style: context.uiText.caption.copyWith(
+                                color: context.ui.colors.foregroundMuted,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
-                        child: UiIconButton(
-                          icon: Icons.more_vert_rounded,
-                          size: UiSize.xs,
-                          tooltip: 'More options',
-                          onPressed: null,
-                        ),
                       ),
-                      SizedBox(width: context.sp(context.ui.spacing.xs)),
-                      UiButton(
-                        label: 'Analyze',
-                        icon: Icons.analytics_outlined,
-                        size: UiSize.xs,
-                        variant: UiVariant.soft,
-                        intent: UiIntent.primary,
-                        onPressed: () => widget.onOpenChartAnalysis(setup),
+                      Wrap(
+                        spacing: context.sp(context.ui.spacing.xs),
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          UiButton(
+                            label: 'Send in DM',
+                            icon: Icons.send_outlined,
+                            size: UiSize.xs,
+                            variant: UiVariant.ghost,
+                            onPressed: () {
+                              ShareToConversationDialog.show(
+                                context,
+                                initialText:
+                                    '📈 AI Setup: ${setup.symbol} (${setup.timeframe})\n'
+                                    'Direction: ${setup.direction.label}\n'
+                                    'Pattern: ${setup.pattern}\n'
+                                    'Entry: ${AppTokens.price(setup.entry)} | Stop: ${AppTokens.price(setup.stopLoss)} | TP1: ${AppTokens.price(setup.target1)}\n'
+                                    'Confidence: ${setup.confidence}%\n'
+                                    'Rationale: ${setup.rationale}',
+                              );
+                            },
+                          ),
+                          UiDropdownMenu(
+                            alignRight: true,
+                            items: [
+                              UiMenuItem(
+                                label: 'Log Trade',
+                                icon: Icons.menu_book_outlined,
+                                onPressed: () => widget.onCreateFromSetup(setup, AiCreateTarget.journal),
+                              ),
+                              UiMenuItem(
+                                label: 'Save as Note',
+                                icon: Icons.sticky_note_2_outlined,
+                                onPressed: () => widget.onCreateFromSetup(setup, AiCreateTarget.note),
+                              ),
+                            ],
+                            child: UiIconButton(
+                              icon: Icons.more_vert_rounded,
+                              size: UiSize.xs,
+                              tooltip: 'More options',
+                              onPressed: null,
+                            ),
+                          ),
+                          UiButton(
+                            label: 'Analyze',
+                            icon: Icons.analytics_outlined,
+                            size: UiSize.xs,
+                            variant: UiVariant.soft,
+                            intent: UiIntent.primary,
+                            onPressed: () => widget.onOpenChartAnalysis(setup),
+                          ),
+                        ],
                       ),
                     ],
                   ),

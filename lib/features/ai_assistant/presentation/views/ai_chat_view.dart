@@ -257,8 +257,8 @@ class _AiChatViewState extends State<AiChatView> {
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
-                  maxWidth: 780,
-                ), // kAiChatMaxWidth
+                  maxWidth: kAiChatMaxWidth,
+                ),
                 child: isEmpty
                     ? _buildEmptyState()
                     : _buildChatBlock(messages, generating, actions),
@@ -294,36 +294,26 @@ class _AiChatViewState extends State<AiChatView> {
                   ),
                 ),
                 SizedBox(height: context.sp(theme.spacing.md)),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: context.uiRes.isMobile ? 1 : 2,
-                    crossAxisSpacing: context.sp(theme.spacing.sm),
-                    mainAxisSpacing: context.sp(theme.spacing.sm),
-                    // Capability cards need enough vertical space for the
-                    // title and three-line description at every breakpoint.
-                    // A shorter card produces a RenderFlex overflow and can
-                    // make the assistant's empty state look blank.
-                    childAspectRatio: 2.35,
-                  ),
-                  itemCount: _repository.capabilities.length,
-                  itemBuilder: (context, index) {
-                    final capability = _repository.capabilities[index];
-                    return AiCapabilityCard(
-                      capability: capability,
-                      onTap: () {
-                        final AiCreateTarget? target = capability.target;
-                        if (target != null) {
-                          widget.onCreateFromChat(
-                            AiSuggestedAction(target: target),
-                          );
-                          return;
-                        }
-                        _repository.sendPrompt(capability.promptSeed);
-                      },
-                    );
-                  },
+                UiCardGrid(
+                  intrinsicHeight: true,
+                  desktopColumns: 2,
+                  largeColumns: 2,
+                  children: <Widget>[
+                    for (final capability in _repository.capabilities)
+                      AiCapabilityCard(
+                        capability: capability,
+                        onTap: () {
+                          final AiCreateTarget? target = capability.target;
+                          if (target != null) {
+                            widget.onCreateFromChat(
+                              AiSuggestedAction(target: target),
+                            );
+                            return;
+                          }
+                          _repository.sendPrompt(capability.promptSeed);
+                        },
+                      ),
+                  ],
                 ),
                 if (_repository.quickPrompts.isNotEmpty) ...[
                   SizedBox(height: context.sp(theme.spacing.md)),
@@ -442,6 +432,7 @@ class _AiChatViewState extends State<AiChatView> {
                 initialText: '🤖 TradeX AI Copilot:\n\n${msg.body}',
               );
             },
+            onOpenRef: widget.onOpenRef,
             emptyTitle: '',
             emptyMessage: '',
           ),

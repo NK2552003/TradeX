@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
@@ -155,12 +156,7 @@ class MessageBubble extends StatelessWidget {
       if (parts.isNotEmpty) {
         parts.add(SizedBox(height: context.sp(theme.spacing.xs)));
       }
-      parts.add(
-        Text(
-          message.body,
-          style: context.uiText.body.copyWith(color: fg, height: 1.35),
-        ),
-      );
+      parts.add(_buildMessageBodyText(context, fg, me));
     }
 
     // A media/record-only bubble uses tighter padding so the card fills it.
@@ -202,6 +198,76 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
+  static final RegExp _tickerRegex =
+      RegExp(r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)');
+
+  Widget _buildMessageBodyText(BuildContext context, Color fg, bool me) {
+    final TextStyle baseStyle =
+        context.uiText.body.copyWith(color: fg, height: 1.35);
+    final String text = message.body;
+
+    final Iterable<Match> matches = _tickerRegex.allMatches(text);
+    if (matches.isEmpty) {
+      return Text(text, style: baseStyle);
+    }
+
+    final UiColors colors = context.uiColors;
+    final Color tickerColor = me ? colors.onPrimary : colors.primary;
+    final List<InlineSpan> spans = <InlineSpan>[];
+    int lastIndex = 0;
+
+    for (final Match match in matches) {
+      if (match.start > lastIndex) {
+        spans.add(
+          TextSpan(
+            text: text.substring(lastIndex, match.start),
+            style: baseStyle,
+          ),
+        );
+      }
+      final String rawTicker = match.group(0)!;
+      final String symbol = match.group(1)!.toUpperCase();
+      spans.add(
+        TextSpan(
+          text: rawTicker,
+          style: baseStyle.copyWith(
+            color: tickerColor,
+            fontWeight: FontWeight.bold,
+            decoration: TextDecoration.underline,
+            decorationColor: tickerColor.withValues(alpha: 0.5),
+          ),
+          recognizer: onOpenRef == null
+              ? null
+              : (TapGestureRecognizer()
+                ..onTap = () {
+                  onOpenRef!(
+                    AppLinkRef(
+                      kind: AppLinkKind.ticker,
+                      id: symbol,
+                      title: symbol,
+                    ),
+                  );
+                }),
+        ),
+      );
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < text.length) {
+      spans.add(
+        TextSpan(
+          text: text.substring(lastIndex),
+          style: baseStyle,
+        ),
+      );
+    }
+
+    return Text.rich(
+      TextSpan(children: spans),
+      style: baseStyle,
+    );
+  }
+
   // ---------------------------------------------------------------------------
 
   Widget _sharedRef(BuildContext context, AppLinkRef ref) {
@@ -237,12 +303,116 @@ class MessageBubble extends StatelessWidget {
         fgColor: fg,
       );
     }
+    if (attachment.kind == MessageAttachmentKind.tradeSetup) {
+      return _tradeSetupAttachment(context, attachment);
+    }
     final bool visual = attachment.kind == MessageAttachmentKind.image ||
         attachment.kind == MessageAttachmentKind.chart;
     if (visual && attachment.thumbnailUrl != null) {
       return _imageAttachment(context, attachment);
     }
     return _fileAttachment(context, attachment, fg);
+  }
+
+  /// A shared trade idea: direction + entry / stop / target levels and the
+  /// derived reward:risk, rendered as a self-contained surface card so it reads
+  /// correctly on both incoming and outgoing (filled) bubbles.
+  Widget _tradeSetupAttachment(
+    BuildContext context,
+    MessageAttachment a,
+  ) {
+    final UiTheme theme = context.ui;
+    final bool isLong = (a.direction ?? 'long').toLowerCase() != 'short';
+    double? rr;
+    if (a.entry != null && a.stop != null && a.target != null) {
+      final double risk = (a.entry! - a.stop!).abs();
+      final double reward = (a.target! - a.entry!).abs();
+      if (risk > 0) rr = reward / risk;
+    }
+    final List<UiStat> stats = <UiStat>[
+      if (a.entry != null)
+        UiStat(label: 'Entry', value: a.entry!.toStringAsFixed(2)),
+      if (a.stop != null)
+        UiStat(
+          label: 'Stop',
+          value: a.stop!.toStringAsFixed(2),
+          intent: UiIntent.bearish,
+        ),
+      if (a.target != null)
+        UiStat(
+          label: 'Target',
+          value: a.target!.toStringAsFixed(2),
+          intent: UiIntent.bullish,
+        ),
+    ];
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: context.sz(240),
+        maxWidth: context.sz(320),
+      ),
+      child: Container(
+        padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+        decoration: BoxDecoration(
+          color: theme.colors.surface,
+          borderRadius: context.radius(theme.radii.md),
+          border: Border.all(
+            color: theme.colors.border,
+            width: theme.borders.hairline,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(
+                  a.kind.icon,
+                  size: context.sz(theme.sizes.iconSm),
+                  color: theme.colors.foregroundMuted,
+                ),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                Expanded(
+                  child: Text(
+                    a.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.bodyStrong,
+                  ),
+                ),
+                UiBadge(
+                  label: isLong ? 'Long' : 'Short',
+                  intent: isLong ? UiIntent.bullish : UiIntent.bearish,
+                  size: UiSize.xs,
+                ),
+              ],
+            ),
+            if (a.subtitle != null) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.xxs)),
+              Text(
+                a.subtitle!,
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
+              ),
+            ],
+            if (stats.isNotEmpty) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.sm)),
+              UiStatStrip(stats: stats, showSpark: false),
+            ],
+            if (rr != null) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.sm)),
+              UiBadge(
+                label: 'R:R ${rr.toStringAsFixed(2)}',
+                icon: Icons.balance_rounded,
+                intent: UiIntent.info,
+                size: UiSize.xs,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _imageAttachment(BuildContext context, MessageAttachment attachment) {

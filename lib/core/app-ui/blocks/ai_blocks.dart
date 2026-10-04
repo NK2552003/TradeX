@@ -20,6 +20,8 @@ class AppAiChatBlock extends StatefulWidget {
     this.onRetry,
     this.onCopy,
     this.onShare,
+    this.onOpenRef,
+    this.messageActionsBuilder,
     this.emptyTitle = 'Ask about your trading',
     this.emptyMessage =
         'Summarise this week, review a setup, or stress-test a strategy.',
@@ -34,6 +36,11 @@ class AppAiChatBlock extends StatefulWidget {
   final ValueChanged<AppAiMessage>? onRetry;
   final ValueChanged<AppAiMessage>? onCopy;
   final ValueChanged<AppAiMessage>? onShare;
+  final void Function(AppLinkRef ref)? onOpenRef;
+
+  /// Per-message extra actions (e.g. "Save note", "Log trade") rendered under
+  /// each settled answer. Null by default — existing callers are unaffected.
+  final List<Widget>? Function(AppAiMessage message)? messageActionsBuilder;
   final String emptyTitle;
   final String emptyMessage;
 
@@ -98,6 +105,8 @@ class _AppAiChatBlockState extends State<AppAiChatBlock> {
                       onShare: widget.onShare == null
                           ? null
                           : () => widget.onShare!(widget.messages[i]),
+                      onOpenRef: widget.onOpenRef,
+                      actionsBuilder: widget.messageActionsBuilder,
                     ),
                   ),
                 ),

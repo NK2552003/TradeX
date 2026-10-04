@@ -19,6 +19,7 @@ class CommunityFeedView extends StatefulWidget {
     this.onAuthorTap,
     this.onCompose,
     this.onOpenRef,
+    this.onTagTap,
     this.searchQuery,
   });
 
@@ -27,6 +28,7 @@ class CommunityFeedView extends StatefulWidget {
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final ValueChanged<String>? onTagTap;
   final String? searchQuery;
 
   /// Called when the compact mobile compose trigger is tapped.
@@ -384,6 +386,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       onBookmark: (id) => widget.repository.toggleBookmark(id),
       onAuthorTap: widget.onAuthorTap,
       onOpenRef: widget.onOpenRef,
+      onTagTap: widget.onTagTap,
       onRefresh: () async => setState(() {}),
     );
 
@@ -632,6 +635,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onBookmark: (id) => widget.repository.toggleBookmark(id),
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
+          onTagTap: widget.onTagTap,
           onRefresh: () async => setState(() {}),
           emptyState: const CommunityEmptyState(
             icon: Icons.person_add_outlined,
@@ -674,6 +678,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onBookmark: (id) => widget.repository.toggleBookmark(id),
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
+          onTagTap: widget.onTagTap,
           onRefresh: () async => setState(() {}),
           emptyState: const CommunityEmptyState(
             icon: Icons.candlestick_chart_rounded,
@@ -819,6 +824,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onBookmark: (id) => widget.repository.toggleBookmark(id),
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
+          onTagTap: widget.onTagTap,
           onRefresh: () async => setState(() {}),
           emptyState: const CommunityEmptyState(
             icon: Icons.currency_bitcoin_rounded,
@@ -865,6 +871,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onBookmark: (id) => widget.repository.toggleBookmark(id),
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
+          onTagTap: widget.onTagTap,
           onRefresh: () async => setState(() {}),
           emptyState: const CommunityEmptyState(
             icon: Icons.show_chart_rounded,

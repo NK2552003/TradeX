@@ -483,6 +483,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
       onRestore: version.isCurrent || !widget.canEdit
           ? null
           : () => _restoreVersion(version),
+      onOpenLink: widget.onOpenLink,
     ),
   );
 
@@ -496,6 +497,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
           onRestore: version.isCurrent || !widget.canEdit
               ? null
               : () => _restoreVersion(version),
+          onOpenLink: widget.onOpenLink,
         ),
       );
 
@@ -907,6 +909,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
             outlineController: _outline,
             imageResolver: StrategyAttachments.resolve,
             emptyPlaceholder: 'This playbook has no rules written yet.',
+            onOpenRef: widget.onOpenLink,
           )
         else
           UiCallout(
@@ -1362,11 +1365,13 @@ class _VersionDialog extends StatelessWidget {
     required this.version,
     required this.current,
     required this.onRestore,
+    this.onOpenLink,
   });
 
   final AppStrategyVersion version;
   final AppStrategy? current;
   final VoidCallback? onRestore;
+  final void Function(AppLinkRef ref)? onOpenLink;
 
   bool get _isCompare => current != null;
 
@@ -1539,6 +1544,7 @@ class _VersionDialog extends StatelessWidget {
         data: body,
         imageResolver: StrategyAttachments.resolve,
         emptyPlaceholder: 'This revision has no rules written.',
+        onOpenRef: onOpenLink,
       ),
     );
     return UiCard(

@@ -27,6 +27,7 @@ export 'cards/ai_cards.dart';
 export 'cards/notes_cards.dart';
 export 'cards/calculator_cards.dart';
 export 'cards/domain_cards.dart';
+export 'cards/app_trend_tile.dart';
 export 'cards/desk_record_card.dart';
 export 'cards/app_presence_avatar.dart';
 
@@ -36,6 +37,7 @@ export 'guides/guide_steps.dart';
 
 // Blocks
 export 'blocks/market_blocks.dart';
+export 'blocks/app_pane_header.dart';
 export 'blocks/canonical_blocks.dart';
 export 'blocks/dashboard_blocks.dart';
 export 'blocks/journal_blocks.dart';

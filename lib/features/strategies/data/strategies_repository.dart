@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 
 /// Everything the strategies feature needs from storage.
 ///
@@ -102,6 +103,19 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       _versions[s.id] = List<AppStrategyVersion>.of(demo.strategyVersions(s.id));
     }
     _nextId = _strategies.length;
+    for (final AppStrategy s in _strategies) {
+      final Set<String> tickers = <String>{
+        ...s.linkedTickers,
+        ...EntityTickerLinksRepository.extractTickers(s.content),
+      };
+      if (tickers.isNotEmpty) {
+        EntityTickerLinksRepository.instance.recordLinks(
+          entityType: 'strategy',
+          entityId: s.id,
+          tickers: tickers,
+        );
+      }
+    }
   }
 
   List<AppStrategy> _snapshot() {
@@ -168,6 +182,21 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       _versionOf(saved, 1, isCurrent: true, note: 'Created'),
     ];
     _publish();
+
+    final Set<String> tickers = <String>{
+      ...saved.linkedTickers,
+      ...EntityTickerLinksRepository.extractTickers(saved.content),
+    };
+    if (tickers.isNotEmpty) {
+      unawaited(
+        EntityTickerLinksRepository.instance.recordLinks(
+          entityType: 'strategy',
+          entityId: saved.id,
+          tickers: tickers,
+        ),
+      );
+    }
+
     return saved;
   }
 
@@ -206,6 +235,28 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     final int again = _strategies.indexWhere((AppStrategy s) => s.id == saved.id);
     if (again >= 0) _strategies[again] = withCount;
     _publish();
+
+    final Set<String> tickers = <String>{
+      ...withCount.linkedTickers,
+      ...EntityTickerLinksRepository.extractTickers(withCount.content),
+    };
+    if (tickers.isNotEmpty) {
+      unawaited(
+        EntityTickerLinksRepository.instance.recordLinks(
+          entityType: 'strategy',
+          entityId: withCount.id,
+          tickers: tickers,
+        ),
+      );
+    } else {
+      unawaited(
+        EntityTickerLinksRepository.instance.removeLinks(
+          entityType: 'strategy',
+          entityId: withCount.id,
+        ),
+      );
+    }
+
     return withCount;
   }
 
@@ -215,6 +266,12 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     _strategies.removeWhere((AppStrategy s) => s.id == id);
     _versions.remove(id);
     _publish();
+    unawaited(
+      EntityTickerLinksRepository.instance.removeLinks(
+        entityType: 'strategy',
+        entityId: id,
+      ),
+    );
   }
 
   AppStrategy _mutate(String id, AppStrategy Function(AppStrategy s) change) {

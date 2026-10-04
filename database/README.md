@@ -43,6 +43,7 @@ fresh project and an upgraded project stop agreeing.
 | `021_unified_comments_and_visibility.sql` | `unified_comments`, `unified_comment_likes`, public/private visibility columns & RPCs (`set_entity_visibility`, `add_entity_comment`, `toggle_entity_comment_like`) |
 | `023_public_site_and_market_assets.sql` | published landing/pricing JSON contracts, full stock details, read policies |
 | `024_market_screener_snapshots.sql` | complete screener payloads linked to ranked categories, authenticated read policy |
+| `025_entity_ticker_links.sql` | `entity_ticker_links`, persistent relational ticker reference table across Notes, Journal, Strategies, Community, and Messages with daily sync stability and stored RPCs |
 
 Two steps in that list are not additive and are worth reading before you run
 them: 010 rewrites `strategies.content` from JSONB to TEXT (a playbook is

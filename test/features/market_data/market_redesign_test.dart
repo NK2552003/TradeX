@@ -1,0 +1,165 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/market_data/data/asset_market_repository.dart';
+import 'package:tradex/features/market_data/presentation/market_root_screen.dart';
+import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
+import 'package:tradex/features/market_data/presentation/market_layout.dart';
+import '../public_site/public_content_test.dart' show FileAssets;
+
+void main() {
+  GoogleFonts.config.allowRuntimeFetching = false;
+  void viewport(WidgetTester tester, double width) {
+    tester.view.physicalSize = Size(width, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  }
+
+  Future<void> settle(WidgetTester tester) async {
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+  }
+
+  for (final width in [320.0, 390.0, 768.0, 1024.0, 1440.0]) {
+    for (final page in [
+      'overview',
+      'news',
+      'movers',
+      'instruments',
+      'screeners',
+      'coverage',
+    ]) {
+      testWidgets('$page has two responsive panels at $width', (tester) async {
+        viewport(tester, width);
+        final repo = AssetMarketRepository(bundle: FileAssets());
+        await tester.runAsync(() async {
+          await repo.snapshot();
+          await repo.read('tickers/universe');
+        });
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MarketRootScreen(
+                repository: repo,
+                destination: 'market_$page',
+              ),
+            ),
+          ),
+        );
+        for (
+          var attempt = 0;
+          attempt < 10 && find.byType(MarketTwoPanel).evaluate().isEmpty;
+          attempt++
+        ) {
+          await settle(tester);
+        }
+        expect(find.byType(MarketTwoPanel), findsOneWidget);
+        final panelWidth = tester.getSize(find.byType(MarketTwoPanel)).width;
+        expect(
+          find.byKey(
+            ValueKey(
+              panelWidth < 680
+                  ? 'market-stacked-panels'
+                  : 'market-side-by-side-panels',
+            ),
+          ),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+        final scroll = find
+            .byWidgetPredicate(
+              (widget) =>
+                  widget is SingleChildScrollView &&
+                  widget.scrollDirection == Axis.vertical,
+            )
+            .first;
+        await tester.drag(scroll, const Offset(0, -650));
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+    }
+  }
+
+  for (final width in [390.0, 768.0, 1440.0]) {
+    testWidgets('instrument charts and every research section work at $width', (
+      tester,
+    ) async {
+      viewport(tester, width);
+      final repo = AssetMarketRepository(bundle: FileAssets());
+      final data = (await tester.runAsync(() async {
+        final snapshot = await repo.snapshot();
+        await repo.detail('AAPL');
+        return snapshot;
+      }))!;
+      final instrument = data.instruments.firstWhere((q) => q.symbol == 'AAPL');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MarketInstrumentView(
+              instrument: instrument,
+              repository: repo,
+              snapshot: data,
+            ),
+          ),
+        ),
+      );
+      await settle(tester);
+      expect(find.byType(MarketTwoPanel), findsOneWidget);
+      expect(find.byType(UiCandleChart), findsOneWidget);
+      await tester.ensureVisible(find.text('Line'));
+      await tester.tap(find.text('Line'));
+      await tester.pump();
+      expect(find.byType(UiAreaChart), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      for (final title in [
+        'Company news',
+        'Price history',
+        'Options chains',
+        'Dividends & splits',
+        'Analyst recommendations',
+        'Ownership & holders',
+        'Snapshot & availability',
+      ]) {
+        final label = find.text(title).last;
+        await tester.ensureVisible(label);
+        await tester.tap(label);
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(tester.takeException(), isNull, reason: title);
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
+  testWidgets('compact panel scope works inside a wide desktop viewport', (
+    tester,
+  ) async {
+    viewport(tester, 1440);
+    final repo = AssetMarketRepository(bundle: FileAssets());
+    await tester.runAsync(() => repo.snapshot());
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 390,
+              child: MarketRootScreen(
+                repository: repo,
+                destination: 'market_instruments',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await settle(tester);
+    expect(find.byKey(const ValueKey('market-stacked-panels')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+}

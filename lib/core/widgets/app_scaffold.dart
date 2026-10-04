@@ -78,6 +78,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     'notifications': 'Notifications',
     'search': 'Search',
     'affiliate_application': 'Affiliate Application',
+    'market': 'Market Data',
   };
 
   final AppSession _session = AppSession.instance;
@@ -98,6 +99,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   final List<String> _destinationHistory = <String>[];
   String _workspaceQuery = '';
   String _communityQuery = '';
+  String _marketQuery = '';
   AppTrader? _identity;
   int _unread = 0;
   bool _showAffiliateApplication = false;
@@ -307,6 +309,28 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   bool get _isCommunityFeature =>
       _selectedId == 'community' || _selectedId.startsWith('community_');
+  bool get _isMarketFeature =>
+      _selectedId == 'market' || _selectedId.startsWith('market_');
+
+  Future<void> _showMarketSearch() => UiDrawer.show<void>(
+    context,
+    title: 'Search market intelligence',
+    child: StatefulBuilder(
+      builder: (drawerContext, updateDrawer) => UiInput.search(
+        value: _marketQuery,
+        hintText: 'Search news, companies, symbols...',
+        autofocus: true,
+        onChanged: (value) {
+          setState(() => _marketQuery = value);
+          updateDrawer(() {});
+        },
+        onClear: () {
+          setState(() => _marketQuery = '');
+          updateDrawer(() {});
+        },
+      ),
+    ),
+  );
 
   String get _communitySearchHint => switch (_selectedId) {
     'community_explore' => 'Search topics, signals, cashtags (#BTC, \$AAPL)...',
@@ -473,7 +497,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// Role permissions still govern the destination. Writing screens handle
   /// same-kind links locally; ticker links arrive at the matching Markets detail.
   void _openLinkRef(AppLinkRef ref, {bool writing = false}) {
-    final String? destination = writing
+    final String destination = writing
         ? 'notes'
         : (ref.id == 'ai_copilot' || ref.kind == AppLinkKind.aiCopilot
               ? 'ai_copilot'
@@ -485,13 +509,13 @@ class _AppScaffoldState extends State<AppScaffold> {
                         AppLinkKind.aiCopilot => 'ai_copilot',
                         AppLinkKind.communityPost => 'community_feed',
                         AppLinkKind.messageThread => 'messages',
+                        AppLinkKind.ticker => 'market',
                         AppLinkKind.note =>
                           ref.id.startsWith('community')
                               ? 'community_feed'
                               : 'notes',
-                        _ => ref.kind.destinationId,
                       }));
-    if (destination == null || !_canReach(destination)) return;
+    if (!_canReach(destination)) return;
     setState(() {
       if (_selectedId != destination) _destinationHistory.add(_selectedId);
       _selectedId = destination;
@@ -529,6 +553,8 @@ class _AppScaffoldState extends State<AppScaffold> {
       return MarketRootScreen(
         key: const ValueKey('market-root'),
         destination: _selectedId,
+        searchQuery: _marketQuery,
+        openRequest: _linkRequest,
         onNavigate: _go,
         onSubpageChanged: _onSubpageChanged,
       );
@@ -1111,19 +1137,25 @@ class _AppScaffoldState extends State<AppScaffold> {
                 ? 'affiliate_application'
                 : _selectedId,
             onSelect: _go,
-            onSearch: _isWritingFeature
+            onSearch: _isMarketFeature
+                ? _showMarketSearch
+                : _isWritingFeature
                 ? _showWorkspaceSearch
                 : (_isCommunityFeature
                       ? _showCommunitySearch
                       : () => _go('search')),
-            searchQuery: _isWritingFeature
+            searchQuery: _isMarketFeature
+                ? _marketQuery
+                : _isWritingFeature
                 ? _workspaceQuery
                 : (_isCommunityFeature
                       ? _communityQuery
                       : (_isMessagesFeature
                             ? _messagesQuery
                             : (_isAiFeature ? _aiQuery : null))),
-            searchHint: _isWritingFeature
+            searchHint: _isMarketFeature
+                ? 'Search market news, companies, symbols...'
+                : _isWritingFeature
                 ? _writingSearchHint
                 : (_isCommunityFeature
                       ? _communitySearchHint
@@ -1132,7 +1164,9 @@ class _AppScaffoldState extends State<AppScaffold> {
                             : (_isAiFeature
                                   ? 'Search copilot chats and prompts...'
                                   : null))),
-            onSearchChanged: _isWritingFeature
+            onSearchChanged: _isMarketFeature
+                ? (value) => setState(() => _marketQuery = value)
+                : _isWritingFeature
                 ? _updateWorkspaceQuery
                 : (_isCommunityFeature
                       ? _updateCommunityQuery

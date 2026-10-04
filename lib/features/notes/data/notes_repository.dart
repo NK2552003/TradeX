@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 
 /// Everything the notes feature needs from storage.
 ///
@@ -69,6 +70,19 @@ class NotesRepositoryImpl implements NotesRepository {
     _seeded = true;
     _notes.addAll(DemoDataSource.instance.notes());
     _nextId = _notes.length;
+    for (final AppNote n in _notes) {
+      final Set<String> tickers = <String>{
+        ...n.linkedTickers,
+        ...EntityTickerLinksRepository.extractTickers(n.content),
+      };
+      if (tickers.isNotEmpty) {
+        EntityTickerLinksRepository.instance.recordLinks(
+          entityType: 'note',
+          entityId: n.id,
+          tickers: tickers,
+        );
+      }
+    }
   }
 
   List<AppNote> _snapshot() {
@@ -134,6 +148,29 @@ class NotesRepositoryImpl implements NotesRepository {
         .withDerivedCounts();
     _notes.insert(0, saved);
     _publish();
+
+    final Set<String> tickers = <String>{
+      ...saved.linkedTickers,
+      ...EntityTickerLinksRepository.extractTickers(saved.content),
+    };
+    if (tickers.isNotEmpty) {
+      unawaited(
+        EntityTickerLinksRepository.instance.recordLinks(
+          entityType: 'note',
+          entityId: saved.id,
+          tickers: tickers,
+          contextSource: saved.linkedTickers.isNotEmpty ? 'manual' : 'inline',
+        ),
+      );
+    } else {
+      unawaited(
+        EntityTickerLinksRepository.instance.removeLinks(
+          entityType: 'note',
+          entityId: saved.id,
+        ),
+      );
+    }
+
     return saved;
   }
 
@@ -150,6 +187,29 @@ class NotesRepositoryImpl implements NotesRepository {
       _notes[at] = saved;
     }
     _publish();
+
+    final Set<String> tickers = <String>{
+      ...saved.linkedTickers,
+      ...EntityTickerLinksRepository.extractTickers(saved.content),
+    };
+    if (tickers.isNotEmpty) {
+      unawaited(
+        EntityTickerLinksRepository.instance.recordLinks(
+          entityType: 'note',
+          entityId: saved.id,
+          tickers: tickers,
+          contextSource: saved.linkedTickers.isNotEmpty ? 'manual' : 'inline',
+        ),
+      );
+    } else {
+      unawaited(
+        EntityTickerLinksRepository.instance.removeLinks(
+          entityType: 'note',
+          entityId: saved.id,
+        ),
+      );
+    }
+
     return saved;
   }
 
@@ -158,6 +218,12 @@ class NotesRepositoryImpl implements NotesRepository {
     _seed();
     _notes.removeWhere((AppNote n) => n.id == id);
     _publish();
+    unawaited(
+      EntityTickerLinksRepository.instance.removeLinks(
+        entityType: 'note',
+        entityId: id,
+      ),
+    );
   }
 
   AppNote _mutate(String id, AppNote Function(AppNote note) change) {

@@ -19,6 +19,7 @@ class CommunityExploreView extends StatefulWidget {
     this.onPostTap,
     this.onAuthorTap,
     this.onOpenRef,
+    this.onTagTap,
     this.searchQuery,
   });
 
@@ -26,6 +27,7 @@ class CommunityExploreView extends StatefulWidget {
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final ValueChanged<String>? onTagTap;
   final String? searchQuery;
 
   @override
@@ -191,6 +193,7 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
             onBookmark: () => widget.repository.toggleBookmark(post.id),
             onAuthorTap: widget.onAuthorTap,
             onOpenRef: widget.onOpenRef,
+            onTagTap: widget.onTagTap,
           ),
         );
       },

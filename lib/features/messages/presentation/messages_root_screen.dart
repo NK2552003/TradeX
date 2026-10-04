@@ -350,34 +350,20 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
     return _inbox(context);
   }
 
-  /// Tablet + desktop: inbox rail beside the conversation detail.
+  /// Tablet + desktop: inbox rail beside the conversation detail, in a
+  /// resizable [UiSplitPane] (its hairline divider separates the panes).
   Widget _buildWide(BuildContext context) {
-    final UiTheme theme = context.ui;
-    final UiColors colors = theme.colors;
-    final bool desktop = context.uiRes.isDesktop;
-    final double railWidth = desktop ? context.sz(360) : context.sz(300);
-
     final Widget left = _secondary != _Secondary.none
         ? _secondaryView(context)
         : _inbox(context);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        SizedBox(
-          width: railWidth,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(
-                right:
-                    BorderSide(color: colors.border, width: theme.borders.hairline),
-              ),
-            ),
-            child: left,
-          ),
-        ),
-        Expanded(child: _detail(context)),
-      ],
+    return UiSplitPane(
+      initialRatio: context.uiRes.isDesktop ? 0.3 : 0.36,
+      minRatio: 0.24,
+      maxRatio: 0.52,
+      detailVisible: _activeThreadId != null,
+      primary: left,
+      detail: _detail(context),
     );
   }
 
@@ -455,52 +441,16 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
 
     // On tablet/desktop the secondary panel replaces the inbox rail, so it needs
     // its own compact header with a back affordance.
-    return Column(
-      children: <Widget>[
-        _secondaryHeader(context),
-        Expanded(child: body),
-      ],
-    );
-  }
-
-  Widget _secondaryHeader(BuildContext context) {
-    final UiTheme theme = context.ui;
-    final UiColors colors = theme.colors;
     final String title = switch (_secondary) {
       _Secondary.requests => 'Message requests',
       _Secondary.archived => 'Archived',
       _Secondary.none => '',
     };
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border(
-          bottom: BorderSide(color: colors.border, width: theme.borders.hairline),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: context.sp(theme.spacing.xs),
-            vertical: context.sp(theme.spacing.xs),
-          ),
-          child: Row(
-            children: <Widget>[
-              UiIconButton(
-                icon: Icons.arrow_back_rounded,
-                tooltip: 'Back',
-                size: UiSize.sm,
-                onPressed: _closeSecondary,
-              ),
-              SizedBox(width: context.sp(theme.spacing.xxs)),
-              Expanded(
-                child: Text(title, style: context.uiText.bodyStrong),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return Column(
+      children: <Widget>[
+        AppPaneHeader(title: title, leadingBack: _closeSecondary, dense: true),
+        Expanded(child: body),
+      ],
     );
   }
 }

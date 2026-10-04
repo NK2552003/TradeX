@@ -715,6 +715,36 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
   CommunityPost _buildPreviewPost() {
     final original = widget.postToEdit;
+    final Set<String> previewTickers = <String>{
+      ..._tickers.map((t) => t.replaceAll(r'$', '').toUpperCase()),
+    };
+    if (_setupTickerCtrl.text.trim().isNotEmpty) {
+      previewTickers.add(
+        _setupTickerCtrl.text.trim().replaceAll(r'$', '').toUpperCase(),
+      );
+    }
+    final tickerMatches = RegExp(
+      r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)',
+    ).allMatches(_body);
+    for (final m in tickerMatches) {
+      final sym = m.group(1)?.toUpperCase();
+      if (sym != null && sym.isNotEmpty) {
+        previewTickers.add(sym);
+      }
+    }
+    final Set<String> previewTags = <String>{
+      ..._tags.map((t) => t.replaceAll('#', '')),
+    };
+    final tagMatches = RegExp(
+      r'(?<!\w)#([A-Za-z0-9_]{1,30})\b',
+    ).allMatches(_body);
+    for (final m in tagMatches) {
+      final tag = m.group(1);
+      if (tag != null && tag.isNotEmpty) {
+        previewTags.add(tag);
+      }
+    }
+
     return CommunityPost(
       id: original?.id ?? 'preview_draft',
       author: widget.author,
@@ -722,8 +752,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
           ? 'Your market thesis and analysis will appear here...'
           : _body,
       createdAt: original?.createdAt ?? (_scheduledFor ?? DateTime.now()),
-      tickers: List<String>.unmodifiable(_tickers),
-      tags: List<String>.unmodifiable(_tags),
+      tickers: List<String>.unmodifiable(previewTickers),
+      tags: List<String>.unmodifiable(previewTags),
       tradeSetup: _buildTradeSetup,
       attachment: _attachment,
       poll: _buildPoll,
@@ -782,13 +812,44 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                 : 'Shared market analysis')
           : body;
 
+      final Set<String> allTickers = <String>{
+        ..._tickers.map((t) => t.replaceAll(r'$', '').toUpperCase()),
+      };
+      if (hasSetup && _setupTickerCtrl.text.trim().isNotEmpty) {
+        allTickers.add(
+          _setupTickerCtrl.text.trim().replaceAll(r'$', '').toUpperCase(),
+        );
+      }
+      final tickerMatches = RegExp(
+        r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)',
+      ).allMatches(finalBody);
+      for (final m in tickerMatches) {
+        final sym = m.group(1)?.toUpperCase();
+        if (sym != null && sym.isNotEmpty) {
+          allTickers.add(sym);
+        }
+      }
+
+      final Set<String> allTags = <String>{
+        ..._tags.map((t) => t.replaceAll('#', '')),
+      };
+      final tagMatches = RegExp(
+        r'(?<!\w)#([A-Za-z0-9_]{1,30})\b',
+      ).allMatches(finalBody);
+      for (final m in tagMatches) {
+        final tag = m.group(1);
+        if (tag != null && tag.isNotEmpty) {
+          allTags.add(tag);
+        }
+      }
+
       if (widget.postToEdit != null) {
         final p = widget.postToEdit!;
         widget.repository.editPost(
           p.id,
           finalBody,
-          tickers: List<String>.unmodifiable(_tickers),
-          tags: List<String>.unmodifiable(_tags),
+          tickers: List<String>.unmodifiable(allTickers),
+          tags: List<String>.unmodifiable(allTags),
           tradeSetup: _buildTradeSetup,
           clearTradeSetup:
               _activeMode != ComposerMode.tradeSetup && p.tradeSetup != null,
@@ -816,8 +877,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
 
       widget.repository.createPost(
         body: finalBody,
-        tickers: List<String>.unmodifiable(_tickers),
-        tags: List<String>.unmodifiable(_tags),
+        tickers: List<String>.unmodifiable(allTickers),
+        tags: List<String>.unmodifiable(allTags),
         tradeSetup: _buildTradeSetup,
         attachment: _attachment,
         poll: _buildPoll,

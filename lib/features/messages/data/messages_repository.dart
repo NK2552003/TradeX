@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 import 'package:tradex/features/linking/link_graph_service.dart';
 import 'package:tradex/features/messages/data/messages_seed_data.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
@@ -195,6 +196,24 @@ class MessagesRepository extends ChangeNotifier {
     if (thread != null && !thread.isGroup && !thread.isRequest) {
       _simulatePeerReply(threadId);
     }
+
+    final Set<String> linkedTickers = <String>{
+      if (sharedRef != null && sharedRef.kind == AppLinkKind.ticker)
+        sharedRef.id,
+      ...EntityTickerLinksRepository.extractTickers(body),
+    };
+    if (linkedTickers.isNotEmpty) {
+      unawaited(
+        EntityTickerLinksRepository.instance.recordLinks(
+          entityType: 'message',
+          entityId: message.id,
+          tickers: linkedTickers,
+          contextSource: sharedRef?.kind == AppLinkKind.ticker
+              ? 'shared_ref'
+              : 'inline',
+        ),
+      );
+    }
   }
 
   /// Convenience wrapper used by the share-to-conversation flow.
@@ -262,6 +281,28 @@ class MessagesRepository extends ChangeNotifier {
       );
     }
     notifyListeners();
+
+    final Set<String> linkedTickers = <String>{
+      if (m.sharedRef != null && m.sharedRef!.kind == AppLinkKind.ticker)
+        m.sharedRef!.id,
+      ...EntityTickerLinksRepository.extractTickers(clean),
+    };
+    if (linkedTickers.isNotEmpty) {
+      unawaited(
+        EntityTickerLinksRepository.instance.recordLinks(
+          entityType: 'message',
+          entityId: messageId,
+          tickers: linkedTickers,
+        ),
+      );
+    } else {
+      unawaited(
+        EntityTickerLinksRepository.instance.removeLinks(
+          entityType: 'message',
+          entityId: messageId,
+        ),
+      );
+    }
   }
 
   /// Removes a message the trader sent.
@@ -282,6 +323,13 @@ class MessagesRepository extends ChangeNotifier {
       );
     }
     notifyListeners();
+
+    unawaited(
+      EntityTickerLinksRepository.instance.removeLinks(
+        entityType: 'message',
+        entityId: messageId,
+      ),
+    );
   }
 
   /// Starts (or reopens) a direct thread with [peer] and returns its id.

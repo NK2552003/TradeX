@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:tradex/features/market_data/presentation/market_movers_panel.dart';
 import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
 import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
+import 'package:tradex/core/linking/link_graph.dart';
 import 'market_screeners_view.dart';
+import 'market_catalogue_view.dart';
 import 'market_overview_view.dart';
 import 'market_coverage_view.dart';
 
@@ -18,12 +20,16 @@ class MarketRootScreen extends StatefulWidget {
     this.destination = 'market',
     this.onNavigate,
     this.onSubpageChanged,
+    this.openRequest,
+    this.searchQuery = '',
   });
   final AssetMarketRepository? repository;
   final String destination;
   final ValueChanged<String>? onNavigate;
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
   onSubpageChanged;
+  final AppLinkOpenRequest? openRequest;
+  final String searchQuery;
   @override
   State<MarketRootScreen> createState() => _MarketRootScreenState();
 }
@@ -40,23 +46,44 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
   late final AssetMarketRepository _repo =
       widget.repository ?? AssetMarketRepository.shared;
   late Future<MarketSnapshot> _future = _repo.snapshot();
-  int _tab = 0, _newsLimit = 20, _instrumentLimit = 100;
+  int _tab = 0, _newsLimit = 20;
   bool _loadingMore = false;
-  int _newsTotal = 0, _instrumentTotal = 0;
-  String _query = '', _topic = 'all';
+  int _newsTotal = 0;
+  String _topic = 'all';
   MarketArticle? _article;
   MarketInstrument? _instrument;
+  final Set<String> _likedArticles = {};
   final List<(MarketArticle?, MarketInstrument?)> _history = [];
   @override
   void initState() {
     super.initState();
+    _restoreLikes();
     _sync();
+    if (widget.openRequest != null) {
+      _applyRequest(widget.openRequest!);
+    }
   }
 
   void _sync() {
     _tab = _routes.contains(widget.destination)
         ? _routes.indexOf(widget.destination)
         : 0;
+  }
+
+  void _applyRequest(AppLinkOpenRequest request) {
+    if (request.kind != AppLinkKind.ticker) return;
+    final String symbol = request.id.toUpperCase();
+    _future.then((MarketSnapshot snapshot) {
+      if (!mounted) return;
+      MarketInstrument? found = snapshot.instruments
+          .where((i) => i.symbol.toUpperCase() == symbol)
+          .firstOrNull;
+      found ??= MarketInstrument.fromJson(
+        <String, dynamic>{'ticker': symbol, 'price': 0.0, 'change_pct': 0.0},
+        <String, dynamic>{'name': symbol},
+      );
+      _openInstrument(found);
+    });
   }
 
   @override
@@ -69,17 +96,20 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
       _instrument = null;
       widget.onSubpageChanged?.call(null, null, null);
     }
+    if (widget.openRequest != null &&
+        widget.openRequest != oldWidget.openRequest) {
+      _applyRequest(widget.openRequest!);
+    }
   }
 
   bool _loadOnScroll(ScrollNotification notification) {
-    if (notification.depth != 0 ||
+    if (notification.metrics.axis != Axis.vertical ||
         notification.metrics.extentAfter > 500 ||
         _loadingMore ||
         _article != null ||
         _instrument != null ||
-        (_tab != 1 && _tab != 3) ||
-        (_tab == 1 && _newsLimit >= _newsTotal) ||
-        (_tab == 3 && _instrumentLimit >= _instrumentTotal)) {
+        _tab != 1 ||
+        _newsLimit >= _newsTotal) {
       return false;
     }
     _loadingMore = true;
@@ -87,11 +117,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
       _loadingMore = false;
       if (mounted) {
         setState(() {
-          if (_tab == 1) {
-            _newsLimit += 20;
-          } else if (_tab == 3) {
-            _instrumentLimit += 100;
-          }
+          if (_tab == 1) _newsLimit += 20;
         });
       }
     });
@@ -101,7 +127,6 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
   void _changeTab(int index) {
     setState(() {
       _tab = index;
-      _query = '';
     });
     widget.onNavigate?.call(_routes[index]);
   }
@@ -139,6 +164,43 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
     widget.onSubpageChanged?.call(quote.symbol, Icons.show_chart, _back);
   }
 
+  Future<void> _restoreLikes() async {
+    try {
+      final saved =
+          (await SharedPreferences.getInstance()).getStringList(
+            'market_intelligence_likes',
+          ) ??
+          const <String>[];
+      if (mounted) setState(() => _likedArticles.addAll(saved));
+    } catch (_) {
+      // The in-memory likes remain usable when local storage is unavailable.
+    }
+  }
+
+  void _toggleLike(MarketArticle article) {
+    setState(() {
+      final key = article.link.isEmpty ? article.title : article.link;
+      if (!_likedArticles.add(key)) _likedArticles.remove(key);
+    });
+    _saveLikes();
+  }
+
+  Future<void> _saveLikes() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        'market_intelligence_likes',
+        _likedArticles.toList(),
+      );
+    } catch (_) {
+      // The visible selection still works for this session.
+    }
+  }
+
+  bool _isLiked(MarketArticle article) => _likedArticles.contains(
+    article.link.isEmpty ? article.title : article.link,
+  );
+
   @override
   Widget build(BuildContext context) => FutureBuilder<MarketSnapshot>(
     future: _future,
@@ -146,12 +208,29 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
       if (result.hasError) {
         return UiEmptyState(
           title: 'Market assets unavailable',
+          message: 'Unable to load market data snapshot',
           actionLabel: 'Try again',
           onActionPressed: () =>
               setState(() => _future = _repo.snapshot(refresh: true)),
         );
       }
-      if (!result.hasData) return const Center(child: UiSkeleton(height: 200));
+      if (!result.hasData) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const UiSkeleton(height: 200, width: 400),
+              UiGap.v(context.ui.spacing.md),
+              Text(
+                'Loading market intelligence...',
+                style: context.uiText.caption.copyWith(
+                  color: context.ui.colors.foregroundMuted,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
       final snapshot = result.data!;
       final dossier =
           _instrument ??
@@ -159,7 +238,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
               .map((entry) => entry.$2)
               .whereType<MarketInstrument>()
               .firstOrNull;
-      final query = _query.trim().toLowerCase();
+      final query = widget.searchQuery.trim().toLowerCase();
       final instruments = snapshot.instruments
           .where(
             (q) =>
@@ -178,7 +257,6 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
               )
               .toList();
       _newsTotal = articles.length;
-      _instrumentTotal = instruments.length;
       final filtered = MarketSnapshot(
         manifest: snapshot.manifest,
         screenerPayloads: snapshot.screenerPayloads,
@@ -209,7 +287,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
       );
       Widget section() => switch (_tab) {
         0 => MarketOverviewView(
-          snapshot: snapshot,
+          snapshot: query.isEmpty ? snapshot : filtered,
           onInstrument: _openInstrument,
           onArticle: _openArticle,
           onSection: _changeTab,
@@ -217,94 +295,30 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
         1 => MarketNewsView(
           snapshot: filtered,
           onArticle: _openArticle,
+          onInstrument: _openInstrument,
+          isLiked: _isLiked,
+          onLike: _toggleLike,
+          onTopicSelected: (t) => setState(() {
+            _topic = t;
+            _newsLimit = 20;
+          }),
+          selectedTopic: _topic,
           limit: _newsLimit,
           onMore: () => setState(() => _newsLimit += 20),
         ),
-        2 => UiCardGrid(
-          intrinsicHeight: true,
-          desktopColumns: 2,
-          largeColumns: 2,
-          children: [
-            MarketMoversList(
-              title: 'Top gainers',
-              quotes: filtered.gainers,
-              onTap: _openInstrument,
-              limit: 100,
-            ),
-            MarketMoversList(
-              title: 'Top losers',
-              quotes: filtered.losers,
-              onTap: _openInstrument,
-              limit: 100,
-            ),
-          ],
+        2 => MarketMoversView(
+          snapshot: filtered,
+          onInstrument: _openInstrument,
         ),
-        3 =>
-          context.uiRes.isMobile
-              ? Column(
-                  children: [
-                    for (final quote in instruments.take(_instrumentLimit)) ...[
-                      UiDeferred(
-                        key: ValueKey(quote.symbol),
-                        estimatedHeight: 80,
-                        builder: (_) => MarketQuoteRow(
-                          quote: quote,
-                          onTap: () => _openInstrument(quote),
-                        ),
-                      ),
-                      const UiDivider(spacing: 0),
-                    ],
-                    if (instruments.length > _instrumentLimit)
-                      UiButton(
-                        label: 'More instruments',
-                        variant: UiVariant.outline,
-                        onPressed: () =>
-                            setState(() => _instrumentLimit += 100),
-                      ),
-                  ],
-                )
-              : UiTable<MarketInstrument>(
-                  rows: instruments,
-                  pageSize: 30,
-                  onRowTap: _openInstrument,
-                  columns: [
-                    UiTableColumn(
-                      header: 'Symbol',
-                      cell: (c, q) =>
-                          Text(q.symbol, style: c.uiText.bodyStrong),
-                      compare: (a, b) => a.symbol.compareTo(b.symbol),
-                    ),
-                    UiTableColumn(
-                      header: 'Company',
-                      flex: 2,
-                      cell: (c, q) => Text(q.name),
-                      compare: (a, b) => a.name.compareTo(b.name),
-                    ),
-                    UiTableColumn(
-                      header: 'Market',
-                      cell: (c, q) => Text(q.market),
-                    ),
-                    UiTableColumn(
-                      header: 'Price',
-                      numeric: true,
-                      cell: (c, q) =>
-                          Text('${q.currency} ${q.price.toStringAsFixed(2)}'),
-                      compare: (a, b) => a.price.compareTo(b.price),
-                    ),
-                    UiTableColumn(
-                      header: 'Change %',
-                      numeric: true,
-                      cell: (c, q) =>
-                          Text('${q.changePercent.toStringAsFixed(2)}%'),
-                      compare: (a, b) =>
-                          a.changePercent.compareTo(b.changePercent),
-                    ),
-                  ],
-                ),
+        3 => MarketCatalogueView(
+          quotes: instruments,
+          onInstrument: _openInstrument,
+        ),
         5 => MarketCoverageView(
           snapshot: snapshot,
           repository: _repo,
           onInstrument: _openInstrument,
+          searchQuery: widget.searchQuery,
         ),
         _ => MarketScreenersView(
           snapshot: filtered,
@@ -312,58 +326,157 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
         ),
       };
       return Padding(
-        padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+        padding: EdgeInsets.fromLTRB(
+          context.sp(context.ui.spacing.md),
+          context.sp(context.ui.spacing.sm),
+          context.sp(context.ui.spacing.md),
+          context.sp(context.ui.spacing.md),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (_article == null && _instrument == null) ...[
-              UiTabs(
-                items: const [
-                  UiTabItem(label: 'Overview'),
-                  UiTabItem(label: 'News'),
-                  UiTabItem(label: 'Movers'),
-                  UiTabItem(label: 'Instruments'),
-                  UiTabItem(label: 'Screeners'),
-                  UiTabItem(label: 'Data coverage'),
-                ],
-                index: _tab,
-                scrollable: true,
-                onChanged: _changeTab,
+              UiCard(
+                padding: EdgeInsets.all(context.sp(context.ui.spacing.sm)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Market Intelligence',
+                                style: context.uiText.title,
+                              ),
+                              Text(
+                                'Snapshot ${marketSnapshotDate(snapshot.manifest)}',
+                                style: context.uiText.caption,
+                              ),
+                            ],
+                          ),
+                        ),
+                        UiIconButton(
+                          icon: Icons.refresh,
+                          tooltip: 'Reload market assets',
+                          onPressed: () => setState(
+                            () => _future = _repo.snapshot(refresh: true),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (snapshot.instruments.isNotEmpty) ...[
+                      UiGap.v(context.ui.spacing.xs),
+                      UiMarquee(
+                        text: [
+                          for (final q in {
+                            ...snapshot.gainers.take(3),
+                            ...snapshot.losers.take(3),
+                          })
+                            '${q.symbol} ${q.currency} ${q.price.toStringAsFixed(2)} ${AppTokens.signedPercent(q.changePercent)}',
+                        ].join('    •    '),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               UiGap.v(context.ui.spacing.sm),
-              if (_tab != 0 && _tab != 5)
-                UiInput.search(
-                  value: _query,
-                  hintText: 'Search news, companies, symbols...',
-                  onChanged: (value) => setState(() => _query = value),
-                  onClear: () => setState(() => _query = ''),
+              if (!(context.uiRes.isDesktop && widget.onNavigate != null)) ...[
+                UiTabs(
+                  items: const [
+                    UiTabItem(
+                      label: 'Overview',
+                      icon: Icons.dashboard_outlined,
+                    ),
+                    UiTabItem(label: 'News', icon: Icons.newspaper_outlined),
+                    UiTabItem(
+                      label: 'Movers',
+                      icon: Icons.trending_up_outlined,
+                    ),
+                    UiTabItem(
+                      label: 'Instruments',
+                      icon: Icons.show_chart_outlined,
+                    ),
+                    UiTabItem(
+                      label: 'Screeners',
+                      icon: Icons.filter_alt_outlined,
+                    ),
+                    UiTabItem(label: 'Coverage', icon: Icons.dataset_outlined),
+                  ],
+                  index: _tab,
+                  scrollable: true,
+                  onChanged: _changeTab,
                 ),
-              if (_tab == 1) ...[
-                UiGap.v(context.ui.spacing.xs),
+                UiGap.v(context.ui.spacing.sm),
+              ],
+              if (_tab == 1)
                 UiSelect<String>(
                   value: _topic,
                   options: [
                     const UiOption(label: 'All topics', value: 'all'),
                     for (final topic in snapshot.topics.keys)
-                      UiOption(label: marketFieldLabel(topic), value: topic),
+                      UiOption(label: topicDisplayLabel(topic), value: topic),
                   ],
                   onChanged: (value) => setState(() {
                     _topic = value;
                     _newsLimit = 20;
                   }),
                 ),
-              ],
-              UiGap.v(context.ui.spacing.md),
-            ] else if (widget.onSubpageChanged == null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: UiButton(
-                  label: 'Back',
-                  leadingIcon: Icons.arrow_back,
-                  variant: UiVariant.ghost,
-                  onPressed: _back,
+              UiGap.v(context.ui.spacing.sm),
+            ] else if (widget.onSubpageChanged == null) ...[
+              UiCard(
+                variant: UiCardVariant.ghost,
+                borderless: true,
+                padding: EdgeInsets.symmetric(
+                  vertical: context.sp(context.ui.spacing.sm),
+                  horizontal: context.sp(context.ui.spacing.md),
+                ),
+                child: Row(
+                  children: [
+                    UiButton(
+                      label: 'Back',
+                      leadingIcon: Icons.arrow_back,
+                      variant: UiVariant.ghost,
+                      size: UiSize.sm,
+                      onPressed: _back,
+                    ),
+                    UiGap.h(context.ui.spacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _instrument?.symbol ??
+                                _article?.title ??
+                                'Detail view',
+                            style: context.uiText.bodyStrong,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (_instrument != null)
+                            Text(
+                              _instrument!.name,
+                              style: context.uiText.caption.copyWith(
+                                color: context.ui.colors.foregroundMuted,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (_history.isNotEmpty)
+                      UiBadge(
+                        label: '${_history.length + 1}',
+                        variant: UiBadgeVariant.outline,
+                      ),
+                  ],
                 ),
               ),
+              UiGap.v(context.ui.spacing.sm),
+            ],
             Expanded(
               child: Stack(
                 fit: StackFit.expand,
@@ -374,10 +487,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
                       enabled: _instrument == null && _article == null,
                       child: NotificationListener<ScrollNotification>(
                         onNotification: _loadOnScroll,
-                        child: SingleChildScrollView(
-                          key: PageStorageKey('market-section-$_tab'),
-                          child: section(),
-                        ),
+                        child: section(),
                       ),
                     ),
                   ),
@@ -393,12 +503,13 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
                       ),
                     ),
                   if (_article != null)
-                    SingleChildScrollView(
-                      child: MarketArticleView(
-                        article: _article!,
-                        snapshot: snapshot,
-                        onArticle: _openArticle,
-                      ),
+                    MarketArticleView(
+                      article: _article!,
+                      snapshot: snapshot,
+                      onArticle: _openArticle,
+                      onInstrument: _openInstrument,
+                      isLiked: _isLiked(_article!),
+                      onLike: () => _toggleLike(_article!),
                     ),
                 ],
               ),

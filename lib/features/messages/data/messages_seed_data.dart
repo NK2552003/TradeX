@@ -190,6 +190,26 @@ class MessagesSeed {
             ),
           ),
         );
+        msgs.add(
+          ChatMessage(
+            id: '${thread.id}_setup',
+            threadId: thread.id,
+            body: 'Setup if it reclaims the range high:',
+            fromMe: true,
+            sentAt: _now.subtract(const Duration(minutes: 8)),
+            status: MessageStatus.read,
+            attachment: const MessageAttachment(
+              id: 'att_setup_1',
+              kind: MessageAttachmentKind.tradeSetup,
+              title: 'BANKNIFTY long',
+              subtitle: 'ORB reclaim · 15m close',
+              direction: 'long',
+              entry: 48250,
+              stop: 48050,
+              target: 48750,
+            ),
+          ),
+        );
       } else if (thread.id == 'thread_group_momentum') {
         msgs.add(
           ChatMessage(

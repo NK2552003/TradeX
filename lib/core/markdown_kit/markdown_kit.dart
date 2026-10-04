@@ -14,4 +14,5 @@ export 'markdown_slash_palette.dart';
 export 'markdown_snippets.dart';
 export 'math_syntax.dart';
 export 'scrollable_table.dart';
+export 'ticker_syntax.dart';
 
