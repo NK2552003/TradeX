@@ -5,7 +5,7 @@ import 'package:tradex/features/market_data/models/market_snapshot.dart';
 /// Sole asset adapter for the finance kits. Symbols are kept exactly as exported.
 class AssetMarketRepository {
   AssetMarketRepository({AssetBundle? bundle}) : _bundle = bundle ?? rootBundle;
-  static final shared = AssetMarketRepository();
+  static AssetMarketRepository shared = AssetMarketRepository();
   final AssetBundle _bundle;
   final Map<String, Future<dynamic>> _cache = {};
   Future<dynamic> read(String path) => _cache.putIfAbsent(
@@ -88,13 +88,7 @@ class AssetMarketRepository {
     final enriched = instruments
         .map(
           (q) => sparks.containsKey(q.symbol)
-              ? MarketInstrument.fromJson(
-                  Map<String, dynamic>.from(quotes[q.symbol] as Map),
-                  Map<String, dynamic>.from(
-                    fundamentals[q.symbol] as Map? ?? {},
-                  ),
-                  history: sparks[q.symbol]!,
-                )
+              ? q.withHistory(sparks[q.symbol]!)
               : q,
         )
         .toList();
@@ -221,71 +215,9 @@ class AssetMarketRepository {
   }
 
   Future<Map<String, dynamic>> history(String symbol) async {
-    try {
-      return Map<String, dynamic>.from(await read('history/$symbol') as Map);
-    } catch (_) {
-      try {
-        final quotes = await read('quotes') as Map;
-        final quote = quotes[symbol] as Map?;
-        if (quote != null &&
-            (quote.containsKey('price') ||
-                quote.containsKey('regularMarketPrice'))) {
-          final double price =
-              ((quote['price'] ?? quote['regularMarketPrice']) as num)
-                  .toDouble();
-          final double prev =
-              ((quote['previous_close'] ?? quote['regularMarketPreviousClose'])
-                      as num?)
-                  ?.toDouble() ??
-              price;
-          final double high =
-              ((quote['day_high'] ?? quote['regularMarketDayHigh']) as num?)
-                  ?.toDouble() ??
-              price;
-          final double low =
-              ((quote['day_low'] ?? quote['regularMarketDayLow']) as num?)
-                  ?.toDouble() ??
-              price;
-          final double vol =
-              ((quote['volume'] ?? quote['regularMarketVolume']) as num?)
-                  ?.toDouble() ??
-              0.0;
-          final String date =
-              '${quote['updated_at'] ?? '2026-10-01T00:00:00Z'}';
-          final DateTime parsedDate =
-              DateTime.tryParse(date) ?? DateTime(2026, 10, 1);
-          return {
-            'ticker': symbol,
-            'data': [
-              {
-                'date': parsedDate
-                    .subtract(const Duration(days: 1))
-                    .toIso8601String(),
-                'open': prev,
-                'high': prev * 1.005,
-                'low': prev * 0.995,
-                'close': prev,
-                'volume': vol,
-              },
-              {
-                'date': parsedDate.toIso8601String(),
-                'open': prev,
-                'high': high > price
-                    ? high
-                    : (price > prev ? price * 1.002 : prev * 1.002),
-                'low': low < price
-                    ? low
-                    : (price < prev ? price * 0.998 : prev * 0.998),
-                'close': price,
-                'volume': vol,
-              },
-            ],
-          };
-        }
-      } catch (_) {}
-      rethrow;
-    }
+    return Map<String, dynamic>.from(await read('history/$symbol') as Map);
   }
+
   Future<Map<String, dynamic>> screeners() async =>
       Map<String, dynamic>.from(await read('screeners') as Map);
   Future<List<MarketArticle>> topic(String topic) async =>

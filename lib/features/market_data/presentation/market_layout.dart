@@ -3,16 +3,18 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 
-/// Two research panels: comparative columns on desktop/tablet and an ordered
-/// stack on phones. Each panel resolves library controls against its own width.
+/// Two research panels: comparative columns on desktop/tablet with sticky
+/// companion panels, and an ordered responsive stack on mobile.
 class MarketTwoPanel extends StatelessWidget {
   const MarketTwoPanel({
     super.key,
     required this.primary,
     required this.secondary,
+    this.header,
     this.secondaryFirstOnMobile = false,
     this.equal = false,
   });
+  final Widget? header;
   final Widget primary, secondary;
   final bool secondaryFirstOnMobile, equal;
 
@@ -29,31 +31,64 @@ class MarketTwoPanel extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
       if (box.maxWidth < 680) {
-        return Column(
+        final stacked = Column(
           key: const ValueKey('market-stacked-panels'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            ?header,
             pane(secondaryFirstOnMobile ? secondary : primary),
             UiGap.v(context.ui.spacing.md),
             pane(secondaryFirstOnMobile ? primary : secondary),
           ],
         );
+        return box.hasBoundedHeight
+            ? SingleChildScrollView(child: stacked)
+            : stacked;
       }
-      return Row(
+
+      Widget buildScrollable(Widget child) {
+        return box.hasBoundedHeight
+            ? Scrollbar(
+                child: SingleChildScrollView(
+                  primary: false,
+                  child: pane(child),
+                ),
+              )
+            : pane(child);
+      }
+
+      final panels = Row(
         key: const ValueKey('market-side-by-side-panels'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             flex: equal ? 1 : (box.maxWidth >= 1100 ? 7 : 3),
-            child: pane(primary),
+            child: buildScrollable(primary),
           ),
           UiGap.h(context.ui.spacing.md),
           Expanded(
             flex: equal ? 1 : (box.maxWidth >= 1100 ? 3 : 2),
-            child: pane(secondary),
+            child: buildScrollable(secondary),
           ),
         ],
       );
+
+      if (header != null) {
+        return box.hasBoundedHeight
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  header!,
+                  Expanded(child: panels),
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [header!, panels],
+              );
+      }
+
+      return panels;
     },
   );
 }

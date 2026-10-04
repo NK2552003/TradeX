@@ -52,7 +52,11 @@ void main() {
             ),
           ),
         );
-        for (var attempt = 0; attempt < 10 && find.byType(MarketTwoPanel).evaluate().isEmpty; attempt++) {
+        for (
+          var attempt = 0;
+          attempt < 10 && find.byType(MarketTwoPanel).evaluate().isEmpty;
+          attempt++
+        ) {
           await settle(tester);
         }
         expect(find.byType(MarketTwoPanel), findsOneWidget);
@@ -91,14 +95,15 @@ void main() {
       final repo = AssetMarketRepository(bundle: FileAssets());
       final data = (await tester.runAsync(() async {
         final snapshot = await repo.snapshot();
-        await repo.detail(snapshot.instruments.first.symbol);
+        await repo.detail('AAPL');
         return snapshot;
       }))!;
+      final instrument = data.instruments.firstWhere((q) => q.symbol == 'AAPL');
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: MarketInstrumentView(
-              instrument: data.instruments.first,
+              instrument: instrument,
               repository: repo,
               snapshot: data,
             ),

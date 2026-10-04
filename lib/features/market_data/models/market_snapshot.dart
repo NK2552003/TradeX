@@ -54,7 +54,7 @@ class MarketInstrument {
           'volume': volume,
           'updated_at': updatedAt?.toIso8601String(),
         },
-        {'name': name},
+        raw,
         history: history,
       );
   final Map<String, dynamic> raw;
@@ -102,8 +102,8 @@ class MarketSnapshot {
       ...instruments,
     ]..sort((a, b) => (counts[b.symbol] ?? 0).compareTo(counts[a.symbol] ?? 0));
   }
-  List<MarketArticle> get videos =>
-      articles.where((a) => a.isVideo).toList();
+
+  List<MarketArticle> get videos => articles.where((a) => a.isVideo).toList();
 }
 
 List<UiCandle> assetCandles(List<dynamic> rows) => rows.map((raw) {

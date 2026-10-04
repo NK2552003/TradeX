@@ -30,6 +30,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(MarketRootScreen), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is UiInput &&
+              widget.hintText == 'Search market news, companies, symbols...',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('mounts AppScaffold with Messages destination successfully', (

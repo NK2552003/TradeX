@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/navigation/role_navigation_config.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
@@ -9,6 +10,8 @@ import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/features/market_data/presentation/market_root_screen.dart';
 import 'package:tradex/features/market_data/presentation/market_movers_panel.dart';
 import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
+import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
+import 'package:tradex/features/market_data/presentation/market_visuals.dart';
 import '../public_site/public_content_test.dart' show FileAssets;
 
 void main() {
@@ -71,12 +74,120 @@ void main() {
     }
     expect(snapshot.articles.any((a) => a.thumbnailUrl != null), isTrue);
     expect(snapshot.topics, isNotEmpty);
+    final files = (snapshot.manifest['files'] as List).cast<String>();
+    expect(
+      snapshot.manifest['history_count'],
+      files.where((path) => path.startsWith('history/')).length,
+    );
+    expect(
+      snapshot.manifest['history_count'],
+      lessThan(snapshot.instruments.length),
+    );
+  });
+  testWidgets('news search filters stories and video likes persist', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    viewport(tester, 1440);
+    final repo = AssetMarketRepository(bundle: FileAssets());
+    final data = (await tester.runAsync(() => repo.snapshot()))!;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MarketRootScreen(
+            repository: repo,
+            destination: 'market_news',
+            searchQuery: 'no-result-market-query-987654',
+          ),
+        ),
+      ),
+    );
+    await settleAssets(tester);
+    expect(find.text('No articles available'), findsOneWidget);
+    final video = data.videos.first;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MarketRootScreen(
+            key: const ValueKey('video-market'),
+            repository: repo,
+            destination: 'market_news',
+          ),
+        ),
+      ),
+    );
+    await settleAssets(tester);
+    final videoCard = find
+        .ancestor(
+          of: find.text(video.title).first,
+          matching: find.byType(MarketNewsCard),
+        )
+        .first;
+    await tester.ensureVisible(videoCard);
+    await tester.tap(
+      find.descendant(of: videoCard, matching: find.text('Like')),
+    );
+    await tester.pump();
+    expect(
+      find.descendant(of: videoCard, matching: find.text('Liked')),
+      findsOneWidget,
+    );
+    await tester.runAsync(
+      () async => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      prefs.getStringList('market_intelligence_likes'),
+      contains(video.link),
+    );
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('full company dossier charts use exported fields', (
+    tester,
+  ) async {
+    viewport(tester, 1440);
+    final repo = AssetMarketRepository(bundle: FileAssets());
+    final data = (await tester.runAsync(() async {
+      final snapshot = await repo.snapshot();
+      await repo.detail('AAPL');
+      return snapshot;
+    }))!;
+    final apple = data.instruments.firstWhere((q) => q.symbol == 'AAPL');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MarketInstrumentView(
+            instrument: apple,
+            repository: repo,
+            snapshot: data,
+          ),
+        ),
+      ),
+    );
+    await settleAssets(tester);
+    expect(find.byType(UiCandleChart), findsOneWidget);
+    expect(find.byType(MarketFundamentalVisuals), findsOneWidget);
+    expect(find.text('52-week position'), findsOneWidget);
+    await tester.ensureVisible(find.text('Options chains').first);
+    await tester.tap(find.text('Options chains').first);
+    await tester.pump();
+    expect(find.byType(MarketOptionsInterest), findsOneWidget);
+    await tester.ensureVisible(find.text('Dividends & splits').first);
+    await tester.tap(find.text('Dividends & splits').first);
+    await tester.pump();
+    expect(find.byType(MarketDividendHistory), findsOneWidget);
+    await tester.ensureVisible(find.text('Ownership & holders').first);
+    await tester.tap(find.text('Ownership & holders').first);
+    await tester.pump();
+    expect(find.byType(MarketInstitutionalHolders), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
   for (final width in [320.0, 390.0, 768.0, 1440.0]) {
     testWidgets('market news, readers and screeners fit $width px', (
       tester,
     ) async {
       viewport(tester, width);
+
       final repo = AssetMarketRepository(bundle: FileAssets());
       final data = (await tester.runAsync(() async {
         final data = await repo.snapshot();
@@ -124,16 +235,23 @@ void main() {
       }
       await tester.tap(find.text(data.instruments.first.symbol).first);
       await settleAssets(tester);
-      expect(find.byType(UiCandleChart), findsOneWidget);
-      expect(find.text('Options chains'), findsOneWidget);
-      expect(find.text('Ownership & holders'), findsOneWidget);
+      final detail = (await tester.runAsync(
+        () => repo.detail(data.instruments.first.symbol),
+      ))!;
+      if (((detail['chart'] as Map)['data'] as List).isEmpty) {
+        expect(find.text('No price history in this snapshot'), findsOneWidget);
+      } else {
+        expect(find.byType(UiCandleChart), findsOneWidget);
+      }
+      expect(find.text('Options chains'), findsWidgets);
+      expect(find.text('Ownership & holders'), findsWidgets);
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('Back'));
       await tester.pump();
       await tester.ensureVisible(find.text('Screeners'));
       await tester.tap(find.text('Screeners'));
       await tester.pump();
-      expect(find.text('Market screeners'), findsOneWidget);
+      expect(find.text('Screen library'), findsOneWidget);
       expect(find.text('Most active'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
@@ -153,10 +271,10 @@ void main() {
       ),
     );
     await settleAssets(tester);
-    expect(find.text('Market overview'), findsOneWidget);
+    expect(find.text('Market Pulse'), findsOneWidget);
     expect(find.text('${data.manifest['detail_count']}'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    await tester.tap(find.text('Data coverage').first);
+    await tester.tap(find.text('Coverage').first);
     await settleAssets(tester);
     expect(find.text('DIRECTORY SYMBOLS'), findsOneWidget);
     expect(find.text('QUOTES AVAILABLE'), findsOneWidget);
@@ -191,7 +309,7 @@ void main() {
     await tester.ensureVisible(find.text(symbol));
     await tester.tap(find.text(symbol));
     await settleAssets(tester);
-    expect(find.text('Snapshot & availability'), findsOneWidget);
+    expect(find.text('Snapshot & availability'), findsWidgets);
     await tester.tap(find.text('Back'));
     await tester.pump();
     expect(find.text('Page 2 of 4'), findsOneWidget);
@@ -216,7 +334,15 @@ void main() {
       await settleAssets(tester);
       expect(find.text('Top gainers'), findsOneWidget);
       expect(find.text('Top losers'), findsOneWidget);
-      expect(find.byType(UiSparkChart), findsWidgets);
+      final data = (await tester.runAsync(() => repo.snapshot()))!;
+      if ([
+        ...data.gainers.take(5),
+        ...data.losers.take(5),
+      ].any((q) => q.spark.length > 1)) {
+        expect(find.byType(UiSparkChart), findsWidgets);
+      } else {
+        expect(find.text('No history'), findsWidgets);
+      }
       expect(find.text('Market Tickers'), findsNothing);
       expect(find.text('Subscribe to Premium'), findsNothing);
       expect(tester.takeException(), isNull);

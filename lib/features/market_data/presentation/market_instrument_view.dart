@@ -6,6 +6,7 @@ import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
 import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
 import 'market_layout.dart';
+import 'market_visuals.dart';
 
 String marketFieldLabel(String key) {
   final value = key
@@ -131,6 +132,7 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
   late final Future<Map<String, dynamic>> _future = widget.repository.detail(
     widget.instrument.symbol,
   );
+
   void _readArticle(MarketArticle article, MarketSnapshot market) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -156,9 +158,29 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
     future: _future,
     builder: (context, snapshot) {
       if (snapshot.hasError) {
-        return const UiEmptyState(title: 'Instrument details unavailable');
+        return const UiEmptyState(
+          icon: Icons.error_outline,
+          title: 'Instrument details unavailable',
+          message: 'Could not load detailed information for this instrument.',
+        );
       }
-      if (!snapshot.hasData) return const UiSkeleton(height: 200);
+      if (!snapshot.hasData) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const UiSkeleton(height: 200, width: 400),
+              UiGap.v(context.ui.spacing.md),
+              Text(
+                'Loading instrument dossier...',
+                style: context.uiText.caption.copyWith(
+                  color: context.ui.colors.foregroundMuted,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
       final detail = snapshot.data!;
       final summary = detail['summary'] as Map? ?? {};
       final chart = detail['chart'] as Map? ?? {};
@@ -168,116 +190,200 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
       final sections = <UiAccordionItem>[
         UiAccordionItem(
           title: 'Quote & fundamentals',
+          leading: const Icon(Icons.show_chart_outlined),
           initiallyOpen: true,
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                '${summary['description'] ?? ''}',
-                style: context.uiText.body,
-              ),
-              UiGap.v(context.ui.spacing.md),
+              if ('${summary['description'] ?? ''}'.isNotEmpty) ...[
+                Container(
+                  padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+                  decoration: BoxDecoration(
+                    color: context.ui.colors.foreground.withValues(alpha: 0.03),
+                    borderRadius: context.radius(context.ui.radii.md),
+                    border: Border.all(
+                      color: context.ui.colors.border,
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    '${summary['description'] ?? ''}',
+                    style: context.uiText.body.copyWith(height: 1.5),
+                  ),
+                ),
+                UiGap.v(context.ui.spacing.md),
+              ],
+              Text('Current quote', style: context.uiText.bodyStrong),
+              UiGap.v(context.ui.spacing.sm),
               MarketDataFields(data: detail['quote'] as Map? ?? {}),
               UiGap.v(context.ui.spacing.md),
+              const UiDivider(),
+              UiGap.v(context.ui.spacing.sm),
+              Text('Fundamentals', style: context.uiText.bodyStrong),
+              UiGap.v(context.ui.spacing.sm),
               MarketDataFields(data: Map.from(summary)..remove('description')),
             ],
           ),
         ),
         UiAccordionItem(
           title: 'Company news',
+          leading: const Icon(Icons.newspaper_outlined),
           content: Column(
             children: [
-              for (final raw in (detail['news'] as List? ?? []))
-                Builder(
-                  builder: (context) {
-                    final article = MarketArticle.fromJson(
-                      Map<String, dynamic>.from(raw as Map),
-                    );
-                    final market =
-                        widget.snapshot ??
-                        MarketSnapshot(
-                          instruments: [widget.instrument],
-                          articles: [article],
-                        );
-                    return MarketNewsCard(
-                      article: article,
-                      snapshot: market,
-                      row: true,
-                      onTap: () {
-                        if (widget.onArticle != null) {
-                          widget.onArticle!(article);
-                        } else {
-                          _readArticle(article, market);
-                        }
-                      },
-                    );
-                  },
-                ),
               if ((detail['news'] as List? ?? []).isEmpty)
-                const UiEmptyState(title: 'No company news in this snapshot'),
+                const UiEmptyState(
+                  icon: Icons.newspaper_outlined,
+                  title: 'No company news in this snapshot',
+                )
+              else
+                for (final raw in (detail['news'] as List? ?? []))
+                  Builder(
+                    builder: (context) {
+                      final article = MarketArticle.fromJson(
+                        Map<String, dynamic>.from(raw as Map),
+                      );
+                      final market =
+                          widget.snapshot ??
+                          MarketSnapshot(
+                            instruments: [widget.instrument],
+                            articles: [article],
+                          );
+                      return Column(
+                        children: [
+                          MarketNewsCard(
+                            article: article,
+                            snapshot: market,
+                            row: true,
+                            onTap: () {
+                              if (widget.onArticle != null) {
+                                widget.onArticle!(article);
+                              } else {
+                                _readArticle(article, market);
+                              }
+                            },
+                          ),
+                          const UiDivider(),
+                        ],
+                      );
+                    },
+                  ),
             ],
           ),
         ),
         UiAccordionItem(
           title: 'Price history',
+          leading: const Icon(Icons.history),
           content: MarketDataRecords(rows: chart['data'] as List? ?? []),
         ),
         UiAccordionItem(
           title: 'Options chains',
+          leading: const Icon(Icons.account_tree_outlined),
           content: Column(
             children: [
-              if ((options['chains'] as Map? ?? {}).isEmpty)
-                const UiEmptyState(title: 'No options available'),
-              for (final expiry
-                  in (options['chains'] as Map? ?? {}).entries) ...[
-                Text('${expiry.key}', style: context.uiText.bodyStrong),
-                for (final side in (expiry.value as Map).entries) ...[
-                  Text(
-                    marketFieldLabel('${side.key}'),
-                    style: context.uiText.bodyStrong,
-                  ),
-                  MarketDataRecords(rows: side.value as List? ?? []),
-                ],
+              if ((options['chains'] as Map? ?? {}).isNotEmpty) ...[
+                MarketOptionsInterest(chains: options['chains'] as Map),
+                UiGap.v(context.ui.spacing.md),
               ],
+              if ((options['chains'] as Map? ?? {}).isEmpty)
+                const UiEmptyState(
+                  icon: Icons.account_tree_outlined,
+                  title: 'No options available',
+                )
+              else
+                UiAccordion(
+                  items: [
+                    for (final expiry
+                        in (options['chains'] as Map? ?? {}).entries)
+                      UiAccordionItem(
+                        title: '${expiry.key}',
+                        content: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final side
+                                in (expiry.value as Map).entries) ...[
+                              Text(
+                                marketFieldLabel('${side.key}'),
+                                style: context.uiText.bodyStrong,
+                              ),
+                              UiGap.v(context.ui.spacing.sm),
+                              MarketDataRecords(
+                                rows: side.value as List? ?? [],
+                              ),
+                              UiGap.v(context.ui.spacing.md),
+                            ],
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
             ],
           ),
         ),
         UiAccordionItem(
           title: 'Dividends & splits',
+          leading: const Icon(Icons.payments_outlined),
           content: Column(
             children: [
-              for (final item in actions.entries) ...[
-                Text(
-                  marketFieldLabel('${item.key}'),
-                  style: context.uiText.bodyStrong,
-                ),
-                MarketDataRecords(rows: item.value as List? ?? []),
+              if ((actions['dividends'] as List? ?? []).isNotEmpty) ...[
+                MarketDividendHistory(dividends: actions['dividends'] as List),
+                UiGap.v(context.ui.spacing.md),
               ],
+              if (actions.isEmpty)
+                const UiEmptyState(
+                  icon: Icons.payments_outlined,
+                  title: 'No dividend or split data',
+                )
+              else
+                for (final item in actions.entries) ...[
+                  Text(
+                    marketFieldLabel('${item.key}'),
+                    style: context.uiText.bodyStrong,
+                  ),
+                  MarketDataRecords(rows: item.value as List? ?? []),
+                  const UiDivider(),
+                ],
             ],
           ),
         ),
         UiAccordionItem(
           title: 'Analyst recommendations',
+          leading: const Icon(Icons.analytics_outlined),
           content: MarketDataRecords(
             rows: detail['recommendations'] as List? ?? [],
           ),
         ),
         UiAccordionItem(
           title: 'Ownership & holders',
+          leading: const Icon(Icons.people_outline),
           content: Column(
             children: [
-              for (final item in holders.entries) ...[
-                Text(
-                  marketFieldLabel('${item.key}'),
-                  style: context.uiText.bodyStrong,
+              if ((holders['institutional_holders'] as List? ?? [])
+                  .isNotEmpty) ...[
+                MarketInstitutionalHolders(
+                  holders: holders['institutional_holders'] as List,
                 ),
-                MarketDataRecords(rows: item.value as List? ?? []),
+                UiGap.v(context.ui.spacing.md),
               ],
+              if (holders.isEmpty)
+                const UiEmptyState(
+                  icon: Icons.people_outline,
+                  title: 'No ownership data',
+                )
+              else
+                for (final item in holders.entries) ...[
+                  Text(
+                    marketFieldLabel('${item.key}'),
+                    style: context.uiText.bodyStrong,
+                  ),
+                  MarketDataRecords(rows: item.value as List? ?? []),
+                  const UiDivider(),
+                ],
             ],
           ),
         ),
         UiAccordionItem(
           title: 'Snapshot & availability',
+          leading: const Icon(Icons.info_outline),
           content: MarketDataFields(
             data: {
               'chart_metadata': {
@@ -320,161 +426,230 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
         if (latest != null)
           UiStat(label: 'Volume', value: AppTokens.count(latest.volume)),
       ];
-      return SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            MarketPageHeading(
-              title: '${summary['name'] ?? inst.name}',
-              description: '${inst.symbol} · Instrument research',
-              action: UiBadge(
-                label: detail['data_source'] == 'mock'
-                    ? 'Sample data'
-                    : 'Market snapshot',
-                variant: UiBadgeVariant.outline,
-              ),
-            ),
-            MarketTwoPanel(
-              secondaryFirstOnMobile: true,
-              primary: UiCard(
-                title: 'Price & research',
-                child: LayoutBuilder(
-                  builder: (context, box) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Wrap(
-                        alignment: WrapAlignment.spaceBetween,
-                        spacing: context.sp(context.ui.spacing.md),
-                        runSpacing: context.sp(context.ui.spacing.sm),
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            'Price history',
-                            style: context.uiText.subheading,
-                          ),
-                          if (hasChart)
-                            UiToggleGroup<int>(
-                              value: _chartMode,
-                              onChanged: (value) =>
-                                  setState(() => _chartMode = value),
-                              options: const [
-                                UiOption(label: 'Candles', value: 0),
-                                UiOption(label: 'Line', value: 1),
-                              ],
+      return MarketTwoPanel(
+        secondaryFirstOnMobile: true,
+        primary: UiCard(
+          accentColor: plIntent.color(context),
+          child: LayoutBuilder(
+            builder: (context, box) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Chart Controls Header
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  runSpacing: context.sp(context.ui.spacing.sm),
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.show_chart,
+                              size: context.sz(16),
+                              color: context.ui.colors.foregroundMuted,
                             ),
+                            UiGap.h(context.ui.spacing.xs),
+                            Text(
+                              'Price history',
+                              style: context.uiText.subheading,
+                            ),
+                          ],
+                        ),
+                        if (hasChart)
+                          Text(
+                            '${candles.length} data points',
+                            style: context.uiText.caption.copyWith(
+                              color: context.ui.colors.foregroundMuted,
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (hasChart)
+                      UiToggleGroup<int>(
+                        value: _chartMode,
+                        onChanged: (value) =>
+                            setState(() => _chartMode = value),
+                        options: const [
+                          UiOption(
+                            label: 'Candles',
+                            value: 0,
+                            icon: Icons.candlestick_chart,
+                          ),
+                          UiOption(
+                            label: 'Line',
+                            value: 1,
+                            icon: Icons.show_chart,
+                          ),
                         ],
                       ),
-                      UiGap.v(context.ui.spacing.md),
-                      if (!hasChart)
-                        const UiEmptyState(
-                          title: 'No price history in this snapshot',
-                        )
-                      else if (_chartMode == 0)
-                        UiCandleChart(
-                          candles: candles,
-                          height: box.maxWidth < 600 ? 220 : 340,
-                        )
-                      else
-                        UiAreaChart(
-                          height: box.maxWidth < 600 ? 220 : 340,
-                          showLegend: false,
-                          data: [
-                            for (final candle in candles)
-                              UiChartPoint(
-                                label:
-                                    '${candle.time.year}-${candle.time.month}-${candle.time.day}',
-                                values: [candle.close],
-                              ),
-                          ],
-                          series: [
-                            UiChartSeries(
-                              name: 'Close',
-                              type: UiChartSeriesType.area,
-                              color: plIntent.color(context),
-                            ),
-                          ],
+                  ],
+                ),
+                UiGap.v(context.ui.spacing.md),
+
+                // Chart Display
+                if (!hasChart)
+                  const UiEmptyState(
+                    icon: Icons.show_chart,
+                    title: 'No price history in this snapshot',
+                    message:
+                        'Historical price data is not available for this instrument.',
+                  )
+                else if (_chartMode == 0)
+                  UiCandleChart(
+                    candles: candles,
+                    height: box.maxWidth < 600 ? 240 : 360,
+                  )
+                else
+                  UiAreaChart(
+                    height: box.maxWidth < 600 ? 240 : 360,
+                    showLegend: false,
+                    data: [
+                      for (final candle in candles)
+                        UiChartPoint(
+                          label:
+                              '${candle.time.year}-${candle.time.month}-${candle.time.day}',
+                          values: [candle.close],
                         ),
-                      UiGap.v(context.ui.spacing.lg),
-                      if (box.maxWidth < 600)
-                        UiAccordion(allowMultiple: true, items: sections)
-                      else ...[
-                        UiTabs(
-                          items: [
-                            for (final section in sections)
-                              UiTabItem(label: section.title),
-                          ],
-                          index: _section,
-                          scrollable: true,
-                          onChanged: (value) =>
-                              setState(() => _section = value),
-                        ),
-                        UiGap.v(context.ui.spacing.md),
-                        Text(
-                          sections[_section].title,
-                          style: context.uiText.subheading,
-                        ),
-                        UiGap.v(context.ui.spacing.md),
-                        sections[_section].content,
-                      ],
                     ],
+                    series: [
+                      UiChartSeries(
+                        name: 'Close',
+                        type: UiChartSeriesType.area,
+                        color: plIntent.color(context),
+                      ),
+                    ],
+                  ),
+                UiGap.v(context.ui.spacing.lg),
+
+                // Research Sections
+                const UiDivider(),
+                UiGap.v(context.ui.spacing.md),
+                if (box.maxWidth < 600)
+                  UiAccordion(allowMultiple: true, items: sections)
+                else ...[
+                  UiTabs(
+                    items: [
+                      for (final section in sections)
+                        UiTabItem(
+                          label: section.title,
+                          icon: (section.leading as Icon?)?.icon,
+                        ),
+                    ],
+                    index: _section,
+                    scrollable: true,
+                    onChanged: (value) => setState(() => _section = value),
+                  ),
+                  UiGap.v(context.ui.spacing.md),
+                  Text(
+                    sections[_section].title,
+                    style: context.uiText.subheading,
+                  ),
+                  UiGap.v(context.ui.spacing.md),
+                  sections[_section].content,
+                ],
+              ],
+            ),
+          ),
+        ),
+        secondary: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Quote Snapshot Card
+            UiCard(
+              accentColor: plIntent.color(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      UiBadge(
+                        label: 'Snapshot Quote',
+                        icon: Icons.circle,
+                        intent: UiIntent.success,
+                        variant: UiBadgeVariant.soft,
+                        size: UiSize.xs,
+                      ),
+                      const Spacer(),
+                      if (inst.market.isNotEmpty)
+                        UiBadge(
+                          label: inst.market,
+                          variant: UiBadgeVariant.outline,
+                          size: UiSize.xs,
+                        ),
+                    ],
+                  ),
+                  UiGap.v(context.ui.spacing.md),
+                  Text(inst.symbol, style: context.uiText.display),
+                  Text(
+                    inst.name,
+                    style: context.uiText.body.copyWith(
+                      color: context.ui.colors.foregroundMuted,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  UiGap.v(context.ui.spacing.lg),
+                  Text(px(price), style: context.uiText.heading),
+                  UiGap.v(context.ui.spacing.sm),
+                  UiBadge(
+                    label: AppTokens.signedPercent(inst.changePercent),
+                    intent: plIntent,
+                    icon: AppTokens.plIcon(inst.changePercent),
+                  ),
+                  UiGap.v(context.ui.spacing.md),
+                  Text(
+                    'Updated: ${detail['quote']?['updated_at'] ?? inst.updatedAt?.toIso8601String() ?? 'Unavailable'}',
+                    style: context.uiText.caption.copyWith(
+                      color: context.ui.colors.foregroundMuted,
+                    ),
+                  ),
+                  if (stats.isNotEmpty) ...[
+                    const UiDivider(),
+                    UiStatStrip(stats: stats),
+                  ],
+                ],
+              ),
+            ),
+            UiGap.v(context.ui.spacing.md),
+
+            MarketFundamentalVisuals(instrument: inst, detail: detail),
+            UiGap.v(context.ui.spacing.md),
+
+            // About Company
+            if ('${summary['description'] ?? ''}'.isNotEmpty)
+              UiCard(
+                title: 'About',
+                leading: const Icon(Icons.business_outlined),
+                child: Text(
+                  '${summary['description']}',
+                  style: context.uiText.body.copyWith(
+                    height: 1.5,
+                    color: context.ui.colors.foregroundMuted,
                   ),
                 ),
               ),
-              secondary: UiCard(
-                title: 'Quote snapshot',
-                subtitle: inst.symbol,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(px(price), style: context.uiText.title),
-                    UiGap.v(context.ui.spacing.sm),
-                    Wrap(
-                      spacing: context.sp(context.ui.spacing.sm),
-                      children: [
-                        UiBadge(
-                          label: AppTokens.signedPercent(inst.changePercent),
-                          intent: plIntent,
-                          icon: AppTokens.plIcon(inst.changePercent),
-                        ),
-                        if (inst.market.isNotEmpty)
-                          UiBadge(
-                            label: inst.market,
-                            variant: UiBadgeVariant.outline,
-                          ),
-                      ],
-                    ),
-                    UiGap.v(context.ui.spacing.md),
-                    Text(
-                      'Quote updated: ${detail['quote']?['updated_at'] ?? inst.updatedAt?.toIso8601String() ?? 'Unavailable'}',
-                      style: context.uiText.caption,
-                    ),
-                    if (stats.isNotEmpty) ...[
-                      const UiDivider(),
-                      UiStatStrip(stats: stats),
-                    ],
-                    if ('${summary['description'] ?? ''}'.isNotEmpty) ...[
-                      const UiDivider(),
-                      UiCard(
-                        title: 'About the company',
-                        collapsible: true,
-                        initiallyExpanded: false,
-                        variant: UiCardVariant.ghost,
-                        padding: EdgeInsets.zero,
-                        child: Text(
-                          '${summary['description']}',
-                          style: context.uiText.body,
-                        ),
-                      ),
-                    ],
-                    const UiDivider(),
-                    Text('Research sections', style: context.uiText.bodyStrong),
-                    UiGap.v(context.ui.spacing.sm),
-                    Text(
-                      'Fundamentals · Company news · Price history · Options · Dividends · Analysts · Ownership · Data availability',
-                      style: context.uiText.caption,
+            UiGap.v(context.ui.spacing.md),
+
+            // Research Sections Summary
+            UiCard(
+              title: 'Research sections',
+              leading: const Icon(Icons.auto_awesome_outlined),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final section in sections) ...[
+                    UiButton(
+                      label: section.title,
+                      leadingIcon: (section.leading as Icon?)?.icon,
+                      variant: UiVariant.ghost,
+                      onPressed: () {
+                        final index = sections.indexOf(section);
+                        setState(() => _section = index);
+                      },
                     ),
                   ],
-                ),
+                ],
               ),
             ),
           ],

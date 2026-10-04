@@ -5,6 +5,7 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import '../models/market_snapshot.dart';
 import 'market_movers_panel.dart';
 import 'market_layout.dart';
+import 'market_visuals.dart';
 
 class MarketQuoteResults extends StatefulWidget {
   const MarketQuoteResults({
@@ -21,6 +22,7 @@ class MarketQuoteResults extends StatefulWidget {
 class _MarketQuoteResultsState extends State<MarketQuoteResults> {
   int _page = 0;
   String _sort = 'default';
+
   @override
   void didUpdateWidget(covariant MarketQuoteResults oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -36,6 +38,7 @@ class _MarketQuoteResultsState extends State<MarketQuoteResults> {
     builder: (context, box) {
       if (widget.quotes.isEmpty) {
         return const UiEmptyState(
+          icon: Icons.search_off,
           title: 'No matching instruments',
           message: 'Try another company or symbol.',
         );
@@ -97,7 +100,9 @@ class _MarketQuoteResultsState extends State<MarketQuoteResults> {
                 Text(q.symbol, style: c.uiText.bodyStrong),
                 Text(
                   q.name,
-                  style: c.uiText.caption,
+                  style: c.uiText.caption.copyWith(
+                    color: c.ui.colors.foregroundMuted,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -106,30 +111,60 @@ class _MarketQuoteResultsState extends State<MarketQuoteResults> {
             compare: (a, b) => a.symbol.compareTo(b.symbol),
           ),
           UiTableColumn(
+            header: 'Market',
+            cell: (c, q) => q.market.isNotEmpty
+                ? UiBadge(
+                    label: q.market,
+                    variant: UiBadgeVariant.outline,
+                    size: UiSize.xs,
+                  )
+                : const SizedBox.shrink(),
+            compare: (a, b) => a.market.compareTo(b.market),
+          ),
+          UiTableColumn(
             header: 'Price',
             numeric: true,
             flex: 2,
-            cell: (c, q) => Text('${q.currency} ${q.price.toStringAsFixed(2)}'),
+            cell: (c, q) => Text(
+              '${q.currency} ${q.price.toStringAsFixed(2)}',
+              style: c.uiText.bodyStrong,
+            ),
             compare: (a, b) => a.price.compareTo(b.price),
           ),
           UiTableColumn(
             header: 'Change %',
             numeric: true,
             flex: 2,
-            cell: (c, q) => Text(
-              AppTokens.signedPercent(q.changePercent),
-              style: c.uiText.bodyStrong.copyWith(
-                color: AppTokens.plIntent(q.changePercent).color(c),
-              ),
+            cell: (c, q) => UiBadge(
+              label: AppTokens.signedPercent(q.changePercent),
+              intent: AppTokens.plIntent(q.changePercent),
+              variant: UiBadgeVariant.soft,
+              size: UiSize.xs,
             ),
             compare: (a, b) => a.changePercent.compareTo(b.changePercent),
           ),
-          if (box.maxWidth >= 760)
+          if (box.maxWidth >= 800)
             UiTableColumn(
               header: 'Volume',
               numeric: true,
-              cell: (c, q) => Text(AppTokens.count(q.volume)),
+              cell: (c, q) =>
+                  Text(AppTokens.count(q.volume), style: c.uiText.body),
               compare: (a, b) => a.volume.compareTo(b.volume),
+            ),
+          if (box.maxWidth >= 1000)
+            UiTableColumn(
+              header: 'Trend',
+              numeric: false,
+              cell: (c, q) => q.spark.isNotEmpty
+                  ? SizedBox(
+                      width: c.sz(64),
+                      height: c.sz(24),
+                      child: UiSparkChart(
+                        data: q.spark,
+                        color: AppTokens.plIntent(q.changePercent).color(c),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
         ],
       );
@@ -145,6 +180,7 @@ class MarketCatalogueView extends StatelessWidget {
   });
   final List<MarketInstrument> quotes;
   final ValueChanged<MarketInstrument> onInstrument;
+
   @override
   Widget build(BuildContext context) {
     final markets = <String, int>{};
@@ -152,27 +188,81 @@ class MarketCatalogueView extends StatelessWidget {
       final label = q.market.isEmpty ? 'Unspecified' : q.market;
       markets.update(label, (n) => n + 1, ifAbsent: () => 1);
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const MarketPageHeading(
-          title: 'Instrument directory',
-          description:
-              'Find an asset. Compare its quote. Open the complete research dossier.',
-        ),
-        MarketTwoPanel(
-          primary: UiCard(
-            title: 'Instruments',
-            subtitle: '${quotes.length} matching quotes',
-            padding: EdgeInsets.all(context.sp(context.ui.spacing.sm)),
-            child: MarketQuoteResults(
-              quotes: quotes,
-              onInstrument: onInstrument,
+    final advancing = quotes.where((q) => q.changePercent > 0).length;
+    final declining = quotes.where((q) => q.changePercent < 0).length;
+
+    return MarketTwoPanel(
+      primary: UiCard(
+        accentColor: context.ui.colors.primary,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(context.sp(context.ui.spacing.sm)),
+                  decoration: BoxDecoration(
+                    color: context.ui.colors.primary.withValues(alpha: 0.12),
+                    borderRadius: context.radius(context.ui.radii.md),
+                  ),
+                  child: Icon(
+                    Icons.format_list_bulleted,
+                    color: context.ui.colors.primary,
+                    size: context.sz(20),
+                  ),
+                ),
+                UiGap.h(context.ui.spacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Instruments', style: context.uiText.title),
+                      Text(
+                        '${quotes.length} quotes · ${markets.length} market${markets.length == 1 ? '' : 's'}',
+                        style: context.uiText.caption.copyWith(
+                          color: context.ui.colors.foregroundMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                UiBadge(
+                  label: '${quotes.length}',
+                  variant: UiBadgeVariant.soft,
+                  intent: UiIntent.primary,
+                ),
+              ],
             ),
-          ),
-          secondary: UiCard(
+            UiGap.v(context.ui.spacing.md),
+            UiStatStrip(
+              stats: [
+                UiStat(
+                  label: 'Advancing',
+                  value: '$advancing',
+                  intent: UiIntent.success,
+                ),
+                UiStat(
+                  label: 'Declining',
+                  value: '$declining',
+                  intent: UiIntent.danger,
+                ),
+                UiStat(label: 'Markets', value: '${markets.length}'),
+              ],
+            ),
+            const UiDivider(),
+            MarketQuoteResults(quotes: quotes, onInstrument: onInstrument),
+          ],
+        ),
+      ),
+      secondary: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MarketChangeDistribution(instruments: quotes),
+          UiGap.v(context.ui.spacing.md),
+          // Market Composition Donut
+          UiCard(
             title: 'Market composition',
-            subtitle: 'Distribution of the current results',
+            subtitle: 'Instruments by market type',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -189,26 +279,25 @@ class MarketCatalogueView extends StatelessWidget {
                     ],
                   ),
                 UiGap.v(context.ui.spacing.md),
-                UiKeyValueTable(
-                  rows: [
+                UiBarList(
+                  items: [
                     for (final market in markets.entries)
-                      UiKeyValueRow(
+                      UiBarListItem(
                         label: market.key,
-                        value: '${market.value}',
+                        value: market.value.toDouble(),
+                        percentage:
+                            market.value /
+                            (markets.values.reduce((a, b) => a > b ? a : b) +
+                                1),
                       ),
                   ],
-                ),
-                const UiDivider(),
-                const UiCallout(
-                  title: 'From quote to research',
-                  message:
-                      'Open any instrument for price history, fundamentals, company news, options and ownership.',
                 ),
               ],
             ),
           ),
-        ),
-      ],
+          UiGap.v(context.ui.spacing.md),
+        ],
+      ),
     );
   }
 }
@@ -221,36 +310,153 @@ class MarketMoversView extends StatelessWidget {
   });
   final MarketSnapshot snapshot;
   final ValueChanged<MarketInstrument> onInstrument;
+
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      const MarketPageHeading(
-        title: 'Market movers',
-        description:
-            'Compare both sides of the session. Rankings use the reported snapshot changes.',
-      ),
-      MarketTwoPanel(
-        equal: true,
-        primary: UiCard(
-          title: 'Top gainers',
-          leading: Icon(Icons.trending_up, color: context.ui.colors.success),
-          subtitle: '${snapshot.gainers.length} advancing instruments',
-          child: MarketQuoteResults(
-            quotes: snapshot.gainers,
-            onInstrument: onInstrument,
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Summary Strip
+        UiCard(
+          variant: UiCardVariant.surface,
+          padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+          child: UiStatStrip(
+            stats: [
+              UiStat(
+                label: 'Top gainers',
+                value: '${snapshot.gainers.length}',
+                intent: UiIntent.success,
+              ),
+              UiStat(
+                label: 'Top losers',
+                value: '${snapshot.losers.length}',
+                intent: UiIntent.danger,
+              ),
+              UiStat(
+                label: 'Best gain',
+                value: snapshot.gainers.isNotEmpty
+                    ? '+${snapshot.gainers.first.changePercent.toStringAsFixed(2)}%'
+                    : '—',
+                intent: UiIntent.success,
+              ),
+              UiStat(
+                label: 'Worst loss',
+                value: snapshot.losers.isNotEmpty
+                    ? '${snapshot.losers.first.changePercent.toStringAsFixed(2)}%'
+                    : '—',
+                intent: UiIntent.danger,
+              ),
+            ],
           ),
         ),
-        secondary: UiCard(
-          title: 'Top losers',
-          leading: Icon(Icons.trending_down, color: context.ui.colors.danger),
-          subtitle: '${snapshot.losers.length} declining instruments',
-          child: MarketQuoteResults(
-            quotes: snapshot.losers,
-            onInstrument: onInstrument,
+        UiGap.v(context.ui.spacing.md),
+
+        MarketChangeDistribution(instruments: snapshot.instruments),
+        UiGap.v(context.ui.spacing.md),
+
+        // Gainers and Losers side by side
+        Expanded(
+          child: MarketTwoPanel(
+            equal: true,
+            primary: UiCard(
+              accentColor: context.ui.colors.success,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(
+                          context.sp(context.ui.spacing.sm),
+                        ),
+                        decoration: BoxDecoration(
+                          color: context.ui.colors.success.withValues(
+                            alpha: 0.12,
+                          ),
+                          borderRadius: context.radius(context.ui.radii.md),
+                        ),
+                        child: Icon(
+                          Icons.trending_up,
+                          color: context.ui.colors.success,
+                          size: context.sz(20),
+                        ),
+                      ),
+                      UiGap.h(context.ui.spacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Top gainers', style: context.uiText.title),
+                            Text(
+                              '${snapshot.gainers.length} advancing instruments',
+                              style: context.uiText.caption.copyWith(
+                                color: context.ui.colors.foregroundMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const UiDivider(),
+                  MarketQuoteResults(
+                    quotes: snapshot.gainers,
+                    onInstrument: onInstrument,
+                  ),
+                ],
+              ),
+            ),
+            secondary: UiCard(
+              accentColor: context.ui.colors.danger,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(
+                          context.sp(context.ui.spacing.sm),
+                        ),
+                        decoration: BoxDecoration(
+                          color: context.ui.colors.danger.withValues(
+                            alpha: 0.12,
+                          ),
+                          borderRadius: context.radius(context.ui.radii.md),
+                        ),
+                        child: Icon(
+                          Icons.trending_down,
+                          color: context.ui.colors.danger,
+                          size: context.sz(20),
+                        ),
+                      ),
+                      UiGap.h(context.ui.spacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Top losers', style: context.uiText.title),
+                            Text(
+                              '${snapshot.losers.length} declining instruments',
+                              style: context.uiText.caption.copyWith(
+                                color: context.ui.colors.foregroundMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const UiDivider(),
+                  MarketQuoteResults(
+                    quotes: snapshot.losers,
+                    onInstrument: onInstrument,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
