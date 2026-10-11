@@ -39,10 +39,12 @@ abstract class ProfileSettingsRepository {
 }
 
 class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+
   UserProfileModel _profile = UserProfileModel(
-    id: 'usr_mock_01',
-    handle: 'nitish_trader',
-    email: 'nitish@tradex.ai',
+    id: _demoUserId,
+    handle: 'demo_trader',
+    email: 'demo@tradex.ai',
     displayName: 'Nitish Kumar',
     role: UserRole.customer,
     bio:
@@ -64,7 +66,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     ConnectedAccount(
       provider: 'google',
       linkedAt: DateTime.now().subtract(const Duration(days: 90)),
-      email: 'nitish@tradex.ai',
+      email: 'demo@tradex.ai',
     ),
     ConnectedAccount(
       provider: 'apple',
@@ -83,19 +85,19 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final res = await client
-              .from('profiles')
-              .select()
-              .eq('id', user.id)
-              .maybeSingle();
+        final targetUserId = user?.id ?? _demoUserId;
 
-          if (res != null) {
-            _profile = UserProfileModel.fromJson(res);
-            return _profile.copyWith(
-              subscriptionTier: AppSession.instance.tier.value.name,
-            );
-          }
+        final res = await client
+            .from('profiles')
+            .select()
+            .eq('id', targetUserId)
+            .maybeSingle();
+
+        if (res != null) {
+          _profile = UserProfileModel.fromJson(res);
+          return _profile.copyWith(
+            subscriptionTier: AppSession.instance.tier.value.name,
+          );
         }
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] getProfile error: $e');
@@ -139,16 +141,31 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final res = await client
-              .from('profiles')
-              .update(_profile.toJson())
-              .eq('id', user.id)
-              .select()
-              .single();
+        final targetUserId = user?.id ?? _demoUserId;
 
-          _profile = UserProfileModel.fromJson(res);
-        }
+        final updateData = <String, dynamic>{
+          'display_name': _profile.displayName,
+          'bio': _profile.bio,
+          'experience_level': _profile.experienceLevel,
+          'trading_style': _profile.tradingStyle,
+          'location': _profile.location,
+          'website': _profile.website,
+          'avg_hold_duration': _profile.avgHoldDuration,
+          'primary_market': _profile.primaryMarket,
+          'top_strategy': _profile.topStrategy,
+          'risk_mantra': _profile.riskMantra,
+          'public_journals': _profile.publicJournals,
+          'updated_at': DateTime.now().toIso8601String(),
+        };
+
+        final res = await client
+            .from('profiles')
+            .update(updateData)
+            .eq('id', targetUserId)
+            .select()
+            .single();
+
+        _profile = UserProfileModel.fromJson(res);
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] updateProfile error: $e');
       }
@@ -163,14 +180,14 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final fileName = '${user.id}_${DateTime.now().millisecondsSinceEpoch}.png';
-          await client.storage.from('avatars').uploadBinary(fileName, imageBytes, fileOptions: FileOptions(contentType: contentType));
-          final publicUrl = client.storage.from('avatars').getPublicUrl(fileName);
-          _profile = _profile.copyWith(avatarUrl: publicUrl);
-          await client.from('profiles').update({'avatar_url': publicUrl}).eq('id', user.id);
-          return publicUrl;
-        }
+        final targetUserId = user?.id ?? _demoUserId;
+
+        final fileName = '${targetUserId}_${DateTime.now().millisecondsSinceEpoch}.png';
+        await client.storage.from('avatars').uploadBinary(fileName, imageBytes, fileOptions: FileOptions(contentType: contentType));
+        final publicUrl = client.storage.from('avatars').getPublicUrl(fileName);
+        _profile = _profile.copyWith(avatarUrl: publicUrl);
+        await client.from('profiles').update({'avatar_url': publicUrl}).eq('id', targetUserId);
+        return publicUrl;
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] uploadAvatar error: $e');
       }
@@ -257,9 +274,8 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          await client.from('profiles').update({'status': 'pending_approval'}).eq('id', user.id);
-        }
+        final targetUserId = user?.id ?? _demoUserId;
+        await client.from('profiles').update({'status': 'pending_approval'}).eq('id', targetUserId);
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] requestAccountDeletion error: $e');
       }

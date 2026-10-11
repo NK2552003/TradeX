@@ -22,6 +22,8 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
 
   factory WatchlistRepositoryImpl() => instance;
 
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+
   final List<AppTicker> _inMemoryTickers = <AppTicker>[
     const AppTicker(
       symbol: 'RELIANCE',
@@ -69,25 +71,31 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final res = await client
-              .from('watchlist_items')
-              .select('*, watchlists!inner(user_id, name)')
-              .eq('watchlists.user_id', user.id);
+        final targetUserId = user?.id ?? _demoUserId;
 
-          if ((res as List).isNotEmpty) {
-            return (res as List).map((row) {
-              final symbol = row['ticker'] as String? ?? 'UNKNOWN';
-              return AppTicker(
-                symbol: symbol,
-                name: symbol,
-                price: (row['price_alert_threshold'] as num?)?.toDouble() ?? 100.0,
-                changePercent: 0.0,
-                category: row['category'] as String? ?? 'General',
-                isFavorite: row['is_favorite'] as bool? ?? false,
-              );
-            }).toList();
+        final res = await client
+            .from('watchlist_items')
+            .select('*, watchlists!inner(user_id, name)')
+            .eq('watchlists.user_id', targetUserId);
+
+        if ((res as List).isNotEmpty) {
+          final items = (res as List).map((row) {
+            final map = row as Map<String, dynamic>;
+            final symbol = map['ticker'] as String? ?? 'UNKNOWN';
+            return AppTicker(
+              symbol: symbol,
+              name: symbol,
+              price: (map['price_alert_threshold'] as num?)?.toDouble() ?? 100.0,
+              changePercent: 0.0,
+              category: map['category'] as String? ?? 'General',
+              isFavorite: map['is_favorite'] as bool? ?? false,
+            );
+          }).toList();
+
+          if (category != null && category.isNotEmpty) {
+            return items.where((t) => t.category == category).toList();
           }
+          return items;
         }
       } catch (e) {
         debugPrint('[WatchlistRepository] getWatchlistTickers error: $e');
@@ -106,15 +114,15 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final res = await client
-              .from('watchlists')
-              .select('name')
-              .eq('user_id', user.id);
+        final targetUserId = user?.id ?? _demoUserId;
 
-          if ((res as List).isNotEmpty) {
-            return (res as List).map((r) => r['name'] as String).toList();
-          }
+        final res = await client
+            .from('watchlists')
+            .select('name')
+            .eq('user_id', targetUserId);
+
+        if ((res as List).isNotEmpty) {
+          return (res as List).map((r) => (r as Map<String, dynamic>)['name'] as String).toList();
         }
       } catch (e) {
         debugPrint('[WatchlistRepository] getWatchlists error: $e');
@@ -129,12 +137,12 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          await client.from('watchlists').upsert({
-            'user_id': user.id,
-            'name': name,
-          });
-        }
+        final targetUserId = user?.id ?? _demoUserId;
+
+        await client.from('watchlists').upsert({
+          'user_id': targetUserId,
+          'name': name,
+        });
       } catch (e) {
         debugPrint('[WatchlistRepository] createWatchlist error: $e');
       }
@@ -150,20 +158,20 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final wl = await client
-              .from('watchlists')
-              .select('id')
-              .eq('user_id', user.id)
-              .eq('name', watchlistName)
-              .maybeSingle();
+        final targetUserId = user?.id ?? _demoUserId;
 
-          if (wl != null) {
-            await client.from('watchlist_items').upsert({
-              'watchlist_id': wl['id'],
-              'ticker': symbol,
-            });
-          }
+        final wl = await client
+            .from('watchlists')
+            .select('id')
+            .eq('user_id', targetUserId)
+            .eq('name', watchlistName)
+            .maybeSingle();
+
+        if (wl != null) {
+          await client.from('watchlist_items').upsert({
+            'watchlist_id': wl['id'],
+            'ticker': symbol,
+          });
         }
       } catch (e) {
         debugPrint('[WatchlistRepository] addTickerToWatchlist error: $e');
@@ -177,21 +185,21 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final wl = await client
-              .from('watchlists')
-              .select('id')
-              .eq('user_id', user.id)
-              .eq('name', watchlistName)
-              .maybeSingle();
+        final targetUserId = user?.id ?? _demoUserId;
 
-          if (wl != null) {
-            await client
-                .from('watchlist_items')
-                .delete()
-                .eq('watchlist_id', wl['id'])
-                .eq('ticker', symbol);
-          }
+        final wl = await client
+            .from('watchlists')
+            .select('id')
+            .eq('user_id', targetUserId)
+            .eq('name', watchlistName)
+            .maybeSingle();
+
+        if (wl != null) {
+          await client
+              .from('watchlist_items')
+              .delete()
+              .eq('watchlist_id', wl['id'])
+              .eq('ticker', symbol);
         }
       } catch (e) {
         debugPrint('[WatchlistRepository] removeTickerFromWatchlist error: $e');
@@ -209,21 +217,21 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final items = await client
-              .from('watchlist_items')
-              .select('id, watchlists!inner(user_id)')
-              .eq('ticker', symbol)
-              .eq('watchlists.user_id', user.id);
+        final targetUserId = user?.id ?? _demoUserId;
 
-          if ((items as List).isNotEmpty) {
-            final itemId = items.first['id'];
-            await client.from('watchlist_items').update({
-              'price_alert_threshold': threshold,
-              'price_alert_direction': direction,
-              'alert_armed': true,
-            }).eq('id', itemId);
-          }
+        final items = await client
+            .from('watchlist_items')
+            .select('id, watchlists!inner(user_id)')
+            .eq('ticker', symbol)
+            .eq('watchlists.user_id', targetUserId);
+
+        if ((items as List).isNotEmpty) {
+          final itemId = items.first['id'];
+          await client.from('watchlist_items').update({
+            'price_alert_threshold': threshold,
+            'price_alert_direction': direction,
+            'alert_armed': true,
+          }).eq('id', itemId);
         }
       } catch (e) {
         debugPrint('[WatchlistRepository] setPriceAlert error: $e');

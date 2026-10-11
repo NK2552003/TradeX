@@ -88,10 +88,11 @@ class _AiPageState extends State<AiPage> {
     return AppPageBlock(
       title: 'AI Trading Copilot',
       subtitle: 'Quant pattern recognition, risk scanning, and setup analysis',
-      child: SingleChildScrollView(
+      scrollable: false,
+      child: Padding(
         padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
               flex: 3,
@@ -105,7 +106,9 @@ class _AiPageState extends State<AiPage> {
               UiGap.h(context.sp(theme.spacing.lg)),
               Expanded(
                 flex: 2,
-                child: AppAiInsightsBlock(insights: _insights),
+                child: SingleChildScrollView(
+                  child: AppAiInsightsBlock(insights: _insights),
+                ),
               ),
             ],
           ],

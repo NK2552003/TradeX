@@ -28,9 +28,11 @@ class StrategyRepositoryImpl implements StrategyRepository {
 
   factory StrategyRepositoryImpl() => instance;
 
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+
   final List<AppStrategy> _inMemoryStrategies = <AppStrategy>[
     AppStrategy(
-      id: 'str_001',
+      id: '11111111-1111-1111-1111-111111111111',
       name: 'ORB 15-Min Breakout',
       summary: 'Opening Range Breakout with 200 EMA trend filter and 1:2.5 risk-to-reward target.',
       category: 'Breakout',
@@ -44,7 +46,7 @@ class StrategyRepositoryImpl implements StrategyRepository {
       versionCount: 4,
     ),
     AppStrategy(
-      id: 'str_002',
+      id: '22222222-2222-2222-2222-222222222222',
       name: 'VWAP Liquidity Sweep',
       summary: 'Mean reversion entry on 5-min chart following liquidity grab beneath prior day low.',
       category: 'Reversal',
@@ -57,25 +59,49 @@ class StrategyRepositoryImpl implements StrategyRepository {
       updatedAt: DateTime.now().subtract(const Duration(days: 7)),
       versionCount: 2,
     ),
+    AppStrategy(
+      id: '33333333-3333-3333-3333-333333333333',
+      name: 'EMA Trend Continuation',
+      summary: 'Pullback entry to 21 EMA during confirmed 1H uptrend.',
+      category: 'Trend',
+      isPublic: true,
+      isFavorite: true,
+      trades: 18,
+      winRate: 72.2,
+      avgR: 2.5,
+      netPnl: 68500.0,
+      updatedAt: DateTime.now().subtract(const Duration(days: 1)),
+      versionCount: 1,
+    ),
   ];
 
   final Map<String, List<AppStrategyVersion>> _versions = {
-    'str_001': [
+    '11111111-1111-1111-1111-111111111111': [
       AppStrategyVersion(
-        id: 'ver_001_v4',
-        version: 4,
+        id: '11111111-1111-1111-1111-000000000002',
+        version: 2,
         savedAt: DateTime.now().subtract(const Duration(days: 3)),
         author: 'Nitish Kumar',
         note: 'Added 200 EMA 4-hour trend filter',
         isCurrent: true,
       ),
       AppStrategyVersion(
-        id: 'ver_001_v3',
-        version: 3,
+        id: '11111111-1111-1111-1111-000000000001',
+        version: 1,
         savedAt: DateTime.now().subtract(const Duration(days: 20)),
         author: 'Nitish Kumar',
-        note: 'Adjusted stop loss tight beneath 15m candle low',
+        note: 'Initial strategy release',
         isCurrent: false,
+      ),
+    ],
+    '22222222-2222-2222-2222-222222222222': [
+      AppStrategyVersion(
+        id: '22222222-2222-2222-2222-000000000001',
+        version: 1,
+        savedAt: DateTime.now().subtract(const Duration(days: 7)),
+        author: 'Nitish Kumar',
+        note: 'Base VWAP sweep model',
+        isCurrent: true,
       ),
     ],
   };
@@ -86,15 +112,16 @@ class StrategyRepositoryImpl implements StrategyRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final res = await client
-              .from('strategies')
-              .select()
-              .eq('user_id', user.id)
-              .order('updated_at', ascending: false);
+        final targetUserId = user?.id ?? _demoUserId;
 
-          return (res as List).map((row) => _mapRowToStrategy(row)).toList();
-        }
+        final res = await client
+            .from('strategies')
+            .select('*, strategy_versions(id)')
+            .eq('user_id', targetUserId)
+            .order('updated_at', ascending: false);
+
+        final list = (res as List).map((row) => _mapRowToStrategy(row as Map<String, dynamic>)).toList();
+        if (list.isNotEmpty) return list;
       } catch (e) {
         debugPrint('[StrategyRepository] getStrategies error: $e');
       }
@@ -116,30 +143,29 @@ class StrategyRepositoryImpl implements StrategyRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final res = await client
-              .from('strategies')
-              .insert({
-                'user_id': user.id,
-                'title': name,
-                'content': rulesJson ?? {'summary': summary ?? ''},
-                'category': category ?? 'General',
-                'visibility': isPublic ? 'public' : 'private',
-                'ai_summary': summary,
-              })
-              .select()
-              .single();
+        final targetUserId = user?.id ?? _demoUserId;
 
-          final created = _mapRowToStrategy(res);
-          // Initial version creation
-          await createVersion(
-            strategyId: created.id,
-            note: 'Initial strategy creation',
-            contentJson: rulesJson ?? {'summary': summary ?? ''},
-          );
+        final res = await client
+            .from('strategies')
+            .insert({
+              'user_id': targetUserId,
+              'title': name,
+              'content': rulesJson ?? {'summary': summary ?? ''},
+              'category': category ?? 'General',
+              'visibility': isPublic ? 'public' : 'private',
+              'ai_summary': summary,
+            })
+            .select()
+            .single();
 
-          return created;
-        }
+        final created = _mapRowToStrategy(res);
+        await createVersion(
+          strategyId: created.id,
+          note: 'Initial strategy creation',
+          contentJson: rulesJson ?? {'summary': summary ?? ''},
+        );
+
+        return created;
       } catch (e) {
         debugPrint('[StrategyRepository] createStrategy error: $e');
       }
@@ -215,15 +241,19 @@ class StrategyRepositoryImpl implements StrategyRepository {
             .eq('strategy_id', strategyId)
             .order('version_number', ascending: false);
 
-        return (res as List).map((row) {
+        final versions = (res as List).map((row) {
+          final map = row as Map<String, dynamic>;
+          final content = map['content'] as Map<String, dynamic>?;
           return AppStrategyVersion(
-            id: row['id'] as String,
-            version: row['version_number'] as int? ?? 1,
-            savedAt: row['created_at'] != null ? DateTime.parse(row['created_at'] as String) : DateTime.now(),
-            note: row['content']?['note'] as String? ?? 'Version update',
-            isCurrent: (row['version_number'] as int? ?? 1) == 1,
+            id: map['id'] as String,
+            version: map['version_number'] as int? ?? 1,
+            savedAt: map['created_at'] != null ? DateTime.parse(map['created_at'] as String) : DateTime.now(),
+            note: content?['note'] as String? ?? 'Version update',
+            isCurrent: (map['version_number'] as int? ?? 1) == 1,
           );
         }).toList();
+
+        if (versions.isNotEmpty) return versions;
       } catch (e) {
         debugPrint('[StrategyRepository] getVersionHistory error: $e');
       }
@@ -291,6 +321,9 @@ class StrategyRepositoryImpl implements StrategyRepository {
 
   AppStrategy _mapRowToStrategy(Map<String, dynamic> row) {
     final visibility = row['visibility'] as String? ?? 'private';
+    final versionList = row['strategy_versions'] as List<dynamic>?;
+    final versionCount = versionList != null && versionList.isNotEmpty ? versionList.length : 1;
+
     return AppStrategy(
       id: row['id'] as String,
       name: row['title'] as String? ?? 'Untitled Strategy',
@@ -299,6 +332,7 @@ class StrategyRepositoryImpl implements StrategyRepository {
       isPublic: visibility == 'public',
       isFavorite: row['is_favorite'] as bool? ?? false,
       updatedAt: row['updated_at'] != null ? DateTime.parse(row['updated_at'] as String) : DateTime.now(),
+      versionCount: versionCount,
     );
   }
 }

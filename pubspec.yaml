@@ -64,7 +64,7 @@ dependencies:
   # depends on. Consequence: imported `.pdf` files attach as-is rather than being
   # text-extracted into the note body. `.md` / `.txt` imports are unaffected.
   share_plus: 12.0.2
-  pdf: 3.12.0
+  pdf: 3.13.1
   path_provider: 2.1.6
   path: 1.9.1
   # In-note ```chart``` blocks.
@@ -151,5 +151,4 @@ flutter:
   #       - asset: fonts/TrajanPro_Bold.ttf
   #         weight: 700
   #
-  # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package

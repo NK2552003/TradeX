@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/settings/models/desk_risk_model.dart';
 
@@ -9,35 +8,26 @@ abstract class DeskRiskRepository {
 }
 
 class DeskRiskRepositoryImpl implements DeskRiskRepository {
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
   DeskRiskModel _config = DeskRiskModel.defaultConfig();
-
-  SupabaseClient? get _client {
-    if (SupabaseConfig.isConfigured) {
-      try {
-        return SupabaseConfig.client;
-      } catch (_) {
-        return null;
-      }
-    }
-    return null;
-  }
-
-  String? get _currentUserId => _client?.auth.currentUser?.id;
 
   @override
   Future<DeskRiskModel> getDeskRiskConfig() async {
-    final client = _client;
-    final userId = _currentUserId;
-    if (client != null && userId != null) {
+    if (SupabaseConfig.isConfigured) {
       try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        final targetUserId = user?.id ?? _demoUserId;
+
         final data = await client
             .from('desk_risk_policies')
             .select('*')
-            .eq('admin_id', userId)
+            .eq('admin_id', targetUserId)
             .maybeSingle();
 
         if (data != null) {
           _config = DeskRiskModel.fromJson(data);
+          return _config;
         }
       } catch (e) {
         debugPrint('DeskRiskRepositoryImpl.getDeskRiskConfig error: $e');
@@ -49,13 +39,16 @@ class DeskRiskRepositoryImpl implements DeskRiskRepository {
   @override
   Future<DeskRiskModel> updateDeskRiskConfig(DeskRiskModel updated) async {
     _config = updated;
-    final client = _client;
-    final userId = _currentUserId;
-
-    if (client != null && userId != null) {
+    if (SupabaseConfig.isConfigured) {
       try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        final targetUserId = user?.id ?? _demoUserId;
+
         final jsonMap = updated.toJson();
-        jsonMap['admin_id'] = userId;
+        jsonMap['admin_id'] = targetUserId;
+        jsonMap['updated_at'] = DateTime.now().toIso8601String();
+
         await client.from('desk_risk_policies').upsert(jsonMap);
       } catch (e) {
         debugPrint('DeskRiskRepositoryImpl.updateDeskRiskConfig error: $e');

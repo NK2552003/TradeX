@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/app_session.dart';
@@ -38,21 +37,10 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     : _source = source ?? DemoDataSource.instance,
       _session = session ?? AppSession.instance;
 
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+
   final DemoDataSource _source;
   final AppSession _session;
-
-  SupabaseClient? get _client {
-    if (SupabaseConfig.isConfigured) {
-      try {
-        return SupabaseConfig.client;
-      } catch (_) {
-        return null;
-      }
-    }
-    return null;
-  }
-
-  String? get _currentUserId => _client?.auth.currentUser?.id;
 
   AppTier get _tier => _session.tier.value;
 
@@ -90,11 +78,13 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
   @override
   Future<SubscriptionSummary> getSubscription() async {
-    final client = _client;
-    final userId = _currentUserId;
-    if (client != null && userId != null) {
+    if (SupabaseConfig.isConfigured) {
       try {
-        final data = await client.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        final targetUserId = user?.id ?? _demoUserId;
+
+        final data = await client.from('subscriptions').select('*').eq('user_id', targetUserId).maybeSingle();
         if (data != null) {
           final tierStr = data['tier'] as String? ?? 'free';
           final tier = AppTier.values.firstWhere((t) => t.name == tierStr, orElse: () => AppTier.free);
@@ -131,17 +121,20 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
       _session.discountPercent = 0;
     }
 
-    final client = _client;
-    final userId = _currentUserId;
-    if (client != null && userId != null) {
+    if (SupabaseConfig.isConfigured) {
       try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        final targetUserId = user?.id ?? _demoUserId;
+
         await client.from('subscriptions').upsert({
-          'user_id': userId,
+          'user_id': targetUserId,
           'tier': tier.name,
           'status': 'active',
           'billing_cycle': billingCycle,
           'renewed_at': DateTime.now().toIso8601String(),
           'expires_at': DateTime.now().add(Duration(days: billingCycle == 'annual' ? 365 : 30)).toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
         });
       } catch (e) {
         debugPrint('BillingSettingsRepositoryImpl.startCheckout error: $e');
@@ -154,13 +147,16 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
   @override
   Future<SubscriptionSummary> setCancelAtPeriodEnd(bool cancel) async {
     _session.cancelAtPeriodEnd = cancel;
-    final client = _client;
-    final userId = _currentUserId;
-    if (client != null && userId != null) {
+    if (SupabaseConfig.isConfigured) {
       try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        final targetUserId = user?.id ?? _demoUserId;
+
         await client.from('subscriptions').update({
           'status': cancel ? 'canceled' : 'active',
-        }).eq('user_id', userId);
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('user_id', targetUserId);
       } catch (e) {
         debugPrint('BillingSettingsRepositoryImpl.setCancelAtPeriodEnd error: $e');
       }
@@ -226,19 +222,62 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
   @override
   Future<List<Invoice>> getBillingHistory() async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        final targetUserId = user?.id ?? _demoUserId;
+
+        final res = await client
+            .from('invoices')
+            .select('*')
+            .eq('user_id', targetUserId)
+            .order('issued_at', ascending: false);
+
+        if ((res as List).isNotEmpty) {
+          final list = <Invoice>[];
+          final card = _card();
+          for (final item in res) {
+            final rawItems = item['line_items'] as List<dynamic>? ?? [];
+            final lineItems = rawItems.map((li) {
+              final map = li as Map<String, dynamic>;
+              return InvoiceLineItem(
+                description: map['description'] as String? ?? 'Subscription Charge',
+                amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+                quantity: (map['quantity'] as num?)?.toInt() ?? 1,
+              );
+            }).toList();
+
+            list.add(
+              Invoice(
+                id: item['id'] as String,
+                amount: (item['amount'] as num?)?.toDouble() ?? 0.0,
+                currency: item['currency'] as String? ?? 'INR',
+                status: item['status'] as String? ?? 'paid',
+                issuedAt: DateTime.tryParse(item['issued_at'] as String? ?? '') ?? DateTime.now(),
+                pdfUrl: item['pdf_url'] as String? ?? 'https://tradex.ai/invoices/${item['invoice_ref']}.pdf',
+                issuer: _issuer,
+                taxPercent: _taxPercent,
+                paymentMethodLabel: card == null ? null : '${card.brand} •••• ${card.last4}',
+                lineItems: lineItems,
+              ),
+            );
+          }
+          return list;
+        }
+      } catch (e) {
+        debugPrint('BillingSettingsRepositoryImpl.getBillingHistory error: $e');
+      }
+    }
     return _invoices();
   }
 
   @override
   Future<Invoice> getInvoice(String invoiceId) async {
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    final List<Invoice> rows = _invoices();
+    final rows = await getBillingHistory();
     for (final Invoice invoice in rows) {
       if (invoice.id == invoiceId) return invoice;
     }
-    // A link to an invoice this account cannot see is a dead end, not a reason
-    // to hand back somebody else's document.
     throw StateError('Invoice $invoiceId not found');
   }
 
@@ -313,9 +352,20 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
   @override
   Future<void> cancelSubscription({String? reason}) async {
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    // Access runs to the end of the paid period, so the plan is not dropped
-    // here — only the fact that it will not renew.
     _session.cancelAtPeriodEnd = true;
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        final targetUserId = user?.id ?? _demoUserId;
+
+        await client.from('subscriptions').update({
+          'status': 'canceled',
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('user_id', targetUserId);
+      } catch (e) {
+        debugPrint('BillingSettingsRepositoryImpl.cancelSubscription error: $e');
+      }
+    }
   }
 }

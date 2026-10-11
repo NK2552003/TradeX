@@ -17,15 +17,32 @@ CREATE TABLE IF NOT EXISTS profiles (
   avatar_url TEXT,
   experience_level TEXT,
   trading_style TEXT,
+  location TEXT,
+  website TEXT,
+  avg_hold_duration TEXT,
+  primary_market TEXT,
+  top_strategy TEXT,
+  risk_mantra TEXT,
   public_journals BOOLEAN NOT NULL DEFAULT false,
   subscription_tier TEXT NOT NULL DEFAULT 'free',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Idempotent column additions for existing installations
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS website TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avg_hold_duration TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS primary_market TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS top_strategy TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS risk_mantra TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS public_stats BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS notification_settings JSONB NOT NULL DEFAULT '{}'::jsonb;
+
 CREATE TABLE IF NOT EXISTS affiliate_profiles (
   id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
   affiliate_code TEXT UNIQUE NOT NULL,
+  custom_slug TEXT UNIQUE,
   tier TEXT NOT NULL DEFAULT 'standard' CHECK (tier IN ('standard', 'silver', 'gold', 'platinum')),
   commission_rate NUMERIC NOT NULL DEFAULT 0.15 CHECK (commission_rate >= 0.0 AND commission_rate <= 1.0),
   total_referrals INTEGER NOT NULL DEFAULT 0 CHECK (total_referrals >= 0),
@@ -33,12 +50,27 @@ CREATE TABLE IF NOT EXISTS affiliate_profiles (
   total_earnings NUMERIC NOT NULL DEFAULT 0.00 CHECK (total_earnings >= 0.0),
   unpaid_balance NUMERIC NOT NULL DEFAULT 0.00 CHECK (unpaid_balance >= 0.0),
   paid_earnings NUMERIC NOT NULL DEFAULT 0.00 CHECK (paid_earnings >= 0.0),
-  payout_method TEXT CHECK (payout_method IN ('bank_transfer', 'paypal', 'stripe', 'crypto')),
+  minimum_payout_threshold NUMERIC NOT NULL DEFAULT 100.0 CHECK (minimum_payout_threshold >= 0.0),
+  auto_payout_enabled BOOLEAN NOT NULL DEFAULT true,
+  payout_method TEXT CHECK (payout_method IN ('bank_transfer', 'bank_wire', 'paypal', 'stripe', 'crypto', 'upi')),
   payout_details JSONB NOT NULL DEFAULT '{}'::jsonb,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('pending', 'active', 'suspended')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Idempotent column additions for existing affiliate installations
+ALTER TABLE affiliate_profiles ADD COLUMN IF NOT EXISTS custom_slug TEXT UNIQUE;
+ALTER TABLE affiliate_profiles ADD COLUMN IF NOT EXISTS minimum_payout_threshold NUMERIC NOT NULL DEFAULT 100.0;
+ALTER TABLE affiliate_profiles ADD COLUMN IF NOT EXISTS auto_payout_enabled BOOLEAN NOT NULL DEFAULT true;
+DO $$
+BEGIN
+  ALTER TABLE affiliate_profiles DROP CONSTRAINT IF EXISTS affiliate_profiles_payout_method_check;
+  ALTER TABLE affiliate_profiles ADD CONSTRAINT affiliate_profiles_payout_method_check 
+    CHECK (payout_method IN ('bank_transfer', 'bank_wire', 'paypal', 'stripe', 'crypto', 'upi'));
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
 
 CREATE TABLE IF NOT EXISTS affiliate_referrals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -72,6 +104,38 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   revenuecat_id TEXT UNIQUE,
   billing_cycle TEXT,
   renewed_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Idempotent column additions for existing subscriptions installations
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS revenuecat_id TEXT;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS billing_cycle TEXT;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS renewed_at TIMESTAMPTZ;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS invoices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  invoice_ref TEXT NOT NULL,
+  amount NUMERIC NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'INR',
+  status TEXT NOT NULL DEFAULT 'paid',
+  pdf_url TEXT,
+  line_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  issued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS data_export_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending',
+  download_url TEXT,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ,
   expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -122,6 +186,25 @@ CREATE TABLE IF NOT EXISTS strategies (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Idempotent column additions for existing strategies installations
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS summary TEXT;
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS content TEXT NOT NULL DEFAULT '';
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'draft';
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'private';
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS linked_tickers TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS linked_note_ids UUID[] NOT NULL DEFAULT '{}';
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS linked_journal_ids UUID[] NOT NULL DEFAULT '{}';
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS version_count INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS word_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS checklist_done INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS checklist_total INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS has_images BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS has_code BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS ai_summary TEXT;
+
 CREATE TABLE IF NOT EXISTS strategy_versions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   strategy_id UUID NOT NULL REFERENCES strategies(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -137,6 +220,13 @@ CREATE TABLE IF NOT EXISTS strategy_versions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (strategy_id, version_number)
 );
+
+-- Idempotent column additions for existing strategy_versions installations
+ALTER TABLE strategy_versions ADD COLUMN IF NOT EXISTS note TEXT;
+ALTER TABLE strategy_versions ADD COLUMN IF NOT EXISTS author_id UUID REFERENCES profiles(id) ON DELETE SET NULL;
+ALTER TABLE strategy_versions ADD COLUMN IF NOT EXISTS is_current BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE strategy_versions ADD COLUMN IF NOT EXISTS summary TEXT;
+ALTER TABLE strategy_versions ADD COLUMN IF NOT EXISTS word_count INTEGER NOT NULL DEFAULT 0;
 
 -- Attachment metadata for the private `strategy-attachments` bucket. The bytes
 -- live in storage; this row is what RLS can reason about. Object keys are
@@ -202,6 +292,38 @@ CREATE TABLE IF NOT EXISTS journal_entries (
     CHECK (outcome IS DISTINCT FROM 'open' OR (exit_price IS NULL AND closed_at IS NULL))
 );
 
+-- Idempotent column additions for existing journal_entries installations
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT '';
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS ticker TEXT;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS content TEXT NOT NULL DEFAULT '';
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS entry_price NUMERIC;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS exit_price NUMERIC;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS stop_loss NUMERIC;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS target NUMERIC;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS size NUMERIC;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS side TEXT;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS pnl NUMERIC;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS pnl_percent NUMERIC;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS r_multiple NUMERIC;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS opened_at TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS screenshots TEXT[] DEFAULT '{}';
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS psychology TEXT;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS psychology_score INTEGER;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS mistakes_made TEXT;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS lessons_learned TEXT;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS strategy_id UUID REFERENCES strategies(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS outcome TEXT;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS outcome_source TEXT NOT NULL DEFAULT 'auto';
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS linked_note_ids UUID[] NOT NULL DEFAULT '{}';
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS word_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS checklist_done INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS checklist_total INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS has_images BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS has_code BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT false;
+
 
 CREATE TABLE IF NOT EXISTS journal_entry_links (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -252,6 +374,23 @@ CREATE TABLE IF NOT EXISTS trader_notes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Idempotent column additions for existing trader_notes installations
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT '';
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS content TEXT NOT NULL DEFAULT '';
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS note_type TEXT NOT NULL DEFAULT 'general';
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS linked_tickers TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS strategy_id UUID REFERENCES strategies(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS linked_journal_ids UUID[] NOT NULL DEFAULT '{}';
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS word_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS checklist_done INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS checklist_total INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS has_images BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS has_code BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS view_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE trader_notes ADD COLUMN IF NOT EXISTS like_count INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS trader_note_likes (
   note_id UUID NOT NULL REFERENCES trader_notes(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -337,6 +476,15 @@ CREATE TABLE IF NOT EXISTS watchlist_items (
   )
 );
 
+-- Idempotent column additions for existing watchlist_items installations
+ALTER TABLE watchlist_items ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE watchlist_items ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE watchlist_items ADD COLUMN IF NOT EXISTS price_alert_threshold NUMERIC;
+ALTER TABLE watchlist_items ADD COLUMN IF NOT EXISTS price_alert_direction TEXT;
+ALTER TABLE watchlist_items ADD COLUMN IF NOT EXISTS alert_armed BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE watchlist_items ADD COLUMN IF NOT EXISTS alert_last_triggered_at TIMESTAMPTZ;
+ALTER TABLE watchlist_items ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT false;
+
 CREATE TABLE IF NOT EXISTS posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -358,6 +506,17 @@ CREATE TABLE IF NOT EXISTS posts (
     num_nonnulls(note_id, journal_entry_id, strategy_id) <= 1
   )
 );
+
+-- Idempotent column additions for existing posts installations
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS ticker TEXT;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS content_type TEXT NOT NULL DEFAULT 'market_discussion';
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS note_id UUID REFERENCES trader_notes(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS journal_entry_id UUID REFERENCES journal_entries(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS strategy_id UUID REFERENCES strategies(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS likes_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS comments_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS views_count INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS post_views (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -416,6 +575,18 @@ CREATE TABLE IF NOT EXISTS ai_insights (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Idempotent column additions for existing ai_insights installations
+ALTER TABLE ai_insights ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE ai_insights ADD COLUMN IF NOT EXISTS ticker TEXT;
+ALTER TABLE ai_insights ADD COLUMN IF NOT EXISTS summary TEXT;
+ALTER TABLE ai_insights ADD COLUMN IF NOT EXISTS indicators JSONB;
+ALTER TABLE ai_insights ADD COLUMN IF NOT EXISTS generated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE ai_insights ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT '';
+ALTER TABLE ai_insights ADD COLUMN IF NOT EXISTS body TEXT NOT NULL DEFAULT '';
+ALTER TABLE ai_insights ADD COLUMN IF NOT EXISTS confidence NUMERIC(5, 4) DEFAULT 0.8500;
+ALTER TABLE ai_insights ADD COLUMN IF NOT EXISTS sentiment_score NUMERIC(5, 4) DEFAULT 0.0000;
+ALTER TABLE ai_insights ADD COLUMN IF NOT EXISTS tickers TEXT[] NOT NULL DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS ai_insight_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -488,6 +659,66 @@ CREATE TABLE IF NOT EXISTS revenuecat_webhook_events (
   processed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS trader_preferences (
+  user_id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  default_position_size_pct NUMERIC NOT NULL DEFAULT 2.0 CHECK (default_position_size_pct >= 0.1 AND default_position_size_pct <= 100.0),
+  default_r_multiple NUMERIC NOT NULL DEFAULT 2.5 CHECK (default_r_multiple >= 0.1),
+  default_watchlist_symbols TEXT[] NOT NULL DEFAULT '{"NIFTY50","BANKNIFTY","RELIANCE","TCS","HDFCBANK"}',
+  watchlist_refresh_interval_seconds INTEGER NOT NULL DEFAULT 15 CHECK (watchlist_refresh_interval_seconds >= 1),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS trader_checklists (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  label TEXT NOT NULL,
+  description TEXT,
+  done BOOLEAN NOT NULL DEFAULT false,
+  icon_name TEXT DEFAULT 'check_box_outline_blank',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE trader_checklists ADD COLUMN IF NOT EXISTS icon_name TEXT DEFAULT 'check_box_outline_blank';
+
+CREATE TABLE IF NOT EXISTS organizations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  owner_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+  api_keys JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS organization_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  role TEXT NOT NULL DEFAULT 'trader' CHECK (role IN ('owner', 'admin', 'trader', 'viewer')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (organization_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS desk_risk_policies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  admin_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  max_firm_drawdown_percent NUMERIC NOT NULL DEFAULT 5.0,
+  max_position_per_trader NUMERIC NOT NULL DEFAULT 5000000.0,
+  enforce_pre_trade_checklist BOOLEAN NOT NULL DEFAULT true,
+  manager_approval_threshold NUMERIC NOT NULL DEFAULT 1000000.0,
+  audit_logging_enabled BOOLEAN NOT NULL DEFAULT true,
+  allowed_asset_classes TEXT[] NOT NULL DEFAULT '{"NSE Equities","F&O Derivatives","Commodities (MCX)","Currency Pairs"}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (admin_id)
 );
 
 CREATE OR REPLACE VIEW portfolio_stats AS
@@ -629,7 +860,9 @@ BEGIN
     'conversations',
     'messages',
     'notifications',
-    'revenuecat_webhook_events'
+    'revenuecat_webhook_events',
+    'trader_preferences',
+    'trader_checklists'
   ]
   LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS trg_%I_updated_at ON %I;', t, t);
