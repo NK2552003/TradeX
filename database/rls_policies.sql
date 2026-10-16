@@ -533,6 +533,19 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS community_attachments_owner_all ON storage.objects;
+CREATE POLICY community_attachments_owner_all ON storage.objects
+FOR ALL
+USING (bucket_id = 'community-attachments'
+       AND (storage.foldername(name))[1] = auth.uid()::text)
+WITH CHECK (bucket_id = 'community-attachments'
+       AND (storage.foldername(name))[1] = auth.uid()::text);
+
+DROP POLICY IF EXISTS community_attachments_objects_public_read ON storage.objects;
+CREATE POLICY community_attachments_objects_public_read ON storage.objects
+FOR SELECT
+USING (bucket_id = 'community-attachments');
+
 COMMIT;
 
 -- 013 Markets and News

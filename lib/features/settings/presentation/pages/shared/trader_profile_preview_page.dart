@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
 // Required unified primitive import for the profile preview surface.
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
@@ -13,9 +12,20 @@ import 'package:tradex/features/community/presentation/views/community_post_deta
 import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
 import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_options_sheet.dart';
+import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/journal/ui/journal_entry_screen.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
+import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/notes/ui/note_preview_screen.dart';
+
+String _formatCount(int count) {
+  if (count >= 1000000) {
+    return '${(count / 1000000).toStringAsFixed(1)}M';
+  } else if (count >= 1000) {
+    return '${(count / 1000).toStringAsFixed(1)}K';
+  }
+  return '$count';
+}
 
 /// Stunning, responsive public profile preview resembling Twitter (X) + Trading Journal + Notes.
 class TraderProfilePreviewPage extends StatefulWidget {
@@ -149,6 +159,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           label: 'Playbooks',
           icon: Icons.menu_book_outlined,
           content: _NotesPlaybooksPreview(
+            authorId: widget.author?.id,
+            handle: widget.handle,
             onOpenRef: widget.onOpenRef,
           ),
         ),
@@ -181,6 +193,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             selectedFilter: _selectedFilterIndex,
             onFilterChanged: (int idx) =>
                 setState(() => _selectedFilterIndex = idx),
+            authorId: widget.author?.id,
+            handle: widget.handle,
             onOpenRef: widget.onOpenRef,
           ),
         ),
@@ -188,6 +202,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           label: 'Notes',
           icon: Icons.note_alt_outlined,
           content: _NotesPlaybooksPreview(
+            authorId: widget.author?.id,
+            handle: widget.handle,
             onOpenRef: widget.onOpenRef,
           ),
         ),
@@ -710,40 +726,43 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     ),
                                   ]
                                 : (isAffiliate
-                                      ? const <Widget>[
+                                      ? <Widget>[
                                           _SocialStat(
-                                            count: '48.5K',
-                                            label: 'Community Reach',
+                                            count: widget.audienceReach ??
+                                                _formatCount(widget.author?.followers ?? 0),
+                                            label: 'Audience Reach',
                                           ),
                                           _SocialStat(
-                                            count: '148',
-                                            label: 'Traders Mentored',
-                                          ),
-                                          _SocialStat(
-                                            count: '24',
-                                            label: 'Shared Playbooks',
-                                          ),
-                                          _SocialStat(
-                                            count: '4.9★',
-                                            label: 'Community Rating',
-                                          ),
-                                        ]
-                                      : const <Widget>[
-                                          _SocialStat(
-                                            count: '2.4K',
-                                            label: 'Following',
-                                          ),
-                                          _SocialStat(
-                                            count: '14.8K',
+                                            count: _formatCount(widget.author?.followers ?? 0),
                                             label: 'Followers',
                                           ),
                                           _SocialStat(
-                                            count: '342',
-                                            label: 'Public Trades',
+                                            count: _formatCount(widget.author?.postsCount ?? 0),
+                                            label: 'Public Posts',
                                           ),
                                           _SocialStat(
-                                            count: '98.4%',
-                                            label: 'Discipline Score',
+                                            count: widget.referralCode ?? 'PARTNER',
+                                            label: 'Partner Code',
+                                          ),
+                                        ]
+                                      : <Widget>[
+                                          _SocialStat(
+                                            count: _formatCount(widget.author?.following ?? 0),
+                                            label: 'Following',
+                                          ),
+                                          _SocialStat(
+                                            count: _formatCount(widget.author?.followers ?? 0),
+                                            label: 'Followers',
+                                          ),
+                                          _SocialStat(
+                                            count: _formatCount(widget.author?.postsCount ?? 0),
+                                            label: 'Public Posts',
+                                          ),
+                                          _SocialStat(
+                                            count: widget.author?.winRate != null
+                                                ? '${(widget.author!.winRate! * (widget.author!.winRate! <= 1 ? 100 : 1)).toStringAsFixed(1)}%'
+                                                : '--',
+                                            label: 'Win Rate',
                                           ),
                                         ]),
                           ),
@@ -1009,42 +1028,63 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       }
                                     }
 
+                                    final String winRateStr = widget.author?.winRate != null
+                                        ? '${(widget.author!.winRate! * (widget.author!.winRate! <= 1 ? 100 : 1)).toStringAsFixed(1)}%'
+                                        : '--';
                                     final String topStrategyText =
                                         widget.topStrategy?.trim().isNotEmpty ==
-                                            true
-                                        ? widget.topStrategy!
-                                        : 'ORB Breakout';
+                                                true
+                                            ? widget.topStrategy!
+                                            : (widget.author?.tradingStyle ??
+                                                'Price Action');
+                                    final String marketText =
+                                        widget.primaryMarket?.trim().isNotEmpty ==
+                                                true
+                                            ? widget.primaryMarket!
+                                            : (widget.author?.primaryMarket ??
+                                                'Equities');
+                                    final String holdStr =
+                                        widget.avgHoldDuration?.trim().isNotEmpty ==
+                                                true
+                                            ? widget.avgHoldDuration!
+                                            : 'Intraday';
+                                    final String mantraStr =
+                                        widget.riskMantra?.trim().isNotEmpty ==
+                                                true
+                                            ? widget.riskMantra!
+                                            : 'Process > PnL';
+
                                     if (constraints.maxWidth > 520) {
                                       return Row(
                                         children: <Widget>[
-                                          const Expanded(
+                                          Expanded(
                                             child: _KpiPill(
                                               label: 'Win Rate',
-                                              value: '68.4%',
+                                              value: winRateStr,
+                                              isPositive: widget.author?.winRate != null,
+                                            ),
+                                          ),
+                                          _buildKpiDivider(theme),
+                                          Expanded(
+                                            child: _KpiPill(
+                                              label: 'Avg Hold',
+                                              value: holdStr,
                                               isPositive: true,
                                             ),
                                           ),
                                           _buildKpiDivider(theme),
-                                          const Expanded(
+                                          Expanded(
                                             child: _KpiPill(
-                                              label: 'Avg R Multiple',
-                                              value: '2.15R',
-                                              isPositive: true,
+                                              label: 'Market Focus',
+                                              value: marketText,
+                                              isPositive: null,
                                             ),
                                           ),
                                           _buildKpiDivider(theme),
-                                          const Expanded(
+                                          Expanded(
                                             child: _KpiPill(
-                                              label: 'Profit Factor',
-                                              value: '2.48',
-                                              isPositive: true,
-                                            ),
-                                          ),
-                                          _buildKpiDivider(theme),
-                                          const Expanded(
-                                            child: _KpiPill(
-                                              label: 'Best Streak',
-                                              value: '9 Wins',
+                                              label: 'Risk Mantra',
+                                              value: mantraStr,
                                               isPositive: true,
                                             ),
                                           ),
@@ -1063,26 +1103,26 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: <Widget>[
                                           Row(
-                                            children: const <Widget>[
+                                            children: <Widget>[
                                               Expanded(
                                                 child: _KpiPill(
                                                   label: 'Win Rate',
-                                                  value: '68.4%',
+                                                  value: winRateStr,
+                                                  isPositive: widget.author?.winRate != null,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: _KpiPill(
+                                                  label: 'Avg Hold',
+                                                  value: holdStr,
                                                   isPositive: true,
                                                 ),
                                               ),
                                               Expanded(
                                                 child: _KpiPill(
-                                                  label: 'Avg R Multiple',
-                                                  value: '2.15R',
-                                                  isPositive: true,
-                                                ),
-                                              ),
-                                              Expanded(
-                                                child: _KpiPill(
-                                                  label: 'Profit Factor',
-                                                  value: '2.48',
-                                                  isPositive: true,
+                                                  label: 'Market Focus',
+                                                  value: marketText,
+                                                  isPositive: null,
                                                 ),
                                               ),
                                             ],
@@ -1101,10 +1141,10 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                           ),
                                           Row(
                                             children: <Widget>[
-                                              const Expanded(
+                                              Expanded(
                                                 child: _KpiPill(
-                                                  label: 'Best Streak',
-                                                  value: '9 Wins',
+                                                  label: 'Risk Mantra',
+                                                  value: mantraStr,
                                                   isPositive: true,
                                                 ),
                                               ),
@@ -1113,13 +1153,6 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                   label: 'Top Strategy',
                                                   value: topStrategyText,
                                                   isPositive: null,
-                                                ),
-                                              ),
-                                              const Expanded(
-                                                child: _KpiPill(
-                                                  label: 'Discipline',
-                                                  value: '98.4%',
-                                                  isPositive: true,
                                                 ),
                                               ),
                                             ],
@@ -1305,6 +1338,7 @@ class _TwitterFeedPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.ui;
     final bool isAuthor = isCurrentUser ||
         (author != null && repository != null &&
             (author!.id == repository!.currentAuthor.id ||
@@ -1374,191 +1408,18 @@ class _TwitterFeedPreview extends StatelessWidget {
       );
     }
 
-    final repoPosts = repository?.forYouPosts ?? <CommunityPost>[];
-    final post1 = repoPosts.cast<CommunityPost?>().firstWhere(
-          (p) => p?.id == 'post_a1',
-          orElse: () => null,
-        ) ??
-        CommunityPost(
-          id: 'post_a1',
-          author: author ??
-              CommunityAuthor(
-                id: 'usr_$handle',
-                handle: handle,
-                displayName: displayName,
-                userRole: UserRole.customer,
-                avatarUrl: avatarUrl,
-              ),
-          isPinned: true,
-          body:
-              'NIFTY reclaimed the opening range with improving breadth. Waiting for the retest instead of chasing the first expansion candle. Focus on risk management over FOMO.',
-          tags: const <String>['NIFTY', 'MarketStructure', 'PriceAction'],
-          likes: 148,
-          reposts: 32,
-          comments: 19,
-          views: 3400,
-          createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-          tradeSetup: const CommunityTradeSetup(
-            ticker: 'NIFTY 24400 CE',
-            side: 'LONG',
-            entry: '₹142.50',
-            exit: '₹188.00',
-            rMultiple: '+2.4R',
-            pnl: '+₹34,500',
-            isWin: true,
-          ),
-        );
-
-    final post2 = repoPosts.cast<CommunityPost?>().firstWhere(
-          (p) => p?.id == 'post_a2',
-          orElse: () => null,
-        ) ??
-        CommunityPost(
-          id: 'post_a2',
-          author: author ??
-              CommunityAuthor(
-                id: 'usr_$handle',
-                handle: handle,
-                displayName: displayName,
-                userRole: UserRole.customer,
-                avatarUrl: avatarUrl,
-              ),
-          isPinned: false,
-          body:
-              'Weekly review: best trades came from following the plan. The two avoidable losses both happened after moving stops without new information. Sticking strictly to the 2-Strike Rule next week.',
-          tags: const <String>['WeeklyReview', 'Discipline', 'RiskRules'],
-          likes: 94,
-          reposts: 16,
-          comments: 11,
-          views: 2100,
-          createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        );
-
-    final post3 = repoPosts.cast<CommunityPost?>().firstWhere(
-          (p) => p?.id == 'post_a3',
-          orElse: () => null,
-        ) ??
-        CommunityPost(
-          id: 'post_a3',
-          author: author ??
-              CommunityAuthor(
-                id: 'usr_$handle',
-                handle: handle,
-                displayName: displayName,
-                userRole: UserRole.customer,
-                avatarUrl: avatarUrl,
-              ),
-          isPinned: false,
-          body:
-              'RELIANCE broke out of a 3-week consolidation base on 2.5x volume. Scaled out 50% at 2R, trailing the stop under the prior 15-minute swing pivot.',
-          tags: const <String>['RELIANCE', 'Breakout', 'SwingTrade'],
-          likes: 215,
-          reposts: 48,
-          comments: 27,
-          views: 5800,
-          createdAt: DateTime.now().subtract(const Duration(days: 3)),
-          tradeSetup: const CommunityTradeSetup(
-            ticker: 'RELIANCE',
-            side: 'LONG',
-            entry: '₹2,890.00',
-            exit: '₹2,955.00',
-            rMultiple: '+2.8R',
-            pnl: '+₹42,800',
-            isWin: true,
-          ),
-        );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        // Pinned post
-        _TwitterPostCard(
-          post: post1,
-          displayName: displayName,
-          handle: handle,
-          avatarUrl: avatarUrl,
-          verifiedColor: verifiedColor,
-          isPinned: true,
-          timestamp: '2h ago',
-          body:
-              'NIFTY reclaimed the opening range with improving breadth. Waiting for the retest instead of chasing the first expansion candle. Focus on risk management over FOMO.',
-          tags: const <String>['NIFTY', 'MarketStructure', 'PriceAction'],
-          likes: '148',
-          reposts: '32',
-          replies: '19',
-          views: '3.4K',
-          setupSnapshot: _TradeSetupSnippet(
-            ticker: 'NIFTY 24400 CE',
-            side: 'LONG',
-            entry: '₹142.50',
-            exit: '₹188.00',
-            rMultiple: '+2.4R',
-            pnl: '+₹34,500',
-            isWin: true,
-            tradeId: 'trd_nifty50_1',
-            onOpenRef: onOpenRef,
-          ),
-          onTap: onPostTap != null ? () => onPostTap!(post1) : null,
-          onOpenRef: onOpenRef,
-          repository: repository,
-          isAuthor: isAuthor,
-        ),
-
-        // Post 2
-        _TwitterPostCard(
-          post: post2,
-          displayName: displayName,
-          handle: handle,
-          avatarUrl: avatarUrl,
-          verifiedColor: verifiedColor,
-          isPinned: false,
-          timestamp: 'Yesterday',
-          body:
-              'Weekly review: best trades came from following the plan. The two avoidable losses both happened after moving stops without new information. Sticking strictly to the 2-Strike Rule next week.',
-          tags: const <String>['WeeklyReview', 'Discipline', 'RiskRules'],
-          likes: '94',
-          reposts: '16',
-          replies: '11',
-          views: '2.1K',
-          onTap: onPostTap != null ? () => onPostTap!(post2) : null,
-          onOpenRef: onOpenRef,
-          repository: repository,
-          isAuthor: isAuthor,
-        ),
-
-        // Post 3
-        _TwitterPostCard(
-          post: post3,
-          displayName: displayName,
-          handle: handle,
-          avatarUrl: avatarUrl,
-          verifiedColor: verifiedColor,
-          isPinned: false,
-          timestamp: '3d ago',
-          body:
-              'RELIANCE broke out of a 3-week consolidation base on 2.5x volume. Scaled out 50% at 2R, trailing the stop under the prior 15-minute swing pivot.',
-          tags: const <String>['RELIANCE', 'Breakout', 'SwingTrade'],
-          likes: '215',
-          reposts: '48',
-          replies: '27',
-          views: '5.8K',
-          setupSnapshot: _TradeSetupSnippet(
-            ticker: 'RELIANCE',
-            side: 'LONG',
-            entry: '₹2,890.00',
-            exit: '₹2,955.00',
-            rMultiple: '+2.8R',
-            pnl: '+₹42,800',
-            isWin: true,
-            tradeId: 'trd_reliance_0',
-            onOpenRef: onOpenRef,
-          ),
-          onTap: onPostTap != null ? () => onPostTap!(post3) : null,
-          onOpenRef: onOpenRef,
-          repository: repository,
-          isAuthor: isAuthor,
-        ),
-      ],
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: context.sp(theme.spacing.xl),
+        horizontal: context.sp(theme.spacing.md),
+      ),
+      child: UiEmptyState(
+        icon: Icons.chat_bubble_outline_rounded,
+        title: 'No public posts',
+        message: handle.isNotEmpty
+            ? '@$handle has not published any community posts yet.'
+            : 'No community posts shared yet.',
+      ),
     );
   }
 }
@@ -1866,7 +1727,7 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                           SizedBox(height: context.sp(theme.spacing.sm)),
                           CommunityAttachmentTile(
                             attachment: widget.post!.attachment!,
-                            onTap: () {
+                            onTap: () async {
                               final source = widget.post!.attachment!.source;
                               if (widget.onOpenRef != null) {
                                 if (ModalRoute.of(context)?.isCurrent == true &&
@@ -1876,39 +1737,41 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                                 widget.onOpenRef!(source);
                               } else {
                                 if (source.kind == AppLinkKind.journal) {
-                                  final trades = DemoDataSource.instance.trades();
-                                  final trade = trades.firstWhere(
-                                    (t) => t.id == source.id,
-                                    orElse: () => DemoDataSource.instance.trades().first,
-                                  );
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (ctx) => Scaffold(
-                                        body: JournalEntryScreen(
-                                          entry: trade,
-                                          onClose: () => Navigator.of(ctx).pop(),
-                                          onEdit: () {},
+                                  final trade = await JournalRepositoryScope
+                                      .repository
+                                      .getById(source.id);
+                                  if (trade != null && context.mounted) {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (ctx) => Scaffold(
+                                          body: JournalEntryScreen(
+                                            entry: trade,
+                                            onClose: () =>
+                                                Navigator.of(ctx).pop(),
+                                            onEdit: () {},
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  );
+                                    );
+                                  }
                                 } else if (source.kind == AppLinkKind.note) {
-                                  final notes = DemoDataSource.instance.notes();
-                                  final note = notes.firstWhere(
-                                    (n) => n.id == source.id,
-                                    orElse: () => DemoDataSource.instance.notes().first,
-                                  );
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (ctx) => Scaffold(
-                                        body: NotePreviewScreen(
-                                          note: note,
-                                          onClose: () => Navigator.of(ctx).pop(),
-                                          onEdit: () {},
+                                  final note = await NotesRepositoryScope
+                                      .repository
+                                      .getById(source.id);
+                                  if (note != null && context.mounted) {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (ctx) => Scaffold(
+                                          body: NotePreviewScreen(
+                                            note: note,
+                                            onClose: () =>
+                                                Navigator.of(ctx).pop(),
+                                            onEdit: () {},
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  );
+                                    );
+                                  }
                                 }
                               }
                             },
@@ -2091,8 +1954,8 @@ class _TradeSetupSnippet extends StatelessWidget {
   final String? tradeId;
   final ValueChanged<AppLinkRef>? onOpenRef;
 
-  void _handleTap(BuildContext context) {
-    final id = tradeId ?? _JournalTradeCard._resolveTradeId(ticker);
+  void _handleTap(BuildContext context) async {
+    final id = tradeId ?? 'trd_$ticker';
     if (onOpenRef != null) {
       if (ModalRoute.of(context)?.isCurrent == true &&
           Navigator.of(context).canPop()) {
@@ -2100,42 +1963,47 @@ class _TradeSetupSnippet extends StatelessWidget {
       }
       onOpenRef!(AppLinkRef(kind: AppLinkKind.journal, id: id, title: ticker));
     } else {
-      final trades = DemoDataSource.instance.trades();
-      final trade = trades.firstWhere(
-        (t) => t.id == id,
-        orElse: () => AppTrade(
-          id: id,
-          ticker: ticker,
-          side: side.toUpperCase() == 'LONG'
-              ? AppSide.long
-              : AppSide.short,
-          entry:
-              double.tryParse(entry.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
-          exit:
-              double.tryParse(exit.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
-          size: 100,
-          pnl: double.tryParse(pnl.replaceAll(RegExp(r'[^0-9.-]'), '')) ?? 0.0,
-          pnlPercent: 0.0,
-          rMultiple:
-              double.tryParse(rMultiple.replaceAll(RegExp(r'[^0-9.-]'), '')) ??
-                  0.0,
-          outcome: isWin ? AppOutcome.win : AppOutcome.loss,
-          openedAt: DateTime.now(),
-          notes: 'Trade setup shared via profile.',
-          isPublic: true,
-        ),
-      );
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (ctx) => Scaffold(
-            body: JournalEntryScreen(
-              entry: trade,
-              onClose: () => Navigator.of(ctx).pop(),
-              onEdit: () {},
+      final actualTrade =
+          await JournalRepositoryScope.repository.getById(id) ??
+              AppTrade(
+                id: id,
+                ticker: ticker,
+                side: side.toUpperCase() == 'LONG'
+                    ? AppSide.long
+                    : AppSide.short,
+                entry:
+                    double.tryParse(entry.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+                        0.0,
+                exit:
+                    double.tryParse(exit.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+                        0.0,
+                size: 100,
+                pnl:
+                    double.tryParse(pnl.replaceAll(RegExp(r'[^0-9.-]'), '')) ??
+                        0.0,
+                pnlPercent: 0.0,
+                rMultiple: double.tryParse(
+                      rMultiple.replaceAll(RegExp(r'[^0-9.-]'), ''),
+                    ) ??
+                    0.0,
+                outcome: isWin ? AppOutcome.win : AppOutcome.loss,
+                openedAt: DateTime.now(),
+                notes: 'Trade setup shared via profile.',
+                isPublic: true,
+              );
+      if (context.mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (ctx) => Scaffold(
+              body: JournalEntryScreen(
+                entry: actualTrade,
+                onClose: () => Navigator.of(ctx).pop(),
+                onEdit: () {},
+              ),
             ),
           ),
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -2214,94 +2082,149 @@ class _PublicJournalPreview extends StatelessWidget {
   const _PublicJournalPreview({
     required this.selectedFilter,
     required this.onFilterChanged,
+    this.authorId,
+    this.handle,
     this.onOpenRef,
   });
 
   final int selectedFilter;
   final ValueChanged<int> onFilterChanged;
+  final String? authorId;
+  final String? handle;
   final ValueChanged<AppLinkRef>? onOpenRef;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        // Summary & Audit Banner
-        UiCard(
-          variant: UiCardVariant.surface,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Row(
+    return StreamBuilder<List<AppTrade>>(
+      stream: JournalRepositoryScope.repository.watchPublic(),
+      builder: (BuildContext context, AsyncSnapshot<List<AppTrade>> snapshot) {
+        final List<AppTrade> allTrades = snapshot.data ?? <AppTrade>[];
+        final List<AppTrade> authorTrades =
+            (authorId != null && authorId!.isNotEmpty)
+                ? allTrades.where((t) => t.userId == authorId).toList()
+                : allTrades;
+        final List<AppTrade> trades =
+            authorTrades.isNotEmpty ? authorTrades : allTrades;
+
+        if (trades.isEmpty) {
+          return Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.xl),
+              horizontal: context.sp(theme.spacing.md),
+            ),
+            child: UiEmptyState(
+              icon: Icons.menu_book_outlined,
+              title: 'No public journal entries',
+              message: handle != null && handle!.isNotEmpty
+                  ? '@$handle has not shared any journal trades publicly yet.'
+                  : 'No verified trades shared publicly yet.',
+            ),
+          );
+        }
+
+        final int totalLogged = trades.length;
+        final double netPnl = trades.fold(0.0, (sum, t) => sum + t.pnl);
+        final int wins = trades.where((t) => t.pnl > 0).length;
+        final int losses = trades.where((t) => t.pnl < 0).length;
+        final int closedTrades = wins + losses;
+        final double winRatio =
+            closedTrades > 0 ? (wins / closedTrades) * 100 : 0.0;
+        final double totalR =
+            trades.fold(0.0, (sum, t) => sum + (t.rMultiple ?? 0.0));
+
+        final List<AppTrade> filteredTrades = switch (selectedFilter) {
+          1 => trades.where((t) => t.pnl > 0).toList(),
+          2 => trades.where((t) => t.pnl < 0).toList(),
+          _ => trades,
+        };
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // Summary & Audit Banner
+            UiCard(
+              variant: UiCardVariant.surface,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Icon(
-                    Icons.verified_user_outlined,
-                    color: theme.colors.bullish,
-                    size: context.sz(20),
+                  Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.verified_user_outlined,
+                        color: theme.colors.bullish,
+                        size: context.sz(20),
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.xs)),
+                      Expanded(
+                        child: Text(
+                          'Verified Public Execution Log',
+                          style: context.uiText.bodyStrong,
+                        ),
+                      ),
+                      UiBadge(
+                        label: 'AUDITED BROKER FEED',
+                        intent: UiIntent.bullish,
+                        size: UiSize.xs,
+                      ),
+                    ],
                   ),
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  Expanded(
-                    child: Text(
-                      'Verified Public Execution Log',
-                      style: context.uiText.bodyStrong,
+                  SizedBox(height: context.sp(theme.spacing.sm)),
+                  Text(
+                    'Every trade shown below is cryptographically hashed against broker fill timestamps. Private personal executions remain confidential.',
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
                     ),
                   ),
-                  UiBadge(
-                    label: 'AUDITED BROKER FEED',
-                    intent: UiIntent.bullish,
-                    size: UiSize.xs,
+                  SizedBox(height: context.sp(theme.spacing.md)),
+                  Wrap(
+                    spacing: context.sp(theme.spacing.lg),
+                    runSpacing: context.sp(theme.spacing.xs),
+                    children: <Widget>[
+                      _JournalStat(
+                        title: 'Public Trades',
+                        val: '$totalLogged Logged',
+                      ),
+                      _JournalStat(
+                        title: 'Net Realized PnL',
+                        val:
+                            '${netPnl >= 0 ? '+' : ''}₹${netPnl.toStringAsFixed(0)}',
+                        color: netPnl >= 0
+                            ? theme.colors.bullish
+                            : theme.colors.bearish,
+                      ),
+                      _JournalStat(
+                        title: 'Win Ratio',
+                        val:
+                            '${winRatio.toStringAsFixed(1)}% (${wins}W - ${losses}L)',
+                        color: winRatio >= 50
+                            ? theme.colors.bullish
+                            : theme.colors.bearish,
+                      ),
+                      _JournalStat(
+                        title: 'Total R Gained',
+                        val:
+                            '${totalR >= 0 ? '+' : ''}${totalR.toStringAsFixed(1)}R',
+                        color: totalR >= 0
+                            ? theme.colors.bullish
+                            : theme.colors.bearish,
+                      ),
+                    ],
                   ),
                 ],
               ),
-              SizedBox(height: context.sp(theme.spacing.sm)),
-              Text(
-                'Every trade shown below is cryptographically hashed against broker fill timestamps. Private personal executions remain confidential.',
-                style: context.uiText.caption.copyWith(
-                  color: theme.colors.foregroundMuted,
-                ),
-              ),
-              SizedBox(height: context.sp(theme.spacing.md)),
-              Wrap(
-                spacing: context.sp(theme.spacing.lg),
-                runSpacing: context.sp(theme.spacing.xs),
-                children: const <Widget>[
-                  _JournalStat(title: 'Public Trades', val: '48 Logged'),
-                  _JournalStat(
-                    title: 'Net Realized PnL',
-                    val: '+₹1,84,200',
-                    color: Colors.green,
-                  ),
-                  _JournalStat(
-                    title: 'Win Ratio',
-                    val: '68.8% (33W - 15L)',
-                    color: Colors.green,
-                  ),
-                  _JournalStat(
-                    title: 'Total R Gained',
-                    val: '+38.4R',
-                    color: Colors.green,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
+            ),
+            SizedBox(height: context.sp(theme.spacing.sm)),
 
-        // Filter Pills
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children:
-                <String>[
-                  'All Trades (48)',
-                  'Wins (33)',
-                  'Losses (15)',
-                  'Breakouts (24)',
-                  'Pullbacks (18)',
-                  'Reversals (6)',
+            // Filter Pills
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: <String>[
+                  'All Trades ($totalLogged)',
+                  'Wins ($wins)',
+                  'Losses ($losses)',
                 ].asMap().entries.map((MapEntry<int, String> e) {
                   final bool isSelected = selectedFilter == e.key;
                   return Padding(
@@ -2316,72 +2239,50 @@ class _PublicJournalPreview extends StatelessWidget {
                     ),
                   );
                 }).toList(),
-          ),
-        ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
+              ),
+            ),
+            SizedBox(height: context.sp(theme.spacing.sm)),
 
-        // Trade Entry 1
-        _JournalTradeCard(
-          ticker: 'RELIANCE',
-          tradeId: 'trd_reliance_0',
-          side: 'LONG',
-          date: 'Aug 21, 2026 · 10:14 AM',
-          setup: 'Opening Range Breakout',
-          duration: '38 mins',
-          pnl: '+₹34,500',
-          rMultiple: '+2.3R',
-          isWin: true,
-          entryPrice: '₹2,890.00',
-          exitPrice: '₹2,955.00',
-          quantity: '500 Qty',
-          notes:
-              'High relative volume on 5-min breakout. Reclaimed VWAP with index confirmation. Scaled out at 2R target.',
-          tags: const <String>['ORB', 'VWAP', 'Momentum'],
-          onOpenRef: onOpenRef,
-        ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
+            ...filteredTrades.map((AppTrade trade) {
+              final isWin = trade.pnl >= 0;
+              final diff = trade.closedAt?.difference(trade.openedAt).inMinutes;
+              final durationStr = diff != null ? '$diff mins' : 'Open';
 
-        // Trade Entry 2
-        _JournalTradeCard(
-          ticker: 'NIFTY 24400 CE',
-          tradeId: 'trd_nifty50_1',
-          side: 'LONG',
-          date: 'Aug 20, 2026 · 02:30 PM',
-          setup: 'VWAP Bounce & Trend Retest',
-          duration: '52 mins',
-          pnl: '+₹22,800',
-          rMultiple: '+1.9R',
-          isWin: true,
-          entryPrice: '₹145.00',
-          exitPrice: '₹190.60',
-          quantity: '400 Qty',
-          notes:
-              'Afternoon session breakout continuation. Protected capital by trailing stop loss to entry after 1R.',
-          tags: const <String>['Options', 'Index', 'Trend'],
-          onOpenRef: onOpenRef,
-        ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
-
-        // Trade Entry 3
-        _JournalTradeCard(
-          ticker: 'TCS',
-          tradeId: 'trd_tcs_2',
-          side: 'SHORT',
-          date: 'Aug 19, 2026 · 11:20 AM',
-          setup: 'Key Level Breakdown',
-          duration: '18 mins',
-          pnl: '-₹7,400',
-          rMultiple: '-1.0R',
-          isWin: false,
-          entryPrice: '₹3,920.00',
-          exitPrice: '₹3,935.00',
-          quantity: '200 Qty',
-          notes:
-              'Failed breakdown attempt as IT sector reversed. Stopped out cleanly without adding or widening stop.',
-          tags: const <String>['Discipline', 'StopLoss'],
-          onOpenRef: onOpenRef,
-        ),
-      ],
+              return Padding(
+                padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+                child: _JournalTradeCard(
+                  ticker: trade.ticker,
+                  tradeId: trade.id,
+                  trade: trade,
+                  side: trade.side.name.toUpperCase(),
+                  date:
+                      '${trade.openedAt.day}/${trade.openedAt.month}/${trade.openedAt.year}',
+                  setup: trade.strategy ?? 'Discretionary',
+                  duration: durationStr,
+                  pnl:
+                      '${trade.pnl >= 0 ? '+' : ''}₹${trade.pnl.toStringAsFixed(0)}',
+                  rMultiple: trade.rMultiple != null
+                      ? '${trade.rMultiple! >= 0 ? '+' : ''}${trade.rMultiple!.toStringAsFixed(1)}R'
+                      : '--',
+                  isWin: isWin,
+                  entryPrice: '₹${trade.entry.toStringAsFixed(2)}',
+                  exitPrice: trade.exit != null
+                      ? '₹${trade.exit!.toStringAsFixed(2)}'
+                      : '--',
+                  quantity: '${trade.size.toInt()} Qty',
+                  notes: trade.notes?.isNotEmpty == true
+                      ? trade.notes!
+                      : (trade.title.isNotEmpty
+                          ? trade.title
+                          : 'No execution notes recorded.'),
+                  tags: trade.tags,
+                  onOpenRef: onOpenRef,
+                ),
+              );
+            }),
+          ],
+        );
+      },
     );
   }
 }
@@ -2434,6 +2335,7 @@ class _JournalTradeCard extends StatelessWidget {
     required this.notes,
     required this.tags,
     this.tradeId,
+    this.trade,
     this.onOpenRef,
   });
 
@@ -2451,26 +2353,11 @@ class _JournalTradeCard extends StatelessWidget {
   final String notes;
   final List<String> tags;
   final String? tradeId;
+  final AppTrade? trade;
   final ValueChanged<AppLinkRef>? onOpenRef;
 
-  static String _resolveTradeId(String ticker) {
-    try {
-      final trades = DemoDataSource.instance.trades();
-      final clean = ticker.split(' ').first.toUpperCase();
-      final match = trades
-          .where((AppTrade t) =>
-              t.ticker.toUpperCase() == ticker.toUpperCase() ||
-              t.ticker.toUpperCase() == clean ||
-              ticker.toUpperCase().contains(t.ticker.toUpperCase()))
-          .firstOrNull;
-      return match?.id ?? (trades.isNotEmpty ? trades.first.id : 'trd_reliance_0');
-    } catch (_) {
-      return 'trd_reliance_0';
-    }
-  }
-
   void _openActualTrade(BuildContext context) {
-    final id = tradeId ?? _resolveTradeId(ticker);
+    final id = trade?.id ?? tradeId ?? ticker;
     if (onOpenRef != null) {
       if (ModalRoute.of(context)?.isCurrent == true &&
           Navigator.of(context).canPop()) {
@@ -2478,41 +2365,39 @@ class _JournalTradeCard extends StatelessWidget {
       }
       onOpenRef!(AppLinkRef(kind: AppLinkKind.journal, id: id, title: ticker));
     } else {
-      final trades = DemoDataSource.instance.trades();
-      final trade = trades.firstWhere(
-        (t) => t.id == id,
-        orElse: () => AppTrade(
-          id: id,
-          ticker: ticker,
-          side: side.toUpperCase() == 'LONG'
-              ? AppSide.long
-              : AppSide.short,
-          entry:
-              double.tryParse(entryPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ??
-                  0.0,
-          exit:
-              double.tryParse(exitPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ??
-                  0.0,
-          size:
-              double.tryParse(quantity.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 100.0,
-          pnl:
-              double.tryParse(pnl.replaceAll(RegExp(r'[^0-9.-]'), '')) ?? 0.0,
-          pnlPercent: 0.0,
-          rMultiple:
-              double.tryParse(rMultiple.replaceAll(RegExp(r'[^0-9.-]'), '')) ??
-                  0.0,
-          outcome: isWin ? AppOutcome.win : AppOutcome.loss,
-          openedAt: DateTime.now(),
-          notes: notes,
-          tags: tags,
-          isPublic: true,
-        ),
-      );
+      final actualTrade = trade ??
+          AppTrade(
+            id: id,
+            ticker: ticker,
+            side: side.toUpperCase() == 'LONG'
+                ? AppSide.long
+                : AppSide.short,
+            entry:
+                double.tryParse(entryPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+                    0.0,
+            exit:
+                double.tryParse(exitPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+                    0.0,
+            size:
+                double.tryParse(quantity.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+                    100.0,
+            pnl:
+                double.tryParse(pnl.replaceAll(RegExp(r'[^0-9.-]'), '')) ?? 0.0,
+            pnlPercent: 0.0,
+            rMultiple:
+                double.tryParse(rMultiple.replaceAll(RegExp(r'[^0-9.-]'), '')) ??
+                    0.0,
+            outcome: isWin ? AppOutcome.win : AppOutcome.loss,
+            openedAt: DateTime.now(),
+            notes: notes,
+            tags: tags,
+            isPublic: true,
+          );
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (ctx) => Scaffold(
             body: JournalEntryScreen(
-              entry: trade,
+              entry: actualTrade,
               onClose: () => Navigator.of(ctx).pop(),
               onEdit: () {},
             ),
@@ -2626,59 +2511,79 @@ class _JournalTradeCard extends StatelessWidget {
 
 class _NotesPlaybooksPreview extends StatelessWidget {
   const _NotesPlaybooksPreview({
+    this.authorId,
+    this.handle,
     this.onOpenRef,
   });
 
+  final String? authorId;
+  final String? handle;
   final ValueChanged<AppLinkRef>? onOpenRef;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        // Note 1
-        _NotePlaybookCard(
-          title: 'Opening range playbook',
-          noteId: 'note_001',
-          subtitle: 'Updated 2 days ago · 8 linked trades · 4 min read',
-          icon: Icons.menu_book_rounded,
-          summary:
-              'Conditions, invalidation rules, and review questions for high-volume opening range setups. Trigger rules strictly require index confirmation and 1.5x volume expansion.',
-          tags: const <String>['Playbook', 'Strategy', 'ORB'],
-          isPublic: true,
-          onOpenRef: onOpenRef,
-        ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
+    return StreamBuilder<List<AppNote>>(
+      stream: NotesRepositoryScope.repository.watchPublic(),
+      builder: (BuildContext context, AsyncSnapshot<List<AppNote>> snapshot) {
+        final List<AppNote> allNotes = snapshot.data ?? <AppNote>[];
+        final List<AppNote> authorNotes =
+            (authorId != null && authorId!.isNotEmpty)
+                ? allNotes.where((n) => n.userId == authorId).toList()
+                : allNotes;
+        final List<AppNote> notes =
+            authorNotes.isNotEmpty ? authorNotes : allNotes;
 
-        // Note 2
-        _NotePlaybookCard(
-          title: 'Risk reset checklist',
-          noteId: 'note_005',
-          subtitle: 'Updated last week · Public note · 2 min read',
-          icon: Icons.shield_outlined,
-          summary:
-              'A five-minute reset used after two consecutive losses or a process violation. Mandatory step-away protocol before executing another order.',
-          tags: const <String>['Psychology', 'Risk Rules', 'Discipline'],
-          isPublic: true,
-          onOpenRef: onOpenRef,
-        ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
+        if (notes.isEmpty) {
+          return Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.xl),
+              horizontal: context.sp(theme.spacing.md),
+            ),
+            child: UiEmptyState(
+              icon: Icons.note_alt_outlined,
+              title: 'No public notes',
+              message: handle != null && handle!.isNotEmpty
+                  ? '@$handle has not published any public research notes or playbooks.'
+                  : 'No public notes or playbooks shared yet.',
+            ),
+          );
+        }
 
-        // Note 3
-        _NotePlaybookCard(
-          title: 'Pre-Market Preparation Checklist',
-          noteId: 'note_004',
-          subtitle: 'Updated Aug 20, 2026 · Daily Routine',
-          icon: Icons.checklist_rtl_rounded,
-          summary:
-              '1. Review SGX/Gift Nifty & US markets. 2. Mark major support/resistance on top 5 index heavyweight stocks. 3. Check open interest concentration and sector heatmap.',
-          tags: const <String>['Routine', 'PreMarket', 'Checklist'],
-          isPublic: true,
-          onOpenRef: onOpenRef,
-        ),
-      ],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: notes.map((AppNote note) {
+            final diff = DateTime.now().difference(note.updatedAt);
+            final timeStr = diff.inMinutes < 60
+                ? '${diff.inMinutes}m ago'
+                : (diff.inHours < 24
+                    ? '${diff.inHours}h ago'
+                    : (diff.inDays == 1 ? 'Yesterday' : '${diff.inDays}d ago'));
+
+            final cleanSummary = note.content
+                .split('\n')
+                .where((line) => line.trim().isNotEmpty && !line.startsWith('#'))
+                .firstOrNull ??
+                'No description provided.';
+
+            return Padding(
+              padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+              child: _NotePlaybookCard(
+                title: note.title,
+                noteId: note.id,
+                note: note,
+                subtitle: 'Updated $timeStr · ${note.wordCount} words',
+                icon: note.noteType.icon,
+                summary: cleanSummary,
+                tags: note.tags,
+                isPublic: note.isPublic,
+                onOpenRef: onOpenRef,
+              ),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 }
@@ -2692,6 +2597,7 @@ class _NotePlaybookCard extends StatelessWidget {
     required this.tags,
     required this.isPublic,
     this.noteId,
+    this.note,
     this.onOpenRef,
   });
 
@@ -2702,34 +2608,11 @@ class _NotePlaybookCard extends StatelessWidget {
   final List<String> tags;
   final bool isPublic;
   final String? noteId;
+  final AppNote? note;
   final ValueChanged<AppLinkRef>? onOpenRef;
 
-  static String _resolveNoteId(String title) {
-    try {
-      final notes = DemoDataSource.instance.notes();
-      final lower = title.toLowerCase();
-      for (final note in notes) {
-        if (note.title.toLowerCase().contains(lower) ||
-            lower.contains(note.title.toLowerCase())) {
-          return note.id;
-        }
-      }
-      final words = lower.split(RegExp(r'\s+')).where((String w) => w.length > 3);
-      for (final note in notes) {
-        for (final word in words) {
-          if (note.title.toLowerCase().contains(word)) {
-            return note.id;
-          }
-        }
-      }
-      return notes.isNotEmpty ? notes.first.id : 'note_001';
-    } catch (_) {
-      return 'note_001';
-    }
-  }
-
   void _openActualNote(BuildContext context) {
-    final id = noteId ?? _resolveNoteId(title);
+    final id = note?.id ?? noteId ?? title;
     if (onOpenRef != null) {
       if (ModalRoute.of(context)?.isCurrent == true &&
           Navigator.of(context).canPop()) {
@@ -2737,24 +2620,21 @@ class _NotePlaybookCard extends StatelessWidget {
       }
       onOpenRef!(AppLinkRef(kind: AppLinkKind.note, id: id, title: title));
     } else {
-      final notes = DemoDataSource.instance.notes();
-      final note = notes.firstWhere(
-        (n) => n.id == id,
-        orElse: () => AppNote(
-          id: id,
-          title: title,
-          content: summary,
-          tags: tags,
-          isPublic: isPublic,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-      );
+      final actualNote = note ??
+          AppNote(
+            id: id,
+            title: title,
+            content: summary,
+            tags: tags,
+            isPublic: isPublic,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (ctx) => Scaffold(
             body: NotePreviewScreen(
-              note: note,
+              note: actualNote,
               onClose: () => Navigator.of(ctx).pop(),
               onEdit: () {},
             ),

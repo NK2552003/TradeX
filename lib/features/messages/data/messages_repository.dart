@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 import 'package:tradex/features/linking/link_graph_service.dart';
 import 'package:tradex/features/messages/data/messages_seed_data.dart';
@@ -11,14 +14,16 @@ import 'package:tradex/features/messages/models/messages_models.dart';
 /// Reactive store for the Messages feature.
 ///
 /// A plain [ChangeNotifier] — views `addListener`/`removeListener` and rebuild.
-/// State is seeded once from [MessagesSeed]; every mutation is local and
-/// optimistic, with a simulated peer reply so the thread feels alive. Each
-/// mutation documents the backend call it stands in for.
+/// State is initialized with seed fallback when offline, or live Supabase tables
+/// and Realtime channels when connected.
 class MessagesRepository extends ChangeNotifier {
   MessagesRepository() {
     _threads = MessagesSeed.threads();
     _requests = MessagesSeed.requests();
     _messages = MessagesSeed.messagesByThread();
+    if (SupabaseConfig.isConfigured) {
+      unawaited(_initSupabase());
+    }
   }
 
   /// Global singleton instance so messages can be opened or sent from any feature.
@@ -30,6 +35,363 @@ class MessagesRepository extends ChangeNotifier {
   final Set<String> _typing = <String>{};
   final List<Timer> _pending = <Timer>[];
   final Map<String, String> _pinnedMessages = <String, String>{};
+  RealtimeChannel? _realtimeChannel;
+
+  static const String _fallbackUserId = '00000000-0000-0000-0000-000000000001';
+
+  static bool _isUuid(String id) {
+    final uuidRegex = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+    return uuidRegex.hasMatch(id);
+  }
+
+  String _resolveUserId() {
+    if (SupabaseConfig.isConfigured) {
+      final uid = SupabaseConfig.client?.auth.currentUser?.id;
+      if (uid != null && uid.isNotEmpty) return uid;
+    }
+    return _fallbackUserId;
+  }
+
+  Future<void> _initSupabase() async {
+    await fetchFromSupabase();
+    _subscribeRealtime();
+  }
+
+  Future<void> fetchFromSupabase() async {
+    if (!SupabaseConfig.isConfigured) return;
+    final client = SupabaseConfig.client;
+    if (client == null) return;
+    final currentUserId = _resolveUserId();
+
+    try {
+      final threadRows = await client
+          .from('chat_threads')
+          .select('''
+            id,
+            type,
+            title,
+            created_by,
+            is_pinned,
+            is_archived,
+            is_request,
+            last_message_preview,
+            last_message_at,
+            created_at,
+            chat_participants(
+              user_id,
+              role,
+              last_read_at,
+              profiles(id, handle, display_name, avatar_url)
+            )
+          ''')
+          .order('last_message_at', ascending: false);
+
+      final List<MessageThread> loadedThreads = [];
+      final List<MessageThread> loadedRequests = [];
+      final Map<String, List<ChatMessage>> loadedMessages = {};
+
+      for (final trow in threadRows as List<dynamic>) {
+        final tmap = trow as Map<String, dynamic>;
+        final threadId = tmap['id'] as String;
+        final isGroup = tmap['type'] == 'group' || tmap['type'] == 'desk';
+        final isRequest = tmap['is_request'] as bool? ?? false;
+        final isPinned = tmap['is_pinned'] as bool? ?? false;
+        final isArchived = tmap['is_archived'] as bool? ?? false;
+        final lastPreview = tmap['last_message_preview'] as String? ?? '';
+        final lastAt = DateTime.tryParse(tmap['last_message_at']?.toString() ?? '') ?? DateTime.now();
+
+        final participantsData = tmap['chat_participants'] as List<dynamic>? ?? [];
+        final List<AppTrader> traders = [];
+        AppTrader? peer;
+
+        for (final p in participantsData) {
+          final pmap = p as Map<String, dynamic>;
+          final prof = pmap['profiles'] as Map<String, dynamic>? ?? {};
+          final pId = prof['id']?.toString() ?? pmap['user_id']?.toString() ?? '';
+          final trader = AppTrader(
+            id: pId,
+            handle: prof['handle'] as String? ?? 'trader',
+            displayName: prof['display_name'] as String? ?? prof['handle'] as String? ?? 'Trader',
+            avatarUrl: prof['avatar_url'] as String?,
+          );
+          traders.add(trader);
+          if (pId != currentUserId && peer == null) {
+            peer = trader;
+          }
+        }
+
+        peer ??= traders.firstOrNull ?? AppTrader(
+          id: 'peer',
+          handle: 'trader',
+          displayName: tmap['title'] as String? ?? 'Trader',
+        );
+
+        final thread = MessageThread(
+          id: threadId,
+          peer: peer,
+          participants: traders,
+          isGroup: isGroup,
+          groupTitle: isGroup ? (tmap['title'] as String?) : null,
+          lastMessagePreview: lastPreview,
+          lastMessageAt: lastAt,
+          unread: 0,
+          pinned: isPinned,
+          archived: isArchived,
+          isRequest: isRequest,
+        );
+
+        if (isRequest) {
+          loadedRequests.add(thread);
+        } else {
+          loadedThreads.add(thread);
+        }
+
+        // Fetch messages for this thread
+        final msgRows = await client
+            .from('chat_messages')
+            .select('''
+              id,
+              thread_id,
+              sender_id,
+              body,
+              reply_to_id,
+              system_notice,
+              status,
+              created_at,
+              chat_attachments(id, kind, url, title, file_size_bytes, duration_seconds),
+              chat_reactions(id, user_id, emoji),
+              chat_shared_refs(id, ref_id, kind, title, subtitle, ticker, tags)
+            ''')
+            .eq('thread_id', threadId)
+            .order('created_at', ascending: true);
+
+        final threadMsgs = <ChatMessage>[];
+        for (final mrow in msgRows as List<dynamic>) {
+          final mmap = mrow as Map<String, dynamic>;
+          final msgId = mmap['id'] as String;
+          final senderId = mmap['sender_id'] as String? ?? '';
+          final fromMe = senderId == currentUserId;
+          final body = mmap['body'] as String? ?? '';
+          final sentAt = DateTime.tryParse(mmap['created_at']?.toString() ?? '') ?? DateTime.now();
+          final statusStr = mmap['status'] as String? ?? 'sent';
+          final status = MessageStatus.values.firstWhere(
+            (s) => s.name == statusStr,
+            orElse: () => MessageStatus.sent,
+          );
+          final systemNotice = mmap['system_notice'] as bool? ?? false;
+          final replyToId = mmap['reply_to_id'] as String?;
+
+          // Attachments
+          MessageAttachment? attachment;
+          final attList = mmap['chat_attachments'] as List<dynamic>?;
+          if (attList != null && attList.isNotEmpty) {
+            final attMap = attList.first as Map<String, dynamic>;
+            final kindStr = attMap['kind'] as String? ?? 'image';
+            final attKind = MessageAttachmentKind.values.firstWhere(
+              (k) => k.name == kindStr,
+              orElse: () => MessageAttachmentKind.image,
+            );
+            attachment = MessageAttachment(
+              id: attMap['id'] as String,
+              kind: attKind,
+              title: attMap['title'] as String? ?? '',
+              url: attMap['url'] as String?,
+            );
+          }
+
+          // Shared refs
+          AppLinkRef? sharedRef;
+          final refList = mmap['chat_shared_refs'] as List<dynamic>?;
+          if (refList != null && refList.isNotEmpty) {
+            final refMap = refList.first as Map<String, dynamic>;
+            final kindStr = refMap['kind'] as String? ?? 'note';
+            final refKind = AppLinkKind.values.firstWhere(
+              (k) => k.name == kindStr,
+              orElse: () => AppLinkKind.note,
+            );
+            sharedRef = AppLinkRef(
+              id: refMap['ref_id'] as String? ?? '',
+              kind: refKind,
+              title: refMap['title'] as String? ?? '',
+              subtitle: refMap['subtitle'] as String?,
+            );
+          }
+
+          // Reactions
+          final Map<String, int> reactions = {};
+          final Set<String> myReactions = {};
+          final reactList = mmap['chat_reactions'] as List<dynamic>?;
+          if (reactList != null) {
+            for (final r in reactList) {
+              final rmap = r as Map<String, dynamic>;
+              final emoji = rmap['emoji'] as String? ?? '';
+              final rUserId = rmap['user_id'] as String? ?? '';
+              if (emoji.isNotEmpty) {
+                reactions[emoji] = (reactions[emoji] ?? 0) + 1;
+                if (rUserId == currentUserId) {
+                  myReactions.add(emoji);
+                }
+              }
+            }
+          }
+
+          threadMsgs.add(
+            ChatMessage(
+              id: msgId,
+              threadId: threadId,
+              body: body,
+              fromMe: fromMe,
+              sentAt: sentAt,
+              status: status,
+              attachment: attachment,
+              sharedRef: sharedRef,
+              reactions: reactions,
+              myReactions: myReactions,
+              replyToId: replyToId,
+              systemNotice: systemNotice,
+            ),
+          );
+        }
+
+        loadedMessages[threadId] = threadMsgs;
+      }
+
+      if (loadedThreads.isNotEmpty || loadedRequests.isNotEmpty) {
+        _threads = loadedThreads;
+        _requests = loadedRequests;
+        _messages = loadedMessages;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[MessagesRepository] fetchFromSupabase error: $e');
+    }
+  }
+
+  void _subscribeRealtime() {
+    if (!SupabaseConfig.isConfigured) return;
+    final client = SupabaseConfig.client;
+    if (client == null) return;
+
+    try {
+      _realtimeChannel = client.channel('public:messages_channel')
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'chat_messages',
+          callback: (payload) => _handleRealtimeMessageChange(payload),
+        )
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'chat_threads',
+          callback: (payload) => _handleRealtimeThreadChange(payload),
+        )
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'chat_reactions',
+          callback: (payload) => _handleRealtimeReactionChange(payload),
+        )
+        ..subscribe();
+    } catch (e) {
+      debugPrint('[MessagesRepository] subscribeRealtime error: $e');
+    }
+  }
+
+  void _handleRealtimeMessageChange(PostgresChangePayload payload) {
+    try {
+      final currentUserId = _resolveUserId();
+      if (payload.eventType == PostgresChangeEvent.insert) {
+        final row = payload.newRecord;
+        final threadId = row['thread_id']?.toString();
+        if (threadId == null) return;
+        final senderId = row['sender_id']?.toString() ?? '';
+        final fromMe = senderId == currentUserId;
+        final msgId = row['id']?.toString() ?? const Uuid().v4();
+
+        // Check if message is already in list (e.g. optimistic insert)
+        final existingList = _messages[threadId] ?? <ChatMessage>[];
+        if (existingList.any((m) => m.id == msgId)) return;
+
+        final newMsg = ChatMessage(
+          id: msgId,
+          threadId: threadId,
+          body: row['body']?.toString() ?? '',
+          fromMe: fromMe,
+          sentAt: DateTime.tryParse(row['created_at']?.toString() ?? '') ?? DateTime.now(),
+          status: MessageStatus.sent,
+          systemNotice: row['system_notice'] as bool? ?? false,
+          replyToId: row['reply_to_id']?.toString(),
+        );
+
+        _messages.putIfAbsent(threadId, () => <ChatMessage>[]).add(newMsg);
+        _touchThread(
+          threadId,
+          preview: _previewFor(newMsg),
+          fromMe: fromMe,
+          status: MessageStatus.sent,
+        );
+        notifyListeners();
+      } else if (payload.eventType == PostgresChangeEvent.update) {
+        final row = payload.newRecord;
+        final threadId = row['thread_id']?.toString();
+        final msgId = row['id']?.toString();
+        if (threadId == null || msgId == null) return;
+        final list = _messages[threadId];
+        if (list == null) return;
+        final idx = list.indexWhere((m) => m.id == msgId);
+        if (idx != -1) {
+          final m = list[idx];
+          list[idx] = m.copyWith(
+            body: row['body']?.toString() ?? m.body,
+            edited: true,
+          );
+          notifyListeners();
+        }
+      } else if (payload.eventType == PostgresChangeEvent.delete) {
+        final oldRow = payload.oldRecord;
+        final msgId = oldRow['id']?.toString();
+        if (msgId == null) return;
+        for (final entry in _messages.entries) {
+          final beforeLen = entry.value.length;
+          entry.value.removeWhere((m) => m.id == msgId);
+          if (entry.value.length != beforeLen) {
+            notifyListeners();
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[MessagesRepository] realtime message error: $e');
+    }
+  }
+
+  void _handleRealtimeThreadChange(PostgresChangePayload payload) {
+    try {
+      if (payload.eventType == PostgresChangeEvent.update) {
+        final row = payload.newRecord;
+        final threadId = row['id']?.toString();
+        if (threadId == null) return;
+        final idx = _threads.indexWhere((t) => t.id == threadId);
+        if (idx != -1) {
+          _threads[idx] = _threads[idx].copyWith(
+            pinned: row['is_pinned'] as bool? ?? _threads[idx].pinned,
+            archived: row['is_archived'] as bool? ?? _threads[idx].archived,
+            isRequest: row['is_request'] as bool? ?? _threads[idx].isRequest,
+          );
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('[MessagesRepository] realtime thread error: $e');
+    }
+  }
+
+  void _handleRealtimeReactionChange(PostgresChangePayload payload) {
+    unawaited(fetchFromSupabase());
+  }
 
   final Random _rng = Random(7);
 
@@ -163,8 +525,11 @@ class MessagesRepository extends ChangeNotifier {
     String? replyToId,
   }) {
     if (body.trim().isEmpty && attachment == null && sharedRef == null) return;
+    final msgId = SupabaseConfig.isConfigured
+        ? const Uuid().v4()
+        : 'msg_${DateTime.now().microsecondsSinceEpoch}';
     final ChatMessage message = ChatMessage(
-      id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
+      id: msgId,
       threadId: threadId,
       body: body.trim(),
       fromMe: true,
@@ -184,17 +549,56 @@ class MessagesRepository extends ChangeNotifier {
     );
     notifyListeners();
 
-    // Simulated transport: sending → sent → delivered, then a peer reply.
-    _after(const Duration(milliseconds: 350), () {
-      _setStatus(threadId, message.id, MessageStatus.sent);
-    });
-    _after(const Duration(milliseconds: 900), () {
-      _setStatus(threadId, message.id, MessageStatus.delivered);
-    });
+    if (SupabaseConfig.isConfigured) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          final currentUserId = _resolveUserId();
+          await client.from('chat_messages').insert({
+            'id': message.id,
+            'thread_id': _isUuid(threadId) ? threadId : null,
+            'sender_id': currentUserId,
+            'body': message.body,
+            'reply_to_id': message.replyToId != null && _isUuid(message.replyToId!) ? message.replyToId : null,
+            'system_notice': false,
+            'status': 'sent',
+            'created_at': message.sentAt.toIso8601String(),
+          });
+          if (attachment != null) {
+            await client.from('chat_attachments').insert({
+              'message_id': message.id,
+              'kind': attachment.kind.name,
+              'url': attachment.url ?? '',
+              'title': attachment.title,
+            });
+          }
+          if (sharedRef != null) {
+            await client.from('chat_shared_refs').insert({
+              'message_id': message.id,
+              'ref_id': sharedRef.id,
+              'kind': sharedRef.kind.name,
+              'title': sharedRef.title,
+              'subtitle': sharedRef.subtitle,
+            });
+          }
+          _setStatus(threadId, message.id, MessageStatus.sent);
+        } catch (e) {
+          debugPrint('[MessagesRepository] sendMessage Supabase error: $e');
+        }
+      }());
+    } else {
+      // Simulated transport: sending → sent → delivered, then a peer reply.
+      _after(const Duration(milliseconds: 350), () {
+        _setStatus(threadId, message.id, MessageStatus.sent);
+      });
+      _after(const Duration(milliseconds: 900), () {
+        _setStatus(threadId, message.id, MessageStatus.delivered);
+      });
 
-    final MessageThread? thread = threadById(threadId);
-    if (thread != null && !thread.isGroup && !thread.isRequest) {
-      _simulatePeerReply(threadId);
+      final MessageThread? thread = threadById(threadId);
+      if (thread != null && !thread.isGroup && !thread.isRequest) {
+        _simulatePeerReply(threadId);
+      }
     }
 
     final Set<String> linkedTickers = <String>{
@@ -243,7 +647,8 @@ class MessagesRepository extends ChangeNotifier {
     final ChatMessage m = list[i];
     final Map<String, int> counts = Map<String, int>.of(m.reactions);
     final Set<String> mine = Set<String>.of(m.myReactions);
-    if (mine.contains(emoji)) {
+    final wasMine = mine.contains(emoji);
+    if (wasMine) {
       mine.remove(emoji);
       final int next = (counts[emoji] ?? 1) - 1;
       if (next <= 0) {
@@ -257,6 +662,31 @@ class MessagesRepository extends ChangeNotifier {
     }
     list[i] = m.copyWith(reactions: counts, myReactions: mine);
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(messageId)) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          final currentUserId = _resolveUserId();
+          if (!wasMine) {
+            await client.from('chat_reactions').insert({
+              'message_id': messageId,
+              'user_id': currentUserId,
+              'emoji': emoji,
+            });
+          } else {
+            await client
+                .from('chat_reactions')
+                .delete()
+                .eq('message_id', messageId)
+                .eq('user_id', currentUserId)
+                .eq('emoji', emoji);
+          }
+        } catch (e) {
+          debugPrint('[MessagesRepository] toggleReaction Supabase error: $e');
+        }
+      }());
+    }
   }
 
   /// Edits the body of an existing message.
@@ -281,6 +711,20 @@ class MessagesRepository extends ChangeNotifier {
       );
     }
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(messageId)) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          await client.from('chat_messages').update({
+            'body': clean,
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('id', messageId);
+        } catch (e) {
+          debugPrint('[MessagesRepository] editMessage Supabase error: $e');
+        }
+      }());
+    }
 
     final Set<String> linkedTickers = <String>{
       if (m.sharedRef != null && m.sharedRef!.kind == AppLinkKind.ticker)
@@ -324,6 +768,17 @@ class MessagesRepository extends ChangeNotifier {
     }
     notifyListeners();
 
+    if (SupabaseConfig.isConfigured && _isUuid(messageId)) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          await client.from('chat_messages').delete().eq('id', messageId);
+        } catch (e) {
+          debugPrint('[MessagesRepository] deleteMessage Supabase error: $e');
+        }
+      }());
+    }
+
     unawaited(
       EntityTickerLinksRepository.instance.removeLinks(
         entityType: 'message',
@@ -346,7 +801,9 @@ class MessagesRepository extends ChangeNotifier {
       }
       return _threads[existing].id;
     }
-    final String id = 'thread_new_${DateTime.now().millisecondsSinceEpoch}';
+    final String id = SupabaseConfig.isConfigured
+        ? const Uuid().v4()
+        : 'thread_new_${DateTime.now().millisecondsSinceEpoch}';
     _threads.insert(
       0,
       MessageThread(
@@ -359,6 +816,30 @@ class MessagesRepository extends ChangeNotifier {
     );
     _messages[id] = <ChatMessage>[];
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          final currentUserId = _resolveUserId();
+          await client.from('chat_threads').insert({
+            'id': id,
+            'type': 'direct',
+            'title': peer.displayName ?? peer.handle,
+            'created_by': currentUserId,
+            'last_message_preview': 'Conversation started',
+          });
+          await client.from('chat_participants').insert([
+            {'thread_id': id, 'user_id': currentUserId, 'role': 'admin'},
+            if (_isUuid(peer.id))
+              {'thread_id': id, 'user_id': peer.id, 'role': 'member'},
+          ]);
+        } catch (e) {
+          debugPrint('[MessagesRepository] startConversation Supabase error: $e');
+        }
+      }());
+    }
+
     return id;
   }
 
@@ -369,7 +850,9 @@ class MessagesRepository extends ChangeNotifier {
     required String title,
     required List<AppTrader> participants,
   }) {
-    final String id = 'thread_grp_${DateTime.now().millisecondsSinceEpoch}';
+    final String id = SupabaseConfig.isConfigured
+        ? const Uuid().v4()
+        : 'thread_grp_${DateTime.now().millisecondsSinceEpoch}';
     final AppTrader dummyPeer = participants.isNotEmpty
         ? participants.first
         : const AppTrader(id: 'group', handle: 'group', displayName: 'Group');
@@ -394,24 +877,78 @@ class MessagesRepository extends ChangeNotifier {
       ),
     ];
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          final currentUserId = _resolveUserId();
+          await client.from('chat_threads').insert({
+            'id': id,
+            'type': 'group',
+            'title': title,
+            'created_by': currentUserId,
+            'last_message_preview': 'Group created with ${participants.length} traders',
+          });
+          final participantRows = [
+            {'thread_id': id, 'user_id': currentUserId, 'role': 'admin'},
+            for (final p in participants)
+              if (_isUuid(p.id))
+                {'thread_id': id, 'user_id': p.id, 'role': 'member'},
+          ];
+          await client.from('chat_participants').insert(participantRows);
+        } catch (e) {
+          debugPrint('[MessagesRepository] startGroupConversation Supabase error: $e');
+        }
+      }());
+    }
+
     return id;
   }
 
   /// @backend PATCH /threads/{id} { pinned }.
-  void togglePin(String threadId) => _mutateThread(
-    threadId,
-    (MessageThread t) => t.copyWith(pinned: !t.pinned),
-  );
+  void togglePin(String threadId) {
+    _mutateThread(
+      threadId,
+      (MessageThread t) => t.copyWith(pinned: !t.pinned),
+    );
+    if (SupabaseConfig.isConfigured && _isUuid(threadId)) {
+      final t = threadById(threadId);
+      if (t != null) {
+        unawaited(SupabaseConfig.client!
+            .from('chat_threads')
+            .update({'is_pinned': t.pinned})
+            .eq('id', threadId)
+            .catchError((e) {
+          debugPrint('[MessagesRepository] togglePin error: $e');
+        }));
+      }
+    }
+  }
 
   /// @backend PATCH /threads/{id} { muted }.
   void toggleMute(String threadId) =>
       _mutateThread(threadId, (MessageThread t) => t.copyWith(muted: !t.muted));
 
   /// @backend PATCH /threads/{id} { archived }.
-  void toggleArchive(String threadId) => _mutateThread(
-    threadId,
-    (MessageThread t) => t.copyWith(archived: !t.archived),
-  );
+  void toggleArchive(String threadId) {
+    _mutateThread(
+      threadId,
+      (MessageThread t) => t.copyWith(archived: !t.archived),
+    );
+    if (SupabaseConfig.isConfigured && _isUuid(threadId)) {
+      final t = threadById(threadId);
+      if (t != null) {
+        unawaited(SupabaseConfig.client!
+            .from('chat_threads')
+            .update({'is_archived': t.archived})
+            .eq('id', threadId)
+            .catchError((e) {
+          debugPrint('[MessagesRepository] toggleArchive error: $e');
+        }));
+      }
+    }
+  }
 
   /// Accepts a message request, promoting it into the main inbox.
   ///
@@ -437,6 +974,17 @@ class MessagesRepository extends ChangeNotifier {
           ),
         );
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(requestId)) {
+      unawaited(SupabaseConfig.client!
+          .from('chat_threads')
+          .update({'is_request': false})
+          .eq('id', requestId)
+          .catchError((e) {
+        debugPrint('[MessagesRepository] acceptRequest error: $e');
+      }));
+    }
+
     return promoted.id;
   }
 
@@ -444,6 +992,16 @@ class MessagesRepository extends ChangeNotifier {
   void declineRequest(String requestId) {
     _requests.removeWhere((MessageThread t) => t.id == requestId);
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(requestId)) {
+      unawaited(SupabaseConfig.client!
+          .from('chat_threads')
+          .delete()
+          .eq('id', requestId)
+          .catchError((e) {
+        debugPrint('[MessagesRepository] declineRequest error: $e');
+      }));
+    }
   }
 
   /// @backend DELETE /requests.
@@ -460,6 +1018,16 @@ class MessagesRepository extends ChangeNotifier {
     _requests.removeWhere((MessageThread t) => t.id == threadId);
     _messages.remove(threadId);
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(threadId)) {
+      unawaited(SupabaseConfig.client!
+          .from('chat_threads')
+          .delete()
+          .eq('id', threadId)
+          .catchError((e) {
+        debugPrint('[MessagesRepository] deleteThread error: $e');
+      }));
+    }
   }
 
   /// Clears all messages in a conversation without removing the thread.
@@ -475,6 +1043,16 @@ class MessagesRepository extends ChangeNotifier {
       clearDraft: true,
     );
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(threadId)) {
+      unawaited(SupabaseConfig.client!
+          .from('chat_messages')
+          .delete()
+          .eq('thread_id', threadId)
+          .catchError((e) {
+        debugPrint('[MessagesRepository] clearThreadMessages error: $e');
+      }));
+    }
   }
 
   /// Renames a group conversation.
@@ -722,6 +1300,11 @@ class MessagesRepository extends ChangeNotifier {
       t.cancel();
     }
     _pending.clear();
+    if (_realtimeChannel != null && SupabaseConfig.isConfigured) {
+      try {
+        SupabaseConfig.client?.removeChannel(_realtimeChannel!);
+      } catch (_) {}
+    }
     super.dispose();
   }
 }

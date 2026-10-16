@@ -1,23 +1,326 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
+import 'package:uuid/uuid.dart';
 
-/// In-memory reactive repository backing the community platform.
-///
-/// All mutations produce new list references so listeners rebuild correctly
-/// via [ChangeNotifier]. Replace with your real API service by preserving the
-/// same public interface.
+/// Reactive repository backing the community platform with live Supabase sync
+/// and offline resilience.
 class CommunityRepository extends ChangeNotifier {
   CommunityRepository() {
     _initSeedData();
+    if (SupabaseConfig.isConfigured) {
+      unawaited(init());
+    }
+  }
+
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+  static final RegExp _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
+  bool _initialized = false;
+  bool _subscribedToRealtime = false;
+  RealtimeChannel? _realtimeChannel;
+
+  RealtimeChannel? get realtimeChannel => _realtimeChannel;
+
+  String _resolveUserId() {
+    if (SupabaseConfig.isConfigured) {
+      final user = SupabaseConfig.client?.auth.currentUser;
+      if (user != null && user.id.isNotEmpty) {
+        return user.id;
+      }
+    }
+    return _demoUserId;
+  }
+
+  bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
+
+  Future<void> init() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    if (SupabaseConfig.isConfigured) {
+      _initRealtime();
+      await fetchFromSupabase();
+    }
+  }
+
+  void _initRealtime() {
+    if (_subscribedToRealtime || !SupabaseConfig.isConfigured) return;
+    _subscribedToRealtime = true;
+
+    try {
+      final client = SupabaseConfig.client!;
+      _realtimeChannel = client
+          .channel('public:community_posts_channel')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'community_posts',
+            callback: (PostgresChangePayload payload) {
+              fetchFromSupabase();
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'community_comments',
+            callback: (PostgresChangePayload payload) {
+              fetchFromSupabase();
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'community_post_attachments',
+            callback: (PostgresChangePayload payload) {
+              fetchFromSupabase();
+            },
+          )
+        ..subscribe();
+    } catch (e) {
+      debugPrint('[CommunityRepository] Realtime subscription error: $e');
+    }
+  }
+
+  Future<void> fetchFromSupabase() async {
+    if (!SupabaseConfig.isConfigured) return;
+    try {
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+
+      final Set<String> likedPostIds = <String>{};
+      final Set<String> bookmarkedPostIds = <String>{};
+      final Set<String> followedAuthorIds = <String>{};
+
+      try {
+        final likesRes = await client
+            .from('community_likes')
+            .select('post_id')
+            .eq('user_id', targetUserId);
+        for (final item in likesRes as List) {
+          final id = item['post_id']?.toString();
+          if (id != null) likedPostIds.add(id);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching likes: $e');
+      }
+
+      try {
+        final bookmarksRes = await client
+            .from('community_bookmarks')
+            .select('post_id')
+            .eq('user_id', targetUserId);
+        for (final item in bookmarksRes as List) {
+          final id = item['post_id']?.toString();
+          if (id != null) bookmarkedPostIds.add(id);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching bookmarks: $e');
+      }
+
+      try {
+        final followsRes = await client
+            .from('community_follows')
+            .select('following_id')
+            .eq('follower_id', targetUserId);
+        for (final item in followsRes as List) {
+          final id = item['following_id']?.toString();
+          if (id != null) followedAuthorIds.add(id);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching follows: $e');
+      }
+
+      final res = await client
+          .from('community_posts')
+          .select(
+            '*, profiles(id, username, display_name, avatar_url, bio, role, win_rate, trading_style, verified, followers_count, following_count, posts_count), community_post_trade_setups(*), community_post_attachments(*)',
+          )
+          .order('created_at', ascending: false);
+
+      final List<CommunityPost> allPosts = [];
+      for (final item in res as List) {
+        final row = item as Map<String, dynamic>;
+        final postId = row['id']?.toString() ?? '';
+        final authorProfile = row['profiles'] as Map<String, dynamic>?;
+        final authorId = row['author_id']?.toString() ?? '';
+
+        final author = CommunityAuthor(
+          id: authorId,
+          handle: authorProfile?['username'] as String? ?? 'trader',
+          displayName: authorProfile?['display_name'] as String? ??
+              authorProfile?['username'] as String? ??
+              'Trader',
+          userRole: _parseUserRole(authorProfile?['role'] as String?),
+          avatarUrl: authorProfile?['avatar_url'] as String?,
+          bio: authorProfile?['bio'] as String?,
+          verified: authorProfile?['verified'] as bool? ?? false,
+          isFollowing: followedAuthorIds.contains(authorId),
+          followers:
+              (authorProfile?['followers_count'] as num?)?.toInt() ?? 0,
+          following:
+              (authorProfile?['following_count'] as num?)?.toInt() ?? 0,
+          winRate: (authorProfile?['win_rate'] as num?)?.toDouble(),
+          tradingStyle: authorProfile?['trading_style'] as String?,
+          postsCount:
+              (authorProfile?['posts_count'] as num?)?.toInt() ?? 0,
+        );
+
+        CommunityTradeSetup? setup;
+        final setupsList = row['community_post_trade_setups'];
+        if (setupsList != null && setupsList is List && setupsList.isNotEmpty) {
+          final s = setupsList.first as Map<String, dynamic>;
+          setup = CommunityTradeSetup(
+            ticker: s['ticker'] as String? ?? '',
+            side: (s['side']?.toString().toUpperCase() == 'SHORT') ? 'SHORT' : 'LONG',
+            entry: s['entry']?.toString() ?? '0.0',
+            stopLoss: s['stop_loss']?.toString(),
+            target: s['target1']?.toString(),
+          );
+        }
+
+        final List<String> imageUrls = <String>[];
+        AppWritingPostAttachment? attachment;
+        final attachmentsList = row['community_post_attachments'];
+        if (attachmentsList != null && attachmentsList is List) {
+          for (final attItem in attachmentsList) {
+            final attMap = attItem as Map<String, dynamic>;
+            final kind = attMap['kind']?.toString() ?? '';
+            final url = attMap['url']?.toString();
+            final title = attMap['title']?.toString() ?? '';
+            final refId = attMap['ref_id']?.toString() ?? '';
+
+            if (kind == 'image') {
+              final img = url ?? refId;
+              if (img.isNotEmpty && !imageUrls.contains(img)) {
+                imageUrls.add(img);
+              }
+            } else if (kind == 'note' ||
+                kind == 'journal' ||
+                kind == 'strategy' ||
+                kind == 'manual' ||
+                kind == 'document') {
+              final linkKind = AppLinkKind.fromHost(kind) ?? AppLinkKind.note;
+              attachment = AppWritingPostAttachment.manual(
+                source: AppLinkRef(
+                  kind: linkKind,
+                  id: refId,
+                  title: title,
+                  subtitle: url,
+                ),
+                excerpt: title,
+              );
+            }
+          }
+        }
+
+        final post = CommunityPost(
+          id: postId,
+          author: author,
+          body: row['body'] as String? ?? '',
+          createdAt:
+              DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+                  DateTime.now(),
+          isPinned: row['is_pinned'] as bool? ?? false,
+          isPublic: row['is_public'] as bool? ?? true,
+          tickers: (row['tickers'] as List?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              const [],
+          tags: (row['tags'] as List?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              const [],
+          tradeSetup: setup,
+          imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
+          imageUrls: imageUrls,
+          attachment: attachment,
+          likes: (row['likes_count'] as num?)?.toInt() ?? 0,
+          comments: (row['comments_count'] as num?)?.toInt() ?? 0,
+          reposts: (row['reposts_count'] as num?)?.toInt() ?? 0,
+          views: (row['views_count'] as num?)?.toInt() ?? 0,
+          liked: likedPostIds.contains(postId),
+          bookmarked: bookmarkedPostIds.contains(postId),
+        );
+
+        allPosts.add(post);
+      }
+
+      if (_disposed) return;
+      _forYouPosts = allPosts;
+      _followingPosts = allPosts
+          .where((p) => followedAuthorIds.contains(p.author.id))
+          .toList();
+      _signalPosts = allPosts.where((p) => p.tradeSetup != null).toList();
+      _rebuildBookmarks();
+
+      try {
+        final commentsRes = await client
+            .from('community_comments')
+            .select(
+              '*, profiles(id, username, display_name, avatar_url, role)',
+            )
+            .order('created_at', ascending: true);
+
+        final Map<String, List<CommunityComment>> newComments = {};
+        for (final item in commentsRes as List) {
+          final row = item as Map<String, dynamic>;
+          final postId = row['post_id']?.toString();
+          if (postId == null) continue;
+
+          final profile = row['profiles'] as Map<String, dynamic>?;
+          final commentAuthor = CommunityAuthor(
+            id: row['author_id']?.toString() ?? '',
+            handle: profile?['username'] as String? ?? 'trader',
+            displayName: profile?['display_name'] as String? ?? 'Trader',
+            userRole: _parseUserRole(profile?['role'] as String?),
+            avatarUrl: profile?['avatar_url'] as String?,
+          );
+
+          final comment = CommunityComment(
+            id: row['id']?.toString() ?? '',
+            postId: postId,
+            author: commentAuthor,
+            body: row['body'] as String? ?? '',
+            createdAt:
+                DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+                    DateTime.now(),
+            likes: (row['likes_count'] as num?)?.toInt() ?? 0,
+            parentCommentId: row['parent_id']?.toString(),
+          );
+
+          (newComments[postId] ??= <CommunityComment>[]).add(comment);
+        }
+        _commentsByPost = newComments;
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching comments: $e');
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchFromSupabase error: $e');
+    }
+  }
+
+  UserRole _parseUserRole(String? roleStr) {
+    if (roleStr == null) return UserRole.customer;
+    final lower = roleStr.toLowerCase();
+    if (lower.contains('admin')) return UserRole.userAdmin;
+    if (lower.contains('affiliate')) return UserRole.affiliate;
+    return UserRole.customer;
   }
 
   bool _disposed = false;
@@ -57,6 +360,7 @@ class CommunityRepository extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _realtimeChannel?.unsubscribe();
     super.dispose();
   }
 
@@ -301,6 +605,38 @@ class CommunityRepository extends ChangeNotifier {
     _followingPosts = _toggleLikeInList(_followingPosts, postId);
     _signalPosts = _toggleLikeInList(_signalPosts, postId);
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final targetUserId = _resolveUserId();
+        final post = _forYouPosts.cast<CommunityPost?>().firstWhere(
+              (p) => p?.id == postId,
+              orElse: () => null,
+            );
+        final isLikedNow = post?.liked ?? false;
+
+        if (isLikedNow) {
+          unawaited(client.from('community_likes').insert({
+            'post_id': postId,
+            'user_id': targetUserId,
+          }).catchError((e) {
+            debugPrint('[CommunityRepository] like insert error: $e');
+          }));
+        } else {
+          unawaited(client
+              .from('community_likes')
+              .delete()
+              .eq('post_id', postId)
+              .eq('user_id', targetUserId)
+              .catchError((e) {
+            debugPrint('[CommunityRepository] like delete error: $e');
+          }));
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] toggleLike error: $e');
+      }
+    }
   }
 
   List<CommunityPost> _toggleLikeInList(List<CommunityPost> list, String id) {
@@ -353,6 +689,38 @@ class CommunityRepository extends ChangeNotifier {
     }).toList();
     _rebuildBookmarks();
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final targetUserId = _resolveUserId();
+        final post = _forYouPosts.cast<CommunityPost?>().firstWhere(
+              (p) => p?.id == postId,
+              orElse: () => null,
+            );
+        final isBookmarkedNow = post?.bookmarked ?? false;
+
+        if (isBookmarkedNow) {
+          unawaited(client.from('community_bookmarks').insert({
+            'post_id': postId,
+            'user_id': targetUserId,
+          }).catchError((e) {
+            debugPrint('[CommunityRepository] bookmark insert error: $e');
+          }));
+        } else {
+          unawaited(client
+              .from('community_bookmarks')
+              .delete()
+              .eq('post_id', postId)
+              .eq('user_id', targetUserId)
+              .catchError((e) {
+            debugPrint('[CommunityRepository] bookmark delete error: $e');
+          }));
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] toggleBookmark error: $e');
+      }
+    }
   }
 
   void _rebuildBookmarks() {
@@ -428,6 +796,25 @@ class CommunityRepository extends ChangeNotifier {
     _forYouPosts = _incrementComments(_forYouPosts, postId);
     _followingPosts = _incrementComments(_followingPosts, postId);
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final targetUserId = _resolveUserId();
+        final commentId = const Uuid().v4();
+        unawaited(client.from('community_comments').insert({
+          'id': commentId,
+          'post_id': postId,
+          'author_id': targetUserId,
+          'body': body.trim(),
+          if (parentId != null && _isUuid(parentId)) 'parent_id': parentId,
+        }).catchError((e) {
+          debugPrint('[CommunityRepository] addComment error: $e');
+        }));
+      } catch (e) {
+        debugPrint('[CommunityRepository] addComment error: $e');
+      }
+    }
   }
 
   List<CommunityPost> _incrementComments(
@@ -531,6 +918,37 @@ class CommunityRepository extends ChangeNotifier {
       );
     }).toList();
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(traderId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final currentUserId = _resolveUserId();
+        final trader = _suggestedTraders.cast<CommunityAuthor?>().firstWhere(
+              (a) => a?.id == traderId,
+              orElse: () => null,
+            );
+        final isFollowingNow = trader?.isFollowing ?? false;
+        if (isFollowingNow) {
+          unawaited(client.from('community_follows').insert({
+            'follower_id': currentUserId,
+            'following_id': traderId,
+          }).catchError((e) {
+            debugPrint('[CommunityRepository] toggleFollow insert error: $e');
+          }));
+        } else {
+          unawaited(client
+              .from('community_follows')
+              .delete()
+              .eq('follower_id', currentUserId)
+              .eq('following_id', traderId)
+              .catchError((e) {
+            debugPrint('[CommunityRepository] toggleFollow delete error: $e');
+          }));
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] toggleFollow error: $e');
+      }
+    }
   }
 
   /// @backend POST /api/v1/community/posts
@@ -552,8 +970,11 @@ class CommunityRepository extends ChangeNotifier {
     DateTime? scheduledFor,
     required CommunityAuthor author,
   }) {
+    final newId = SupabaseConfig.isConfigured
+        ? const Uuid().v4()
+        : 'post_${DateTime.now().millisecondsSinceEpoch}';
     final post = CommunityPost(
-      id: 'post_${DateTime.now().millisecondsSinceEpoch}',
+      id: newId,
       author: author,
       body: body,
       createdAt: DateTime.now(),
@@ -580,6 +1001,60 @@ class CommunityRepository extends ChangeNotifier {
     }
     notifyListeners();
 
+    if (SupabaseConfig.isConfigured) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          final userId = _resolveUserId();
+          await client.from('community_posts').insert({
+            'id': post.id,
+            'author_id': userId,
+            'title': tickers.isNotEmpty ? tickers.first : 'Post',
+            'body': post.body,
+            'kind': tradeSetup != null ? 'setup' : (isDeskAlert ? 'alert' : 'general'),
+            'tickers': tickers,
+            'tags': tags,
+            'is_public': true,
+            'visibility': 'public',
+            'created_at': post.createdAt.toIso8601String(),
+          });
+          if (tradeSetup != null) {
+            await client.from('community_post_trade_setups').insert({
+              'post_id': post.id,
+              'ticker': tradeSetup.ticker,
+              'side': tradeSetup.side.toLowerCase(),
+              'entry': double.tryParse(tradeSetup.entry) ?? 0.0,
+              if (tradeSetup.stopLoss != null)
+                'stop_loss': double.tryParse(tradeSetup.stopLoss!),
+              if (tradeSetup.target != null)
+                'target1': double.tryParse(tradeSetup.target!),
+            });
+          }
+          for (final imgUrl in post.effectiveImageUrls) {
+            await client.from('community_post_attachments').insert({
+              'post_id': post.id,
+              'kind': 'image',
+              'ref_id': imgUrl,
+              'title': 'Chart Image',
+              'url': imgUrl,
+            });
+          }
+          if (post.attachment != null) {
+            final att = post.attachment!;
+            await client.from('community_post_attachments').insert({
+              'post_id': post.id,
+              'kind': att.source.kind.name,
+              'ref_id': att.source.id,
+              'title': att.source.title,
+              'url': att.source.subtitle,
+            });
+          }
+        } catch (e) {
+          debugPrint('[CommunityRepository] createPost Supabase error: $e');
+        }
+      }());
+    }
+
     final Set<String> linkedTickers = <String>{
       ...tickers,
       if (tradeSetup?.ticker != null && tradeSetup!.ticker.isNotEmpty)
@@ -598,6 +1073,62 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
+  /// Uploads an image or file attachment to the `community-attachments` Supabase storage bucket
+  /// and returns its public URL.
+  Future<String> uploadAttachment({
+    required String postId,
+    File? file,
+    Uint8List? bytes,
+    String? filename,
+  }) async {
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final ext = filename != null && filename.contains('.')
+            ? filename.split('.').last
+            : (file != null && file.path.contains('.') ? file.path.split('.').last : 'png');
+        final cleanName = '${const Uuid().v4()}.$ext';
+        final storagePath = '$postId/$cleanName';
+
+        if (bytes != null) {
+          await client.storage.from('community-attachments').uploadBinary(
+                storagePath,
+                bytes,
+                fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+              );
+        } else if (file != null) {
+          final fileBytes = await file.readAsBytes();
+          await client.storage.from('community-attachments').uploadBinary(
+                storagePath,
+                fileBytes,
+                fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+              );
+        }
+        return client.storage.from('community-attachments').getPublicUrl(storagePath);
+      } catch (e) {
+        debugPrint('[CommunityRepository] uploadAttachment error: $e');
+      }
+    }
+    return file?.path ?? filename ?? '';
+  }
+
+  /// Resolves an attachment reference or storage path to a usable URL.
+  Future<String> resolveAttachmentUrl(String ref) async {
+    if (SupabaseConfig.isConfigured &&
+        !ref.startsWith('http') &&
+        !ref.contains(':\\') &&
+        !ref.startsWith('file:') &&
+        !ref.startsWith('data:')) {
+      try {
+        final client = SupabaseConfig.client!;
+        return client.storage.from('community-attachments').getPublicUrl(ref);
+      } catch (e) {
+        debugPrint('[CommunityRepository] resolveAttachmentUrl error: $e');
+      }
+    }
+    return ref;
+  }
+
   /// @backend DELETE /api/v1/community/posts/{postId}
   /// Returns: { "success": true }
   void deletePost(String postId) {
@@ -606,6 +1137,17 @@ class CommunityRepository extends ChangeNotifier {
     _signalPosts = _signalPosts.where((p) => p.id != postId).toList();
     _bookmarkedPosts = _bookmarkedPosts.where((p) => p.id != postId).toList();
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          await client.from('community_posts').delete().eq('id', postId);
+        } catch (e) {
+          debugPrint('[CommunityRepository] deletePost Supabase error: $e');
+        }
+      }());
+    }
 
     unawaited(
       EntityTickerLinksRepository.instance.removeLinks(
@@ -687,6 +1229,59 @@ class CommunityRepository extends ChangeNotifier {
     );
     notifyListeners();
 
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          await client.from('community_posts').update({
+            'body': newBody,
+            'tickers': ?tickers,
+            'tags': ?tags,
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('id', postId);
+
+          if (imageUrls != null) {
+            await client
+                .from('community_post_attachments')
+                .delete()
+                .eq('post_id', postId)
+                .eq('kind', 'image');
+            for (final imgUrl in imageUrls) {
+              await client.from('community_post_attachments').insert({
+                'post_id': postId,
+                'kind': 'image',
+                'ref_id': imgUrl,
+                'title': 'Chart Image',
+                'url': imgUrl,
+              });
+            }
+          }
+          if (attachment != null) {
+            await client
+                .from('community_post_attachments')
+                .delete()
+                .eq('post_id', postId)
+                .neq('kind', 'image');
+            await client.from('community_post_attachments').insert({
+              'post_id': postId,
+              'kind': attachment.source.kind.name,
+              'ref_id': attachment.source.id,
+              'title': attachment.source.title,
+              'url': attachment.source.subtitle,
+            });
+          } else if (clearAttachment) {
+            await client
+                .from('community_post_attachments')
+                .delete()
+                .eq('post_id', postId)
+                .neq('kind', 'image');
+          }
+        } catch (e) {
+          debugPrint('[CommunityRepository] editPost Supabase error: $e');
+        }
+      }());
+    }
+
     final Set<String> linkedTickers = <String>{
       ...?tickers,
       if (tradeSetup?.ticker != null && tradeSetup!.ticker.isNotEmpty)
@@ -728,6 +1323,22 @@ class CommunityRepository extends ChangeNotifier {
     _bookmarkedPosts = _bookmarkedPosts.map(update).toList();
 
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          await client.from('community_posts').update({
+            'is_public': isPublic,
+            'visibility': isPublic ? 'public' : 'private',
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('id', postId);
+        } catch (e) {
+          debugPrint('[CommunityRepository] setPostVisibility Supabase error: $e');
+        }
+      }());
+    }
+
     return updated;
   }
 

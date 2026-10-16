@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-// ignore: unnecessary_import
-import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/journal/data/supabase_trade_repository.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -52,12 +50,12 @@ class _DashboardPageState extends State<DashboardPage> {
       return UiSkeleton.dashboard();
     }
 
-    final totalPnlVal = (_stats?['total_pnl'] as num?)?.toDouble() ?? 12450.0;
+    final totalPnlVal = (_stats?['total_pnl'] as num?)?.toDouble() ?? 0.0;
     final winRateVal =
-        (_stats?['win_rate_percent'] as num?)?.toDouble() ?? 68.4;
-    final avgRrVal = (_stats?['avg_rr'] as num?)?.toDouble() ?? 2.4;
+        (_stats?['win_rate_percent'] as num?)?.toDouble() ?? 0.0;
+    final avgRrVal = (_stats?['avg_rr'] as num?)?.toDouble() ?? 0.0;
     final bestTradeVal =
-        (_stats?['best_trade_pnl'] as num?)?.toDouble() ?? 3200.0;
+        (_stats?['best_trade_pnl'] as num?)?.toDouble() ?? 0.0;
 
     return AppPageBlock(
       title: 'Executive Dashboard',
@@ -89,20 +87,20 @@ class _DashboardPageState extends State<DashboardPage> {
                 AppStat(
                   label: 'Net Profit',
                   value: totalPnlVal,
-                  delta: 14.2,
+                  delta: 0.0,
                   suffix: '\$',
                 ),
                 AppStat(
                   label: 'Win Rate',
                   value: winRateVal,
-                  delta: 2.1,
+                  delta: 0.0,
                   suffix: '%',
                 ),
                 AppStat(label: 'Avg R:R', value: avgRrVal, delta: 0.0),
                 AppStat(
                   label: 'Best Trade',
                   value: bestTradeVal,
-                  delta: 100.0,
+                  delta: 0.0,
                   suffix: '\$',
                 ),
               ],

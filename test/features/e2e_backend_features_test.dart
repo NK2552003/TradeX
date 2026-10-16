@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/strategies/data/strategy_repository.dart';
+import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/watchlists/data/watchlist_repository.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/messages/data/chat_repository.dart';
@@ -96,6 +97,37 @@ void main() {
       expect(updated.isFavorite, isTrue);
 
       await repo.deleteStrategy(created.id);
+    });
+
+    test('2b. Trader Notes & Markdown End-to-End', () async {
+      final repo = NotesRepositoryImpl.instance;
+      final notes = await repo.fetchAll();
+      expect(notes, isNotEmpty);
+
+      final draft = AppNote(
+        id: 'note_e2e_test_1',
+        title: 'E2E Technical Analysis',
+        content: 'Testing note with \$TSLA and checklist:\n- [ ] Plan trade\n- [x] Check risk',
+        tags: const ['breakout', 'analysis'],
+        linkedTickers: const ['TSLA'],
+        isPublic: true,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      final created = await repo.create(draft);
+      expect(created.title, equals('E2E Technical Analysis'));
+      expect(created.wordCount, greaterThan(0));
+
+      final commented = await repo.addComment(created.id, 'Great setup analysis!');
+      expect(commented.comments.any((c) => c.body.contains('Great setup')), isTrue);
+
+      final liked = await repo.toggleLike(created.id);
+      expect(liked.liked, isTrue);
+
+      await repo.delete(created.id);
+      final afterDelete = await repo.getById(created.id);
+      expect(afterDelete, isNull);
     });
 
     test('3. Watchlists & Ticker Notes End-to-End', () async {
