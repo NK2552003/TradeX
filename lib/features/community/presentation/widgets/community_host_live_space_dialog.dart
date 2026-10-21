@@ -70,7 +70,7 @@ class _CommunityHostLiveSpaceDialogState
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
       UiToast.warning(
@@ -102,7 +102,7 @@ class _CommunityHostLiveSpaceDialogState
       );
     }
 
-    final room = widget.repository.createLiveRoom(
+    final room = await widget.repository.createLiveRoom(
       title: title,
       topic: topic,
       category: _category,
@@ -112,6 +112,7 @@ class _CommunityHostLiveSpaceDialogState
       tags: _tags,
     );
 
+    if (!mounted) return;
     Navigator.of(context).pop();
 
     UiToast.success(

@@ -207,12 +207,32 @@ class MessagesRepository extends ChangeNotifier {
           if (refList != null && refList.isNotEmpty) {
             final refMap = refList.first as Map<String, dynamic>;
             final kindStr = refMap['kind'] as String? ?? 'note';
-            final refKind = AppLinkKind.values.firstWhere(
-              (k) => k.name == kindStr,
-              orElse: () => AppLinkKind.note,
-            );
+            final refId = refMap['ref_id'] as String? ?? '';
+            AppLinkKind refKind = AppLinkKind.fromHost(kindStr) ??
+                AppLinkKind.values.firstWhere(
+                  (k) =>
+                      k.name.toLowerCase() ==
+                      kindStr.toLowerCase().replaceAll('_', ''),
+                  orElse: () => AppLinkKind.note,
+                );
+            // Intelligent heuristic fallback if kind was recorded as generic note:
+            if (refKind == AppLinkKind.note) {
+              if (refId.startsWith('post_') ||
+                  refId.startsWith('pst_') ||
+                  refId.startsWith('community')) {
+                refKind = AppLinkKind.communityPost;
+              } else if (refId.startsWith('trade_') ||
+                  refId.startsWith('entry_') ||
+                  refId.startsWith('trn_') ||
+                  refId.startsWith('journal_')) {
+                refKind = AppLinkKind.journal;
+              } else if (refId.startsWith('strat_') ||
+                  refId.startsWith('strategy_')) {
+                refKind = AppLinkKind.strategy;
+              }
+            }
             sharedRef = AppLinkRef(
-              id: refMap['ref_id'] as String? ?? '',
+              id: refId,
               kind: refKind,
               title: refMap['title'] as String? ?? '',
               subtitle: refMap['subtitle'] as String?,
@@ -470,11 +490,13 @@ class MessagesRepository extends ChangeNotifier {
   /// visibility changes are reflected before a message is sent.
   List<AppLinkRef> get shareableRefs {
     final graph = AppLinkGraphService.instance.current;
-    return <AppLinkRef>[
+    final refs = <AppLinkRef>[
       ...graph.options(AppLinkKind.note),
       ...graph.options(AppLinkKind.journal),
       ...graph.options(AppLinkKind.strategy),
     ];
+    if (refs.isNotEmpty) return refs;
+    return MessagesSeed.shareableRefs();
   }
 
   /// Emoji offered in the composer's quick-reaction row.

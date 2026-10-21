@@ -176,9 +176,9 @@ class CommunitySearchWidget extends StatelessWidget {
 class CommunityLiveRoomWidget extends StatelessWidget {
   const CommunityLiveRoomWidget({
     super.key,
-    this.title = 'Nifty & BankNifty Live Expiry Floor',
-    this.host = 'Rajesh Sharma, CMT',
-    this.listeners = 142,
+    this.title = '',
+    this.host = '',
+    this.listeners = 0,
     this.room,
     this.repository,
   });
@@ -191,10 +191,15 @@ class CommunityLiveRoomWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
     final displayTitle = room?.title ?? title;
     final displayHost = room?.host.displayName ?? host;
     final displayListeners = room?.listenerCount ?? listeners;
+
+    if (displayTitle.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final UiTheme theme = context.ui;
 
     return UiCard(
       accentColor: theme.colors.danger,

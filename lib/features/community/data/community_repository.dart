@@ -89,6 +89,14 @@ class CommunityRepository extends ChangeNotifier {
               fetchFromSupabase();
             },
           )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'community_live_rooms',
+            callback: (PostgresChangePayload payload) {
+              fetchLiveRooms();
+            },
+          )
         ..subscribe();
     } catch (e) {
       debugPrint('[CommunityRepository] Realtime subscription error: $e');
@@ -309,9 +317,72 @@ class CommunityRepository extends ChangeNotifier {
         debugPrint('[CommunityRepository] Error fetching comments: $e');
       }
 
+      await fetchLiveRooms();
+
       notifyListeners();
     } catch (e) {
       debugPrint('[CommunityRepository] fetchFromSupabase error: $e');
+    }
+  }
+
+  Future<void> fetchLiveRooms() async {
+    if (!SupabaseConfig.isConfigured) return;
+    try {
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+
+      final Set<String> remindedRoomIds = <String>{};
+      try {
+        final remRes = await client
+            .from('community_live_room_reminders')
+            .select('room_id')
+            .eq('user_id', targetUserId);
+        for (final item in remRes as List) {
+          final id = item['room_id']?.toString();
+          if (id != null) remindedRoomIds.add(id);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching room reminders: $e');
+      }
+
+      final res = await client
+          .from('community_live_rooms')
+          .select(
+            '*, profiles:host_id(id, username, display_name, avatar_url, bio, role, verified)',
+          )
+          .order('created_at', ascending: false);
+
+      final List<LiveAudioRoom> rooms = [];
+      for (final item in res as List) {
+        final row = item as Map<String, dynamic>;
+        final hostProfile = row['profiles'] as Map<String, dynamic>?;
+        final hostId = row['host_id']?.toString() ?? '';
+        final host = CommunityAuthor(
+          id: hostId,
+          handle: hostProfile?['username'] as String? ?? 'host',
+          displayName: hostProfile?['display_name'] as String? ??
+              hostProfile?['username'] as String? ??
+              'Space Host',
+          userRole: _parseUserRole(hostProfile?['role'] as String?),
+          avatarUrl: hostProfile?['avatar_url'] as String?,
+          bio: hostProfile?['bio'] as String?,
+          verified: hostProfile?['verified'] as bool? ?? false,
+        );
+
+        final roomId = row['id']?.toString() ?? '';
+        final room = LiveAudioRoom.fromMap(
+          row,
+          host: host,
+        ).copyWith(
+          hasReminder: remindedRoomIds.contains(roomId),
+        );
+        rooms.add(room);
+      }
+
+      _liveRooms = rooms;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchLiveRooms error: $e');
     }
   }
 
@@ -498,18 +569,18 @@ class CommunityRepository extends ChangeNotifier {
   bool get isHandRaised => _isHandRaised;
 
   static const CommunityAuthor _defaultCurrentUser = CommunityAuthor(
-    id: 'usr_nitish_trader',
-    handle: 'nitish_trader',
-    displayName: 'Nitish Kumar',
+    id: 'usr_current_trader',
+    handle: '',
+    displayName: '',
     userRole: UserRole.customer,
-    verified: true,
-    tier: AppTier.premium,
-    followers: 12400,
-    following: 234,
-    winRate: 84.0,
-    tradingStyle: 'Swing Trading',
-    primaryMarket: 'Indian Equities & F&O',
-    postsCount: 892,
+    verified: false,
+    tier: AppTier.free,
+    followers: 0,
+    following: 0,
+    winRate: null,
+    tradingStyle: null,
+    primaryMarket: null,
+    postsCount: 0,
   );
 
   CommunityAuthor? _currentAuthorOverride;
@@ -564,13 +635,21 @@ class CommunityRepository extends ChangeNotifier {
       _commentsByPost[postId] ?? const <CommunityComment>[];
 
   List<CommunityPost> postsForAuthor(String authorId) {
+    if (authorId.trim().isEmpty) return const <CommunityPost>[];
     final seen = <String>{};
     final all = <CommunityPost>[
       ..._forYouPosts,
       ..._signalPosts,
       ..._followingPosts,
     ];
-    return all.where((p) => p.author.id == authorId && seen.add(p.id)).toList();
+    final cleanId = authorId.toLowerCase().replaceFirst('@', '').trim();
+    return all.where((p) {
+      final pAuthorId = p.author.id.toLowerCase().trim();
+      final pAuthorHandle =
+          p.author.handle.toLowerCase().replaceFirst('@', '').trim();
+      final matches = pAuthorId == cleanId || pAuthorHandle == cleanId;
+      return matches && seen.add(p.id);
+    }).toList();
   }
 
   CommunityAuthor? authorById(String id) {
@@ -1489,12 +1568,120 @@ class CommunityRepository extends ChangeNotifier {
       ..._forYouPosts,
       ..._signalPosts,
       ..._followingPosts,
+      ..._bookmarkedPosts,
     ];
     try {
       return all.firstWhere((p) => p.id == postId);
     } catch (_) {
       return null;
     }
+  }
+
+  /// Asynchronously fetches a post from Supabase if not present in the local cache.
+  Future<CommunityPost?> fetchPostById(String postId) async {
+    final cached = loadPostById(postId);
+    if (cached != null) return cached;
+    if (!SupabaseConfig.isConfigured) return null;
+    try {
+      final client = SupabaseConfig.client!;
+      final res = await client
+          .from('community_posts')
+          .select(
+            '*, profiles(id, username, display_name, avatar_url, bio, role, win_rate, trading_style, verified, followers_count, following_count, posts_count), community_post_trade_setups(*), community_post_attachments(*)',
+          )
+          .eq('id', postId)
+          .maybeSingle();
+      if (res != null) {
+        final row = res;
+        final authorProfile = row['profiles'] as Map<String, dynamic>?;
+        final authorId = row['author_id']?.toString() ?? '';
+        final author = CommunityAuthor(
+          id: authorId,
+          handle: authorProfile?['username'] as String? ?? 'trader',
+          displayName: authorProfile?['display_name'] as String? ??
+              authorProfile?['username'] as String? ??
+              'Trader',
+          userRole: _parseUserRole(authorProfile?['role'] as String?),
+          avatarUrl: authorProfile?['avatar_url'] as String?,
+          bio: authorProfile?['bio'] as String?,
+          verified: authorProfile?['verified'] as bool? ?? false,
+          followers: (authorProfile?['followers_count'] as num?)?.toInt() ?? 0,
+          following: (authorProfile?['following_count'] as num?)?.toInt() ?? 0,
+          winRate: (authorProfile?['win_rate'] as num?)?.toDouble(),
+          tradingStyle: authorProfile?['trading_style'] as String?,
+          postsCount: (authorProfile?['posts_count'] as num?)?.toInt() ?? 0,
+        );
+        CommunityTradeSetup? setup;
+        final setupsList = row['community_post_trade_setups'];
+        if (setupsList != null && setupsList is List && setupsList.isNotEmpty) {
+          final s = setupsList.first as Map<String, dynamic>;
+          setup = CommunityTradeSetup(
+            ticker: s['ticker'] as String? ?? '',
+            side: (s['side']?.toString().toUpperCase() == 'SHORT') ? 'SHORT' : 'LONG',
+            entry: s['entry']?.toString() ?? '0.0',
+            stopLoss: s['stop_loss']?.toString(),
+            target: s['target1']?.toString(),
+          );
+        }
+        final List<String> imageUrls = <String>[];
+        AppWritingPostAttachment? attachment;
+        final attachmentsList = row['community_post_attachments'];
+        if (attachmentsList != null && attachmentsList is List) {
+          for (final attItem in attachmentsList) {
+            final attMap = attItem as Map<String, dynamic>;
+            final kind = attMap['kind']?.toString() ?? '';
+            final url = attMap['url']?.toString();
+            final title = attMap['title']?.toString() ?? '';
+            final refId = attMap['ref_id']?.toString() ?? '';
+            if (kind == 'image') {
+              final img = url ?? refId;
+              if (img.isNotEmpty && !imageUrls.contains(img)) {
+                imageUrls.add(img);
+              }
+            } else if (kind == 'note' ||
+                kind == 'journal' ||
+                kind == 'strategy' ||
+                kind == 'manual' ||
+                kind == 'document') {
+              final linkKind = AppLinkKind.fromHost(kind) ?? AppLinkKind.note;
+              attachment = AppWritingPostAttachment.manual(
+                source: AppLinkRef(
+                  kind: linkKind,
+                  id: refId,
+                  title: title,
+                  subtitle: url,
+                ),
+                excerpt: title,
+              );
+            }
+          }
+        }
+        final post = CommunityPost(
+          id: postId,
+          author: author,
+          body: row['body'] as String? ?? '',
+          createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '') ?? DateTime.now(),
+          isPinned: row['is_pinned'] as bool? ?? false,
+          isPublic: row['is_public'] as bool? ?? true,
+          tickers: (row['tickers'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+          tags: (row['tags'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+          tradeSetup: setup,
+          imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
+          imageUrls: imageUrls,
+          attachment: attachment,
+          likes: (row['likes_count'] as num?)?.toInt() ?? 0,
+          comments: (row['comments_count'] as num?)?.toInt() ?? 0,
+          reposts: (row['reposts_count'] as num?)?.toInt() ?? 0,
+          views: (row['views_count'] as num?)?.toInt() ?? 0,
+        );
+        _forYouPosts.insert(0, post);
+        notifyListeners();
+        return post;
+      }
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchPostById error: $e');
+    }
+    return null;
   }
 
   /// @backend GET /api/v1/community/posts/{postId}/insights
@@ -1670,10 +1857,10 @@ class CommunityRepository extends ChangeNotifier {
   }
 
   // -------------------------------------------------------------------------
-  // Live Audio Spaces Controls
+  // Live Audio Spaces Controls & Database Sync
   // -------------------------------------------------------------------------
 
-  void tuneIntoRoom(String roomId) {
+  Future<void> tuneIntoRoom(String roomId) async {
     if (_tunedRoomId == roomId) return;
     _tunedRoomId = roomId;
     final index = _liveRooms.indexWhere((r) => r.id == roomId);
@@ -1682,11 +1869,22 @@ class CommunityRepository extends ChangeNotifier {
       _liveRooms[index] = room.copyWith(listenerCount: room.listenerCount + 1);
     }
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.rpc('tune_into_live_room', params: {'p_room_id': roomId});
+      } catch (e) {
+        debugPrint('[CommunityRepository] tune_into_live_room RPC error: $e');
+      }
+    }
   }
 
-  void leaveRoom() {
-    if (_tunedRoomId == null) return;
-    final index = _liveRooms.indexWhere((r) => r.id == _tunedRoomId);
+  Future<void> leaveRoom() async {
+    final leavingRoomId = _tunedRoomId;
+    if (leavingRoomId == null) return;
+
+    final index = _liveRooms.indexWhere((r) => r.id == leavingRoomId);
     if (index != -1) {
       final room = _liveRooms[index];
       _liveRooms[index] = room.copyWith(
@@ -1696,6 +1894,15 @@ class CommunityRepository extends ChangeNotifier {
     _tunedRoomId = null;
     _isHandRaised = false;
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(leavingRoomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.rpc('leave_live_room', params: {'p_room_id': leavingRoomId});
+      } catch (e) {
+        debugPrint('[CommunityRepository] leave_live_room RPC error: $e');
+      }
+    }
   }
 
   void toggleMute() {
@@ -1703,37 +1910,97 @@ class CommunityRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleHandRaised() {
+  Future<void> toggleHandRaised([String? roomId]) async {
     _isHandRaised = !_isHandRaised;
     notifyListeners();
+
+    final targetRoom = roomId ?? _tunedRoomId;
+    if (SupabaseConfig.isConfigured && targetRoom != null && _isUuid(targetRoom)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.rpc('toggle_live_room_hand', params: {'p_room_id': targetRoom});
+      } catch (e) {
+        debugPrint('[CommunityRepository] toggle_live_room_hand RPC error: $e');
+      }
+    }
   }
 
-  void toggleRoomReminder(String roomId) {
+  Future<void> toggleRoomReminder(String roomId) async {
     final index = _liveRooms.indexWhere((r) => r.id == roomId);
     if (index != -1) {
       final room = _liveRooms[index];
       _liveRooms[index] = room.copyWith(hasReminder: !room.hasReminder);
       notifyListeners();
     }
+
+    if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.rpc('toggle_live_room_reminder', params: {'p_room_id': roomId});
+      } catch (e) {
+        debugPrint('[CommunityRepository] toggle_live_room_reminder RPC error: $e');
+      }
+    }
+  }
+
+  Future<void> voteLiveRoomPoll(String roomId, String vote) async {
+    final index = _liveRooms.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final room = _liveRooms[index];
+      if (vote == 'bullish') {
+        _liveRooms[index] = room.copyWith(pollBullishVotes: room.pollBullishVotes + 1);
+      } else {
+        _liveRooms[index] = room.copyWith(pollBearishVotes: room.pollBearishVotes + 1);
+      }
+      notifyListeners();
+    }
+
+    if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.rpc('vote_live_room_poll', params: {
+          'p_room_id': roomId,
+          'p_vote': vote,
+        });
+      } catch (e) {
+        debugPrint('[CommunityRepository] vote_live_room_poll RPC error: $e');
+      }
+    }
   }
 
   /// Keeps a completed host session available to public profile history.
-  void endLiveRoom(String roomId) {
+  Future<void> endLiveRoom(String roomId) async {
     final index = _liveRooms.indexWhere((room) => room.id == roomId);
-    if (index < 0 || _liveRooms[index].host.id != currentAuthor.id) return;
-    _liveRooms[index] = _liveRooms[index].copyWith(
-      status: LiveRoomStatus.ended,
-      endedAt: DateTime.now(),
-    );
+    if (index >= 0) {
+      _liveRooms[index] = _liveRooms[index].copyWith(
+        status: LiveRoomStatus.ended,
+        endedAt: DateTime.now(),
+      );
+    }
     if (_tunedRoomId == roomId) {
       _tunedRoomId = null;
       _isAudioMuted = true;
       _isHandRaised = false;
     }
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client
+            .from('community_live_rooms')
+            .update({
+              'status': 'ended',
+              'ended_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', roomId);
+      } catch (e) {
+        debugPrint('[CommunityRepository] endLiveRoom error: $e');
+      }
+    }
   }
 
-  LiveAudioRoom createLiveRoom({
+  Future<LiveAudioRoom> createLiveRoom({
     required String title,
     required String topic,
     required String category,
@@ -1741,29 +2008,332 @@ class CommunityRepository extends ChangeNotifier {
     bool startNow = true,
     DateTime? scheduledFor,
     List<String> tags = const <String>[],
-  }) {
-    final id = 'room_${DateTime.now().millisecondsSinceEpoch}';
+  }) async {
+    final roomId = const Uuid().v4();
+    final now = DateTime.now();
     final room = LiveAudioRoom(
-      id: id,
+      id: roomId,
       title: title,
       topic: topic,
       host: currentAuthor,
       category: category,
       status: startNow ? LiveRoomStatus.live : LiveRoomStatus.scheduled,
       listenerCount: startNow ? 1 : 0,
+      speakerCount: 1,
       speakers: <String>[currentAuthor.displayName],
       pinnedSetup: pinnedSetup,
       scheduledFor: scheduledFor,
-      startedAt: startNow ? DateTime.now() : null,
+      startedAt: startNow ? now : null,
       isRecording: true,
       tags: tags,
     );
+
     _liveRooms.insert(0, room);
     if (startNow) {
-      _tunedRoomId = id;
+      _tunedRoomId = roomId;
     }
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final hostUserId = _resolveUserId();
+
+        await client.from('community_live_rooms').insert({
+          'id': roomId,
+          'host_id': hostUserId,
+          'title': title,
+          'topic': topic,
+          'category': category,
+          'status': startNow ? 'live' : 'scheduled',
+          'listener_count': startNow ? 1 : 0,
+          'speaker_count': 1,
+          'started_at': startNow ? now.toIso8601String() : null,
+          'scheduled_for': scheduledFor?.toIso8601String(),
+          'recording_available': true,
+          'tags': tags,
+          'pinned_ticker': pinnedSetup?.ticker,
+          'pinned_side': pinnedSetup?.side,
+          'pinned_entry': pinnedSetup?.entry,
+          'pinned_stop_loss': pinnedSetup?.stopLoss,
+          'pinned_target': pinnedSetup?.target,
+          'pinned_note': pinnedSetup?.note,
+        });
+
+        if (startNow) {
+          await client.rpc('tune_into_live_room', params: {'p_room_id': roomId});
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] createLiveRoom Supabase error: $e');
+      }
+    }
+
     return room;
+  }
+
+  // --- Realtime In-Room Participants, Messages, and Q&A Methods ---
+
+  Future<List<LiveRoomParticipant>> fetchRoomParticipants(String roomId) async {
+    if (!SupabaseConfig.isConfigured || !_isUuid(roomId)) {
+      // Local fallback with host
+      return <LiveRoomParticipant>[
+        LiveRoomParticipant(
+          roomId: roomId,
+          userId: currentAuthor.id,
+          displayName: currentAuthor.displayName,
+          handle: currentAuthor.handle,
+          avatarUrl: currentAuthor.avatarUrl,
+          role: 'host',
+          isMuted: _isAudioMuted,
+          isHandRaised: _isHandRaised,
+          joinedAt: DateTime.now(),
+        ),
+      ];
+    }
+
+    try {
+      final client = SupabaseConfig.client!;
+      final res = await client
+          .from('community_live_room_participants')
+          .select('*, profiles:user_id(id, username, display_name, avatar_url)')
+          .eq('room_id', roomId)
+          .order('joined_at', ascending: true);
+
+      return (res as List)
+          .map((e) => LiveRoomParticipant.fromMap(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchRoomParticipants error: $e');
+      return <LiveRoomParticipant>[];
+    }
+  }
+
+  Future<void> updateParticipantRole(String roomId, String targetUserId, String role) async {
+    if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client
+            .from('community_live_room_participants')
+            .update({'role': role})
+            .eq('room_id', roomId)
+            .eq('user_id', targetUserId);
+      } catch (e) {
+        debugPrint('[CommunityRepository] updateParticipantRole error: $e');
+      }
+    }
+  }
+
+  Future<void> setParticipantMute(String roomId, String targetUserId, bool isMuted) async {
+    if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client
+            .from('community_live_room_participants')
+            .update({'is_muted': isMuted})
+            .eq('room_id', roomId)
+            .eq('user_id', targetUserId);
+      } catch (e) {
+        debugPrint('[CommunityRepository] setParticipantMute error: $e');
+      }
+    }
+  }
+
+  Future<List<LiveRoomMessage>> fetchRoomMessages(String roomId) async {
+    if (!SupabaseConfig.isConfigured || !_isUuid(roomId)) {
+      return <LiveRoomMessage>[];
+    }
+
+    try {
+      final client = SupabaseConfig.client!;
+      final res = await client
+          .from('community_live_room_messages')
+          .select('*, profiles:sender_id(id, username, display_name, avatar_url)')
+          .eq('room_id', roomId)
+          .order('created_at', ascending: true);
+
+      return (res as List)
+          .map((e) => LiveRoomMessage.fromMap(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchRoomMessages error: $e');
+      return <LiveRoomMessage>[];
+    }
+  }
+
+  Future<LiveRoomMessage?> sendRoomMessage(String roomId, String text) async {
+    if (text.trim().isEmpty) return null;
+
+    if (!SupabaseConfig.isConfigured || !_isUuid(roomId)) {
+      // Local fallback
+      return LiveRoomMessage(
+        id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+        roomId: roomId,
+        senderId: currentAuthor.id,
+        senderName: currentAuthor.displayName,
+        senderAvatarUrl: currentAuthor.avatarUrl,
+        senderRole: 'speaker',
+        message: text.trim(),
+        createdAt: DateTime.now(),
+      );
+    }
+
+    try {
+      final client = SupabaseConfig.client!;
+      final userId = _resolveUserId();
+      final res = await client
+          .from('community_live_room_messages')
+          .insert({
+            'room_id': roomId,
+            'sender_id': userId,
+            'message': text.trim(),
+          })
+          .select('*, profiles:sender_id(id, username, display_name, avatar_url)')
+          .single();
+
+      return LiveRoomMessage.fromMap(res);
+    } catch (e) {
+      debugPrint('[CommunityRepository] sendRoomMessage error: $e');
+      return null;
+    }
+  }
+
+  Future<List<LiveRoomQuestion>> fetchRoomQuestions(String roomId) async {
+    if (!SupabaseConfig.isConfigured || !_isUuid(roomId)) {
+      return <LiveRoomQuestion>[];
+    }
+
+    try {
+      final client = SupabaseConfig.client!;
+      final userId = _resolveUserId();
+
+      final Set<String> upvotedQuestionIds = <String>{};
+      try {
+        final upvotesRes = await client
+            .from('community_live_room_question_upvotes')
+            .select('question_id')
+            .eq('user_id', userId);
+        for (final item in upvotesRes as List) {
+          final qId = item['question_id']?.toString();
+          if (qId != null) upvotedQuestionIds.add(qId);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] fetch question upvotes error: $e');
+      }
+
+      final res = await client
+          .from('community_live_room_questions')
+          .select('*, profiles:author_id(id, username, display_name, avatar_url)')
+          .eq('room_id', roomId)
+          .order('upvotes_count', ascending: false)
+          .order('created_at', ascending: false);
+
+      return (res as List).map((e) {
+        final map = e as Map<String, dynamic>;
+        final qId = map['id']?.toString() ?? '';
+        return LiveRoomQuestion.fromMap(
+          map,
+          hasUpvoted: upvotedQuestionIds.contains(qId),
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchRoomQuestions error: $e');
+      return <LiveRoomQuestion>[];
+    }
+  }
+
+  Future<LiveRoomQuestion?> submitRoomQuestion(String roomId, String text) async {
+    if (text.trim().isEmpty) return null;
+
+    if (!SupabaseConfig.isConfigured || !_isUuid(roomId)) {
+      return LiveRoomQuestion(
+        id: 'q_${DateTime.now().millisecondsSinceEpoch}',
+        roomId: roomId,
+        authorId: currentAuthor.id,
+        authorName: currentAuthor.displayName,
+        authorAvatarUrl: currentAuthor.avatarUrl,
+        question: text.trim(),
+        upvotesCount: 1,
+        hasUpvoted: true,
+        createdAt: DateTime.now(),
+      );
+    }
+
+    try {
+      final client = SupabaseConfig.client!;
+      final userId = _resolveUserId();
+      final res = await client
+          .from('community_live_room_questions')
+          .insert({
+            'room_id': roomId,
+            'author_id': userId,
+            'question': text.trim(),
+            'upvotes_count': 1,
+          })
+          .select('*, profiles:author_id(id, username, display_name, avatar_url)')
+          .single();
+
+      final question = LiveRoomQuestion.fromMap(res, hasUpvoted: true);
+
+      // Auto-upvote author's own question
+      try {
+        await client.from('community_live_room_question_upvotes').insert({
+          'question_id': question.id,
+          'user_id': userId,
+        });
+      } catch (_) {}
+
+      return question;
+    } catch (e) {
+      debugPrint('[CommunityRepository] submitRoomQuestion error: $e');
+      return null;
+    }
+  }
+
+  Future<void> toggleQuestionUpvote(String questionId) async {
+    if (SupabaseConfig.isConfigured && _isUuid(questionId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final userId = _resolveUserId();
+        final check = await client
+            .from('community_live_room_question_upvotes')
+            .select('question_id')
+            .eq('question_id', questionId)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (check != null) {
+          await client
+              .from('community_live_room_question_upvotes')
+              .delete()
+              .eq('question_id', questionId)
+              .eq('user_id', userId);
+        } else {
+          await client.from('community_live_room_question_upvotes').insert({
+            'question_id': questionId,
+            'user_id': userId,
+          });
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] toggleQuestionUpvote error: $e');
+      }
+    }
+  }
+
+  Future<void> markQuestionAnswered(String questionId, bool answered) async {
+    if (SupabaseConfig.isConfigured && _isUuid(questionId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client
+            .from('community_live_room_questions')
+            .update({
+              'is_answered': answered,
+              'answered_at': answered ? DateTime.now().toIso8601String() : null,
+            })
+            .eq('id', questionId);
+      } catch (e) {
+        debugPrint('[CommunityRepository] markQuestionAnswered error: $e');
+      }
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -2580,86 +3150,90 @@ class CommunityRepository extends ChangeNotifier {
       ),
     ];
 
-    // Seed Live Audio Spaces
-    _liveRooms = <LiveAudioRoom>[
-      LiveAudioRoom(
-        id: 'room_nifty_expiry',
-        title: 'Nifty & BankNifty Live Expiry Floor',
-        topic: 'VWAP breakout & strong CE OI unwinding at 24,800 strike',
-        host: _rajeshPatel,
-        category: 'Options & Expiry',
-        status: LiveRoomStatus.live,
-        listenerCount: 142,
-        speakers: const <String>[
-          'Rajesh Sharma, CMT',
-          'Sarah Chen, Quant',
-          'Vikram Joshi',
-        ],
-        pinnedSetup: const LivePinnedSetup(
-          ticker: 'NIFTY 24,850 CE',
-          side: 'LONG',
-          entry: 142.50,
-          stopLoss: 118.00,
-          target: 210.00,
-          note: 'VWAP breakout with strong CE OI unwinding at 24,800 strike.',
+    // Seed Live Audio Spaces (fallback for offline demo mode only)
+    if (!SupabaseConfig.isConfigured) {
+      _liveRooms = <LiveAudioRoom>[
+        LiveAudioRoom(
+          id: 'room_nifty_expiry',
+          title: 'Nifty & BankNifty Live Expiry Floor',
+          topic: 'VWAP breakout & strong CE OI unwinding at 24,800 strike',
+          host: _rajeshPatel,
+          category: 'Options & Expiry',
+          status: LiveRoomStatus.live,
+          listenerCount: 142,
+          speakers: const <String>[
+            'Rajesh Sharma, CMT',
+            'Sarah Chen, Quant',
+            'Vikram Joshi',
+          ],
+          pinnedSetup: const LivePinnedSetup(
+            ticker: 'NIFTY 24,850 CE',
+            side: 'LONG',
+            entry: 142.50,
+            stopLoss: 118.00,
+            target: 210.00,
+            note: 'VWAP breakout with strong CE OI unwinding at 24,800 strike.',
+          ),
+          startedAt: now.subtract(const Duration(minutes: 42)),
+          isRecording: true,
+          tags: const <String>['#Nifty', '#Options', '#ExpirySpecial'],
         ),
-        startedAt: now.subtract(const Duration(minutes: 42)),
-        isRecording: true,
-        tags: const <String>['#Nifty', '#Options', '#ExpirySpecial'],
-      ),
-      LiveAudioRoom(
-        id: 'room_crypto_macro',
-        title: 'Crypto Alpha Desk: BTC ATH Retest & Altcoin Liquidity',
-        topic: 'Spot ETF inflows, funding rates, and Solana breakout setups',
-        host: _marcoSilva,
-        category: 'Crypto',
-        status: LiveRoomStatus.live,
-        listenerCount: 89,
-        speakers: const <String>[
-          'Marco Silva',
-          'Elena Rostova',
-          'Dr. Aris Thorne',
-        ],
-        pinnedSetup: const LivePinnedSetup(
-          ticker: 'BTC/USDT',
-          side: 'LONG',
-          entry: 94200.00,
-          stopLoss: 91800.00,
-          target: 104000.00,
-          note: 'Daily 21 EMA bounce with open interest expansion.',
+        LiveAudioRoom(
+          id: 'room_crypto_macro',
+          title: 'Crypto Alpha Desk: BTC ATH Retest & Altcoin Liquidity',
+          topic: 'Spot ETF inflows, funding rates, and Solana breakout setups',
+          host: _marcoSilva,
+          category: 'Crypto',
+          status: LiveRoomStatus.live,
+          listenerCount: 89,
+          speakers: const <String>[
+            'Marco Silva',
+            'Elena Rostova',
+            'Dr. Aris Thorne',
+          ],
+          pinnedSetup: const LivePinnedSetup(
+            ticker: 'BTC/USDT',
+            side: 'LONG',
+            entry: 94200.00,
+            stopLoss: 91800.00,
+            target: 104000.00,
+            note: 'Daily 21 EMA bounce with open interest expansion.',
+          ),
+          startedAt: now.subtract(const Duration(minutes: 25)),
+          isRecording: false,
+          tags: const <String>['#Bitcoin', '#Crypto', '#Breakout'],
         ),
-        startedAt: now.subtract(const Duration(minutes: 25)),
-        isRecording: false,
-        tags: const <String>['#Bitcoin', '#Crypto', '#Breakout'],
-      ),
-      LiveAudioRoom(
-        id: 'room_post_expiry',
-        title: 'Post-Expiry Debrief & Journaling',
-        topic:
-            'Analyzing gamma squeezes, mistake reviews, and journaling execution stats',
-        host: _elenaRostova,
-        category: 'Education',
-        status: LiveRoomStatus.scheduled,
-        listenerCount: 0,
-        speakers: const <String>['Elena Rostova', 'Sarah Chen, Quant'],
-        scheduledFor: now.add(const Duration(hours: 4)),
-        isRecording: true,
-        tags: const <String>['#Debrief', '#RiskManagement', '#Journal'],
-      ),
-      LiveAudioRoom(
-        id: 'room_pre_market',
-        title: 'Pre-Market Gameplan: Global Cues & Gift Nifty',
-        topic: 'US Fed commentary, crude oil trends, and morning open levels',
-        host: _priyaSharma,
-        category: 'Macro',
-        status: LiveRoomStatus.scheduled,
-        listenerCount: 0,
-        speakers: const <String>['Priya Sharma', 'Rajesh Patel'],
-        scheduledFor: now.add(const Duration(hours: 18)),
-        isRecording: true,
-        tags: const <String>['#PreMarket', '#Macro', '#Levels'],
-      ),
-    ];
+        LiveAudioRoom(
+          id: 'room_post_expiry',
+          title: 'Post-Expiry Debrief & Journaling',
+          topic:
+              'Analyzing gamma squeezes, mistake reviews, and journaling execution stats',
+          host: _elenaRostova,
+          category: 'Education',
+          status: LiveRoomStatus.scheduled,
+          listenerCount: 0,
+          speakers: const <String>['Elena Rostova', 'Sarah Chen, Quant'],
+          scheduledFor: now.add(const Duration(hours: 4)),
+          isRecording: true,
+          tags: const <String>['#Debrief', '#RiskManagement', '#Journal'],
+        ),
+        LiveAudioRoom(
+          id: 'room_pre_market',
+          title: 'Pre-Market Gameplan: Global Cues & Gift Nifty',
+          topic: 'US Fed commentary, crude oil trends, and morning open levels',
+          host: _priyaSharma,
+          category: 'Macro',
+          status: LiveRoomStatus.scheduled,
+          listenerCount: 0,
+          speakers: const <String>['Priya Sharma', 'Rajesh Patel'],
+          scheduledFor: now.add(const Duration(hours: 18)),
+          isRecording: true,
+          tags: const <String>['#PreMarket', '#Macro', '#Levels'],
+        ),
+      ];
+    } else {
+      _liveRooms = <LiveAudioRoom>[];
+    }
   }
 
   // -------------------------------------------------------------------------

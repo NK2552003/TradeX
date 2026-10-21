@@ -564,7 +564,9 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
           CommunityAttachmentTile(
             attachment: post.attachment!,
             onTap: widget.onOpenRef != null
-                ? () => widget.onOpenRef!(post.attachment!.source)
+                ? () => widget.onOpenRef!(
+                    post.attachment!.source.copyWith(isPublicContext: true),
+                  )
                 : widget.onTap,
           ),
         ],

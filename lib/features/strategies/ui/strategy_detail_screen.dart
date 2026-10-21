@@ -48,6 +48,7 @@ class StrategyDetailScreen extends StatefulWidget {
     this.onEditWriting,
     this.onAttachToPost,
     this.canEdit = true,
+    this.isPublicContext = false,
     this.initialTab = StrategyDetailTab.playbook,
   });
 
@@ -63,6 +64,7 @@ class StrategyDetailScreen extends StatefulWidget {
   final void Function(AppLinkRef ref)? onOpenLink;
   final AppWritingPostAttachmentHandler? onAttachToPost;
   final bool canEdit;
+  final bool isPublicContext;
 
   /// Which tab is selected when the document first opens. Additive — callers
   /// that do not care leave it at the default and get the playbook body.
@@ -274,7 +276,20 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
 
   AppStrategy get _strategy => widget.strategy;
 
-  AppLinkBundle get _bundle => _graph.bundleForStrategy(_strategy);
+  bool get _isPublicViewer =>
+      widget.isPublicContext || !widget.canEdit || _strategy.isPublic;
+
+  AppLinkBundle get _bundle =>
+      _graph.bundleForStrategy(_strategy, onlyPublic: _isPublicViewer);
+
+  void _handleOpenLink(AppLinkRef ref) {
+    if (widget.onOpenLink == null) return;
+    if (_isPublicViewer && !ref.isPublicContext) {
+      widget.onOpenLink!(ref.copyWith(isPublicContext: true));
+    } else {
+      widget.onOpenLink!(ref);
+    }
+  }
 
   /// Roughly 220 words a minute, floored at a minute.
   int get _readMinutes => (_strategy.wordCount / 220).ceil().clamp(1, 999);
@@ -483,7 +498,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
       onRestore: version.isCurrent || !widget.canEdit
           ? null
           : () => _restoreVersion(version),
-      onOpenLink: widget.onOpenLink,
+      onOpenLink: _handleOpenLink,
     ),
   );
 
@@ -497,7 +512,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
           onRestore: version.isCurrent || !widget.canEdit
               ? null
               : () => _restoreVersion(version),
-          onOpenLink: widget.onOpenLink,
+          onOpenLink: _handleOpenLink,
         ),
       );
 
@@ -720,10 +735,10 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
         title: _strategy.name,
         subtitle: _strategy.category,
       ),
-      onOpenRef: widget.onOpenLink,
+      onOpenRef: _handleOpenLink,
       onOpenFullScreen: () {
         if (widget.onOpenLink != null) {
-          widget.onOpenLink!(
+          _handleOpenLink(
             const AppLinkRef(
               id: 'ai_copilot',
               kind: AppLinkKind.aiCopilot,
@@ -909,7 +924,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
             outlineController: _outline,
             imageResolver: StrategyAttachments.resolve,
             emptyPlaceholder: 'This playbook has no rules written yet.',
-            onOpenRef: widget.onOpenLink,
+            onOpenRef: _handleOpenLink,
           )
         else
           UiCallout(
@@ -1046,7 +1061,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
                             : null,
                         onTap: widget.onOpenLink == null
                             ? null
-                            : () => widget.onOpenLink!(ref),
+                            : () => _handleOpenLink(ref),
                       ),
                   ],
                 ),
@@ -1126,7 +1141,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
                 'No instruments named. A playbook that applies to everything '
                 'usually applies to nothing.',
           },
-          onOpen: widget.onOpenLink,
+          onOpen: _handleOpenLink,
           onRemove: widget.canEdit && !_busy ? _removeLink : null,
           onAddNote: widget.canEdit && !_busy
               ? () => _pickLinks(AppLinkKind.note)
@@ -1292,7 +1307,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
                     size: UiSize.xs,
                     onTap: widget.onOpenLink == null
                         ? null
-                        : () => widget.onOpenLink!(
+                        : () => _handleOpenLink(
                             AppLinkRef(
                               kind: AppLinkKind.ticker,
                               id: symbol.toUpperCase(),

@@ -106,11 +106,13 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
 
     final String displayBio = widget.bio?.trim().isNotEmpty == true
         ? widget.bio!
-        : (isAdmin
-              ? 'Chief Risk Officer & Proprietary Desk Overseer. Managing firm-wide risk boundaries, capital allocation matrices, and trading engine infrastructure.'
-              : (isAffiliate
-                    ? 'Official TradeX Partner & trading educator. Sharing trade setups, execution blueprints, and exclusive member discounts.'
-                    : 'Disciplined swing trader & price action specialist. Sharing execution notes, market structure, and verified playbooks.'));
+        : (widget.author?.bio?.trim().isNotEmpty == true
+            ? widget.author!.bio!
+            : (isAdmin
+                  ? 'Chief Risk Officer & Proprietary Desk Overseer. Managing firm-wide risk boundaries, capital allocation matrices, and trading engine infrastructure.'
+                  : (isAffiliate
+                        ? 'Official TradeX Partner & trading educator. Sharing trade setups, execution blueprints, and exclusive member discounts.'
+                        : '')));
 
     final List<UiTabItem> tabItems = switch (widget.userRole) {
       UserRole.userAdmin => <UiTabItem>[
@@ -607,14 +609,16 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                           ),
 
                           // Bio
-                          SizedBox(height: context.sp(theme.spacing.sm)),
-                          Text(
-                            displayBio,
-                            style: context.uiText.body.copyWith(
-                              height: 1.45,
-                              fontSize: context.fs(14),
+                          if (displayBio.trim().isNotEmpty) ...[
+                            SizedBox(height: context.sp(theme.spacing.sm)),
+                            Text(
+                              displayBio,
+                              style: context.uiText.body.copyWith(
+                                height: 1.45,
+                                fontSize: context.fs(14),
+                              ),
                             ),
-                          ),
+                          ],
 
                           // Metadata row (Location, Joined, Link, Style)
                           SizedBox(height: context.sp(theme.spacing.sm)),
@@ -649,52 +653,60 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                   isLink: true,
                                 ),
                               ] else ...[
-                                _MetaItem(
-                                  icon: Icons.location_on_outlined,
-                                  text:
-                                      widget.location?.trim().isNotEmpty == true
-                                      ? widget.location!
-                                      : 'Mumbai, IN',
-                                ),
-                                const _MetaItem(
-                                  icon: Icons.calendar_month_outlined,
-                                  text: 'Joined March 2024',
-                                ),
-                                _MetaItem(
-                                  icon: Icons.link_rounded,
-                                  text: isAffiliate
-                                      ? 'tradex.io/join/${widget.referralCode ?? widget.handle}'
-                                      : (widget.website?.trim().isNotEmpty ==
-                                                true
-                                            ? widget.website!
-                                            : 'tradex.io/@${widget.handle}'),
-                                  isLink: true,
-                                ),
+                                if (widget.location?.trim().isNotEmpty == true ||
+                                    widget.author?.location?.trim().isNotEmpty == true)
+                                  _MetaItem(
+                                    icon: Icons.location_on_outlined,
+                                    text: widget.location?.trim().isNotEmpty == true
+                                        ? widget.location!
+                                        : widget.author!.location!,
+                                  ),
+                                if (widget.author?.joinedDate?.trim().isNotEmpty == true)
+                                  _MetaItem(
+                                    icon: Icons.calendar_month_outlined,
+                                    text: widget.author!.joinedDate!,
+                                  ),
+                                if (isAffiliate)
+                                  _MetaItem(
+                                    icon: Icons.link_rounded,
+                                    text: 'tradex.io/join/${widget.referralCode ?? widget.handle}',
+                                    isLink: true,
+                                  )
+                                else if (widget.website?.trim().isNotEmpty == true ||
+                                    widget.author?.website?.trim().isNotEmpty == true)
+                                  _MetaItem(
+                                    icon: Icons.link_rounded,
+                                    text: widget.website?.trim().isNotEmpty == true
+                                        ? widget.website!
+                                        : widget.author!.website!,
+                                    isLink: true,
+                                  ),
                                 if (isAffiliate) ...[
-                                  _MetaItem(
-                                    icon: Icons.smart_display_outlined,
-                                    text:
-                                        widget.topStrategy?.trim().isNotEmpty ==
-                                            true
-                                        ? widget.topStrategy!
-                                        : 'YouTube',
-                                  ),
-                                  _MetaItem(
-                                    icon: Icons.groups_outlined,
-                                    text:
-                                        'Reach: ${widget.audienceReach?.trim().isNotEmpty == true ? widget.audienceReach! : "10K - 100K"}',
-                                  ),
+                                  if (widget.topStrategy?.trim().isNotEmpty == true)
+                                    _MetaItem(
+                                      icon: Icons.smart_display_outlined,
+                                      text: widget.topStrategy!,
+                                    ),
+                                  if (widget.audienceReach?.trim().isNotEmpty == true)
+                                    _MetaItem(
+                                      icon: Icons.groups_outlined,
+                                      text: 'Reach: ${widget.audienceReach!}',
+                                    ),
                                 ] else ...[
-                                  _MetaItem(
-                                    icon: Icons.bolt_rounded,
-                                    text:
-                                        'Avg Hold: ${widget.avgHoldDuration?.trim().isNotEmpty == true ? widget.avgHoldDuration! : "45 mins"}',
-                                  ),
-                                  if (widget.primaryMarket?.trim().isNotEmpty ==
-                                      true)
+                                  if (widget.avgHoldDuration?.trim().isNotEmpty == true ||
+                                      widget.author?.avgHoldDuration?.trim().isNotEmpty == true)
+                                    _MetaItem(
+                                      icon: Icons.bolt_rounded,
+                                      text:
+                                          'Avg Hold: ${widget.avgHoldDuration?.trim().isNotEmpty == true ? widget.avgHoldDuration! : widget.author!.avgHoldDuration!}',
+                                    ),
+                                  if (widget.primaryMarket?.trim().isNotEmpty == true ||
+                                      widget.author?.primaryMarket?.trim().isNotEmpty == true)
                                     _MetaItem(
                                       icon: Icons.show_chart_rounded,
-                                      text: widget.primaryMarket!,
+                                      text: widget.primaryMarket?.trim().isNotEmpty == true
+                                          ? widget.primaryMarket!
+                                          : widget.author!.primaryMarket!,
                                     ),
                                 ],
                               ],
@@ -755,7 +767,11 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             label: 'Followers',
                                           ),
                                           _SocialStat(
-                                            count: _formatCount(widget.author?.postsCount ?? 0),
+                                            count: _formatCount(
+                                              widget.repository != null && widget.author != null
+                                                  ? widget.repository!.postsForAuthor(widget.author!.id).length
+                                                  : (widget.author?.postsCount ?? 0),
+                                            ),
                                             label: 'Public Posts',
                                           ),
                                           _SocialStat(
@@ -1035,24 +1051,30 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                         widget.topStrategy?.trim().isNotEmpty ==
                                                 true
                                             ? widget.topStrategy!
-                                            : (widget.author?.tradingStyle ??
-                                                'Price Action');
+                                            : (widget.author?.tradingStyle?.trim().isNotEmpty == true
+                                                ? widget.author!.tradingStyle!
+                                                : '--');
                                     final String marketText =
                                         widget.primaryMarket?.trim().isNotEmpty ==
                                                 true
                                             ? widget.primaryMarket!
-                                            : (widget.author?.primaryMarket ??
-                                                'Equities');
+                                            : (widget.author?.primaryMarket?.trim().isNotEmpty == true
+                                                ? widget.author!.primaryMarket!
+                                                : '--');
                                     final String holdStr =
                                         widget.avgHoldDuration?.trim().isNotEmpty ==
                                                 true
                                             ? widget.avgHoldDuration!
-                                            : 'Intraday';
+                                            : (widget.author?.avgHoldDuration?.trim().isNotEmpty == true
+                                                ? widget.author!.avgHoldDuration!
+                                                : '--');
                                     final String mantraStr =
                                         widget.riskMantra?.trim().isNotEmpty ==
                                                 true
                                             ? widget.riskMantra!
-                                            : 'Process > PnL';
+                                            : (widget.author?.riskMantra?.trim().isNotEmpty == true
+                                                ? widget.author!.riskMantra!
+                                                : '--');
 
                                     if (constraints.maxWidth > 520) {
                                       return Row(
@@ -1069,7 +1091,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             child: _KpiPill(
                                               label: 'Avg Hold',
                                               value: holdStr,
-                                              isPositive: true,
+                                              isPositive: holdStr != '--' ? true : null,
                                             ),
                                           ),
                                           _buildKpiDivider(theme),
@@ -1085,7 +1107,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             child: _KpiPill(
                                               label: 'Risk Mantra',
                                               value: mantraStr,
-                                              isPositive: true,
+                                              isPositive: mantraStr != '--' ? true : null,
                                             ),
                                           ),
                                           _buildKpiDivider(theme),

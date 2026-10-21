@@ -68,8 +68,8 @@ void main() {
       expect(repository.upcomingRooms.first.hasReminder, isFalse);
     });
 
-    test('createLiveRoom adds a new live audio room and tunes in immediately', () {
-      final room = repository.createLiveRoom(
+    test('createLiveRoom adds a new live audio room and tunes in immediately', () async {
+      final room = await repository.createLiveRoom(
         title: 'Nifty Midcap Scalp Floor',
         topic: 'Live scalp triggers and 5-min range breakouts',
         category: 'Equities & Breakouts',

@@ -20,6 +20,7 @@ import 'package:tradex/features/community/presentation/widgets/community_audio_m
 import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
+import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// The signed-in community shell — three-tier responsive Twitter/X layout.
@@ -172,13 +173,12 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   }
 
   void _applyRequest(AppLinkOpenRequest request) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      if (request.id.startsWith('community_')) {
-        final post = _repo.loadPostById(request.id);
-        if (post != null) {
-          _openPostDetail(post);
-        }
+      CommunityPost? post = _repo.loadPostById(request.id);
+      post ??= await _repo.fetchPostById(request.id);
+      if (post != null && mounted) {
+        _openPostDetail(post);
       }
     });
   }
@@ -195,7 +195,15 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   }
 
   void _onRepoChanged() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      if (widget.openRequest != null && _activeSubpage == null) {
+        final post = _repo.loadPostById(widget.openRequest!.id);
+        if (post != null) {
+          _openPostDetail(post);
+        }
+      }
+      setState(() {});
+    }
   }
 
   @override
@@ -213,27 +221,66 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // Current-user helper
   // -------------------------------------------------------------------------
 
-  CommunityAuthor get _currentAuthor => CommunityAuthor(
-    id: (widget.currentTrader?.id.isNotEmpty ?? false)
-        ? widget.currentTrader!.id
-        : 'usr_nitish_trader',
-    handle: (widget.currentTrader?.handle.isNotEmpty ?? false)
-        ? widget.currentTrader!.handle
-        : 'nitish_trader',
-    displayName: (widget.currentTrader?.displayName?.isNotEmpty ?? false)
-        ? widget.currentTrader!.displayName!
-        : 'Nitish Kumar',
-    userRole: widget.userRole,
-    avatarUrl: widget.currentTrader?.avatarUrl,
-    verified: true,
-    tier: widget.currentTrader?.tier ?? AppTier.premium,
-    followers: widget.currentTrader?.followers ?? 12400,
-    following: widget.currentTrader?.following ?? 234,
-    winRate: 84.0,
-    tradingStyle: 'Swing Trading',
-    primaryMarket: 'Indian Equities & F&O',
-    postsCount: 892,
-  );
+  static String _monthName(int month) {
+    const months = <String>[
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    if (month >= 1 && month <= 12) return months[month - 1];
+    return '';
+  }
+
+  CommunityAuthor get _currentAuthor {
+    final trader = widget.currentTrader;
+    final int myPosts = _repo.postsForAuthor(trader?.id ?? '').length;
+    final String? joined = trader?.createdAt != null
+        ? 'Joined ${_monthName(trader!.createdAt!.month)} ${trader.createdAt!.year}'
+        : null;
+
+    double? winRate = trader?.winRate;
+    if (winRate == null) {
+      try {
+        final journalStats = JournalRepositoryScope.repository.stats;
+        if (journalStats.total > 0) {
+          winRate = journalStats.winRate * 100;
+        }
+      } catch (_) {}
+    }
+
+    return CommunityAuthor(
+      id: trader?.id ?? '',
+      handle: trader?.handle ?? '',
+      displayName: (trader?.displayName?.isNotEmpty ?? false)
+          ? trader!.displayName!
+          : (trader?.handle ?? ''),
+      userRole: widget.userRole,
+      avatarUrl: trader?.avatarUrl,
+      bio: trader?.bio,
+      verified: trader?.verified ?? false,
+      tier: trader?.tier ?? AppTier.free,
+      followers: trader?.followers ?? 0,
+      following: trader?.following ?? 0,
+      winRate: winRate,
+      tradingStyle: trader?.tradingStyle ?? trader?.topStrategy,
+      primaryMarket: trader?.primaryMarket,
+      location: trader?.location,
+      website: trader?.website,
+      avgHoldDuration: trader?.avgHoldDuration,
+      riskMantra: trader?.riskMantra,
+      joinedDate: joined,
+      postsCount: myPosts > 0 ? myPosts : (trader?.postsCount ?? 0),
+    );
+  }
 
   // -------------------------------------------------------------------------
   // Navigation helpers

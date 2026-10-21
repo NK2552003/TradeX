@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/data/repositories/auth_otp_repository.dart';
+import 'package:tradex/features/auth/data/repositories/supabase_auth_otp_repository.dart';
 import 'package:tradex/features/auth/models/otp_purpose.dart';
 import 'package:tradex/features/auth/widgets/auth_step_icon.dart';
 
@@ -47,12 +49,15 @@ class OtpVerificationPage extends StatefulWidget {
 }
 
 class _OtpVerificationPageState extends State<OtpVerificationPage> {
-  late final AuthOtpRepository _repository =
-      widget.repository ?? AuthOtpRepositoryImpl();
+  late final AuthOtpRepository _repository = widget.repository ??
+      (SupabaseConfig.isConfigured
+          ? SupabaseAuthOtpRepository()
+          : AuthOtpRepositoryImpl());
   final UiOtpFieldController _codeController = UiOtpFieldController();
 
   bool _isVerifying = false;
   bool _isResending = false;
+  bool _isAlreadyConfirmed = false;
   String? _errorText;
   int _timerSeconds = 0;
   Timer? _timer;
@@ -61,6 +66,25 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   void initState() {
     super.initState();
     _startResendTimer();
+    _checkVerificationStatus();
+  }
+
+  Future<void> _checkVerificationStatus() async {
+    if (widget.purpose != OtpPurpose.signupVerification) return;
+    try {
+      final client = SupabaseConfig.client;
+      if (client != null && SupabaseConfig.isConfigured) {
+        final session = client.auth.currentSession;
+        final user = client.auth.currentUser ?? session?.user;
+        if (session != null || (user != null && user.emailConfirmedAt != null)) {
+          if (mounted) {
+            setState(() {
+              _isAlreadyConfirmed = true;
+            });
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -122,26 +146,38 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   Future<void> _handleResend() async {
     if (_timerSeconds > 0 || _isResending) return;
 
-    setState(() => _isResending = true);
-    await _repository.resendOtp(
-      identifier: widget.identifier,
-      purpose: widget.purpose,
-    );
-    if (!mounted) return;
-
     setState(() {
-      _isResending = false;
+      _isResending = true;
       _errorText = null;
     });
-    _codeController.clear();
-    _startResendTimer();
 
-    UiToast.show(
-      context,
-      title: 'Code Sent',
-      message: 'A new verification code was sent to ${widget.identifier}',
-      intent: UiIntent.info,
-    );
+    try {
+      await _repository.resendOtp(
+        identifier: widget.identifier,
+        purpose: widget.purpose,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _isResending = false;
+        _errorText = null;
+      });
+      _codeController.clear();
+      _startResendTimer();
+
+      UiToast.show(
+        context,
+        title: 'Code Sent',
+        message: 'A new verification code was sent to ${widget.identifier}',
+        intent: UiIntent.info,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isResending = false;
+        _errorText = 'Unable to resend OTP: ${e.toString().replaceAll('AuthException: ', '')}';
+      });
+    }
   }
 
   @override
@@ -220,6 +256,25 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                                     message: _errorText!,
                                     intent: UiIntent.danger,
                                   ),
+                                  SizedBox(height: context.sp(theme.spacing.md)),
+                                ],
+                                if (_isAlreadyConfirmed) ...<Widget>[
+                                  UiCallout(
+                                    title: 'Email Already Verified',
+                                    message:
+                                        'Your email (${widget.identifier}) is already verified in Supabase! You can proceed directly without entering a code.',
+                                    intent: UiIntent.success,
+                                  ),
+                                  SizedBox(height: context.sp(theme.spacing.md)),
+                                  UiButton(
+                                    label: 'Continue to Account Setup',
+                                    variant: UiVariant.primary,
+                                    intent: UiIntent.success,
+                                    size: UiSize.lg,
+                                    onPressed: () => widget.onVerified('already_confirmed'),
+                                  ),
+                                  SizedBox(height: context.sp(theme.spacing.lg)),
+                                  UiDivider(label: 'OR ENTER CODE'),
                                   SizedBox(height: context.sp(theme.spacing.md)),
                                 ],
 

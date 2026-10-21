@@ -66,6 +66,9 @@ abstract class JournalRepository {
   /// Turns a stored reference back into something the preview can load. Local
   /// paths come back unchanged; a Supabase implementation returns a signed or public URL.
   Future<String> resolveAttachmentUrl(String ref);
+
+  /// Calculated summary metrics across all currently held entries.
+  AppJournalStats get stats;
 }
 
 /// Live Supabase-backed implementation with real-time sync and offline resilience.
@@ -420,6 +423,9 @@ class JournalRepositoryImpl implements JournalRepository {
             .where((AppTrade entry) => entry.isPublic)
             .toList(growable: false),
       );
+
+  @override
+  AppJournalStats get stats => JournalQuery.statsOf(_entries);
 
   @override
   Future<List<AppTrade>> fetchAll() async {

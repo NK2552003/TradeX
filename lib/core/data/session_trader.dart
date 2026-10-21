@@ -18,26 +18,26 @@ AppTrader appTraderFromProfile(
   UserProfileModel profile, {
   DemoDataSource? source,
 }) {
-  final DemoDataSource data = source ?? DemoDataSource.instance;
-  final AppTrader base = data.me(
+  return AppTrader(
     id: profile.id,
     handle: profile.handle,
     displayName: profile.displayName,
-    tier: appTierFromId(profile.subscriptionTier),
-    bio: profile.bio,
-  );
-  return AppTrader(
-    id: base.id,
-    handle: base.handle,
-    displayName: base.displayName,
     avatarUrl: profile.avatarUrl,
-    bio: base.bio,
-    tier: base.tier,
-    followers: base.followers,
-    following: base.following,
-    winRate: base.winRate,
-    verified: base.verified,
+    bio: profile.bio,
+    tier: appTierFromId(profile.subscriptionTier),
+    followers: profile.followers,
+    following: profile.following,
+    winRate: profile.winRate,
+    verified: profile.verified,
     isFollowing: false,
-    tradingStyle: profile.tradingStyle ?? base.tradingStyle,
+    tradingStyle: profile.tradingStyle,
+    location: profile.location,
+    website: profile.website,
+    avgHoldDuration: profile.avgHoldDuration,
+    primaryMarket: profile.primaryMarket,
+    topStrategy: profile.topStrategy,
+    riskMantra: profile.riskMantra,
+    createdAt: profile.createdAt,
+    postsCount: profile.postsCount,
   );
 }

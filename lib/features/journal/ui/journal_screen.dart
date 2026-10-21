@@ -125,6 +125,7 @@ class JournalScreenState extends State<JournalScreen> {
   bool _dismissedSuggestions = false;
 
   _JournalView _view = _JournalView.list;
+  bool _isPublicContext = false;
   String? _activeId;
   AppTrade? _draft;
   JournalEditorMode _editorMode = JournalEditorMode.write;
@@ -362,9 +363,16 @@ class JournalScreenState extends State<JournalScreen> {
   }
 
   void _apply(AppLinkOpenRequest request) {
-    if (request.kind != AppLinkKind.journal) return;
+    if (request.kind != AppLinkKind.journal &&
+        !request.id.startsWith('trade_') &&
+        !request.id.startsWith('entry_') &&
+        !request.id.startsWith('trn_') &&
+        !request.id.startsWith('journal_')) {
+      return;
+    }
     final bool known = _entries.any((AppTrade t) => t.id == request.id);
     if (!known && !_loading) return;
+    _isPublicContext = request.publicContext;
     _open(request.id);
   }
 
@@ -453,7 +461,12 @@ class JournalScreenState extends State<JournalScreen> {
       );
       return;
     }
-    jump(ref);
+    final bool isPublic = ref.isPublicContext ||
+        _isPublicContext ||
+        (_entries.where((t) => t.id == _activeId).firstOrNull?.isPublic ?? false);
+    final AppLinkRef forwarded =
+        isPublic && !ref.isPublicContext ? ref.copyWith(isPublicContext: true) : ref;
+    jump(forwarded);
   }
 
   // ── Guide Step Actions ─────────────────────────────────────────────────────
@@ -728,6 +741,8 @@ class JournalScreenState extends State<JournalScreen> {
   Widget _document(AppTrade entry) => JournalEntryScreen(
     key: ValueKey<String>('journal_document_${entry.id}'),
     entry: entry,
+    canEdit: !_isPublicContext,
+    isPublicContext: _isPublicContext || entry.isPublic,
     onClose: _backToIndex,
     onEdit: () => _edit(entry, mode: JournalEditorMode.write, detailsOnly: true),
     onEditWriting: () {

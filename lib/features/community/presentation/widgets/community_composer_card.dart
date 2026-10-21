@@ -13,6 +13,9 @@ import 'package:tradex/features/community/presentation/widgets/community_post_ca
 import 'package:image_picker/image_picker.dart';
 import 'package:tradex/features/community/presentation/widgets/community_quote_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_schedule_dialog.dart';
+import 'package:tradex/features/journal/data/journal_repository.dart';
+import 'package:tradex/features/notes/data/notes_repository.dart';
+import 'package:tradex/features/strategies/data/strategies_repository.dart';
 import 'package:uuid/uuid.dart';
 
 // ---------------------------------------------------------------------------
@@ -889,6 +892,27 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         final tag = m.group(1);
         if (tag != null && tag.isNotEmpty) {
           allTags.add(tag);
+        }
+      }
+
+      if (_attachment != null) {
+        final AppLinkRef src = _attachment!.source;
+        try {
+          switch (src.kind) {
+            case AppLinkKind.note:
+              await NotesRepositoryScope.repository.setVisibility(src.id, true);
+              break;
+            case AppLinkKind.strategy:
+              await StrategiesRepositoryScope.repository.setVisibility(src.id, true);
+              break;
+            case AppLinkKind.journal:
+              await JournalRepositoryScope.repository.setVisibility(src.id, true);
+              break;
+            default:
+              break;
+          }
+        } catch (_) {
+          // Ignore failures for manual or ephemeral records
         }
       }
 

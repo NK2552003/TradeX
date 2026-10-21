@@ -118,6 +118,7 @@ class NotesScreenState extends State<NotesScreen> {
   _NotesView _view = _NotesView.list;
   AppNote? _active;
   AppLinkOpenRequest? _appliedRequest;
+  bool _isPublicContext = false;
   RecordWritingDocument? _sourceWriting;
   bool _openingWriting = false;
 
@@ -170,11 +171,56 @@ class NotesScreenState extends State<NotesScreen> {
 
   void _apply(AppLinkOpenRequest request) {
     if (request == _appliedRequest) return;
+    _isPublicContext = request.publicContext;
     if (request.editWriting && request.kind != AppLinkKind.note) {
       _appliedRequest = request;
       _openSourceWriting(
-        AppLinkRef(kind: request.kind, id: request.id, title: request.id),
+        AppLinkRef(
+          kind: request.kind,
+          id: request.id,
+          title: request.id,
+          isPublicContext: request.publicContext,
+        ),
       );
+      return;
+    }
+    if (request.kind == AppLinkKind.communityPost ||
+        request.id.startsWith('post_') ||
+        request.id.startsWith('pst_') ||
+        request.id.startsWith('community')) {
+      _appliedRequest = request;
+      widget.onOpenRef?.call(AppLinkRef(
+        kind: AppLinkKind.communityPost,
+        id: request.id,
+        title: request.id,
+        isPublicContext: request.publicContext,
+      ));
+      return;
+    }
+    if (request.kind == AppLinkKind.journal ||
+        request.id.startsWith('trade_') ||
+        request.id.startsWith('entry_') ||
+        request.id.startsWith('trn_') ||
+        request.id.startsWith('journal_')) {
+      _appliedRequest = request;
+      widget.onOpenRef?.call(AppLinkRef(
+        kind: AppLinkKind.journal,
+        id: request.id,
+        title: request.id,
+        isPublicContext: request.publicContext,
+      ));
+      return;
+    }
+    if (request.kind == AppLinkKind.strategy ||
+        request.id.startsWith('strat_') ||
+        request.id.startsWith('strategy_')) {
+      _appliedRequest = request;
+      widget.onOpenRef?.call(AppLinkRef(
+        kind: AppLinkKind.strategy,
+        id: request.id,
+        title: request.id,
+        isPublicContext: request.publicContext,
+      ));
       return;
     }
     if (request.kind != AppLinkKind.note) return;
@@ -449,6 +495,12 @@ class NotesScreenState extends State<NotesScreen> {
       }
       return;
     }
+    final bool isPublic = ref.isPublicContext ||
+        _isPublicContext ||
+        _collection == _NotesCollection.public ||
+        (_active?.isPublic ?? false);
+    final AppLinkRef targetRef =
+        isPublic ? ref.copyWith(isPublicContext: true) : ref;
     final void Function(AppLinkRef ref)? jump = widget.onOpenRef;
     if (jump == null) {
       UiToast.info(
@@ -458,7 +510,7 @@ class NotesScreenState extends State<NotesScreen> {
       );
       return;
     }
-    jump(ref);
+    jump(targetRef);
   }
 
   Future<void> _delete(AppNote note) async {
@@ -1444,7 +1496,10 @@ class NotesScreenState extends State<NotesScreen> {
         },
         onOpenLink: _openRef,
         onAttachToPost: widget.onAttachToPost,
-        canEdit: _collection == _NotesCollection.mine,
+        canEdit: !_isPublicContext && _collection == _NotesCollection.mine,
+        isPublicContext: _isPublicContext ||
+            _collection == _NotesCollection.public ||
+            _freshest(active).isPublic,
       ),
       _NotesView.editor when active != null => NoteEditorScreen(
         key: ValueKey<String>('note_editor_${active.id}'),

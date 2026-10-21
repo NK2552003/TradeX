@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
 import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
+import 'package:tradex/features/auth/data/services/auth_session_storage.dart';
 import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
@@ -22,6 +23,14 @@ class SupabaseAuthBackendService implements AuthRepository {
   AffiliateProfileModel? get currentAffiliateProfile =>
       _currentAffiliateProfile ??
       AuthBackendService.instance.currentAffiliateProfile;
+
+  void setCurrentProfile(
+    UserProfileModel? profile, {
+    AffiliateProfileModel? affiliateProfile,
+  }) {
+    _currentUserProfile = profile;
+    _currentAffiliateProfile = affiliateProfile;
+  }
 
   @override
   Future<AuthResult> signUp({
@@ -135,15 +144,27 @@ class SupabaseAuthBackendService implements AuthRepository {
 
       _currentUserProfile = userProfile;
 
+      await AuthSessionStorage.saveSession(
+        profile: userProfile,
+        affiliateProfile: _currentAffiliateProfile,
+        token: authResponse.session?.accessToken,
+      );
+
       // Affiliate profile/commission records are created by the admin approval
       // endpoint, never by the public signup path.
+
+      final bool requiresVerification =
+          authResponse.session == null && user.emailConfirmedAt == null;
 
       return AuthResult.success(
         profile: userProfile,
         affiliateProfile: _currentAffiliateProfile,
+        requiresEmailVerification: requiresVerification,
         message: role == UserRole.affiliate
             ? 'Trader account created. Complete the affiliate application for review.'
-            : 'Successfully registered account with Supabase authentication!',
+            : (requiresVerification
+                ? 'Verification code dispatched to your email.'
+                : 'Successfully registered account with Supabase authentication!'),
       );
     } on AuthException catch (e) {
       return AuthResult.failure(e.message);
@@ -313,6 +334,12 @@ class SupabaseAuthBackendService implements AuthRepository {
         }
       }
 
+      await AuthSessionStorage.saveSession(
+        profile: userProfile,
+        affiliateProfile: _currentAffiliateProfile,
+        token: authResponse.session?.accessToken,
+      );
+
       return AuthResult.success(
         profile: userProfile,
         affiliateProfile: _currentAffiliateProfile,
@@ -406,6 +433,8 @@ class SupabaseAuthBackendService implements AuthRepository {
   Future<void> signOut() async {
     _currentUserProfile = null;
     _currentAffiliateProfile = null;
+
+    await AuthSessionStorage.clearSession();
 
     if (SupabaseConfig.isConfigured) {
       try {

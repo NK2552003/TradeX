@@ -7,6 +7,7 @@ export 'models/affiliate_profile_model.dart';
 export 'data/repositories/auth_repository.dart';
 export 'data/services/auth_backend_service.dart';
 export 'data/services/supabase_auth_backend_service.dart';
+export 'data/services/auth_session_storage.dart';
 export 'models/otp_purpose.dart';
 export 'data/repositories/auth_otp_repository.dart';
 export 'widgets/auth_window_graphics.dart';
