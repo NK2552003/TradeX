@@ -41,6 +41,7 @@ class JournalEntryScreen extends StatefulWidget {
     this.onEditWriting,
     this.onAttachToPost,
     this.canEdit = true,
+    this.isPublicContext = false,
   });
 
   final AppTrade entry;
@@ -55,6 +56,7 @@ class JournalEntryScreen extends StatefulWidget {
   final void Function(AppLinkRef ref)? onOpenLink;
   final AppWritingPostAttachmentHandler? onAttachToPost;
   final bool canEdit;
+  final bool isPublicContext;
 
   @override
   State<JournalEntryScreen> createState() => _JournalEntryScreenState();
@@ -137,9 +139,23 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     });
   }
 
-  AppLinkBundle get _bundle => _graph.bundleForJournal(_entry);
+  bool get _isPublicViewer =>
+      widget.isPublicContext || !widget.canEdit || _entry.isPublic;
 
-  List<AppLinkRef> get _siblings => _graph.siblingEntries(_entry);
+  AppLinkBundle get _bundle =>
+      _graph.bundleForJournal(_entry, onlyPublic: _isPublicViewer);
+
+  List<AppLinkRef> get _siblings =>
+      _graph.siblingEntries(_entry, onlyPublic: _isPublicViewer);
+
+  void _handleOpenLink(AppLinkRef ref) {
+    if (widget.onOpenLink == null) return;
+    if (_isPublicViewer && !ref.isPublicContext) {
+      widget.onOpenLink!(ref.copyWith(isPublicContext: true));
+    } else {
+      widget.onOpenLink!(ref);
+    }
+  }
 
 
   /// Roughly 220 words a minute, floored at a minute.
@@ -552,10 +568,10 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
                 onOpenStrategy:
                     widget.onOpenLink == null || bundle.strategies.isEmpty
                     ? null
-                    : () => widget.onOpenLink!(bundle.strategies.first),
+                    : () => _handleOpenLink(bundle.strategies.first),
                 onOpenTicker: widget.onOpenLink == null
                     ? null
-                    : () => widget.onOpenLink!(_graph.tickerRef(_entry.ticker)),
+                    : () => _handleOpenLink(_graph.tickerRef(_entry.ticker)),
                 actions: _headerActions(context),
               ),
               SizedBox(height: context.sp(theme.spacing.md)),
@@ -631,10 +647,10 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
         title: _entry.displayTitle,
         subtitle: _entry.ticker,
       ),
-      onOpenRef: widget.onOpenLink,
+      onOpenRef: _handleOpenLink,
       onOpenFullScreen: () {
         if (widget.onOpenLink != null) {
-          widget.onOpenLink!(
+          _handleOpenLink(
             const AppLinkRef(
               id: 'ai_copilot',
               kind: AppLinkKind.aiCopilot,
@@ -751,7 +767,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
               outlineController: _outline,
               imageResolver: JournalAttachments.resolve,
               emptyPlaceholder: 'This entry has no write-up yet.',
-              onOpenRef: widget.onOpenLink,
+              onOpenRef: _handleOpenLink,
             )
           else
             UiCallout(
@@ -822,7 +838,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
                 'up into a win rate.',
             AppLinkKind.note: 'No research attached to this trade.',
           },
-          onOpen: widget.onOpenLink,
+          onOpen: _handleOpenLink,
           onRemove: _busy ? null : _removeLink,
           onAddNote: _busy ? null : () => _pickLinks(AppLinkKind.note),
           onAddStrategy: _busy ? null : () => _pickLinks(AppLinkKind.strategy),
@@ -858,7 +874,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
                 size: UiSize.xs,
                 onTap: widget.onOpenLink == null
                     ? null
-                    : () => widget.onOpenLink!(_graph.tickerRef(_entry.ticker)),
+                    : () => _handleOpenLink(_graph.tickerRef(_entry.ticker)),
               ),
               UiBadge(
                 label: AppTokens.outcomeLabel(_entry.outcome),
@@ -1005,7 +1021,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
               dense: true,
               onTap: widget.onOpenLink == null
                   ? null
-                  : () => widget.onOpenLink!(ref),
+                  : () => _handleOpenLink(ref),
             ),
         ],
       ),

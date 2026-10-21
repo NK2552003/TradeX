@@ -232,14 +232,26 @@ class _CommunitySendDmDialogState extends State<CommunitySendDmDialog> {
                     );
                     final String threadId = MessagesRepositoryScope.repository
                         .startConversation(trader);
-                    final String shareText = widget.post != null
-                        ? (_message.isNotEmpty
-                              ? '$_message\n\nShared post by @${widget.post!.author.handle}: "${widget.post!.body}"'
-                              : 'Shared post by @${widget.post!.author.handle}: "${widget.post!.body}"')
-                        : _message;
+                    final AppLinkRef? postRef = widget.post != null
+                        ? AppLinkRef(
+                            kind: AppLinkKind.communityPost,
+                            id: widget.post!.id,
+                            title: 'Post by @${widget.post!.author.handle}',
+                            subtitle: widget.post!.body.length > 80
+                                ? '${widget.post!.body.substring(0, 80)}...'
+                                : widget.post!.body,
+                            icon: Icons.public_rounded,
+                          )
+                        : null;
+                    final String shareText = _message.trim().isNotEmpty
+                        ? _message.trim()
+                        : (widget.post != null
+                              ? 'Shared post by @${widget.post!.author.handle}'
+                              : '');
                     MessagesRepositoryScope.repository.sendMessage(
                       threadId,
                       body: shareText,
+                      sharedRef: postRef,
                     );
                   } catch (_) {}
                   Navigator.of(context).pop();

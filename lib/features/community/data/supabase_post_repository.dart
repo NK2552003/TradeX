@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:uuid/uuid.dart';
 
 abstract class SupabasePostRepository {
   Future<List<AppPost>> getPosts();
@@ -28,57 +29,90 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
   final DemoDataSource _demo = DemoDataSource.instance;
 
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+  static final RegExp _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
+  String _resolveUserId() {
+    if (SupabaseConfig.isConfigured) {
+      final user = SupabaseConfig.client?.auth.currentUser;
+      if (user != null && user.id.isNotEmpty) {
+        return user.id;
+      }
+    }
+    return _demoUserId;
+  }
+
+  bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
+
   @override
   Future<List<AppPost>> getPosts() async {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        if (user != null) {
+        final currentUserId = _resolveUserId();
+
+        final Set<String> blockedIds = <String>{};
+        try {
           final blockedRes = await client
               .from('blocks')
               .select('blocked_id')
-              .eq('blocker_id', user.id);
+              .eq('blocker_id', currentUserId);
+          blockedIds.addAll(
+            (blockedRes as List).map((b) => b['blocked_id'].toString()),
+          );
+        } catch (_) {}
 
-          final blockedIds = (blockedRes as List)
-              .map((b) => b['blocked_id'] as String)
-              .toSet();
+        final res = await client
+            .from('community_posts')
+            .select('*, profiles(username, display_name, avatar_url), community_post_attachments(*)')
+            .order('created_at', ascending: false);
 
-          final res = await client
-              .from('posts')
-              .select('*, profiles!inner(handle, display_name, avatar_url)')
-              .order('created_at', ascending: false);
+        final filtered = (res as List)
+            .where((row) => !blockedIds.contains(row['author_id']?.toString()))
+            .toList();
 
-          final filtered = (res as List)
-              .where((row) => !blockedIds.contains(row['user_id']))
-              .toList();
+        return filtered.map((row) {
+          final profile = row['profiles'] as Map<String, dynamic>?;
+          final handle = profile?['username'] as String? ?? 'trader';
+          final name = profile?['display_name'] as String? ?? handle;
 
-          return filtered.map((row) {
-            final profile = row['profiles'] as Map<String, dynamic>?;
-            final handle = profile?['handle'] as String? ?? 'trader';
-            final name = profile?['display_name'] as String? ?? handle;
+          final tickersList = row['tickers'] as List?;
+          final List<String> tickers = tickersList != null
+              ? tickersList.map((e) => e.toString()).toList()
+              : const <String>[];
 
-            return AppPost(
-              id: row['id'] as String,
-              author: AppTrader(
-                id: row['user_id'] as String? ?? 'usr_trader',
-                handle: handle,
-                displayName: name,
-                avatarUrl: profile?['avatar_url'] as String?,
-              ),
-              body: row['content'] as String? ?? '',
-              createdAt: row['created_at'] != null
-                  ? DateTime.parse(row['created_at'] as String)
-                  : DateTime.now(),
-              likes: 0,
-              comments: 0,
-              tickers: row['ticker'] != null
-                  ? [row['ticker'] as String]
-                  : const [],
-              imageUrl: row['image_url'] as String?,
-            );
-          }).toList();
-        }
+          final attachments = row['community_post_attachments'] as List?;
+          String? postImageUrl;
+          if (attachments != null) {
+            for (final a in attachments) {
+              final att = a as Map<String, dynamic>;
+              if (att['kind'] == 'image') {
+                postImageUrl = att['url']?.toString() ?? att['ref_id']?.toString();
+                break;
+              }
+            }
+          }
+
+          return AppPost(
+            id: row['id']?.toString() ?? '',
+            author: AppTrader(
+              id: row['author_id']?.toString() ?? 'usr_trader',
+              handle: handle,
+              displayName: name,
+              avatarUrl: profile?['avatar_url'] as String?,
+            ),
+            body: row['body'] as String? ?? '',
+            createdAt: row['created_at'] != null
+                ? DateTime.tryParse(row['created_at'].toString()) ?? DateTime.now()
+                : DateTime.now(),
+            likes: (row['likes_count'] as num?)?.toInt() ?? 0,
+            comments: (row['comments_count'] as num?)?.toInt() ?? 0,
+            tickers: tickers,
+            imageUrl: postImageUrl,
+          );
+        }).toList();
       } catch (e) {
         debugPrint('[SupabasePostRepository] getPosts error: $e');
       }
@@ -97,39 +131,57 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        if (user != null) {
-          final res = await client
-              .from('posts')
-              .insert({
-                'user_id': user.id,
-                'content': content,
-                'ticker': ticker,
-                'image_url': imageUrl,
-              })
-              .select('*, profiles!inner(handle, display_name, avatar_url)')
-              .single();
+        final userId = _resolveUserId();
+        final postId = const Uuid().v4();
 
-          final profile = res['profiles'] as Map<String, dynamic>?;
-          final handle = profile?['handle'] as String? ?? 'trader';
-          final name = profile?['display_name'] as String? ?? handle;
+        final row = {
+          'id': postId,
+          'author_id': userId,
+          'title': '',
+          'body': content,
+          'tickers': ticker != null ? [ticker] : <String>[],
+          'tags': <String>[],
+          'is_public': true,
+          'visibility': 'public',
+          'created_at': now.toIso8601String(),
+          'updated_at': now.toIso8601String(),
+        };
 
-          return AppPost(
-            id: res['id'] as String,
-            author: AppTrader(
-              id: user.id,
-              handle: handle,
-              displayName: name,
-              avatarUrl: profile?['avatar_url'] as String?,
-            ),
-            body: res['content'] as String? ?? '',
-            createdAt: now,
-            likes: 0,
-            comments: 0,
-            tickers: ticker != null ? [ticker] : const [],
-            imageUrl: imageUrl,
-          );
+        final res = await client
+            .from('community_posts')
+            .insert(row)
+            .select('*, profiles(username, display_name, avatar_url)')
+            .single();
+
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          await client.from('community_post_attachments').insert({
+            'post_id': postId,
+            'kind': 'image',
+            'ref_id': imageUrl,
+            'title': 'Chart Image',
+            'url': imageUrl,
+          });
         }
+
+        final profile = res['profiles'] as Map<String, dynamic>?;
+        final handle = profile?['username'] as String? ?? 'trader';
+        final name = profile?['display_name'] as String? ?? handle;
+
+        return AppPost(
+          id: res['id']?.toString() ?? postId,
+          author: AppTrader(
+            id: userId,
+            handle: handle,
+            displayName: name,
+            avatarUrl: profile?['avatar_url'] as String?,
+          ),
+          body: res['body'] as String? ?? content,
+          createdAt: now,
+          likes: 0,
+          comments: 0,
+          tickers: ticker != null ? [ticker] : const [],
+          imageUrl: imageUrl,
+        );
       } catch (e) {
         debugPrint('[SupabasePostRepository] createPost error: $e');
       }
@@ -153,13 +205,26 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
   @override
   Future<void> likePost(String postId) async {
-    if (SupabaseConfig.isConfigured) {
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        if (user != null) {
-          await client.from('likes').upsert({
-            'user_id': user.id,
+        final userId = _resolveUserId();
+        final existing = await client
+            .from('community_likes')
+            .select('post_id')
+            .eq('post_id', postId)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (existing != null) {
+          await client
+              .from('community_likes')
+              .delete()
+              .eq('post_id', postId)
+              .eq('user_id', userId);
+        } else {
+          await client.from('community_likes').insert({
+            'user_id': userId,
             'post_id': postId,
           });
         }
@@ -171,17 +236,16 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
   @override
   Future<void> commentPost(String postId, String commentText) async {
-    if (SupabaseConfig.isConfigured) {
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        if (user != null) {
-          await client.from('comments').insert({
-            'post_id': postId,
-            'user_id': user.id,
-            'content': commentText,
-          });
-        }
+        final userId = _resolveUserId();
+        await client.from('community_comments').insert({
+          'id': const Uuid().v4(),
+          'post_id': postId,
+          'author_id': userId,
+          'body': commentText.trim(),
+        });
       } catch (e) {
         debugPrint('[SupabasePostRepository] commentPost error: $e');
       }
@@ -190,33 +254,33 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
   @override
   Future<List<AppComment>> getComments(String postId) async {
-    if (SupabaseConfig.isConfigured) {
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
       try {
         final client = SupabaseConfig.client!;
         final res = await client
-            .from('comments')
-            .select('*, profiles!inner(handle, display_name, avatar_url)')
+            .from('community_comments')
+            .select('*, profiles(username, display_name, avatar_url)')
             .eq('post_id', postId)
             .order('created_at', ascending: true);
 
         return (res as List).map((row) {
           final profile = row['profiles'] as Map<String, dynamic>?;
-          final handle = profile?['handle'] as String? ?? 'trader';
+          final handle = profile?['username'] as String? ?? 'trader';
           final name = profile?['display_name'] as String? ?? handle;
 
           return AppComment(
-            id: row['id'] as String,
+            id: row['id']?.toString() ?? '',
             author: AppTrader(
-              id: row['user_id'] as String? ?? 'usr_trader',
+              id: row['author_id']?.toString() ?? 'usr_trader',
               handle: handle,
               displayName: name,
               avatarUrl: profile?['avatar_url'] as String?,
             ),
-            body: row['content'] as String? ?? '',
+            body: row['body'] as String? ?? '',
             createdAt: row['created_at'] != null
-                ? DateTime.parse(row['created_at'] as String)
+                ? DateTime.tryParse(row['created_at'].toString()) ?? DateTime.now()
                 : DateTime.now(),
-            likes: row['likes'] as int? ?? 0,
+            likes: (row['likes_count'] as num?)?.toInt() ?? 0,
           );
         }).toList();
       } catch (e) {
@@ -228,13 +292,26 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
   @override
   Future<void> savePost(String postId) async {
-    if (SupabaseConfig.isConfigured) {
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        if (user != null) {
-          await client.from('saved_posts').upsert({
-            'user_id': user.id,
+        final userId = _resolveUserId();
+        final existing = await client
+            .from('community_bookmarks')
+            .select('post_id')
+            .eq('post_id', postId)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (existing != null) {
+          await client
+              .from('community_bookmarks')
+              .delete()
+              .eq('post_id', postId)
+              .eq('user_id', userId);
+        } else {
+          await client.from('community_bookmarks').insert({
+            'user_id': userId,
             'post_id': postId,
           });
         }
@@ -246,7 +323,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
   @override
   Future<void> incrementView(String postId) async {
-    if (SupabaseConfig.isConfigured) {
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
       try {
         final client = SupabaseConfig.client!;
         await client.rpc('increment_post_views', params: {'p_post_id': postId});
@@ -261,13 +338,11 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        if (user != null) {
-          await client.from('blocks').upsert({
-            'blocker_id': user.id,
-            'blocked_id': userIdToBlock,
-          });
-        }
+        final userId = _resolveUserId();
+        await client.from('blocks').upsert({
+          'blocker_id': userId,
+          'blocked_id': userIdToBlock,
+        });
       } catch (e) {
         debugPrint('[SupabasePostRepository] blockUser error: $e');
       }

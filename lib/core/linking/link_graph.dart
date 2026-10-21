@@ -76,6 +76,7 @@ class AppLinkOpenRequest {
     required this.id,
     required this.seq,
     this.editWriting = false,
+    this.publicContext = false,
   });
 
   final AppLinkKind kind;
@@ -87,19 +88,24 @@ class AppLinkOpenRequest {
   /// Open the source document in the shared Notes writing workspace.
   final bool editWriting;
 
+  /// Whether this request was initiated from or targeted to a public context.
+  final bool publicContext;
+
   @override
   bool operator ==(Object other) =>
       other is AppLinkOpenRequest &&
       other.kind == kind &&
       other.id == id &&
       other.seq == seq &&
-      other.editWriting == editWriting;
+      other.editWriting == editWriting &&
+      other.publicContext == publicContext;
 
   @override
-  int get hashCode => Object.hash(kind, id, seq, editWriting);
+  int get hashCode => Object.hash(kind, id, seq, editWriting, publicContext);
 
   @override
-  String toString() => 'AppLinkOpenRequest(${kind.host}/$id #$seq)';
+  String toString() =>
+      'AppLinkOpenRequest(${kind.host}/$id #$seq${publicContext ? ' public' : ''})';
 }
 
 /// An immutable snapshot of every record and every edge between them.
@@ -241,8 +247,8 @@ class AppLinkGraph {
   // ── Bundles: everything linked to one record ───────────────────────────────
 
   /// Notes, journal entries, strategies and tickers attached to [note].
-  AppLinkBundle bundleForNote(AppNote note) {
-    final bool isPub = note.isPublic;
+  AppLinkBundle bundleForNote(AppNote note, {bool onlyPublic = false}) {
+    final bool isPub = onlyPublic;
     final Set<String> journalIds = <String>{
       for (final String id in note.linkedJournalIds)
         if (!isPub || (entry(id)?.isPublic ?? false)) id,
@@ -285,8 +291,8 @@ class AppLinkGraph {
   }
 
   /// Notes, strategies and tickers attached to a journal [entry].
-  AppLinkBundle bundleForJournal(AppTrade entry) {
-    final bool isPub = entry.isPublic;
+  AppLinkBundle bundleForJournal(AppTrade entry, {bool onlyPublic = false}) {
+    final bool isPub = onlyPublic;
     final Set<String> noteIds = <String>{
       for (final String id in entry.linkedNoteIds)
         if (!isPub || (note(id)?.isPublic ?? false)) id,
@@ -330,8 +336,8 @@ class AppLinkGraph {
   /// union of the ones the playbook names and the ones its entries were actually
   /// traded on — a playbook written for the index that keeps getting traded on
   /// bank futures is worth seeing.
-  AppLinkBundle bundleForStrategy(AppStrategy strategy) {
-    final bool isPub = strategy.isPublic;
+  AppLinkBundle bundleForStrategy(AppStrategy strategy, {bool onlyPublic = false}) {
+    final bool isPub = onlyPublic;
     final Set<String> noteIds = <String>{
       for (final String id in strategy.linkedNoteIds)
         if (!isPub || (note(id)?.isPublic ?? false)) id,
@@ -374,42 +380,66 @@ class AppLinkGraph {
   }
 
   /// The bundle for any record, addressed by kind and id.
-  AppLinkBundle bundleFor(AppLinkKind kind, String id) => switch (kind) {
+  AppLinkBundle bundleFor(
+    AppLinkKind kind,
+    String id, {
+    bool onlyPublic = false,
+  }) => switch (kind) {
     AppLinkKind.note =>
-      note(id) == null ? AppLinkBundle.empty : bundleForNote(note(id)!),
+      note(id) == null
+          ? AppLinkBundle.empty
+          : bundleForNote(note(id)!, onlyPublic: onlyPublic),
     AppLinkKind.journal =>
-      entry(id) == null ? AppLinkBundle.empty : bundleForJournal(entry(id)!),
+      entry(id) == null
+          ? AppLinkBundle.empty
+          : bundleForJournal(entry(id)!, onlyPublic: onlyPublic),
     AppLinkKind.strategy =>
       strategy(id) == null
           ? AppLinkBundle.empty
-          : bundleForStrategy(strategy(id)!),
-    AppLinkKind.ticker => bundleForTicker(id),
+          : bundleForStrategy(strategy(id)!, onlyPublic: onlyPublic),
+    AppLinkKind.ticker => bundleForTicker(id, onlyPublic: onlyPublic),
     _ => AppLinkBundle.empty,
   };
 
   /// Everything that mentions one instrument. Tickers own no record of their
   /// own, so this is derived entirely from the other three.
-  AppLinkBundle bundleForTicker(String symbol) {
+  AppLinkBundle bundleForTicker(String symbol, {bool onlyPublic = false}) {
     final String s = symbol.toUpperCase();
-    return _withInline(
+    final AppLinkBundle raw = _withInline(
       AppLinkKind.ticker,
       symbol.toUpperCase(),
       AppLinkBundle(
         strategies: <AppLinkRef>[
           for (final AppStrategy st in strategyList)
-            if (st.linkedTickers.any((String t) => t.toUpperCase() == s))
+            if (st.linkedTickers.any((String t) => t.toUpperCase() == s) &&
+                (!onlyPublic || st.isPublic))
               strategyRef(st),
         ],
         journal: <AppLinkRef>[
           for (final AppTrade t in journalList)
-            if (t.ticker.toUpperCase() == s) journalRef(t),
+            if (t.ticker.toUpperCase() == s && (!onlyPublic || t.isPublic))
+              journalRef(t),
         ],
         notes: <AppLinkRef>[
           for (final AppNote n in noteList)
-            if (n.linkedTickers.any((String t) => t.toUpperCase() == s))
+            if (n.linkedTickers.any((String t) => t.toUpperCase() == s) &&
+                (!onlyPublic || n.isPublic))
               noteRef(n),
         ],
       ),
+    );
+    if (!onlyPublic) return raw;
+    return AppLinkBundle(
+      strategies: raw.strategies
+          .where((r) => strategy(r.id)?.isPublic ?? false)
+          .toList(growable: false),
+      journal: raw.journal
+          .where((r) => entry(r.id)?.isPublic ?? false)
+          .toList(growable: false),
+      notes: raw.notes
+          .where((r) => note(r.id)?.isPublic ?? false)
+          .toList(growable: false),
+      tickers: raw.tickers,
     );
   }
 
@@ -500,12 +530,20 @@ class AppLinkGraph {
   // ── Neighbours: same-kind records worth reading next ───────────────────────
 
   /// Other entries traded under the same playbook, newest first.
-  List<AppLinkRef> siblingEntries(AppTrade entry, {int limit = 4}) {
+  List<AppLinkRef> siblingEntries(
+    AppTrade entry, {
+    int limit = 4,
+    bool onlyPublic = false,
+  }) {
+    final bool isPub = onlyPublic;
     final String? sid = entry.strategyId;
     if (sid == null || sid.isEmpty) return const <AppLinkRef>[];
     final List<AppTrade> peers =
         journalList
-            .where((AppTrade t) => t.id != entry.id && t.strategyId == sid)
+            .where((AppTrade t) =>
+                t.id != entry.id &&
+                t.strategyId == sid &&
+                (!isPub || t.isPublic))
             .toList()
           ..sort((AppTrade a, AppTrade b) => b.sortDate.compareTo(a.sortDate));
     return <AppLinkRef>[
@@ -514,7 +552,12 @@ class AppLinkGraph {
   }
 
   /// Notes sharing at least one tag with [note], most overlap first.
-  List<AppLinkRef> relatedNotes(AppNote note, {int limit = 4}) {
+  List<AppLinkRef> relatedNotes(
+    AppNote note, {
+    int limit = 4,
+    bool onlyPublic = false,
+  }) {
+    final bool isPub = onlyPublic;
     if (note.tags.isEmpty) return const <AppLinkRef>[];
     final Set<String> tags = note.tags
         .map((String t) => t.toLowerCase())
@@ -522,7 +565,7 @@ class AppLinkGraph {
     final List<({AppNote note, int shared})> scored =
         <({AppNote note, int shared})>[
           for (final AppNote n in noteList)
-            if (n.id != note.id)
+            if (n.id != note.id && (!isPub || n.isPublic))
               (
                 note: n,
                 shared: n.tags

@@ -12,6 +12,12 @@ class TickerInlineSyntax extends md.InlineSyntax {
   TickerInlineSyntax()
       : super(r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)');
 
+  static final RegExp regex =
+      RegExp(r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)');
+
+  @override
+  RegExp get pattern => regex;
+
   @override
   bool onMatch(md.InlineParser parser, Match match) {
     final String symbol = (match[1] ?? '').trim();

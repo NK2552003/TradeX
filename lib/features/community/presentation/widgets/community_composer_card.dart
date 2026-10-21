@@ -10,8 +10,13 @@ import 'package:tradex/features/community/presentation/widgets/community_attachm
 import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
 import 'package:tradex/features/community/presentation/widgets/community_mention_autocomplete.dart';
 import 'package:tradex/features/community/presentation/widgets/community_post_card.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:tradex/features/community/presentation/widgets/community_quote_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_schedule_dialog.dart';
+import 'package:tradex/features/journal/data/journal_repository.dart';
+import 'package:tradex/features/notes/data/notes_repository.dart';
+import 'package:tradex/features/strategies/data/strategies_repository.dart';
+import 'package:uuid/uuid.dart';
 
 // ---------------------------------------------------------------------------
 // Composer Creation Mode
@@ -557,6 +562,53 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     );
   }
 
+  bool _isUploadingChart = false;
+
+  Future<void> _pickAndUploadChart() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 90,
+      );
+      if (picked == null) return;
+
+      setState(() => _isUploadingChart = true);
+      if (mounted) {
+        UiToast.show(
+          context,
+          title: 'Uploading chart...',
+          message: 'Uploading ${picked.name} to community storage',
+          intent: UiIntent.info,
+        );
+      }
+
+      final bytes = await picked.readAsBytes();
+      final tempId = const Uuid().v4();
+      final publicUrl = await widget.repository.uploadAttachment(
+        postId: tempId,
+        bytes: bytes,
+        filename: picked.name,
+      );
+
+      if (publicUrl.isNotEmpty) {
+        _addImageUrl(publicUrl);
+      }
+    } catch (e) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Upload failed',
+          message: '$e',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingChart = false);
+      }
+    }
+  }
+
   void _addImageUrl(String url) {
     final clean = url.trim();
     if (clean.isEmpty || _imageUrls.contains(clean)) return;
@@ -840,6 +892,27 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         final tag = m.group(1);
         if (tag != null && tag.isNotEmpty) {
           allTags.add(tag);
+        }
+      }
+
+      if (_attachment != null) {
+        final AppLinkRef src = _attachment!.source;
+        try {
+          switch (src.kind) {
+            case AppLinkKind.note:
+              await NotesRepositoryScope.repository.setVisibility(src.id, true);
+              break;
+            case AppLinkKind.strategy:
+              await StrategiesRepositoryScope.repository.setVisibility(src.id, true);
+              break;
+            case AppLinkKind.journal:
+              await JournalRepositoryScope.repository.setVisibility(src.id, true);
+              break;
+            default:
+              break;
+          }
+        } catch (_) {
+          // Ignore failures for manual or ephemeral records
         }
       }
 
@@ -2317,10 +2390,8 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             title: 'Drop TradingView or Broker Chart',
             message: 'PNG, JPG, or WebP up to 10 MB',
             icon: Icons.add_photo_alternate_outlined,
-            onPick: () {
-              // Simulated pick: Attach top chart preset or prompt URL
-              _addImageUrl(_sampleChartPresets.first.url);
-            },
+            uploading: _isUploadingChart,
+            onPick: _pickAndUploadChart,
           ),
 
           SizedBox(height: gapSm),

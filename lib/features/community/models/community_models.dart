@@ -32,6 +32,8 @@ class CommunityAuthor {
     this.audienceReach,
     this.location,
     this.website,
+    this.avgHoldDuration,
+    this.riskMantra,
   });
 
   final String id;
@@ -62,6 +64,8 @@ class CommunityAuthor {
   // Profile meta
   final String? location;
   final String? website;
+  final String? avgHoldDuration;
+  final String? riskMantra;
 
   CommunityAuthor copyWith({bool? isFollowing, int? followers}) =>
       CommunityAuthor(
@@ -87,6 +91,8 @@ class CommunityAuthor {
         audienceReach: audienceReach,
         location: location,
         website: website,
+        avgHoldDuration: avgHoldDuration,
+        riskMantra: riskMantra,
       );
 
   Color verifiedColor(UiTheme theme) => switch (userRole) {
@@ -803,6 +809,7 @@ class LiveAudioRoom {
     this.status = LiveRoomStatus.live,
     this.listenerCount = 0,
     this.speakers = const <String>[],
+    this.speakerCount = 1,
     this.pinnedSetup,
     this.scheduledFor,
     this.startedAt,
@@ -810,6 +817,8 @@ class LiveAudioRoom {
     this.isRecording = false,
     this.tags = const <String>[],
     this.hasReminder = false,
+    this.pollBullishVotes = 0,
+    this.pollBearishVotes = 0,
   });
 
   final String id;
@@ -820,6 +829,7 @@ class LiveAudioRoom {
   final LiveRoomStatus status;
   final int listenerCount;
   final List<String> speakers;
+  final int speakerCount;
   final LivePinnedSetup? pinnedSetup;
   final DateTime? scheduledFor;
   final DateTime? startedAt;
@@ -827,9 +837,108 @@ class LiveAudioRoom {
   final bool isRecording;
   final List<String> tags;
   final bool hasReminder;
+  final int pollBullishVotes;
+  final int pollBearishVotes;
 
   bool get isLive => status == LiveRoomStatus.live;
   bool get isScheduled => status == LiveRoomStatus.scheduled;
+  bool get isEnded => status == LiveRoomStatus.ended;
+
+  int get totalPollVotes => pollBullishVotes + pollBearishVotes;
+  double get bullishPercentage => totalPollVotes == 0 ? 0.5 : pollBullishVotes / totalPollVotes;
+  double get bearishPercentage => totalPollVotes == 0 ? 0.5 : pollBearishVotes / totalPollVotes;
+
+  factory LiveAudioRoom.fromMap(
+    Map<String, dynamic> map, {
+    CommunityAuthor? host,
+  }) {
+    final statusStr = map['status']?.toString().toLowerCase() ?? 'live';
+    final status = switch (statusStr) {
+      'scheduled' => LiveRoomStatus.scheduled,
+      'ended' => LiveRoomStatus.ended,
+      _ => LiveRoomStatus.live,
+    };
+
+    LivePinnedSetup? setup;
+    final ticker = map['pinned_ticker']?.toString();
+    if (ticker != null && ticker.isNotEmpty) {
+      setup = LivePinnedSetup(
+        ticker: ticker,
+        side: (map['pinned_side']?.toString().toUpperCase() == 'SHORT') ? 'SHORT' : 'LONG',
+        entry: (map['pinned_entry'] as num?)?.toDouble() ?? 0.0,
+        stopLoss: (map['pinned_stop_loss'] as num?)?.toDouble() ?? 0.0,
+        target: (map['pinned_target'] as num?)?.toDouble() ?? 0.0,
+        note: map['pinned_note']?.toString() ?? '',
+      );
+    }
+
+    final rawTags = map['tags'];
+    final List<String> tags = [];
+    if (rawTags is List) {
+      tags.addAll(rawTags.map((e) => e.toString()));
+    }
+
+    final author = host ??
+        CommunityAuthor(
+          id: map['host_id']?.toString() ?? '',
+          handle: 'host',
+          displayName: 'Space Host',
+          userRole: UserRole.customer,
+        );
+
+    return LiveAudioRoom(
+      id: map['id']?.toString() ?? '',
+      title: map['title']?.toString() ?? 'Live Audio Space',
+      topic: map['topic']?.toString() ?? '',
+      host: author,
+      category: map['category']?.toString() ?? 'Options Trading',
+      status: status,
+      listenerCount: (map['listener_count'] as num?)?.toInt() ?? 1,
+      speakerCount: (map['speaker_count'] as num?)?.toInt() ?? 1,
+      speakers: <String>[author.displayName],
+      pinnedSetup: setup,
+      scheduledFor: map['scheduled_for'] != null
+          ? DateTime.tryParse(map['scheduled_for'].toString())
+          : null,
+      startedAt: map['started_at'] != null
+          ? DateTime.tryParse(map['started_at'].toString())
+          : null,
+      endedAt: map['ended_at'] != null
+          ? DateTime.tryParse(map['ended_at'].toString())
+          : null,
+      isRecording: map['recording_available'] as bool? ?? true,
+      tags: tags,
+      hasReminder: map['has_reminder'] as bool? ?? false,
+      pollBullishVotes: (map['poll_bullish_votes'] as num?)?.toInt() ?? 0,
+      pollBearishVotes: (map['poll_bearish_votes'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'id': id,
+      'host_id': host.id,
+      'title': title,
+      'topic': topic,
+      'category': category,
+      'status': status.name,
+      'listener_count': listenerCount,
+      'speaker_count': speakerCount,
+      'started_at': startedAt?.toIso8601String(),
+      'scheduled_for': scheduledFor?.toIso8601String(),
+      'ended_at': endedAt?.toIso8601String(),
+      'recording_available': isRecording,
+      'tags': tags,
+      'pinned_ticker': pinnedSetup?.ticker,
+      'pinned_side': pinnedSetup?.side,
+      'pinned_entry': pinnedSetup?.entry,
+      'pinned_stop_loss': pinnedSetup?.stopLoss,
+      'pinned_target': pinnedSetup?.target,
+      'pinned_note': pinnedSetup?.note,
+      'poll_bullish_votes': pollBullishVotes,
+      'poll_bearish_votes': pollBearishVotes,
+    };
+  }
 
   LiveAudioRoom copyWith({
     String? id,
@@ -840,6 +949,7 @@ class LiveAudioRoom {
     LiveRoomStatus? status,
     int? listenerCount,
     List<String>? speakers,
+    int? speakerCount,
     LivePinnedSetup? pinnedSetup,
     DateTime? scheduledFor,
     DateTime? startedAt,
@@ -847,6 +957,8 @@ class LiveAudioRoom {
     bool? isRecording,
     List<String>? tags,
     bool? hasReminder,
+    int? pollBullishVotes,
+    int? pollBearishVotes,
   }) {
     return LiveAudioRoom(
       id: id ?? this.id,
@@ -857,6 +969,7 @@ class LiveAudioRoom {
       status: status ?? this.status,
       listenerCount: listenerCount ?? this.listenerCount,
       speakers: speakers ?? this.speakers,
+      speakerCount: speakerCount ?? this.speakerCount,
       pinnedSetup: pinnedSetup ?? this.pinnedSetup,
       scheduledFor: scheduledFor ?? this.scheduledFor,
       startedAt: startedAt ?? this.startedAt,
@@ -864,6 +977,244 @@ class LiveAudioRoom {
       isRecording: isRecording ?? this.isRecording,
       tags: tags ?? this.tags,
       hasReminder: hasReminder ?? this.hasReminder,
+      pollBullishVotes: pollBullishVotes ?? this.pollBullishVotes,
+      pollBearishVotes: pollBearishVotes ?? this.pollBearishVotes,
+    );
+  }
+
+  bool get recordingAvailable => isRecording;
+}
+
+// ---------------------------------------------------------------------------
+// Live Audio Space Participants, Messages, and Q&A
+// ---------------------------------------------------------------------------
+
+@immutable
+class LiveRoomParticipant {
+  const LiveRoomParticipant({
+    required this.roomId,
+    required this.userId,
+    required this.displayName,
+    this.handle = 'trader',
+    this.avatarUrl,
+    this.role = 'listener',
+    this.isMuted = true,
+    this.isHandRaised = false,
+    this.handRaisedAt,
+    required this.joinedAt,
+    this.lastSeenAt,
+    this.talkSeconds = 0,
+  });
+
+  final String roomId;
+  final String userId;
+  final String displayName;
+  final String handle;
+  final String? avatarUrl;
+  final String role; // 'host', 'cohost', 'speaker', 'listener'
+  final bool isMuted;
+  final bool isHandRaised;
+  final DateTime? handRaisedAt;
+  final DateTime joinedAt;
+  final DateTime? lastSeenAt;
+  final int talkSeconds;
+
+  bool get isHost => role == 'host';
+  bool get isCoHost => role == 'cohost' || role == 'co_host';
+  bool get isSpeaker => role == 'speaker' || isHost || isCoHost;
+  bool get isStage => isSpeaker;
+  bool get isListener => role == 'listener';
+
+  factory LiveRoomParticipant.fromMap(Map<String, dynamic> map) {
+    final profile = map['profiles'] as Map<String, dynamic>?;
+    return LiveRoomParticipant(
+      roomId: map['room_id']?.toString() ?? '',
+      userId: map['user_id']?.toString() ?? '',
+      displayName: profile?['display_name'] as String? ??
+          profile?['username'] as String? ??
+          map['display_name'] as String? ??
+          'Trader',
+      handle: profile?['username'] as String? ??
+          map['handle'] as String? ??
+          'trader',
+      avatarUrl: profile?['avatar_url'] as String? ??
+          map['avatar_url'] as String?,
+      role: map['role']?.toString().toLowerCase() ?? 'listener',
+      isMuted: map['is_muted'] as bool? ?? true,
+      isHandRaised: map['is_hand_raised'] as bool? ?? false,
+      handRaisedAt: map['hand_raised_at'] != null
+          ? DateTime.tryParse(map['hand_raised_at'].toString())
+          : null,
+      joinedAt: map['joined_at'] != null
+          ? DateTime.tryParse(map['joined_at'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      lastSeenAt: map['last_seen_at'] != null
+          ? DateTime.tryParse(map['last_seen_at'].toString())
+          : null,
+    );
+  }
+
+  LiveRoomParticipant copyWith({
+    String? roomId,
+    String? userId,
+    String? displayName,
+    String? handle,
+    String? avatarUrl,
+    String? role,
+    bool? isMuted,
+    bool? isHandRaised,
+    DateTime? handRaisedAt,
+    DateTime? joinedAt,
+    DateTime? lastSeenAt,
+    int? talkSeconds,
+  }) {
+    return LiveRoomParticipant(
+      roomId: roomId ?? this.roomId,
+      userId: userId ?? this.userId,
+      displayName: displayName ?? this.displayName,
+      handle: handle ?? this.handle,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      role: role ?? this.role,
+      isMuted: isMuted ?? this.isMuted,
+      isHandRaised: isHandRaised ?? this.isHandRaised,
+      handRaisedAt: handRaisedAt ?? this.handRaisedAt,
+      joinedAt: joinedAt ?? this.joinedAt,
+      lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+      talkSeconds: talkSeconds ?? this.talkSeconds,
+    );
+  }
+}
+
+@immutable
+class LiveRoomMessage {
+  const LiveRoomMessage({
+    required this.id,
+    required this.roomId,
+    required this.senderId,
+    required this.senderName,
+    this.senderAvatarUrl,
+    this.senderRole = 'listener',
+    required this.message,
+    this.isPinned = false,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String roomId;
+  final String senderId;
+  final String senderName;
+  final String? senderAvatarUrl;
+  final String senderRole;
+  final String message;
+  final bool isPinned;
+  final DateTime createdAt;
+
+  bool get isHost => senderRole == 'host';
+  bool get isSpeaker => senderRole == 'speaker' || isHost || senderRole == 'cohost';
+
+  factory LiveRoomMessage.fromMap(Map<String, dynamic> map) {
+    final profile = map['profiles'] as Map<String, dynamic>?;
+    return LiveRoomMessage(
+      id: map['id']?.toString() ?? '',
+      roomId: map['room_id']?.toString() ?? '',
+      senderId: map['sender_id']?.toString() ?? '',
+      senderName: profile?['display_name'] as String? ??
+          profile?['username'] as String? ??
+          map['sender_name'] as String? ??
+          'Trader',
+      senderAvatarUrl: profile?['avatar_url'] as String? ??
+          map['sender_avatar_url'] as String?,
+      senderRole: map['sender_role']?.toString() ?? 'listener',
+      message: map['message']?.toString() ?? '',
+      isPinned: map['is_pinned'] as bool? ?? false,
+      createdAt: map['created_at'] != null
+          ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
+}
+
+@immutable
+class LiveRoomQuestion {
+  const LiveRoomQuestion({
+    required this.id,
+    required this.roomId,
+    required this.authorId,
+    required this.authorName,
+    this.authorAvatarUrl,
+    required this.question,
+    this.upvotesCount = 0,
+    this.isAnswered = false,
+    this.hasUpvoted = false,
+    this.answeredAt,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String roomId;
+  final String authorId;
+  final String authorName;
+  final String? authorAvatarUrl;
+  final String question;
+  final int upvotesCount;
+  final bool isAnswered;
+  final bool hasUpvoted;
+  final DateTime? answeredAt;
+  final DateTime createdAt;
+
+  factory LiveRoomQuestion.fromMap(
+    Map<String, dynamic> map, {
+    bool hasUpvoted = false,
+  }) {
+    final profile = map['profiles'] as Map<String, dynamic>?;
+    return LiveRoomQuestion(
+      id: map['id']?.toString() ?? '',
+      roomId: map['room_id']?.toString() ?? '',
+      authorId: map['author_id']?.toString() ?? '',
+      authorName: profile?['display_name'] as String? ??
+          profile?['username'] as String? ??
+          map['author_name'] as String? ??
+          'Trader',
+      authorAvatarUrl: profile?['avatar_url'] as String? ??
+          map['author_avatar_url'] as String?,
+      question: map['question']?.toString() ?? '',
+      upvotesCount: (map['upvotes_count'] as num?)?.toInt() ?? 0,
+      isAnswered: map['is_answered'] as bool? ?? false,
+      hasUpvoted: hasUpvoted,
+      answeredAt: map['answered_at'] != null
+          ? DateTime.tryParse(map['answered_at'].toString())
+          : null,
+      createdAt: map['created_at'] != null
+          ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
+
+  LiveRoomQuestion copyWith({
+    String? id,
+    String? roomId,
+    String? authorId,
+    String? authorName,
+    String? authorAvatarUrl,
+    String? question,
+    int? upvotesCount,
+    bool? isAnswered,
+    bool? hasUpvoted,
+    DateTime? answeredAt,
+    DateTime? createdAt,
+  }) {
+    return LiveRoomQuestion(
+      id: id ?? this.id,
+      roomId: roomId ?? this.roomId,
+      authorId: authorId ?? this.authorId,
+      authorName: authorName ?? this.authorName,
+      authorAvatarUrl: authorAvatarUrl ?? this.authorAvatarUrl,
+      question: question ?? this.question,
+      upvotesCount: upvotesCount ?? this.upvotesCount,
+      isAnswered: isAnswered ?? this.isAnswered,
+      hasUpvoted: hasUpvoted ?? this.hasUpvoted,
+      answeredAt: answeredAt ?? this.answeredAt,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 }

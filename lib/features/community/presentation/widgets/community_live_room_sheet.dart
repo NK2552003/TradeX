@@ -21,44 +21,6 @@ class _FloatingEmoji {
   final double horizontalOffset;
 }
 
-/// A single live chat message inside the Live Space audio room.
-class _LiveRoomChatMessage {
-  const _LiveRoomChatMessage({
-    required this.id,
-    required this.author,
-    required this.message,
-    required this.time,
-    this.isHost = false,
-    this.isSpeaker = false,
-  });
-
-  final String id;
-  final String author;
-  final String message;
-  final String time;
-  final bool isHost;
-  final bool isSpeaker;
-}
-
-/// A community question in the Live Audio Space Q&A queue.
-class _QnaQuestion {
-  _QnaQuestion({
-    required this.id,
-    required this.author,
-    required this.text,
-    required this.upvotes,
-    this.answered = false,
-    this.hasUpvoted = false,
-  });
-
-  final String id;
-  final String author;
-  final String text;
-  int upvotes;
-  bool answered;
-  bool hasUpvoted;
-}
-
 /// A timed segment in the audio room's agenda.
 class _AgendaSegment {
   const _AgendaSegment({
@@ -70,35 +32,16 @@ class _AgendaSegment {
   final String title;
 }
 
-/// An upcoming audio space session.
-class _UpNextRoom {
-  const _UpNextRoom({
-    required this.title,
-    required this.host,
-    required this.time,
-  });
-
-  final String title;
-  final String host;
-  final String time;
-}
 
 /// Modal bottom sheet representing a full-featured live trading audio space / trading floor.
 class CommunityLiveRoomSheet extends StatefulWidget {
   const CommunityLiveRoomSheet({
     super.key,
     this.roomId,
-    this.roomTitle = 'Nifty & BankNifty Live Expiry Floor',
-    this.hostName = 'Rajesh Sharma, CMT',
-    this.listenerCount = 142,
-    this.pinnedSetup = const LivePinnedSetup(
-      ticker: 'NIFTY 24,850 CE',
-      side: 'LONG',
-      entry: 142.50,
-      stopLoss: 118.00,
-      target: 210.00,
-      note: 'VWAP breakout with strong CE OI unwinding at 24,800 strike.',
-    ),
+    this.roomTitle = 'Live Trading Floor',
+    this.hostName = 'Space Host',
+    this.listenerCount = 1,
+    this.pinnedSetup,
     this.repository,
     this.onMinimize,
     this.onLeave,
@@ -127,26 +70,21 @@ class CommunityLiveRoomSheet extends StatefulWidget {
     if (repository != null && roomId != null) {
       repository.tuneIntoRoom(roomId);
     }
+    final LiveAudioRoom? activeRoom = repository?.allLiveRooms
+        .where((r) => r.id == roomId)
+        .firstOrNull ?? repository?.activeTunedRoom;
+
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext ctx) => CommunityDensityScope(
         child: CommunityLiveRoomSheet(
-          roomId: roomId,
-          roomTitle: roomTitle ?? 'Nifty & BankNifty Live Expiry Floor',
-          hostName: hostName ?? 'Rajesh Sharma, CMT',
-          listenerCount: listenerCount ?? 142,
-          pinnedSetup: pinnedSetup ??
-              const LivePinnedSetup(
-                ticker: 'NIFTY 24,850 CE',
-                side: 'LONG',
-                entry: 142.50,
-                stopLoss: 118.00,
-                target: 210.00,
-                note:
-                    'VWAP breakout with strong CE OI unwinding at 24,800 strike.',
-              ),
+          roomId: roomId ?? activeRoom?.id,
+          roomTitle: roomTitle ?? activeRoom?.title ?? 'Live Trading Floor',
+          hostName: hostName ?? activeRoom?.host.displayName ?? 'Space Host',
+          listenerCount: listenerCount ?? activeRoom?.listenerCount ?? 1,
+          pinnedSetup: pinnedSetup ?? activeRoom?.pinnedSetup,
           repository: repository,
           onMinimize: onMinimize,
           onLeave: onLeave,
@@ -170,169 +108,73 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
   final List<_FloatingEmoji> _floatingEmojis = <_FloatingEmoji>[];
   final math.Random _random = math.Random();
 
-  // Raised hands queue
-  final List<String> _raisedHandsQueue = <String>[
-    'Aman Gupta',
-    'Priya Patel',
-    'Deepak K.',
-  ];
+  // Real room participants
+  List<LiveRoomParticipant> _participants = <LiveRoomParticipant>[];
 
-  // Stage speakers
-  final List<String> _speakers = <String>[
-    'Rajesh Sharma, CMT',
-    'Sarah Chen, Quant',
-    'Vikram Joshi',
-  ];
+  // Real room messages
+  final TextEditingController _chatController = TextEditingController();
+  final ScrollController _chatScrollController = ScrollController();
+  List<LiveRoomMessage> _chatMessages = <LiveRoomMessage>[];
 
-  // Room Listeners
-  final List<String> _listeners = <String>[
-    'Aman Gupta',
-    'Deepak K.',
-    'Priya Patel',
-    'Rahul M.',
-    'Aditya V.',
-    'Meera S.',
-    'Kunal S.',
-    'Rohan Roy',
-    'Tanvi B.',
-    'Arun K.',
-    'Neha V.',
-    'Suresh P.',
-  ];
+  // Real room questions
+  final TextEditingController _qnaController = TextEditingController();
+  List<LiveRoomQuestion> _questions = <LiveRoomQuestion>[];
 
   // Live Sentiment Poll state
   int? _userPollVote;
-  int _pollVotesBullish = 98;
-  int _pollVotesBearish = 44;
-
-  // Live Chat state
-  final TextEditingController _chatController = TextEditingController();
-  final ScrollController _chatScrollController = ScrollController();
-  final List<_LiveRoomChatMessage> _chatMessages = <_LiveRoomChatMessage>[
-    const _LiveRoomChatMessage(
-      id: 'c1',
-      author: 'Vikram Joshi',
-      message:
-          'VWAP breakout holding firmly above 24,840. CE volumes accelerating!',
-      time: '2m ago',
-      isSpeaker: true,
-    ),
-    const _LiveRoomChatMessage(
-      id: 'c2',
-      author: 'Priya Patel',
-      message: 'Should we book 50% at 180 or hold for 210 target?',
-      time: '1m ago',
-    ),
-    const _LiveRoomChatMessage(
-      id: 'c3',
-      author: 'Rajesh Sharma, CMT',
-      message: 'Trail SL to 125 immediately. Lock in partial risk-free gains.',
-      time: 'Just now',
-      isHost: true,
-    ),
-    const _LiveRoomChatMessage(
-      id: 'c4',
-      author: 'Aman Gupta',
-      message: 'Loaded 4 lots on paper desk. Great risk-reward setup!',
-      time: 'Just now',
-    ),
-  ];
+  int _pollVotesBullish = 0;
+  int _pollVotesBearish = 0;
 
   // Audio Device state
   String _audioDevice = 'Phone Speaker';
   bool _isRecordingReplay = true;
 
-  // --- Active speaker + talk-time simulation ---
+  // Active speaker + talk-time tracking
   late AnimationController _pulseController;
   Timer? _stageTimer;
+  Timer? _syncTimer;
   int _stageTick = 0;
   int _activeSpeakerIndex = 0;
-  final Map<String, int> _talkSeconds = <String, int>{
-    'Rajesh Sharma, CMT': 812,
-    'Sarah Chen, Quant': 465,
-    'Vikram Joshi': 289,
-  };
+  final Map<String, int> _talkSeconds = <String, int>{};
 
-  // --- Live AI captions ---
+  // Live AI captions
   bool _captionsEnabled = false;
-  Timer? _captionTimer;
-  final List<String> _captionPhrases = <String>[
-    'watching the 24,800 order block for a clean reclaim…',
-    'CE OI is unwinding fast, momentum still favours the upside…',
-    'trailing the stop to 125 to lock partial risk-free gains…',
-    'if we lose VWAP on volume, that flips my near-term bias…',
-    'BankNifty is lagging, keep position sizing tighter there…',
-    'expiry gamma is pinning price near 24,850 into the close…',
-    'volume delta just turned positive on the last two candles…',
-    'I would book a third here and let the rest ride to target…',
-  ];
 
-  // --- Connection quality (3 = Good, 2 = Fair) ---
+  // Connection quality
   int _connectionBars = 3;
 
-  // --- Host moderation state ---
+  // Host moderation state
   bool _roomLocked = false;
   bool _requestsEnabled = true;
   final Set<String> _coHosts = <String>{};
   final Set<String> _mutedSpeakers = <String>{};
 
-  // --- Q&A queue state ---
-  final TextEditingController _qnaController = TextEditingController();
-  final List<_QnaQuestion> _questions = <_QnaQuestion>[
-    _QnaQuestion(
-      id: 'q1',
-      author: 'Priya Patel',
-      text: 'What is your hard invalidation if 24,800 breaks on volume?',
-      upvotes: 14,
-    ),
-    _QnaQuestion(
-      id: 'q2',
-      author: 'Aman Gupta',
-      text: 'Are you hedging this with BankNifty puts into expiry?',
-      upvotes: 9,
-    ),
-    _QnaQuestion(
-      id: 'q3',
-      author: 'Rahul M.',
-      text: 'How are you sizing given the R:R is already past 1:2.5?',
-      upvotes: 6,
-    ),
-    _QnaQuestion(
-      id: 'q4',
-      author: 'Meera S.',
-      text: 'Any read on the India VIX spike from the open?',
-      upvotes: 4,
-      answered: true,
-    ),
-  ];
-
-  // --- AI recap + clip state ---
+  // AI recap state
   bool _recapLoading = false;
   List<String> _recapPoints = <String>[];
-  Timer? _recapTypingTimer;
   final TextEditingController _clipNameController = TextEditingController();
 
-  // --- Room agenda + up next (seeded) ---
-  final int _currentAgendaIndex = 1;
-  final List<_AgendaSegment> _agenda = const <_AgendaSegment>[
-    _AgendaSegment(time: '09:15', title: 'Market open read & gap analysis'),
-    _AgendaSegment(time: '09:40', title: 'Live trade ideas & setups'),
-    _AgendaSegment(time: '10:10', title: 'Options flow & OI shifts'),
-    _AgendaSegment(time: '10:40', title: 'Community Q&A'),
-    _AgendaSegment(time: '11:00', title: 'Wrap-up & key levels'),
-  ];
-  final List<_UpNextRoom> _upNext = const <_UpNextRoom>[
-    _UpNextRoom(
-      title: 'Post-Expiry Debrief & Journaling',
-      host: 'Sarah Chen, Quant',
-      time: 'Today · 3:45 PM',
-    ),
-    _UpNextRoom(
-      title: 'Pre-Market Gameplan: Global Cues',
-      host: 'Vikram Joshi',
-      time: 'Tomorrow · 8:15 AM',
-    ),
-  ];
+  List<LiveRoomParticipant> get _speakers =>
+      _participants.where((p) => p.isStage).toList();
+
+  List<LiveRoomParticipant> get _raisedHandsQueue =>
+      _participants.where((p) => p.isHandRaised).toList();
+
+  List<LiveRoomParticipant> get _listeners =>
+      _participants.where((p) => p.isListener).toList();
+
+  List<String> get _captionPhrases {
+    final setup = widget.pinnedSetup;
+    return <String>[
+      if (setup != null)
+        'monitoring ${setup.ticker} (${setup.side}) closely around ₹${setup.entry.toStringAsFixed(1)}…',
+      'watching order blocks and liquidity sweeps at the key levels…',
+      'volume delta and tape momentum showing constructive absorption…',
+      'remember to manage risk and honor your trailing stop loss…',
+      'open interest shift indicates institutional positioning into close…',
+      'keeping sizing disciplined and waiting for high-conviction trigger…',
+    ];
+  }
 
   @override
   void initState() {
@@ -345,26 +187,119 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
-    // Drives talk-time counters, active-speaker rotation and connection cycling.
+
+    _initializeFallbackParticipants();
+    _loadRoomData();
+
+    // Stage simulation timer
     _stageTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {
-        if (_speakers.isNotEmpty) {
-          final String active =
-              _speakers[_activeSpeakerIndex % _speakers.length];
-          if (!_mutedSpeakers.contains(active)) {
-            _talkSeconds[active] = (_talkSeconds[active] ?? 0) + 1;
+        final speakers = _speakers;
+        if (speakers.isNotEmpty) {
+          final LiveRoomParticipant active =
+              speakers[_activeSpeakerIndex % speakers.length];
+          if (!active.isMuted && !_mutedSpeakers.contains(active.userId)) {
+            _talkSeconds[active.userId] =
+                (_talkSeconds[active.userId] ?? 0) + 1;
           }
         }
         _stageTick++;
-        if (_stageTick % 7 == 0 && _speakers.isNotEmpty) {
-          _activeSpeakerIndex = (_activeSpeakerIndex + 1) % _speakers.length;
+        if (_stageTick % 7 == 0 && speakers.isNotEmpty) {
+          _activeSpeakerIndex =
+              (_activeSpeakerIndex + 1) % speakers.length;
         }
         if (_stageTick % 6 == 0) {
           _connectionBars = _connectionBars == 3 ? 2 : 3;
         }
       });
     });
+
+    // Realtime polling sync timer
+    _syncTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted) _syncDataSilently();
+    });
+  }
+
+  void _initializeFallbackParticipants() {
+    final current = widget.repository?.currentAuthor;
+    _participants = <LiveRoomParticipant>[
+      LiveRoomParticipant(
+        roomId: widget.roomId ?? 'live_room',
+        userId: 'host_id',
+        displayName: widget.hostName,
+        role: 'host',
+        isMuted: false,
+        isHandRaised: false,
+        joinedAt: DateTime.now(),
+      ),
+      if (current != null && current.displayName != widget.hostName)
+        LiveRoomParticipant(
+          roomId: widget.roomId ?? 'live_room',
+          userId: current.id,
+          displayName: current.displayName,
+          avatarUrl: current.avatarUrl,
+          role: 'listener',
+          isMuted: _isMuted,
+          isHandRaised: _isHandRaised,
+          joinedAt: DateTime.now(),
+        ),
+    ];
+  }
+
+  Future<void> _loadRoomData() async {
+    final roomId = widget.roomId;
+    final repo = widget.repository;
+    if (repo == null || roomId == null) {
+      return;
+    }
+
+    try {
+      final activeRoom = repo.allLiveRooms
+          .where((r) => r.id == roomId)
+          .firstOrNull;
+      if (activeRoom != null) {
+        _pollVotesBullish = activeRoom.pollBullishVotes;
+        _pollVotesBearish = activeRoom.pollBearishVotes;
+        _isRecordingReplay = activeRoom.recordingAvailable;
+      }
+
+      final participants = await repo.fetchRoomParticipants(roomId);
+      final messages = await repo.fetchRoomMessages(roomId);
+      final questions = await repo.fetchRoomQuestions(roomId);
+
+      if (!mounted) return;
+      setState(() {
+        if (participants.isNotEmpty) {
+          _participants = participants;
+        }
+        _chatMessages = messages;
+        _questions = questions;
+      });
+    } catch (_) {
+      if (!mounted) return;
+    }
+  }
+
+  Future<void> _syncDataSilently() async {
+    final roomId = widget.roomId;
+    final repo = widget.repository;
+    if (repo == null || roomId == null || !mounted) return;
+
+    try {
+      final participants = await repo.fetchRoomParticipants(roomId);
+      final messages = await repo.fetchRoomMessages(roomId);
+      final questions = await repo.fetchRoomQuestions(roomId);
+
+      if (!mounted) return;
+      setState(() {
+        if (participants.isNotEmpty) {
+          _participants = participants;
+        }
+        _chatMessages = messages;
+        _questions = questions;
+      });
+    } catch (_) {}
   }
 
   @override
@@ -372,8 +307,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
     _soundwaveController.dispose();
     _pulseController.dispose();
     _stageTimer?.cancel();
-    _captionTimer?.cancel();
-    _recapTypingTimer?.cancel();
+    _syncTimer?.cancel();
     _chatController.dispose();
     _chatScrollController.dispose();
     _qnaController.dispose();
@@ -399,59 +333,154 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
     });
   }
 
-  void _toggleHand() {
+  void _toggleHand() async {
+    final next = !_isHandRaised;
     setState(() {
-      _isHandRaised = !_isHandRaised;
-      if (_isHandRaised) {
-        _raisedHandsQueue.add('You (Alex Vance)');
-      } else {
-        _raisedHandsQueue.remove('You (Alex Vance)');
+      _isHandRaised = next;
+      final currentUserId = widget.repository?.currentAuthor.id;
+      final idx = _participants.indexWhere((p) => p.userId == currentUserId);
+      if (idx >= 0) {
+        _participants[idx] = _participants[idx].copyWith(isHandRaised: next);
       }
     });
+
     UiToast.show(
       context,
       title: 'Live Space',
-      message: _isHandRaised
+      message: next
           ? 'Hand raised! The host has been notified.'
           : 'Hand lowered.',
     );
+
+    if (widget.repository != null && widget.roomId != null) {
+      await widget.repository!.toggleHandRaised(widget.roomId!);
+    }
   }
 
-  void _acceptSpeaker(String name) {
+  void _acceptSpeaker(LiveRoomParticipant participant) async {
     setState(() {
-      _raisedHandsQueue.remove(name);
-      _listeners.remove(name);
-      if (!_speakers.contains(name)) {
-        _speakers.add(name);
+      final idx = _participants.indexWhere((p) => p.userId == participant.userId);
+      if (idx >= 0) {
+        _participants[idx] = _participants[idx].copyWith(
+          role: 'speaker',
+          isHandRaised: false,
+          isMuted: false,
+        );
       }
     });
+
     UiToast.success(
       context,
       title: 'Speaker Added',
-      message: '$name has been invited to speak.',
+      message: '${participant.displayName} has been invited to speak.',
     );
+
+    if (widget.repository != null && widget.roomId != null) {
+      await widget.repository!.updateParticipantRole(
+        widget.roomId!,
+        participant.userId,
+        'speaker',
+      );
+    }
   }
 
-  void _dismissSpeaker(String name) {
+  void _dismissSpeaker(LiveRoomParticipant participant) async {
     setState(() {
-      _raisedHandsQueue.remove(name);
+      final idx = _participants.indexWhere((p) => p.userId == participant.userId);
+      if (idx >= 0) {
+        _participants[idx] = _participants[idx].copyWith(isHandRaised: false);
+      }
     });
+
+    if (widget.repository != null && widget.roomId != null) {
+      await widget.repository!.toggleHandRaised(widget.roomId!);
+    }
   }
 
-  void _sendChatMessage() {
+  void _muteParticipant(LiveRoomParticipant participant, bool mute) async {
+    setState(() {
+      final idx = _participants.indexWhere((p) => p.userId == participant.userId);
+      if (idx >= 0) {
+        _participants[idx] = _participants[idx].copyWith(isMuted: mute);
+      }
+      if (mute) {
+        _mutedSpeakers.add(participant.userId);
+      } else {
+        _mutedSpeakers.remove(participant.userId);
+      }
+    });
+
+    UiToast.info(
+      context,
+      title: 'Moderation',
+      message: mute
+          ? '${participant.displayName} muted.'
+          : '${participant.displayName} unmuted.',
+    );
+
+    if (widget.repository != null && widget.roomId != null) {
+      await widget.repository!.setParticipantMute(
+        widget.roomId!,
+        participant.userId,
+        mute,
+      );
+    }
+  }
+
+  void _updateParticipantRole(LiveRoomParticipant participant, String role) async {
+    setState(() {
+      final idx = _participants.indexWhere((p) => p.userId == participant.userId);
+      if (idx >= 0) {
+        _participants[idx] = _participants[idx].copyWith(role: role);
+      }
+      if (role == 'co_host' || role == 'cohost') {
+        _coHosts.add(participant.userId);
+      } else {
+        _coHosts.remove(participant.userId);
+      }
+    });
+
+    UiToast.success(
+      context,
+      title: 'Role Updated',
+      message: '${participant.displayName} role set to $role.',
+    );
+
+    if (widget.repository != null && widget.roomId != null) {
+      await widget.repository!.updateParticipantRole(
+        widget.roomId!,
+        participant.userId,
+        role,
+      );
+    }
+  }
+
+  void _sendChatMessage() async {
     final String text = _chatController.text.trim();
     if (text.isEmpty) return;
 
+    _chatController.clear();
+    final author = widget.repository?.currentAuthor;
+    final userRole = _participants
+            .where((p) => p.userId == author?.id)
+            .firstOrNull
+            ?.role ??
+        'listener';
+
+    final LiveRoomMessage optimisticMsg = LiveRoomMessage(
+      id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+      roomId: widget.roomId ?? '',
+      senderId: author?.id ?? 'user',
+      senderName: author?.displayName ?? 'You',
+      senderAvatarUrl: author?.avatarUrl ?? '',
+      senderRole: userRole,
+      message: text,
+      isPinned: false,
+      createdAt: DateTime.now(),
+    );
+
     setState(() {
-      _chatMessages.add(
-        _LiveRoomChatMessage(
-          id: 'chat_${DateTime.now().millisecondsSinceEpoch}',
-          author: 'You (Alex Vance)',
-          message: text,
-          time: 'Just now',
-        ),
-      );
-      _chatController.clear();
+      _chatMessages.add(optimisticMsg);
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -463,6 +492,20 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
         );
       }
     });
+
+    if (widget.repository != null && widget.roomId != null) {
+      final saved =
+          await widget.repository!.sendRoomMessage(widget.roomId!, text);
+      if (saved != null && mounted) {
+        setState(() {
+          final idx =
+              _chatMessages.indexWhere((m) => m.id == optimisticMsg.id);
+          if (idx >= 0) {
+            _chatMessages[idx] = saved;
+          }
+        });
+      }
+    }
   }
 
   void _handleLeave() {
@@ -473,12 +516,12 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
     widget.onLeave?.call();
   }
 
-  void _votePoll(int choice) {
+  void _votePoll(int choice) async {
     if (_userPollVote == choice) return;
 
     setState(() {
-      if (_userPollVote == 0) _pollVotesBullish--;
-      if (_userPollVote == 1) _pollVotesBearish--;
+      if (_userPollVote == 0) _pollVotesBullish = math.max(0, _pollVotesBullish - 1);
+      if (_userPollVote == 1) _pollVotesBearish = math.max(0, _pollVotesBearish - 1);
 
       _userPollVote = choice;
       if (choice == 0) _pollVotesBullish++;
@@ -492,6 +535,13 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
           ? 'Bullish vote recorded!'
           : 'Bearish vote recorded!',
     );
+
+    if (widget.repository != null && widget.roomId != null) {
+      await widget.repository!.voteLiveRoomPoll(
+        widget.roomId!,
+        choice == 0 ? 'bullish' : 'bearish',
+      );
+    }
   }
 
   void _toggleAudioDevice() {
@@ -513,31 +563,93 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
     UiToast.success(
       context,
       title: 'Share Space',
-      message: 'Live space link copied: tradex.ai/spaces/nifty-expiry-104',
+      message: 'Live space link copied for "${widget.roomTitle}".',
     );
   }
 
-  void _submitQuestion() {
+  void _submitQuestion() async {
     final String text = _qnaController.text.trim();
     if (text.isEmpty) return;
+
+    _qnaController.clear();
+    final author = widget.repository?.currentAuthor;
+    final optimisticQ = LiveRoomQuestion(
+      id: 'local_q_${DateTime.now().millisecondsSinceEpoch}',
+      roomId: widget.roomId ?? '',
+      authorId: author?.id ?? 'user',
+      authorName: author?.displayName ?? 'You',
+      authorAvatarUrl: author?.avatarUrl ?? '',
+      question: text,
+      upvotesCount: 1,
+      isAnswered: false,
+      createdAt: DateTime.now(),
+      hasUpvoted: true,
+    );
+
     setState(() {
-      _questions.insert(
-        0,
-        _QnaQuestion(
-          id: 'q_${DateTime.now().millisecondsSinceEpoch}',
-          author: 'You (Alex Vance)',
-          text: text,
-          upvotes: 1,
-          hasUpvoted: true,
-        ),
-      );
-      _qnaController.clear();
+      _questions.insert(0, optimisticQ);
     });
+
     UiToast.success(
       context,
       title: 'Question Submitted',
       message: 'Your question was pushed to the speakers queue.',
     );
+
+    if (widget.repository != null && widget.roomId != null) {
+      final saved =
+          await widget.repository!.submitRoomQuestion(widget.roomId!, text);
+      if (saved != null && mounted) {
+        setState(() {
+          final idx = _questions.indexWhere((q) => q.id == optimisticQ.id);
+          if (idx >= 0) {
+            _questions[idx] = saved.copyWith(hasUpvoted: true);
+          }
+        });
+      }
+    }
+  }
+
+  void _toggleQuestionUpvote(LiveRoomQuestion q) async {
+    final nextHasUpvoted = !q.hasUpvoted;
+    final nextCount =
+        nextHasUpvoted ? q.upvotesCount + 1 : math.max(0, q.upvotesCount - 1);
+    setState(() {
+      final idx = _questions.indexWhere((item) => item.id == q.id);
+      if (idx >= 0) {
+        _questions[idx] = q.copyWith(
+          hasUpvoted: nextHasUpvoted,
+          upvotesCount: nextCount,
+        );
+      }
+    });
+
+    if (widget.repository != null) {
+      await widget.repository!.toggleQuestionUpvote(q.id);
+    }
+  }
+
+  void _toggleQuestionAnswered(LiveRoomQuestion q) async {
+    final next = !q.isAnswered;
+    setState(() {
+      final idx = _questions.indexWhere((item) => item.id == q.id);
+      if (idx >= 0) {
+        _questions[idx] = q.copyWith(
+          isAnswered: next,
+          answeredAt: next ? DateTime.now() : null,
+        );
+      }
+    });
+
+    UiToast.info(
+      context,
+      title: 'Q&A Updated',
+      message: next ? 'Marked as answered.' : 'Moved back to queue.',
+    );
+
+    if (widget.repository != null) {
+      await widget.repository!.markQuestionAnswered(q.id, next);
+    }
   }
 
   void _toggleCaptions() {
@@ -658,13 +770,24 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                                 const Duration(milliseconds: 600),
                               );
                               if (!mounted) return;
+                              final setup = widget.pinnedSetup;
+                              final totalVotes = _pollVotesBullish + _pollVotesBearish;
+                              final pctBullish = totalVotes > 0 ? (_pollVotesBullish / totalVotes) : 0.5;
+                              final bias = pctBullish >= 0.5
+                                  ? 'Bullish (${(pctBullish * 100).toStringAsFixed(0)}%)'
+                                  : 'Bearish (${((1 - pctBullish) * 100).toStringAsFixed(0)}%)';
                               setState(() {
                                 _recapPoints = <String>[
-                                  '🎯 Consensus Bias: Strong Bullish above 24,780 VWAP demand block.',
-                                  '📈 Pinned Trade: NIFTY 24,850 CE targeting 210 with 1:2.8 R:R.',
-                                  '⚠️ Risk Invalidation: 15m candle close below 24,740 invalidates the long thesis.',
-                                  '🏦 Smart Money Flow: FII accumulation of +₹1,420 Cr in index derivatives.',
-                                  '⚡ Expiry Play: Gamma pinning at 24,900 strike into weekly close.',
+                                  '🎯 Floor Consensus: $bias market bias for "${widget.roomTitle}".',
+                                  if (setup != null)
+                                    '📈 Pinned Alpha: ${setup.ticker} (${setup.side}) Entry ₹${setup.entry} · Target ₹${setup.target} · SL ₹${setup.stopLoss} (1:${setup.rrRatio.toStringAsFixed(1)} R:R).',
+                                  if (setup?.note.isNotEmpty == true)
+                                    '📝 Strategy Note: ${setup!.note}',
+                                  if (_speakers.isNotEmpty)
+                                    '👥 Stage Speakers: ${_speakers.map((s) => s.displayName).join(', ')} leading execution debrief.',
+                                  if (_questions.isNotEmpty)
+                                    '❓ Top In-Floor Question: "${_questions.first.question}"',
+                                  '⚡ Risk Discipline: Honor predefined invalidation levels. Position sizing calibrated for current volatility.',
                                 ];
                                 _recapLoading = false;
                               });
@@ -984,7 +1107,9 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                     expand: true,
                     onPressed: () {
                       setState(() {
-                        _mutedSpeakers.addAll(_speakers);
+                        for (final s in _speakers) {
+                          _mutedSpeakers.add(s.userId);
+                        }
                       });
                       Navigator.of(sCtx).pop();
                       UiToast.warning(
@@ -1022,10 +1147,11 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
     );
   }
 
-  void _showSpeakerModal(String name) {
-    final bool isHost = name == widget.hostName;
-    final bool isMuted = _mutedSpeakers.contains(name);
-    final bool isCoHost = _coHosts.contains(name);
+  void _showSpeakerModal(LiveRoomParticipant speaker) {
+    final String name = speaker.displayName;
+    final bool isHost = speaker.isHost || name == widget.hostName;
+    final bool isMuted = speaker.isMuted || _mutedSpeakers.contains(speaker.userId);
+    final bool isCoHost = speaker.isCoHost || _coHosts.contains(speaker.userId);
 
     showModalBottomSheet<void>(
       context: context,
@@ -1096,7 +1222,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                   UiToast.info(
                     context,
                     title: name,
-                    message: 'Opening $name\'s public verified profile',
+                    message: 'Viewing verified trader profile for $name',
                   );
                 },
               ),
@@ -1110,18 +1236,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                   expand: true,
                   onPressed: () {
                     Navigator.of(ctx).pop();
-                    setState(() {
-                      if (isMuted) {
-                        _mutedSpeakers.remove(name);
-                      } else {
-                        _mutedSpeakers.add(name);
-                      }
-                    });
-                    UiToast.info(
-                      context,
-                      title: 'Moderation',
-                      message: isMuted ? '$name unmuted.' : '$name muted.',
-                    );
+                    _muteParticipant(speaker, !isMuted);
                   },
                 ),
                 SizedBox(height: ctx.sp(theme.spacing.xs)),
@@ -1133,18 +1248,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                   expand: true,
                   onPressed: () {
                     Navigator.of(ctx).pop();
-                    setState(() {
-                      if (isCoHost) {
-                        _coHosts.remove(name);
-                      } else {
-                        _coHosts.add(name);
-                      }
-                    });
-                    UiToast.success(
-                      context,
-                      title: 'Role Updated',
-                      message: '$name role updated.',
-                    );
+                    _updateParticipantRole(speaker, isCoHost ? 'speaker' : 'co_host');
                   },
                 ),
                 SizedBox(height: ctx.sp(theme.spacing.xs)),
@@ -1156,15 +1260,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                   expand: true,
                   onPressed: () {
                     Navigator.of(ctx).pop();
-                    setState(() {
-                      _speakers.remove(name);
-                      if (!_listeners.contains(name)) _listeners.add(name);
-                    });
-                    UiToast.show(
-                      context,
-                      title: 'Stage',
-                      message: '$name moved to listeners.',
-                    );
+                    _updateParticipantRole(speaker, 'listener');
                   },
                 ),
               ],
@@ -1175,7 +1271,8 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
     );
   }
 
-  void _showListenerModal(String name) {
+  void _showListenerModal(LiveRoomParticipant listener) {
+    final String name = listener.displayName;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1222,7 +1319,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                 expand: true,
                 onPressed: () {
                   Navigator.of(ctx).pop();
-                  _acceptSpeaker(name);
+                  _acceptSpeaker(listener);
                 },
               ),
               SizedBox(height: ctx.sp(theme.spacing.xs)),
@@ -1852,17 +1949,18 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
             alignment: WrapAlignment.spaceAround,
             children: _speakers.asMap().entries.map((entry) {
               final int idx = entry.key;
-              final String name = entry.value;
-              final bool isHost = idx == 0;
-              final bool isCoHost = _coHosts.contains(name);
-              final bool isMuted = _mutedSpeakers.contains(name);
+              final LiveRoomParticipant speaker = entry.value;
+              final String name = speaker.displayName;
+              final bool isHost = speaker.isHost || idx == 0;
+              final bool isCoHost = speaker.isCoHost || _coHosts.contains(speaker.userId);
+              final bool isMuted = speaker.isMuted || _mutedSpeakers.contains(speaker.userId);
               final bool isSpeaking =
-                  idx == (_activeSpeakerIndex % _speakers.length) && !isMuted;
-              final int talkSec = _talkSeconds[name] ?? 0;
+                  idx == (_activeSpeakerIndex % math.max(1, _speakers.length)) && !isMuted;
+              final int talkSec = _talkSeconds[speaker.userId] ?? _talkSeconds[name] ?? 0;
               final String talkFormatted = '${talkSec ~/ 60}m ${talkSec % 60}s';
 
               return InkWell(
-                onTap: () => _showSpeakerModal(name),
+                onTap: () => _showSpeakerModal(speaker),
                 borderRadius: BorderRadius.circular(theme.radii.md),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -2037,20 +2135,20 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                     ],
                   ),
                   SizedBox(height: context.sp(theme.spacing.xs)),
-                  for (final String person in _raisedHandsQueue) ...<Widget>[
+                  for (final LiveRoomParticipant person in _raisedHandsQueue) ...<Widget>[
                     Padding(
                       padding: EdgeInsets.symmetric(
                         vertical: context.sp(theme.spacing.xxs),
                       ),
                       child: Row(
                         children: <Widget>[
-                          UiAvatar(name: person, size: UiSize.xs),
+                          UiAvatar(name: person.displayName, size: UiSize.xs),
                           SizedBox(
                             width: context.sp(theme.spacing.xs),
                           ),
                           Expanded(
                             child: Text(
-                              person,
+                              person.displayName,
                               style: context.uiText.caption.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -2083,7 +2181,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
 
           // Listeners Grid
           Text(
-            'LISTENERS (${widget.listenerCount})',
+            'LISTENERS (${math.max(_listeners.length, widget.listenerCount)})',
             style: context.uiText.label.copyWith(
               fontWeight: FontWeight.w700,
               color: theme.colors.foregroundMuted,
@@ -2091,42 +2189,75 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
             ),
           ),
           SizedBox(height: context.sp(theme.spacing.xs)),
-          Wrap(
-            spacing: context.sp(theme.spacing.sm),
-            runSpacing: context.sp(theme.spacing.xs),
-            children: _listeners.map((name) {
-              return InkWell(
-                onTap: () => _showListenerModal(name),
-                borderRadius: BorderRadius.circular(theme.radii.sm),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    UiAvatar(name: name, size: UiSize.sm),
-                    SizedBox(height: context.sp(theme.spacing.xxs)),
-                    SizedBox(
-                      width: context.sz(52),
-                      child: Text(
-                        name.split(' ').first,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.uiText.label.copyWith(
-                          color: theme.colors.foregroundMuted,
-                          fontSize: context.fs(10),
+          if (_listeners.isEmpty)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.sm)),
+              child: Text(
+                'No other listeners yet. Invite fellow traders to join!',
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
+              ),
+            )
+          else
+            Wrap(
+              spacing: context.sp(theme.spacing.sm),
+              runSpacing: context.sp(theme.spacing.xs),
+              children: _listeners.map((listener) {
+                return InkWell(
+                  onTap: () => _showListenerModal(listener),
+                  borderRadius: BorderRadius.circular(theme.radii.sm),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      UiAvatar(name: listener.displayName, size: UiSize.sm),
+                      SizedBox(height: context.sp(theme.spacing.xxs)),
+                      SizedBox(
+                        width: context.sz(52),
+                        child: Text(
+                          listener.displayName.split(' ').first,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.uiText.label.copyWith(
+                            color: theme.colors.foregroundMuted,
+                            fontSize: context.fs(10),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
         ],
       ),
     );
   }
 
+  String _formatTimeAgo(DateTime dt) {
+    final Duration diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 60) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  String _formatScheduledTime(DateTime dt) {
+    final int hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final String minute = dt.minute.toString().padLeft(2, '0');
+    final String ampm = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $ampm';
+  }
+
+  List<_AgendaSegment> get _roomAgenda => const <_AgendaSegment>[
+        _AgendaSegment(time: '00:00', title: 'Floor Opening & Macro Bias'),
+        _AgendaSegment(time: '15:00', title: 'Live Order Flow & Liquidity Heatmap'),
+        _AgendaSegment(time: '30:00', title: 'Open Stage Alpha & Shared Setups'),
+        _AgendaSegment(time: '45:00', title: 'Community Q&A & Invalidation Levels'),
+      ];
+
   // -------------------------------------------------------------------------
-  // Tab 1: Live Chat & Q&A
+  // Tab 1: Live Chat & Stream
   // -------------------------------------------------------------------------
   Widget _buildLiveChatTab(BuildContext context) {
     final UiTheme theme = context.ui;
@@ -2134,86 +2265,101 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
     return Column(
       children: <Widget>[
         Expanded(
-          child: ListView.builder(
-            controller: _chatScrollController,
-            itemCount: _chatMessages.length,
-            padding: EdgeInsets.symmetric(
-              vertical: context.sp(theme.spacing.xs),
-            ),
-            itemBuilder: (BuildContext ctx, int index) {
-              final _LiveRoomChatMessage msg = _chatMessages[index];
-              return Container(
-                margin: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
-                padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
-                decoration: BoxDecoration(
-                  color: msg.isHost
-                      ? theme.colors.primary.withValues(alpha: 0.08)
-                      : theme.colors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(theme.radii.md),
-                  border: Border.all(
-                    color: msg.isHost
-                        ? theme.colors.primary.withValues(alpha: 0.25)
-                        : theme.colors.border,
+          child: _chatMessages.isEmpty
+              ? Center(
+                  child: UiEmptyState(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: 'No chat messages yet',
+                    message:
+                        'Be the first to share your market view or ask a question!',
                   ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    UiAvatar(name: msg.author, size: UiSize.xs),
-                    SizedBox(width: context.sp(theme.spacing.xs)),
-                    Expanded(
-                      child: Column(
+                )
+              : ListView.builder(
+                  controller: _chatScrollController,
+                  itemCount: _chatMessages.length,
+                  padding: EdgeInsets.symmetric(
+                    vertical: context.sp(theme.spacing.xs),
+                  ),
+                  itemBuilder: (BuildContext ctx, int index) {
+                    final LiveRoomMessage msg = _chatMessages[index];
+                    return Container(
+                      margin: EdgeInsets.only(
+                        bottom: context.sp(theme.spacing.xs),
+                      ),
+                      padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
+                      decoration: BoxDecoration(
+                        color: msg.isHost
+                            ? theme.colors.primary.withValues(alpha: 0.08)
+                            : theme.colors.surfaceMuted,
+                        borderRadius: BorderRadius.circular(theme.radii.md),
+                        border: Border.all(
+                          color: msg.isHost
+                              ? theme.colors.primary.withValues(alpha: 0.25)
+                              : theme.colors.border,
+                        ),
+                      ),
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Row(
-                            children: <Widget>[
-                              Text(
-                                msg.author,
-                                style: context.uiText.caption.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: theme.colors.foreground,
+                          UiAvatar(name: msg.senderName, size: UiSize.xs),
+                          SizedBox(width: context.sp(theme.spacing.xs)),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Row(
+                                  children: <Widget>[
+                                    Text(
+                                      msg.senderName,
+                                      style: context.uiText.caption.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: theme.colors.foreground,
+                                      ),
+                                    ),
+                                    if (msg.isHost) ...<Widget>[
+                                      SizedBox(
+                                        width: context.sp(theme.spacing.xxs),
+                                      ),
+                                      UiBadge(
+                                        label: 'HOST',
+                                        intent: UiIntent.primary,
+                                        size: UiSize.xs,
+                                      ),
+                                    ] else if (msg.isSpeaker) ...<Widget>[
+                                      SizedBox(
+                                        width: context.sp(theme.spacing.xxs),
+                                      ),
+                                      UiBadge(
+                                        label: 'SPEAKER',
+                                        intent: UiIntent.success,
+                                        size: UiSize.xs,
+                                      ),
+                                    ],
+                                    const Spacer(),
+                                    Text(
+                                      _formatTimeAgo(msg.createdAt),
+                                      style: context.uiText.label.copyWith(
+                                        color: theme.colors.foregroundMuted,
+                                        fontSize: context.fs(10),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              if (msg.isHost) ...<Widget>[
-                                SizedBox(width: context.sp(theme.spacing.xxs)),
-                                UiBadge(
-                                  label: 'HOST',
-                                  intent: UiIntent.primary,
-                                  size: UiSize.xs,
-                                ),
-                              ] else if (msg.isSpeaker) ...<Widget>[
-                                SizedBox(width: context.sp(theme.spacing.xxs)),
-                                UiBadge(
-                                  label: 'SPEAKER',
-                                  intent: UiIntent.success,
-                                  size: UiSize.xs,
+                                SizedBox(height: context.sp(theme.spacing.xxs)),
+                                Text(
+                                  msg.message,
+                                  style: context.uiText.body.copyWith(
+                                    fontSize: context.fs(12.5),
+                                  ),
                                 ),
                               ],
-                              const Spacer(),
-                              Text(
-                                msg.time,
-                                style: context.uiText.label.copyWith(
-                                  color: theme.colors.foregroundMuted,
-                                  fontSize: context.fs(10),
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.xxs)),
-                          Text(
-                            msg.message,
-                            style: context.uiText.body.copyWith(
-                              fontSize: context.fs(12.5),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
 
         // Live Chat Composer
@@ -2250,7 +2396,8 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
   // -------------------------------------------------------------------------
   Widget _buildQnaTab(BuildContext context) {
     final UiTheme theme = context.ui;
-    final int unansweredCount = _questions.where((q) => !q.answered).length;
+    final int unansweredCount =
+        _questions.where((q) => !q.isAnswered).length;
 
     return Column(
       children: <Widget>[
@@ -2299,11 +2446,11 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
         Expanded(
           child: _questions.isEmpty
               ? Center(
-                  child: Text(
-                    'No questions yet. Be the first to ask!',
-                    style: context.uiText.caption.copyWith(
-                      color: theme.colors.foregroundMuted,
-                    ),
+                  child: UiEmptyState(
+                    icon: Icons.help_outline_rounded,
+                    title: 'No questions in queue',
+                    message:
+                        'Ask the host or speakers a trading question below!',
                   ),
                 )
               : ListView.builder(
@@ -2312,14 +2459,14 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                     vertical: context.sp(theme.spacing.xxs),
                   ),
                   itemBuilder: (BuildContext ctx, int index) {
-                    final _QnaQuestion q = _questions[index];
+                    final LiveRoomQuestion q = _questions[index];
                     return Container(
                       margin: EdgeInsets.only(
                         bottom: context.sp(theme.spacing.xs),
                       ),
                       padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
                       decoration: BoxDecoration(
-                        color: q.answered
+                        color: q.isAnswered
                             ? theme.colors.surfaceMuted.withValues(alpha: 0.5)
                             : theme.colors.surfaceMuted,
                         borderRadius: BorderRadius.circular(theme.radii.md),
@@ -2334,17 +2481,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                         children: <Widget>[
                           // Upvote column
                           InkWell(
-                            onTap: () {
-                              setState(() {
-                                if (q.hasUpvoted) {
-                                  q.upvotes--;
-                                  q.hasUpvoted = false;
-                                } else {
-                                  q.upvotes++;
-                                  q.hasUpvoted = true;
-                                }
-                              });
-                            },
+                            onTap: () => _toggleQuestionUpvote(q),
                             borderRadius:
                                 BorderRadius.circular(theme.radii.sm),
                             child: Container(
@@ -2354,7 +2491,8 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                               ),
                               decoration: BoxDecoration(
                                 color: q.hasUpvoted
-                                    ? theme.colors.primary.withValues(alpha: 0.15)
+                                    ? theme.colors.primary
+                                        .withValues(alpha: 0.15)
                                     : theme.colors.surface,
                                 borderRadius:
                                     BorderRadius.circular(theme.radii.sm),
@@ -2375,7 +2513,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                                         : theme.colors.foregroundMuted,
                                   ),
                                   Text(
-                                    '${q.upvotes}',
+                                    '${q.upvotesCount}',
                                     style: context.uiText.label.copyWith(
                                       fontWeight: FontWeight.w700,
                                       color: q.hasUpvoted
@@ -2397,7 +2535,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                                 Row(
                                   children: <Widget>[
                                     Text(
-                                      q.author,
+                                      q.authorName,
                                       style: context.uiText.caption.copyWith(
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -2405,7 +2543,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                                     SizedBox(
                                       width: context.sp(theme.spacing.xs),
                                     ),
-                                    if (q.answered)
+                                    if (q.isAnswered)
                                       UiBadge(
                                         label: 'ANSWERED ON STAGE',
                                         intent: UiIntent.success,
@@ -2421,26 +2559,17 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                                     const Spacer(),
                                     // Host/Moderator answer toggle
                                     UiIconButton(
-                                      icon: q.answered
+                                      icon: q.isAnswered
                                           ? Icons.undo_rounded
-                                          : Icons.check_circle_outline_rounded,
+                                          : Icons
+                                              .check_circle_outline_rounded,
                                       size: UiSize.xs,
                                       variant: UiVariant.ghost,
-                                      tooltip: q.answered
+                                      tooltip: q.isAnswered
                                           ? 'Mark Unanswered'
                                           : 'Mark Answered on Stage',
-                                      onPressed: () {
-                                        setState(() {
-                                          q.answered = !q.answered;
-                                        });
-                                        UiToast.info(
-                                          context,
-                                          title: 'Q&A Updated',
-                                          message: q.answered
-                                              ? 'Marked as answered.'
-                                              : 'Moved back to queue.',
-                                        );
-                                      },
+                                      onPressed: () =>
+                                          _toggleQuestionAnswered(q),
                                     ),
                                   ],
                                 ),
@@ -2448,13 +2577,13 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                                   height: context.sp(theme.spacing.xxs),
                                 ),
                                 Text(
-                                  q.text,
+                                  q.question,
                                   style: context.uiText.body.copyWith(
                                     fontSize: context.fs(13),
-                                    color: q.answered
+                                    color: q.isAnswered
                                         ? theme.colors.foregroundMuted
                                         : theme.colors.foreground,
-                                    decoration: q.answered
+                                    decoration: q.isAnswered
                                         ? TextDecoration.lineThrough
                                         : null,
                                   ),
@@ -2504,8 +2633,20 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
   Widget _buildPollAndSetupTab(BuildContext context) {
     final UiTheme theme = context.ui;
     final int totalVotes = _pollVotesBullish + _pollVotesBearish;
-    final double pctBullish = totalVotes > 0 ? (_pollVotesBullish / totalVotes) : 0.5;
-    final double pctBearish = totalVotes > 0 ? (_pollVotesBearish / totalVotes) : 0.5;
+    final double pctBullish =
+        totalVotes > 0 ? (_pollVotesBullish / totalVotes) : 0.5;
+    final double pctBearish =
+        totalVotes > 0 ? (_pollVotesBearish / totalVotes) : 0.5;
+
+    final LiveAudioRoom? activeRoom = widget.repository?.allLiveRooms
+            .where((r) => r.id == widget.roomId)
+            .firstOrNull ??
+        widget.repository?.activeTunedRoom;
+
+    final String pollQuestion = (activeRoom != null &&
+            activeRoom.topic.isNotEmpty)
+        ? 'Floor Poll: ${activeRoom.topic}'
+        : 'Floor Poll: What is your market bias into the session close?';
 
     return SingleChildScrollView(
       child: Column(
@@ -2548,7 +2689,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                 ),
                 SizedBox(height: context.sp(theme.spacing.xs)),
                 Text(
-                  'Expiry View: Will NIFTY hold 24,800 strike support into 3:00 PM?',
+                  pollQuestion,
                   style: context.uiText.bodyStrong.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -2577,7 +2718,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                       children: <Widget>[
                         Row(
                           children: <Widget>[
-                            Text('🟢 Bullish (Call Buying)',
+                            Text('🟢 Bullish (Call Bias)',
                                 style: context.uiText.caption.copyWith(
                                   fontWeight: FontWeight.w700,
                                 )),
@@ -2629,7 +2770,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                       children: <Widget>[
                         Row(
                           children: <Widget>[
-                            Text('🔴 Bearish (Put Buying)',
+                            Text('🔴 Bearish (Put Bias)',
                                 style: context.uiText.caption.copyWith(
                                   fontWeight: FontWeight.w700,
                                 )),
@@ -2666,6 +2807,17 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
           // Pinned Setup Card (Interactive)
           if (widget.pinnedSetup != null) ...<Widget>[
             _buildPinnedSetupCard(context, widget.pinnedSetup!),
+          ] else ...<Widget>[
+            UiCard(
+              variant: UiCardVariant.surface,
+              padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+              child: UiEmptyState(
+                icon: Icons.push_pin_outlined,
+                title: 'No Pinned Setup',
+                message:
+                    'The space host has not pinned an active trade setup for this room yet.',
+              ),
+            ),
           ],
         ],
       ),
@@ -2677,6 +2829,30 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
   // -------------------------------------------------------------------------
   Widget _buildRoomInfoTab(BuildContext context) {
     final UiTheme theme = context.ui;
+    final int currentAgendaIndex =
+        (_stageTick ~/ 60).clamp(0, _roomAgenda.length - 1);
+
+    final LiveAudioRoom? activeRoom = widget.repository?.allLiveRooms
+            .where((r) => r.id == widget.roomId)
+            .firstOrNull ??
+        widget.repository?.activeTunedRoom;
+
+    final List<LiveAudioRoom> upcomingRooms =
+        (widget.repository?.allLiveRooms ?? <LiveAudioRoom>[])
+            .where((r) =>
+                r.id != widget.roomId &&
+                r.status == LiveRoomStatus.scheduled)
+            .toList();
+
+    final List<String> roomTickers = <String>[
+      if (widget.pinnedSetup?.ticker != null &&
+          widget.pinnedSetup!.ticker.isNotEmpty)
+        widget.pinnedSetup!.ticker,
+      ...?activeRoom?.tags,
+    ];
+    final List<String> tickersToDisplay = roomTickers.isNotEmpty
+        ? roomTickers.toSet().toList()
+        : <String>['NIFTY', 'BANKNIFTY'];
 
     return SingleChildScrollView(
       child: Column(
@@ -2712,12 +2888,12 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                   ],
                 ),
                 SizedBox(height: context.sp(theme.spacing.sm)),
-                for (int i = 0; i < _agenda.length; i++) ...<Widget>[
+                for (int i = 0; i < _roomAgenda.length; i++) ...<Widget>[
                   Builder(
                     builder: (BuildContext aCtx) {
-                      final _AgendaSegment seg = _agenda[i];
-                      final bool isCurrent = i == _currentAgendaIndex;
-                      final bool isPast = i < _currentAgendaIndex;
+                      final _AgendaSegment seg = _roomAgenda[i];
+                      final bool isCurrent = i == currentAgendaIndex;
+                      final bool isPast = i < currentAgendaIndex;
                       return Padding(
                         padding: EdgeInsets.symmetric(
                           vertical: context.sp(theme.spacing.xxs),
@@ -2819,58 +2995,74 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                   ],
                 ),
                 SizedBox(height: context.sp(theme.spacing.sm)),
-                for (final _UpNextRoom room in _upNext) ...<Widget>[
-                  Container(
-                    margin: EdgeInsets.only(
-                      bottom: context.sp(theme.spacing.xs),
+                if (upcomingRooms.isEmpty)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      vertical: context.sp(theme.spacing.sm),
                     ),
-                    padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
-                    decoration: BoxDecoration(
-                      color: theme.colors.surface,
-                      borderRadius: BorderRadius.circular(theme.radii.md),
-                      border: Border.all(color: theme.colors.border),
+                    child: Center(
+                      child: Text(
+                        'No upcoming scheduled spaces at this time.',
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ),
+                      ),
                     ),
-                    child: Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                room.title,
-                                style: context.uiText.caption.copyWith(
-                                  fontWeight: FontWeight.w700,
+                  )
+                else
+                  for (final LiveAudioRoom room in upcomingRooms) ...<Widget>[
+                    Container(
+                      margin: EdgeInsets.only(
+                        bottom: context.sp(theme.spacing.xs),
+                      ),
+                      padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
+                      decoration: BoxDecoration(
+                        color: theme.colors.surface,
+                        borderRadius: BorderRadius.circular(theme.radii.md),
+                        border: Border.all(color: theme.colors.border),
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  room.title,
+                                  style: context.uiText.caption.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
-                              ),
-                              SizedBox(height: context.sp(theme.spacing.xxs)),
-                              Text(
-                                '${room.host} • ${room.time}',
-                                style: context.uiText.label.copyWith(
-                                  fontSize: context.fs(11),
-                                  color: theme.colors.foregroundMuted,
+                                SizedBox(height: context.sp(theme.spacing.xxs)),
+                                Text(
+                                  '${room.host.displayName} • ${room.scheduledFor != null ? _formatScheduledTime(room.scheduledFor!) : "Scheduled"}',
+                                  style: context.uiText.label.copyWith(
+                                    fontSize: context.fs(11),
+                                    color: theme.colors.foregroundMuted,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        UiButton(
-                          label: 'Remind Me',
-                          leadingIcon: Icons.notifications_none_rounded,
-                          size: UiSize.xs,
-                          variant: UiVariant.outline,
-                          onPressed: () {
-                            UiToast.success(
-                              context,
-                              title: 'Reminder Set',
-                              message:
-                                  'We will notify you when "${room.title}" goes live.',
-                            );
-                          },
-                        ),
-                      ],
+                          UiButton(
+                            label: 'Remind Me',
+                            leadingIcon: Icons.notifications_none_rounded,
+                            size: UiSize.xs,
+                            variant: UiVariant.outline,
+                            onPressed: () {
+                              widget.repository?.toggleRoomReminder(room.id);
+                              UiToast.success(
+                                context,
+                                title: 'Reminder Set',
+                                message:
+                                    'We will notify you when "${room.title}" goes live.',
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
               ],
             ),
           ),
@@ -2965,12 +3157,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                 Wrap(
                   spacing: context.sp(theme.spacing.xs),
                   runSpacing: context.sp(theme.spacing.xs),
-                  children: <String>[
-                    'NIFTY 24850 CE',
-                    'BANKNIFTY 53200 PE',
-                    'RELIANCE',
-                    'HDFCBANK',
-                  ].map((t) {
+                  children: tickersToDisplay.map((t) {
                     return UiBadge(
                       label: t,
                       intent: UiIntent.primary,
@@ -3028,6 +3215,13 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
 
   Widget _buildPinnedSetupCard(BuildContext context, LivePinnedSetup setup) {
     final UiTheme theme = context.ui;
+
+    final double gainPct = setup.entry > 0
+        ? (((setup.target - setup.entry).abs() / setup.entry) * 100)
+        : 0.0;
+    final bool isLong = setup.side.toUpperCase() == 'LONG';
+    final String targetLabel =
+        '${isLong ? "+" : "-"}${gainPct.toStringAsFixed(1)}% Target';
 
     return Container(
       padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
@@ -3087,7 +3281,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                 ),
               ),
               UiBadge(
-                label: '+₹14,200 (+18.4%)',
+                label: targetLabel,
                 intent: UiIntent.success,
                 variant: UiBadgeVariant.soft,
                 size: UiSize.xs,

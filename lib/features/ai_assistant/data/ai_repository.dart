@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 
@@ -12,18 +11,7 @@ abstract class AiRepository {
 class AiRepositoryImpl implements AiRepository {
   AiRepositoryImpl();
 
-  SupabaseClient? get _client {
-    if (SupabaseConfig.isConfigured) {
-      try {
-        return SupabaseConfig.client;
-      } catch (_) {
-        return null;
-      }
-    }
-    return null;
-  }
-
-  String? get _currentUserId => _client?.auth.currentUser?.id;
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
 
   List<AppAiInsight> _fallbackInsights() {
     return <AppAiInsight>[
@@ -50,52 +38,51 @@ class AiRepositoryImpl implements AiRepository {
 
   @override
   Future<List<AppAiInsight>> getInsights({String? ticker}) async {
-    final client = _client;
-    if (client == null) {
-      return _fallbackInsights();
-    }
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        var query = client.from('ai_insights').select('*');
+        if (ticker != null && ticker.isNotEmpty) {
+          query = query.eq('ticker', ticker.toUpperCase());
+        }
+        final response = await query.order('generated_at', ascending: false).limit(20);
 
-    try {
-      var query = client.from('ai_insights').select('*');
-      if (ticker != null && ticker.isNotEmpty) {
-        query = query.eq('ticker', ticker.toUpperCase());
+        final insights = (response as List<dynamic>).map((row) {
+          final map = row as Map<String, dynamic>;
+          final indicators = map['indicators'] as Map<String, dynamic>? ?? {};
+          final confidenceVal = indicators['confidence'] as num? ?? 0.85;
+          final sentimentVal = indicators['sentiment_score'] as num? ?? 0.72;
+          final rowTicker = map['ticker'] as String? ?? 'N/A';
+
+          return AppAiInsight(
+            id: map['id'] as String,
+            title: '$rowTicker Analysis Signal',
+            body: map['summary'] as String? ?? '',
+            confidence: confidenceVal.toDouble(),
+            sentimentScore: sentimentVal.toDouble(),
+            tickers: [rowTicker],
+            createdAt: map['generated_at'] != null ? DateTime.parse(map['generated_at'] as String) : DateTime.now(),
+          );
+        }).toList();
+
+        if (insights.isNotEmpty) return insights;
+      } catch (e) {
+        debugPrint('AiRepositoryImpl.getInsights error: $e');
       }
-      final response = await query.order('generated_at', ascending: false).limit(20);
-
-      final insights = (response as List<dynamic>).map((row) {
-        final map = row as Map<String, dynamic>;
-        final indicators = map['indicators'] as Map<String, dynamic>? ?? {};
-        final confidenceVal = indicators['confidence'] as num? ?? 0.85;
-        final sentimentVal = indicators['sentiment_score'] as num? ?? 0.72;
-        final rowTicker = map['ticker'] as String? ?? 'N/A';
-
-        return AppAiInsight(
-          id: map['id'] as String,
-          title: '$rowTicker Analysis Signal',
-          body: map['summary'] as String? ?? '',
-          confidence: confidenceVal.toDouble(),
-          sentimentScore: sentimentVal.toDouble(),
-          tickers: [rowTicker],
-          createdAt: map['generated_at'] != null ? DateTime.parse(map['generated_at'] as String) : DateTime.now(),
-        );
-      }).toList();
-
-      return insights.isEmpty ? _fallbackInsights() : insights;
-    } catch (e) {
-      debugPrint('AiRepositoryImpl.getInsights error: $e');
-      return _fallbackInsights();
     }
+    return _fallbackInsights();
   }
 
   @override
   Future<AppAiInsight> requestInsight({required String kind, String? ticker}) async {
-    final client = _client;
-    final userId = _currentUserId;
-
-    if (client != null && userId != null) {
+    if (SupabaseConfig.isConfigured) {
       try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        final targetUserId = user?.id ?? _demoUserId;
+
         await client.from('ai_insight_requests').insert({
-          'user_id': userId,
+          'user_id': targetUserId,
           'kind': kind,
           'ticker': ticker?.toUpperCase(),
         });

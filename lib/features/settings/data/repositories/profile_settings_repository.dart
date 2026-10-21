@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
@@ -13,6 +14,7 @@ abstract class ProfileSettingsRepository {
   Future<UserProfileModel> updateProfile({
     String? displayName,
     String? bio,
+    String? avatarUrl,
     String? experienceLevel,
     String? tradingStyle,
     String? location,
@@ -24,6 +26,7 @@ abstract class ProfileSettingsRepository {
     bool? publicStatsEnabled,
   });
   Future<String> uploadAvatar(Uint8List imageBytes, String contentType);
+  Future<void> removeAvatar();
   Future<void> requestEmailChange({
     required String newEmail,
     required String currentPassword,
@@ -39,10 +42,17 @@ abstract class ProfileSettingsRepository {
 }
 
 class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+
+  static final ProfileSettingsRepositoryImpl instance =
+      ProfileSettingsRepositoryImpl._();
+  ProfileSettingsRepositoryImpl._();
+  factory ProfileSettingsRepositoryImpl() => instance;
+
   UserProfileModel _profile = UserProfileModel(
-    id: 'usr_mock_01',
-    handle: 'nitish_trader',
-    email: 'nitish@tradex.ai',
+    id: _demoUserId,
+    handle: 'demo_trader',
+    email: 'demo@tradex.ai',
     displayName: 'Nitish Kumar',
     role: UserRole.customer,
     bio:
@@ -64,7 +74,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     ConnectedAccount(
       provider: 'google',
       linkedAt: DateTime.now().subtract(const Duration(days: 90)),
-      email: 'nitish@tradex.ai',
+      email: 'demo@tradex.ai',
     ),
     ConnectedAccount(
       provider: 'apple',
@@ -83,19 +93,19 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final res = await client
-              .from('profiles')
-              .select()
-              .eq('id', user.id)
-              .maybeSingle();
+        final targetUserId = user?.id ?? _demoUserId;
 
-          if (res != null) {
-            _profile = UserProfileModel.fromJson(res);
-            return _profile.copyWith(
-              subscriptionTier: AppSession.instance.tier.value.name,
-            );
-          }
+        final res = await client
+            .from('profiles')
+            .select()
+            .eq('id', targetUserId)
+            .maybeSingle();
+
+        if (res != null) {
+          _profile = UserProfileModel.fromJson(res);
+          return _profile.copyWith(
+            subscriptionTier: AppSession.instance.tier.value.name,
+          );
         }
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] getProfile error: $e');
@@ -111,6 +121,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
   Future<UserProfileModel> updateProfile({
     String? displayName,
     String? bio,
+    String? avatarUrl,
     String? experienceLevel,
     String? tradingStyle,
     String? location,
@@ -121,9 +132,11 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     String? riskMantra,
     bool? publicStatsEnabled,
   }) async {
+    final String? effectiveAvatarUrl = avatarUrl ?? _profile.avatarUrl;
     _profile = _profile.copyWith(
       displayName: displayName,
       bio: bio,
+      avatarUrl: effectiveAvatarUrl,
       experienceLevel: experienceLevel,
       tradingStyle: tradingStyle,
       location: location,
@@ -139,16 +152,37 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final res = await client
-              .from('profiles')
-              .update(_profile.toJson())
-              .eq('id', user.id)
-              .select()
-              .single();
+        final targetUserId = user?.id ?? _demoUserId;
 
-          _profile = UserProfileModel.fromJson(res);
-        }
+        final updateData = <String, dynamic>{
+          'display_name': _profile.displayName,
+          'bio': _profile.bio,
+          'avatar_url': (effectiveAvatarUrl != null && effectiveAvatarUrl.isNotEmpty) ? effectiveAvatarUrl : null,
+          'experience_level': _profile.experienceLevel,
+          'trading_style': _profile.tradingStyle,
+          'location': _profile.location,
+          'website': _profile.website,
+          'avg_hold_duration': _profile.avgHoldDuration,
+          'primary_market': _profile.primaryMarket,
+          'top_strategy': _profile.topStrategy,
+          'risk_mantra': _profile.riskMantra,
+          'public_journals': _profile.publicJournals,
+          'updated_at': DateTime.now().toIso8601String(),
+        };
+
+        final res = await client
+            .from('profiles')
+            .update(updateData)
+            .eq('id', targetUserId)
+            .select()
+            .single();
+
+        final fetchedProfile = UserProfileModel.fromJson(res);
+        _profile = fetchedProfile.copyWith(
+          avatarUrl: fetchedProfile.avatarUrl?.isNotEmpty == true
+              ? fetchedProfile.avatarUrl
+              : effectiveAvatarUrl,
+        );
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] updateProfile error: $e');
       }
@@ -159,25 +193,58 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
 
   @override
   Future<String> uploadAvatar(Uint8List imageBytes, String contentType) async {
+    String finalAvatarUrl = '';
+    if (SupabaseConfig.isConfigured) {
+      final client = SupabaseConfig.client!;
+      final user = client.auth.currentUser;
+      final targetUserId = user?.id ?? _demoUserId;
+
+      try {
+        final ext = contentType.contains('jpeg') || contentType.contains('jpg') ? 'jpg' : 'png';
+        final fileName = '${targetUserId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        await client.storage.from('avatars').uploadBinary(
+          fileName,
+          imageBytes,
+          fileOptions: FileOptions(contentType: contentType, upsert: true),
+        );
+        final publicUrl = client.storage.from('avatars').getPublicUrl(fileName);
+        if (publicUrl.isNotEmpty) {
+          finalAvatarUrl = publicUrl;
+        }
+      } catch (e) {
+        debugPrint('[ProfileSettingsRepository] uploadAvatar storage error: $e');
+      }
+
+      if (finalAvatarUrl.isEmpty) {
+        finalAvatarUrl = 'data:$contentType;base64,${base64Encode(imageBytes)}';
+      }
+
+      try {
+        await client.from('profiles').update({'avatar_url': finalAvatarUrl}).eq('id', targetUserId);
+      } catch (e) {
+        debugPrint('[ProfileSettingsRepository] uploadAvatar database update error: $e');
+      }
+    } else {
+      finalAvatarUrl = 'data:$contentType;base64,${base64Encode(imageBytes)}';
+    }
+
+    _profile = _profile.copyWith(avatarUrl: finalAvatarUrl);
+    return finalAvatarUrl;
+  }
+
+  @override
+  Future<void> removeAvatar() async {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final fileName = '${user.id}_${DateTime.now().millisecondsSinceEpoch}.png';
-          await client.storage.from('avatars').uploadBinary(fileName, imageBytes, fileOptions: FileOptions(contentType: contentType));
-          final publicUrl = client.storage.from('avatars').getPublicUrl(fileName);
-          _profile = _profile.copyWith(avatarUrl: publicUrl);
-          await client.from('profiles').update({'avatar_url': publicUrl}).eq('id', user.id);
-          return publicUrl;
-        }
+        final targetUserId = user?.id ?? _demoUserId;
+        await client.from('profiles').update({'avatar_url': null}).eq('id', targetUserId);
       } catch (e) {
-        debugPrint('[ProfileSettingsRepository] uploadAvatar error: $e');
+        debugPrint('[ProfileSettingsRepository] removeAvatar error: $e');
       }
     }
-    const mockUrl = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
-    _profile = _profile.copyWith(avatarUrl: mockUrl);
-    return mockUrl;
+    _profile = _profile.copyWith(avatarUrl: '');
   }
 
   @override
@@ -257,9 +324,8 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          await client.from('profiles').update({'status': 'pending_approval'}).eq('id', user.id);
-        }
+        final targetUserId = user?.id ?? _demoUserId;
+        await client.from('profiles').update({'status': 'pending_approval'}).eq('id', targetUserId);
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] requestAccountDeletion error: $e');
       }

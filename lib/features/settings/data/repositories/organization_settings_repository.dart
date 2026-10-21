@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/settings/models/org_models.dart';
 
@@ -18,9 +17,11 @@ abstract class OrganizationSettingsRepository {
 
 class OrganizationSettingsRepositoryImpl
     implements OrganizationSettingsRepository {
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+
   final List<OrgMember> _members = <OrgMember>[
     OrgMember(
-      userId: 'usr_org_owner',
+      userId: '00000000-0000-0000-0000-000000000001',
       handle: 'nitish_admin',
       displayName: 'Nitish Kumar (Owner)',
       role: 'owner',
@@ -28,12 +29,20 @@ class OrganizationSettingsRepositoryImpl
       joinedAt: DateTime.now().subtract(const Duration(days: 365)),
     ),
     OrgMember(
-      userId: 'usr_org_trader_1',
+      userId: '00000000-0000-0000-0000-000000000002',
       handle: 'sarah_quant',
       displayName: 'Sarah Jenkins',
       role: 'admin',
       avatarUrl: null,
       joinedAt: DateTime.now().subtract(const Duration(days: 120)),
+    ),
+    OrgMember(
+      userId: '00000000-0000-0000-0000-000000000003',
+      handle: 'marcus_trader',
+      displayName: 'Marcus Vance',
+      role: 'trader',
+      avatarUrl: null,
+      joinedAt: DateTime.now().subtract(const Duration(days: 45)),
     ),
   ];
 
@@ -43,22 +52,37 @@ class OrganizationSettingsRepositoryImpl
     primaryColor: '#00F0FF',
   );
 
-  SupabaseClient? get _client {
-    if (SupabaseConfig.isConfigured) {
-      try {
-        return SupabaseConfig.client;
-      } catch (_) {
-        return null;
-      }
-    }
-    return null;
-  }
-
-  String? get _currentUserId => _client?.auth.currentUser?.id;
-
   @override
   Future<List<OrgMember>> getMembers() async {
-    await Future<void>.delayed(const Duration(milliseconds: 150));
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final res = await client
+            .from('organization_members')
+            .select('user_id, role, created_at, profiles(handle, display_name, avatar_url)')
+            .order('created_at', ascending: true);
+
+        if ((res as List).isNotEmpty) {
+          final list = <OrgMember>[];
+          for (final item in res) {
+            final profilesMap = item['profiles'] as Map<String, dynamic>? ?? {};
+            list.add(
+              OrgMember(
+                userId: item['user_id'] as String,
+                handle: profilesMap['handle'] as String? ?? 'trader',
+                displayName: profilesMap['display_name'] as String? ?? profilesMap['handle'] as String? ?? 'Trader',
+                role: item['role'] as String? ?? 'trader',
+                avatarUrl: profilesMap['avatar_url'] as String?,
+                joinedAt: DateTime.tryParse(item['created_at'] as String? ?? '') ?? DateTime.now(),
+              ),
+            );
+          }
+          return list;
+        }
+      } catch (e) {
+        debugPrint('OrganizationSettingsRepositoryImpl.getMembers error: $e');
+      }
+    }
     return List<OrgMember>.from(_members);
   }
 
@@ -68,16 +92,40 @@ class OrganizationSettingsRepositoryImpl
     required String role,
   }) async {
     final String handle = email.split('@').first;
-    _members.add(
-      OrgMember(
-        userId: 'usr_org_${DateTime.now().millisecondsSinceEpoch}',
-        handle: handle,
-        displayName: handle,
-        role: role,
-        avatarUrl: null,
-        joinedAt: DateTime.now(),
-      ),
+    final newMember = OrgMember(
+      userId: 'usr_org_${DateTime.now().millisecondsSinceEpoch}',
+      handle: handle,
+      displayName: handle,
+      role: role,
+      avatarUrl: null,
+      joinedAt: DateTime.now(),
     );
+    _members.add(newMember);
+
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        final targetUserId = user?.id ?? _demoUserId;
+
+        final org = await client
+            .from('organizations')
+            .select('id')
+            .eq('owner_id', targetUserId)
+            .maybeSingle();
+
+        if (org != null) {
+          final orgId = org['id'] as String;
+          await client.from('organization_members').upsert({
+            'organization_id': orgId,
+            'user_id': targetUserId,
+            'role': role,
+          });
+        }
+      } catch (e) {
+        debugPrint('OrganizationSettingsRepositoryImpl.inviteMember error: $e');
+      }
+    }
   }
 
   @override
@@ -97,23 +145,48 @@ class OrganizationSettingsRepositoryImpl
         joinedAt: old.joinedAt,
       );
     }
+
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client
+            .from('organization_members')
+            .update({'role': role, 'updated_at': DateTime.now().toIso8601String()})
+            .eq('user_id', userId);
+      } catch (e) {
+        debugPrint('OrganizationSettingsRepositoryImpl.updateMemberRole error: $e');
+      }
+    }
   }
 
   @override
   Future<void> removeMember(String userId) async {
     _members.removeWhere((m) => m.userId == userId);
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client
+            .from('organization_members')
+            .delete()
+            .eq('user_id', userId);
+      } catch (e) {
+        debugPrint('OrganizationSettingsRepositoryImpl.removeMember error: $e');
+      }
+    }
   }
 
   @override
   Future<OrgBranding> getBranding() async {
-    final client = _client;
-    final userId = _currentUserId;
-    if (client != null && userId != null) {
+    if (SupabaseConfig.isConfigured) {
       try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        final targetUserId = user?.id ?? _demoUserId;
+
         final data = await client
             .from('organizations')
             .select('*')
-            .eq('owner_id', userId)
+            .eq('owner_id', targetUserId)
             .maybeSingle();
 
         if (data != null) {
@@ -143,19 +216,22 @@ class OrganizationSettingsRepositoryImpl
       primaryColor: primaryColor ?? _branding.primaryColor,
     );
 
-    final client = _client;
-    final userId = _currentUserId;
-    if (client != null && userId != null) {
+    if (SupabaseConfig.isConfigured) {
       try {
+        final client = SupabaseConfig.client!;
+        final user = client.auth.currentUser;
+        final targetUserId = user?.id ?? _demoUserId;
+
         final slug = _branding.displayName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '-');
         await client.from('organizations').upsert({
-          'owner_id': userId,
+          'owner_id': targetUserId,
           'name': _branding.displayName,
           'slug': slug,
           'settings': {
             'logo_url': _branding.logoUrl,
             'primary_color': _branding.primaryColor,
           },
+          'updated_at': DateTime.now().toIso8601String(),
         });
       } catch (e) {
         debugPrint('OrganizationSettingsRepositoryImpl.updateBranding error: $e');

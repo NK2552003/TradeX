@@ -14,6 +14,7 @@ import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_m
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_overview_page.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_payouts_page.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart';
+import 'package:tradex/features/auth/data/services/auth_session_storage.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/calculators/ui/calculators_screen.dart';
@@ -233,6 +234,14 @@ class _AppScaffoldState extends State<AppScaffold> {
       winRate: profile?.winRate,
       verified: profile?.verified ?? false,
       tradingStyle: profile?.tradingStyle,
+      location: profile?.location,
+      website: profile?.website,
+      avgHoldDuration: profile?.avgHoldDuration,
+      primaryMarket: profile?.primaryMarket,
+      topStrategy: profile?.topStrategy,
+      riskMantra: profile?.riskMantra,
+      createdAt: profile?.createdAt,
+      postsCount: profile?.postsCount ?? 0,
     );
   }
 
@@ -444,6 +453,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   void _go(String id) {
     if (!_canReach(id)) return;
     if (_selectedId == id && !_showAffiliateApplication) return;
+    AuthSessionStorage.saveLastDestination(id);
     setState(() {
       if (_selectedId != id) _destinationHistory.add(_selectedId);
       _selectedId = id;
@@ -492,30 +502,70 @@ class _AppScaffoldState extends State<AppScaffold> {
   AppLinkOpenRequest? _linkRequest;
   int _linkSeq = 0;
 
+  AppLinkKind _resolveRefKind(AppLinkRef ref) {
+    if (ref.kind == AppLinkKind.communityPost ||
+        ref.id.startsWith('post_') ||
+        ref.id.startsWith('pst_') ||
+        ref.id.startsWith('community')) {
+      return AppLinkKind.communityPost;
+    }
+    if (ref.kind == AppLinkKind.journal ||
+        ref.id.startsWith('trade_') ||
+        ref.id.startsWith('entry_') ||
+        ref.id.startsWith('trn_') ||
+        ref.id.startsWith('journal_')) {
+      return AppLinkKind.journal;
+    }
+    if (ref.kind == AppLinkKind.strategy ||
+        ref.id.startsWith('strat_') ||
+        ref.id.startsWith('strategy_')) {
+      return AppLinkKind.strategy;
+    }
+    if (ref.kind == AppLinkKind.ticker) {
+      return AppLinkKind.ticker;
+    }
+    if (ref.kind == AppLinkKind.aiCopilot || ref.id == 'ai_copilot') {
+      return AppLinkKind.aiCopilot;
+    }
+    if (ref.kind == AppLinkKind.messageThread ||
+        ref.id == 'messages' ||
+        ref.id.startsWith('thread_') ||
+        ref.id.startsWith('conv_')) {
+      return AppLinkKind.messageThread;
+    }
+    return ref.kind;
+  }
+
   /// Follows a link from one destination into another.
   ///
   /// Role permissions still govern the destination. Writing screens handle
   /// same-kind links locally; ticker links arrive at the matching Markets detail.
   void _openLinkRef(AppLinkRef ref, {bool writing = false}) {
+    final AppLinkKind resolvedKind = _resolveRefKind(ref);
     final String destination = writing
-        ? 'notes'
-        : (ref.id == 'ai_copilot' || ref.kind == AppLinkKind.aiCopilot
-              ? 'ai_copilot'
-              : (ref.id == 'messages' || ref.kind == AppLinkKind.messageThread
-                    ? 'messages'
-                    : switch (ref.kind) {
-                        AppLinkKind.journal => 'journal',
-                        AppLinkKind.strategy => 'strategies',
-                        AppLinkKind.aiCopilot => 'ai_copilot',
-                        AppLinkKind.communityPost => 'community_feed',
-                        AppLinkKind.messageThread => 'messages',
-                        AppLinkKind.ticker => 'market',
-                        AppLinkKind.note =>
-                          ref.id.startsWith('community')
-                              ? 'community_feed'
-                              : 'notes',
-                      }));
+        ? (resolvedKind == AppLinkKind.journal
+            ? 'journal'
+            : (resolvedKind == AppLinkKind.strategy
+                ? 'strategies'
+                : 'notes'))
+        : (resolvedKind == AppLinkKind.aiCopilot
+            ? 'ai_copilot'
+            : (resolvedKind == AppLinkKind.messageThread
+                ? 'messages'
+                : switch (resolvedKind) {
+                    AppLinkKind.journal => 'journal',
+                    AppLinkKind.strategy => 'strategies',
+                    AppLinkKind.aiCopilot => 'ai_copilot',
+                    AppLinkKind.communityPost =>
+                      _canReach('community_feed') ? 'community_feed' : 'community',
+                    AppLinkKind.messageThread => 'messages',
+                    AppLinkKind.ticker => 'market',
+                    AppLinkKind.note => 'notes',
+                  }));
     if (!_canReach(destination)) return;
+    final bool isPublic = ref.isPublicContext ||
+        _selectedId == 'community' ||
+        _selectedId == 'community_feed';
     setState(() {
       if (_selectedId != destination) _destinationHistory.add(_selectedId);
       _selectedId = destination;
@@ -524,10 +574,11 @@ class _AppScaffoldState extends State<AppScaffold> {
       _activeSubpageIcon = null;
       _activeSubpageOnBack = null;
       _linkRequest = AppLinkOpenRequest(
-        kind: ref.kind,
+        kind: resolvedKind,
         id: ref.id,
         seq: ++_linkSeq,
         editWriting: writing,
+        publicContext: isPublic,
       );
     });
   }
@@ -690,24 +741,55 @@ class _AppScaffoldState extends State<AppScaffold> {
     );
   }
 
+  static String _monthName(int month) {
+    const months = <String>[
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    if (month >= 1 && month <= 12) return months[month - 1];
+    return '';
+  }
+
   Widget _communityPage({int initialTabIndex = 0}) {
     final trader = _chromeIdentity;
+    final cached = _profiles.cachedProfile;
+    final int myPosts = _communityRepo.postsForAuthor(trader.id).length;
+    final String? joined = trader.createdAt != null
+        ? 'Joined ${_monthName(trader.createdAt!.month)} ${trader.createdAt!.year}'
+        : (cached.createdAt != null
+            ? 'Joined ${_monthName(cached.createdAt!.month)} ${cached.createdAt!.year}'
+            : null);
     _communityRepo.updateCurrentAuthor(
       CommunityAuthor(
-        id: trader.id.isNotEmpty ? trader.id : 'usr_nitish_trader',
-        handle: trader.handle.isNotEmpty ? trader.handle : 'nitish_trader',
+        id: trader.id,
+        handle: trader.handle,
         displayName: (trader.displayName?.isNotEmpty ?? false)
             ? trader.displayName!
-            : 'Nitish Kumar',
+            : trader.handle,
         userRole: _effectiveRole,
         avatarUrl: trader.avatarUrl,
         verified: trader.verified,
         tier: _session.tier.value,
         followers: trader.followers,
         following: trader.following,
-        winRate: trader.winRate ?? 84.0,
-        tradingStyle: trader.tradingStyle ?? 'Swing Trading',
-        primaryMarket: 'Indian Equities & F&O',
+        winRate: trader.winRate,
+        tradingStyle: trader.tradingStyle ?? cached.tradingStyle,
+        primaryMarket: trader.primaryMarket ?? cached.primaryMarket,
+        location: trader.location ?? cached.location,
+        website: trader.website ?? cached.website,
+        joinedDate: joined,
+        bio: trader.bio ?? cached.bio,
+        postsCount: myPosts > 0 ? myPosts : trader.postsCount,
       ),
     );
     return CommunityRootScreen(

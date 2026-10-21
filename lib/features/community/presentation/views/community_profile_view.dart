@@ -96,6 +96,8 @@ class _CommunityProfileViewState extends State<CommunityProfileView> {
         website: widget.author.website,
         primaryMarket: widget.author.primaryMarket,
         topStrategy: widget.author.tradingStyle,
+        avgHoldDuration: widget.author.avgHoldDuration,
+        riskMantra: widget.author.riskMantra,
         referralCode: widget.author.referralCode,
         channelHandle: widget.author.channelHandle,
         audienceReach: widget.author.audienceReach,

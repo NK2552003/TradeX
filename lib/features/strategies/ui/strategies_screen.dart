@@ -118,6 +118,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   bool _onlyFavorites = false;
   AppStrategySort _sort = AppStrategySort.recentlyUpdated;
   int _currentPage = 1;
+  bool _isPublicContext = false;
 
   _StrategyView _view = _StrategyView.list;
 
@@ -291,9 +292,14 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   /// playbook was deleted between the click and the switch, so both degrade to
   /// leaving the library alone.
   void _apply(AppLinkOpenRequest request) {
-    if (request.kind != AppLinkKind.strategy) return;
+    if (request.kind != AppLinkKind.strategy &&
+        !request.id.startsWith('strat_') &&
+        !request.id.startsWith('strategy_')) {
+      return;
+    }
     final bool known = _strategies.any((AppStrategy s) => s.id == request.id);
     if (!known && !_loading) return;
+    _isPublicContext = request.publicContext;
     _open(request.id);
   }
 
@@ -426,7 +432,12 @@ class StrategiesScreenState extends State<StrategiesScreen> {
       );
       return;
     }
-    jump(ref);
+    final bool isPublic = ref.isPublicContext ||
+        _isPublicContext ||
+        (_strategies.where((s) => s.id == _activeId).firstOrNull?.isPublic ?? false);
+    final AppLinkRef forwarded =
+        isPublic && !ref.isPublicContext ? ref.copyWith(isPublicContext: true) : ref;
+    jump(forwarded);
   }
 
   // ── Guide ──────────────────────────────────────────────────────────────────
@@ -1405,6 +1416,8 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     key: ValueKey<String>('strategy_document_${strategy.id}'),
     strategy: strategy,
     initialTab: _initialDetailTab,
+    canEdit: !_isPublicContext,
+    isPublicContext: _isPublicContext || strategy.isPublic,
     onClose: _backToIndex,
     onEdit: () => _edit(strategy, mode: StrategyEditorMode.write, detailsOnly: true),
     onEditWriting: () {

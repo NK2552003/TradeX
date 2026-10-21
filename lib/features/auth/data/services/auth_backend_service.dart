@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:tradex/features/affiliate_program/data/affiliate_application_repository.dart';
 import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
 import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
+import 'package:tradex/features/auth/data/services/auth_session_storage.dart';
 import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
@@ -25,6 +26,19 @@ class AuthBackendService implements AuthRepository {
   UserProfileModel? get currentUserProfile => _currentUserProfile;
   AffiliateProfileModel? get currentAffiliateProfile =>
       _currentAffiliateProfile;
+
+  void setCurrentProfile(
+    UserProfileModel? profile, {
+    AffiliateProfileModel? affiliateProfile,
+  }) {
+    _currentUserProfile = profile;
+    _currentAffiliateProfile = affiliateProfile;
+    if (profile != null) {
+      _profilesById[profile.id] = profile;
+      _profilesByEmail[profile.email.toLowerCase()] = profile;
+      _profilesByHandle[profile.handle.toLowerCase()] = profile;
+    }
+  }
 
   @override
   Future<AuthResult> signUp({
@@ -111,6 +125,11 @@ class AuthBackendService implements AuthRepository {
 
     _currentUserProfile = profile;
     _currentAffiliateProfile = affiliateProfile;
+
+    await AuthSessionStorage.saveSession(
+      profile: profile,
+      affiliateProfile: affiliateProfile,
+    );
 
     // Simulate network database latency
     await Future.delayed(const Duration(milliseconds: 650));
@@ -217,6 +236,11 @@ class AuthBackendService implements AuthRepository {
     _currentUserProfile = profile.copyWith(role: role);
     _currentAffiliateProfile = affiliateProfile;
 
+    await AuthSessionStorage.saveSession(
+      profile: _currentUserProfile!,
+      affiliateProfile: affiliateProfile,
+    );
+
     await Future.delayed(const Duration(milliseconds: 550));
 
     return AuthResult.success(
@@ -230,6 +254,7 @@ class AuthBackendService implements AuthRepository {
   Future<void> signOut() async {
     _currentUserProfile = null;
     _currentAffiliateProfile = null;
+    await AuthSessionStorage.clearSession();
     await Future.delayed(const Duration(milliseconds: 200));
   }
 

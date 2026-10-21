@@ -477,9 +477,9 @@ class AppStrategyLibraryBlock extends StatelessWidget {
     }
     return UiCardGrid(
       childAspectRatio: context.uiRes.pick<double>(
-        mobile: 1.5,
-        tablet: 1.3,
-        desktop: 1.35,
+        mobile: 1.25,
+        tablet: 1.15,
+        desktop: 1.12,
       ),
       children: <Widget>[
         for (int i = 0; i < strategies.length; i++)

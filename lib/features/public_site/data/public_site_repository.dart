@@ -45,10 +45,10 @@ class DatabasePublicSiteRepository implements PublicSiteRepository {
           .maybeSingle()
           .timeout(requestTimeout);
       final content = row?['content'];
-      if (content is! Map || content.isEmpty) return _fallback.landing();
+      if (content is! Map || content.isEmpty) return await _fallback.landing();
       return PublicSiteContent.fromJson(Map<String, dynamic>.from(content));
     } catch (_) {
-      return _fallback.landing();
+      return await _fallback.landing();
     }
   }
 
@@ -64,11 +64,11 @@ class DatabasePublicSiteRepository implements PublicSiteRepository {
           .timeout(requestTimeout);
       final content = row?['catalogue'];
       if (content is! Map || (content['plans'] as List? ?? []).isEmpty) {
-        return _fallback.pricing();
+        return await _fallback.pricing();
       }
       return Map<String, dynamic>.from(content);
     } catch (_) {
-      return _fallback.pricing();
+      return await _fallback.pricing();
     }
   }
 }

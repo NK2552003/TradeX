@@ -1022,13 +1022,17 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                 color: theme.colors.primary,
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
-              Text(
-                isCurrentUser
-                    ? 'Your Recent Setups'
-                    : 'Recent Setups by @${author.handle}',
-                style: context.uiText.label.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: context.fs(13),
+              Expanded(
+                child: Text(
+                  isCurrentUser
+                      ? 'Your Recent Setups'
+                      : 'Recent Setups by @${author.handle}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.label.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: context.fs(13),
+                  ),
                 ),
               ),
             ],

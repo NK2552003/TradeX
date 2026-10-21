@@ -1,0 +1,162 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
+import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/auth/models/user_profile_model.dart';
+
+/// Secure local persistent storage for authentication sessions and user identity.
+///
+/// Persists the active user profile, role, access tokens, and last visited
+/// destination across browser reloads (F5) and app restarts.
+class AuthSessionStorage {
+  AuthSessionStorage._();
+
+  static const String _keyUserId = 'auth_session_user_id';
+  static const String _keyEmail = 'auth_session_email';
+  static const String _keyRole = 'auth_session_role';
+  static const String _keyProfile = 'auth_session_profile';
+  static const String _keyAffiliateProfile = 'auth_session_affiliate_profile';
+  static const String _keyToken = 'auth_session_token';
+  static const String _keyTimestamp = 'auth_session_timestamp';
+  static const String _keyLastDestination = 'app_scaffold_last_destination';
+  static const String _keyHasSeenOnboarding = 'auth_has_seen_onboarding';
+
+  /// Persists the authenticated user session to device / browser storage.
+  static Future<void> saveSession({
+    required UserProfileModel profile,
+    AffiliateProfileModel? affiliateProfile,
+    String? token,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sanitizedProfile = profile.adminKey != null
+          ? profile.copyWith(adminKey: '')
+          : profile;
+      await prefs.setString(_keyUserId, sanitizedProfile.id);
+      await prefs.setString(_keyEmail, sanitizedProfile.email);
+      await prefs.setString(_keyRole, sanitizedProfile.role.id);
+      await prefs.setString(_keyProfile, jsonEncode(sanitizedProfile.toJson()));
+      await prefs.setBool(_keyHasSeenOnboarding, true);
+
+      if (affiliateProfile != null) {
+        await prefs.setString(
+          _keyAffiliateProfile,
+          jsonEncode(affiliateProfile.toJson()),
+        );
+      } else {
+        await prefs.remove(_keyAffiliateProfile);
+      }
+
+      if (token != null && token.isNotEmpty) {
+        await prefs.setString(_keyToken, token);
+      }
+
+      await prefs.setString(_keyTimestamp, DateTime.now().toIso8601String());
+    } catch (e) {
+      debugPrint('[AuthSessionStorage] Failed to save session: $e');
+    }
+  }
+
+  /// Clears all stored session credentials and returns user to unauthenticated state.
+  static Future<void> clearSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyUserId);
+      await prefs.remove(_keyEmail);
+      await prefs.remove(_keyRole);
+      await prefs.remove(_keyProfile);
+      await prefs.remove(_keyAffiliateProfile);
+      await prefs.remove(_keyToken);
+      await prefs.remove(_keyTimestamp);
+    } catch (e) {
+      debugPrint('[AuthSessionStorage] Failed to clear session: $e');
+    }
+  }
+
+  /// Retrieves the stored user profile if one exists.
+  static Future<UserProfileModel?> getStoredProfile() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString(_keyProfile);
+      if (jsonStr == null || jsonStr.isEmpty) return null;
+      final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+      return UserProfileModel.fromJson(map);
+    } catch (e) {
+      debugPrint('[AuthSessionStorage] Failed to read stored profile: $e');
+      return null;
+    }
+  }
+
+  /// Retrieves the stored affiliate profile if one exists.
+  static Future<AffiliateProfileModel?> getStoredAffiliateProfile() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString(_keyAffiliateProfile);
+      if (jsonStr == null || jsonStr.isEmpty) return null;
+      final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+      return AffiliateProfileModel.fromJson(map);
+    } catch (e) {
+      debugPrint('[AuthSessionStorage] Failed to read stored affiliate profile: $e');
+      return null;
+    }
+  }
+
+  /// Retrieves the stored user role.
+  static Future<UserRole?> getStoredRole() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final roleStr = prefs.getString(_keyRole);
+      if (roleStr == null || roleStr.isEmpty) return null;
+      return UserRole.fromId(roleStr);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Retrieves the stored auth token.
+  static Future<String?> getStoredToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_keyToken);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Remembers whether the user has finished or dismissed the onboarding flow.
+  static Future<bool> hasCompletedOnboarding() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_keyHasSeenOnboarding) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Flags onboarding as completed.
+  static Future<void> markOnboardingCompleted() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyHasSeenOnboarding, true);
+    } catch (_) {}
+  }
+
+  /// Saves the last active protected destination (e.g. 'journal', 'workspace').
+  static Future<void> saveLastDestination(String destination) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyLastDestination, destination);
+    } catch (_) {}
+  }
+
+  /// Retrieves the last active destination.
+  static Future<String?> getLastDestination() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_keyLastDestination);
+    } catch (_) {
+      return null;
+    }
+  }
+}

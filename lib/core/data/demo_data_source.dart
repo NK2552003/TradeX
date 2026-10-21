@@ -193,11 +193,11 @@ class DemoDataSource {
     displayName: displayName,
     bio: bio,
     tier: tier,
-    followers: 1284,
-    following: 212,
-    winRate: 58.4,
+    followers: 0,
+    following: 0,
+    winRate: null,
     verified: tier != AppTier.free,
-    tradingStyle: 'Swing',
+    tradingStyle: null,
   );
 
   // ---------------------------------------------------------------------------

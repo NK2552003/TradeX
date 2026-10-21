@@ -660,6 +660,14 @@ class AppTrader {
     this.verified = false,
     this.isFollowing = false,
     this.tradingStyle,
+    this.location,
+    this.website,
+    this.avgHoldDuration,
+    this.primaryMarket,
+    this.topStrategy,
+    this.riskMantra,
+    this.createdAt,
+    this.postsCount = 0,
   });
 
   final String id;
@@ -674,6 +682,14 @@ class AppTrader {
   final bool verified;
   final bool isFollowing;
   final String? tradingStyle;
+  final String? location;
+  final String? website;
+  final String? avgHoldDuration;
+  final String? primaryMarket;
+  final String? topStrategy;
+  final String? riskMantra;
+  final DateTime? createdAt;
+  final int postsCount;
 }
 
 @immutable
@@ -1369,6 +1385,7 @@ class AppLinkRef {
     this.intent,
     this.icon,
     this.missing = false,
+    this.isPublicContext = false,
   });
 
   /// A link whose target no longer resolves — a note the trader deleted, say.
@@ -1394,6 +1411,32 @@ class AppLinkRef {
   final UiIntent? intent;
   final IconData? icon;
   final bool missing;
+
+  /// Whether this link exists or is being navigated within a public record / community context.
+  final bool isPublicContext;
+
+  AppLinkRef copyWith({
+    AppLinkKind? kind,
+    String? id,
+    String? title,
+    String? subtitle,
+    String? meta,
+    UiIntent? intent,
+    IconData? icon,
+    bool? missing,
+    bool? isPublicContext,
+  }) =>
+      AppLinkRef(
+        kind: kind ?? this.kind,
+        id: id ?? this.id,
+        title: title ?? this.title,
+        subtitle: subtitle ?? this.subtitle,
+        meta: meta ?? this.meta,
+        intent: intent ?? this.intent,
+        icon: icon ?? this.icon,
+        missing: missing ?? this.missing,
+        isPublicContext: isPublicContext ?? this.isPublicContext,
+      );
 
   UiIntent get effectiveIntent =>
       missing ? UiIntent.neutral : (intent ?? kind.intent);

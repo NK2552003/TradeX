@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
 import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
 import 'package:tradex/features/auth/data/repositories/auth_otp_repository.dart';
+import 'package:tradex/features/auth/data/repositories/supabase_auth_otp_repository.dart';
 import 'package:tradex/features/auth/models/otp_purpose.dart';
 import 'package:tradex/features/auth/widgets/auth_step_icon.dart';
 
@@ -16,10 +18,12 @@ class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({
     super.key,
     this.authRepository,
+    this.otpRepository,
     required this.onBackToLogin,
   });
 
   final AuthRepository? authRepository;
+  final AuthOtpRepository? otpRepository;
   final VoidCallback onBackToLogin;
 
   @override
@@ -40,7 +44,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   /// Single seam for the OTP send/verify/resend network calls — swap for a
   /// real implementation, see the contract documented on [AuthOtpRepository].
-  final AuthOtpRepository _otpRepository = AuthOtpRepositoryImpl();
+  late final AuthOtpRepository _otpRepository = widget.otpRepository ??
+      (SupabaseConfig.isConfigured
+          ? SupabaseAuthOtpRepository()
+          : AuthOtpRepositoryImpl());
 
   /// Continuation token returned by [AuthOtpRepository.verifyOtp] once the
   /// code is confirmed. Backend contract: send this along with the new

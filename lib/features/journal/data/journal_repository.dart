@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
+import 'package:uuid/uuid.dart';
 
 /// Everything the journal feature needs from storage.
 ///
@@ -12,10 +16,6 @@ import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 /// statement, and the reasoning without the numbers is a diary. Splitting them
 /// into two tables would let one exist without the other, which is the failure
 /// mode this feature exists to prevent.
-///
-/// Backend hand-off: implement against Supabase (`journal_entries` +
-/// `note_journal_links`) and swap the one line in
-/// [JournalRepositoryScope.repository]. Nothing above this file changes.
 abstract class JournalRepository {
   /// Emits the full journal, newest trade first, and re-emits after every
   /// mutation so an edit made in the editor shows up on the index without the
@@ -60,47 +60,336 @@ abstract class JournalRepository {
   ///
   /// A journal entry's attachments belong to the journal, not to the notes
   /// bucket: a trader who deletes a note must not lose the screenshot that
-  /// proves what a trade looked like. Backend hand-off: upload to
-  /// `journal-attachments/<entryId>/<uuid><ext>` and return that path.
+  /// proves what a trade looked like.
   Future<String> uploadAttachment(String entryId, File file);
 
   /// Turns a stored reference back into something the preview can load. Local
-  /// paths come back unchanged; a Supabase implementation returns a signed URL.
+  /// paths come back unchanged; a Supabase implementation returns a signed or public URL.
   Future<String> resolveAttachmentUrl(String ref);
+
+  /// Calculated summary metrics across all currently held entries.
+  AppJournalStats get stats;
 }
 
-/// In-memory implementation backed by [DemoDataSource].
+/// Live Supabase-backed implementation with real-time sync and offline resilience.
 class JournalRepositoryImpl implements JournalRepository {
   JournalRepositoryImpl._();
 
   /// Shared so the index, the reader and the editor observe one journal.
   static final JournalRepositoryImpl instance = JournalRepositoryImpl._();
 
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+  static final RegExp _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
   final List<AppTrade> _entries = <AppTrade>[];
   final StreamController<List<AppTrade>> _changes =
       StreamController<List<AppTrade>>.broadcast();
-  bool _seeded = false;
-  int _nextId = 0;
+  bool _initialized = false;
+  bool _subscribedToRealtime = false;
+  RealtimeChannel? _realtimeChannel;
 
-  void _seed() {
-    if (_seeded) return;
-    _seeded = true;
-    _entries.addAll(DemoDataSource.instance.trades());
-    _nextId = _entries.length;
-    for (final AppTrade t in _entries) {
-      final Set<String> tickers = <String>{
-        if (t.ticker.isNotEmpty) t.ticker,
-        ...EntityTickerLinksRepository.extractTickers(t.content),
-      };
-      if (tickers.isNotEmpty) {
-        EntityTickerLinksRepository.instance.recordLinks(
-          entityType: 'journal',
-          entityId: t.id,
-          tickers: tickers,
-          contextSource: 'trade_instrument',
-        );
+  /// Active Supabase Realtime channel, if subscribed.
+  RealtimeChannel? get realtimeChannel => _realtimeChannel;
+
+  String _resolveUserId() {
+    if (SupabaseConfig.isConfigured) {
+      final user = SupabaseConfig.client?.auth.currentUser;
+      if (user != null && user.id.isNotEmpty) {
+        return user.id;
       }
     }
+    return _demoUserId;
+  }
+
+  bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
+
+  Future<void> _init() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    if (SupabaseConfig.isConfigured) {
+      _initRealtime();
+      await _fetchFromSupabase();
+    } else {
+      // Offline / testing fallback without live Supabase
+      _entries.addAll(DemoDataSource.instance.trades());
+      _syncAllTickerLinks();
+      _publish();
+    }
+  }
+
+  void _initRealtime() {
+    if (_subscribedToRealtime || !SupabaseConfig.isConfigured) return;
+    _subscribedToRealtime = true;
+
+    try {
+      final client = SupabaseConfig.client!;
+      _realtimeChannel = client
+          .channel('public:journal_entries_channel')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'journal_entries',
+            callback: (PostgresChangePayload payload) {
+              _handlePostgresChange(payload);
+            },
+          )
+        ..subscribe();
+    } catch (e) {
+      debugPrint('[JournalRepository] Realtime subscription error: $e');
+    }
+  }
+
+  void _handlePostgresChange(PostgresChangePayload payload) {
+    try {
+      final currentUserId = _resolveUserId();
+      final eventType = payload.eventType;
+
+      if (eventType == PostgresChangeEvent.insert) {
+        final newRecord = payload.newRecord;
+        if (newRecord.isNotEmpty) {
+          final recordUserId = newRecord['user_id']?.toString();
+          final isPublic = newRecord['is_public'] == true;
+          if (recordUserId == currentUserId || isPublic) {
+            final trade = _mapRowToTrade(newRecord);
+            _entries.removeWhere((t) => t.id == trade.id);
+            _entries.insert(0, trade);
+            _recordTickerLinks(trade);
+            _publish();
+          }
+        }
+      } else if (eventType == PostgresChangeEvent.update) {
+        final newRecord = payload.newRecord;
+        if (newRecord.isNotEmpty) {
+          final trade = _mapRowToTrade(newRecord);
+          final at = _entries.indexWhere((t) => t.id == trade.id);
+          if (at != -1) {
+            _entries[at] = trade;
+          } else {
+            final recordUserId = newRecord['user_id']?.toString();
+            final isPublic = newRecord['is_public'] == true;
+            if (recordUserId == currentUserId || isPublic) {
+              _entries.insert(0, trade);
+            }
+          }
+          _recordTickerLinks(trade);
+          _publish();
+        }
+      } else if (eventType == PostgresChangeEvent.delete) {
+        final oldRecord = payload.oldRecord;
+        final deletedId = oldRecord['id']?.toString();
+        if (deletedId != null) {
+          _entries.removeWhere((t) => t.id == deletedId);
+          unawaited(
+            EntityTickerLinksRepository.instance.removeLinks(
+              entityType: 'journal',
+              entityId: deletedId,
+            ),
+          );
+          _publish();
+        }
+      }
+    } catch (e) {
+      debugPrint('[JournalRepository] Error handling postgres change: $e');
+    }
+  }
+
+  Future<void> _fetchFromSupabase() async {
+    if (!SupabaseConfig.isConfigured) return;
+    try {
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+
+      final res = await client
+          .from('journal_entries')
+          .select('*, strategies(name)')
+          .or('user_id.eq.$targetUserId,is_public.eq.true')
+          .order('opened_at', ascending: false);
+
+      final List<AppTrade> list = (res as List)
+          .map((row) => _mapRowToTrade(row as Map<String, dynamic>))
+          .toList();
+
+      _entries
+        ..clear()
+        ..addAll(list);
+      _syncAllTickerLinks();
+      _publish();
+    } catch (e) {
+      debugPrint('[JournalRepository] _fetchFromSupabase error: $e');
+    }
+  }
+
+  void _syncAllTickerLinks() {
+    for (final AppTrade t in _entries) {
+      _recordTickerLinks(t);
+    }
+  }
+
+  void _recordTickerLinks(AppTrade trade) {
+    final Set<String> tickers = <String>{
+      if (trade.ticker.isNotEmpty) trade.ticker,
+      ...EntityTickerLinksRepository.extractTickers(trade.content),
+    };
+    if (tickers.isNotEmpty) {
+      EntityTickerLinksRepository.instance.recordLinks(
+        entityType: 'journal',
+        entityId: trade.id,
+        tickers: tickers,
+        contextSource: 'trade_instrument',
+      );
+    }
+  }
+
+  AppTrade _mapRowToTrade(Map<String, dynamic> row) {
+    final String sideStr = (row['side'] as String? ?? 'long').toLowerCase();
+    final String outcomeStr =
+        (row['outcome'] as String? ?? 'open').toLowerCase();
+    final List<dynamic>? screenshots = row['screenshots'] as List<dynamic>?;
+    final List<dynamic>? linkedNotes =
+        row['linked_note_ids'] as List<dynamic>?;
+    final List<dynamic>? tagsList = row['tags'] as List<dynamic>?;
+
+    String? strategyName = row['strategy_name'] as String?;
+    if (strategyName == null && row['strategies'] is Map) {
+      strategyName = (row['strategies'] as Map)['name']?.toString();
+    }
+
+    final AppOutcome outcome = switch (outcomeStr) {
+      'win' => AppOutcome.win,
+      'loss' => AppOutcome.loss,
+      'breakeven' || 'break_even' => AppOutcome.breakeven,
+      _ => AppOutcome.open,
+    };
+
+    final DateTime openedAt = row['opened_at'] != null
+        ? DateTime.tryParse(row['opened_at'].toString()) ?? DateTime.now()
+        : (row['created_at'] != null
+            ? DateTime.tryParse(row['created_at'].toString()) ?? DateTime.now()
+            : DateTime.now());
+
+    final DateTime? closedAt = row['closed_at'] != null
+        ? DateTime.tryParse(row['closed_at'].toString())
+        : null;
+
+    final DateTime? updatedAt = row['updated_at'] != null
+        ? DateTime.tryParse(row['updated_at'].toString())
+        : null;
+
+    final String content = row['content'] as String? ?? '';
+    final String notes = row['psychology'] as String? ??
+        (row['mistakes_made'] as String?) ??
+        (row['lessons_learned'] as String?) ??
+        content;
+
+    return AppTrade(
+      id: row['id']?.toString() ?? '',
+      userId: row['user_id']?.toString() ?? '',
+      ticker: (row['ticker'] as String? ?? '').toUpperCase(),
+      side: (sideStr == 'short' || sideStr == 'sell')
+          ? AppSide.short
+          : AppSide.long,
+      entry: (row['entry_price'] as num?)?.toDouble() ?? 0.0,
+      exit: (row['exit_price'] as num?)?.toDouble(),
+      openedAt: openedAt,
+      closedAt: closedAt,
+      stopLoss: (row['stop_loss'] as num?)?.toDouble(),
+      target: (row['target'] as num?)?.toDouble(),
+      size: (row['size'] as num?)?.toDouble() ?? 1.0,
+      pnl: (row['pnl'] as num?)?.toDouble() ?? 0.0,
+      pnlPercent: (row['pnl_percent'] as num?)?.toDouble() ?? 0.0,
+      rMultiple: (row['r_multiple'] as num?)?.toDouble(),
+      outcome: outcome,
+      strategyId: row['strategy_id']?.toString(),
+      strategy: strategyName,
+      tags: tagsList != null
+          ? List<String>.from(tagsList.map((e) => e.toString()))
+          : const <String>[],
+      notes: notes,
+      title: row['title'] as String? ?? '',
+      content: content,
+      screenshotUrl: (screenshots != null && screenshots.isNotEmpty)
+          ? screenshots.first.toString()
+          : null,
+      psychologyScore: (row['psychology_score'] as num?)?.toInt(),
+      linkedNoteIds: linkedNotes != null
+          ? List<String>.from(linkedNotes.map((e) => e.toString()))
+          : const <String>[],
+      isPublic: row['is_public'] as bool? ?? false,
+      updatedAt: updatedAt,
+      wordCount: (row['word_count'] as num?)?.toInt() ?? 0,
+      checklistDone: (row['checklist_done'] as num?)?.toInt() ?? 0,
+      checklistTotal: (row['checklist_total'] as num?)?.toInt() ?? 0,
+      hasImages: row['has_images'] as bool? ?? false,
+      hasCode: row['has_code'] as bool? ?? false,
+      isFavorite: row['is_favorite'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> _mapTradeToRow(
+    AppTrade trade,
+    String userId, {
+    String? targetId,
+  }) {
+    final String sideStr = trade.side == AppSide.short ? 'short' : 'long';
+    final String outcomeStr = trade.outcome.name;
+
+    final Map<String, dynamic> row = <String, dynamic>{
+      'user_id': userId,
+      'title': trade.title,
+      'ticker': trade.ticker.toUpperCase(),
+      'content': trade.content.isNotEmpty ? trade.content : (trade.notes ?? ''),
+      'entry_price': trade.entry,
+      'size': trade.size,
+      'side': sideStr,
+      'pnl': trade.pnl,
+      'pnl_percent': trade.pnlPercent,
+      'outcome': outcomeStr,
+      'outcome_source': 'auto',
+      'tags': trade.tags,
+      'linked_note_ids': trade.linkedNoteIds,
+      'word_count': trade.wordCount,
+      'checklist_done': trade.checklistDone,
+      'checklist_total': trade.checklistTotal,
+      'has_images': trade.hasImages,
+      'has_code': trade.hasCode,
+      'is_public': trade.isPublic,
+      'opened_at': trade.openedAt.toIso8601String(),
+    };
+
+    if (targetId != null && targetId.isNotEmpty) {
+      row['id'] = targetId;
+    }
+
+    if (trade.rMultiple != null) row['r_multiple'] = trade.rMultiple;
+    if (trade.stopLoss != null) row['stop_loss'] = trade.stopLoss;
+    if (trade.target != null) row['target'] = trade.target;
+    if (trade.strategyId != null &&
+        trade.strategyId!.isNotEmpty &&
+        _isUuid(trade.strategyId)) {
+      row['strategy_id'] = trade.strategyId;
+    }
+
+    if (trade.outcome != AppOutcome.open) {
+      if (trade.exit != null) row['exit_price'] = trade.exit;
+      if (trade.closedAt != null) {
+        row['closed_at'] = trade.closedAt!.toIso8601String();
+      }
+    } else {
+      row['exit_price'] = null;
+      row['closed_at'] = null;
+    }
+
+    if (trade.screenshotUrl != null && trade.screenshotUrl!.isNotEmpty) {
+      row['screenshots'] = <String>[trade.screenshotUrl!];
+    }
+    if (trade.psychologyScore != null) {
+      row['psychology_score'] = trade.psychologyScore;
+    }
+
+    return row;
   }
 
   List<AppTrade> _snapshot() {
@@ -115,7 +404,7 @@ class JournalRepositoryImpl implements JournalRepository {
 
   @override
   Stream<List<AppTrade>> watchAll() {
-    _seed();
+    unawaited(_init());
     return Stream<List<AppTrade>>.multi((
       MultiStreamController<List<AppTrade>> controller,
     ) {
@@ -130,64 +419,132 @@ class JournalRepositoryImpl implements JournalRepository {
 
   @override
   Stream<List<AppTrade>> watchPublic() => watchAll().map(
-    (List<AppTrade> entries) => entries
-        .where((AppTrade entry) => entry.isPublic)
-        .toList(growable: false),
-  );
+        (List<AppTrade> entries) => entries
+            .where((AppTrade entry) => entry.isPublic)
+            .toList(growable: false),
+      );
+
+  @override
+  AppJournalStats get stats => JournalQuery.statsOf(_entries);
 
   @override
   Future<List<AppTrade>> fetchAll() async {
-    _seed();
+    await _init();
+    if (SupabaseConfig.isConfigured) {
+      await _fetchFromSupabase();
+    }
     return _snapshot();
   }
 
   @override
   Future<AppTrade?> getById(String id) async {
-    _seed();
+    await _init();
     for (final AppTrade entry in _entries) {
       if (entry.id == id) return entry;
+    }
+    if (SupabaseConfig.isConfigured && _isUuid(id)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final res = await client
+            .from('journal_entries')
+            .select('*, strategies(name)')
+            .eq('id', id)
+            .maybeSingle();
+        if (res != null) {
+          final trade = _mapRowToTrade(res);
+          final at = _entries.indexWhere((t) => t.id == trade.id);
+          if (at == -1) {
+            _entries.insert(0, trade);
+          } else {
+            _entries[at] = trade;
+          }
+          _publish();
+          return trade;
+        }
+      } catch (e) {
+        debugPrint('[JournalRepository] getById error: $e');
+      }
     }
     return null;
   }
 
   @override
   Future<AppTrade> create(AppTrade draft) async {
-    _seed();
-    final AppTrade saved = draft
-        .copyWith(
-          id: draft.id.isEmpty
-              ? 'trd_new_${(++_nextId).toString().padLeft(3, '0')}'
-              : draft.id,
-          updatedAt: DateTime.now(),
-        )
-        .withDerivedCounts();
+    await _init();
+
+    AppTrade saved = draft;
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final targetUserId = _resolveUserId();
+        final String assignedId =
+            _isUuid(draft.id) ? draft.id : const Uuid().v4();
+        final row = _mapTradeToRow(
+          draft.withDerivedCounts(),
+          targetUserId,
+          targetId: assignedId,
+        );
+
+        final res = await client
+            .from('journal_entries')
+            .insert(row)
+            .select('*, strategies(name)')
+            .single();
+
+        saved = _mapRowToTrade(res);
+      } catch (e) {
+        debugPrint(
+            '[JournalRepository] create error, falling back to local: $e');
+        saved = draft
+            .copyWith(
+              id: draft.id.isEmpty ? const Uuid().v4() : draft.id,
+              updatedAt: DateTime.now(),
+            )
+            .withDerivedCounts();
+      }
+    } else {
+      saved = draft
+          .copyWith(
+            id: draft.id.isEmpty ? const Uuid().v4() : draft.id,
+            updatedAt: DateTime.now(),
+          )
+          .withDerivedCounts();
+    }
+
+    _entries.removeWhere((AppTrade t) => t.id == saved.id);
     _entries.insert(0, saved);
     _publish();
-
-    final Set<String> tickers = <String>{
-      if (saved.ticker.isNotEmpty) saved.ticker,
-      ...EntityTickerLinksRepository.extractTickers(saved.content),
-    };
-    if (tickers.isNotEmpty) {
-      unawaited(
-        EntityTickerLinksRepository.instance.recordLinks(
-          entityType: 'journal',
-          entityId: saved.id,
-          tickers: tickers,
-          contextSource: 'trade_instrument',
-        ),
-      );
-    }
+    _recordTickerLinks(saved);
 
     return saved;
   }
 
   @override
   Future<AppTrade> update(AppTrade entry) async {
-    _seed();
-    final AppTrade saved = entry
-        .copyWith(updatedAt: DateTime.now())
-        .withDerivedCounts();
+    await _init();
+
+    AppTrade saved = entry.withDerivedCounts();
+    if (SupabaseConfig.isConfigured && _isUuid(entry.id)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final targetUserId = _resolveUserId();
+        final row = _mapTradeToRow(saved, targetUserId);
+        row.remove('id');
+        row['updated_at'] = DateTime.now().toIso8601String();
+
+        final res = await client
+            .from('journal_entries')
+            .update(row)
+            .eq('id', entry.id)
+            .select('*, strategies(name)')
+            .single();
+
+        saved = _mapRowToTrade(res);
+      } catch (e) {
+        debugPrint('[JournalRepository] update error: $e');
+      }
+    }
+
     final int at = _entries.indexWhere((AppTrade t) => t.id == entry.id);
     if (at == -1) {
       _entries.insert(0, saved);
@@ -195,28 +552,7 @@ class JournalRepositoryImpl implements JournalRepository {
       _entries[at] = saved;
     }
     _publish();
-
-    final Set<String> tickers = <String>{
-      if (saved.ticker.isNotEmpty) saved.ticker,
-      ...EntityTickerLinksRepository.extractTickers(saved.content),
-    };
-    if (tickers.isNotEmpty) {
-      unawaited(
-        EntityTickerLinksRepository.instance.recordLinks(
-          entityType: 'journal',
-          entityId: saved.id,
-          tickers: tickers,
-          contextSource: 'trade_instrument',
-        ),
-      );
-    } else {
-      unawaited(
-        EntityTickerLinksRepository.instance.removeLinks(
-          entityType: 'journal',
-          entityId: saved.id,
-        ),
-      );
-    }
+    _recordTickerLinks(saved);
 
     return saved;
   }
@@ -226,12 +562,34 @@ class JournalRepositoryImpl implements JournalRepository {
       _mutate(id, (AppTrade entry) => entry.copyWith(isFavorite: !entry.isFavorite));
 
   @override
-  Future<AppTrade> setVisibility(String id, bool isPublic) async =>
-      _mutate(id, (AppTrade entry) => entry.copyWith(isPublic: isPublic));
+  Future<AppTrade> setVisibility(String id, bool isPublic) async {
+    if (SupabaseConfig.isConfigured && _isUuid(id)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client
+            .from('journal_entries')
+            .update({'is_public': isPublic})
+            .eq('id', id);
+      } catch (e) {
+        debugPrint('[JournalRepository] setVisibility error: $e');
+      }
+    }
+    return _mutate(id, (AppTrade entry) => entry.copyWith(isPublic: isPublic));
+  }
 
   @override
   Future<void> delete(String id) async {
-    _seed();
+    await _init();
+
+    if (SupabaseConfig.isConfigured && _isUuid(id)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.from('journal_entries').delete().eq('id', id);
+      } catch (e) {
+        debugPrint('[JournalRepository] delete error: $e');
+      }
+    }
+
     _entries.removeWhere((AppTrade t) => t.id == id);
     _publish();
     unawaited(
@@ -243,7 +601,6 @@ class JournalRepositoryImpl implements JournalRepository {
   }
 
   AppTrade _mutate(String id, AppTrade Function(AppTrade entry) change) {
-    _seed();
     final int at = _entries.indexWhere((AppTrade t) => t.id == id);
     if (at < 0) throw StateError('Journal entry not found: $id');
     final AppTrade updated = change(
@@ -255,46 +612,139 @@ class JournalRepositoryImpl implements JournalRepository {
   }
 
   @override
-  Future<AppTrade> linkNote(String entryId, String noteId) async =>
-      _mutate(entryId, (AppTrade entry) {
-        if (entry.linkedNoteIds.contains(noteId)) return entry;
-        return entry.copyWith(
-          linkedNoteIds: <String>[...entry.linkedNoteIds, noteId],
-        );
-      });
+  Future<AppTrade> linkNote(String entryId, String noteId) async {
+    if (SupabaseConfig.isConfigured && _isUuid(entryId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final trade = await getById(entryId);
+        if (trade != null && !trade.linkedNoteIds.contains(noteId)) {
+          final updated = <String>[...trade.linkedNoteIds, noteId];
+          await client
+              .from('journal_entries')
+              .update({'linked_note_ids': updated})
+              .eq('id', entryId);
+          if (_isUuid(noteId)) {
+            try {
+              await client.from('note_journal_links').upsert({
+                'journal_entry_id': entryId,
+                'note_id': noteId,
+              });
+            } catch (_) {}
+          }
+        }
+      } catch (e) {
+        debugPrint('[JournalRepository] linkNote error: $e');
+      }
+    }
+    return _mutate(entryId, (AppTrade entry) {
+      if (entry.linkedNoteIds.contains(noteId)) return entry;
+      return entry.copyWith(
+        linkedNoteIds: <String>[...entry.linkedNoteIds, noteId],
+      );
+    });
+  }
 
   @override
-  Future<AppTrade> unlinkNote(String entryId, String noteId) async =>
-      _mutate(entryId, (AppTrade entry) {
-        return entry.copyWith(
-          linkedNoteIds: entry.linkedNoteIds
+  Future<AppTrade> unlinkNote(String entryId, String noteId) async {
+    if (SupabaseConfig.isConfigured && _isUuid(entryId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final trade = await getById(entryId);
+        if (trade != null) {
+          final updated = trade.linkedNoteIds
               .where((String id) => id != noteId)
-              .toList(growable: false),
-        );
-      });
+              .toList(growable: false);
+          await client
+              .from('journal_entries')
+              .update({'linked_note_ids': updated})
+              .eq('id', entryId);
+          if (_isUuid(noteId)) {
+            try {
+              await client.from('note_journal_links').delete().match({
+                'journal_entry_id': entryId,
+                'note_id': noteId,
+              });
+            } catch (_) {}
+          }
+        }
+      } catch (e) {
+        debugPrint('[JournalRepository] unlinkNote error: $e');
+      }
+    }
+    return _mutate(entryId, (AppTrade entry) {
+      return entry.copyWith(
+        linkedNoteIds: entry.linkedNoteIds
+            .where((String id) => id != noteId)
+            .toList(growable: false),
+      );
+    });
+  }
 
   @override
   Future<AppTrade> attachStrategy(
     String entryId,
     String? strategyId, {
     String? strategyName,
-  }) async => _mutate(entryId, (AppTrade entry) {
-    if (strategyId == null || strategyId.isEmpty) {
-      return entry.copyWith(clearStrategy: true);
+  }) async {
+    if (SupabaseConfig.isConfigured && _isUuid(entryId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final validStrategyId =
+            strategyId != null && strategyId.isNotEmpty && _isUuid(strategyId)
+                ? strategyId
+                : null;
+        await client
+            .from('journal_entries')
+            .update({'strategy_id': validStrategyId})
+            .eq('id', entryId);
+      } catch (e) {
+        debugPrint('[JournalRepository] attachStrategy error: $e');
+      }
     }
-    return entry.copyWith(strategyId: strategyId, strategy: strategyName);
-  });
+    return _mutate(entryId, (AppTrade entry) {
+      if (strategyId == null || strategyId.isEmpty) {
+        return entry.copyWith(clearStrategy: true);
+      }
+      return entry.copyWith(strategyId: strategyId, strategy: strategyName);
+    });
+  }
 
   @override
   Future<String> uploadAttachment(String entryId, File file) async {
-    // Prototype: the staged file already lives in a readable directory, so the
-    // entry embeds its path. A real implementation uploads to the
-    // `journal-attachments` bucket and returns `<entryId>/<uuid><ext>`.
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final ext = file.path.contains('.') ? file.path.split('.').last : 'png';
+        final storagePath = '$entryId/${const Uuid().v4()}.$ext';
+        await client.storage.from('journal-attachments').upload(
+              storagePath,
+              file,
+              fileOptions: const FileOptions(upsert: true),
+            );
+        return storagePath;
+      } catch (e) {
+        debugPrint('[JournalRepository] uploadAttachment error: $e');
+      }
+    }
     return file.path;
   }
 
   @override
-  Future<String> resolveAttachmentUrl(String ref) async => ref;
+  Future<String> resolveAttachmentUrl(String ref) async {
+    if (SupabaseConfig.isConfigured &&
+        !ref.startsWith('/') &&
+        !ref.contains(':\\') &&
+        !ref.startsWith('file:')) {
+      try {
+        final client = SupabaseConfig.client!;
+        final url = client.storage.from('journal-attachments').getPublicUrl(ref);
+        return url;
+      } catch (e) {
+        debugPrint('[JournalRepository] resolveAttachmentUrl error: $e');
+      }
+    }
+    return ref;
+  }
 }
 
 /// The single place a screen reaches the journal repository.

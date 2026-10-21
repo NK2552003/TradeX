@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
@@ -70,7 +71,7 @@ class UiAvatar extends StatelessWidget {
             : (imageUrl == null || imageUrl!.isEmpty)
                 ? null
                 : DecorationImage(
-                    image: NetworkImage(imageUrl!),
+                    image: _resolveImageProvider(imageUrl!),
                     fit: BoxFit.cover,
                     onError: (Object error, StackTrace? stackTrace) {},
                   ),
@@ -202,4 +203,19 @@ class UiAvatarGroup extends StatelessWidget {
       ),
     );
   }
+}
+
+ImageProvider _resolveImageProvider(String url) {
+  if (url.startsWith('data:image')) {
+    final int commaIndex = url.indexOf(',');
+    if (commaIndex != -1) {
+      try {
+        final String base64Str = url.substring(commaIndex + 1);
+        return MemoryImage(base64Decode(base64Str));
+      } catch (e) {
+        // Fall back to NetworkImage on parse failure
+      }
+    }
+  }
+  return NetworkImage(url);
 }

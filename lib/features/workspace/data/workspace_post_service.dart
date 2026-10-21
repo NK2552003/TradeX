@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/models/app_models.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 
 /// Metadata for a community/social post linked to a Writing Desk record.
 @immutable
@@ -65,7 +67,11 @@ class AppPostLinkInfo {
 /// analytics for notes, attached journal entries, and strategies.
 class WorkspacePostService {
   WorkspacePostService._() {
-    _seedDefaultMockData();
+    if (SupabaseConfig.isConfigured) {
+      unawaited(_initSupabase());
+    } else {
+      _seedDefaultMockData();
+    }
   }
 
   static final WorkspacePostService instance = WorkspacePostService._();
@@ -74,10 +80,126 @@ class WorkspacePostService {
   final StreamController<List<AppPostLinkInfo>> _controller =
       StreamController<List<AppPostLinkInfo>>.broadcast();
 
+  RealtimeChannel? _realtimeChannel;
+
   Stream<List<AppPostLinkInfo>> watchLinks() => _controller.stream;
 
   List<AppPostLinkInfo> get allLinks =>
       List<AppPostLinkInfo>.unmodifiable(_links);
+
+  static const String _fallbackUserId = '00000000-0000-0000-0000-000000000001';
+
+  String _resolveUserId() {
+    if (SupabaseConfig.isConfigured) {
+      final uid = SupabaseConfig.client?.auth.currentUser?.id;
+      if (uid != null && uid.isNotEmpty) return uid;
+    }
+    return _fallbackUserId;
+  }
+
+  Future<void> _initSupabase() async {
+    await fetchFromSupabase();
+    _subscribeRealtime();
+  }
+
+  Future<void> fetchFromSupabase() async {
+    if (!SupabaseConfig.isConfigured) return;
+    final client = SupabaseConfig.client;
+    if (client == null) return;
+
+    try {
+      final edges = await client
+          .from('universal_link_edges')
+          .select('''
+            id,
+            source_kind,
+            source_id,
+            target_kind,
+            target_id,
+            label,
+            metadata
+          ''')
+          .or('source_kind.eq.communityPost,target_kind.eq.communityPost');
+
+      final List<AppPostLinkInfo> loaded = [];
+
+      for (final row in edges as List<dynamic>) {
+        final map = row as Map<String, dynamic>;
+        final srcKind = map['source_kind'] as String;
+        final isSrcPost = srcKind == 'communityPost';
+        final postId = (isSrcPost ? map['source_id'] : map['target_id']) as String;
+        final recordKindStr = (isSrcPost ? map['target_kind'] : map['source_kind']) as String;
+        final recordId = (isSrcPost ? map['target_id'] : map['source_id']) as String;
+
+        final AppLinkKind recordKind = AppLinkKind.values.firstWhere(
+          (k) => k.name.toLowerCase() == recordKindStr.toLowerCase(),
+          orElse: () => AppLinkKind.note,
+        );
+
+        final postRow = await client
+            .from('community_posts')
+            .select('title, body, likes_count, comments_count, reposts_count, created_at, profiles(display_name, handle)')
+            .eq('id', postId)
+            .maybeSingle();
+
+        final prof = postRow?['profiles'] as Map<String, dynamic>? ?? {};
+        final postTitle = postRow?['title'] as String? ?? (postRow?['body'] as String? ?? 'Post');
+        final authorName = prof['display_name'] as String? ?? 'Trader';
+        final authorHandle = prof['handle'] != null ? '@${prof['handle']}' : '@trader';
+        final likes = (postRow?['likes_count'] as num?)?.toInt() ?? 0;
+        final comments = (postRow?['comments_count'] as num?)?.toInt() ?? 0;
+        final shares = (postRow?['reposts_count'] as num?)?.toInt() ?? 0;
+        final pubAt = DateTime.tryParse(postRow?['created_at']?.toString() ?? '') ?? DateTime.now();
+
+        loaded.add(
+          AppPostLinkInfo(
+            postId: postId,
+            postTitle: postTitle,
+            authorName: authorName,
+            authorHandle: authorHandle,
+            recordKind: recordKind,
+            recordId: recordId,
+            publishedAt: pubAt,
+            likesCount: likes,
+            commentsCount: comments,
+            sharesCount: shares,
+          ),
+        );
+      }
+
+      if (loaded.isNotEmpty) {
+        _links.clear();
+        _links.addAll(loaded);
+        _controller.add(allLinks);
+      } else if (_links.isEmpty) {
+        _seedDefaultMockData();
+      }
+    } catch (e) {
+      debugPrint('[WorkspacePostService] fetchFromSupabase error: $e');
+      if (_links.isEmpty) {
+        _seedDefaultMockData();
+      }
+    }
+  }
+
+  void _subscribeRealtime() {
+    if (!SupabaseConfig.isConfigured) return;
+    final client = SupabaseConfig.client;
+    if (client == null) return;
+
+    try {
+      _realtimeChannel = client.channel('public:workspace_links')
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'universal_link_edges',
+          callback: (_) => unawaited(fetchFromSupabase()),
+        )
+        ..subscribe();
+    } catch (e) {
+      debugPrint('[WorkspacePostService] subscribeRealtime error: $e');
+    }
+  }
 
   void _seedDefaultMockData() {
     final DateTime now = DateTime.now();
@@ -220,11 +342,52 @@ class WorkspacePostService {
     );
     _links.add(post);
     _controller.add(allLinks);
+
+    if (SupabaseConfig.isConfigured) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          final userId = _resolveUserId();
+          await client.from('universal_link_edges').insert({
+            'user_id': userId,
+            'source_kind': 'communityPost',
+            'source_id': postId,
+            'target_kind': kind.name,
+            'target_id': recordId,
+          });
+        } catch (e) {
+          debugPrint('[WorkspacePostService] linkRecord error: $e');
+        }
+      }());
+    }
   }
 
   /// Removes a link.
   void unlinkRecord(String postId) {
     _links.removeWhere((AppPostLinkInfo p) => p.postId == postId);
     _controller.add(allLinks);
+
+    if (SupabaseConfig.isConfigured) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          await client
+              .from('universal_link_edges')
+              .delete()
+              .or('source_id.eq.$postId,target_id.eq.$postId');
+        } catch (e) {
+          debugPrint('[WorkspacePostService] unlinkRecord error: $e');
+        }
+      }());
+    }
+  }
+
+  void dispose() {
+    if (_realtimeChannel != null && SupabaseConfig.isConfigured) {
+      try {
+        SupabaseConfig.client?.removeChannel(_realtimeChannel!);
+      } catch (_) {}
+    }
+    _controller.close();
   }
 }

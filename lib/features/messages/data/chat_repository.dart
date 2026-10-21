@@ -17,6 +17,7 @@ class ChatRepositoryImpl implements ChatRepository {
       : _demo = demoDataSource ?? DemoDataSource.instance;
 
   final DemoDataSource _demo;
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
 
   SupabaseClient? get _client {
     if (SupabaseConfig.isConfigured) {
@@ -29,13 +30,13 @@ class ChatRepositoryImpl implements ChatRepository {
     return null;
   }
 
-  String? get _currentUserId => _client?.auth.currentUser?.id;
+  String get _targetUserId => _client?.auth.currentUser?.id ?? _demoUserId;
 
   @override
   Future<List<AppConversation>> getConversations() async {
     final client = _client;
-    final userId = _currentUserId;
-    if (client == null || userId == null) {
+    final userId = _targetUserId;
+    if (client == null) {
       return _demo.conversations();
     }
 
@@ -102,8 +103,8 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<List<AppChatMessage>> getMessages(String conversationId) async {
     final client = _client;
-    final userId = _currentUserId;
-    if (client == null || userId == null) {
+    final userId = _targetUserId;
+    if (client == null) {
       return _demo.chatMessages(conversationId);
     }
 
@@ -135,10 +136,10 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<AppChatMessage> sendMessage(String conversationId, String content) async {
     final client = _client;
-    final userId = _currentUserId;
-
+    final userId = _targetUserId;
     final sentAt = DateTime.now();
-    if (client == null || userId == null) {
+
+    if (client == null) {
       return AppChatMessage(
         id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
         body: content,
@@ -178,8 +179,8 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Stream<AppChatMessage> streamMessages(String conversationId) {
     final client = _client;
-    final userId = _currentUserId;
-    if (client == null || userId == null) {
+    final userId = _targetUserId;
+    if (client == null) {
       return const Stream<AppChatMessage>.empty();
     }
 

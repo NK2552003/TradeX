@@ -19,7 +19,8 @@ class SignupPage extends StatefulWidget {
 
   final UserRole initialRole;
   final AuthRepository? authRepository;
-  final void Function(UserRole role, String email) onSignupSuccess;
+  final void Function(UserRole role, String email, {bool requiresVerification})
+      onSignupSuccess;
   final void Function(UserRole role) onNavigateToLogin;
   final VoidCallback onNavigateBack;
 
@@ -116,7 +117,11 @@ class _SignupPageState extends State<SignupPage> {
       intent: UiIntent.success,
     );
 
-    widget.onSignupSuccess(_selectedRole, email);
+    widget.onSignupSuccess(
+      _selectedRole,
+      email,
+      requiresVerification: result.requiresEmailVerification,
+    );
   }
 
   @override

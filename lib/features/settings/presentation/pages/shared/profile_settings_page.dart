@@ -1,4 +1,6 @@
 import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/session_trader.dart';
@@ -6,6 +8,7 @@ import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
+import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
@@ -287,6 +290,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       final updated = await _repo.updateProfile(
         displayName: _displayNameController.text.trim(),
         bio: _bioController.text.trim(),
+        avatarUrl: _profile?.avatarUrl,
         location: _locationController.text.trim(),
         website: _websiteController.text.trim(),
         avgHoldDuration: _selectedHoldDuration,
@@ -332,86 +336,246 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     }
   }
 
+  Future<void> _handleImageSelection({
+    required ImageSource source,
+    BuildContext? dialogContext,
+  }) async {
+    if (dialogContext != null && dialogContext.mounted) {
+      Navigator.of(dialogContext).pop();
+    }
+
+    try {
+      Uint8List? imageBytes;
+      String contentType = 'image/jpeg';
+
+      try {
+        final ImagePicker picker = ImagePicker();
+        final XFile? picked = await picker.pickImage(
+          source: source,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 90,
+        );
+        if (picked != null) {
+          imageBytes = await picked.readAsBytes();
+          final String ext = picked.name.split('.').last.toLowerCase();
+          contentType = ext == 'png'
+              ? 'image/png'
+              : (ext == 'webp' ? 'image/webp' : 'image/jpeg');
+        }
+      } catch (pickerError) {
+        debugPrint('[ProfileSettingsPage] ImagePicker error: $pickerError');
+        if (source == ImageSource.gallery) {
+          final FilePickerResult? result = await FilePicker.platform.pickFiles(
+            type: FileType.image,
+            withData: true,
+          );
+          if (result != null && result.files.isNotEmpty) {
+            final PlatformFile file = result.files.first;
+            imageBytes = file.bytes;
+            final String ext = (file.extension ?? '').toLowerCase();
+            contentType = ext == 'png'
+                ? 'image/png'
+                : (ext == 'webp' ? 'image/webp' : 'image/jpeg');
+          }
+        } else {
+          if (mounted) {
+            UiToast.show(
+              context,
+              title: 'Camera Unavailable',
+              message:
+                  'Camera could not be accessed on this device. Please select an image from your files.',
+              intent: UiIntent.warning,
+            );
+          }
+          return;
+        }
+      }
+
+      if (imageBytes == null || imageBytes.isEmpty) {
+        // User cancelled picker
+        return;
+      }
+
+      setState(() => _saving = true);
+      if (mounted) {
+        UiToast.show(
+          context,
+          title: 'Uploading Photo',
+          message: 'Saving your profile picture...',
+          intent: UiIntent.info,
+        );
+      }
+
+      final String newUrl = await _repo.uploadAvatar(imageBytes, contentType);
+
+      if (mounted) {
+        setState(() {
+          _profile = _profile?.copyWith(avatarUrl: newUrl);
+          _saving = false;
+        });
+        UiToast.show(
+          context,
+          title: 'Photo Updated',
+          message: 'Your profile picture has been updated.',
+          intent: UiIntent.success,
+        );
+      }
+    } catch (e) {
+      debugPrint('[ProfileSettingsPage] _handleImageSelection error: $e');
+      if (mounted) {
+        setState(() => _saving = false);
+        UiToast.show(
+          context,
+          title: 'Upload Failed',
+          message: 'Could not update profile photo: $e',
+          intent: UiIntent.danger,
+        );
+      }
+    }
+  }
+
+  Future<void> _handleRemovePhoto(BuildContext dialogContext) async {
+    Navigator.of(dialogContext).pop();
+    setState(() => _saving = true);
+    try {
+      await _repo.removeAvatar();
+      if (mounted) {
+        setState(() {
+          _profile = _profile?.copyWith(avatarUrl: '');
+          _saving = false;
+        });
+        UiToast.show(
+          context,
+          title: 'Photo Removed',
+          message: 'Profile photo has been reset.',
+          intent: UiIntent.neutral,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        UiToast.show(
+          context,
+          title: 'Error',
+          message: 'Failed to remove profile photo.',
+          intent: UiIntent.danger,
+        );
+      }
+    }
+  }
+
   void _showAvatarEditDialog() {
+    final bool hasCustomAvatar =
+        _profile?.avatarUrl != null && _profile!.avatarUrl!.trim().isNotEmpty;
+
     showDialog(
       context: context,
       builder: (ctx) => UiDialog(
         title: 'Update Profile Photo',
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  UiAvatar(
-                    name: _displayNameController.text.isNotEmpty
-                        ? _displayNameController.text
-                        : (_profile?.displayName ?? ''),
-                    imageUrl: _profile?.avatarUrl,
-                    size: UiSize.xl,
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: context.ui.colors.primary,
-                      shape: BoxShape.circle,
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    UiAvatar(
+                      name: _displayNameController.text.isNotEmpty
+                          ? _displayNameController.text
+                          : (_profile?.displayName ?? ''),
+                      imageUrl: _profile?.avatarUrl,
+                      size: UiSize.xl,
                     ),
-                    child: Icon(
-                      Icons.camera_alt,
-                      size: context.sz(14),
-                      color: context.ui.colors.onPrimary,
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: context.ui.colors.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: context.ui.colors.surface,
+                          width: 2,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.camera_alt,
+                        size: context.sz(14),
+                        color: context.ui.colors.onPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: context.sp(context.ui.spacing.md)),
+              Text(
+                'Upload a photo from your device or capture a new one using your camera. JPG, PNG, or WEBP supported.',
+                style: context.uiText.caption.copyWith(
+                  color: context.ui.colors.foregroundMuted,
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: context.sp(context.ui.spacing.lg)),
+
+              // Primary Actions: Choose from Device / Take Photo
+              Row(
+                children: [
+                  Expanded(
+                    child: UiButton(
+                      label: 'Choose File',
+                      leadingIcon: Icons.photo_library_outlined,
+                      variant: UiVariant.solid,
+                      intent: UiIntent.primary,
+                      onPressed: () => _handleImageSelection(
+                        source: ImageSource.gallery,
+                        dialogContext: ctx,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: context.sp(context.ui.spacing.sm)),
+                  Expanded(
+                    child: UiButton(
+                      label: 'Take Photo',
+                      leadingIcon: Icons.camera_alt_outlined,
+                      variant: UiVariant.outline,
+                      onPressed: () => _handleImageSelection(
+                        source: ImageSource.camera,
+                        dialogContext: ctx,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-            SizedBox(height: context.sp(context.ui.spacing.lg)),
-            Text(
-              'Choose an image from your device. Recommended resolution is 400x400px (JPG or PNG).',
-              style: context.uiText.caption.copyWith(
-                color: context.ui.colors.foregroundMuted,
+              SizedBox(height: context.sp(context.ui.spacing.md)),
+
+              // Drag & Drop / Clickable dropzone
+              UiDropzone(
+                title: 'Drop image here',
+                message: 'or click to browse local files',
+                icon: Icons.cloud_upload_outlined,
+                onPick: () => _handleImageSelection(
+                  source: ImageSource.gallery,
+                  dialogContext: ctx,
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: context.sp(context.ui.spacing.md)),
-            UiDropzone(
-              message: 'Drag & drop avatar here, or click to browse',
-              onPick: () async {
-                Navigator.of(ctx).pop();
-                setState(() => _saving = true);
-                try {
-                  final newUrl = await _repo.uploadAvatar(
-                    Uint8List.fromList([0, 1, 2, 3]),
-                    'image/png',
-                  );
-                  if (mounted) {
-                    setState(() {
-                      _profile = _profile?.copyWith(avatarUrl: newUrl);
-                      _saving = false;
-                    });
-                    UiToast.show(
-                      context,
-                      title: 'Avatar Updated',
-                      message: 'Your new avatar image has been uploaded.',
-                      intent: UiIntent.success,
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    setState(() => _saving = false);
-                    UiToast.show(
-                      context,
-                      title: 'Upload Failed',
-                      message: 'Could not upload avatar photo.',
-                      intent: UiIntent.danger,
-                    );
-                  }
-                }
-              },
-            ),
-          ],
+
+              if (hasCustomAvatar) ...[
+                SizedBox(height: context.sp(context.ui.spacing.sm)),
+                Center(
+                  child: UiButton(
+                    label: 'Remove current photo',
+                    leadingIcon: Icons.delete_outline,
+                    variant: UiVariant.ghost,
+                    intent: UiIntent.danger,
+                    onPressed: () => _handleRemovePhoto(ctx),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
         actions: [
           UiButton(
@@ -424,7 +588,63 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     );
   }
 
+  static String _monthName(int month) {
+    const months = <String>[
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    if (month >= 1 && month <= 12) return months[month - 1];
+    return '';
+  }
+
   void _showProfilePreview() {
+    double? liveWinRate = _profile?.winRate;
+    if (liveWinRate == null) {
+      try {
+        final journalStats = JournalRepositoryScope.repository.stats;
+        if (journalStats.total > 0) {
+          liveWinRate = journalStats.winRate * 100;
+        }
+      } catch (_) {}
+    }
+
+    final int livePosts = widget.communityRepository
+            ?.postsForAuthor(_profile?.id ?? '')
+            .length ??
+        _profile?.postsCount ??
+        0;
+
+    final String? joined = _profile?.createdAt != null
+        ? 'Joined ${_monthName(_profile!.createdAt!.month)} ${_profile!.createdAt!.year}'
+        : null;
+
+    final String activeLocation = _locationController.text.trim().isNotEmpty
+        ? _locationController.text.trim()
+        : (_profile?.location ?? '');
+    final String activeWebsite = _websiteController.text.trim().isNotEmpty
+        ? _websiteController.text.trim()
+        : (_profile?.website ?? '');
+    final String activeHoldDuration = _selectedHoldDuration;
+    final String activeMarket = widget.userRole == UserRole.affiliate
+        ? _selectedNiche
+        : _selectedMarket;
+    final String activeTopStrategy = widget.userRole == UserRole.affiliate
+        ? _selectedChannelSource
+        : _selectedTopStrategy;
+    final String activeRiskMantra = _riskMantraController.text.trim().isNotEmpty
+        ? _riskMantraController.text.trim()
+        : (_profile?.riskMantra ?? '');
+
     openSettingsSubpage(
       context,
       title: widget.userRole == UserRole.affiliate
@@ -445,16 +665,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             : _profile?.bio,
         avatarUrl: _profile?.avatarUrl,
         userRole: widget.userRole,
-        location: _locationController.text.trim(),
-        website: _websiteController.text.trim(),
-        avgHoldDuration: _selectedHoldDuration,
-        primaryMarket: widget.userRole == UserRole.affiliate
-            ? _selectedNiche
-            : _selectedMarket,
-        topStrategy: widget.userRole == UserRole.affiliate
-            ? _selectedChannelSource
-            : _selectedTopStrategy,
-        riskMantra: _riskMantraController.text.trim(),
+        location: activeLocation,
+        website: activeWebsite,
+        avgHoldDuration: activeHoldDuration,
+        primaryMarket: activeMarket,
+        topStrategy: activeTopStrategy,
+        riskMantra: activeRiskMantra,
         referralCode: _referralCodeController.text.trim(),
         channelHandle: _channelHandleController.text.trim(),
         audienceReach: _selectedAudienceReach,
@@ -462,14 +678,32 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         isCurrentUser: true,
         repository: widget.communityRepository,
         author: CommunityAuthor(
-          id: _profile?.id ?? 'usr_alex_vance',
-          handle: (_profile?.handle ?? '').isNotEmpty ? _profile!.handle : 'alextrades',
+          id: _profile?.id ?? '',
+          handle: _profile?.handle ?? '',
           displayName: (_displayNameController.text.trim().isNotEmpty
                   ? _displayNameController.text.trim()
                   : _profile?.displayName) ??
-              'Alex Vance',
+              '',
           userRole: widget.userRole,
           avatarUrl: _profile?.avatarUrl,
+          bio: _bioController.text.trim().isNotEmpty
+              ? _bioController.text.trim()
+              : _profile?.bio,
+          location: activeLocation,
+          website: activeWebsite,
+          avgHoldDuration: activeHoldDuration,
+          primaryMarket: activeMarket,
+          tradingStyle: activeTopStrategy,
+          riskMantra: activeRiskMantra,
+          joinedDate: joined,
+          followers: _profile?.followers ?? 0,
+          following: _profile?.following ?? 0,
+          winRate: liveWinRate,
+          postsCount: livePosts,
+          verified: _profile?.verified ?? false,
+          tier: _profile != null
+              ? appTierFromId(_profile!.subscriptionTier)
+              : AppTier.free,
         ),
         onOpenRef: widget.onOpenRef,
       ),

@@ -1,23 +1,397 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
+import 'package:uuid/uuid.dart';
 
-/// In-memory reactive repository backing the community platform.
-///
-/// All mutations produce new list references so listeners rebuild correctly
-/// via [ChangeNotifier]. Replace with your real API service by preserving the
-/// same public interface.
+/// Reactive repository backing the community platform with live Supabase sync
+/// and offline resilience.
 class CommunityRepository extends ChangeNotifier {
   CommunityRepository() {
     _initSeedData();
+    if (SupabaseConfig.isConfigured) {
+      unawaited(init());
+    }
+  }
+
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+  static final RegExp _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
+  bool _initialized = false;
+  bool _subscribedToRealtime = false;
+  RealtimeChannel? _realtimeChannel;
+
+  RealtimeChannel? get realtimeChannel => _realtimeChannel;
+
+  String _resolveUserId() {
+    if (SupabaseConfig.isConfigured) {
+      final user = SupabaseConfig.client?.auth.currentUser;
+      if (user != null && user.id.isNotEmpty) {
+        return user.id;
+      }
+    }
+    return _demoUserId;
+  }
+
+  bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
+
+  Future<void> init() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    if (SupabaseConfig.isConfigured) {
+      _initRealtime();
+      await fetchFromSupabase();
+    }
+  }
+
+  void _initRealtime() {
+    if (_subscribedToRealtime || !SupabaseConfig.isConfigured) return;
+    _subscribedToRealtime = true;
+
+    try {
+      final client = SupabaseConfig.client!;
+      _realtimeChannel = client
+          .channel('public:community_posts_channel')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'community_posts',
+            callback: (PostgresChangePayload payload) {
+              fetchFromSupabase();
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'community_comments',
+            callback: (PostgresChangePayload payload) {
+              fetchFromSupabase();
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'community_post_attachments',
+            callback: (PostgresChangePayload payload) {
+              fetchFromSupabase();
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'community_live_rooms',
+            callback: (PostgresChangePayload payload) {
+              fetchLiveRooms();
+            },
+          )
+        ..subscribe();
+    } catch (e) {
+      debugPrint('[CommunityRepository] Realtime subscription error: $e');
+    }
+  }
+
+  Future<void> fetchFromSupabase() async {
+    if (!SupabaseConfig.isConfigured) return;
+    try {
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+
+      final Set<String> likedPostIds = <String>{};
+      final Set<String> bookmarkedPostIds = <String>{};
+      final Set<String> followedAuthorIds = <String>{};
+
+      try {
+        final likesRes = await client
+            .from('community_likes')
+            .select('post_id')
+            .eq('user_id', targetUserId);
+        for (final item in likesRes as List) {
+          final id = item['post_id']?.toString();
+          if (id != null) likedPostIds.add(id);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching likes: $e');
+      }
+
+      try {
+        final bookmarksRes = await client
+            .from('community_bookmarks')
+            .select('post_id')
+            .eq('user_id', targetUserId);
+        for (final item in bookmarksRes as List) {
+          final id = item['post_id']?.toString();
+          if (id != null) bookmarkedPostIds.add(id);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching bookmarks: $e');
+      }
+
+      try {
+        final followsRes = await client
+            .from('community_follows')
+            .select('following_id')
+            .eq('follower_id', targetUserId);
+        for (final item in followsRes as List) {
+          final id = item['following_id']?.toString();
+          if (id != null) followedAuthorIds.add(id);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching follows: $e');
+      }
+
+      final res = await client
+          .from('community_posts')
+          .select(
+            '*, profiles(id, username, display_name, avatar_url, bio, role, win_rate, trading_style, verified, followers_count, following_count, posts_count), community_post_trade_setups(*), community_post_attachments(*)',
+          )
+          .order('created_at', ascending: false);
+
+      final List<CommunityPost> allPosts = [];
+      for (final item in res as List) {
+        final row = item as Map<String, dynamic>;
+        final postId = row['id']?.toString() ?? '';
+        final authorProfile = row['profiles'] as Map<String, dynamic>?;
+        final authorId = row['author_id']?.toString() ?? '';
+
+        final author = CommunityAuthor(
+          id: authorId,
+          handle: authorProfile?['username'] as String? ?? 'trader',
+          displayName: authorProfile?['display_name'] as String? ??
+              authorProfile?['username'] as String? ??
+              'Trader',
+          userRole: _parseUserRole(authorProfile?['role'] as String?),
+          avatarUrl: authorProfile?['avatar_url'] as String?,
+          bio: authorProfile?['bio'] as String?,
+          verified: authorProfile?['verified'] as bool? ?? false,
+          isFollowing: followedAuthorIds.contains(authorId),
+          followers:
+              (authorProfile?['followers_count'] as num?)?.toInt() ?? 0,
+          following:
+              (authorProfile?['following_count'] as num?)?.toInt() ?? 0,
+          winRate: (authorProfile?['win_rate'] as num?)?.toDouble(),
+          tradingStyle: authorProfile?['trading_style'] as String?,
+          postsCount:
+              (authorProfile?['posts_count'] as num?)?.toInt() ?? 0,
+        );
+
+        CommunityTradeSetup? setup;
+        final setupsList = row['community_post_trade_setups'];
+        if (setupsList != null && setupsList is List && setupsList.isNotEmpty) {
+          final s = setupsList.first as Map<String, dynamic>;
+          setup = CommunityTradeSetup(
+            ticker: s['ticker'] as String? ?? '',
+            side: (s['side']?.toString().toUpperCase() == 'SHORT') ? 'SHORT' : 'LONG',
+            entry: s['entry']?.toString() ?? '0.0',
+            stopLoss: s['stop_loss']?.toString(),
+            target: s['target1']?.toString(),
+          );
+        }
+
+        final List<String> imageUrls = <String>[];
+        AppWritingPostAttachment? attachment;
+        final attachmentsList = row['community_post_attachments'];
+        if (attachmentsList != null && attachmentsList is List) {
+          for (final attItem in attachmentsList) {
+            final attMap = attItem as Map<String, dynamic>;
+            final kind = attMap['kind']?.toString() ?? '';
+            final url = attMap['url']?.toString();
+            final title = attMap['title']?.toString() ?? '';
+            final refId = attMap['ref_id']?.toString() ?? '';
+
+            if (kind == 'image') {
+              final img = url ?? refId;
+              if (img.isNotEmpty && !imageUrls.contains(img)) {
+                imageUrls.add(img);
+              }
+            } else if (kind == 'note' ||
+                kind == 'journal' ||
+                kind == 'strategy' ||
+                kind == 'manual' ||
+                kind == 'document') {
+              final linkKind = AppLinkKind.fromHost(kind) ?? AppLinkKind.note;
+              attachment = AppWritingPostAttachment.manual(
+                source: AppLinkRef(
+                  kind: linkKind,
+                  id: refId,
+                  title: title,
+                  subtitle: url,
+                ),
+                excerpt: title,
+              );
+            }
+          }
+        }
+
+        final post = CommunityPost(
+          id: postId,
+          author: author,
+          body: row['body'] as String? ?? '',
+          createdAt:
+              DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+                  DateTime.now(),
+          isPinned: row['is_pinned'] as bool? ?? false,
+          isPublic: row['is_public'] as bool? ?? true,
+          tickers: (row['tickers'] as List?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              const [],
+          tags: (row['tags'] as List?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              const [],
+          tradeSetup: setup,
+          imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
+          imageUrls: imageUrls,
+          attachment: attachment,
+          likes: (row['likes_count'] as num?)?.toInt() ?? 0,
+          comments: (row['comments_count'] as num?)?.toInt() ?? 0,
+          reposts: (row['reposts_count'] as num?)?.toInt() ?? 0,
+          views: (row['views_count'] as num?)?.toInt() ?? 0,
+          liked: likedPostIds.contains(postId),
+          bookmarked: bookmarkedPostIds.contains(postId),
+        );
+
+        allPosts.add(post);
+      }
+
+      if (_disposed) return;
+      _forYouPosts = allPosts;
+      _followingPosts = allPosts
+          .where((p) => followedAuthorIds.contains(p.author.id))
+          .toList();
+      _signalPosts = allPosts.where((p) => p.tradeSetup != null).toList();
+      _rebuildBookmarks();
+
+      try {
+        final commentsRes = await client
+            .from('community_comments')
+            .select(
+              '*, profiles(id, username, display_name, avatar_url, role)',
+            )
+            .order('created_at', ascending: true);
+
+        final Map<String, List<CommunityComment>> newComments = {};
+        for (final item in commentsRes as List) {
+          final row = item as Map<String, dynamic>;
+          final postId = row['post_id']?.toString();
+          if (postId == null) continue;
+
+          final profile = row['profiles'] as Map<String, dynamic>?;
+          final commentAuthor = CommunityAuthor(
+            id: row['author_id']?.toString() ?? '',
+            handle: profile?['username'] as String? ?? 'trader',
+            displayName: profile?['display_name'] as String? ?? 'Trader',
+            userRole: _parseUserRole(profile?['role'] as String?),
+            avatarUrl: profile?['avatar_url'] as String?,
+          );
+
+          final comment = CommunityComment(
+            id: row['id']?.toString() ?? '',
+            postId: postId,
+            author: commentAuthor,
+            body: row['body'] as String? ?? '',
+            createdAt:
+                DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+                    DateTime.now(),
+            likes: (row['likes_count'] as num?)?.toInt() ?? 0,
+            parentCommentId: row['parent_id']?.toString(),
+          );
+
+          (newComments[postId] ??= <CommunityComment>[]).add(comment);
+        }
+        _commentsByPost = newComments;
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching comments: $e');
+      }
+
+      await fetchLiveRooms();
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchFromSupabase error: $e');
+    }
+  }
+
+  Future<void> fetchLiveRooms() async {
+    if (!SupabaseConfig.isConfigured) return;
+    try {
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+
+      final Set<String> remindedRoomIds = <String>{};
+      try {
+        final remRes = await client
+            .from('community_live_room_reminders')
+            .select('room_id')
+            .eq('user_id', targetUserId);
+        for (final item in remRes as List) {
+          final id = item['room_id']?.toString();
+          if (id != null) remindedRoomIds.add(id);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching room reminders: $e');
+      }
+
+      final res = await client
+          .from('community_live_rooms')
+          .select(
+            '*, profiles:host_id(id, username, display_name, avatar_url, bio, role, verified)',
+          )
+          .order('created_at', ascending: false);
+
+      final List<LiveAudioRoom> rooms = [];
+      for (final item in res as List) {
+        final row = item as Map<String, dynamic>;
+        final hostProfile = row['profiles'] as Map<String, dynamic>?;
+        final hostId = row['host_id']?.toString() ?? '';
+        final host = CommunityAuthor(
+          id: hostId,
+          handle: hostProfile?['username'] as String? ?? 'host',
+          displayName: hostProfile?['display_name'] as String? ??
+              hostProfile?['username'] as String? ??
+              'Space Host',
+          userRole: _parseUserRole(hostProfile?['role'] as String?),
+          avatarUrl: hostProfile?['avatar_url'] as String?,
+          bio: hostProfile?['bio'] as String?,
+          verified: hostProfile?['verified'] as bool? ?? false,
+        );
+
+        final roomId = row['id']?.toString() ?? '';
+        final room = LiveAudioRoom.fromMap(
+          row,
+          host: host,
+        ).copyWith(
+          hasReminder: remindedRoomIds.contains(roomId),
+        );
+        rooms.add(room);
+      }
+
+      _liveRooms = rooms;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchLiveRooms error: $e');
+    }
+  }
+
+  UserRole _parseUserRole(String? roleStr) {
+    if (roleStr == null) return UserRole.customer;
+    final lower = roleStr.toLowerCase();
+    if (lower.contains('admin')) return UserRole.userAdmin;
+    if (lower.contains('affiliate')) return UserRole.affiliate;
+    return UserRole.customer;
   }
 
   bool _disposed = false;
@@ -57,6 +431,7 @@ class CommunityRepository extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _realtimeChannel?.unsubscribe();
     super.dispose();
   }
 
@@ -194,18 +569,18 @@ class CommunityRepository extends ChangeNotifier {
   bool get isHandRaised => _isHandRaised;
 
   static const CommunityAuthor _defaultCurrentUser = CommunityAuthor(
-    id: 'usr_nitish_trader',
-    handle: 'nitish_trader',
-    displayName: 'Nitish Kumar',
+    id: 'usr_current_trader',
+    handle: '',
+    displayName: '',
     userRole: UserRole.customer,
-    verified: true,
-    tier: AppTier.premium,
-    followers: 12400,
-    following: 234,
-    winRate: 84.0,
-    tradingStyle: 'Swing Trading',
-    primaryMarket: 'Indian Equities & F&O',
-    postsCount: 892,
+    verified: false,
+    tier: AppTier.free,
+    followers: 0,
+    following: 0,
+    winRate: null,
+    tradingStyle: null,
+    primaryMarket: null,
+    postsCount: 0,
   );
 
   CommunityAuthor? _currentAuthorOverride;
@@ -260,13 +635,21 @@ class CommunityRepository extends ChangeNotifier {
       _commentsByPost[postId] ?? const <CommunityComment>[];
 
   List<CommunityPost> postsForAuthor(String authorId) {
+    if (authorId.trim().isEmpty) return const <CommunityPost>[];
     final seen = <String>{};
     final all = <CommunityPost>[
       ..._forYouPosts,
       ..._signalPosts,
       ..._followingPosts,
     ];
-    return all.where((p) => p.author.id == authorId && seen.add(p.id)).toList();
+    final cleanId = authorId.toLowerCase().replaceFirst('@', '').trim();
+    return all.where((p) {
+      final pAuthorId = p.author.id.toLowerCase().trim();
+      final pAuthorHandle =
+          p.author.handle.toLowerCase().replaceFirst('@', '').trim();
+      final matches = pAuthorId == cleanId || pAuthorHandle == cleanId;
+      return matches && seen.add(p.id);
+    }).toList();
   }
 
   CommunityAuthor? authorById(String id) {
@@ -301,6 +684,38 @@ class CommunityRepository extends ChangeNotifier {
     _followingPosts = _toggleLikeInList(_followingPosts, postId);
     _signalPosts = _toggleLikeInList(_signalPosts, postId);
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final targetUserId = _resolveUserId();
+        final post = _forYouPosts.cast<CommunityPost?>().firstWhere(
+              (p) => p?.id == postId,
+              orElse: () => null,
+            );
+        final isLikedNow = post?.liked ?? false;
+
+        if (isLikedNow) {
+          unawaited(client.from('community_likes').insert({
+            'post_id': postId,
+            'user_id': targetUserId,
+          }).catchError((e) {
+            debugPrint('[CommunityRepository] like insert error: $e');
+          }));
+        } else {
+          unawaited(client
+              .from('community_likes')
+              .delete()
+              .eq('post_id', postId)
+              .eq('user_id', targetUserId)
+              .catchError((e) {
+            debugPrint('[CommunityRepository] like delete error: $e');
+          }));
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] toggleLike error: $e');
+      }
+    }
   }
 
   List<CommunityPost> _toggleLikeInList(List<CommunityPost> list, String id) {
@@ -353,6 +768,38 @@ class CommunityRepository extends ChangeNotifier {
     }).toList();
     _rebuildBookmarks();
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final targetUserId = _resolveUserId();
+        final post = _forYouPosts.cast<CommunityPost?>().firstWhere(
+              (p) => p?.id == postId,
+              orElse: () => null,
+            );
+        final isBookmarkedNow = post?.bookmarked ?? false;
+
+        if (isBookmarkedNow) {
+          unawaited(client.from('community_bookmarks').insert({
+            'post_id': postId,
+            'user_id': targetUserId,
+          }).catchError((e) {
+            debugPrint('[CommunityRepository] bookmark insert error: $e');
+          }));
+        } else {
+          unawaited(client
+              .from('community_bookmarks')
+              .delete()
+              .eq('post_id', postId)
+              .eq('user_id', targetUserId)
+              .catchError((e) {
+            debugPrint('[CommunityRepository] bookmark delete error: $e');
+          }));
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] toggleBookmark error: $e');
+      }
+    }
   }
 
   void _rebuildBookmarks() {
@@ -428,6 +875,25 @@ class CommunityRepository extends ChangeNotifier {
     _forYouPosts = _incrementComments(_forYouPosts, postId);
     _followingPosts = _incrementComments(_followingPosts, postId);
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final targetUserId = _resolveUserId();
+        final commentId = const Uuid().v4();
+        unawaited(client.from('community_comments').insert({
+          'id': commentId,
+          'post_id': postId,
+          'author_id': targetUserId,
+          'body': body.trim(),
+          if (parentId != null && _isUuid(parentId)) 'parent_id': parentId,
+        }).catchError((e) {
+          debugPrint('[CommunityRepository] addComment error: $e');
+        }));
+      } catch (e) {
+        debugPrint('[CommunityRepository] addComment error: $e');
+      }
+    }
   }
 
   List<CommunityPost> _incrementComments(
@@ -531,6 +997,37 @@ class CommunityRepository extends ChangeNotifier {
       );
     }).toList();
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(traderId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final currentUserId = _resolveUserId();
+        final trader = _suggestedTraders.cast<CommunityAuthor?>().firstWhere(
+              (a) => a?.id == traderId,
+              orElse: () => null,
+            );
+        final isFollowingNow = trader?.isFollowing ?? false;
+        if (isFollowingNow) {
+          unawaited(client.from('community_follows').insert({
+            'follower_id': currentUserId,
+            'following_id': traderId,
+          }).catchError((e) {
+            debugPrint('[CommunityRepository] toggleFollow insert error: $e');
+          }));
+        } else {
+          unawaited(client
+              .from('community_follows')
+              .delete()
+              .eq('follower_id', currentUserId)
+              .eq('following_id', traderId)
+              .catchError((e) {
+            debugPrint('[CommunityRepository] toggleFollow delete error: $e');
+          }));
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] toggleFollow error: $e');
+      }
+    }
   }
 
   /// @backend POST /api/v1/community/posts
@@ -552,8 +1049,11 @@ class CommunityRepository extends ChangeNotifier {
     DateTime? scheduledFor,
     required CommunityAuthor author,
   }) {
+    final newId = SupabaseConfig.isConfigured
+        ? const Uuid().v4()
+        : 'post_${DateTime.now().millisecondsSinceEpoch}';
     final post = CommunityPost(
-      id: 'post_${DateTime.now().millisecondsSinceEpoch}',
+      id: newId,
       author: author,
       body: body,
       createdAt: DateTime.now(),
@@ -580,6 +1080,60 @@ class CommunityRepository extends ChangeNotifier {
     }
     notifyListeners();
 
+    if (SupabaseConfig.isConfigured) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          final userId = _resolveUserId();
+          await client.from('community_posts').insert({
+            'id': post.id,
+            'author_id': userId,
+            'title': tickers.isNotEmpty ? tickers.first : 'Post',
+            'body': post.body,
+            'kind': tradeSetup != null ? 'setup' : (isDeskAlert ? 'alert' : 'general'),
+            'tickers': tickers,
+            'tags': tags,
+            'is_public': true,
+            'visibility': 'public',
+            'created_at': post.createdAt.toIso8601String(),
+          });
+          if (tradeSetup != null) {
+            await client.from('community_post_trade_setups').insert({
+              'post_id': post.id,
+              'ticker': tradeSetup.ticker,
+              'side': tradeSetup.side.toLowerCase(),
+              'entry': double.tryParse(tradeSetup.entry) ?? 0.0,
+              if (tradeSetup.stopLoss != null)
+                'stop_loss': double.tryParse(tradeSetup.stopLoss!),
+              if (tradeSetup.target != null)
+                'target1': double.tryParse(tradeSetup.target!),
+            });
+          }
+          for (final imgUrl in post.effectiveImageUrls) {
+            await client.from('community_post_attachments').insert({
+              'post_id': post.id,
+              'kind': 'image',
+              'ref_id': imgUrl,
+              'title': 'Chart Image',
+              'url': imgUrl,
+            });
+          }
+          if (post.attachment != null) {
+            final att = post.attachment!;
+            await client.from('community_post_attachments').insert({
+              'post_id': post.id,
+              'kind': att.source.kind.name,
+              'ref_id': att.source.id,
+              'title': att.source.title,
+              'url': att.source.subtitle,
+            });
+          }
+        } catch (e) {
+          debugPrint('[CommunityRepository] createPost Supabase error: $e');
+        }
+      }());
+    }
+
     final Set<String> linkedTickers = <String>{
       ...tickers,
       if (tradeSetup?.ticker != null && tradeSetup!.ticker.isNotEmpty)
@@ -598,6 +1152,62 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
+  /// Uploads an image or file attachment to the `community-attachments` Supabase storage bucket
+  /// and returns its public URL.
+  Future<String> uploadAttachment({
+    required String postId,
+    File? file,
+    Uint8List? bytes,
+    String? filename,
+  }) async {
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final ext = filename != null && filename.contains('.')
+            ? filename.split('.').last
+            : (file != null && file.path.contains('.') ? file.path.split('.').last : 'png');
+        final cleanName = '${const Uuid().v4()}.$ext';
+        final storagePath = '$postId/$cleanName';
+
+        if (bytes != null) {
+          await client.storage.from('community-attachments').uploadBinary(
+                storagePath,
+                bytes,
+                fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+              );
+        } else if (file != null) {
+          final fileBytes = await file.readAsBytes();
+          await client.storage.from('community-attachments').uploadBinary(
+                storagePath,
+                fileBytes,
+                fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+              );
+        }
+        return client.storage.from('community-attachments').getPublicUrl(storagePath);
+      } catch (e) {
+        debugPrint('[CommunityRepository] uploadAttachment error: $e');
+      }
+    }
+    return file?.path ?? filename ?? '';
+  }
+
+  /// Resolves an attachment reference or storage path to a usable URL.
+  Future<String> resolveAttachmentUrl(String ref) async {
+    if (SupabaseConfig.isConfigured &&
+        !ref.startsWith('http') &&
+        !ref.contains(':\\') &&
+        !ref.startsWith('file:') &&
+        !ref.startsWith('data:')) {
+      try {
+        final client = SupabaseConfig.client!;
+        return client.storage.from('community-attachments').getPublicUrl(ref);
+      } catch (e) {
+        debugPrint('[CommunityRepository] resolveAttachmentUrl error: $e');
+      }
+    }
+    return ref;
+  }
+
   /// @backend DELETE /api/v1/community/posts/{postId}
   /// Returns: { "success": true }
   void deletePost(String postId) {
@@ -606,6 +1216,17 @@ class CommunityRepository extends ChangeNotifier {
     _signalPosts = _signalPosts.where((p) => p.id != postId).toList();
     _bookmarkedPosts = _bookmarkedPosts.where((p) => p.id != postId).toList();
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          await client.from('community_posts').delete().eq('id', postId);
+        } catch (e) {
+          debugPrint('[CommunityRepository] deletePost Supabase error: $e');
+        }
+      }());
+    }
 
     unawaited(
       EntityTickerLinksRepository.instance.removeLinks(
@@ -687,6 +1308,59 @@ class CommunityRepository extends ChangeNotifier {
     );
     notifyListeners();
 
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          await client.from('community_posts').update({
+            'body': newBody,
+            'tickers': ?tickers,
+            'tags': ?tags,
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('id', postId);
+
+          if (imageUrls != null) {
+            await client
+                .from('community_post_attachments')
+                .delete()
+                .eq('post_id', postId)
+                .eq('kind', 'image');
+            for (final imgUrl in imageUrls) {
+              await client.from('community_post_attachments').insert({
+                'post_id': postId,
+                'kind': 'image',
+                'ref_id': imgUrl,
+                'title': 'Chart Image',
+                'url': imgUrl,
+              });
+            }
+          }
+          if (attachment != null) {
+            await client
+                .from('community_post_attachments')
+                .delete()
+                .eq('post_id', postId)
+                .neq('kind', 'image');
+            await client.from('community_post_attachments').insert({
+              'post_id': postId,
+              'kind': attachment.source.kind.name,
+              'ref_id': attachment.source.id,
+              'title': attachment.source.title,
+              'url': attachment.source.subtitle,
+            });
+          } else if (clearAttachment) {
+            await client
+                .from('community_post_attachments')
+                .delete()
+                .eq('post_id', postId)
+                .neq('kind', 'image');
+          }
+        } catch (e) {
+          debugPrint('[CommunityRepository] editPost Supabase error: $e');
+        }
+      }());
+    }
+
     final Set<String> linkedTickers = <String>{
       ...?tickers,
       if (tradeSetup?.ticker != null && tradeSetup!.ticker.isNotEmpty)
@@ -728,6 +1402,22 @@ class CommunityRepository extends ChangeNotifier {
     _bookmarkedPosts = _bookmarkedPosts.map(update).toList();
 
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      unawaited(() async {
+        try {
+          final client = SupabaseConfig.client!;
+          await client.from('community_posts').update({
+            'is_public': isPublic,
+            'visibility': isPublic ? 'public' : 'private',
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('id', postId);
+        } catch (e) {
+          debugPrint('[CommunityRepository] setPostVisibility Supabase error: $e');
+        }
+      }());
+    }
+
     return updated;
   }
 
@@ -878,12 +1568,120 @@ class CommunityRepository extends ChangeNotifier {
       ..._forYouPosts,
       ..._signalPosts,
       ..._followingPosts,
+      ..._bookmarkedPosts,
     ];
     try {
       return all.firstWhere((p) => p.id == postId);
     } catch (_) {
       return null;
     }
+  }
+
+  /// Asynchronously fetches a post from Supabase if not present in the local cache.
+  Future<CommunityPost?> fetchPostById(String postId) async {
+    final cached = loadPostById(postId);
+    if (cached != null) return cached;
+    if (!SupabaseConfig.isConfigured) return null;
+    try {
+      final client = SupabaseConfig.client!;
+      final res = await client
+          .from('community_posts')
+          .select(
+            '*, profiles(id, username, display_name, avatar_url, bio, role, win_rate, trading_style, verified, followers_count, following_count, posts_count), community_post_trade_setups(*), community_post_attachments(*)',
+          )
+          .eq('id', postId)
+          .maybeSingle();
+      if (res != null) {
+        final row = res;
+        final authorProfile = row['profiles'] as Map<String, dynamic>?;
+        final authorId = row['author_id']?.toString() ?? '';
+        final author = CommunityAuthor(
+          id: authorId,
+          handle: authorProfile?['username'] as String? ?? 'trader',
+          displayName: authorProfile?['display_name'] as String? ??
+              authorProfile?['username'] as String? ??
+              'Trader',
+          userRole: _parseUserRole(authorProfile?['role'] as String?),
+          avatarUrl: authorProfile?['avatar_url'] as String?,
+          bio: authorProfile?['bio'] as String?,
+          verified: authorProfile?['verified'] as bool? ?? false,
+          followers: (authorProfile?['followers_count'] as num?)?.toInt() ?? 0,
+          following: (authorProfile?['following_count'] as num?)?.toInt() ?? 0,
+          winRate: (authorProfile?['win_rate'] as num?)?.toDouble(),
+          tradingStyle: authorProfile?['trading_style'] as String?,
+          postsCount: (authorProfile?['posts_count'] as num?)?.toInt() ?? 0,
+        );
+        CommunityTradeSetup? setup;
+        final setupsList = row['community_post_trade_setups'];
+        if (setupsList != null && setupsList is List && setupsList.isNotEmpty) {
+          final s = setupsList.first as Map<String, dynamic>;
+          setup = CommunityTradeSetup(
+            ticker: s['ticker'] as String? ?? '',
+            side: (s['side']?.toString().toUpperCase() == 'SHORT') ? 'SHORT' : 'LONG',
+            entry: s['entry']?.toString() ?? '0.0',
+            stopLoss: s['stop_loss']?.toString(),
+            target: s['target1']?.toString(),
+          );
+        }
+        final List<String> imageUrls = <String>[];
+        AppWritingPostAttachment? attachment;
+        final attachmentsList = row['community_post_attachments'];
+        if (attachmentsList != null && attachmentsList is List) {
+          for (final attItem in attachmentsList) {
+            final attMap = attItem as Map<String, dynamic>;
+            final kind = attMap['kind']?.toString() ?? '';
+            final url = attMap['url']?.toString();
+            final title = attMap['title']?.toString() ?? '';
+            final refId = attMap['ref_id']?.toString() ?? '';
+            if (kind == 'image') {
+              final img = url ?? refId;
+              if (img.isNotEmpty && !imageUrls.contains(img)) {
+                imageUrls.add(img);
+              }
+            } else if (kind == 'note' ||
+                kind == 'journal' ||
+                kind == 'strategy' ||
+                kind == 'manual' ||
+                kind == 'document') {
+              final linkKind = AppLinkKind.fromHost(kind) ?? AppLinkKind.note;
+              attachment = AppWritingPostAttachment.manual(
+                source: AppLinkRef(
+                  kind: linkKind,
+                  id: refId,
+                  title: title,
+                  subtitle: url,
+                ),
+                excerpt: title,
+              );
+            }
+          }
+        }
+        final post = CommunityPost(
+          id: postId,
+          author: author,
+          body: row['body'] as String? ?? '',
+          createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '') ?? DateTime.now(),
+          isPinned: row['is_pinned'] as bool? ?? false,
+          isPublic: row['is_public'] as bool? ?? true,
+          tickers: (row['tickers'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+          tags: (row['tags'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+          tradeSetup: setup,
+          imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
+          imageUrls: imageUrls,
+          attachment: attachment,
+          likes: (row['likes_count'] as num?)?.toInt() ?? 0,
+          comments: (row['comments_count'] as num?)?.toInt() ?? 0,
+          reposts: (row['reposts_count'] as num?)?.toInt() ?? 0,
+          views: (row['views_count'] as num?)?.toInt() ?? 0,
+        );
+        _forYouPosts.insert(0, post);
+        notifyListeners();
+        return post;
+      }
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchPostById error: $e');
+    }
+    return null;
   }
 
   /// @backend GET /api/v1/community/posts/{postId}/insights
@@ -1059,10 +1857,10 @@ class CommunityRepository extends ChangeNotifier {
   }
 
   // -------------------------------------------------------------------------
-  // Live Audio Spaces Controls
+  // Live Audio Spaces Controls & Database Sync
   // -------------------------------------------------------------------------
 
-  void tuneIntoRoom(String roomId) {
+  Future<void> tuneIntoRoom(String roomId) async {
     if (_tunedRoomId == roomId) return;
     _tunedRoomId = roomId;
     final index = _liveRooms.indexWhere((r) => r.id == roomId);
@@ -1071,11 +1869,22 @@ class CommunityRepository extends ChangeNotifier {
       _liveRooms[index] = room.copyWith(listenerCount: room.listenerCount + 1);
     }
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.rpc('tune_into_live_room', params: {'p_room_id': roomId});
+      } catch (e) {
+        debugPrint('[CommunityRepository] tune_into_live_room RPC error: $e');
+      }
+    }
   }
 
-  void leaveRoom() {
-    if (_tunedRoomId == null) return;
-    final index = _liveRooms.indexWhere((r) => r.id == _tunedRoomId);
+  Future<void> leaveRoom() async {
+    final leavingRoomId = _tunedRoomId;
+    if (leavingRoomId == null) return;
+
+    final index = _liveRooms.indexWhere((r) => r.id == leavingRoomId);
     if (index != -1) {
       final room = _liveRooms[index];
       _liveRooms[index] = room.copyWith(
@@ -1085,6 +1894,15 @@ class CommunityRepository extends ChangeNotifier {
     _tunedRoomId = null;
     _isHandRaised = false;
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(leavingRoomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.rpc('leave_live_room', params: {'p_room_id': leavingRoomId});
+      } catch (e) {
+        debugPrint('[CommunityRepository] leave_live_room RPC error: $e');
+      }
+    }
   }
 
   void toggleMute() {
@@ -1092,37 +1910,97 @@ class CommunityRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleHandRaised() {
+  Future<void> toggleHandRaised([String? roomId]) async {
     _isHandRaised = !_isHandRaised;
     notifyListeners();
+
+    final targetRoom = roomId ?? _tunedRoomId;
+    if (SupabaseConfig.isConfigured && targetRoom != null && _isUuid(targetRoom)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.rpc('toggle_live_room_hand', params: {'p_room_id': targetRoom});
+      } catch (e) {
+        debugPrint('[CommunityRepository] toggle_live_room_hand RPC error: $e');
+      }
+    }
   }
 
-  void toggleRoomReminder(String roomId) {
+  Future<void> toggleRoomReminder(String roomId) async {
     final index = _liveRooms.indexWhere((r) => r.id == roomId);
     if (index != -1) {
       final room = _liveRooms[index];
       _liveRooms[index] = room.copyWith(hasReminder: !room.hasReminder);
       notifyListeners();
     }
+
+    if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.rpc('toggle_live_room_reminder', params: {'p_room_id': roomId});
+      } catch (e) {
+        debugPrint('[CommunityRepository] toggle_live_room_reminder RPC error: $e');
+      }
+    }
+  }
+
+  Future<void> voteLiveRoomPoll(String roomId, String vote) async {
+    final index = _liveRooms.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final room = _liveRooms[index];
+      if (vote == 'bullish') {
+        _liveRooms[index] = room.copyWith(pollBullishVotes: room.pollBullishVotes + 1);
+      } else {
+        _liveRooms[index] = room.copyWith(pollBearishVotes: room.pollBearishVotes + 1);
+      }
+      notifyListeners();
+    }
+
+    if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client.rpc('vote_live_room_poll', params: {
+          'p_room_id': roomId,
+          'p_vote': vote,
+        });
+      } catch (e) {
+        debugPrint('[CommunityRepository] vote_live_room_poll RPC error: $e');
+      }
+    }
   }
 
   /// Keeps a completed host session available to public profile history.
-  void endLiveRoom(String roomId) {
+  Future<void> endLiveRoom(String roomId) async {
     final index = _liveRooms.indexWhere((room) => room.id == roomId);
-    if (index < 0 || _liveRooms[index].host.id != currentAuthor.id) return;
-    _liveRooms[index] = _liveRooms[index].copyWith(
-      status: LiveRoomStatus.ended,
-      endedAt: DateTime.now(),
-    );
+    if (index >= 0) {
+      _liveRooms[index] = _liveRooms[index].copyWith(
+        status: LiveRoomStatus.ended,
+        endedAt: DateTime.now(),
+      );
+    }
     if (_tunedRoomId == roomId) {
       _tunedRoomId = null;
       _isAudioMuted = true;
       _isHandRaised = false;
     }
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client
+            .from('community_live_rooms')
+            .update({
+              'status': 'ended',
+              'ended_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', roomId);
+      } catch (e) {
+        debugPrint('[CommunityRepository] endLiveRoom error: $e');
+      }
+    }
   }
 
-  LiveAudioRoom createLiveRoom({
+  Future<LiveAudioRoom> createLiveRoom({
     required String title,
     required String topic,
     required String category,
@@ -1130,29 +2008,332 @@ class CommunityRepository extends ChangeNotifier {
     bool startNow = true,
     DateTime? scheduledFor,
     List<String> tags = const <String>[],
-  }) {
-    final id = 'room_${DateTime.now().millisecondsSinceEpoch}';
+  }) async {
+    final roomId = const Uuid().v4();
+    final now = DateTime.now();
     final room = LiveAudioRoom(
-      id: id,
+      id: roomId,
       title: title,
       topic: topic,
       host: currentAuthor,
       category: category,
       status: startNow ? LiveRoomStatus.live : LiveRoomStatus.scheduled,
       listenerCount: startNow ? 1 : 0,
+      speakerCount: 1,
       speakers: <String>[currentAuthor.displayName],
       pinnedSetup: pinnedSetup,
       scheduledFor: scheduledFor,
-      startedAt: startNow ? DateTime.now() : null,
+      startedAt: startNow ? now : null,
       isRecording: true,
       tags: tags,
     );
+
     _liveRooms.insert(0, room);
     if (startNow) {
-      _tunedRoomId = id;
+      _tunedRoomId = roomId;
     }
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final hostUserId = _resolveUserId();
+
+        await client.from('community_live_rooms').insert({
+          'id': roomId,
+          'host_id': hostUserId,
+          'title': title,
+          'topic': topic,
+          'category': category,
+          'status': startNow ? 'live' : 'scheduled',
+          'listener_count': startNow ? 1 : 0,
+          'speaker_count': 1,
+          'started_at': startNow ? now.toIso8601String() : null,
+          'scheduled_for': scheduledFor?.toIso8601String(),
+          'recording_available': true,
+          'tags': tags,
+          'pinned_ticker': pinnedSetup?.ticker,
+          'pinned_side': pinnedSetup?.side,
+          'pinned_entry': pinnedSetup?.entry,
+          'pinned_stop_loss': pinnedSetup?.stopLoss,
+          'pinned_target': pinnedSetup?.target,
+          'pinned_note': pinnedSetup?.note,
+        });
+
+        if (startNow) {
+          await client.rpc('tune_into_live_room', params: {'p_room_id': roomId});
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] createLiveRoom Supabase error: $e');
+      }
+    }
+
     return room;
+  }
+
+  // --- Realtime In-Room Participants, Messages, and Q&A Methods ---
+
+  Future<List<LiveRoomParticipant>> fetchRoomParticipants(String roomId) async {
+    if (!SupabaseConfig.isConfigured || !_isUuid(roomId)) {
+      // Local fallback with host
+      return <LiveRoomParticipant>[
+        LiveRoomParticipant(
+          roomId: roomId,
+          userId: currentAuthor.id,
+          displayName: currentAuthor.displayName,
+          handle: currentAuthor.handle,
+          avatarUrl: currentAuthor.avatarUrl,
+          role: 'host',
+          isMuted: _isAudioMuted,
+          isHandRaised: _isHandRaised,
+          joinedAt: DateTime.now(),
+        ),
+      ];
+    }
+
+    try {
+      final client = SupabaseConfig.client!;
+      final res = await client
+          .from('community_live_room_participants')
+          .select('*, profiles:user_id(id, username, display_name, avatar_url)')
+          .eq('room_id', roomId)
+          .order('joined_at', ascending: true);
+
+      return (res as List)
+          .map((e) => LiveRoomParticipant.fromMap(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchRoomParticipants error: $e');
+      return <LiveRoomParticipant>[];
+    }
+  }
+
+  Future<void> updateParticipantRole(String roomId, String targetUserId, String role) async {
+    if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client
+            .from('community_live_room_participants')
+            .update({'role': role})
+            .eq('room_id', roomId)
+            .eq('user_id', targetUserId);
+      } catch (e) {
+        debugPrint('[CommunityRepository] updateParticipantRole error: $e');
+      }
+    }
+  }
+
+  Future<void> setParticipantMute(String roomId, String targetUserId, bool isMuted) async {
+    if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client
+            .from('community_live_room_participants')
+            .update({'is_muted': isMuted})
+            .eq('room_id', roomId)
+            .eq('user_id', targetUserId);
+      } catch (e) {
+        debugPrint('[CommunityRepository] setParticipantMute error: $e');
+      }
+    }
+  }
+
+  Future<List<LiveRoomMessage>> fetchRoomMessages(String roomId) async {
+    if (!SupabaseConfig.isConfigured || !_isUuid(roomId)) {
+      return <LiveRoomMessage>[];
+    }
+
+    try {
+      final client = SupabaseConfig.client!;
+      final res = await client
+          .from('community_live_room_messages')
+          .select('*, profiles:sender_id(id, username, display_name, avatar_url)')
+          .eq('room_id', roomId)
+          .order('created_at', ascending: true);
+
+      return (res as List)
+          .map((e) => LiveRoomMessage.fromMap(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchRoomMessages error: $e');
+      return <LiveRoomMessage>[];
+    }
+  }
+
+  Future<LiveRoomMessage?> sendRoomMessage(String roomId, String text) async {
+    if (text.trim().isEmpty) return null;
+
+    if (!SupabaseConfig.isConfigured || !_isUuid(roomId)) {
+      // Local fallback
+      return LiveRoomMessage(
+        id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+        roomId: roomId,
+        senderId: currentAuthor.id,
+        senderName: currentAuthor.displayName,
+        senderAvatarUrl: currentAuthor.avatarUrl,
+        senderRole: 'speaker',
+        message: text.trim(),
+        createdAt: DateTime.now(),
+      );
+    }
+
+    try {
+      final client = SupabaseConfig.client!;
+      final userId = _resolveUserId();
+      final res = await client
+          .from('community_live_room_messages')
+          .insert({
+            'room_id': roomId,
+            'sender_id': userId,
+            'message': text.trim(),
+          })
+          .select('*, profiles:sender_id(id, username, display_name, avatar_url)')
+          .single();
+
+      return LiveRoomMessage.fromMap(res);
+    } catch (e) {
+      debugPrint('[CommunityRepository] sendRoomMessage error: $e');
+      return null;
+    }
+  }
+
+  Future<List<LiveRoomQuestion>> fetchRoomQuestions(String roomId) async {
+    if (!SupabaseConfig.isConfigured || !_isUuid(roomId)) {
+      return <LiveRoomQuestion>[];
+    }
+
+    try {
+      final client = SupabaseConfig.client!;
+      final userId = _resolveUserId();
+
+      final Set<String> upvotedQuestionIds = <String>{};
+      try {
+        final upvotesRes = await client
+            .from('community_live_room_question_upvotes')
+            .select('question_id')
+            .eq('user_id', userId);
+        for (final item in upvotesRes as List) {
+          final qId = item['question_id']?.toString();
+          if (qId != null) upvotedQuestionIds.add(qId);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] fetch question upvotes error: $e');
+      }
+
+      final res = await client
+          .from('community_live_room_questions')
+          .select('*, profiles:author_id(id, username, display_name, avatar_url)')
+          .eq('room_id', roomId)
+          .order('upvotes_count', ascending: false)
+          .order('created_at', ascending: false);
+
+      return (res as List).map((e) {
+        final map = e as Map<String, dynamic>;
+        final qId = map['id']?.toString() ?? '';
+        return LiveRoomQuestion.fromMap(
+          map,
+          hasUpvoted: upvotedQuestionIds.contains(qId),
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchRoomQuestions error: $e');
+      return <LiveRoomQuestion>[];
+    }
+  }
+
+  Future<LiveRoomQuestion?> submitRoomQuestion(String roomId, String text) async {
+    if (text.trim().isEmpty) return null;
+
+    if (!SupabaseConfig.isConfigured || !_isUuid(roomId)) {
+      return LiveRoomQuestion(
+        id: 'q_${DateTime.now().millisecondsSinceEpoch}',
+        roomId: roomId,
+        authorId: currentAuthor.id,
+        authorName: currentAuthor.displayName,
+        authorAvatarUrl: currentAuthor.avatarUrl,
+        question: text.trim(),
+        upvotesCount: 1,
+        hasUpvoted: true,
+        createdAt: DateTime.now(),
+      );
+    }
+
+    try {
+      final client = SupabaseConfig.client!;
+      final userId = _resolveUserId();
+      final res = await client
+          .from('community_live_room_questions')
+          .insert({
+            'room_id': roomId,
+            'author_id': userId,
+            'question': text.trim(),
+            'upvotes_count': 1,
+          })
+          .select('*, profiles:author_id(id, username, display_name, avatar_url)')
+          .single();
+
+      final question = LiveRoomQuestion.fromMap(res, hasUpvoted: true);
+
+      // Auto-upvote author's own question
+      try {
+        await client.from('community_live_room_question_upvotes').insert({
+          'question_id': question.id,
+          'user_id': userId,
+        });
+      } catch (_) {}
+
+      return question;
+    } catch (e) {
+      debugPrint('[CommunityRepository] submitRoomQuestion error: $e');
+      return null;
+    }
+  }
+
+  Future<void> toggleQuestionUpvote(String questionId) async {
+    if (SupabaseConfig.isConfigured && _isUuid(questionId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        final userId = _resolveUserId();
+        final check = await client
+            .from('community_live_room_question_upvotes')
+            .select('question_id')
+            .eq('question_id', questionId)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (check != null) {
+          await client
+              .from('community_live_room_question_upvotes')
+              .delete()
+              .eq('question_id', questionId)
+              .eq('user_id', userId);
+        } else {
+          await client.from('community_live_room_question_upvotes').insert({
+            'question_id': questionId,
+            'user_id': userId,
+          });
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] toggleQuestionUpvote error: $e');
+      }
+    }
+  }
+
+  Future<void> markQuestionAnswered(String questionId, bool answered) async {
+    if (SupabaseConfig.isConfigured && _isUuid(questionId)) {
+      try {
+        final client = SupabaseConfig.client!;
+        await client
+            .from('community_live_room_questions')
+            .update({
+              'is_answered': answered,
+              'answered_at': answered ? DateTime.now().toIso8601String() : null,
+            })
+            .eq('id', questionId);
+      } catch (e) {
+        debugPrint('[CommunityRepository] markQuestionAnswered error: $e');
+      }
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -1969,86 +3150,90 @@ class CommunityRepository extends ChangeNotifier {
       ),
     ];
 
-    // Seed Live Audio Spaces
-    _liveRooms = <LiveAudioRoom>[
-      LiveAudioRoom(
-        id: 'room_nifty_expiry',
-        title: 'Nifty & BankNifty Live Expiry Floor',
-        topic: 'VWAP breakout & strong CE OI unwinding at 24,800 strike',
-        host: _rajeshPatel,
-        category: 'Options & Expiry',
-        status: LiveRoomStatus.live,
-        listenerCount: 142,
-        speakers: const <String>[
-          'Rajesh Sharma, CMT',
-          'Sarah Chen, Quant',
-          'Vikram Joshi',
-        ],
-        pinnedSetup: const LivePinnedSetup(
-          ticker: 'NIFTY 24,850 CE',
-          side: 'LONG',
-          entry: 142.50,
-          stopLoss: 118.00,
-          target: 210.00,
-          note: 'VWAP breakout with strong CE OI unwinding at 24,800 strike.',
+    // Seed Live Audio Spaces (fallback for offline demo mode only)
+    if (!SupabaseConfig.isConfigured) {
+      _liveRooms = <LiveAudioRoom>[
+        LiveAudioRoom(
+          id: 'room_nifty_expiry',
+          title: 'Nifty & BankNifty Live Expiry Floor',
+          topic: 'VWAP breakout & strong CE OI unwinding at 24,800 strike',
+          host: _rajeshPatel,
+          category: 'Options & Expiry',
+          status: LiveRoomStatus.live,
+          listenerCount: 142,
+          speakers: const <String>[
+            'Rajesh Sharma, CMT',
+            'Sarah Chen, Quant',
+            'Vikram Joshi',
+          ],
+          pinnedSetup: const LivePinnedSetup(
+            ticker: 'NIFTY 24,850 CE',
+            side: 'LONG',
+            entry: 142.50,
+            stopLoss: 118.00,
+            target: 210.00,
+            note: 'VWAP breakout with strong CE OI unwinding at 24,800 strike.',
+          ),
+          startedAt: now.subtract(const Duration(minutes: 42)),
+          isRecording: true,
+          tags: const <String>['#Nifty', '#Options', '#ExpirySpecial'],
         ),
-        startedAt: now.subtract(const Duration(minutes: 42)),
-        isRecording: true,
-        tags: const <String>['#Nifty', '#Options', '#ExpirySpecial'],
-      ),
-      LiveAudioRoom(
-        id: 'room_crypto_macro',
-        title: 'Crypto Alpha Desk: BTC ATH Retest & Altcoin Liquidity',
-        topic: 'Spot ETF inflows, funding rates, and Solana breakout setups',
-        host: _marcoSilva,
-        category: 'Crypto',
-        status: LiveRoomStatus.live,
-        listenerCount: 89,
-        speakers: const <String>[
-          'Marco Silva',
-          'Elena Rostova',
-          'Dr. Aris Thorne',
-        ],
-        pinnedSetup: const LivePinnedSetup(
-          ticker: 'BTC/USDT',
-          side: 'LONG',
-          entry: 94200.00,
-          stopLoss: 91800.00,
-          target: 104000.00,
-          note: 'Daily 21 EMA bounce with open interest expansion.',
+        LiveAudioRoom(
+          id: 'room_crypto_macro',
+          title: 'Crypto Alpha Desk: BTC ATH Retest & Altcoin Liquidity',
+          topic: 'Spot ETF inflows, funding rates, and Solana breakout setups',
+          host: _marcoSilva,
+          category: 'Crypto',
+          status: LiveRoomStatus.live,
+          listenerCount: 89,
+          speakers: const <String>[
+            'Marco Silva',
+            'Elena Rostova',
+            'Dr. Aris Thorne',
+          ],
+          pinnedSetup: const LivePinnedSetup(
+            ticker: 'BTC/USDT',
+            side: 'LONG',
+            entry: 94200.00,
+            stopLoss: 91800.00,
+            target: 104000.00,
+            note: 'Daily 21 EMA bounce with open interest expansion.',
+          ),
+          startedAt: now.subtract(const Duration(minutes: 25)),
+          isRecording: false,
+          tags: const <String>['#Bitcoin', '#Crypto', '#Breakout'],
         ),
-        startedAt: now.subtract(const Duration(minutes: 25)),
-        isRecording: false,
-        tags: const <String>['#Bitcoin', '#Crypto', '#Breakout'],
-      ),
-      LiveAudioRoom(
-        id: 'room_post_expiry',
-        title: 'Post-Expiry Debrief & Journaling',
-        topic:
-            'Analyzing gamma squeezes, mistake reviews, and journaling execution stats',
-        host: _elenaRostova,
-        category: 'Education',
-        status: LiveRoomStatus.scheduled,
-        listenerCount: 0,
-        speakers: const <String>['Elena Rostova', 'Sarah Chen, Quant'],
-        scheduledFor: now.add(const Duration(hours: 4)),
-        isRecording: true,
-        tags: const <String>['#Debrief', '#RiskManagement', '#Journal'],
-      ),
-      LiveAudioRoom(
-        id: 'room_pre_market',
-        title: 'Pre-Market Gameplan: Global Cues & Gift Nifty',
-        topic: 'US Fed commentary, crude oil trends, and morning open levels',
-        host: _priyaSharma,
-        category: 'Macro',
-        status: LiveRoomStatus.scheduled,
-        listenerCount: 0,
-        speakers: const <String>['Priya Sharma', 'Rajesh Patel'],
-        scheduledFor: now.add(const Duration(hours: 18)),
-        isRecording: true,
-        tags: const <String>['#PreMarket', '#Macro', '#Levels'],
-      ),
-    ];
+        LiveAudioRoom(
+          id: 'room_post_expiry',
+          title: 'Post-Expiry Debrief & Journaling',
+          topic:
+              'Analyzing gamma squeezes, mistake reviews, and journaling execution stats',
+          host: _elenaRostova,
+          category: 'Education',
+          status: LiveRoomStatus.scheduled,
+          listenerCount: 0,
+          speakers: const <String>['Elena Rostova', 'Sarah Chen, Quant'],
+          scheduledFor: now.add(const Duration(hours: 4)),
+          isRecording: true,
+          tags: const <String>['#Debrief', '#RiskManagement', '#Journal'],
+        ),
+        LiveAudioRoom(
+          id: 'room_pre_market',
+          title: 'Pre-Market Gameplan: Global Cues & Gift Nifty',
+          topic: 'US Fed commentary, crude oil trends, and morning open levels',
+          host: _priyaSharma,
+          category: 'Macro',
+          status: LiveRoomStatus.scheduled,
+          listenerCount: 0,
+          speakers: const <String>['Priya Sharma', 'Rajesh Patel'],
+          scheduledFor: now.add(const Duration(hours: 18)),
+          isRecording: true,
+          tags: const <String>['#PreMarket', '#Macro', '#Levels'],
+        ),
+      ];
+    } else {
+      _liveRooms = <LiveAudioRoom>[];
+    }
   }
 
   // -------------------------------------------------------------------------

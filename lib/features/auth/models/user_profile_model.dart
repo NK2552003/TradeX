@@ -27,6 +27,11 @@ class UserProfileModel {
     this.riskMantra,
     this.publicJournals = false,
     this.subscriptionTier = 'free',
+    this.followers = 0,
+    this.following = 0,
+    this.postsCount = 0,
+    this.winRate,
+    this.verified = false,
     this.createdAt,
     this.updatedAt,
   });
@@ -52,6 +57,11 @@ class UserProfileModel {
   final String? riskMantra;
   final bool publicJournals;
   final String subscriptionTier;
+  final int followers;
+  final int following;
+  final int postsCount;
+  final double? winRate;
+  final bool verified;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -78,6 +88,15 @@ class UserProfileModel {
       riskMantra: json['risk_mantra'] as String?,
       publicJournals: json['public_journals'] as bool? ?? false,
       subscriptionTier: json['subscription_tier'] as String? ?? 'free',
+      followers: (json['followers_count'] as num?)?.toInt() ??
+          (json['followers'] as num?)?.toInt() ??
+          0,
+      following: (json['following_count'] as num?)?.toInt() ??
+          (json['following'] as num?)?.toInt() ??
+          0,
+      postsCount: (json['posts_count'] as num?)?.toInt() ?? 0,
+      winRate: (json['win_rate'] as num?)?.toDouble(),
+      verified: json['verified'] as bool? ?? false,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String)
           : null,
@@ -110,6 +129,11 @@ class UserProfileModel {
       'risk_mantra': riskMantra,
       'public_journals': publicJournals,
       'subscription_tier': subscriptionTier,
+      'followers_count': followers,
+      'following_count': following,
+      'posts_count': postsCount,
+      'win_rate': winRate,
+      'verified': verified,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
     };
@@ -137,6 +161,11 @@ class UserProfileModel {
     String? riskMantra,
     bool? publicJournals,
     String? subscriptionTier,
+    int? followers,
+    int? following,
+    int? postsCount,
+    double? winRate,
+    bool? verified,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -162,6 +191,11 @@ class UserProfileModel {
       riskMantra: riskMantra ?? this.riskMantra,
       publicJournals: publicJournals ?? this.publicJournals,
       subscriptionTier: subscriptionTier ?? this.subscriptionTier,
+      followers: followers ?? this.followers,
+      following: following ?? this.following,
+      postsCount: postsCount ?? this.postsCount,
+      winRate: winRate ?? this.winRate,
+      verified: verified ?? this.verified,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

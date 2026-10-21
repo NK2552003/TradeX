@@ -1,40 +1,46 @@
 BEGIN;
 
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE affiliate_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE affiliate_referrals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE affiliate_payouts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE device_tokens ENABLE ROW LEVEL SECURITY;
-ALTER TABLE strategies ENABLE ROW LEVEL SECURITY;
-ALTER TABLE strategy_versions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE journal_entries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE journal_entry_links ENABLE ROW LEVEL SECURITY;
-ALTER TABLE watchlists ENABLE ROW LEVEL SECURITY;
-ALTER TABLE watchlist_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE saved_posts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE follows ENABLE ROW LEVEL SECURITY;
-ALTER TABLE likes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ai_insights ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ai_insight_requests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE blocks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE revenuecat_webhook_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE trader_notes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE trader_note_likes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE trader_note_comments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE trader_note_views ENABLE ROW LEVEL SECURITY;
-ALTER TABLE trader_note_attachments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE journal_entry_attachments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE strategy_attachments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE note_journal_links ENABLE ROW LEVEL SECURITY;
-ALTER TABLE post_views ENABLE ROW LEVEL SECURITY;
-ALTER TABLE trader_preferences ENABLE ROW LEVEL SECURITY;
-ALTER TABLE trader_checklists ENABLE ROW LEVEL SECURITY;
+-- Enable Row Level Security idempotently on all application tables
+ALTER TABLE IF EXISTS profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS affiliate_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS affiliate_referrals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS affiliate_payouts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS device_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS strategies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS strategy_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS journal_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS journal_entry_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS watchlists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS watchlist_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS saved_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS follows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS ai_insights ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS ai_insight_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS blocks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS revenuecat_webhook_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS trader_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS trader_note_likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS trader_note_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS trader_note_views ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS trader_note_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS journal_entry_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS strategy_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS note_journal_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS post_views ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS trader_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS trader_checklists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS invoices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS data_export_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS organization_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS desk_risk_policies ENABLE ROW LEVEL SECURITY;
 
 -- Helper function to check if current user is user_admin
 CREATE OR REPLACE FUNCTION is_user_admin()
@@ -75,7 +81,9 @@ CREATE POLICY affiliate_payouts_admin_all ON affiliate_payouts FOR ALL USING (is
 
 -- subscriptions
 DROP POLICY IF EXISTS subscriptions_own_read ON subscriptions;
-CREATE POLICY subscriptions_own_read ON subscriptions FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY subscriptions_own_read ON subscriptions FOR SELECT USING (auth.uid() = user_id OR is_user_admin());
+DROP POLICY IF EXISTS subscriptions_own_write ON subscriptions;
+CREATE POLICY subscriptions_own_write ON subscriptions FOR ALL USING (auth.uid() = user_id OR is_user_admin()) WITH CHECK (auth.uid() = user_id OR is_user_admin());
 
 -- device tokens
 DROP POLICY IF EXISTS device_tokens_own_all ON device_tokens;
@@ -374,6 +382,82 @@ CREATE POLICY trader_preferences_own_all ON trader_preferences FOR ALL USING (au
 DROP POLICY IF EXISTS trader_checklists_own_all ON trader_checklists;
 CREATE POLICY trader_checklists_own_all ON trader_checklists FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+-- invoices
+DROP POLICY IF EXISTS invoices_own_read ON invoices;
+CREATE POLICY invoices_own_read ON invoices FOR SELECT USING (auth.uid() = user_id OR is_user_admin());
+DROP POLICY IF EXISTS invoices_admin_write ON invoices;
+CREATE POLICY invoices_admin_write ON invoices FOR ALL USING (is_user_admin()) WITH CHECK (is_user_admin());
+
+-- data_export_requests
+DROP POLICY IF EXISTS data_export_requests_own_all ON data_export_requests;
+CREATE POLICY data_export_requests_own_all ON data_export_requests FOR ALL USING (auth.uid() = user_id OR is_user_admin()) WITH CHECK (auth.uid() = user_id OR is_user_admin());
+
+-- organizations
+DROP POLICY IF EXISTS organizations_read ON organizations;
+CREATE POLICY organizations_read ON organizations FOR SELECT USING (true);
+DROP POLICY IF EXISTS organizations_owner_all ON organizations;
+CREATE POLICY organizations_owner_all ON organizations FOR ALL USING (auth.uid() = owner_id OR is_user_admin()) WITH CHECK (auth.uid() = owner_id OR is_user_admin());
+
+-- organization_members
+DROP POLICY IF EXISTS organization_members_read ON organization_members;
+CREATE POLICY organization_members_read ON organization_members FOR SELECT USING (true);
+DROP POLICY IF EXISTS organization_members_admin_write ON organization_members;
+CREATE POLICY organization_members_admin_write ON organization_members FOR ALL
+USING (
+  is_user_admin()
+  OR auth.uid() = user_id
+  OR auth.uid() IN (SELECT o.owner_id FROM organizations o WHERE o.id = organization_members.organization_id)
+)
+WITH CHECK (
+  is_user_admin()
+  OR auth.uid() = user_id
+  OR auth.uid() IN (SELECT o.owner_id FROM organizations o WHERE o.id = organization_members.organization_id)
+);
+
+-- desk_risk_policies
+DROP POLICY IF EXISTS desk_risk_policies_read ON desk_risk_policies;
+CREATE POLICY desk_risk_policies_read ON desk_risk_policies FOR SELECT USING (true);
+DROP POLICY IF EXISTS desk_risk_policies_admin_write ON desk_risk_policies;
+CREATE POLICY desk_risk_policies_admin_write ON desk_risk_policies FOR ALL USING (auth.uid() = admin_id OR is_user_admin()) WITH CHECK (auth.uid() = admin_id OR is_user_admin());
+
+-- ============================================================
+-- FINANCIAL REFERENCE & MARKET DATA TABLES (Public Read, Admin Write)
+-- ============================================================
+DO $$
+DECLARE
+  tbl text;
+  market_tables text[] := ARRAY[
+    'tickers',
+    'stock_quotes',
+    'stock_fundamentals',
+    'stock_price_history',
+    'news_articles',
+    'news_article_tickers',
+    'news_topics',
+    'news_article_topics',
+    'screener_categories',
+    'screener_results',
+    'index_metadata',
+    'sector_metadata',
+    'options_expirations',
+    'options_contracts',
+    'dividends',
+    'stock_splits',
+    'analyst_recommendations',
+    'holders'
+  ];
+BEGIN
+  FOREACH tbl IN ARRAY market_tables LOOP
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = tbl) THEN
+      EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', tbl);
+      EXECUTE format('DROP POLICY IF EXISTS %I_public_read ON %I;', tbl, tbl);
+      EXECUTE format('CREATE POLICY %I_public_read ON %I FOR SELECT USING (true);', tbl, tbl);
+      EXECUTE format('DROP POLICY IF EXISTS %I_admin_write ON %I;', tbl, tbl);
+      EXECUTE format('CREATE POLICY %I_admin_write ON %I FOR ALL USING (is_user_admin()) WITH CHECK (is_user_admin());', tbl, tbl);
+    END IF;
+  END LOOP;
+END $$;
+
 COMMIT;
 
 -- ---------------------------------------------------------------------------
@@ -448,6 +532,19 @@ USING (
        AND s.visibility = 'public'
   )
 );
+
+DROP POLICY IF EXISTS community_attachments_owner_all ON storage.objects;
+CREATE POLICY community_attachments_owner_all ON storage.objects
+FOR ALL
+USING (bucket_id = 'community-attachments'
+       AND (storage.foldername(name))[1] = auth.uid()::text)
+WITH CHECK (bucket_id = 'community-attachments'
+       AND (storage.foldername(name))[1] = auth.uid()::text);
+
+DROP POLICY IF EXISTS community_attachments_objects_public_read ON storage.objects;
+CREATE POLICY community_attachments_objects_public_read ON storage.objects
+FOR SELECT
+USING (bucket_id = 'community-attachments');
 
 COMMIT;
 

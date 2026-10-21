@@ -37,6 +37,7 @@ class NotePreviewScreen extends StatefulWidget {
     this.onOpenLink,
     this.onAttachToPost,
     this.canEdit = true,
+    this.isPublicContext = false,
   });
 
   final AppNote note;
@@ -56,6 +57,7 @@ class NotePreviewScreen extends StatefulWidget {
   /// of social-post controls until that feature exists.
   final AppWritingPostAttachmentHandler? onAttachToPost;
   final bool canEdit;
+  final bool isPublicContext;
 
   @override
   State<NotePreviewScreen> createState() => _NotePreviewScreenState();
@@ -145,12 +147,26 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
     }).toList();
   }
 
+  bool get _isPublicViewer =>
+      widget.isPublicContext ||
+      !widget.canEdit ||
+      _note.isPublic;
+
+  void _handleOpenLink(AppLinkRef ref) {
+    if (widget.onOpenLink == null) return;
+    final AppLinkRef target = _isPublicViewer
+        ? ref.copyWith(isPublicContext: true)
+        : ref;
+    widget.onOpenLink!(target);
+  }
+
   /// Everything this note connects to, resolved through the link graph rather
   /// than read out of the note's own id lists: a trade that cites this note is
   /// just as much a link as one this note cites, and only the graph sees both
   /// directions.
-  AppLinkBundle get _bundle =>
-      _note.id.isEmpty ? AppLinkBundle.empty : _graph.bundleForNote(_note);
+  AppLinkBundle get _bundle => _note.id.isEmpty
+      ? AppLinkBundle.empty
+      : _graph.bundleForNote(_note, onlyPublic: _isPublicViewer);
 
   /// Ask for paper size and whether diagrams travel, then export behind a
   /// blocking overlay — rendering flowcharts off-screen takes seconds and an
@@ -488,7 +504,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
             outlineController: _outline,
             imageResolver: NoteAttachments.resolve,
             emptyPlaceholder: 'This note has no body yet.',
-            onOpenRef: widget.onOpenLink,
+            onOpenRef: _handleOpenLink,
           ),
           if (_bundle.isNotEmpty) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.xl)),
@@ -727,7 +743,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
             variant: UiBadgeVariant.outline,
             onTap: widget.onOpenLink == null
                 ? null
-                : () => widget.onOpenLink!(_graph.tickerRef(ticker)),
+                : () => _handleOpenLink(_graph.tickerRef(ticker)),
           ),
         for (final String tag in _note.tags)
           UiBadge(label: '#$tag', variant: UiBadgeVariant.ghost),
@@ -771,7 +787,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           card: false,
           dense: true,
           showEmptyKinds: false,
-          onOpen: widget.onOpenLink,
+          onOpen: _handleOpenLink,
         ),
       ],
     );

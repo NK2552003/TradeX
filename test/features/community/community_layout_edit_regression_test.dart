@@ -105,10 +105,10 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
-  test('ended spaces retain their history and current host identity', () {
+  test('ended spaces retain their history and current host identity', () async {
     final host = repo.suggestedTraders.first;
     repo.currentAuthor = host;
-    final room = repo.createLiveRoom(
+    final room = await repo.createLiveRoom(
       title: 'History session',
       topic: 'Review',
       category: 'Equities',
@@ -127,7 +127,7 @@ void main() {
     tester,
   ) async {
     viewport(tester, 390);
-    final room = repo.createLiveRoom(
+    final room = await repo.createLiveRoom(
       title: 'My completed session',
       topic: 'Review',
       category: 'Equities',

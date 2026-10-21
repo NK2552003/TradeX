@@ -10,6 +10,7 @@ class AuthResult {
     this.profile,
     this.affiliateProfile,
     this.errorCode,
+    this.requiresEmailVerification = false,
   });
 
   final bool isSuccess;
@@ -17,17 +18,20 @@ class AuthResult {
   final UserProfileModel? profile;
   final AffiliateProfileModel? affiliateProfile;
   final String? errorCode;
+  final bool requiresEmailVerification;
 
   factory AuthResult.success({
     required String message,
     required UserProfileModel profile,
     AffiliateProfileModel? affiliateProfile,
+    bool requiresEmailVerification = false,
   }) {
     return AuthResult(
       isSuccess: true,
       message: message,
       profile: profile,
       affiliateProfile: affiliateProfile,
+      requiresEmailVerification: requiresEmailVerification,
     );
   }
 

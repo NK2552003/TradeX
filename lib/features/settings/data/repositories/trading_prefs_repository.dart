@@ -16,32 +16,34 @@ abstract class TradingPrefsRepository {
 }
 
 class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
+  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+
   TradingPrefsModel _prefs = TradingPrefsModel.defaultPrefs();
 
   List<AppChecklistItem> _checklist = <AppChecklistItem>[
     const AppChecklistItem(
-      id: 'chk_1',
+      id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1',
       label: 'Trend alignment verified on higher timeframe (Daily/4H)',
       description: 'Ensure 200 EMA slope agrees with trade direction',
       done: true,
       icon: Icons.trending_up,
     ),
     const AppChecklistItem(
-      id: 'chk_2',
+      id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2',
       label: 'Key support/resistance level identified and tested',
       description: 'Check for volume confluence and liquidity sweep',
       done: true,
       icon: Icons.horizontal_rule,
     ),
     const AppChecklistItem(
-      id: 'chk_3',
+      id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3',
       label: 'Calculated stop-loss and 1:2+ risk-to-reward ratio',
       description: 'Max risk capped at 2% account equity',
       done: false,
       icon: Icons.shield_outlined,
     ),
     const AppChecklistItem(
-      id: 'chk_4',
+      id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb4',
       label: 'High-impact economic news checked (FOMC, CPI, NFP)',
       description:
           'Avoid entering positions within 30 min of red-folder events',
@@ -56,17 +58,17 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final res = await client
-              .from('trader_preferences')
-              .select()
-              .eq('user_id', user.id)
-              .maybeSingle();
+        final targetUserId = user?.id ?? _demoUserId;
 
-          if (res != null) {
-            _prefs = TradingPrefsModel.fromJson(res);
-            return _prefs;
-          }
+        final res = await client
+            .from('trader_preferences')
+            .select()
+            .eq('user_id', targetUserId)
+            .maybeSingle();
+
+        if (res != null) {
+          _prefs = TradingPrefsModel.fromJson(res);
+          return _prefs;
         }
       } catch (e) {
         debugPrint('[TradingPrefsRepository] getPreferences error: $e');
@@ -83,16 +85,16 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final payload = prefs.toJson()..['user_id'] = user.id;
-          final res = await client
-              .from('trader_preferences')
-              .upsert(payload)
-              .select()
-              .single();
+        final targetUserId = user?.id ?? _demoUserId;
 
-          _prefs = TradingPrefsModel.fromJson(res);
-        }
+        final payload = prefs.toJson()..['user_id'] = targetUserId;
+        final res = await client
+            .from('trader_preferences')
+            .upsert(payload)
+            .select()
+            .single();
+
+        _prefs = TradingPrefsModel.fromJson(res);
       } catch (e) {
         debugPrint('[TradingPrefsRepository] updatePreferences error: $e');
       }
@@ -106,27 +108,30 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final res = await client
-              .from('trader_checklists')
-              .select()
-              .eq('user_id', user.id)
-              .order('sort_order', ascending: true);
+        final targetUserId = user?.id ?? _demoUserId;
 
-          if ((res as List).isNotEmpty) {
-            _checklist = (res as List)
-                .map(
-                  (item) => AppChecklistItem(
-                    id: item['id'] as String,
-                    label: item['label'] as String? ?? '',
-                    description: item['description'] as String?,
-                    done: item['done'] as bool? ?? false,
+        final res = await client
+            .from('trader_checklists')
+            .select()
+            .eq('user_id', targetUserId)
+            .order('sort_order', ascending: true);
+
+        if ((res as List).isNotEmpty) {
+          _checklist = (res as List)
+              .map(
+                (item) {
+                  final map = item as Map<String, dynamic>;
+                  return AppChecklistItem(
+                    id: map['id'] as String,
+                    label: map['label'] as String? ?? '',
+                    description: map['description'] as String?,
+                    done: map['done'] as bool? ?? false,
                     icon: Icons.check_box_outlined,
-                  ),
-                )
-                .toList();
-            return List<AppChecklistItem>.from(_checklist);
-          }
+                  );
+                },
+              )
+              .toList();
+          return List<AppChecklistItem>.from(_checklist);
         }
       } catch (e) {
         debugPrint('[TradingPrefsRepository] getChecklist error: $e');
@@ -145,18 +150,18 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          for (int i = 0; i < items.length; i++) {
-            final item = items[i];
-            await client.from('trader_checklists').upsert({
-              'id': item.id.startsWith('chk_') ? null : item.id,
-              'user_id': user.id,
-              'label': item.label,
-              'description': item.description,
-              'done': item.done,
-              'sort_order': i,
-            });
-          }
+        final targetUserId = user?.id ?? _demoUserId;
+
+        for (int i = 0; i < items.length; i++) {
+          final item = items[i];
+          await client.from('trader_checklists').upsert({
+            if (!item.id.startsWith('chk_') && !item.id.startsWith('bbb')) 'id': item.id,
+            'user_id': targetUserId,
+            'label': item.label,
+            'description': item.description,
+            'done': item.done,
+            'sort_order': i,
+          });
         }
       } catch (e) {
         debugPrint('[TradingPrefsRepository] updateChecklist error: $e');
@@ -183,28 +188,28 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        if (user != null) {
-          final res = await client
-              .from('trader_checklists')
-              .insert({
-                'user_id': user.id,
-                'label': label,
-                'description': description,
-                'done': false,
-                'sort_order': _checklist.length - 1,
-              })
-              .select()
-              .single();
+        final targetUserId = user?.id ?? _demoUserId;
 
-          final createdItem = AppChecklistItem(
-            id: res['id'] as String,
-            label: res['label'] as String,
-            description: res['description'] as String?,
-            done: res['done'] as bool? ?? false,
-            icon: Icons.check_box_outline_blank,
-          );
-          _checklist[_checklist.length - 1] = createdItem;
-        }
+        final res = await client
+            .from('trader_checklists')
+            .insert({
+              'user_id': targetUserId,
+              'label': label,
+              'description': description,
+              'done': false,
+              'sort_order': _checklist.length - 1,
+            })
+            .select()
+            .single();
+
+        final createdItem = AppChecklistItem(
+          id: res['id'] as String,
+          label: res['label'] as String,
+          description: res['description'] as String?,
+          done: res['done'] as bool? ?? false,
+          icon: Icons.check_box_outline_blank,
+        );
+        _checklist[_checklist.length - 1] = createdItem;
       } catch (e) {
         debugPrint('[TradingPrefsRepository] addChecklistItem error: $e');
       }
