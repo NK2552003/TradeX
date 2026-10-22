@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
@@ -70,6 +71,17 @@ class _AiInsightsViewState extends State<AiInsightsView> {
   }
 
   Future<void> _handleGenerate() async {
+    if (!_repository.serviceAvailable || _generating) return;
+    if (!CustomerDataPolicy.allowDemo || _repository.usesLiveService) {
+      const prompt =
+          'Help me review trading decisions and risk management. Ask for the inputs you need and distinguish provided observations from assumptions. Do not invent market prices or account activity.';
+      if (widget.onAskPrompt != null) {
+        widget.onAskPrompt!(prompt);
+      } else {
+        _repository.sendPrompt(prompt);
+      }
+      return;
+    }
     setState(() => _generating = true);
     await Future<void>.delayed(const Duration(milliseconds: 600));
     _repository.generateInsight();
@@ -77,8 +89,8 @@ class _AiInsightsViewState extends State<AiInsightsView> {
       setState(() => _generating = false);
       UiToast.show(
         context,
-        title: 'New Insight Generated',
-        message: 'AI analyzed market volume & technical setups',
+        title: 'Demo insight generated',
+        message: 'This sample insight is simulated for the demo.',
         intent: UiIntent.success,
       );
     }
@@ -102,7 +114,9 @@ class _AiInsightsViewState extends State<AiInsightsView> {
                 loading: _generating,
                 onAsk: _handleAsk,
                 onDismiss: _handleDismiss,
-                onGenerate: _handleGenerate,
+                onGenerate: _repository.serviceAvailable
+                    ? _handleGenerate
+                    : null,
               ),
             ),
             const AiSectionHeader(
@@ -123,8 +137,9 @@ class _AiInsightsViewState extends State<AiInsightsView> {
   /// repository already exposes.
   Widget _buildSetupAnalytics(List<AiChartSetup> setups) {
     final UiColors colors = context.uiColors;
-    final int longs =
-        setups.where((s) => s.direction == AiTradeDirection.long).length;
+    final int longs = setups
+        .where((s) => s.direction == AiTradeDirection.long)
+        .length;
     final int shorts = setups.length - longs;
     final double avgConf =
         setups.map((s) => s.confidence).fold<num>(0, (a, b) => a + b) /
@@ -257,10 +272,7 @@ class _AiInsightsViewState extends State<AiInsightsView> {
                     ],
                   ),
                   SizedBox(height: context.sp(context.ui.spacing.xs)),
-                  Text(
-                    'Pattern: ${setup.pattern}',
-                    style: context.uiText.body,
-                  ),
+                  Text('Pattern: ${setup.pattern}', style: context.uiText.body),
                   SizedBox(height: context.sp(context.ui.spacing.xs)),
                   Wrap(
                     alignment: WrapAlignment.spaceBetween,
@@ -352,12 +364,18 @@ class _AiInsightsViewState extends State<AiInsightsView> {
                               UiMenuItem(
                                 label: 'Log Trade',
                                 icon: Icons.menu_book_outlined,
-                                onPressed: () => widget.onCreateFromSetup(setup, AiCreateTarget.journal),
+                                onPressed: () => widget.onCreateFromSetup(
+                                  setup,
+                                  AiCreateTarget.journal,
+                                ),
                               ),
                               UiMenuItem(
                                 label: 'Save as Note',
                                 icon: Icons.sticky_note_2_outlined,
-                                onPressed: () => widget.onCreateFromSetup(setup, AiCreateTarget.note),
+                                onPressed: () => widget.onCreateFromSetup(
+                                  setup,
+                                  AiCreateTarget.note,
+                                ),
                               ),
                             ],
                             child: UiIconButton(

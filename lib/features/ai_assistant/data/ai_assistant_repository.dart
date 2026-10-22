@@ -1,3 +1,6 @@
+import 'package:tradex/core/config/supabase_config.dart';
+import 'package:uuid/uuid.dart';
+import 'ai_chat_transport.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:async';
 import 'dart:math';
@@ -12,16 +15,11 @@ import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/strategies/data/strategies_repository.dart';
 
-/// In-memory state for the AI Assistant feature.
+/// Conversation state for authenticated streaming and explicit demo previews.
 ///
-/// A plain [ChangeNotifier] (no external state package): views `addListener` /
-/// `removeListener` → `setState`, exactly like the community and messages
-/// repositories. All content comes from [AiSeedData]; nothing is hardcoded in
-/// the widgets.
-///
-/// The copilot's replies are simulated with a staged [Timer] delay so the UX
-/// matches a streaming assistant while staying backend-ready — every mutation
-/// that would hit a server is marked with `/// @backend`.
+/// A plain [ChangeNotifier] shared by the main chat and feature overlays.
+/// Configured accounts stream through [AiChatTransport]. Seed data and staged
+/// demo replies are available only in the explicit preview/test mode.
 ///
 /// **Create-from-AI** routes through the real feature repositories so a
 /// generated record actually lands in Notes / Journal / Strategies (via their
@@ -33,12 +31,21 @@ class AiAssistantRepository extends ChangeNotifier {
   AiAssistantRepository({
     CommunityRepository? communityRepository,
     List<AiThread>? seedThreads,
-  }) : _community = communityRepository,
+    AiChatTransport? transport,
+    String? Function()? actorId,
+  }) : _identity =
+           actorId ?? (() => SupabaseConfig.client?.auth.currentUser?.id),
+       _transport = transport ?? HttpAiChatTransport(),
+       _community = communityRepository,
        _threads =
            seedThreads ??
            (CustomerDataPolicy.allowDemo
                ? AiSeedData.threads()
                : <AiThread>[]) {
+    _actorId = _identity();
+    _authSubscription = SupabaseConfig.client?.auth.onAuthStateChange.listen(
+      (_) => _ensureActor(),
+    );
     _threads.sort(_threadOrder);
     if (_threads.isEmpty) _threads.add(_blankThread(AiPersona.swing));
     _activeThreadId = _threads.first.id;
@@ -48,8 +55,36 @@ class AiAssistantRepository extends ChangeNotifier {
   }
 
   /// Injected so AI-created community posts land in the real feed. When null,
-  /// the post target is unavailable (silently skipped).
+  /// publishing a post fails explicitly.
   final CommunityRepository? _community;
+  final AiChatTransport _transport;
+  final String? Function() _identity;
+  String? _actorId;
+  StreamSubscription<dynamic>? _authSubscription;
+
+  void _ensureActor() {
+    final actor = _identity();
+    if (actor == _actorId) return;
+    _actorId = actor;
+    _transport.cancel();
+    _replyTimer?.cancel();
+    _replySeq++;
+    _generating = false;
+    _generationError = null;
+    _threads
+      ..clear()
+      ..add(_blankThread(AiPersona.swing));
+    _activeThreadId = _threads.first.id;
+    _actions.clear();
+    _insights.clear();
+    scheduleMicrotask(_notify);
+  }
+
+  String? _generationError;
+  bool get serviceAvailable =>
+      _transport.available || CustomerDataPolicy.allowDemo;
+  String? get generationError => _generationError;
+  bool get usesLiveService => _transport.available;
 
   final List<AiThread> _threads;
   late final List<AppAiInsight> _insights;
@@ -72,12 +107,18 @@ class AiAssistantRepository extends ChangeNotifier {
   // -------------------------------------------------------------------------
 
   /// Threads ordered pinned-first, then most-recently updated.
-  List<AiThread> get threads => List<AiThread>.unmodifiable(_threads);
+  List<AiThread> get threads {
+    _ensureActor();
+    return List<AiThread>.unmodifiable(_threads);
+  }
 
-  AiThread get activeThread => _threads.firstWhere(
-    (AiThread t) => t.id == _activeThreadId,
-    orElse: () => _threads.first,
-  );
+  AiThread get activeThread {
+    _ensureActor();
+    return _threads.firstWhere(
+      (AiThread t) => t.id == _activeThreadId,
+      orElse: () => _threads.first,
+    );
+  }
 
   String get activeThreadId => _activeThreadId;
 
@@ -104,6 +145,7 @@ class AiAssistantRepository extends ChangeNotifier {
   }
 
   void generateInsight() {
+    if (!CustomerDataPolicy.allowDemo) return;
     final List<String> symbols = <String>[
       'NVDA',
       'TSLA',
@@ -133,6 +175,7 @@ class AiAssistantRepository extends ChangeNotifier {
   }
 
   AiChartSetup? setupById(String id) {
+    if (!CustomerDataPolicy.allowDemo) return null;
     for (final AiChartSetup s in AiSeedData.chartSetups()) {
       if (s.id == id) return s;
     }
@@ -149,6 +192,7 @@ class AiAssistantRepository extends ChangeNotifier {
       if (m.role == AppAiRole.assistant) {
         final List<AiSuggestedAction>? recorded = _actions[m.id];
         if (recorded != null) return recorded;
+        if (!CustomerDataPolicy.allowDemo) return const <AiSuggestedAction>[];
         // Derive lazily for seeded threads from the preceding user turn.
         final String? userText = _precedingUserText(msgs, i);
         final List<AiSuggestedAction> derived = userText == null
@@ -168,18 +212,14 @@ class AiAssistantRepository extends ChangeNotifier {
   void selectThread(String id) {
     if (_activeThreadId == id) return;
     if (!_threads.any((AiThread t) => t.id == id)) return;
-    _replyTimer?.cancel();
-    _replySeq++;
-    _generating = false;
+    stop();
     _activeThreadId = id;
     _notify();
   }
 
   /// Starts a fresh conversation and makes it active.
   AiThread newThread({AiPersona persona = AiPersona.swing}) {
-    _replyTimer?.cancel();
-    _replySeq++;
-    _generating = false;
+    stop();
     final AiThread t = _blankThread(persona);
     _threads.insert(0, t);
     _activeThreadId = t.id;
@@ -215,6 +255,7 @@ class AiAssistantRepository extends ChangeNotifier {
   void deleteThread(String id) {
     final int idx = _threads.indexWhere((AiThread t) => t.id == id);
     if (idx < 0) return;
+    if (_activeThreadId == id) stop();
     _threads.removeAt(idx);
     if (_threads.isEmpty) _threads.add(_blankThread(AiPersona.swing));
     if (_activeThreadId == id) {
@@ -226,6 +267,7 @@ class AiAssistantRepository extends ChangeNotifier {
 
   /// Clears all messages in the active thread.
   void clearActiveThread() {
+    stop();
     final AiThread t = activeThread;
     _replace(t.copyWith(messages: const <AppAiMessage>[]));
     _notify();
@@ -239,7 +281,9 @@ class AiAssistantRepository extends ChangeNotifier {
   ///
   /// @backend POST /ai/threads/{id}/messages — stream the assistant response.
   void sendPrompt(String rawText, {AiPersona? persona}) {
-    if (!CustomerDataPolicy.allowDemo) return;
+    _ensureActor();
+    if (!serviceAvailable || _generating) return;
+    _generationError = null;
     final String text = rawText.trim();
     if (text.isEmpty) return;
 
@@ -280,6 +324,7 @@ class AiAssistantRepository extends ChangeNotifier {
 
   /// Stops the in-flight generation and drops the pending bubble.
   void stop() {
+    _transport.cancel();
     _replyTimer?.cancel();
     _replySeq++;
     final AiThread thread = activeThread;
@@ -287,7 +332,18 @@ class AiAssistantRepository extends ChangeNotifier {
       _replace(
         thread.copyWith(
           messages: thread.messages
-              .where((AppAiMessage m) => !m.pending)
+              .where((AppAiMessage m) => !m.pending || m.body.isNotEmpty)
+              .map(
+                (m) => m.pending
+                    ? AppAiMessage(
+                        id: m.id,
+                        role: m.role,
+                        body: m.body,
+                        sentAt: m.sentAt,
+                        error: 'Response stopped. You can retry.',
+                      )
+                    : m,
+              )
               .toList(growable: false),
         ),
       );
@@ -303,7 +359,9 @@ class AiAssistantRepository extends ChangeNotifier {
   ///
   /// @backend POST /ai/messages/{id}/regenerate
   void regenerate(AppAiMessage assistantMessage) {
-    if (!CustomerDataPolicy.allowDemo) return;
+    _ensureActor();
+    if (!serviceAvailable || _generating) return;
+    _generationError = null;
     if (assistantMessage.role != AppAiRole.assistant) return;
     final AiThread thread = activeThread;
     final int idx = thread.messages.indexWhere(
@@ -338,12 +396,90 @@ class AiAssistantRepository extends ChangeNotifier {
     _scheduleReply(thread.id, pendingId, userText, thread.persona);
   }
 
+  Future<void> _streamReply(
+    String threadId,
+    String pendingId,
+    AiPersona persona,
+  ) async {
+    final seq = ++_replySeq;
+    var body = '';
+    try {
+      final thread = _threads.firstWhere((t) => t.id == threadId);
+      await for (final delta in _transport.stream(
+        threadId: threadId,
+        persona: persona.name,
+        messages: thread.messages,
+      )) {
+        _ensureActor();
+        if (_disposed || seq != _replySeq) return;
+        if (body.length + delta.length > 200000) {
+          throw StateError(
+            'The response is too long. Your partial answer has been kept.',
+          );
+        }
+        body += delta;
+        _updateStreamMessage(threadId, pendingId, body, pending: true);
+      }
+      if (_disposed || seq != _replySeq) return;
+      if (body.trim().isEmpty) {
+        throw StateError(
+          'The assistant returned an empty response. Please retry.',
+        );
+      }
+      _updateStreamMessage(threadId, pendingId, body);
+    } catch (error) {
+      if (_disposed || seq != _replySeq) return;
+      _generationError = '$error'.replaceFirst('Bad state: ', '');
+      _updateStreamMessage(threadId, pendingId, body, error: _generationError);
+    } finally {
+      if (!_disposed && seq == _replySeq) {
+        _generating = false;
+        _notify();
+      }
+    }
+  }
+
+  void _updateStreamMessage(
+    String threadId,
+    String pendingId,
+    String body, {
+    bool pending = false,
+    String? error,
+  }) {
+    final index = _threads.indexWhere((t) => t.id == threadId);
+    if (index < 0) return;
+    final thread = _threads[index];
+    _threads[index] = thread.copyWith(
+      messages: [
+        for (final message in thread.messages)
+          if (message.id == pendingId)
+            AppAiMessage(
+              id: message.id,
+              role: message.role,
+              body: body,
+              pending: pending,
+              error: error,
+              sentAt: message.sentAt,
+            )
+          else
+            message,
+      ],
+      updatedAt: DateTime.now(),
+    );
+    _actions[pendingId] = const [];
+    _notify();
+  }
+
   void _scheduleReply(
     String threadId,
     String pendingId,
     String userText,
     AiPersona persona,
   ) {
+    if (usesLiveService) {
+      unawaited(_streamReply(threadId, pendingId, persona));
+      return;
+    }
     _replyTimer?.cancel();
     final int seq = ++_replySeq;
     _replyTimer = Timer(const Duration(milliseconds: 1150), () {
@@ -577,7 +713,7 @@ class AiAssistantRepository extends ChangeNotifier {
                 )
               : null);
 
-    community.createPost(
+    await community.createPost(
       body: draft.body,
       author: community.currentAuthor,
       tickers: draft.tickers,
@@ -729,7 +865,7 @@ class AiAssistantRepository extends ChangeNotifier {
   }
 
   AiThread _blankThread(AiPersona persona) => AiThread(
-    id: 'thread_${DateTime.now().microsecondsSinceEpoch}',
+    id: const Uuid().v4(),
     title: 'New chat',
     persona: persona,
     messages: const <AppAiMessage>[],
@@ -796,6 +932,9 @@ class AiAssistantRepository extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _transport.cancel();
+    _authSubscription?.cancel();
+    _replySeq++;
     _replyTimer?.cancel();
     super.dispose();
   }

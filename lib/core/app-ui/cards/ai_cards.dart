@@ -84,7 +84,7 @@ class AppAiMessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          if (message.pending)
+          if (message.pending && message.body.isEmpty)
             const UiTypingIndicator(label: 'Thinking…')
           else if (mine)
             _buildUserMessageText(context, theme)

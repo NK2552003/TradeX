@@ -158,9 +158,11 @@ class _AiChatViewState extends State<AiChatView> {
       child: Column(
         children: [
           UiBadge(
-            label: CustomerDataPolicy.allowDemo
+            label: CustomerDataPolicy.allowDemo && !_repository.usesLiveService
                 ? 'Demo assistant · Responses are simulated'
-                : 'Assistant service unavailable',
+                : (_repository.serviceAvailable
+                      ? 'Connected assistant service'
+                      : 'Assistant service unavailable'),
             intent: UiIntent.info,
           ),
           // Header area
@@ -370,12 +372,15 @@ class _AiChatViewState extends State<AiChatView> {
           Expanded(
             child: UiInput(
               controller: _emptyComposerController,
+              enabled: _repository.serviceAvailable && !_repository.generating,
               hintText: 'Message your AI trading coach…',
               maxLines: 4,
               minLines: 1,
               onSubmitted: (text) {
                 final trimmed = text.trim();
-                if (trimmed.isNotEmpty) {
+                if (trimmed.isNotEmpty &&
+                    _repository.serviceAvailable &&
+                    !_repository.generating) {
                   _emptyComposerController.clear();
                   _repository.sendPrompt(trimmed);
                 }
@@ -390,7 +395,9 @@ class _AiChatViewState extends State<AiChatView> {
             tooltip: 'Send',
             onPressed: () {
               final trimmed = _emptyComposerController.text.trim();
-              if (trimmed.isNotEmpty) {
+              if (trimmed.isNotEmpty &&
+                  _repository.serviceAvailable &&
+                  !_repository.generating) {
                 _emptyComposerController.clear();
                 _repository.sendPrompt(trimmed);
               }
@@ -406,7 +413,7 @@ class _AiChatViewState extends State<AiChatView> {
     bool generating,
     List<AiSuggestedAction> actions,
   ) {
-    if (!CustomerDataPolicy.allowDemo) {
+    if (!_repository.serviceAvailable) {
       return const UiEmptyState(
         title: 'Assistant service unavailable',
         message:

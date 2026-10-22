@@ -73,6 +73,39 @@ class _WatchlistsPageState extends State<WatchlistsPage> {
     if (added == true && mounted) await _loadWatchlist();
   }
 
+  final Set<String> _removing = {};
+
+  Future<void> _removeTicker(AppTicker ticker) async {
+    if (_removing.contains(ticker.symbol)) return;
+    final accepted = await UiDialog.confirm(
+      context,
+      title: 'Remove ${ticker.symbol}?',
+      description:
+          'Remove this symbol from all your watchlists. You can add it again at any time.',
+      confirmLabel: 'Remove',
+    );
+    if (!accepted || !mounted) return;
+    _removing.add(ticker.symbol);
+    try {
+      final lists = await _repo.getWatchlists();
+      for (final name in lists) {
+        await _repo.removeTickerFromWatchlist(name, ticker.symbol);
+      }
+    } catch (_) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Could not remove from every watchlist',
+          message:
+              'The list will refresh. Retry to remove any remaining entries.',
+        );
+      }
+    } finally {
+      _removing.remove(ticker.symbol);
+      if (mounted) await _loadWatchlist();
+    }
+  }
+
   Future<void> _openTicker(AppTicker ticker) async {
     if (widget.onTickerTap != null) {
       widget.onTickerTap!(ticker);
@@ -148,6 +181,7 @@ class _WatchlistsPageState extends State<WatchlistsPage> {
               AppWatchlistBlock(
                 tickers: _tickers,
                 onTickerTap: _openTicker,
+                onRemove: _removeTicker,
                 onAdd: _addSymbol,
               ),
             UiGap.v(context.sp(theme.spacing.xl)),

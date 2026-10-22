@@ -944,6 +944,15 @@ class _AppScaffoldState extends State<AppScaffold> {
       onOpenThread: _openMessagesThread,
       onStartDirectMessage: _startDirectMessage,
       initialTabIndex: initialTabIndex,
+      onTabChanged: (index) => _go(
+        const [
+          'community_feed',
+          'community_explore',
+          'community_network',
+          'community_profile',
+          'community_bookmarks',
+        ][index],
+      ),
       onOpenRecord: _communityRecordOpened,
       repository: _communityRepo,
       searchQuery: _communityQuery,

@@ -1,3 +1,4 @@
+import 'core/navigation/feature_location_scope.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradex/core/navigation/customer_routes.dart';
@@ -53,35 +54,48 @@ class _TradeXAppState extends State<TradeXApp> {
       final preview = state.uri.queryParameters['preview'];
       return target
           .replace(
-            queryParameters: {...target.queryParameters, 'preview': ?preview},
+            queryParameters: {
+              ...target.queryParameters,
+              if (target.path.startsWith('/auth/'))
+                'next': state.uri.path.startsWith('/auth/')
+                    ? state.uri.queryParameters['next'] ?? '/workspace'
+                    : state.uri.toString(),
+              'preview': ?preview,
+            },
           )
           .toString();
     }
 
     return NoTransitionPage(
       key: const ValueKey('customer-auth-shell'),
-      child: AuthWrapper(
-        initialStage: route.stage,
-        initialDestination: route.destination,
-        openRequest: route.request,
-        onDestinationChanged: (destination) =>
-            _router.go(location(Uri(path: '/$destination'))),
-        onOpenRecord: (ref) =>
-            _router.go(location(CustomerRoute.forRecord(ref))),
-        onStageChanged: (stage) {
-          final String? path = switch (stage) {
-            AuthStage.login => '/auth/login',
-            AuthStage.signup => '/auth/signup',
-            AuthStage.forgotPassword => '/auth/forgot-password',
-            AuthStage.onboarding => '/',
-            AuthStage.authenticated when state.uri.path.startsWith('/auth/') =>
-              '/workspace',
-            _ => null,
-          };
-          if (path != null && path != state.uri.path) {
-            _router.go(location(Uri(path: path)));
-          }
-        },
+      child: FeatureLocationScope(
+        location: state.uri,
+        onNavigate: (target) => _router.go(location(target)),
+        child: AuthWrapper(
+          initialStage: route.stage,
+          initialDestination: route.destination,
+          openRequest: route.request,
+          onDestinationChanged: (destination) =>
+              _router.go(location(Uri(path: '/$destination'))),
+          onOpenRecord: (ref) =>
+              _router.go(location(CustomerRoute.forRecord(ref))),
+          onStageChanged: (stage) {
+            final String? path = switch (stage) {
+              AuthStage.login => '/auth/login',
+              AuthStage.signup => '/auth/signup',
+              AuthStage.forgotPassword => '/auth/forgot-password',
+              AuthStage.onboarding => '/',
+              AuthStage.authenticated
+                  when state.uri.path.startsWith('/auth/') =>
+                CustomerRoute.afterAuthentication(state.uri)?.$1.toString() ??
+                    '/workspace',
+              _ => null,
+            };
+            if (path != null && path != state.uri.path) {
+              _router.go(location(Uri.parse(path)));
+            }
+          },
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:tradex/core/navigation/feature_location_scope.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -43,7 +44,7 @@ class AiAssistantRootScreen extends StatefulWidget {
   final UserRole userRole;
   final AppTrader? currentUser;
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
-      onSubpageChanged;
+  onSubpageChanged;
 
   /// Opens a created Writing-Desk record in its home feature. Supplied by shell.
   final void Function(AppLinkRef ref)? onOpenRef;
@@ -56,7 +57,7 @@ class AiAssistantRootScreen extends StatefulWidget {
 
   /// True when embedded inside AppShell (avoids duplicate chrome on mobile).
   final bool embedInScaffold;
-  
+
   /// Link request to open a specific item.
   final AppLinkOpenRequest? openRequest;
 
@@ -89,10 +90,47 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
     _repo = widget.repository ?? AiAssistantRepository();
     _searchQuery = widget.searchQuery ?? '';
     _repo.addListener(_onRepo);
-    
+
     if (widget.openRequest != null) {
       _applyRequest(widget.openRequest!);
     }
+  }
+
+  static const _routeTabs = ['chat', 'insights', 'create'];
+  static const _routePanels = ['insights', 'create'];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = FeatureLocationScope.maybeOf(context);
+    final tab = route?.selection('ai_copilot', _routeTabs);
+    final panel = route?.selection(
+      'ai_copilot',
+      _routePanels,
+      parameter: 'panel',
+    );
+    if (tab != null) {
+      _mobileTab = tab;
+      _wideTab = tab;
+    }
+    if (panel != null) _sideTab = panel;
+  }
+
+  void _selectMainTab(int tab) {
+    setState(() {
+      _mobileTab = tab;
+      _wideTab = tab;
+    });
+    FeatureLocationScope.maybeOf(
+      context,
+    )?.select('ai_copilot', _routeTabs[tab]);
+  }
+
+  void _selectSidePanel(int tab) {
+    setState(() => _sideTab = tab);
+    FeatureLocationScope.maybeOf(
+      context,
+    )?.select('ai_copilot', _routePanels[tab], parameter: 'panel');
   }
 
   @override
@@ -102,22 +140,27 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
         widget.searchQuery != null) {
       _searchQuery = widget.searchQuery!;
     }
-    
-    if (widget.openRequest != null && widget.openRequest != oldWidget.openRequest) {
+
+    if (widget.openRequest != null &&
+        widget.openRequest != oldWidget.openRequest) {
       _applyRequest(widget.openRequest!);
     }
     _notifySubpage();
   }
-  
+
   void _notifySubpage() {
     if (!mounted) return;
     if (_isMobile && _mobilePanel == _MobilePanel.history) {
-      widget.onSubpageChanged?.call("History", Icons.history_rounded, _closePanel);
+      widget.onSubpageChanged?.call(
+        "History",
+        Icons.history_rounded,
+        _closePanel,
+      );
     } else {
       widget.onSubpageChanged?.call(null, null, null);
     }
   }
-  
+
   void _applyRequest(AppLinkOpenRequest request) {
     final String targetId = request.id;
     if (_repo.threads.any((t) => t.id == targetId)) {
@@ -190,7 +233,10 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
     }
   }
 
-  Future<void> _openCreateSheet(AiCreateTarget target, {AiChartSetup? setup}) async {
+  Future<void> _openCreateSheet(
+    AiCreateTarget target, {
+    AiChartSetup? setup,
+  }) async {
     await AiCreateSheet.show(
       context,
       repository: _repo,
@@ -211,8 +257,9 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
 
   void _handleCreateFromChat(AiSuggestedAction action) {
     if (action.target == AiCreateTarget.chartAnalysis) {
-      final AiChartSetup? setup =
-          action.setupId != null ? _repo.setupById(action.setupId!) : null;
+      final AiChartSetup? setup = action.setupId != null
+          ? _repo.setupById(action.setupId!)
+          : null;
       if (setup != null) {
         _openChartAnalysis(setup);
       } else {
@@ -298,11 +345,19 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
           ),
           child: UiToggleGroup<int>(
             value: _mobileTab,
-            onChanged: (int tab) => setState(() => _mobileTab = tab),
+            onChanged: _selectMainTab,
             options: <UiOption<int>>[
               UiOption<int>(label: 'Chat', value: 0, icon: Icons.chat_outlined),
-              UiOption<int>(label: 'Insights', value: 1, icon: Icons.insights_outlined),
-              UiOption<int>(label: 'Create', value: 2, icon: Icons.add_circle_outline),
+              UiOption<int>(
+                label: 'Insights',
+                value: 1,
+                icon: Icons.insights_outlined,
+              ),
+              UiOption<int>(
+                label: 'Create',
+                value: 2,
+                icon: Icons.add_circle_outline,
+              ),
             ],
           ),
         ),
@@ -326,7 +381,7 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
             context,
             const <String>['Chat', 'Insights', 'Create'],
             _wideTab,
-            (int i) => setState(() => _wideTab = i),
+            _selectMainTab,
           ),
           Expanded(child: _wideTabContent(context)),
         ],
@@ -391,7 +446,7 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
           context,
           const <String>['Insights', 'Create'],
           _sideTab,
-          (int i) => setState(() => _sideTab = i),
+          _selectSidePanel,
         ),
         Expanded(
           child: _sideTab == 0 ? _insightsView(context) : _createView(context),
@@ -438,7 +493,7 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
       _handleCreateTarget(target);
     } else if (prompt != null) {
       _repo.sendPrompt(prompt);
-      if (_isMobile) setState(() => _mobileTab = 0);
+      _selectMainTab(0);
     }
   }
 

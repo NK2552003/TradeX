@@ -14,6 +14,7 @@ class AppWatchlistBlock extends StatelessWidget {
     required this.tickers,
     this.onTickerTap,
     this.onFavorite,
+    this.onRemove,
     this.onAdd,
     this.loading = false,
   });
@@ -21,6 +22,7 @@ class AppWatchlistBlock extends StatelessWidget {
   final List<AppTicker> tickers;
   final ValueChanged<AppTicker>? onTickerTap;
   final ValueChanged<AppTicker>? onFavorite;
+  final ValueChanged<AppTicker>? onRemove;
   final VoidCallback? onAdd;
   final bool loading;
 
@@ -62,6 +64,7 @@ class AppWatchlistBlock extends StatelessWidget {
               onTap: onTickerTap == null
                   ? null
                   : () => onTickerTap!(tickers[i]),
+              onRemove: onRemove == null ? null : () => onRemove!(tickers[i]),
               onFavorite: onFavorite == null
                   ? null
                   : () => onFavorite!(tickers[i]),

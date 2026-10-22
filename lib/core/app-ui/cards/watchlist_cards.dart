@@ -12,6 +12,7 @@ class AppTickerCard extends StatelessWidget {
     required this.ticker,
     this.onTap,
     this.onFavorite,
+    this.onRemove,
     this.dense = false,
     this.selected = false,
     this.loading = false,
@@ -20,6 +21,7 @@ class AppTickerCard extends StatelessWidget {
   final AppTicker ticker;
   final VoidCallback? onTap;
   final VoidCallback? onFavorite;
+  final VoidCallback? onRemove;
   final bool dense;
 
   /// Highlights the card as the active/selected watchlist row.
@@ -63,6 +65,13 @@ class AppTickerCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (onRemove != null)
+                  UiIconButton(
+                    icon: Icons.remove_circle_outline,
+                    tooltip: 'Remove ${ticker.symbol} from watchlists',
+                    size: UiSize.sm,
+                    onPressed: onRemove,
+                  ),
                 if (onFavorite != null)
                   UiIconButton(
                     icon: ticker.isFavorite ? Icons.star : Icons.star_border,

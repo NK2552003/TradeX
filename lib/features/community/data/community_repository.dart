@@ -108,8 +108,16 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
+  String? refreshError;
+
   Future<void> fetchFromSupabase() async {
-    if (!SupabaseConfig.isConfigured) return;
+    refreshError = null;
+    if (!SupabaseConfig.isConfigured) {
+      if (!CustomerDataPolicy.allowDemo) {
+        refreshError = 'Sign in to refresh community posts.';
+      }
+      return;
+    }
     try {
       final client = SupabaseConfig.client!;
       final targetUserId = _resolveUserId();
@@ -322,6 +330,9 @@ class CommunityRepository extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
+      refreshError =
+          'Could not refresh community posts. Existing posts have been kept.';
+      if (!_disposed) notifyListeners();
       debugPrint('[CommunityRepository] fetchFromSupabase error: $e');
     }
   }

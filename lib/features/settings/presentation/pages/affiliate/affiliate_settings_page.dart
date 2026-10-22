@@ -108,7 +108,7 @@ class _AffiliateSettingsPageState extends State<AffiliateSettingsPage> {
           context,
           title: 'Payout Preferences Saved',
           message:
-              'Your partner payouts will be sent to ${_payoutAccountController.text.trim()}.',
+              'Your payout preferences have been saved. Transfers depend on the available payout service.',
           intent: UiIntent.success,
         );
       }

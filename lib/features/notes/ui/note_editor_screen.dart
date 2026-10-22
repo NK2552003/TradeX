@@ -105,6 +105,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   /// Debounced copy of the body, so the split-pane preview re-parses a few times
   /// a second instead of on every character.
   final ValueNotifier<String> _preview = ValueNotifier<String>('');
+  int _cachedWordCount = 0;
+  static final RegExp _wordPattern = RegExp(r'\S+');
 
   /// The live `/query`, or null when the palette is closed.
   final ValueNotifier<String?> _slash = ValueNotifier<String?>(null);
@@ -141,6 +143,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     _title.text = _note.title;
     _body.text = _note.content;
     _preview.value = _note.content;
+    _cachedWordCount = _wordPattern.allMatches(_note.content).length;
     _type = _note.noteType;
     _tags = List<String>.of(_note.tags);
     _tickers = List<String>.of(_note.linkedTickers);
@@ -188,7 +191,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     if (tracked != _selection.value) _selection.value = tracked;
     _previewDebounce?.cancel();
     _previewDebounce = Timer(const Duration(milliseconds: 320), () {
-      if (mounted) _preview.value = _body.text;
+      if (mounted) {
+        _cachedWordCount = _wordPattern.allMatches(_body.text).length;
+        _preview.value = _body.text;
+        _bumpRevision();
+      }
     });
   }
 
@@ -206,10 +213,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   bool get _isBlank => _title.text.trim().isEmpty && _body.text.trim().isEmpty;
 
-  int get _wordCount => _body.text
-      .split(RegExp(r'\s+'))
-      .where((String w) => w.trim().isNotEmpty)
-      .length;
+  int get _wordCount => _cachedWordCount;
 
   /// What the note is called in the list. An untitled note takes its name from
   /// its first heading or first line — the same trick Obsidian and Notes use, so

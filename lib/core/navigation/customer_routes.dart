@@ -40,7 +40,11 @@ class CustomerRoute {
       };
       return stage == null
           ? const CustomerRoute(valid: false)
-          : CustomerRoute(stage: stage);
+          : CustomerRoute(
+              stage: stage,
+              destination: afterAuthentication(uri)?.$2.destination,
+              request: afterAuthentication(uri)?.$2.request,
+            );
     }
     if (segments.length == 3 &&
         segments[0] == 'community' &&
@@ -66,6 +70,26 @@ class CustomerRoute {
       if (known) return CustomerRoute(destination: destination);
     }
     return const CustomerRoute(valid: false);
+  }
+
+  /// Accept only known local destinations; never redirect to an external URL.
+  static (Uri, CustomerRoute)? afterAuthentication(Uri uri) {
+    final next = uri.queryParameters['next'];
+    if (next == null ||
+        !next.startsWith('/') ||
+        next.startsWith('//') ||
+        next.contains('\\')) {
+      return null;
+    }
+    final target = Uri.tryParse(next);
+    if (target == null ||
+        target.hasScheme ||
+        target.hasAuthority ||
+        target.path.startsWith('/auth/')) {
+      return null;
+    }
+    final route = parse(target);
+    return route.valid && route.destination != null ? (target, route) : null;
   }
 
   static CustomerRoute _record(AppLinkKind kind, String id, Uri uri) =>

@@ -1,3 +1,4 @@
+import 'package:tradex/core/navigation/feature_location_scope.dart';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
@@ -60,18 +61,63 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   void initState() {
     super.initState();
     _subTabController = TabController(length: _subTabs.length, vsync: this);
+    _subTabController.addListener(_routeSubTab);
     widget.repository.addListener(_onDataChanged);
+  }
+
+  static const _routeTabs = [
+    'for-you',
+    'live',
+    'following',
+    'signals',
+    'news',
+    'crypto',
+    'equities',
+  ];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final index = FeatureLocationScope.maybeOf(
+      context,
+    )?.selection('community_feed', _routeTabs);
+    if (index != null && index != _subTabController.index) {
+      _subTabController.index = index;
+    }
+  }
+
+  void _routeSubTab() {
+    if (!mounted || _subTabController.indexIsChanging) return;
+    final route = FeatureLocationScope.maybeOf(context);
+    final selected = route?.selection('community_feed', _routeTabs);
+    if (route != null &&
+        selected != null &&
+        selected != _subTabController.index) {
+      route.select('community_feed', _routeTabs[_subTabController.index]);
+    }
   }
 
   @override
   void dispose() {
     _forYouScrollController.dispose();
+    _subTabController.removeListener(_routeSubTab);
     _subTabController.dispose();
     widget.repository.removeListener(_onDataChanged);
     super.dispose();
   }
 
   void _onDataChanged() => setState(() {});
+
+  Future<void> _refresh() async {
+    await widget.repository.fetchFromSupabase();
+    if (mounted && widget.repository.refreshError != null) {
+      UiToast.error(
+        context,
+        title: 'Refresh failed',
+        message: widget.repository.refreshError!,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +127,12 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        if (widget.repository.refreshError != null)
+          UiCallout(
+            title: 'Community could not refresh',
+            message: widget.repository.refreshError!,
+            intent: UiIntent.warning,
+          ),
         // Full width top bar tab toggle spanning across the centered panel
         _buildTopBar(context, theme, isMobile),
 
@@ -387,7 +439,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       onAuthorTap: widget.onAuthorTap,
       onOpenRef: widget.onOpenRef,
       onTagTap: widget.onTagTap,
-      onRefresh: widget.repository.fetchFromSupabase,
+      onRefresh: _refresh,
     );
 
     final Widget content = Stack(
@@ -636,7 +688,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
           onTagTap: widget.onTagTap,
-          onRefresh: widget.repository.fetchFromSupabase,
+          onRefresh: _refresh,
           emptyState: const CommunityEmptyState(
             icon: Icons.person_add_outlined,
             title: 'No posts yet',
@@ -679,7 +731,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
           onTagTap: widget.onTagTap,
-          onRefresh: widget.repository.fetchFromSupabase,
+          onRefresh: _refresh,
           emptyState: const CommunityEmptyState(
             icon: Icons.candlestick_chart_rounded,
             title: 'No trade signals found',
@@ -825,7 +877,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
           onTagTap: widget.onTagTap,
-          onRefresh: widget.repository.fetchFromSupabase,
+          onRefresh: _refresh,
           emptyState: const CommunityEmptyState(
             icon: Icons.currency_bitcoin_rounded,
             title: 'No crypto setups found',
@@ -872,7 +924,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
           onTagTap: widget.onTagTap,
-          onRefresh: widget.repository.fetchFromSupabase,
+          onRefresh: _refresh,
           emptyState: const CommunityEmptyState(
             icon: Icons.show_chart_rounded,
             title: 'No equities setups found',

@@ -4,6 +4,40 @@ import 'package:tradex/core/navigation/customer_routes.dart';
 import 'package:tradex/features/auth/models/auth_state.dart';
 
 void main() {
+  test('login retains a validated shared-record return route', () {
+    final uri = Uri(
+      path: '/auth/login',
+      queryParameters: {'next': '/notes/source-note?public=true'},
+    );
+    final route = CustomerRoute.parse(uri);
+    expect(route.stage, AuthStage.login);
+    expect(route.destination, 'notes');
+    expect(route.request!.id, 'source-note');
+    expect(route.request!.publicContext, isTrue);
+    expect(
+      CustomerRoute.afterAuthentication(uri)!.$1.toString(),
+      '/notes/source-note?public=true',
+    );
+  });
+  test(
+    'auth return routes reject external, unknown and recursive auth targets',
+    () {
+      for (final next in [
+        'https://example.com',
+        '//example.com',
+        '/unknown-page',
+        '/auth/login?next=/workspace',
+        '/\\example.com',
+      ]) {
+        expect(
+          CustomerRoute.afterAuthentication(
+            Uri(path: '/auth/login', queryParameters: {'next': next}),
+          ),
+          isNull,
+        );
+      }
+    },
+  );
   test(
     'shell and authentication paths resolve without bypassing auth gate',
     () {

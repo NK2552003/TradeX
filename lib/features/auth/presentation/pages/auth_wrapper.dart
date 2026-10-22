@@ -68,9 +68,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
     _authRepository =
         widget.authRepository ?? SupabaseAuthBackendService.instance;
 
-    final String? preview = kDebugMode
-        ? Uri.base.queryParameters['preview']
-        : null;
+    final String? preview = CustomerDataPolicy.developmentPreview(
+      Uri.base,
+      debug: kDebugMode,
+    );
 
     final AuthStage initialStage = switch (preview) {
       'application' => AuthStage.affiliateApplication,

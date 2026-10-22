@@ -1,7 +1,7 @@
+import 'package:tradex/core/config/record_access.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
-import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 
@@ -29,8 +29,6 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
   static final WatchlistRepositoryImpl instance = WatchlistRepositoryImpl._();
 
   factory WatchlistRepositoryImpl() => instance;
-
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
 
   final List<AppTicker> _inMemoryTickers = <AppTicker>[
     const AppTicker(
@@ -158,6 +156,7 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
 
   @override
   Future<void> createWatchlist(String name) async {
+    RecordAccess.requireService();
     final clean = name.trim();
     if (clean.isEmpty) throw ArgumentError('A watchlist name is required.');
     if (SupabaseConfig.isConfigured) {
@@ -175,6 +174,7 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
 
   @override
   Future<void> addTickerToWatchlist(String watchlistName, String symbol) async {
+    RecordAccess.requireService();
     if (SupabaseConfig.isConfigured) {
       final client = SupabaseConfig.client!;
       final user = client.auth.currentUser;
@@ -199,6 +199,7 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
     String watchlistName,
     String symbol,
   ) async {
+    RecordAccess.requireService();
     if (SupabaseConfig.isConfigured) {
       final client = SupabaseConfig.client!;
       final user = client.auth.currentUser;
@@ -225,32 +226,37 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
     required double threshold,
     required String direction,
   }) async {
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
-
-        final items = await client
-            .from('watchlist_items')
-            .select('id, watchlists!inner(user_id)')
-            .eq('ticker', symbol)
-            .eq('watchlists.user_id', targetUserId);
-
-        if ((items as List).isNotEmpty) {
-          final itemId = items.first['id'];
-          await client
-              .from('watchlist_items')
-              .update({
-                'price_alert_threshold': threshold,
-                'price_alert_direction': direction,
-                'alert_armed': true,
-              })
-              .eq('id', itemId);
-        }
-      } catch (e) {
-        debugPrint('[WatchlistRepository] setPriceAlert error: $e');
-      }
+    if (!threshold.isFinite ||
+        threshold <= 0 ||
+        !const {'above', 'below'}.contains(direction)) {
+      throw ArgumentError(
+        'Use a positive alert price and an above/below direction.',
+      );
     }
+    final client = SupabaseConfig.client;
+    final user = client?.auth.currentUser;
+    if (!SupabaseConfig.isConfigured || client == null || user == null) {
+      throw StateError('Sign in to a connected account to save price alerts.');
+    }
+    final items = await client
+        .from('watchlist_items')
+        .select('id, watchlists!inner(user_id)')
+        .eq('ticker', symbol)
+        .eq('watchlists.user_id', user.id);
+    if (items.isEmpty) {
+      throw StateError(
+        'Add this symbol to a watchlist before creating an alert.',
+      );
+    }
+    await client
+        .from('watchlist_items')
+        .update({
+          'price_alert_threshold': threshold,
+          'price_alert_direction': direction,
+          'alert_armed': true,
+        })
+        .eq('id', items.first['id'])
+        .select('id')
+        .single();
   }
 }

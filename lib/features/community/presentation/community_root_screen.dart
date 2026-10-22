@@ -51,6 +51,7 @@ class CommunityRootScreen extends StatefulWidget {
     this.onStartDirectMessage,
     this.onOpenRef,
     this.initialTabIndex = 0,
+    this.onTabChanged,
     this.embedInScaffold = true,
     this.repository,
     this.searchQuery,
@@ -72,6 +73,7 @@ class CommunityRootScreen extends StatefulWidget {
   /// Which tab to show on first render. Driven by the global sidebar sub-item
   /// selection (0 = Feed, 1 = Explore, 2 = Network, 3 = My Profile, 4 = Bookmarks).
   final int initialTabIndex;
+  final ValueChanged<int>? onTabChanged;
 
   /// When true, CommunityRootScreen is embedded inside AppShell, so it avoids
   /// rendering duplicate app bars and bottom navigation bars on mobile.
@@ -186,6 +188,10 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   }
 
   void _onTabChanged() {
+    if (!_tabController.indexIsChanging &&
+        _tabController.index != widget.initialTabIndex) {
+      widget.onTabChanged?.call(_tabController.index);
+    }
     if (mounted) {
       setState(() {
         _mobileNavIndex = _tabController.index.clamp(
@@ -495,7 +501,15 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
 
           return Stack(
             children: <Widget>[
-              layout,
+              if (!isMobile && !widget.embedInScaffold)
+                Column(
+                  children: [
+                    _buildTopTabBar(context, showIcons: r.isTablet),
+                    Expanded(child: layout),
+                  ],
+                )
+              else
+                layout,
               if (_repo.isTunedIntoLiveRoom)
                 Positioned(
                   left: isMobile
@@ -806,85 +820,40 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // =========================================================================
 
   /// [showIcons] — true on tablet (icon + label), false on desktop (text only).
-  Widget _buildTopTabBar(BuildContext context, {required bool showIcons}) {
-    final UiTheme theme = context.ui;
-    final bool isDesktop = context.uiRes.isDesktop;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colors.surface,
-        border: isDesktop
-            ? null
-            : Border(
-                bottom: BorderSide(
-                  color: theme.colors.border,
-                  width: theme.borders.hairline,
-                ),
-              ),
-      ),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: TabBar(
-              controller: _tabController,
-              isScrollable: !isDesktop,
-              tabAlignment: isDesktop ? TabAlignment.fill : TabAlignment.start,
-              splashBorderRadius: context.radius(theme.radii.sm),
-              labelStyle: context.uiText.bodyStrong.copyWith(
-                fontSize: context.fs(14),
-              ),
-              unselectedLabelStyle: context.uiText.body.copyWith(
-                fontSize: context.fs(14),
-                color: theme.colors.foregroundMuted,
-              ),
-              labelColor: theme.colors.primary,
-              unselectedLabelColor: theme.colors.foregroundMuted,
-              indicatorColor: theme.colors.primary,
-              indicatorWeight: 2.5,
-              dividerColor: Colors.transparent,
-              tabs: _hubTabs.map((_CommunityTab t) {
-                if (showIcons) {
-                  // Tablet: icon + label.
-                  return Tab(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(t.icon, size: context.sz(18)),
-                        SizedBox(width: context.sp(theme.spacing.xs)),
-                        Text(t.label),
-                      ],
-                    ),
-                  );
-                }
-
-                // Desktop: text label only.
-                return Tab(child: Text(t.label));
-              }).toList(),
-            ),
-          ),
-          UiIconButton(
-            icon: Icons.search_rounded,
-            size: UiSize.xs,
-            tooltip: 'Search TradeX',
-            onPressed: _openSearchPage,
-          ),
-          UiIconButton(
-            icon: Icons.mail_outline_rounded,
-            size: UiSize.xs,
-            tooltip: 'Direct Messages',
-            onPressed: _openInboxView,
-          ),
-          UiIconButton(
-            icon: Icons.shield_outlined,
-            size: UiSize.xs,
-            tooltip: 'Moderation & Safety',
-            onPressed: _openModerationListPage,
-          ),
-          SizedBox(width: context.sp(theme.spacing.sm)),
+  Widget _buildTopTabBar(BuildContext context, {required bool showIcons}) =>
+      UiTabs(
+        items: [
+          for (final tab in _hubTabs)
+            UiTabItem(label: tab.label, icon: showIcons ? tab.icon : null),
         ],
-      ),
-    );
-  }
+        index: _tabController.index,
+        onChanged: _tabController.animateTo,
+        scrollable: true,
+        showPanel: false,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            UiIconButton(
+              icon: Icons.search_rounded,
+              size: UiSize.xs,
+              tooltip: 'Search TradeX',
+              onPressed: _openSearchPage,
+            ),
+            UiIconButton(
+              icon: Icons.mail_outline_rounded,
+              size: UiSize.xs,
+              tooltip: 'Direct Messages',
+              onPressed: _openInboxView,
+            ),
+            UiIconButton(
+              icon: Icons.shield_outlined,
+              size: UiSize.xs,
+              tooltip: 'Moderation & Safety',
+              onPressed: _openModerationListPage,
+            ),
+          ],
+        ),
+      );
 }
 
 // ---------------------------------------------------------------------------

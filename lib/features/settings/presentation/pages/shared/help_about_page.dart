@@ -271,6 +271,7 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
   }
 
   Future<void> _submitSupport() async {
+    if (_sending) return;
     final sub = _subjectController.text.trim();
     final msg = _msgController.text.trim();
     if (sub.isEmpty || msg.isEmpty) {
@@ -312,7 +313,7 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
       UiToast.show(
         context,
         title: 'Message Sent',
-        message: 'Our trader support desk will respond within 24 hours.',
+        message: 'Your support message was accepted.',
         intent: UiIntent.success,
       );
     }

@@ -32,7 +32,9 @@ class WorkspaceViewState {
     required this.notesFilter,
     required this.journalFilter,
     required this.strategyFilter,
+    this.scrollOffset = 0,
   });
+  final double scrollOffset;
   final DateTime selectedDay;
   final bool isMonthView, filterByDate;
   final String notesFilter, journalFilter, strategyFilter;
@@ -106,6 +108,14 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
 
   final GlobalKey<_WorkspaceFabState> _fabKey = GlobalKey<_WorkspaceFabState>();
   bool _isFabOpen = false;
+  late final ScrollController _workspaceScroll;
+  double _lastScrollOffset = 0;
+
+  void _rememberScroll() {
+    if (_workspaceScroll.hasClients) {
+      _lastScrollOffset = _workspaceScroll.offset;
+    }
+  }
 
   /// When set, replaces the landing page content with the full editor while
   /// preserving the outer AppShell (navigation rail and top chrome).
@@ -113,13 +123,23 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
 
   void _closeEditor() {
     if (!mounted) return;
+    final offset = _lastScrollOffset;
     setState(() => _activeEditor = null);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_workspaceScroll.hasClients) return;
+      _workspaceScroll.jumpTo(
+        offset.clamp(0, _workspaceScroll.position.maxScrollExtent),
+      );
+    });
     widget.onSubpageChanged?.call(null, null, null);
   }
 
   @override
   void initState() {
     super.initState();
+    _lastScrollOffset = widget.viewState?.scrollOffset ?? 0;
+    _workspaceScroll = ScrollController(initialScrollOffset: _lastScrollOffset)
+      ..addListener(_rememberScroll);
     _searchQuery = widget.searchQuery;
     final saved = widget.viewState;
     if (saved != null) {
@@ -166,11 +186,13 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
         notesFilter: _notesFilter,
         journalFilter: _journalFilter,
         strategyFilter: _strategyFilter,
+        scrollOffset: _lastScrollOffset,
       ),
     );
     if (_activeEditor != null) {
       widget.onSubpageChanged?.call(null, null, null);
     }
+    _workspaceScroll.dispose();
     _journalSub?.cancel();
     _strategySub?.cancel();
     _noteSub?.cancel();
@@ -570,6 +592,7 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
     return Stack(
       children: <Widget>[
         UiPage(
+          scrollController: _workspaceScroll,
           maxWidth: theme.sizes.maxContentWidth,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

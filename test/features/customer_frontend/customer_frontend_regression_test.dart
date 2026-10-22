@@ -26,13 +26,34 @@ class WatchlistFixture implements WatchlistRepository {
   @override
   Future<void> createWatchlist(String name) async {}
   @override
-  Future<void> removeTickerFromWatchlist(String name, String symbol) async {}
+  Future<void> removeTickerFromWatchlist(String name, String symbol) async {
+    symbols.remove(symbol);
+  }
+
   @override
   Future<void> setPriceAlert({
     required String symbol,
     required double threshold,
     required String direction,
   }) async {}
+}
+
+class NewWatchlistFixture extends WatchlistFixture {
+  int createCount = 0;
+  bool rejectSave = true;
+  @override
+  Future<List<String>> getWatchlists() async =>
+      createCount == 0 ? [] : ['Default Watchlist'];
+  @override
+  Future<void> createWatchlist(String name) async {
+    createCount++;
+  }
+
+  @override
+  Future<void> addTickerToWatchlist(String watchlistName, String symbol) async {
+    if (rejectSave) throw StateError('Save denied');
+    if (!symbols.contains(symbol)) symbols.add(symbol);
+  }
 }
 
 class MarketFixture extends AssetMarketRepository {
@@ -186,6 +207,45 @@ void main() {
     expect(action, findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'a failed symbol save retains selection and retry does not recreate its new watchlist',
+    (tester) async {
+      final repository = NewWatchlistFixture();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: WatchlistsPage(
+              repository: repository,
+              marketRepository: MarketFixture(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add Symbol'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('TEST · Test Company'));
+      await tester.pump();
+      await tester.tap(find.text('Add to watchlist'));
+      await tester.pumpAndSettle();
+      expect(find.text('Save failed'), findsOneWidget);
+      expect(repository.symbols, isEmpty);
+      repository.rejectSave = false;
+      await tester.ensureVisible(find.text('Add to watchlist'));
+      await tester.tap(find.text('Add to watchlist'));
+      await tester.pumpAndSettle();
+      expect(repository.createCount, 1);
+      expect(repository.symbols, ['TEST']);
+      await tester.tap(find.byTooltip('Remove TEST from watchlists'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove').last);
+      await tester.pumpAndSettle();
+      expect(repository.symbols, isEmpty);
+      expect(find.text('Watchlist is empty'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final width in [320.0, 390.0, 768.0, 1440.0]) {
     testWidgets('watchlist Add Symbol opens a real picker at $width', (

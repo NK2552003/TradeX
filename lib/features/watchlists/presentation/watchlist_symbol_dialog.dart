@@ -42,7 +42,10 @@ class _WatchlistSymbolDialogState extends State<WatchlistSymbolDialog> {
       _error = null;
     });
     try {
-      if (_createList) await widget.repository.createWatchlist(_watchlist!);
+      if (_createList) {
+        await widget.repository.createWatchlist(_watchlist!);
+        _createList = false;
+      }
       await widget.repository.addTickerToWatchlist(
         _watchlist!,
         _selected!.symbol,

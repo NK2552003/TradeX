@@ -1125,7 +1125,9 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
                   tooltip: mode.label,
                 ),
           ],
-          value: _mode,
+          value: !wide && _mode == StrategyEditorMode.split
+              ? StrategyEditorMode.write
+              : _mode,
           onChanged: _setMode,
           size: UiSize.sm,
           expand: !wide,
