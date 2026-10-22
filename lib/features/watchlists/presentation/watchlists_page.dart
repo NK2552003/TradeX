@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:tradex/features/market_data/data/asset_market_repository.dart';
+import 'package:tradex/features/market_data/presentation/market_instrument_view.dart';
+import 'watchlist_symbol_dialog.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/watchlists/data/watchlist_repository.dart';
 
 class WatchlistsPage extends StatefulWidget {
-  const WatchlistsPage({super.key, this.repository});
+  const WatchlistsPage({
+    super.key,
+    this.repository,
+    this.marketRepository,
+    this.onTickerTap,
+  });
 
   final WatchlistRepository? repository;
+  final AssetMarketRepository? marketRepository;
+  final ValueChanged<AppTicker>? onTickerTap;
 
   @override
   State<WatchlistsPage> createState() => _WatchlistsPageState();
@@ -17,7 +27,9 @@ class _WatchlistsPageState extends State<WatchlistsPage> {
   late final WatchlistRepository _repo;
   bool _loading = true;
   List<AppTicker> _tickers = [];
-  AppTicker? _selectedTicker;
+  String? _error;
+  AssetMarketRepository get _market =>
+      widget.marketRepository ?? AssetMarketRepository.shared;
 
   @override
   void initState() {
@@ -27,21 +39,77 @@ class _WatchlistsPageState extends State<WatchlistsPage> {
   }
 
   Future<void> _loadWatchlist() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final list = await _repo.getWatchlistTickers();
       if (mounted) {
         setState(() {
           _tickers = list;
-          if (list.isNotEmpty && _selectedTicker == null) {
-            _selectedTicker = list.first;
-          }
           _loading = false;
         });
       }
     } catch (e) {
       debugPrint('WatchlistsPage error: $e');
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Could not load your watchlist. Please retry.';
+        });
+      }
+    }
+  }
+
+  Future<void> _addSymbol() async {
+    final bool? added = await UiDialog.show<bool>(
+      context,
+      child: WatchlistSymbolDialog(
+        repository: _repo,
+        marketRepository: _market,
+      ),
+    );
+    if (added == true && mounted) await _loadWatchlist();
+  }
+
+  Future<void> _openTicker(AppTicker ticker) async {
+    if (widget.onTickerTap != null) {
+      widget.onTickerTap!(ticker);
+      return;
+    }
+    try {
+      final market = await _market.snapshot();
+      final instrument = market.instruments
+          .where((q) => q.symbol == ticker.symbol)
+          .firstOrNull;
+      if (!mounted) return;
+      if (instrument == null) {
+        throw StateError(
+          'Instrument details are unavailable for ${ticker.symbol}.',
+        );
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (ctx) => Scaffold(
+            appBar: AppBar(title: Text(ticker.symbol)),
+            body: MarketInstrumentView(
+              instrument: instrument,
+              repository: _market,
+              snapshot: market,
+            ),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        UiToast.show(
+          context,
+          title: 'Instrument unavailable',
+          message: 'Could not open ${ticker.symbol}. Please retry.',
+          intent: UiIntent.warning,
+        );
+      }
     }
   }
 
@@ -55,22 +123,14 @@ class _WatchlistsPageState extends State<WatchlistsPage> {
 
     return AppPageBlock(
       title: 'Market Watchlists',
-      subtitle:
-          'Real-time quotes, technical scanners, and price alert thresholds',
+      subtitle: 'Saved symbols and available market snapshots',
       actions: [
         UiButton(
           label: 'Add Symbol',
           leadingIcon: Icons.add,
           intent: UiIntent.primary,
           size: UiSize.sm,
-          onPressed: () {
-            UiToast.show(
-              context,
-              title: 'Add Symbol',
-              message: 'Symbol search and watchlist picker opened.',
-              intent: UiIntent.info,
-            );
-          },
+          onPressed: _addSymbol,
         ),
       ],
       child: SingleChildScrollView(
@@ -78,14 +138,22 @@ class _WatchlistsPageState extends State<WatchlistsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppWatchlistBlock(
-              tickers: _tickers,
-              onTickerTap: (ticker) {
-                setState(() => _selectedTicker = ticker);
-              },
-            ),
+            if (_error != null)
+              UiEmptyState(
+                title: 'Watchlist unavailable',
+                message: _error,
+                action: UiButton(label: 'Retry', onPressed: _loadWatchlist),
+              )
+            else
+              AppWatchlistBlock(
+                tickers: _tickers,
+                onTickerTap: _openTicker,
+                onAdd: _addSymbol,
+              ),
             UiGap.v(context.sp(theme.spacing.xl)),
-            AppHeatmapBlock(entries: _tickers),
+            AppHeatmapBlock(
+              entries: _tickers.where((t) => t.price.isFinite).toList(),
+            ),
           ],
         ),
       ),

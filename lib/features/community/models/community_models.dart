@@ -239,11 +239,8 @@ class CommunityPollOption {
   final String text;
   final int votes;
 
-  CommunityPollOption copyWith({int? votes}) => CommunityPollOption(
-    id: id,
-    text: text,
-    votes: votes ?? this.votes,
-  );
+  CommunityPollOption copyWith({int? votes}) =>
+      CommunityPollOption(id: id, text: text, votes: votes ?? this.votes);
 }
 
 /// An interactive poll attached to a community post.
@@ -260,17 +257,8 @@ class CommunityPoll {
     this.authorId,
     this.authorDisplayName,
     this.authorAvatarUrl,
-    this.voterTradingStyles = const <String, int>{
-      'Scalper': 42,
-      'Day Trader': 118,
-      'Swing Trader': 204,
-      'Positional / Macro': 76,
-    },
-    this.voterWinRateTiers = const <String, int>{
-      '> 70% Win Rate': 112,
-      '50% - 70% Win Rate': 195,
-      '< 50% Win Rate': 133,
-    },
+    this.voterTradingStyles = const <String, int>{},
+    this.voterWinRateTiers = const <String, int>{},
   });
 
   final String id;
@@ -287,9 +275,9 @@ class CommunityPoll {
   final Map<String, int> voterWinRateTiers;
 
   int get totalVotes => options.fold(0, (sum, opt) => sum + opt.votes);
-  bool get hasVoted => votedOptionIndex != null || votedOptionIndices.isNotEmpty;
-  bool get isExpired =>
-      expiresAt != null && DateTime.now().isAfter(expiresAt!);
+  bool get hasVoted =>
+      votedOptionIndex != null || votedOptionIndices.isNotEmpty;
+  bool get isExpired => expiresAt != null && DateTime.now().isAfter(expiresAt!);
 
   bool hasVotedFor(int index) =>
       votedOptionIndex == index || votedOptionIndices.contains(index);
@@ -748,7 +736,8 @@ class CommunityNotificationItem {
 
   IconData get icon => switch (type) {
     CommunityNotificationType.like => Icons.favorite_rounded,
-    CommunityNotificationType.comment || CommunityNotificationType.reply => Icons.chat_bubble_rounded,
+    CommunityNotificationType.comment ||
+    CommunityNotificationType.reply => Icons.chat_bubble_rounded,
     CommunityNotificationType.repost => Icons.repeat_rounded,
     CommunityNotificationType.follow => Icons.person_add_rounded,
     CommunityNotificationType.mention => Icons.alternate_email_rounded,
@@ -757,7 +746,8 @@ class CommunityNotificationItem {
 
   String get label => switch (type) {
     CommunityNotificationType.like => 'liked your post',
-    CommunityNotificationType.comment || CommunityNotificationType.reply => 'replied to your post',
+    CommunityNotificationType.comment ||
+    CommunityNotificationType.reply => 'replied to your post',
     CommunityNotificationType.repost => 'reposted your setup',
     CommunityNotificationType.follow => 'followed you',
     CommunityNotificationType.mention => 'mentioned you',
@@ -769,11 +759,7 @@ class CommunityNotificationItem {
 // Live Audio Space / Room
 // ---------------------------------------------------------------------------
 
-enum LiveRoomStatus {
-  live,
-  scheduled,
-  ended,
-}
+enum LiveRoomStatus { live, scheduled, ended }
 
 @immutable
 class LivePinnedSetup {
@@ -845,8 +831,10 @@ class LiveAudioRoom {
   bool get isEnded => status == LiveRoomStatus.ended;
 
   int get totalPollVotes => pollBullishVotes + pollBearishVotes;
-  double get bullishPercentage => totalPollVotes == 0 ? 0.5 : pollBullishVotes / totalPollVotes;
-  double get bearishPercentage => totalPollVotes == 0 ? 0.5 : pollBearishVotes / totalPollVotes;
+  double get bullishPercentage =>
+      totalPollVotes == 0 ? 0.5 : pollBullishVotes / totalPollVotes;
+  double get bearishPercentage =>
+      totalPollVotes == 0 ? 0.5 : pollBearishVotes / totalPollVotes;
 
   factory LiveAudioRoom.fromMap(
     Map<String, dynamic> map, {
@@ -864,7 +852,9 @@ class LiveAudioRoom {
     if (ticker != null && ticker.isNotEmpty) {
       setup = LivePinnedSetup(
         ticker: ticker,
-        side: (map['pinned_side']?.toString().toUpperCase() == 'SHORT') ? 'SHORT' : 'LONG',
+        side: (map['pinned_side']?.toString().toUpperCase() == 'SHORT')
+            ? 'SHORT'
+            : 'LONG',
         entry: (map['pinned_entry'] as num?)?.toDouble() ?? 0.0,
         stopLoss: (map['pinned_stop_loss'] as num?)?.toDouble() ?? 0.0,
         target: (map['pinned_target'] as num?)?.toDouble() ?? 0.0,
@@ -878,7 +868,8 @@ class LiveAudioRoom {
       tags.addAll(rawTags.map((e) => e.toString()));
     }
 
-    final author = host ??
+    final author =
+        host ??
         CommunityAuthor(
           id: map['host_id']?.toString() ?? '',
           handle: 'host',
@@ -1030,15 +1021,17 @@ class LiveRoomParticipant {
     return LiveRoomParticipant(
       roomId: map['room_id']?.toString() ?? '',
       userId: map['user_id']?.toString() ?? '',
-      displayName: profile?['display_name'] as String? ??
+      displayName:
+          profile?['display_name'] as String? ??
           profile?['username'] as String? ??
           map['display_name'] as String? ??
           'Trader',
-      handle: profile?['username'] as String? ??
+      handle:
+          profile?['username'] as String? ??
           map['handle'] as String? ??
           'trader',
-      avatarUrl: profile?['avatar_url'] as String? ??
-          map['avatar_url'] as String?,
+      avatarUrl:
+          profile?['avatar_url'] as String? ?? map['avatar_url'] as String?,
       role: map['role']?.toString().toLowerCase() ?? 'listener',
       isMuted: map['is_muted'] as bool? ?? true,
       isHandRaised: map['is_hand_raised'] as bool? ?? false,
@@ -1110,7 +1103,8 @@ class LiveRoomMessage {
   final DateTime createdAt;
 
   bool get isHost => senderRole == 'host';
-  bool get isSpeaker => senderRole == 'speaker' || isHost || senderRole == 'cohost';
+  bool get isSpeaker =>
+      senderRole == 'speaker' || isHost || senderRole == 'cohost';
 
   factory LiveRoomMessage.fromMap(Map<String, dynamic> map) {
     final profile = map['profiles'] as Map<String, dynamic>?;
@@ -1118,11 +1112,13 @@ class LiveRoomMessage {
       id: map['id']?.toString() ?? '',
       roomId: map['room_id']?.toString() ?? '',
       senderId: map['sender_id']?.toString() ?? '',
-      senderName: profile?['display_name'] as String? ??
+      senderName:
+          profile?['display_name'] as String? ??
           profile?['username'] as String? ??
           map['sender_name'] as String? ??
           'Trader',
-      senderAvatarUrl: profile?['avatar_url'] as String? ??
+      senderAvatarUrl:
+          profile?['avatar_url'] as String? ??
           map['sender_avatar_url'] as String?,
       senderRole: map['sender_role']?.toString() ?? 'listener',
       message: map['message']?.toString() ?? '',
@@ -1171,11 +1167,13 @@ class LiveRoomQuestion {
       id: map['id']?.toString() ?? '',
       roomId: map['room_id']?.toString() ?? '',
       authorId: map['author_id']?.toString() ?? '',
-      authorName: profile?['display_name'] as String? ??
+      authorName:
+          profile?['display_name'] as String? ??
           profile?['username'] as String? ??
           map['author_name'] as String? ??
           'Trader',
-      authorAvatarUrl: profile?['avatar_url'] as String? ??
+      authorAvatarUrl:
+          profile?['avatar_url'] as String? ??
           map['author_avatar_url'] as String?,
       question: map['question']?.toString() ?? '',
       upvotesCount: (map['upvotes_count'] as num?)?.toInt() ?? 0,

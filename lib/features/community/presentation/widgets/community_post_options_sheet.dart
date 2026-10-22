@@ -144,8 +144,9 @@ class CommunityPostOptionsSheet extends StatelessWidget {
             title: 'Delete Post',
             isDestructive: true,
             onTap: () {
+              final host = Navigator.of(context).context;
               Navigator.of(context).pop();
-              _confirmDelete(context);
+              _confirmDelete(host);
             },
           ),
         ] else ...<Widget>[
@@ -154,15 +155,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
             context,
             icon: Icons.visibility_off_outlined,
             title: 'Not Interested in this post',
-            onTap: () {
-              Navigator.of(context).pop();
-              UiToast.show(
-                context,
-                title: 'Feedback Received',
-                message: 'We will show fewer posts like this.',
-                intent: UiIntent.info,
-              );
-            },
+            onTap: null,
           ),
           _optionRow(
             context,
@@ -173,8 +166,9 @@ class CommunityPostOptionsSheet extends StatelessWidget {
               repository.muteUser(post.author.id);
               UiToast.show(
                 context,
-                title: 'User Muted',
-                message: 'You will no longer see posts from @${post.author.handle}.',
+                title: 'Muted for this session',
+                message:
+                    'You will no longer see posts from @${post.author.handle}.',
                 intent: UiIntent.info,
               );
             },
@@ -189,8 +183,9 @@ class CommunityPostOptionsSheet extends StatelessWidget {
               repository.blockUser(post.author.id);
               UiToast.show(
                 context,
-                title: 'User Blocked',
-                message: '@${post.author.handle} has been blocked.',
+                title: 'Hidden for this session',
+                message:
+                    'Posts from @${post.author.handle} are hidden in this session.',
                 intent: UiIntent.danger,
               );
             },
@@ -219,7 +214,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
     BuildContext context, {
     required IconData icon,
     required String title,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
     bool isDestructive = false,
   }) {
     final UiTheme theme = context.ui;
@@ -237,11 +232,13 @@ class CommunityPostOptionsSheet extends StatelessWidget {
           children: <Widget>[
             Icon(icon, size: context.sz(20), color: color),
             SizedBox(width: context.sp(theme.spacing.md)),
-            Text(
-              title,
-              style: context.uiText.bodyStrong.copyWith(
-                fontWeight: FontWeight.w600,
-                color: color,
+            Expanded(
+              child: Text(
+                title,
+                style: context.uiText.bodyStrong.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
               ),
             ),
           ],
@@ -250,38 +247,33 @@ class CommunityPostOptionsSheet extends StatelessWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        backgroundColor: ctx.uiColors.surface,
-        title: const Text('Delete Post?'),
-        content: const Text(
-          'This action cannot be undone. This post will be permanently removed from your feed and profile.',
-        ),
-        actions: <Widget>[
-          UiButton(
-            label: 'Cancel',
-            variant: UiVariant.ghost,
-            onPressed: () => Navigator.of(ctx).pop(),
-          ),
-          UiButton(
-            label: 'Delete',
-            variant: UiVariant.destructive,
-            onPressed: () {
-              repository.deletePost(post.id);
-              Navigator.of(ctx).pop();
-              onDelete?.call();
-              UiToast.show(
-                context,
-                title: 'Post Deleted',
-                message: 'Post was removed.',
-                intent: UiIntent.info,
-              );
-            },
-          ),
-        ],
-      ),
+  Future<void> _confirmDelete(BuildContext context) async {
+    final accepted = await UiDialog.confirm(
+      context,
+      title: 'Delete this post?',
+      description:
+          'The post and its discussion will be removed. Attached workspace records are kept.',
+      confirmLabel: 'Delete',
     );
+    if (!accepted || !context.mounted) return;
+    try {
+      await repository.deletePost(post.id);
+      onDelete?.call();
+      if (context.mounted) {
+        UiToast.success(
+          context,
+          title: 'Post deleted',
+          message: 'The post has been removed.',
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        UiToast.error(
+          context,
+          title: 'Post was not deleted',
+          message: '$error',
+        );
+      }
+    }
   }
 }

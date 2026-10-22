@@ -325,7 +325,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                       runSpacing: context.sp(theme.spacing.xs),
                       children: [
                         UiBadge(
-                          label: 'LIVE SPACE',
+                          label: 'AUDIO PREVIEW',
                           intent: UiIntent.danger,
                           size: UiSize.xs,
                         ),
@@ -387,7 +387,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       onAuthorTap: widget.onAuthorTap,
       onOpenRef: widget.onOpenRef,
       onTagTap: widget.onTagTap,
-      onRefresh: () async => setState(() {}),
+      onRefresh: widget.repository.fetchFromSupabase,
     );
 
     final Widget content = Stack(
@@ -636,7 +636,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
           onTagTap: widget.onTagTap,
-          onRefresh: () async => setState(() {}),
+          onRefresh: widget.repository.fetchFromSupabase,
           emptyState: const CommunityEmptyState(
             icon: Icons.person_add_outlined,
             title: 'No posts yet',
@@ -679,7 +679,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
           onTagTap: widget.onTagTap,
-          onRefresh: () async => setState(() {}),
+          onRefresh: widget.repository.fetchFromSupabase,
           emptyState: const CommunityEmptyState(
             icon: Icons.candlestick_chart_rounded,
             title: 'No trade signals found',
@@ -825,7 +825,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
           onTagTap: widget.onTagTap,
-          onRefresh: () async => setState(() {}),
+          onRefresh: widget.repository.fetchFromSupabase,
           emptyState: const CommunityEmptyState(
             icon: Icons.currency_bitcoin_rounded,
             title: 'No crypto setups found',
@@ -872,7 +872,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
           onTagTap: widget.onTagTap,
-          onRefresh: () async => setState(() {}),
+          onRefresh: widget.repository.fetchFromSupabase,
           emptyState: const CommunityEmptyState(
             icon: Icons.show_chart_rounded,
             title: 'No equities setups found',

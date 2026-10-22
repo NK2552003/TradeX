@@ -44,7 +44,17 @@ void main() {
       expect(item.price, quotes[item.symbol]['price']);
       final detail = await source.detail(item.symbol);
       expect(detail['ticker'], item.symbol);
-      expect((detail['chart'] as Map)['data'], isNotEmpty);
+      final chart = (detail['chart'] as Map)['data'] as List;
+      if (File('assets/data/history/${item.symbol}.json').existsSync()) {
+        final history = await source.history(item.symbol);
+        expect(chart.length, (history['data'] as List? ?? []).length);
+      } else {
+        expect(
+          chart,
+          isEmpty,
+          reason: 'Missing histories must not be fabricated',
+        );
+      }
     }
     expect(result.articles, isNotEmpty);
     expect(
@@ -76,8 +86,20 @@ void main() {
       throwsArgumentError,
     );
   });
-  for (final width in [320.0, 390.0, 768.0, 1440.0]) {
-    testWidgets('dynamic landing and pricing fit $width px', (tester) async {
+  for (final (width, scale) in [
+    (320.0, 1.0),
+    (320.0, 1.5),
+    (360.0, 1.5),
+    (390.0, 1.0),
+    (768.0, 1.0),
+    (1024.0, 1.0),
+    (1440.0, 1.0),
+  ]) {
+    testWidgets('dynamic landing and pricing fit $width px at scale $scale', (
+      tester,
+    ) async {
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       tester.view.physicalSize = Size(width, 950);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -194,7 +216,15 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byType(UiCandleChart), findsOneWidget);
+    final detail = await tester.runAsync(() => source.detail(symbol));
+    final hasHistory = ((detail!['chart'] as Map)['data'] as List).isNotEmpty;
+    expect(
+      find.byType(UiCandleChart),
+      hasHistory ? findsOneWidget : findsNothing,
+    );
+    if (!hasHistory) {
+      expect(find.text('No price history in this snapshot'), findsOneWidget);
+    }
     expect(tester.takeException(), isNull);
   });
 }

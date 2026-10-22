@@ -1,3 +1,4 @@
+import 'package:tradex/features/community/data/workspace_attachment_service.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -596,11 +597,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       }
     } catch (e) {
       if (mounted) {
-        UiToast.error(
-          context,
-          title: 'Upload failed',
-          message: '$e',
-        );
+        UiToast.error(context, title: 'Upload failed', message: '$e');
       }
     } finally {
       if (mounted) {
@@ -857,6 +854,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
     }
 
     setState(() => _submitting = true);
+    AppLinkRef? publishedHere;
     try {
       final finalBody = body.isEmpty
           ? (hasSetup
@@ -895,30 +893,75 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         }
       }
 
+      if (widget.quotedPost != null && !widget.quotedPost!.isPublic) {
+        throw StateError('Publish the original post before quoting it.');
+      }
       if (_attachment != null) {
+        final fresh = await WorkspaceAttachmentService().resolve(
+          _attachment!.source,
+          requireOwner: true,
+        );
+        if (fresh == null) {
+          throw StateError('The attached record no longer exists.');
+        }
+        _attachment = fresh;
+      }
+      if (!mounted) return;
+      if (_attachment != null && _attachment!.requiresPublication) {
+        final bool accepted = await UiDialog.confirm(
+          context,
+          title: 'Publish the attached record?',
+          description:
+              'Posting this attachment makes the complete attached record public. Review its content before sharing. Linked private records remain private.',
+          confirmLabel: 'Publish and post',
+        );
+        if (!accepted || !mounted) return;
         final AppLinkRef src = _attachment!.source;
         try {
           switch (src.kind) {
             case AppLinkKind.note:
               await NotesRepositoryScope.repository.setVisibility(src.id, true);
+              publishedHere = src;
               break;
             case AppLinkKind.strategy:
-              await StrategiesRepositoryScope.repository.setVisibility(src.id, true);
+              await StrategiesRepositoryScope.repository.setVisibility(
+                src.id,
+                true,
+              );
+              publishedHere = src;
               break;
             case AppLinkKind.journal:
-              await JournalRepositoryScope.repository.setVisibility(src.id, true);
+              await JournalRepositoryScope.repository.setVisibility(
+                src.id,
+                true,
+              );
+              publishedHere = src;
               break;
             default:
               break;
           }
         } catch (_) {
-          // Ignore failures for manual or ephemeral records
+          if (mounted) {
+            UiToast.show(
+              context,
+              title: 'Attachment was not published',
+              message: 'The post was not sent. Retry or remove the attachment.',
+              intent: UiIntent.danger,
+            );
+          }
+          return;
         }
       }
 
+      if (_attachment != null) {
+        _attachment = await WorkspaceAttachmentService().resolve(
+          _attachment!.source,
+          requireOwner: true,
+        );
+      }
       if (widget.postToEdit != null) {
         final p = widget.postToEdit!;
-        widget.repository.editPost(
+        await widget.repository.editPost(
           p.id,
           finalBody,
           tickers: List<String>.unmodifiable(allTickers),
@@ -948,7 +991,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
         return;
       }
 
-      widget.repository.createPost(
+      await widget.repository.createPost(
         body: finalBody,
         tickers: List<String>.unmodifiable(allTickers),
         tags: List<String>.unmodifiable(allTags),
@@ -1004,6 +1047,27 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       });
 
       widget.onPostCreated?.call();
+    } catch (error) {
+      if (publishedHere != null) {
+        try {
+          await WorkspaceAttachmentService().setVisibility(
+            publishedHere,
+            false,
+          );
+        } catch (_) {
+          if (mounted) {
+            UiToast.error(
+              context,
+              title: 'Review attachment visibility',
+              message:
+                  'The post failed and the attachment could not be made private again.',
+            );
+          }
+        }
+      }
+      if (mounted) {
+        UiToast.error(context, title: 'Post was not saved', message: '$error');
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

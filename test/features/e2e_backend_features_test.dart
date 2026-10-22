@@ -107,7 +107,8 @@ void main() {
       final draft = AppNote(
         id: 'note_e2e_test_1',
         title: 'E2E Technical Analysis',
-        content: 'Testing note with \$TSLA and checklist:\n- [ ] Plan trade\n- [x] Check risk',
+        content:
+            'Testing note with \$TSLA and checklist:\n- [ ] Plan trade\n- [x] Check risk',
         tags: const ['breakout', 'analysis'],
         linkedTickers: const ['TSLA'],
         isPublic: true,
@@ -119,8 +120,14 @@ void main() {
       expect(created.title, equals('E2E Technical Analysis'));
       expect(created.wordCount, greaterThan(0));
 
-      final commented = await repo.addComment(created.id, 'Great setup analysis!');
-      expect(commented.comments.any((c) => c.body.contains('Great setup')), isTrue);
+      final commented = await repo.addComment(
+        created.id,
+        'Great setup analysis!',
+      );
+      expect(
+        commented.comments.any((c) => c.body.contains('Great setup')),
+        isTrue,
+      );
 
       final liked = await repo.toggleLike(created.id);
       expect(liked.liked, isTrue);
@@ -196,8 +203,13 @@ void main() {
       final checklist = await repo.getChecklist();
       expect(checklist, isNotEmpty);
 
-      final withNewItem = await repo.addChecklistItem('Confirm volume breakout');
-      expect(withNewItem.any((i) => i.label == 'Confirm volume breakout'), isTrue);
+      final withNewItem = await repo.addChecklistItem(
+        'Confirm volume breakout',
+      );
+      expect(
+        withNewItem.any((i) => i.label == 'Confirm volume breakout'),
+        isTrue,
+      );
     });
 
     test('7. User Profile & 2FA Security End-to-End', () async {
@@ -348,12 +360,11 @@ void main() {
       final blockedAfterUnblock = await privacyRepo.getBlockedUsers();
       expect(blockedAfterUnblock.any((u) => u.id == firstBlockedId), isFalse);
 
-      final exportReq = await privacyRepo.requestDataExport();
-      expect(exportReq.status, isNotEmpty);
+      await expectLater(privacyRepo.requestDataExport(), throwsStateError);
 
       final exportStatus = await privacyRepo.getDataExportStatus();
-      expect(exportStatus.status, equals('ready'));
-      expect(exportStatus.downloadUrl, isNotNull);
+      expect(exportStatus.status, equals('none'));
+      expect(exportStatus.downloadUrl, isNull);
     });
 
     test('12. AI Trading Assistant End-to-End', () async {

@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/record_access.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -37,6 +38,7 @@ class JournalScreen extends StatefulWidget {
   const JournalScreen({
     super.key,
     this.onSubpageChanged,
+    this.onReturnToOrigin,
     this.onOpenRef,
     this.onOpenWriting,
     this.onAttachToPost,
@@ -52,11 +54,27 @@ class JournalScreen extends StatefulWidget {
 
   final AppLinkOpenRequest? openRequest;
 
+  final VoidCallback? onReturnToOrigin;
+
   @override
   State<JournalScreen> createState() => JournalScreenState();
 }
 
 class JournalScreenState extends State<JournalScreen> {
+  /// The saved record currently displayed, for browser history and sharing.
+  AppLinkRef? get openedRef {
+    final record = _active;
+    if (_view == _JournalView.list || record == null || record.id.isEmpty) {
+      return null;
+    }
+    return AppLinkRef(
+      kind: AppLinkKind.journal,
+      id: record.id,
+      title: record.ticker,
+      isPublicContext: _isPublicContext,
+    );
+  }
+
   /// Public entry point so host workspaces can trigger new entry creation.
   void newEntry() => _newEntry();
 
@@ -107,6 +125,10 @@ class JournalScreenState extends State<JournalScreen> {
   StreamSubscription<AppLinkGraph>? _graphSub;
 
   List<AppTrade> _entries = const <AppTrade>[];
+  List<AppTrade> _accessibleRecords = [];
+  AppTrade? _linkedRecord;
+  String? _accessError;
+  int _accessRevision = 0;
   late AppLinkGraph _graph = _links.current;
   bool _loading = true;
 
@@ -141,7 +163,19 @@ class JournalScreenState extends State<JournalScreen> {
       (List<AppTrade> entries) {
         if (!mounted) return;
         setState(() {
-          _entries = entries;
+          _accessibleRecords = entries;
+          if (_linkedRecord != null) {
+            final latest = entries
+                .where((record) => record.id == _linkedRecord!.id)
+                .firstOrNull;
+            if (latest != null) _linkedRecord = latest;
+            if (_isPublicContext && (latest == null || !latest.isPublic)) {
+              _accessError = 'This record is no longer public.';
+            }
+          }
+          _entries = entries
+              .where((record) => RecordAccess.owns(record.userId))
+              .toList();
           _loading = false;
           if (_selectedMonth == null && entries.isNotEmpty) {
             final DateTime newest = entries.first.sortDate;
@@ -228,11 +262,12 @@ class JournalScreenState extends State<JournalScreen> {
   };
 
   AppTrade? get _active {
+    if (_linkedRecord?.id == _activeId) return _linkedRecord;
     final AppTrade? draft = _draft;
     if (draft != null) return draft;
     final String? id = _activeId;
     if (id == null) return null;
-    for (final AppTrade t in _entries) {
+    for (final AppTrade t in _accessibleRecords) {
       if (t.id == id) return t;
     }
     return null;
@@ -362,18 +397,50 @@ class JournalScreenState extends State<JournalScreen> {
     );
   }
 
-  void _apply(AppLinkOpenRequest request) {
-    if (request.kind != AppLinkKind.journal &&
-        !request.id.startsWith('trade_') &&
-        !request.id.startsWith('entry_') &&
-        !request.id.startsWith('trn_') &&
-        !request.id.startsWith('journal_')) {
-      return;
+  Future<void> _apply(AppLinkOpenRequest request) async {
+    if (request.kind != AppLinkKind.journal) return;
+    final revision = ++_accessRevision;
+    try {
+      final record = await _repo.getById(request.id);
+      if (!mounted || revision != _accessRevision) return;
+      if (record == null ||
+          !RecordAccess.canRead(
+            record.userId,
+            record.isPublic,
+            publicContext: request.publicContext,
+          )) {
+        setState(
+          () =>
+              _accessError = 'This record is private, deleted, or unavailable.',
+        );
+        return;
+      }
+      if (request.editWriting &&
+          (request.publicContext || !RecordAccess.owns(record.userId))) {
+        setState(
+          () => _accessError =
+              'Only the owner can edit this record in their workspace.',
+        );
+        return;
+      }
+      setState(() {
+        _accessError = null;
+        _linkedRecord = record;
+        _isPublicContext =
+            request.publicContext || !RecordAccess.owns(record.userId);
+      });
+      if (request.editWriting) {
+        _edit(record);
+      } else {
+        _open(record.id);
+      }
+    } catch (error) {
+      if (mounted && revision == _accessRevision) {
+        setState(
+          () => _accessError = 'Could not open this record. Please retry.',
+        );
+      }
     }
-    final bool known = _entries.any((AppTrade t) => t.id == request.id);
-    if (!known && !_loading) return;
-    _isPublicContext = request.publicContext;
-    _open(request.id);
   }
 
   void _open(String id) {
@@ -390,6 +457,7 @@ class JournalScreenState extends State<JournalScreen> {
     JournalEditorMode mode = JournalEditorMode.write,
     bool detailsOnly = false,
   }) {
+    if (entry.id.isNotEmpty && !RecordAccess.owns(entry.userId)) return;
     setState(() {
       _editorMode = mode;
       _editorDetailsOnly = detailsOnly;
@@ -402,6 +470,14 @@ class JournalScreenState extends State<JournalScreen> {
   }
 
   void _backToIndex() {
+    _accessError = null;
+    _isPublicContext = false;
+    _linkedRecord = null;
+    _accessRevision++;
+    if (widget.onReturnToOrigin != null) {
+      widget.onReturnToOrigin!();
+      return;
+    }
     if (!mounted) return;
     setState(() {
       _draft = null;
@@ -461,11 +537,10 @@ class JournalScreenState extends State<JournalScreen> {
       );
       return;
     }
-    final bool isPublic = ref.isPublicContext ||
-        _isPublicContext ||
-        (_entries.where((t) => t.id == _activeId).firstOrNull?.isPublic ?? false);
-    final AppLinkRef forwarded =
-        isPublic && !ref.isPublicContext ? ref.copyWith(isPublicContext: true) : ref;
+    final bool isPublic = ref.isPublicContext || _isPublicContext;
+    final AppLinkRef forwarded = isPublic && !ref.isPublicContext
+        ? ref.copyWith(isPublicContext: true)
+        : ref;
     jump(forwarded);
   }
 
@@ -691,6 +766,13 @@ class JournalScreenState extends State<JournalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_accessError != null) {
+      return UiEmptyState(
+        title: 'Record unavailable',
+        message: _accessError,
+        action: UiButton(label: 'Back', onPressed: _backToIndex),
+      );
+    }
     final AppTrade? active = _active;
 
     if (_view == _JournalView.editor && active != null) {
@@ -741,10 +823,11 @@ class JournalScreenState extends State<JournalScreen> {
   Widget _document(AppTrade entry) => JournalEntryScreen(
     key: ValueKey<String>('journal_document_${entry.id}'),
     entry: entry,
-    canEdit: !_isPublicContext,
-    isPublicContext: _isPublicContext || entry.isPublic,
+    canEdit: !_isPublicContext && RecordAccess.owns(entry.userId),
+    isPublicContext: _isPublicContext,
     onClose: _backToIndex,
-    onEdit: () => _edit(entry, mode: JournalEditorMode.write, detailsOnly: true),
+    onEdit: () =>
+        _edit(entry, mode: JournalEditorMode.write, detailsOnly: true),
     onEditWriting: () {
       if (widget.onOpenWriting != null) {
         widget.onOpenWriting!(
@@ -810,7 +893,8 @@ class JournalScreenState extends State<JournalScreen> {
               _buildLoadingState(context)
             else if (visible.isEmpty)
               _buildEmptyState(context)
-            else if (_viewMode == _ViewMode.table)
+            else if (_viewMode == _ViewMode.table &&
+                constraints.maxWidth >= context.sz(600))
               _buildTableView(context, batch)
             else
               _buildCardsGridView(context, batch, constraints.maxWidth),
@@ -879,7 +963,8 @@ class JournalScreenState extends State<JournalScreen> {
               icon: Icons.edit_note_rounded,
               intent: UiIntent.primary,
               badge: _onlyUnwritten ? 'Filtered' : null,
-              onTap: () => _updateFilter(() => _onlyUnwritten = !_onlyUnwritten),
+              onTap: () =>
+                  _updateFilter(() => _onlyUnwritten = !_onlyUnwritten),
             ),
         ],
         onDismiss: () => setState(() => _dismissedSuggestions = true),
@@ -909,7 +994,9 @@ class JournalScreenState extends State<JournalScreen> {
     final double grossLosses = periodTrades
         .where((AppTrade t) => t.pnl < 0)
         .fold(0.0, (double sum, AppTrade t) => sum + t.pnl.abs());
-    final int closedCount = periodTrades.where((AppTrade t) => !t.isOpen).length;
+    final int closedCount = periodTrades
+        .where((AppTrade t) => !t.isOpen)
+        .length;
     final double taxAndCharges = closedCount * 125.0;
     final double grossDisplay = netPnl >= 0
         ? netPnl + taxAndCharges
@@ -938,18 +1025,15 @@ class JournalScreenState extends State<JournalScreen> {
         )
         .toList(growable: false);
     final double avgWinR = wonTrades.isNotEmpty
-        ? wonTrades.fold(
-              0.0,
-              (double sum, AppTrade t) => sum + t.rMultiple!,
-            ) /
-            wonTrades.length
+        ? wonTrades.fold(0.0, (double sum, AppTrade t) => sum + t.rMultiple!) /
+              wonTrades.length
         : 0.0;
     final double avgLossR = lostTrades.isNotEmpty
         ? lostTrades.fold(
-              0.0,
-              (double sum, AppTrade t) => sum + t.rMultiple!.abs(),
-            ) /
-            lostTrades.length
+                0.0,
+                (double sum, AppTrade t) => sum + t.rMultiple!.abs(),
+              ) /
+              lostTrades.length
         : 0.0;
 
     final double profitFactor = grossLosses > 0
@@ -965,12 +1049,14 @@ class JournalScreenState extends State<JournalScreen> {
         .where((AppTrade t) => t.psychologyScore != null)
         .length;
     final double disciplineScore = scoredCount > 0
-        ? (periodTrades.where((AppTrade t) => t.psychologyScore != null).fold(
-                  0,
-                  (int sum, AppTrade t) => sum + t.psychologyScore!,
-                ) /
-                (scoredCount * 10)) *
-            100
+        ? (periodTrades
+                      .where((AppTrade t) => t.psychologyScore != null)
+                      .fold(
+                        0,
+                        (int sum, AppTrade t) => sum + t.psychologyScore!,
+                      ) /
+                  (scoredCount * 10)) *
+              100
         : 82.0;
     final int mistakeTagsCount = periodTrades.where((AppTrade t) {
       return t.tags.any((String tag) {
@@ -1056,9 +1142,7 @@ class JournalScreenState extends State<JournalScreen> {
     final List<String> availableTickers = JournalQuery.tickersOf(_entries);
 
     final int allCount = periodTrades.length;
-    final int openCount = periodTrades
-        .where((AppTrade t) => t.isOpen)
-        .length;
+    final int openCount = periodTrades.where((AppTrade t) => t.isOpen).length;
     final int winsCount = periodTrades
         .where((AppTrade t) => t.outcome == AppOutcome.win)
         .length;
@@ -1097,8 +1181,9 @@ class JournalScreenState extends State<JournalScreen> {
       );
     }
 
-    final Widget titleAndCount = Row(
-      mainAxisSize: MainAxisSize.min,
+    final Widget titleAndCount = Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      runSpacing: context.sp(theme.spacing.xs),
       children: <Widget>[
         Text('Entries', style: context.uiText.subheading),
         SizedBox(width: context.sp(theme.spacing.sm)),
@@ -1224,8 +1309,9 @@ class JournalScreenState extends State<JournalScreen> {
         gridTooltip: 'Cards view',
         secondaryIcon: Icons.table_chart_outlined,
         secondaryTooltip: 'Table view',
-        onChanged: (bool grid) =>
-            setState(() => _viewMode = grid ? _ViewMode.cards : _ViewMode.table),
+        onChanged: (bool grid) => setState(
+          () => _viewMode = grid ? _ViewMode.cards : _ViewMode.table,
+        ),
       );
     }
 
@@ -1304,15 +1390,11 @@ class JournalScreenState extends State<JournalScreen> {
                 label: s,
                 icon: Icons.account_tree_outlined,
                 onPressed: () {
-                  final AppTrade? match = _entries
-                      .cast<AppTrade?>()
-                      .firstWhere(
-                        (AppTrade? t) => t?.strategy == s,
-                        orElse: () => null,
-                      );
-                  _updateFilter(
-                    () => _strategyId = match?.strategyId ?? s,
+                  final AppTrade? match = _entries.cast<AppTrade?>().firstWhere(
+                    (AppTrade? t) => t?.strategy == s,
+                    orElse: () => null,
                   );
+                  _updateFilter(() => _strategyId = match?.strategyId ?? s);
                 },
               ),
           ],
@@ -1359,22 +1441,17 @@ class JournalScreenState extends State<JournalScreen> {
           SizedBox(height: context.sp(theme.spacing.xs)),
           Row(
             children: <Widget>[
-              Expanded(
-                flex: 3,
-                child: buildMonthNavigator(isMobile: true),
-              ),
+              Expanded(flex: 3, child: buildMonthNavigator(isMobile: true)),
               SizedBox(width: context.sp(theme.spacing.xs)),
               buildViewToggle(),
               SizedBox(width: context.sp(theme.spacing.xs)),
-              Expanded(
-                flex: 2,
-                child: buildSortDropdown(isMobile: true),
-              ),
+              Expanded(flex: 2, child: buildSortDropdown(isMobile: true)),
             ],
           ),
         ] else
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            runSpacing: context.sp(theme.spacing.xs),
             children: <Widget>[
               titleAndCount,
               Wrap(
@@ -1397,10 +1474,7 @@ class JournalScreenState extends State<JournalScreen> {
             key: _outcomesKey,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              outcomePills,
-              dropdownFilters,
-            ],
+            children: <Widget>[outcomePills, dropdownFilters],
           )
         else
           SingleChildScrollView(
@@ -1430,9 +1504,7 @@ class JournalScreenState extends State<JournalScreen> {
     final String label = _selectedMonth == null
         ? 'All Trades'
         : _monthLabel(_selectedMonth!);
-    return DeskSectionHeader(
-      title: label,
-    );
+    return DeskSectionHeader(title: label);
   }
 
   // ── 5. Responsive Grid & Table Views ───────────────────────────────────────
@@ -1647,7 +1719,7 @@ class JournalScreenState extends State<JournalScreen> {
 
   Widget _statusBarFooter(BuildContext context) {
     return const DeskStatusBarFooter(
-      syncLabel: 'Connected to Zerodha Kite Broker API',
+      syncLabel: 'Workspace records · broker sync is not connected',
       shortcutHints: <String>[
         'Press N to add trade',
         '/ to search',
@@ -1655,7 +1727,6 @@ class JournalScreenState extends State<JournalScreen> {
       ],
     );
   }
-
 
   // ── 8. Floating Bottom-Right Action Button (FAB) ───────────────────────────
 

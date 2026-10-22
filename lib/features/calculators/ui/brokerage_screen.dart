@@ -82,12 +82,16 @@ class _BrokerageCalculatorScreenState extends State<BrokerageCalculatorScreen> {
     final bool eaten = r.grossPnl > 0 && r.netPnl <= 0;
     final double bePct = _buy <= 0 ? 0 : r.breakevenPoints / _buy * 100;
     final bool custom = _broker == 'custom';
-    final double lo = <double>[_buy, _sell, breakevenPrice].reduce(
-      (double a, double b) => a < b ? a : b,
-    );
-    final double hi = <double>[_buy, _sell, breakevenPrice].reduce(
-      (double a, double b) => a > b ? a : b,
-    );
+    final double lo = <double>[
+      _buy,
+      _sell,
+      breakevenPrice,
+    ].reduce((double a, double b) => a < b ? a : b);
+    final double hi = <double>[
+      _buy,
+      _sell,
+      breakevenPrice,
+    ].reduce((double a, double b) => a > b ? a : b);
     final double pad = (hi - lo) * 0.25 + 0.5;
 
     return AppCalculatorLayout(
@@ -195,7 +199,10 @@ class _BrokerageCalculatorScreenState extends State<BrokerageCalculatorScreen> {
         AppCalcInputGroup(
           label: 'Round trip',
           children: <Widget>[
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runSpacing: context.sp(context.ui.spacing.xs),
               children: <Widget>[
                 UiBadge(
                   label: _isLive
@@ -205,7 +212,7 @@ class _BrokerageCalculatorScreenState extends State<BrokerageCalculatorScreen> {
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
-                const Spacer(),
+
                 UiButton(
                   label: 'Sync LTP',
                   leadingIcon: Icons.refresh,
@@ -271,9 +278,7 @@ class _BrokerageCalculatorScreenState extends State<BrokerageCalculatorScreen> {
                       ? '—'
                       : AppTokens.percent(l.$2 / r.total * 100, decimals: 0),
                   detail: l.$3,
-                  share: r.total <= 0
-                      ? null
-                      : (l.$2 / r.total).clamp(0.0, 1.0),
+                  share: r.total <= 0 ? null : (l.$2 / r.total).clamp(0.0, 1.0),
                 ),
               UiKeyValueRow(
                 label: 'Total charges',

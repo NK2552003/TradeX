@@ -415,8 +415,9 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
       final UiCandle? latest = hasChart ? candles.last : null;
       final double price = inst.price != 0 ? inst.price : (latest?.close ?? 0);
       final UiIntent plIntent = AppTokens.plIntent(inst.changePercent);
-      String px(double? v) =>
-          v == null ? '—' : '${inst.currency} ${v.toStringAsFixed(2)}';
+      String px(double? v) => v == null || !v.isFinite
+          ? 'Quote unavailable'
+          : '${inst.currency} ${v.toStringAsFixed(2)}';
       final List<UiStat> stats = <UiStat>[
         if (latest != null) UiStat(label: 'Open', value: px(latest.open)),
         if (latest != null) UiStat(label: 'High', value: px(latest.high)),
@@ -496,9 +497,14 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                         'Historical price data is not available for this instrument.',
                   )
                 else if (_chartMode == 0)
-                  UiCandleChart(
-                    candles: candles,
-                    height: box.maxWidth < 600 ? 240 : 360,
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: box.maxWidth < 600 ? context.sz(16) : 0,
+                    ),
+                    child: UiCandleChart(
+                      candles: candles,
+                      height: box.maxWidth < 600 ? 240 : 360,
+                    ),
                   )
                 else
                   UiAreaChart(
@@ -592,11 +598,12 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
                   UiGap.v(context.ui.spacing.lg),
                   Text(px(price), style: context.uiText.heading),
                   UiGap.v(context.ui.spacing.sm),
-                  UiBadge(
-                    label: AppTokens.signedPercent(inst.changePercent),
-                    intent: plIntent,
-                    icon: AppTokens.plIcon(inst.changePercent),
-                  ),
+                  if (inst.price.isFinite)
+                    UiBadge(
+                      label: AppTokens.signedPercent(inst.changePercent),
+                      intent: plIntent,
+                      icon: AppTokens.plIcon(inst.changePercent),
+                    ),
                   UiGap.v(context.ui.spacing.md),
                   Text(
                     'Updated: ${detail['quote']?['updated_at'] ?? inst.updatedAt?.toIso8601String() ?? 'Unavailable'}',

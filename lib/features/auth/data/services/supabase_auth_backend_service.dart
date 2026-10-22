@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
@@ -73,8 +74,13 @@ class SupabaseAuthBackendService implements AuthRepository {
 
     // 4. Delegate to local mock service if Supabase is unconfigured
     if (!SupabaseConfig.isConfigured) {
+      if (!CustomerDataPolicy.allowDemo) {
+        return AuthResult.failure(
+          'Authentication service is unavailable. Please try again later.',
+        );
+      }
       debugPrint(
-        '[SupabaseAuthBackendService] Supabase unconfigured. Using local AuthBackendService.',
+        '[SupabaseAuthBackendService] Explicit preview/test mode: using local auth.',
       );
       return AuthBackendService.instance.signUp(
         role: role,
@@ -95,9 +101,7 @@ class SupabaseAuthBackendService implements AuthRepository {
         password: password,
         data: {
           'handle': cleanHandle,
-          'role': role == UserRole.affiliate
-              ? UserRole.customer.id
-              : role.id,
+          'role': role == UserRole.affiliate ? UserRole.customer.id : role.id,
           'affiliate_application_requested': role == UserRole.affiliate,
           'display_name': cleanHandle.replaceAll('@', ''),
           'admin_key': role == UserRole.userAdmin ? adminKey?.trim() : null,
@@ -163,8 +167,8 @@ class SupabaseAuthBackendService implements AuthRepository {
         message: role == UserRole.affiliate
             ? 'Trader account created. Complete the affiliate application for review.'
             : (requiresVerification
-                ? 'Verification code dispatched to your email.'
-                : 'Successfully registered account with Supabase authentication!'),
+                  ? 'Verification code dispatched to your email.'
+                  : 'Successfully registered account with Supabase authentication!'),
       );
     } on AuthException catch (e) {
       return AuthResult.failure(e.message);
@@ -172,6 +176,11 @@ class SupabaseAuthBackendService implements AuthRepository {
       debugPrint(
         '[SupabaseAuthBackendService] SignUp Exception: $e. Falling back to local store.',
       );
+      if (!CustomerDataPolicy.allowDemo) {
+        return AuthResult.failure(
+          'Authentication service is unavailable. Please try again later.',
+        );
+      }
       return AuthBackendService.instance.signUp(
         role: role,
         handle: cleanHandle,
@@ -212,8 +221,13 @@ class SupabaseAuthBackendService implements AuthRepository {
 
     // Delegate to local mock service if Supabase is unconfigured
     if (!SupabaseConfig.isConfigured) {
+      if (!CustomerDataPolicy.allowDemo) {
+        return AuthResult.failure(
+          'Authentication service is unavailable. Please try again later.',
+        );
+      }
       debugPrint(
-        '[SupabaseAuthBackendService] Supabase unconfigured. Using local AuthBackendService.',
+        '[SupabaseAuthBackendService] Explicit preview/test mode: using local auth.',
       );
       return AuthBackendService.instance.signIn(
         role: role,
@@ -351,6 +365,11 @@ class SupabaseAuthBackendService implements AuthRepository {
       debugPrint(
         '[SupabaseAuthBackendService] SignIn Exception: $e. Falling back to local store.',
       );
+      if (!CustomerDataPolicy.allowDemo) {
+        return AuthResult.failure(
+          'Authentication service is unavailable. Please try again later.',
+        );
+      }
       return AuthBackendService.instance.signIn(
         role: role,
         emailOrHandle: cleanInput,
@@ -368,6 +387,11 @@ class SupabaseAuthBackendService implements AuthRepository {
     }
 
     if (!SupabaseConfig.isConfigured) {
+      if (!CustomerDataPolicy.allowDemo) {
+        return AuthResult.failure(
+          'Authentication service is unavailable. Please try again later.',
+        );
+      }
       return AuthBackendService.instance.resetPassword(cleanEmail);
     }
 
@@ -396,7 +420,9 @@ class SupabaseAuthBackendService implements AuthRepository {
   @override
   Future<UserProfileModel?> getProfile(String userId) async {
     if (!SupabaseConfig.isConfigured) {
-      return AuthBackendService.instance.getProfile(userId);
+      return CustomerDataPolicy.allowDemo
+          ? AuthBackendService.instance.getProfile(userId)
+          : null;
     }
     try {
       final res = await SupabaseConfig.client!
@@ -408,13 +434,17 @@ class SupabaseAuthBackendService implements AuthRepository {
         return UserProfileModel.fromJson(res);
       }
     } catch (_) {}
-    return AuthBackendService.instance.getProfile(userId);
+    return CustomerDataPolicy.allowDemo
+        ? AuthBackendService.instance.getProfile(userId)
+        : null;
   }
 
   @override
   Future<AffiliateProfileModel?> getAffiliateProfile(String affiliateId) async {
     if (!SupabaseConfig.isConfigured) {
-      return AuthBackendService.instance.getAffiliateProfile(affiliateId);
+      return CustomerDataPolicy.allowDemo
+          ? AuthBackendService.instance.getAffiliateProfile(affiliateId)
+          : null;
     }
     try {
       final res = await SupabaseConfig.client!
@@ -426,7 +456,9 @@ class SupabaseAuthBackendService implements AuthRepository {
         return AffiliateProfileModel.fromJson(res);
       }
     } catch (_) {}
-    return AuthBackendService.instance.getAffiliateProfile(affiliateId);
+    return CustomerDataPolicy.allowDemo
+        ? AuthBackendService.instance.getAffiliateProfile(affiliateId)
+        : null;
   }
 
   @override

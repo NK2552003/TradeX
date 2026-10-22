@@ -1,3 +1,6 @@
+import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tradex/core/navigation/customer_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -12,13 +15,91 @@ class TradeXApp extends StatefulWidget {
 }
 
 class _TradeXAppState extends State<TradeXApp> {
+  late final GoRouter _router = GoRouter(
+    routes: [
+      for (final path in [
+        '/',
+        '/auth/:stage',
+        '/community/post/:id',
+        '/:destination/:id',
+        '/:destination',
+      ])
+        GoRoute(
+          path: path,
+          pageBuilder: (context, state) => _routePage(context, state),
+        ),
+    ],
+    errorBuilder: (context, state) => const UiEmptyState(
+      title: 'Page not found',
+      message: 'Check the link and try again.',
+    ),
+  );
+
+  Page<void> _routePage(BuildContext context, GoRouterState state) {
+    final route = CustomerRoute.parse(state.uri);
+    if (!route.valid) {
+      return NoTransitionPage(
+        key: state.pageKey,
+        child: UiEmptyState(
+          title: 'Page not found',
+          action: UiButton(
+            label: 'Go to workspace',
+            onPressed: () => _router.go('/workspace'),
+          ),
+        ),
+      );
+    }
+    String location(Uri target) {
+      final preview = state.uri.queryParameters['preview'];
+      return target
+          .replace(
+            queryParameters: {...target.queryParameters, 'preview': ?preview},
+          )
+          .toString();
+    }
+
+    return NoTransitionPage(
+      key: const ValueKey('customer-auth-shell'),
+      child: AuthWrapper(
+        initialStage: route.stage,
+        initialDestination: route.destination,
+        openRequest: route.request,
+        onDestinationChanged: (destination) =>
+            _router.go(location(Uri(path: '/$destination'))),
+        onOpenRecord: (ref) =>
+            _router.go(location(CustomerRoute.forRecord(ref))),
+        onStageChanged: (stage) {
+          final String? path = switch (stage) {
+            AuthStage.login => '/auth/login',
+            AuthStage.signup => '/auth/signup',
+            AuthStage.forgotPassword => '/auth/forgot-password',
+            AuthStage.onboarding => '/',
+            AuthStage.authenticated when state.uri.path.startsWith('/auth/') =>
+              '/workspace',
+            _ => null,
+          };
+          if (path != null && path != state.uri.path) {
+            _router.go(location(Uri(path: path)));
+          }
+        },
+      ),
+    );
+  }
+
   final AppThemeController _themeController = AppThemeController(
     ThemeMode.dark,
     'Comfortable',
   );
 
   @override
+  void initState() {
+    super.initState();
+    usePathUrlStrategy();
+  }
+
+  @override
   void dispose() {
+    _router.dispose();
     _themeController.dispose();
     super.dispose();
   }
@@ -65,7 +146,7 @@ class _TradeXAppState extends State<TradeXApp> {
 
           return UiApp(
             theme: theme,
-            builder: (context) => MaterialApp(
+            builder: (context) => MaterialApp.router(
               title: AppConstants.appName,
               debugShowCheckedModeBanner: false,
               theme: UiTheme.light(spacing: spacing).toThemeData(),
@@ -73,7 +154,7 @@ class _TradeXAppState extends State<TradeXApp> {
               themeMode: _themeController.value,
               builder: (context, child) =>
                   UiToastScope(child: child ?? const SizedBox.shrink()),
-              home: const AuthWrapper(),
+              routerConfig: _router,
             ),
           );
         },

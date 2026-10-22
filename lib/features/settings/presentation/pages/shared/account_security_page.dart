@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
@@ -48,7 +50,8 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
       final connected = await _repo.getConnectedAccounts();
       if (mounted) {
         setState(() {
-          _currentEmail = profile.email;
+          _currentEmail =
+              SupabaseConfig.client?.auth.currentUser?.email ?? profile.email;
           _connectedAccounts = connected;
           _loading = false;
         });
@@ -109,7 +112,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
               loading: isSubmitting,
               onPressed: () async {
                 final newEmail = emailController.text.trim();
-                final pwd = passwordController.text.trim();
+                final pwd = passwordController.text;
                 if (newEmail.isEmpty || pwd.isEmpty) {
                   UiToast.show(
                     context,
@@ -152,6 +155,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
 
   void _showEmailOtpDialog(String newEmail) {
     bool verifying = false;
+    String code = '';
 
     showDialog(
       context: context,
@@ -169,7 +173,12 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
               SizedBox(height: context.sp(context.ui.spacing.md)),
               UiField(
                 label: 'Verification Code',
-                child: UiInput(hintText: '123456', onChanged: (v) {}),
+                child: UiInput(
+                  hintText: '123456',
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  onChanged: (value) => code = value.trim(),
+                ),
               ),
             ],
           ),
@@ -184,19 +193,51 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
               intent: UiIntent.primary,
               loading: verifying,
               onPressed: () async {
-                setDialogState(() => verifying = true);
-                await Future<void>.delayed(const Duration(milliseconds: 500));
-                if (ctx.mounted) {
-                  Navigator.of(ctx).pop();
+                if (verifying) return;
+                if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+                  UiToast.show(
+                    context,
+                    title: 'Enter the 6-digit code',
+                    intent: UiIntent.warning,
+                  );
+                  return;
                 }
-                if (mounted) {
+                setDialogState(() => verifying = true);
+                try {
+                  final client = SupabaseConfig.client;
+                  if (!SupabaseConfig.isConfigured || client == null) {
+                    throw StateError('Email verification is unavailable.');
+                  }
+                  await client.auth.verifyOTP(
+                    email: newEmail,
+                    token: code,
+                    type: OtpType.emailChange,
+                  );
+                  if (!ctx.mounted || !mounted) return;
+                  if (client.auth.currentUser?.email?.toLowerCase() !=
+                      newEmail.toLowerCase()) {
+                    throw StateError(
+                      'Check both your current and new inboxes to complete this email change.',
+                    );
+                  }
+                  Navigator.of(ctx).pop();
                   setState(() => _currentEmail = newEmail);
                   UiToast.show(
                     context,
                     title: 'Email Updated',
-                    message:
-                        'Your account email has been updated to $newEmail.',
+                    message: 'Your verified email is now $newEmail.',
                     intent: UiIntent.success,
+                  );
+                } catch (error) {
+                  if (!ctx.mounted || !mounted) return;
+                  setDialogState(() => verifying = false);
+                  UiToast.show(
+                    context,
+                    title: 'Verification failed',
+                    message: error is AuthException
+                        ? error.message
+                        : error.toString().replaceFirst('Bad state: ', ''),
+                    intent: UiIntent.danger,
                   );
                 }
               },
@@ -207,10 +248,33 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
     );
   }
 
+  Future<void> _manageIdentity(String provider, bool linked) async {
+    try {
+      if (linked) {
+        await _repo.unlinkConnectedAccount(provider);
+      } else {
+        await _repo.linkConnectedAccount(provider);
+      }
+      final fresh = await _repo.getConnectedAccounts();
+      if (mounted) setState(() => _connectedAccounts = fresh);
+    } catch (error) {
+      if (mounted) {
+        UiToast.show(
+          context,
+          title: 'Account linking failed',
+          message: error is AuthException
+              ? error.message
+              : error.toString().replaceFirst('Bad state: ', ''),
+          intent: UiIntent.warning,
+        );
+      }
+    }
+  }
+
   Future<void> _handleChangePassword() async {
-    final cur = _curPwdController.text.trim();
-    final nw = _newPwdController.text.trim();
-    final cf = _confirmPwdController.text.trim();
+    final cur = _curPwdController.text;
+    final nw = _newPwdController.text;
+    final cf = _confirmPwdController.text;
 
     if (cur.isEmpty || nw.isEmpty || cf.isEmpty) {
       UiToast.show(
@@ -463,7 +527,11 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                   AppSettingCard(
                     title: 'Google',
                     description: hasGoogle
-                        ? 'Connected to nitish@gmail.com'
+                        ? _connectedAccounts
+                                  .where((a) => a.provider == 'google')
+                                  .first
+                                  .email ??
+                              'Connected'
                         : 'Not linked',
                     icon: Icons.g_mobiledata_rounded,
                     control: UiButton(
@@ -472,15 +540,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                           ? UiVariant.outline
                           : UiVariant.primary,
                       size: UiSize.sm,
-                      onPressed: () async {
-                        if (hasGoogle) {
-                          await _repo.unlinkConnectedAccount('google');
-                        } else {
-                          await _repo.linkConnectedAccount('google');
-                        }
-                        final fresh = await _repo.getConnectedAccounts();
-                        if (mounted) setState(() => _connectedAccounts = fresh);
-                      },
+                      onPressed: () => _manageIdentity('google', hasGoogle),
                     ),
                   ),
                   AppSettingCard(
@@ -493,15 +553,7 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                       label: hasApple ? 'Unlink' : 'Link Apple',
                       variant: hasApple ? UiVariant.outline : UiVariant.primary,
                       size: UiSize.sm,
-                      onPressed: () async {
-                        if (hasApple) {
-                          await _repo.unlinkConnectedAccount('apple');
-                        } else {
-                          await _repo.linkConnectedAccount('apple');
-                        }
-                        final fresh = await _repo.getConnectedAccounts();
-                        if (mounted) setState(() => _connectedAccounts = fresh);
-                      },
+                      onPressed: () => _manageIdentity('apple', hasApple),
                     ),
                   ),
                 ],

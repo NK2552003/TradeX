@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -18,9 +19,14 @@ import 'package:tradex/features/messages/models/messages_models.dart';
 /// and Realtime channels when connected.
 class MessagesRepository extends ChangeNotifier {
   MessagesRepository() {
-    _threads = MessagesSeed.threads();
-    _requests = MessagesSeed.requests();
-    _messages = MessagesSeed.messagesByThread();
+    _threads = [];
+    _requests = [];
+    _messages = {};
+    if (CustomerDataPolicy.allowDemo) {
+      _threads = MessagesSeed.threads();
+      _requests = MessagesSeed.requests();
+      _messages = MessagesSeed.messagesByThread();
+    }
     if (SupabaseConfig.isConfigured) {
       unawaited(_initSupabase());
     }
@@ -100,20 +106,27 @@ class MessagesRepository extends ChangeNotifier {
         final isPinned = tmap['is_pinned'] as bool? ?? false;
         final isArchived = tmap['is_archived'] as bool? ?? false;
         final lastPreview = tmap['last_message_preview'] as String? ?? '';
-        final lastAt = DateTime.tryParse(tmap['last_message_at']?.toString() ?? '') ?? DateTime.now();
+        final lastAt =
+            DateTime.tryParse(tmap['last_message_at']?.toString() ?? '') ??
+            DateTime.now();
 
-        final participantsData = tmap['chat_participants'] as List<dynamic>? ?? [];
+        final participantsData =
+            tmap['chat_participants'] as List<dynamic>? ?? [];
         final List<AppTrader> traders = [];
         AppTrader? peer;
 
         for (final p in participantsData) {
           final pmap = p as Map<String, dynamic>;
           final prof = pmap['profiles'] as Map<String, dynamic>? ?? {};
-          final pId = prof['id']?.toString() ?? pmap['user_id']?.toString() ?? '';
+          final pId =
+              prof['id']?.toString() ?? pmap['user_id']?.toString() ?? '';
           final trader = AppTrader(
             id: pId,
             handle: prof['handle'] as String? ?? 'trader',
-            displayName: prof['display_name'] as String? ?? prof['handle'] as String? ?? 'Trader',
+            displayName:
+                prof['display_name'] as String? ??
+                prof['handle'] as String? ??
+                'Trader',
             avatarUrl: prof['avatar_url'] as String?,
           );
           traders.add(trader);
@@ -122,11 +135,13 @@ class MessagesRepository extends ChangeNotifier {
           }
         }
 
-        peer ??= traders.firstOrNull ?? AppTrader(
-          id: 'peer',
-          handle: 'trader',
-          displayName: tmap['title'] as String? ?? 'Trader',
-        );
+        peer ??=
+            traders.firstOrNull ??
+            AppTrader(
+              id: 'peer',
+              handle: 'trader',
+              displayName: tmap['title'] as String? ?? 'Trader',
+            );
 
         final thread = MessageThread(
           id: threadId,
@@ -174,7 +189,9 @@ class MessagesRepository extends ChangeNotifier {
           final senderId = mmap['sender_id'] as String? ?? '';
           final fromMe = senderId == currentUserId;
           final body = mmap['body'] as String? ?? '';
-          final sentAt = DateTime.tryParse(mmap['created_at']?.toString() ?? '') ?? DateTime.now();
+          final sentAt =
+              DateTime.tryParse(mmap['created_at']?.toString() ?? '') ??
+              DateTime.now();
           final statusStr = mmap['status'] as String? ?? 'sent';
           final status = MessageStatus.values.firstWhere(
             (s) => s.name == statusStr,
@@ -208,7 +225,8 @@ class MessagesRepository extends ChangeNotifier {
             final refMap = refList.first as Map<String, dynamic>;
             final kindStr = refMap['kind'] as String? ?? 'note';
             final refId = refMap['ref_id'] as String? ?? '';
-            AppLinkKind refKind = AppLinkKind.fromHost(kindStr) ??
+            AppLinkKind refKind =
+                AppLinkKind.fromHost(kindStr) ??
                 AppLinkKind.values.firstWhere(
                   (k) =>
                       k.name.toLowerCase() ==
@@ -278,12 +296,10 @@ class MessagesRepository extends ChangeNotifier {
         loadedMessages[threadId] = threadMsgs;
       }
 
-      if (loadedThreads.isNotEmpty || loadedRequests.isNotEmpty) {
-        _threads = loadedThreads;
-        _requests = loadedRequests;
-        _messages = loadedMessages;
-        notifyListeners();
-      }
+      _threads = loadedThreads;
+      _requests = loadedRequests;
+      _messages = loadedMessages;
+      notifyListeners();
     } catch (e) {
       debugPrint('[MessagesRepository] fetchFromSupabase error: $e');
     }
@@ -340,7 +356,9 @@ class MessagesRepository extends ChangeNotifier {
           threadId: threadId,
           body: row['body']?.toString() ?? '',
           fromMe: fromMe,
-          sentAt: DateTime.tryParse(row['created_at']?.toString() ?? '') ?? DateTime.now(),
+          sentAt:
+              DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+              DateTime.now(),
           status: MessageStatus.sent,
           systemNotice: row['system_notice'] as bool? ?? false,
           replyToId: row['reply_to_id']?.toString(),
@@ -581,7 +599,10 @@ class MessagesRepository extends ChangeNotifier {
             'thread_id': _isUuid(threadId) ? threadId : null,
             'sender_id': currentUserId,
             'body': message.body,
-            'reply_to_id': message.replyToId != null && _isUuid(message.replyToId!) ? message.replyToId : null,
+            'reply_to_id':
+                message.replyToId != null && _isUuid(message.replyToId!)
+                ? message.replyToId
+                : null,
             'system_notice': false,
             'status': 'sent',
             'created_at': message.sentAt.toIso8601String(),
@@ -738,10 +759,13 @@ class MessagesRepository extends ChangeNotifier {
       unawaited(() async {
         try {
           final client = SupabaseConfig.client!;
-          await client.from('chat_messages').update({
-            'body': clean,
-            'updated_at': DateTime.now().toIso8601String(),
-          }).eq('id', messageId);
+          await client
+              .from('chat_messages')
+              .update({
+                'body': clean,
+                'updated_at': DateTime.now().toIso8601String(),
+              })
+              .eq('id', messageId);
         } catch (e) {
           debugPrint('[MessagesRepository] editMessage Supabase error: $e');
         }
@@ -857,7 +881,9 @@ class MessagesRepository extends ChangeNotifier {
               {'thread_id': id, 'user_id': peer.id, 'role': 'member'},
           ]);
         } catch (e) {
-          debugPrint('[MessagesRepository] startConversation Supabase error: $e');
+          debugPrint(
+            '[MessagesRepository] startConversation Supabase error: $e',
+          );
         }
       }());
     }
@@ -910,7 +936,8 @@ class MessagesRepository extends ChangeNotifier {
             'type': 'group',
             'title': title,
             'created_by': currentUserId,
-            'last_message_preview': 'Group created with ${participants.length} traders',
+            'last_message_preview':
+                'Group created with ${participants.length} traders',
           });
           final participantRows = [
             {'thread_id': id, 'user_id': currentUserId, 'role': 'admin'},
@@ -920,7 +947,9 @@ class MessagesRepository extends ChangeNotifier {
           ];
           await client.from('chat_participants').insert(participantRows);
         } catch (e) {
-          debugPrint('[MessagesRepository] startGroupConversation Supabase error: $e');
+          debugPrint(
+            '[MessagesRepository] startGroupConversation Supabase error: $e',
+          );
         }
       }());
     }
@@ -930,20 +959,19 @@ class MessagesRepository extends ChangeNotifier {
 
   /// @backend PATCH /threads/{id} { pinned }.
   void togglePin(String threadId) {
-    _mutateThread(
-      threadId,
-      (MessageThread t) => t.copyWith(pinned: !t.pinned),
-    );
+    _mutateThread(threadId, (MessageThread t) => t.copyWith(pinned: !t.pinned));
     if (SupabaseConfig.isConfigured && _isUuid(threadId)) {
       final t = threadById(threadId);
       if (t != null) {
-        unawaited(SupabaseConfig.client!
-            .from('chat_threads')
-            .update({'is_pinned': t.pinned})
-            .eq('id', threadId)
-            .catchError((e) {
-          debugPrint('[MessagesRepository] togglePin error: $e');
-        }));
+        unawaited(
+          SupabaseConfig.client!
+              .from('chat_threads')
+              .update({'is_pinned': t.pinned})
+              .eq('id', threadId)
+              .catchError((e) {
+                debugPrint('[MessagesRepository] togglePin error: $e');
+              }),
+        );
       }
     }
   }
@@ -961,13 +989,15 @@ class MessagesRepository extends ChangeNotifier {
     if (SupabaseConfig.isConfigured && _isUuid(threadId)) {
       final t = threadById(threadId);
       if (t != null) {
-        unawaited(SupabaseConfig.client!
-            .from('chat_threads')
-            .update({'is_archived': t.archived})
-            .eq('id', threadId)
-            .catchError((e) {
-          debugPrint('[MessagesRepository] toggleArchive error: $e');
-        }));
+        unawaited(
+          SupabaseConfig.client!
+              .from('chat_threads')
+              .update({'is_archived': t.archived})
+              .eq('id', threadId)
+              .catchError((e) {
+                debugPrint('[MessagesRepository] toggleArchive error: $e');
+              }),
+        );
       }
     }
   }
@@ -998,13 +1028,15 @@ class MessagesRepository extends ChangeNotifier {
     notifyListeners();
 
     if (SupabaseConfig.isConfigured && _isUuid(requestId)) {
-      unawaited(SupabaseConfig.client!
-          .from('chat_threads')
-          .update({'is_request': false})
-          .eq('id', requestId)
-          .catchError((e) {
-        debugPrint('[MessagesRepository] acceptRequest error: $e');
-      }));
+      unawaited(
+        SupabaseConfig.client!
+            .from('chat_threads')
+            .update({'is_request': false})
+            .eq('id', requestId)
+            .catchError((e) {
+              debugPrint('[MessagesRepository] acceptRequest error: $e');
+            }),
+      );
     }
 
     return promoted.id;
@@ -1016,13 +1048,15 @@ class MessagesRepository extends ChangeNotifier {
     notifyListeners();
 
     if (SupabaseConfig.isConfigured && _isUuid(requestId)) {
-      unawaited(SupabaseConfig.client!
-          .from('chat_threads')
-          .delete()
-          .eq('id', requestId)
-          .catchError((e) {
-        debugPrint('[MessagesRepository] declineRequest error: $e');
-      }));
+      unawaited(
+        SupabaseConfig.client!
+            .from('chat_threads')
+            .delete()
+            .eq('id', requestId)
+            .catchError((e) {
+              debugPrint('[MessagesRepository] declineRequest error: $e');
+            }),
+      );
     }
   }
 
@@ -1042,13 +1076,15 @@ class MessagesRepository extends ChangeNotifier {
     notifyListeners();
 
     if (SupabaseConfig.isConfigured && _isUuid(threadId)) {
-      unawaited(SupabaseConfig.client!
-          .from('chat_threads')
-          .delete()
-          .eq('id', threadId)
-          .catchError((e) {
-        debugPrint('[MessagesRepository] deleteThread error: $e');
-      }));
+      unawaited(
+        SupabaseConfig.client!
+            .from('chat_threads')
+            .delete()
+            .eq('id', threadId)
+            .catchError((e) {
+              debugPrint('[MessagesRepository] deleteThread error: $e');
+            }),
+      );
     }
   }
 
@@ -1067,13 +1103,15 @@ class MessagesRepository extends ChangeNotifier {
     notifyListeners();
 
     if (SupabaseConfig.isConfigured && _isUuid(threadId)) {
-      unawaited(SupabaseConfig.client!
-          .from('chat_messages')
-          .delete()
-          .eq('thread_id', threadId)
-          .catchError((e) {
-        debugPrint('[MessagesRepository] clearThreadMessages error: $e');
-      }));
+      unawaited(
+        SupabaseConfig.client!
+            .from('chat_messages')
+            .delete()
+            .eq('thread_id', threadId)
+            .catchError((e) {
+              debugPrint('[MessagesRepository] clearThreadMessages error: $e');
+            }),
+      );
     }
   }
 

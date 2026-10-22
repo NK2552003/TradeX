@@ -1,3 +1,7 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tradex/core/config/record_access.dart';
+import 'package:tradex/core/data/owned_record_writer.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -83,10 +87,12 @@ class JournalRepositoryImpl implements JournalRepository {
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   );
 
+  final Set<String> _favoriteIds = {};
   final List<AppTrade> _entries = <AppTrade>[];
   final StreamController<List<AppTrade>> _changes =
       StreamController<List<AppTrade>>.broadcast();
   bool _initialized = false;
+  String? _cacheActor;
   bool _subscribedToRealtime = false;
   RealtimeChannel? _realtimeChannel;
 
@@ -106,9 +112,24 @@ class JournalRepositoryImpl implements JournalRepository {
   bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
 
   Future<void> _init() async {
+    final actor = _resolveUserId();
+    if (_cacheActor != actor) {
+      _entries.clear();
+      _favoriteIds.clear();
+      _initialized = false;
+      _cacheActor = actor;
+    }
     if (_initialized) return;
     _initialized = true;
+    final preferences = await SharedPreferences.getInstance();
+    _favoriteIds.addAll(
+      preferences.getStringList('journal_favorites:$actor') ?? const <String>[],
+    );
 
+    if (!SupabaseConfig.isConfigured && !CustomerDataPolicy.allowDemo) {
+      _publish();
+      return;
+    }
     if (SupabaseConfig.isConfigured) {
       _initRealtime();
       await _fetchFromSupabase();
@@ -126,17 +147,18 @@ class JournalRepositoryImpl implements JournalRepository {
 
     try {
       final client = SupabaseConfig.client!;
-      _realtimeChannel = client
-          .channel('public:journal_entries_channel')
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'journal_entries',
-            callback: (PostgresChangePayload payload) {
-              _handlePostgresChange(payload);
-            },
-          )
-        ..subscribe();
+      _realtimeChannel =
+          client
+              .channel('public:journal_entries_channel')
+              .onPostgresChanges(
+                event: PostgresChangeEvent.all,
+                schema: 'public',
+                table: 'journal_entries',
+                callback: (PostgresChangePayload payload) {
+                  _handlePostgresChange(payload);
+                },
+              )
+            ..subscribe();
     } catch (e) {
       debugPrint('[JournalRepository] Realtime subscription error: $e');
     }
@@ -245,11 +267,10 @@ class JournalRepositoryImpl implements JournalRepository {
 
   AppTrade _mapRowToTrade(Map<String, dynamic> row) {
     final String sideStr = (row['side'] as String? ?? 'long').toLowerCase();
-    final String outcomeStr =
-        (row['outcome'] as String? ?? 'open').toLowerCase();
+    final String outcomeStr = (row['outcome'] as String? ?? 'open')
+        .toLowerCase();
     final List<dynamic>? screenshots = row['screenshots'] as List<dynamic>?;
-    final List<dynamic>? linkedNotes =
-        row['linked_note_ids'] as List<dynamic>?;
+    final List<dynamic>? linkedNotes = row['linked_note_ids'] as List<dynamic>?;
     final List<dynamic>? tagsList = row['tags'] as List<dynamic>?;
 
     String? strategyName = row['strategy_name'] as String?;
@@ -267,8 +288,9 @@ class JournalRepositoryImpl implements JournalRepository {
     final DateTime openedAt = row['opened_at'] != null
         ? DateTime.tryParse(row['opened_at'].toString()) ?? DateTime.now()
         : (row['created_at'] != null
-            ? DateTime.tryParse(row['created_at'].toString()) ?? DateTime.now()
-            : DateTime.now());
+              ? DateTime.tryParse(row['created_at'].toString()) ??
+                    DateTime.now()
+              : DateTime.now());
 
     final DateTime? closedAt = row['closed_at'] != null
         ? DateTime.tryParse(row['closed_at'].toString())
@@ -279,7 +301,8 @@ class JournalRepositoryImpl implements JournalRepository {
         : null;
 
     final String content = row['content'] as String? ?? '';
-    final String notes = row['psychology'] as String? ??
+    final String notes =
+        row['psychology'] as String? ??
         (row['mistakes_made'] as String?) ??
         (row['lessons_learned'] as String?) ??
         content;
@@ -324,7 +347,7 @@ class JournalRepositoryImpl implements JournalRepository {
       checklistTotal: (row['checklist_total'] as num?)?.toInt() ?? 0,
       hasImages: row['has_images'] as bool? ?? false,
       hasCode: row['has_code'] as bool? ?? false,
-      isFavorite: row['is_favorite'] as bool? ?? false,
+      isFavorite: _favoriteIds.contains(row['id']?.toString()),
     );
   }
 
@@ -419,10 +442,10 @@ class JournalRepositoryImpl implements JournalRepository {
 
   @override
   Stream<List<AppTrade>> watchPublic() => watchAll().map(
-        (List<AppTrade> entries) => entries
-            .where((AppTrade entry) => entry.isPublic)
-            .toList(growable: false),
-      );
+    (List<AppTrade> entries) => entries
+        .where((AppTrade entry) => entry.isPublic)
+        .toList(growable: false),
+  );
 
   @override
   AppJournalStats get stats => JournalQuery.statsOf(_entries);
@@ -439,8 +462,10 @@ class JournalRepositoryImpl implements JournalRepository {
   @override
   Future<AppTrade?> getById(String id) async {
     await _init();
-    for (final AppTrade entry in _entries) {
-      if (entry.id == id) return entry;
+    if (!SupabaseConfig.isConfigured) {
+      for (final AppTrade entry in _entries) {
+        if (entry.id == id) return entry;
+      }
     }
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
@@ -452,6 +477,10 @@ class JournalRepositoryImpl implements JournalRepository {
             .maybeSingle();
         if (res != null) {
           final trade = _mapRowToTrade(res);
+          if (!RecordAccess.canRead(trade.userId, trade.isPublic)) {
+            _entries.removeWhere((item) => item.id == id);
+            return null;
+          }
           final at = _entries.indexWhere((t) => t.id == trade.id);
           if (at == -1) {
             _entries.insert(0, trade);
@@ -461,8 +490,10 @@ class JournalRepositoryImpl implements JournalRepository {
           _publish();
           return trade;
         }
+        _entries.removeWhere((record) => record.id == id);
       } catch (e) {
         debugPrint('[JournalRepository] getById error: $e');
+        rethrow;
       }
     }
     return null;
@@ -470,6 +501,7 @@ class JournalRepositoryImpl implements JournalRepository {
 
   @override
   Future<AppTrade> create(AppTrade draft) async {
+    RecordAccess.requireService();
     await _init();
 
     AppTrade saved = draft;
@@ -477,8 +509,9 @@ class JournalRepositoryImpl implements JournalRepository {
       try {
         final client = SupabaseConfig.client!;
         final targetUserId = _resolveUserId();
-        final String assignedId =
-            _isUuid(draft.id) ? draft.id : const Uuid().v4();
+        final String assignedId = _isUuid(draft.id)
+            ? draft.id
+            : const Uuid().v4();
         final row = _mapTradeToRow(
           draft.withDerivedCounts(),
           targetUserId,
@@ -493,19 +526,17 @@ class JournalRepositoryImpl implements JournalRepository {
 
         saved = _mapRowToTrade(res);
       } catch (e) {
-        debugPrint(
-            '[JournalRepository] create error, falling back to local: $e');
-        saved = draft
-            .copyWith(
-              id: draft.id.isEmpty ? const Uuid().v4() : draft.id,
-              updatedAt: DateTime.now(),
-            )
-            .withDerivedCounts();
+        debugPrint('[JournalRepository] create error: $e');
+        rethrow;
       }
     } else {
       saved = draft
           .copyWith(
-            id: draft.id.isEmpty ? const Uuid().v4() : draft.id,
+            id:
+                draft.id.isEmpty ||
+                    (SupabaseConfig.isConfigured && !_isUuid(draft.id))
+                ? const Uuid().v4()
+                : draft.id,
             updatedAt: DateTime.now(),
           )
           .withDerivedCounts();
@@ -521,9 +552,13 @@ class JournalRepositoryImpl implements JournalRepository {
 
   @override
   Future<AppTrade> update(AppTrade entry) async {
+    RecordAccess.requireService();
+    final owned = await getById(entry.id);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     await _init();
 
-    AppTrade saved = entry.withDerivedCounts();
+    AppTrade saved = entry.copyWith(userId: owned.userId).withDerivedCounts();
     if (SupabaseConfig.isConfigured && _isUuid(entry.id)) {
       try {
         final client = SupabaseConfig.client!;
@@ -536,12 +571,14 @@ class JournalRepositoryImpl implements JournalRepository {
             .from('journal_entries')
             .update(row)
             .eq('id', entry.id)
+            .eq('user_id', targetUserId)
             .select('*, strategies(name)')
             .single();
 
         saved = _mapRowToTrade(res);
       } catch (e) {
         debugPrint('[JournalRepository] update error: $e');
+        rethrow;
       }
     }
 
@@ -558,35 +595,52 @@ class JournalRepositoryImpl implements JournalRepository {
   }
 
   @override
-  Future<AppTrade> toggleFavorite(String id) async =>
-      _mutate(id, (AppTrade entry) => entry.copyWith(isFavorite: !entry.isFavorite));
+  Future<AppTrade> toggleFavorite(String id) async {
+    final current = await getById(id);
+    if (current == null) throw StateError('This trade is no longer available.');
+    final next = !current.isFavorite;
+    if (next) {
+      _favoriteIds.add(id);
+    } else {
+      _favoriteIds.remove(id);
+    }
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setStringList(
+      'journal_favorites:${_resolveUserId()}',
+      _favoriteIds.toList(),
+    );
+    return _mutate(id, (entry) => entry.copyWith(isFavorite: next));
+  }
 
   @override
   Future<AppTrade> setVisibility(String id, bool isPublic) async {
-    if (SupabaseConfig.isConfigured && _isUuid(id)) {
-      try {
-        final client = SupabaseConfig.client!;
-        await client
-            .from('journal_entries')
-            .update({'is_public': isPublic})
-            .eq('id', id);
-      } catch (e) {
-        debugPrint('[JournalRepository] setVisibility error: $e');
-      }
+    RecordAccess.requireService();
+    final owned = await getById(id);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
+    if (SupabaseConfig.isConfigured) {
+      await OwnedRecordWriter().update('journal_entries', id, {
+        'is_public': isPublic,
+      });
     }
+
     return _mutate(id, (AppTrade entry) => entry.copyWith(isPublic: isPublic));
   }
 
   @override
   Future<void> delete(String id) async {
+    RecordAccess.requireService();
+    final owned = await getById(id);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     await _init();
 
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
-        final client = SupabaseConfig.client!;
-        await client.from('journal_entries').delete().eq('id', id);
+        await OwnedRecordWriter().delete('journal_entries', id);
       } catch (e) {
         debugPrint('[JournalRepository] delete error: $e');
+        rethrow;
       }
     }
 
@@ -613,6 +667,10 @@ class JournalRepositoryImpl implements JournalRepository {
 
   @override
   Future<AppTrade> linkNote(String entryId, String noteId) async {
+    RecordAccess.requireService();
+    final owned = await getById(entryId);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     if (SupabaseConfig.isConfigured && _isUuid(entryId)) {
       try {
         final client = SupabaseConfig.client!;
@@ -622,7 +680,10 @@ class JournalRepositoryImpl implements JournalRepository {
           await client
               .from('journal_entries')
               .update({'linked_note_ids': updated})
-              .eq('id', entryId);
+              .eq('id', entryId)
+              .eq('user_id', _resolveUserId())
+              .select('id')
+              .single();
           if (_isUuid(noteId)) {
             try {
               await client.from('note_journal_links').upsert({
@@ -634,6 +695,7 @@ class JournalRepositoryImpl implements JournalRepository {
         }
       } catch (e) {
         debugPrint('[JournalRepository] linkNote error: $e');
+        rethrow;
       }
     }
     return _mutate(entryId, (AppTrade entry) {
@@ -646,6 +708,10 @@ class JournalRepositoryImpl implements JournalRepository {
 
   @override
   Future<AppTrade> unlinkNote(String entryId, String noteId) async {
+    RecordAccess.requireService();
+    final owned = await getById(entryId);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     if (SupabaseConfig.isConfigured && _isUuid(entryId)) {
       try {
         final client = SupabaseConfig.client!;
@@ -657,7 +723,10 @@ class JournalRepositoryImpl implements JournalRepository {
           await client
               .from('journal_entries')
               .update({'linked_note_ids': updated})
-              .eq('id', entryId);
+              .eq('id', entryId)
+              .eq('user_id', _resolveUserId())
+              .select('id')
+              .single();
           if (_isUuid(noteId)) {
             try {
               await client.from('note_journal_links').delete().match({
@@ -669,6 +738,7 @@ class JournalRepositoryImpl implements JournalRepository {
         }
       } catch (e) {
         debugPrint('[JournalRepository] unlinkNote error: $e');
+        rethrow;
       }
     }
     return _mutate(entryId, (AppTrade entry) {
@@ -686,19 +756,27 @@ class JournalRepositoryImpl implements JournalRepository {
     String? strategyId, {
     String? strategyName,
   }) async {
+    RecordAccess.requireService();
+    final owned = await getById(entryId);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     if (SupabaseConfig.isConfigured && _isUuid(entryId)) {
       try {
         final client = SupabaseConfig.client!;
         final validStrategyId =
             strategyId != null && strategyId.isNotEmpty && _isUuid(strategyId)
-                ? strategyId
-                : null;
+            ? strategyId
+            : null;
         await client
             .from('journal_entries')
             .update({'strategy_id': validStrategyId})
-            .eq('id', entryId);
+            .eq('id', entryId)
+            .eq('user_id', _resolveUserId())
+            .select('id')
+            .single();
       } catch (e) {
         debugPrint('[JournalRepository] attachStrategy error: $e');
+        rethrow;
       }
     }
     return _mutate(entryId, (AppTrade entry) {
@@ -711,12 +789,23 @@ class JournalRepositoryImpl implements JournalRepository {
 
   @override
   Future<String> uploadAttachment(String entryId, File file) async {
+    RecordAccess.requireService();
+    if (SupabaseConfig.isConfigured) {
+      final owner = await getById(entryId);
+      if (owner == null) {
+        throw StateError('Save this record before adding attachments.');
+      }
+      RecordAccess.requireOwner(owner.userId);
+    }
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
         final ext = file.path.contains('.') ? file.path.split('.').last : 'png';
-        final storagePath = '$entryId/${const Uuid().v4()}.$ext';
-        await client.storage.from('journal-attachments').upload(
+        final storagePath =
+            '${_resolveUserId()}/$entryId/${const Uuid().v4()}.$ext';
+        await client.storage
+            .from('journal-attachments')
+            .upload(
               storagePath,
               file,
               fileOptions: const FileOptions(upsert: true),
@@ -724,6 +813,7 @@ class JournalRepositoryImpl implements JournalRepository {
         return storagePath;
       } catch (e) {
         debugPrint('[JournalRepository] uploadAttachment error: $e');
+        rethrow;
       }
     }
     return file.path;
@@ -731,19 +821,18 @@ class JournalRepositoryImpl implements JournalRepository {
 
   @override
   Future<String> resolveAttachmentUrl(String ref) async {
-    if (SupabaseConfig.isConfigured &&
-        !ref.startsWith('/') &&
-        !ref.contains(':\\') &&
-        !ref.startsWith('file:')) {
-      try {
-        final client = SupabaseConfig.client!;
-        final url = client.storage.from('journal-attachments').getPublicUrl(ref);
-        return url;
-      } catch (e) {
-        debugPrint('[JournalRepository] resolveAttachmentUrl error: $e');
-      }
+    if (!SupabaseConfig.isConfigured ||
+        ref.startsWith('https://') ||
+        ref.startsWith('http://') ||
+        ref.startsWith('/') ||
+        ref.contains(':\\') ||
+        ref.startsWith('file:') ||
+        ref.startsWith('data:')) {
+      return ref;
     }
-    return ref;
+    return SupabaseConfig.client!.storage
+        .from('journal-attachments')
+        .createSignedUrl(ref, 600);
   }
 }
 

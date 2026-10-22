@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:tradex/features/market_data/presentation/market_root_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -49,10 +50,16 @@ class AppScaffold extends StatefulWidget {
     this.userId = '',
     this.userDisplayName = '',
     this.initialDestination = 'workspace',
+    this.initialOpenRequest,
+    this.onDestinationChanged,
+    this.onOpenRecord,
   });
 
   final UserRole userRole;
   final String initialDestination;
+  final AppLinkOpenRequest? initialOpenRequest;
+  final ValueChanged<String>? onDestinationChanged;
+  final ValueChanged<AppLinkRef>? onOpenRecord;
 
   /// Identity handed down by the auth layer. All three default to empty rather
   /// than to a stand-in name: the chrome falls back to the profile repository,
@@ -94,11 +101,16 @@ class _AppScaffoldState extends State<AppScaffold> {
   final GlobalKey _workspaceSearchKey = GlobalKey();
 
   String _selectedId = 'workspace';
+  int _communityNavigationRevision = 0;
 
   /// Shell-level destination history. Feature screens keep their own detail
   /// history, while this stack preserves where a cross-feature jump came from.
   final List<String> _destinationHistory = <String>[];
+  final List<({String destination, AppLinkOpenRequest? request})>
+  _linkedOrigins = [];
+
   String _workspaceQuery = '';
+  WorkspaceViewState? _workspaceViewState;
   String _communityQuery = '';
   String _marketQuery = '';
   AppTrader? _identity;
@@ -136,6 +148,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     _session.changeTier(widget.subscriptionTier);
     // Painted from the cached profile on the first frame so the avatar, handle
     // and sidebar footer are never blank, then refreshed from the repository.
+    _linkRequest = widget.initialOpenRequest;
     _identity = appTraderFromProfile(_profiles.cachedProfile);
     _communityRepo.addListener(_onCommunityRepoChanged);
     _unread = _communityRepo.unreadNotifications;
@@ -173,6 +186,25 @@ class _AppScaffoldState extends State<AppScaffold> {
   @override
   void didUpdateWidget(AppScaffold oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialDestination != widget.initialDestination &&
+        _canReach(widget.initialDestination)) {
+      if (_selectedId != widget.initialDestination) {
+        _destinationHistory.clear();
+        _linkedOrigins.clear();
+      }
+      _selectedId = widget.initialDestination;
+      _activeSubpageTitle = null;
+      _activeSubpageIcon = null;
+      _activeSubpageOnBack = null;
+      _linkRequest = widget.initialOpenRequest;
+    }
+    final request = widget.initialOpenRequest;
+    if (request != null &&
+        (request.id != _linkRequest?.id ||
+            request.kind != _linkRequest?.kind ||
+            request.publicContext != _linkRequest?.publicContext)) {
+      _linkRequest = request;
+    }
     if (oldWidget.userRole != widget.userRole) {
       _previewRoleOverride = widget.userRole;
       _resetToOverview();
@@ -251,12 +283,43 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   void _onSubpageChanged(String? title, IconData? icon, VoidCallback? onBack) {
     if (!mounted) return;
+    final destination = _selectedId;
     // Feature screens can announce a reader/editor while their own frame is
     // still building. Updating AppScaffold synchronously there causes the
     // framework's "setState during build" error, so coalesce the shell update
     // to the next safe frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted || destination != _selectedId) return;
+      final ref = switch (destination) {
+        'notes' => _notesKey.currentState?.openedRef,
+        'journal' => _journalKey.currentState?.openedRef,
+        'strategies' => _strategiesKey.currentState?.openedRef,
+        _ => null,
+      };
+      if (ref != null &&
+          (ref.id != _linkRequest?.id ||
+              ref.kind != _linkRequest?.kind ||
+              ref.isPublicContext != _linkRequest?.publicContext)) {
+        _linkRequest = AppLinkOpenRequest(
+          kind: ref.kind,
+          id: ref.id,
+          seq: ++_linkSeq,
+          publicContext: ref.isPublicContext,
+        );
+        widget.onOpenRecord?.call(ref);
+      } else if (ref == null &&
+          title == null &&
+          const {
+            'notes',
+            'journal',
+            'strategies',
+            'community',
+            'community_feed',
+          }.contains(destination) &&
+          _linkRequest != null) {
+        _linkRequest = null;
+        widget.onDestinationChanged?.call(destination);
+      }
       if (_activeSubpageTitle == title &&
           _activeSubpageIcon == icon &&
           identical(_activeSubpageOnBack, onBack)) {
@@ -426,6 +489,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     _activeSubpageOnBack = null;
     _linkRequest = null;
     _destinationHistory.clear();
+    _linkedOrigins.clear();
   }
 
   void _switchRole(UserRole role) {
@@ -449,18 +513,30 @@ class _AppScaffoldState extends State<AppScaffold> {
     });
   }
 
+  void _rememberDestination(String next) {
+    final int existing = _destinationHistory.lastIndexOf(next);
+    if (existing >= 0) {
+      _destinationHistory.removeRange(existing, _destinationHistory.length);
+    } else if (_destinationHistory.isEmpty ||
+        _destinationHistory.last != _selectedId) {
+      _destinationHistory.add(_selectedId);
+    }
+  }
+
   /// The one way a destination changes.
   void _go(String id) {
     if (!_canReach(id)) return;
-    if (_selectedId == id && !_showAffiliateApplication) return;
+    if (_selectedId == id &&
+        !_showAffiliateApplication &&
+        !id.startsWith('community')) {
+      return;
+    }
+    _linkedOrigins.clear();
     AuthSessionStorage.saveLastDestination(id);
     setState(() {
-      if (_selectedId != id) _destinationHistory.add(_selectedId);
+      if (_selectedId != id) _rememberDestination(id);
+      if (id.startsWith('community')) _communityNavigationRevision++;
       _selectedId = id;
-      _workspaceQuery = '';
-      if (!id.startsWith('community')) {
-        _communityQuery = '';
-      }
       _showAffiliateApplication = id == 'affiliate_application';
       _activeSubpageTitle = null;
       _activeSubpageIcon = null;
@@ -471,13 +547,17 @@ class _AppScaffoldState extends State<AppScaffold> {
       // spent one.
       _linkRequest = null;
     });
+    widget.onDestinationChanged?.call(id);
   }
 
   void _goBack() {
+    if (_linkedOrigins.isNotEmpty) {
+      _returnFromLinkedRecord();
+      return;
+    }
     if (_destinationHistory.isEmpty) return;
     setState(() {
       _selectedId = _destinationHistory.removeLast();
-      _workspaceQuery = '';
       _communityQuery = '';
       _messagesQuery = '';
       _aiQuery = '';
@@ -486,6 +566,60 @@ class _AppScaffoldState extends State<AppScaffold> {
       _activeSubpageIcon = null;
       _activeSubpageOnBack = null;
       _linkRequest = null;
+    });
+    widget.onDestinationChanged?.call(_selectedId);
+  }
+
+  void _returnFromLinkedRecord() {
+    if (_linkedOrigins.isEmpty) return;
+    final origin = _linkedOrigins.removeLast();
+    setState(() {
+      _selectedId = origin.destination;
+      _linkRequest = origin.request == null
+          ? null
+          : AppLinkOpenRequest(
+              kind: origin.request!.kind,
+              id: origin.request!.id,
+              seq: ++_linkSeq,
+              publicContext: origin.request!.publicContext,
+            );
+      _activeSubpageTitle = null;
+      _activeSubpageIcon = null;
+      _activeSubpageOnBack = null;
+      if (_destinationHistory.isNotEmpty &&
+          _destinationHistory.last == origin.destination) {
+        _destinationHistory.removeLast();
+      }
+    });
+    final request = _linkRequest;
+    if (request == null) {
+      widget.onDestinationChanged?.call(_selectedId);
+    } else {
+      widget.onOpenRecord?.call(
+        AppLinkRef(
+          kind: request.kind,
+          id: request.id,
+          title: '',
+          isPublicContext: request.publicContext,
+        ),
+      );
+    }
+  }
+
+  void _communityRecordOpened(AppLinkRef ref) {
+    if (_linkRequest?.kind == ref.kind && _linkRequest?.id == ref.id) return;
+    _linkRequest = AppLinkOpenRequest(
+      kind: ref.kind,
+      id: ref.id,
+      seq: ++_linkSeq,
+      publicContext: true,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          _selectedId.startsWith('community') &&
+          _linkRequest?.id == ref.id) {
+        widget.onOpenRecord?.call(ref);
+      }
     });
   }
 
@@ -544,30 +678,32 @@ class _AppScaffoldState extends State<AppScaffold> {
     final AppLinkKind resolvedKind = _resolveRefKind(ref);
     final String destination = writing
         ? (resolvedKind == AppLinkKind.journal
-            ? 'journal'
-            : (resolvedKind == AppLinkKind.strategy
-                ? 'strategies'
-                : 'notes'))
+              ? 'journal'
+              : (resolvedKind == AppLinkKind.strategy ? 'strategies' : 'notes'))
         : (resolvedKind == AppLinkKind.aiCopilot
-            ? 'ai_copilot'
-            : (resolvedKind == AppLinkKind.messageThread
-                ? 'messages'
-                : switch (resolvedKind) {
-                    AppLinkKind.journal => 'journal',
-                    AppLinkKind.strategy => 'strategies',
-                    AppLinkKind.aiCopilot => 'ai_copilot',
-                    AppLinkKind.communityPost =>
-                      _canReach('community_feed') ? 'community_feed' : 'community',
-                    AppLinkKind.messageThread => 'messages',
-                    AppLinkKind.ticker => 'market',
-                    AppLinkKind.note => 'notes',
-                  }));
+              ? 'ai_copilot'
+              : (resolvedKind == AppLinkKind.messageThread
+                    ? 'messages'
+                    : switch (resolvedKind) {
+                        AppLinkKind.journal => 'journal',
+                        AppLinkKind.strategy => 'strategies',
+                        AppLinkKind.aiCopilot => 'ai_copilot',
+                        AppLinkKind.communityPost =>
+                          _canReach('community_feed')
+                              ? 'community_feed'
+                              : 'community',
+                        AppLinkKind.messageThread => 'messages',
+                        AppLinkKind.ticker => 'market',
+                        AppLinkKind.note => 'notes',
+                      }));
     if (!_canReach(destination)) return;
-    final bool isPublic = ref.isPublicContext ||
+    final bool isPublic =
+        ref.isPublicContext ||
         _selectedId == 'community' ||
         _selectedId == 'community_feed';
+    _linkedOrigins.add((destination: _selectedId, request: _linkRequest));
     setState(() {
-      if (_selectedId != destination) _destinationHistory.add(_selectedId);
+      if (_selectedId != destination) _rememberDestination(destination);
       _selectedId = destination;
       _showAffiliateApplication = false;
       _activeSubpageTitle = null;
@@ -581,6 +717,9 @@ class _AppScaffoldState extends State<AppScaffold> {
         publicContext: isPublic,
       );
     });
+    widget.onOpenRecord?.call(
+      ref.copyWith(kind: resolvedKind, isPublicContext: isPublic),
+    );
   }
 
   /// Breadcrumb leaf when the active surface has no sidebar entry to name it.
@@ -593,7 +732,8 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   VoidCallback? get _pageBackOverride => _showAffiliateApplication
       ? () => setState(() => _showAffiliateApplication = false)
-      : _activeSubpageOnBack;
+      : _activeSubpageOnBack ??
+            (_linkedOrigins.isNotEmpty ? _returnFromLinkedRecord : null);
 
   Widget _buildActivePage() {
     if (_showAffiliateApplication) return _affiliateApplicationPage();
@@ -767,8 +907,8 @@ class _AppScaffoldState extends State<AppScaffold> {
     final String? joined = trader.createdAt != null
         ? 'Joined ${_monthName(trader.createdAt!.month)} ${trader.createdAt!.year}'
         : (cached.createdAt != null
-            ? 'Joined ${_monthName(cached.createdAt!.month)} ${cached.createdAt!.year}'
-            : null);
+              ? 'Joined ${_monthName(cached.createdAt!.month)} ${cached.createdAt!.year}'
+              : null);
     _communityRepo.updateCurrentAuthor(
       CommunityAuthor(
         id: trader.id,
@@ -793,7 +933,9 @@ class _AppScaffoldState extends State<AppScaffold> {
       ),
     );
     return CommunityRootScreen(
-      key: ValueKey<String>('community_root_${_effectiveRole.id}'),
+      key: ValueKey<String>(
+        'community_root_${_effectiveRole.id}_${initialTabIndex}_$_communityNavigationRevision',
+      ),
       userRole: _effectiveRole,
       currentTrader: _chromeIdentity,
       onSubpageChanged: _onSubpageChanged,
@@ -802,6 +944,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       onOpenThread: _openMessagesThread,
       onStartDirectMessage: _startDirectMessage,
       initialTabIndex: initialTabIndex,
+      onOpenRecord: _communityRecordOpened,
       repository: _communityRepo,
       searchQuery: _communityQuery,
       openRequest: _linkRequest,
@@ -848,9 +991,14 @@ class _AppScaffoldState extends State<AppScaffold> {
       onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
       onSubpageChanged: _onSubpageChanged,
       searchQuery: _workspaceQuery,
+      viewState: _workspaceViewState,
+      onViewStateChanged: (saved) => _workspaceViewState = saved,
     ),
     'journal' => AppWritingDeskScope(
       child: JournalScreen(
+        onReturnToOrigin: _linkedOrigins.isNotEmpty
+            ? _returnFromLinkedRecord
+            : null,
         key: _journalKey,
         onSubpageChanged: _onSubpageChanged,
         onOpenRef: _openLinkRef,
@@ -860,6 +1008,9 @@ class _AppScaffoldState extends State<AppScaffold> {
     ),
     'notes' => AppWritingDeskScope(
       child: NotesScreen(
+        onReturnToOrigin: _linkedOrigins.isNotEmpty
+            ? _returnFromLinkedRecord
+            : null,
         key: _notesKey,
         onSubpageChanged: _onSubpageChanged,
         onOpenRef: _openLinkRef,
@@ -869,6 +1020,9 @@ class _AppScaffoldState extends State<AppScaffold> {
     ),
     'strategies' => AppWritingDeskScope(
       child: StrategiesScreen(
+        onReturnToOrigin: _linkedOrigins.isNotEmpty
+            ? _returnFromLinkedRecord
+            : null,
         key: _strategiesKey,
         onSubpageChanged: _onSubpageChanged,
         onOpenRef: _openLinkRef,
@@ -892,6 +1046,9 @@ class _AppScaffoldState extends State<AppScaffold> {
   Widget _affiliatePage() => switch (_selectedId) {
     'strategies' => AppWritingDeskScope(
       child: StrategiesScreen(
+        onReturnToOrigin: _linkedOrigins.isNotEmpty
+            ? _returnFromLinkedRecord
+            : null,
         onSubpageChanged: _onSubpageChanged,
         onOpenRef: _openLinkRef,
         onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
@@ -900,6 +1057,9 @@ class _AppScaffoldState extends State<AppScaffold> {
     ),
     'notes' => AppWritingDeskScope(
       child: NotesScreen(
+        onReturnToOrigin: _linkedOrigins.isNotEmpty
+            ? _returnFromLinkedRecord
+            : null,
         onSubpageChanged: _onSubpageChanged,
         onOpenRef: _openLinkRef,
         onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
@@ -937,6 +1097,9 @@ class _AppScaffoldState extends State<AppScaffold> {
   Widget _adminPage() => switch (_selectedId) {
     'strategies' => AppWritingDeskScope(
       child: StrategiesScreen(
+        onReturnToOrigin: _linkedOrigins.isNotEmpty
+            ? _returnFromLinkedRecord
+            : null,
         onSubpageChanged: _onSubpageChanged,
         onOpenRef: _openLinkRef,
         onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
@@ -945,6 +1108,9 @@ class _AppScaffoldState extends State<AppScaffold> {
     ),
     'notes' => AppWritingDeskScope(
       child: NotesScreen(
+        onReturnToOrigin: _linkedOrigins.isNotEmpty
+            ? _returnFromLinkedRecord
+            : null,
         onSubpageChanged: _onSubpageChanged,
         onOpenRef: _openLinkRef,
         onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
@@ -1280,7 +1446,12 @@ class _AppScaffoldState extends State<AppScaffold> {
             unreadNotifications: _unread,
             pageTitle: _pageTitleOverride,
             pageIcon: _pageIconOverride,
-            onBack: _pageBackOverride,
+            onBack:
+                context.uiRes.isMobile &&
+                    _isWritingFeature &&
+                    _activeSubpageOnBack != null
+                ? null
+                : _pageBackOverride,
             pagePlaceholderBuilder: (BuildContext context, AppNavItem item) =>
                 _destinationSkeleton(item.id),
             primaryActionLabel: null,
@@ -1391,15 +1562,16 @@ class _AppScaffoldState extends State<AppScaffold> {
               ),
             ),
           ),
-          UiButton(
-            label: 'Switch Role',
-            leadingIcon: Icons.swap_horiz_rounded,
-            variant: UiVariant.ghost,
-            intent: UiIntent.primary,
-            size: UiSize.xs,
-            hideLabelOnMobile: true,
-            onPressed: _showRoleSwitcherDialog,
-          ),
+          if (kDebugMode)
+            UiButton(
+              label: 'Switch Role',
+              leadingIcon: Icons.swap_horiz_rounded,
+              variant: UiVariant.ghost,
+              intent: UiIntent.primary,
+              size: UiSize.xs,
+              hideLabelOnMobile: true,
+              onPressed: _showRoleSwitcherDialog,
+            ),
           UiGap.h(theme.spacing.xs),
           UiButton(
             label: 'Logout',

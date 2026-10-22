@@ -112,91 +112,23 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
   }
 
   void _showUpdatePaymentMethodDialog() {
-    final TextEditingController card = TextEditingController();
-    final TextEditingController exp = TextEditingController();
-    final TextEditingController cvc = TextEditingController();
-    bool updating = false;
-
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext ctx) => StatefulBuilder(
-        builder: (BuildContext dialogCtx, StateSetter setDialogState) => UiDialog(
-          title: 'Update payment card',
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Text(
-                'Card details are held by the payment processor. TradeX only ever sees the last four digits.',
-                style: context.uiText.caption.copyWith(
-                  color: context.ui.colors.foregroundMuted,
-                ),
-              ),
-              UiGap.v(context.ui.spacing.md),
-              UiField(
-                label: 'Card number',
-                child: UiInput(
-                  controller: card,
-                  hintText: '4242 4242 4242 4242',
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-              UiGap.v(context.ui.spacing.sm),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: UiField(
-                      label: 'Expires (MM/YY)',
-                      child: UiInput(controller: exp, hintText: 'MM/YY'),
-                    ),
-                  ),
-                  UiGap.h(context.ui.spacing.sm),
-                  Expanded(
-                    child: UiField(
-                      label: 'CVC',
-                      child: UiInput(
-                        controller: cvc,
-                        hintText: '123',
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+    UiDialog.show<void>(
+      context,
+      child: Builder(
+        builder: (ctx) => UiDialog(
+          title: 'Payment method',
+          content: const UiCallout(
+            title: 'Card updates are unavailable',
+            message:
+                'A secure payment provider has not been connected. No card details have been collected or changed.',
+            intent: UiIntent.info,
           ),
-          actions: <Widget>[
-            UiButton(
-              label: 'Cancel',
-              variant: UiVariant.outline,
-              onPressed: () => Navigator.of(ctx).pop(),
-            ),
-            UiButton(
-              label: 'Save card',
-              intent: UiIntent.primary,
-              loading: updating,
-              onPressed: () async {
-                setDialogState(() => updating = true);
-                await _repo.startPaymentMethodUpdate();
-                if (ctx.mounted) Navigator.of(ctx).pop();
-                if (!mounted) return;
-                UiToast.show(
-                  context,
-                  title: 'Card saved',
-                  message: 'Your default payment method has been updated.',
-                  intent: UiIntent.success,
-                );
-                await _loadBillingData(silent: true);
-              },
-            ),
+          actions: [
+            UiButton(label: 'Close', onPressed: () => Navigator.of(ctx).pop()),
           ],
         ),
       ),
-    ).whenComplete(() {
-      card.dispose();
-      exp.dispose();
-      cvc.dispose();
-    });
+    );
   }
 
   void _showCancelDialog(SubscriptionSummary sub) {

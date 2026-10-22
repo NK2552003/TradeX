@@ -4,47 +4,52 @@ import 'package:tradex/features/journal/ui/journal_screen.dart';
 
 void main() {
   group('JournalScreen Dashboard Redesign', () {
-    testWidgets('renders dashboard on desktop with 4 metric cards, header, and FAB', (
-      WidgetTester tester,
-    ) async {
-      tester.view.physicalSize = const Size(1440, 900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
+    testWidgets(
+      'renders dashboard on desktop with 4 metric cards, header, and FAB',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(1440, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: JournalScreen(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          const MaterialApp(home: Scaffold(body: JournalScreen())),
+        );
+        await tester.pumpAndSettle();
 
-      // Entries heading
-      expect(find.text('Entries'), findsOneWidget);
+        // Entries heading
+        expect(find.text('Entries'), findsOneWidget);
 
-      // 4 Metric cards
-      expect(find.text('MONTH NET REALIZED'), findsOneWidget);
-      expect(find.textContaining('WIN RATE'), findsOneWidget);
-      expect(find.text('PROFIT FACTOR'), findsOneWidget);
-      expect(find.text('EXECUTION DISCIPLINE'), findsOneWidget);
+        // 4 Metric cards
+        expect(find.text('MONTH NET REALIZED'), findsOneWidget);
+        expect(find.textContaining('WIN RATE'), findsOneWidget);
+        expect(find.text('PROFIT FACTOR'), findsOneWidget);
+        expect(find.text('EXECUTION DISCIPLINE'), findsOneWidget);
 
-      // Keyboard shortcut footer
-      expect(find.textContaining('Press N to add trade'), findsOneWidget);
-      expect(find.textContaining('Connected to Zerodha Kite Broker API'), findsOneWidget);
+        // Keyboard shortcut footer
+        expect(find.textContaining('Press N to add trade'), findsOneWidget);
+        expect(
+          find.textContaining('broker sync is not connected'),
+          findsOneWidget,
+        );
 
-      // Floating bottom-right action button (icon only)
-      expect(find.byKey(const ValueKey<String>('journal_dashboard_stack')), findsOneWidget);
-      expect(find.byIcon(Icons.add_rounded), findsWidgets);
+        // Floating bottom-right action button (icon only)
+        expect(
+          find.byKey(const ValueKey<String>('journal_dashboard_stack')),
+          findsOneWidget,
+        );
+        expect(find.byIcon(Icons.add_rounded), findsWidgets);
 
-      // Outcome pills on left, dropdown buttons on right
-      expect(find.textContaining('All ('), findsOneWidget);
-      expect(find.text('Playbook: All'), findsOneWidget);
-      expect(find.text('Asset: All'), findsOneWidget);
-      final double allX = tester.getTopLeft(find.textContaining('All (')).dx;
-      final double playbookX = tester.getTopLeft(find.text('Playbook: All')).dx;
-      expect(playbookX, greaterThan(allX + 400));
-    });
+        // Outcome pills on left, dropdown buttons on right
+        expect(find.textContaining('All ('), findsOneWidget);
+        expect(find.text('Playbook: All'), findsOneWidget);
+        expect(find.text('Asset: All'), findsOneWidget);
+        final double allX = tester.getTopLeft(find.textContaining('All (')).dx;
+        final double playbookX = tester
+            .getTopLeft(find.text('Playbook: All'))
+            .dx;
+        expect(playbookX, greaterThan(allX + 400));
+      },
+    );
 
     testWidgets('renders responsive dashboard on mobile without overflow', (
       WidgetTester tester,
@@ -54,11 +59,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: JournalScreen(),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: JournalScreen())),
       );
       await tester.pumpAndSettle();
 
@@ -86,11 +87,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: JournalScreen(),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: JournalScreen())),
       );
       await tester.pumpAndSettle();
 

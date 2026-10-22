@@ -24,6 +24,20 @@ import 'package:tradex/features/workspace/data/workspace_post_service.dart';
 /// social & linking analytics, and the three writing surfaces (Notes, Journal,
 /// Strategy notes) presented in responsive, paginated carousels with direct
 /// click-through navigation into each document.
+class WorkspaceViewState {
+  const WorkspaceViewState({
+    required this.selectedDay,
+    required this.isMonthView,
+    required this.filterByDate,
+    required this.notesFilter,
+    required this.journalFilter,
+    required this.strategyFilter,
+  });
+  final DateTime selectedDay;
+  final bool isMonthView, filterByDate;
+  final String notesFilter, journalFilter, strategyFilter;
+}
+
 class WorkspaceScreen extends StatefulWidget {
   const WorkspaceScreen({
     super.key,
@@ -32,14 +46,18 @@ class WorkspaceScreen extends StatefulWidget {
     this.onOpenWriting,
     this.onSubpageChanged,
     this.searchQuery = '',
+    this.viewState,
+    this.onViewStateChanged,
   });
 
   final ValueChanged<String> onOpenFeature;
   final void Function(AppLinkRef ref)? onOpenRef;
   final void Function(AppLinkRef ref)? onOpenWriting;
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
-      onSubpageChanged;
+  onSubpageChanged;
   final String searchQuery;
+  final WorkspaceViewState? viewState;
+  final ValueChanged<WorkspaceViewState>? onViewStateChanged;
 
   @override
   State<WorkspaceScreen> createState() => WorkspaceScreenState();
@@ -103,6 +121,15 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
   void initState() {
     super.initState();
     _searchQuery = widget.searchQuery;
+    final saved = widget.viewState;
+    if (saved != null) {
+      _selectedDay = saved.selectedDay;
+      _isMonthView = saved.isMonthView;
+      _filterByDate = saved.filterByDate;
+      _notesFilter = saved.notesFilter;
+      _journalFilter = saved.journalFilter;
+      _strategyFilter = saved.strategyFilter;
+    }
     _journalSub = _journal.watchAll().listen((List<AppTrade> value) {
       if (!mounted) return;
       setState(() {
@@ -131,6 +158,16 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
 
   @override
   void dispose() {
+    widget.onViewStateChanged?.call(
+      WorkspaceViewState(
+        selectedDay: _selectedDay,
+        isMonthView: _isMonthView,
+        filterByDate: _filterByDate,
+        notesFilter: _notesFilter,
+        journalFilter: _journalFilter,
+        strategyFilter: _strategyFilter,
+      ),
+    );
     if (_activeEditor != null) {
       widget.onSubpageChanged?.call(null, null, null);
     }
@@ -149,7 +186,9 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
         AppLinkRef(
           kind: AppLinkKind.note,
           id: note.id,
-          title: note.title.trim().isEmpty ? 'Untitled note' : note.title.trim(),
+          title: note.title.trim().isEmpty
+              ? 'Untitled note'
+              : note.title.trim(),
         ),
       );
     } else {
@@ -220,8 +259,9 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
   }
 
   Future<void> _handleNewTrade() async {
-    final AppJournalTemplate? template =
-        await showJournalTemplateGallery(context);
+    final AppJournalTemplate? template = await showJournalTemplateGallery(
+      context,
+    );
     if (template == null || !mounted) return;
     final AppTrade draft = template.toDraft();
     setState(() {
@@ -249,8 +289,9 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
   }
 
   Future<void> _handleNewPlaybook() async {
-    final AppStrategyTemplate? template =
-        await showStrategyTemplateGallery(context);
+    final AppStrategyTemplate? template = await showStrategyTemplateGallery(
+      context,
+    );
     if (template == null || !mounted) return;
     final AppStrategy draft = template.toDraft();
     setState(() {
@@ -303,11 +344,9 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
   DateTime _tradeDay(AppTrade t) =>
       AppTokens.dateOnly(t.closedAt ?? t.openedAt);
 
-  int get _publicNoteCount =>
-      _allNotes.where((AppNote n) => n.isPublic).length;
+  int get _publicNoteCount => _allNotes.where((AppNote n) => n.isPublic).length;
 
-  int get _openTradeCount =>
-      _entries.where((AppTrade t) => t.isOpen).length;
+  int get _openTradeCount => _entries.where((AppTrade t) => t.isOpen).length;
 
   List<AppStrategy> get _livePlaybooks => _playbooks
       .where((AppStrategy s) => s.status == AppStrategyStatus.live)
@@ -325,13 +364,15 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
       .length;
 
   int get _strategiesLinkedToPostCount => _playbooks
-      .where((AppStrategy s) =>
-          _postService.isLinked(AppLinkKind.strategy, s.id))
+      .where(
+        (AppStrategy s) => _postService.isLinked(AppLinkKind.strategy, s.id),
+      )
       .length;
 
   int get _tradesAttachedToStrategiesCount => _entries
-      .where((AppTrade t) =>
-          t.strategyId != null && t.strategyId!.trim().isNotEmpty)
+      .where(
+        (AppTrade t) => t.strategyId != null && t.strategyId!.trim().isNotEmpty,
+      )
       .length;
 
   /// Map of calendar day to list of distinct dot colors:
@@ -422,7 +463,9 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
     List<AppTrade> list = _entries;
     if (_filterByDate && _searchQuery.trim().isEmpty) {
       list = list
-          .where((AppTrade t) => AppTokens.isSameDay(_tradeDay(t), _selectedDay))
+          .where(
+            (AppTrade t) => AppTokens.isSameDay(_tradeDay(t), _selectedDay),
+          )
           .toList();
     }
     if (_journalFilter == 'open') {
@@ -433,10 +476,12 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
           .toList();
     } else if (_journalFilter == 'loss') {
       list = list
-          .where((AppTrade t) =>
-              !t.isOpen &&
-              (t.outcome == AppOutcome.loss ||
-                  t.outcome == AppOutcome.breakeven))
+          .where(
+            (AppTrade t) =>
+                !t.isOpen &&
+                (t.outcome == AppOutcome.loss ||
+                    t.outcome == AppOutcome.breakeven),
+          )
           .toList();
     }
 
@@ -460,14 +505,18 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
     if (!_filterByDate || _searchQuery.trim().isNotEmpty) {
       final DateTime epoch = DateTime.fromMillisecondsSinceEpoch(0);
       list = List<AppStrategy>.of(_playbooks)
-        ..sort((AppStrategy a, AppStrategy b) =>
-            (b.updatedAt ?? epoch).compareTo(a.updatedAt ?? epoch));
+        ..sort(
+          (AppStrategy a, AppStrategy b) =>
+              (b.updatedAt ?? epoch).compareTo(a.updatedAt ?? epoch),
+        );
     } else {
       list = _playbooks.where((AppStrategy s) {
-        final DateTime? cDate =
-            s.createdAt == null ? null : AppTokens.dateOnly(s.createdAt!);
-        final DateTime? uDate =
-            s.updatedAt == null ? null : AppTokens.dateOnly(s.updatedAt!);
+        final DateTime? cDate = s.createdAt == null
+            ? null
+            : AppTokens.dateOnly(s.createdAt!);
+        final DateTime? uDate = s.updatedAt == null
+            ? null
+            : AppTokens.dateOnly(s.updatedAt!);
         return (cDate != null && AppTokens.isSameDay(cDate, _selectedDay)) ||
             (uDate != null && AppTokens.isSameDay(uDate, _selectedDay));
       }).toList();
@@ -598,9 +647,7 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
               onTap: () => _fabKey.currentState?.close(),
-              child: ColoredBox(
-                color: Colors.black.withValues(alpha: 0.15),
-              ),
+              child: ColoredBox(color: Colors.black.withValues(alpha: 0.15)),
             ),
           ),
 
@@ -656,8 +703,10 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
   // ─── Analytics & Post Linking Panel ─────────────────────────────────
 
   Widget _buildAnalyticsPanel(BuildContext context) {
-    final int totalPostLikes =
-        _postLinks.fold<int>(0, (int sum, AppPostLinkInfo l) => sum + l.likesCount);
+    final int totalPostLikes = _postLinks.fold<int>(
+      0,
+      (int sum, AppPostLinkInfo l) => sum + l.likesCount,
+    );
     final List<UiStat> stats = <UiStat>[
       UiStat(
         icon: Icons.chat_bubble_outline_rounded,
@@ -708,20 +757,22 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
   Widget _buildNotesSection(BuildContext context) {
     final UiTheme theme = context.ui;
     final List<AppNote> notes = _displayNotes;
-    final String dayLabel =
-        _isToday ? 'Today' : AppTokens.shortDate(_selectedDay);
+    final String dayLabel = _isToday
+        ? 'Today'
+        : AppTokens.shortDate(_selectedDay);
 
     final String subtitle = _searchQuery.isNotEmpty
         ? '${notes.length} ${notes.length == 1 ? 'note' : 'notes'} matching "$_searchQuery"'
         : (_filterByDate
-            ? '$dayLabel · ${notes.length} ${notes.length == 1 ? 'note' : 'notes'}'
-            : switch (_notesFilter) {
-                'public' =>
-                  '$_publicNoteCount published · $_totalNoteComments comments',
-                'private' =>
-                  '${_allNotes.length - _publicNoteCount} private · $_notesLinkedToPostCount linked to post',
-                _ => '${_allNotes.length} total notes · $_publicNoteCount published',
-              });
+              ? '$dayLabel · ${notes.length} ${notes.length == 1 ? 'note' : 'notes'}'
+              : switch (_notesFilter) {
+                  'public' =>
+                    '$_publicNoteCount published · $_totalNoteComments comments',
+                  'private' =>
+                    '${_allNotes.length - _publicNoteCount} private · $_notesLinkedToPostCount linked to post',
+                  _ =>
+                    '${_allNotes.length} total notes · $_publicNoteCount published',
+                });
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -783,26 +834,26 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
             title: _searchQuery.isNotEmpty
                 ? 'No notes match "$_searchQuery"'
                 : (_filterByDate
-                    ? (_isToday ? 'No notes today' : 'No notes on $dayLabel')
-                    : switch (_notesFilter) {
-                        'public' => 'No published notes',
-                        'private' => 'No private notes',
-                        _ => 'No notes yet',
-                      }),
+                      ? (_isToday ? 'No notes today' : 'No notes on $dayLabel')
+                      : switch (_notesFilter) {
+                          'public' => 'No published notes',
+                          'private' => 'No private notes',
+                          _ => 'No notes yet',
+                        }),
             message: _searchQuery.isNotEmpty
                 ? 'Try searching with different keywords or clear the search query.'
                 : (_filterByDate
-                    ? (_isToday
-                        ? 'Capture market observations or analysis for today.'
-                        : 'Pick another day on the calendar or create a new note.')
-                    : switch (_notesFilter) {
-                        'public' =>
-                          'Publish a note to share your research with the community.',
-                        'private' =>
-                          'Create your first private note to capture market observations.',
-                        _ =>
-                          'Create your first note to build your trading playbook.',
-                      }),
+                      ? (_isToday
+                            ? 'Capture market observations or analysis for today.'
+                            : 'Pick another day on the calendar or create a new note.')
+                      : switch (_notesFilter) {
+                          'public' =>
+                            'Publish a note to share your research with the community.',
+                          'private' =>
+                            'Create your first private note to capture market observations.',
+                          _ =>
+                            'Create your first note to build your trading playbook.',
+                        }),
             icon: _searchQuery.isNotEmpty
                 ? Icons.search_off_rounded
                 : Icons.edit_note_rounded,
@@ -833,14 +884,15 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
 
   Widget _buildJournalSection(BuildContext context) {
     final List<AppTrade> trades = _displayTrades;
-    final String dayLabel =
-        _isToday ? 'Today' : AppTokens.shortDate(_selectedDay);
+    final String dayLabel = _isToday
+        ? 'Today'
+        : AppTokens.shortDate(_selectedDay);
 
     final String subtitle = _searchQuery.isNotEmpty
         ? '${trades.length} ${trades.length == 1 ? 'entry' : 'entries'} matching "$_searchQuery"'
         : (_filterByDate
-            ? '$dayLabel · ${trades.length} ${trades.length == 1 ? 'entry' : 'entries'}'
-            : '${_entries.length} total entries · $_tradesLinkedToPostCount linked to post');
+              ? '$dayLabel · ${trades.length} ${trades.length == 1 ? 'entry' : 'entries'}'
+              : '${_entries.length} total entries · $_tradesLinkedToPostCount linked to post');
 
     return AppWorkspaceSectionCarousel(
       title: 'Journal',
@@ -867,15 +919,15 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
         title: _searchQuery.isNotEmpty
             ? 'No trades match "$_searchQuery"'
             : (_filterByDate
-                ? (_isToday ? 'No entries today' : 'No trades on $dayLabel')
-                : 'No entries yet'),
+                  ? (_isToday ? 'No entries today' : 'No trades on $dayLabel')
+                  : 'No entries yet'),
         message: _searchQuery.isNotEmpty
             ? 'Try searching with different symbols, tags, or clear the search.'
             : (_filterByDate
-                ? (_isToday
-                    ? 'Log a trade executed today to record entry, exit, and thesis.'
-                    : 'Pick another day on the calendar above to review logged trades.')
-                : 'Log your first trade to begin tracking performance and PnL.'),
+                  ? (_isToday
+                        ? 'Log a trade executed today to record entry, exit, and thesis.'
+                        : 'Pick another day on the calendar above to review logged trades.')
+                  : 'Log your first trade to begin tracking performance and PnL.'),
         icon: _searchQuery.isNotEmpty
             ? Icons.search_off_rounded
             : Icons.event_busy_rounded,
@@ -903,11 +955,14 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
                     intent: UiIntent.primary,
                   )
                 : null,
-            footerEngagement: _postService.isLinked(AppLinkKind.journal, trade.id)
+            footerEngagement:
+                _postService.isLinked(AppLinkKind.journal, trade.id)
                 ? Builder(
                     builder: (BuildContext ctx) {
-                      final AppPostLinkInfo? link = _postService
-                          .getPrimaryLink(AppLinkKind.journal, trade.id);
+                      final AppPostLinkInfo? link = _postService.getPrimaryLink(
+                        AppLinkKind.journal,
+                        trade.id,
+                      );
                       return AppDeskEngagementRow(
                         isLinked: true,
                         likes: link?.likesCount ?? 0,
@@ -925,14 +980,15 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
 
   Widget _buildStrategySection(BuildContext context) {
     final List<AppStrategy> strategies = _displayStrategies;
-    final String dayLabel =
-        _isToday ? 'Today' : AppTokens.shortDate(_selectedDay);
+    final String dayLabel = _isToday
+        ? 'Today'
+        : AppTokens.shortDate(_selectedDay);
 
     final String subtitle = _searchQuery.isNotEmpty
         ? '${strategies.length} ${strategies.length == 1 ? 'playbook' : 'playbooks'} matching "$_searchQuery"'
         : (_filterByDate
-            ? '$dayLabel · ${strategies.length} ${strategies.length == 1 ? 'playbook' : 'playbooks'}'
-            : '${_livePlaybooks.length} live · $_strategiesLinkedToPostCount linked to post');
+              ? '$dayLabel · ${strategies.length} ${strategies.length == 1 ? 'playbook' : 'playbooks'}'
+              : '${_livePlaybooks.length} live · $_strategiesLinkedToPostCount linked to post');
 
     return AppWorkspaceSectionCarousel(
       title: 'Strategy notes',
@@ -960,15 +1016,17 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
         title: _searchQuery.isNotEmpty
             ? 'No playbooks match "$_searchQuery"'
             : (_filterByDate
-                ? (_isToday ? 'No playbooks today' : 'No playbooks on $dayLabel')
-                : 'No playbooks yet'),
+                  ? (_isToday
+                        ? 'No playbooks today'
+                        : 'No playbooks on $dayLabel')
+                  : 'No playbooks yet'),
         message: _searchQuery.isNotEmpty
             ? 'Try searching with different strategy names or clear the search.'
             : (_filterByDate
-                ? (_isToday
-                    ? 'Document or update a quantitative trading playbook for today.'
-                    : 'Select another date on the calendar or view all strategies.')
-                : 'Document your first strategy so trades can be filed against it.'),
+                  ? (_isToday
+                        ? 'Document or update a quantitative trading playbook for today.'
+                        : 'Select another date on the calendar or view all strategies.')
+                  : 'Document your first strategy so trades can be filed against it.'),
         icon: _searchQuery.isNotEmpty
             ? Icons.search_off_rounded
             : Icons.account_tree_outlined,
@@ -994,21 +1052,20 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
             onFileTrade: () => _openStrategy(strategy),
             footerEngagement:
                 _postService.isLinked(AppLinkKind.strategy, strategy.id)
-                    ? Builder(
-                        builder: (BuildContext ctx) {
-                          final AppPostLinkInfo? link = _postService
-                              .getPrimaryLink(
-                                AppLinkKind.strategy,
-                                strategy.id,
-                              );
-                          return AppDeskEngagementRow(
-                            isLinked: true,
-                            likes: link?.likesCount ?? 0,
-                            comments: link?.commentsCount ?? 0,
-                          );
-                        },
-                      )
-                    : null,
+                ? Builder(
+                    builder: (BuildContext ctx) {
+                      final AppPostLinkInfo? link = _postService.getPrimaryLink(
+                        AppLinkKind.strategy,
+                        strategy.id,
+                      );
+                      return AppDeskEngagementRow(
+                        isLinked: true,
+                        likes: link?.likesCount ?? 0,
+                        comments: link?.commentsCount ?? 0,
+                      );
+                    },
+                  )
+                : null,
           ),
       ],
     );
@@ -1057,8 +1114,10 @@ class _WorkspaceFabState extends State<_WorkspaceFab>
       curve: Curves.easeOutCubic,
       reverseCurve: Curves.easeInCubic,
     );
-    _rotateAnimation =
-        Tween<double>(begin: 0.0, end: 0.125).animate(_expandAnimation);
+    _rotateAnimation = Tween<double>(
+      begin: 0.0,
+      end: 0.125,
+    ).animate(_expandAnimation);
   }
 
   @override

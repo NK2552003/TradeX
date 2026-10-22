@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
@@ -175,12 +178,17 @@ class _LoginPageState extends State<LoginPage> {
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             // Header with Back Button, Logo and Role Selector
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
+                                            Wrap(
+                                              alignment:
+                                                  WrapAlignment.spaceBetween,
                                               crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
+                                                  WrapCrossAlignment.center,
+                                              spacing: context.sp(
+                                                theme.spacing.sm,
+                                              ),
+                                              runSpacing: context.sp(
+                                                theme.spacing.sm,
+                                              ),
                                               children: [
                                                 Row(
                                                   mainAxisSize:
@@ -314,7 +322,8 @@ class _LoginPageState extends State<LoginPage> {
                                               label: 'Password',
                                               required: true,
                                               headerAction: MouseRegion(
-                                                cursor: SystemMouseCursors.click,
+                                                cursor:
+                                                    SystemMouseCursors.click,
                                                 child: GestureDetector(
                                                   behavior:
                                                       HitTestBehavior.opaque,
@@ -324,7 +333,9 @@ class _LoginPageState extends State<LoginPage> {
                                                     responsive.isMobile
                                                         ? 'Forgot?'
                                                         : 'Forgot your password?',
-                                                    style: context.uiText.caption
+                                                    style: context
+                                                        .uiText
+                                                        .caption
                                                         .copyWith(
                                                           color: colors.primary,
                                                           fontWeight:
@@ -550,13 +561,47 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  void _showSocialToast(String provider) {
-    UiToast.show(
-      context,
-      title: '$provider Authentication',
-      message: 'Login with $provider initiated',
-      intent: UiIntent.primary,
-    );
+  Future<void> _showSocialToast(String provider) async {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+    });
+    try {
+      final client = SupabaseConfig.client;
+      if (!SupabaseConfig.isConfigured || client == null) {
+        throw StateError(
+          'Google sign-in is unavailable in this environment. Use email sign-in.',
+        );
+      }
+      final launched = await client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: kIsWeb
+            ? Uri.base
+                  .replace(
+                    queryParameters: {
+                      if (Uri.base.queryParameters['public'] == 'true')
+                        'public': 'true',
+                    },
+                    fragment: '',
+                  )
+                  .toString()
+            : 'tradex://auth/callback',
+      );
+      if (!launched) {
+        throw StateError('Could not open Google sign-in. Please retry.');
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _errorText = error is AuthException
+              ? error.message
+              : error.toString().replaceFirst('Bad state: ', ''),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   void _showPolicyDialog(BuildContext context, String title) {

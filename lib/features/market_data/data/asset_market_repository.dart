@@ -194,7 +194,25 @@ class AssetMarketRepository {
           }
         }
       }
-      if (quote == null) rethrow;
+      if (quote == null) {
+        final directory = await read('tickers/universe') as List;
+        final row = directory
+            .whereType<Map>()
+            .where((row) => row['ticker'] == symbol)
+            .firstOrNull;
+        if (row == null) rethrow;
+        final funds = await read('fundamentals') as Map;
+        return {
+          'ticker': symbol,
+          'market': row['market'],
+          'quote': <String, dynamic>{},
+          'summary':
+              funds[symbol] ??
+              {'name': row['name'] ?? symbol, 'market': row['market']},
+          'chart': {'data': []},
+          'data_source': 'directory_only',
+        };
+      }
       final funds = await read('fundamentals') as Map;
       Map<String, dynamic> chart;
       try {

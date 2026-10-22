@@ -39,11 +39,12 @@ class _CurrencyCalculatorScreenState extends State<CurrencyCalculatorScreen> {
   Future<void> _fetchRates({bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
     try {
-      final CurrencyRatesSnapshot snap = await CurrencyRateService.instance.getRates(
-        base: 'USD',
-        date: _useHistorical ? _selectedDate : null,
-        forceRefresh: forceRefresh,
-      );
+      final CurrencyRatesSnapshot snap = await CurrencyRateService.instance
+          .getRates(
+            base: 'USD',
+            date: _useHistorical ? _selectedDate : null,
+            forceRefresh: forceRefresh,
+          );
       if (mounted) {
         setState(() {
           _snapshot = snap;
@@ -131,7 +132,8 @@ class _CurrencyCalculatorScreenState extends State<CurrencyCalculatorScreen> {
         label: 'Lands as',
         value: _fmt(net, _to),
         intent: costly ? UiIntent.warning : UiIntent.primary,
-        tag: '1 $_from = ${r.rate.toStringAsFixed(r.rate >= 50 ? 2 : 4)} $_to · ${_snapshot.date}',
+        tag:
+            '1 $_from = ${r.rate.toStringAsFixed(r.rate >= 50 ? 2 : 4)} $_to · ${_snapshot.date}',
         tagIntent: _snapshot.isLive ? UiIntent.success : UiIntent.info,
         footnote:
             '${_fmt(_amount, _from)} at the mid-market rate is '
@@ -227,24 +229,31 @@ class _CurrencyCalculatorScreenState extends State<CurrencyCalculatorScreen> {
               ],
               onChanged: (String v) => setState(() => _to = v),
             ),
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runSpacing: context.sp(context.ui.spacing.xs),
               children: <Widget>[
                 UiBadge(
                   label: _snapshot.isLive
                       ? 'Live · ${_snapshot.date}'
                       : 'Offline · ${_snapshot.date}',
-                  intent: _snapshot.isLive ? UiIntent.success : UiIntent.neutral,
+                  intent: _snapshot.isLive
+                      ? UiIntent.success
+                      : UiIntent.neutral,
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
-                const Spacer(),
+
                 UiButton(
                   label: _isLoading ? 'Updating...' : 'Refresh',
                   leadingIcon: Icons.refresh,
                   loading: _isLoading,
                   variant: UiVariant.ghost,
                   size: UiSize.xs,
-                  onPressed: _isLoading ? null : () => _fetchRates(forceRefresh: true),
+                  onPressed: _isLoading
+                      ? null
+                      : () => _fetchRates(forceRefresh: true),
                 ),
               ],
             ),
@@ -287,7 +296,8 @@ class _CurrencyCalculatorScreenState extends State<CurrencyCalculatorScreen> {
               label: 'Typical channels',
               value: _markup,
               onChanged: (double v) => setState(() => _markup = v),
-              helper: 'Transfer apps sit near the top of the book; cards and '
+              helper:
+                  'Transfer apps sit near the top of the book; cards and '
                   'bank counters near the bottom.',
               options: const <UiToggleOption<double>>[
                 UiToggleOption<double>(value: 0.4, label: 'App 0.4%'),
@@ -322,21 +332,23 @@ class _CurrencyCalculatorScreenState extends State<CurrencyCalculatorScreen> {
                     ).converted,
                     c,
                   ),
-                  trailing: convertCurrency(
-                    amount: 1,
-                    from: _from,
-                    to: c,
-                    rates: _snapshot.rates,
-                  ).rate.toStringAsFixed(
-                    convertCurrency(
-                      amount: 1,
-                      from: _from,
-                      to: c,
-                      rates: _snapshot.rates,
-                    ).rate >= 50
-                        ? 2
-                        : 4,
-                  ),
+                  trailing:
+                      convertCurrency(
+                        amount: 1,
+                        from: _from,
+                        to: c,
+                        rates: _snapshot.rates,
+                      ).rate.toStringAsFixed(
+                        convertCurrency(
+                                  amount: 1,
+                                  from: _from,
+                                  to: c,
+                                  rates: _snapshot.rates,
+                                ).rate >=
+                                50
+                            ? 2
+                            : 4,
+                      ),
                   intent: c == _to ? UiIntent.primary : UiIntent.neutral,
                   emphasis: c == _to,
                   detail: kCurrencyNames[c] ?? c,
@@ -358,21 +370,21 @@ class _CurrencyCalculatorScreenState extends State<CurrencyCalculatorScreen> {
                   label: _fmt(a, _from),
                   value: _fmt(
                     convertCurrency(
-                      amount: a,
-                      from: _from,
-                      to: _to,
-                      rates: _snapshot.rates,
-                    ).converted *
+                          amount: a,
+                          from: _from,
+                          to: _to,
+                          rates: _snapshot.rates,
+                        ).converted *
                         (1 - _markup / 100),
                     _to,
                   ),
                   trailing: _fmt(
                     convertCurrency(
-                      amount: a,
-                      from: _from,
-                      to: _to,
-                      rates: _snapshot.rates,
-                    ).converted *
+                          amount: a,
+                          from: _from,
+                          to: _to,
+                          rates: _snapshot.rates,
+                        ).converted *
                         _markup /
                         100,
                     _to,
@@ -418,7 +430,10 @@ class _CurrencyCalculatorScreenState extends State<CurrencyCalculatorScreen> {
             items: <UiBarListItem>[
               for (final double m in markups)
                 UiBarListItem(
-                  label: AppTokens.percent(m, decimals: m == m.roundToDouble() ? 0 : 1),
+                  label: AppTokens.percent(
+                    m,
+                    decimals: m == m.roundToDouble() ? 0 : 1,
+                  ),
                   value: r.converted * m / 100,
                 ),
             ],
@@ -451,8 +466,7 @@ class _CurrencyCalculatorScreenState extends State<CurrencyCalculatorScreen> {
             max: r.rate * 1.03 + 0.0001,
             minLabel: 'worse',
             maxLabel: 'mid-market',
-            valueFormatter: (num v) =>
-                v.toStringAsFixed(v.abs() >= 50 ? 2 : 4),
+            valueFormatter: (num v) => v.toStringAsFixed(v.abs() >= 50 ? 2 : 4),
             zones: <UiRangeZone>[
               UiRangeZone(
                 start: effectiveRate,
@@ -491,7 +505,8 @@ class _CurrencyCalculatorScreenState extends State<CurrencyCalculatorScreen> {
         if (!sameCurrency && costly)
           UiCallout(
             intent: UiIntent.warning,
-            title: '${AppTokens.percent(_markup, decimals: 2)} is an expensive '
+            title:
+                '${AppTokens.percent(_markup, decimals: 2)} is an expensive '
                 'spread',
             message:
                 'It takes ${_fmt(fee, _to)} out of this transfer. At 0.4% the '

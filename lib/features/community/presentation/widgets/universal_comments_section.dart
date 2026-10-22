@@ -38,7 +38,12 @@ class UniversalCommentsSection extends StatefulWidget {
   final String targetType;
   final List<CommunityComment> comments;
   final CommunityAuthor currentUser;
-  final Future<void> Function(String text, {String? parentCommentId, String? sentiment}) onAddComment;
+  final Future<void> Function(
+    String text, {
+    String? parentCommentId,
+    String? sentiment,
+  })
+  onAddComment;
   final void Function(String commentId, {String? reaction})? onLikeComment;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<String>? onTagTap;
@@ -48,9 +53,9 @@ class UniversalCommentsSection extends StatefulWidget {
   final ValueChanged<bool>? onToggleVisibility;
 
   @override
-  State<UniversalCommentsSection> createState() => _UniversalCommentsSectionState();
+  State<UniversalCommentsSection> createState() =>
+      _UniversalCommentsSectionState();
 }
-
 
 class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
   final TextEditingController _mainCommentCtrl = TextEditingController();
@@ -76,10 +81,7 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
 
     setState(() => _submittingMain = true);
     try {
-      await widget.onAddComment(
-        text,
-        sentiment: _selectedSentiment,
-      );
+      await widget.onAddComment(text, sentiment: _selectedSentiment);
       _mainCommentCtrl.clear();
       setState(() => _selectedSentiment = null);
       if (mounted) {
@@ -95,16 +97,16 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
     }
   }
 
-  Future<void> _submitReply(String parentId, CommunityAuthor parentAuthor) async {
+  Future<void> _submitReply(
+    String parentId,
+    CommunityAuthor parentAuthor,
+  ) async {
     final text = _replyCtrl.text.trim();
     if (text.isEmpty || _submittingReply) return;
 
     setState(() => _submittingReply = true);
     try {
-      await widget.onAddComment(
-        text,
-        parentCommentId: parentId,
-      );
+      await widget.onAddComment(text, parentCommentId: parentId);
       _replyCtrl.clear();
       setState(() => _activeReplyingCommentId = null);
       if (mounted) {
@@ -124,7 +126,9 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
     setState(() {
       _activeReplyingCommentId = comment.id;
       _replyCtrl.text = '@${comment.author.handle} ';
-      _replyCtrl.selection = TextSelection.collapsed(offset: _replyCtrl.text.length);
+      _replyCtrl.selection = TextSelection.collapsed(
+        offset: _replyCtrl.text.length,
+      );
     });
   }
 
@@ -166,7 +170,8 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
                 : 'This ${_targetLabel().toLowerCase()} is private. Discussion is visible only to authorized collaborators.',
             intent: UiIntent.warning,
             icon: Icons.lock_outline_rounded,
-            action: widget.canToggleVisibility && widget.onToggleVisibility != null
+            action:
+                widget.canToggleVisibility && widget.onToggleVisibility != null
                 ? UiButton(
                     label: 'Make Public',
                     leadingIcon: Icons.public_rounded,
@@ -183,49 +188,49 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
         // ---------------------------------------------------------------------
         // Section Header (Title, Count, Privacy Badge, Quick Toggle, Sort)
         // ---------------------------------------------------------------------
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
-            Expanded(
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: context.sp(theme.spacing.xs),
-                runSpacing: context.sp(theme.spacing.xxs),
-                children: <Widget>[
-                  Icon(
-                    Icons.forum_rounded,
-                    size: context.sz(18),
-                    color: theme.colors.primary,
-                  ),
-                  Text(
-                    widget.title,
-                    style: context.uiText.heading.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: context.fs(16),
-                    ),
-                  ),
-                  UiBadge(
-                    label: '$totalCount',
-                    intent: UiIntent.primary,
-                    variant: UiBadgeVariant.soft,
-                    size: UiSize.xs,
-                  ),
-                  UiBadge(
-                    label: widget.isPublic ? 'Public' : 'Private',
-                    intent: widget.isPublic ? UiIntent.success : UiIntent.warning,
-                    variant: UiBadgeVariant.soft,
-                    size: UiSize.xs,
-                    icon: widget.isPublic
-                        ? Icons.public_rounded
-                        : Icons.lock_outline_rounded,
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final identity = Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: context.sp(theme.spacing.xs),
+              runSpacing: context.sp(theme.spacing.xxs),
               children: <Widget>[
-                if (widget.canToggleVisibility && widget.onToggleVisibility != null) ...[
+                Icon(
+                  Icons.forum_rounded,
+                  size: context.sz(18),
+                  color: theme.colors.primary,
+                ),
+                Text(
+                  widget.title,
+                  style: context.uiText.heading.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: context.fs(16),
+                  ),
+                ),
+                UiBadge(
+                  label: '$totalCount',
+                  intent: UiIntent.primary,
+                  variant: UiBadgeVariant.soft,
+                  size: UiSize.xs,
+                ),
+                UiBadge(
+                  label: widget.isPublic ? 'Public' : 'Private',
+                  intent: widget.isPublic ? UiIntent.success : UiIntent.warning,
+                  variant: UiBadgeVariant.soft,
+                  size: UiSize.xs,
+                  icon: widget.isPublic
+                      ? Icons.public_rounded
+                      : Icons.lock_outline_rounded,
+                ),
+              ],
+            );
+            final actions = Wrap(
+              spacing: context.sp(theme.spacing.xs),
+              runSpacing: context.sp(theme.spacing.xs),
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: <Widget>[
+                if (widget.canToggleVisibility &&
+                    widget.onToggleVisibility != null) ...[
                   UiButton(
                     label: widget.isPublic ? 'Make Private' : 'Make Public',
                     leadingIcon: widget.isPublic
@@ -233,8 +238,11 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
                         : Icons.public_rounded,
                     variant: UiVariant.ghost,
                     size: UiSize.xs,
-                    intent: widget.isPublic ? UiIntent.warning : UiIntent.success,
-                    onPressed: () => widget.onToggleVisibility!(!widget.isPublic),
+                    intent: widget.isPublic
+                        ? UiIntent.warning
+                        : UiIntent.success,
+                    onPressed: () =>
+                        widget.onToggleVisibility!(!widget.isPublic),
                   ),
                   SizedBox(width: context.sp(theme.spacing.xs)),
                 ],
@@ -248,12 +256,24 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
                   ],
                 ),
               ],
-            ),
-          ],
+            );
+            if (constraints.maxWidth < context.sz(480)) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [identity, UiGap.v(theme.spacing.xs), actions],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: identity),
+                UiGap.h(theme.spacing.sm),
+                actions,
+              ],
+            );
+          },
         ),
 
         SizedBox(height: context.sp(theme.spacing.sm)),
-
 
         // ---------------------------------------------------------------------
         // LinkedIn-Style Primary Composer Box
@@ -281,7 +301,8 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
                       children: <Widget>[
                         UiTextarea(
                           controller: _mainCommentCtrl,
-                          hintText: 'Share technical analysis, key levels, or ask a question...',
+                          hintText:
+                              'Share technical analysis, key levels, or ask a question...',
                           rows: 2,
                           maxRows: 6,
                           showCounter: false,
@@ -294,10 +315,13 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
                                 label: _selectedSentiment!,
                                 intent: _selectedSentiment == 'BULLISH'
                                     ? UiIntent.success
-                                    : (_selectedSentiment == 'BEARISH' ? UiIntent.danger : UiIntent.info),
+                                    : (_selectedSentiment == 'BEARISH'
+                                          ? UiIntent.danger
+                                          : UiIntent.info),
                                 variant: UiBadgeVariant.solid,
                                 size: UiSize.xs,
-                                onRemove: () => setState(() => _selectedSentiment = null),
+                                onRemove: () =>
+                                    setState(() => _selectedSentiment = null),
                               ),
                             ],
                           ),
@@ -317,11 +341,15 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
                     icon: Icons.trending_up_rounded,
                     tooltip: 'Bullish Bias',
                     size: UiSize.xs,
-                    variant: _selectedSentiment == 'BULLISH' ? UiVariant.soft : UiVariant.ghost,
+                    variant: _selectedSentiment == 'BULLISH'
+                        ? UiVariant.soft
+                        : UiVariant.ghost,
                     intent: UiIntent.success,
                     onPressed: () {
                       setState(() {
-                        _selectedSentiment = _selectedSentiment == 'BULLISH' ? null : 'BULLISH';
+                        _selectedSentiment = _selectedSentiment == 'BULLISH'
+                            ? null
+                            : 'BULLISH';
                       });
                     },
                   ),
@@ -331,11 +359,15 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
                     icon: Icons.trending_down_rounded,
                     tooltip: 'Bearish Bias',
                     size: UiSize.xs,
-                    variant: _selectedSentiment == 'BEARISH' ? UiVariant.soft : UiVariant.ghost,
+                    variant: _selectedSentiment == 'BEARISH'
+                        ? UiVariant.soft
+                        : UiVariant.ghost,
                     intent: UiIntent.danger,
                     onPressed: () {
                       setState(() {
-                        _selectedSentiment = _selectedSentiment == 'BEARISH' ? null : 'BEARISH';
+                        _selectedSentiment = _selectedSentiment == 'BEARISH'
+                            ? null
+                            : 'BEARISH';
                       });
                     },
                   ),
@@ -374,7 +406,9 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
         // ---------------------------------------------------------------------
         if (widget.comments.isEmpty)
           Padding(
-            padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xl)),
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.xl),
+            ),
             child: Column(
               children: [
                 Icon(
@@ -408,10 +442,12 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
               replyCtrl: _replyCtrl,
               submittingReply: _submittingReply,
               onStartReply: _startReply,
-              onCancelReply: () => setState(() => _activeReplyingCommentId = null),
+              onCancelReply: () =>
+                  setState(() => _activeReplyingCommentId = null),
               onSubmitReply: _submitReply,
               onLike: (id) => widget.onLikeComment?.call(id),
-              onReact: (id, reaction) => widget.onLikeComment?.call(id, reaction: reaction),
+              onReact: (id, reaction) =>
+                  widget.onLikeComment?.call(id, reaction: reaction),
               onAuthorTap: widget.onAuthorTap,
               onTagTap: widget.onTagTap,
               indent: 0,
@@ -556,7 +592,9 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                 size: widget.indent > 0 ? UiSize.xs : UiSize.sm,
                 verified: author.verified,
                 verifiedColor: verifiedColor,
-                onTap: widget.onAuthorTap == null ? null : () => widget.onAuthorTap!(author),
+                onTap: widget.onAuthorTap == null
+                    ? null
+                    : () => widget.onAuthorTap!(author),
               ),
 
               SizedBox(width: context.sp(theme.spacing.xs)),
@@ -589,21 +627,25 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Wrap(
-                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
                                       spacing: context.sp(theme.spacing.xxs),
                                       runSpacing: 2,
                                       children: <Widget>[
                                         GestureDetector(
                                           onTap: widget.onAuthorTap == null
                                               ? null
-                                              : () => widget.onAuthorTap!(author),
+                                              : () =>
+                                                    widget.onAuthorTap!(author),
                                           child: Text(
                                             author.displayName,
-                                            style: context.uiText.bodyStrong.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: context.fs(13),
-                                              color: theme.colors.foreground,
-                                            ),
+                                            style: context.uiText.bodyStrong
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: context.fs(13),
+                                                  color:
+                                                      theme.colors.foreground,
+                                                ),
                                           ),
                                         ),
                                         if (author.verified)
@@ -612,24 +654,35 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                                             color: verifiedColor,
                                             size: context.sz(13),
                                           ),
-                                        if (author.userRole != UserRole.customer)
+                                        if (author.userRole !=
+                                            UserRole.customer)
                                           UiBadge(
                                             label: author.roleBadgeText,
-                                            intent: author.userRole == UserRole.userAdmin
+                                            intent:
+                                                author.userRole ==
+                                                    UserRole.userAdmin
                                                 ? UiIntent.danger
                                                 : UiIntent.warning,
                                             variant: UiBadgeVariant.solid,
                                             size: UiSize.xs,
                                           ),
                                         if (comment.sentiment != null &&
-                                            comment.sentiment!.trim().isNotEmpty)
+                                            comment.sentiment!
+                                                .trim()
+                                                .isNotEmpty)
                                           UiBadge(
-                                            label: comment.sentiment!.toUpperCase(),
-                                            intent: comment.sentiment!.toUpperCase() == 'BULLISH'
+                                            label: comment.sentiment!
+                                                .toUpperCase(),
+                                            intent:
+                                                comment.sentiment!
+                                                        .toUpperCase() ==
+                                                    'BULLISH'
                                                 ? UiIntent.success
-                                                : (comment.sentiment!.toUpperCase() == 'BEARISH'
-                                                    ? UiIntent.danger
-                                                    : UiIntent.info),
+                                                : (comment.sentiment!
+                                                              .toUpperCase() ==
+                                                          'BEARISH'
+                                                      ? UiIntent.danger
+                                                      : UiIntent.info),
                                             variant: UiBadgeVariant.soft,
                                             size: UiSize.xs,
                                           ),
@@ -694,7 +747,9 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                                 color: theme.colors.surfaceHover,
                                 borderRadius: context.radius(theme.radii.pill),
                                 border: Border.all(
-                                  color: theme.colors.border.withValues(alpha: 0.5),
+                                  color: theme.colors.border.withValues(
+                                    alpha: 0.5,
+                                  ),
                                   width: theme.borders.hairline,
                                 ),
                               ),
@@ -745,7 +800,10 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                                     Text(
                                       _reactionLabel(comment.userReaction),
                                       style: context.uiText.caption.copyWith(
-                                        color: _reactionColor(comment.userReaction, theme),
+                                        color: _reactionColor(
+                                          comment.userReaction,
+                                          theme,
+                                        ),
                                         fontWeight: FontWeight.w700,
                                         fontSize: context.fs(11),
                                       ),
@@ -767,8 +825,9 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                                         color: comment.liked
                                             ? theme.colors.primary
                                             : theme.colors.foregroundMuted,
-                                        fontWeight:
-                                            comment.liked ? FontWeight.w700 : FontWeight.w500,
+                                        fontWeight: comment.liked
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
                                         fontSize: context.fs(11),
                                       ),
                                     ),
@@ -815,10 +874,16 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                           Tooltip(
                             message: 'React with emoji',
                             child: InkWell(
-                              onTap: () => setState(() => _showReactionPicker = !_showReactionPicker),
+                              onTap: () => setState(
+                                () =>
+                                    _showReactionPicker = !_showReactionPicker,
+                              ),
                               borderRadius: context.radius(theme.radii.sm),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 3,
+                                ),
                                 child: Icon(
                                   _showReactionPicker
                                       ? Icons.close_rounded
@@ -835,12 +900,17 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                           if (_showReactionPicker) ...<Widget>[
                             SizedBox(width: context.sp(theme.spacing.xs)),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: theme.colors.surface,
                                 borderRadius: context.radius(theme.radii.pill),
                                 border: Border.all(
-                                  color: theme.colors.border.withValues(alpha: 0.8),
+                                  color: theme.colors.border.withValues(
+                                    alpha: 0.8,
+                                  ),
                                   width: theme.borders.hairline,
                                 ),
                                 boxShadow: <BoxShadow>[
@@ -856,22 +926,35 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                                 children: _availableReactions.map((r) {
                                   final emoji = r['emoji']!;
                                   final label = r['label']!;
-                                  final isSelected = comment.liked && comment.userReaction == emoji;
+                                  final isSelected =
+                                      comment.liked &&
+                                      comment.userReaction == emoji;
                                   return Tooltip(
                                     message: label,
                                     child: InkWell(
                                       onTap: () {
                                         widget.onReact(comment.id, emoji);
-                                        setState(() => _showReactionPicker = false);
+                                        setState(
+                                          () => _showReactionPicker = false,
+                                        );
                                       },
-                                      borderRadius: context.radius(theme.radii.pill),
+                                      borderRadius: context.radius(
+                                        theme.radii.pill,
+                                      ),
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 5,
+                                          vertical: 3,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: isSelected
-                                              ? theme.colors.primary.withValues(alpha: 0.16)
+                                              ? theme.colors.primary.withValues(
+                                                  alpha: 0.16,
+                                                )
                                               : Colors.transparent,
-                                          borderRadius: context.radius(theme.radii.pill),
+                                          borderRadius: context.radius(
+                                            theme.radii.pill,
+                                          ),
                                         ),
                                         child: Text(
                                           emoji,
@@ -896,7 +979,9 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                         decoration: BoxDecoration(
                           color: theme.colors.surface,
                           borderRadius: context.radius(theme.radii.sm),
-                          border: Border.all(color: theme.colors.primary.withValues(alpha: 0.4)),
+                          border: Border.all(
+                            color: theme.colors.primary.withValues(alpha: 0.4),
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -921,7 +1006,10 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                               size: UiSize.xs,
                               loading: widget.submittingReply,
                               expandOnMobile: false,
-                              onPressed: () => widget.onSubmitReply(comment.id, comment.author),
+                              onPressed: () => widget.onSubmitReply(
+                                comment.id,
+                                comment.author,
+                              ),
                             ),
                           ],
                         ),
@@ -932,7 +1020,9 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                     if (comment.replies.isNotEmpty) ...<Widget>[
                       SizedBox(height: context.sp(theme.spacing.xs)),
                       InkWell(
-                        onTap: () => setState(() => _repliesCollapsed = !_repliesCollapsed),
+                        onTap: () => setState(
+                          () => _repliesCollapsed = !_repliesCollapsed,
+                        ),
                         child: Row(
                           children: [
                             Icon(
@@ -961,7 +1051,8 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                           _LinkedInCommentTile(
                             comment: reply,
                             theme: theme,
-                            activeReplyingCommentId: widget.activeReplyingCommentId,
+                            activeReplyingCommentId:
+                                widget.activeReplyingCommentId,
                             replyCtrl: widget.replyCtrl,
                             submittingReply: widget.submittingReply,
                             onStartReply: widget.onStartReply,

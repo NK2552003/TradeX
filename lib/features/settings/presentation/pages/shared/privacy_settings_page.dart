@@ -1,3 +1,4 @@
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
@@ -162,13 +163,34 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
             variant: UiVariant.primary,
             intent: UiIntent.primary,
             size: UiSize.sm,
-            onPressed: () {
-              UiToast.show(
-                context,
-                title: 'Downloading Archive',
-                message: 'Your TradeX data export has begun downloading.',
-                intent: UiIntent.success,
-              );
+            onPressed: () async {
+              final request = _exportRequest!;
+              final uri = Uri.tryParse(request.downloadUrl ?? '');
+              final valid =
+                  uri != null &&
+                  uri.scheme == 'https' &&
+                  uri.host.isNotEmpty &&
+                  (request.expiresAt == null ||
+                      request.expiresAt!.isAfter(DateTime.now()));
+              try {
+                if (!valid ||
+                    !await launchUrl(
+                      uri,
+                      mode: LaunchMode.externalApplication,
+                    )) {
+                  throw StateError('Export unavailable');
+                }
+              } catch (_) {
+                if (mounted) {
+                  UiToast.show(
+                    context,
+                    title: 'Download unavailable',
+                    message:
+                        'This archive link is missing or expired. Request a new export.',
+                    intent: UiIntent.warning,
+                  );
+                }
+              }
             },
           ),
         ],
@@ -176,7 +198,9 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
     }
 
     return UiButton(
-      label: 'Retry Export',
+      label: _exportRequest?.status == 'none'
+          ? 'Request Export'
+          : 'Retry Export',
       variant: UiVariant.outline,
       size: UiSize.sm,
       onPressed: _handleRequestExport,

@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/record_access.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -80,15 +81,16 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
       if (mounted) setState(() => _graph = graph);
     });
     _notesSub = _repo.watchAll().listen((List<AppNote> notes) {
-      final AppNote? match =
-          notes.where((AppNote n) => n.id == _activeNote.id).firstOrNull;
+      final AppNote? match = notes
+          .where((AppNote n) => n.id == _activeNote.id)
+          .firstOrNull;
       if (match != null && mounted) {
         setState(() => _activeNote = match);
       }
     });
     if (widget.note.isPublic && widget.note.id.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _repo.recordView(widget.note.id);
+        if (mounted) _repo.recordView(widget.note.id).ignore();
       });
     }
   }
@@ -131,7 +133,8 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           handle: c.authorName.toLowerCase().replaceAll(' ', ''),
           displayName: c.authorName,
           userRole: UserRole.customer,
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          avatarUrl:
+              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
           verified: true,
           followers: 1420,
           following: 280,
@@ -147,10 +150,12 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
     }).toList();
   }
 
-  bool get _isPublicViewer =>
-      widget.isPublicContext ||
-      !widget.canEdit ||
-      _note.isPublic;
+  bool get _canEdit =>
+      widget.canEdit &&
+      !widget.isPublicContext &&
+      RecordAccess.owns(_note.userId);
+
+  bool get _isPublicViewer => widget.isPublicContext || !_canEdit;
 
   void _handleOpenLink(AppLinkRef ref) {
     if (widget.onOpenLink == null) return;
@@ -221,18 +226,23 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
     );
   }
 
-  Future<void> _toggleSaveNote() async {
-    final bool wasFavorite = _note.isFavorite;
-    await _repo.toggleFavorite(_note.id);
-    if (!mounted) return;
-    UiToast.success(
-      context,
-      title: wasFavorite ? 'Removed from saved' : 'Saved note',
-      message: wasFavorite
-          ? 'Note removed from bookmarks'
-          : 'Note saved to your bookmarks',
-    );
+  Future<void> _noteAction(Future<AppNote> Function() action) async {
+    try {
+      final updated = await action();
+      if (mounted) setState(() => _activeNote = updated);
+    } catch (error) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Change was not saved',
+          message: '$error',
+        );
+      }
+    }
   }
+
+  Future<void> _toggleSaveNote() =>
+      _noteAction(() => _repo.toggleFavorite(_note.id));
 
   Future<void> _toggleVisibility() async {
     final bool next = !_note.isPublic;
@@ -246,22 +256,31 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
       );
       if (!ok || !mounted) return;
     }
-    final updated = await _repo.setVisibility(_note.id, next);
-    if (mounted) {
-      setState(() => _activeNote = updated);
-      UiToast.show(
-        context,
-        title: next ? 'Note Published' : 'Note Made Private',
-        message: next
-            ? 'The note is now public and open for discussion.'
-            : 'The note is now private to your account.',
-        intent: next ? UiIntent.success : UiIntent.warning,
-      );
+    try {
+      final updated = await _repo.setVisibility(_note.id, next);
+      if (mounted) {
+        setState(() => _activeNote = updated);
+        UiToast.show(
+          context,
+          title: next ? 'Note Published' : 'Note Made Private',
+          message: next
+              ? 'The note is now public and open for discussion.'
+              : 'The note is now private to your account.',
+          intent: next ? UiIntent.success : UiIntent.warning,
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Visibility was not changed',
+          message: '$error',
+        );
+      }
     }
   }
 
   void _analyzeWithAi() {
-
     final String prompt =
         'Analyze this trade note "${_note.title}":\n\n'
         '${_note.content}\n\n'
@@ -396,11 +415,15 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
       ),
       SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
-        icon: _note.isPublic ? Icons.public_rounded : Icons.lock_outline_rounded,
+        icon: _note.isPublic
+            ? Icons.public_rounded
+            : Icons.lock_outline_rounded,
         variant: _note.isPublic ? UiVariant.soft : UiVariant.ghost,
         intent: _note.isPublic ? UiIntent.success : UiIntent.warning,
-        tooltip: _note.isPublic ? 'Public note (tap to make private)' : 'Private note (tap to make public)',
-        onPressed: _toggleVisibility,
+        tooltip: _note.isPublic
+            ? 'Public note (tap to make private)'
+            : 'Private note (tap to make public)',
+        onPressed: _canEdit ? _toggleVisibility : null,
       ),
       SizedBox(width: context.sp(theme.spacing.xs)),
       UiIconButton(
@@ -419,7 +442,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
               widget.onAttachToPost!(AppWritingPostAttachment.note(_note)),
         ),
       ],
-      if (widget.canEdit) ...<Widget>[
+      if (_canEdit) ...<Widget>[
         SizedBox(width: context.sp(theme.spacing.xs)),
         UiIconButton(
           icon: Icons.edit_note_rounded,
@@ -483,7 +506,6 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
         ),
       ],
     );
-
   }
 
   Widget _document(BuildContext context) {
@@ -591,7 +613,8 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
                   variant: _note.liked ? UiVariant.soft : UiVariant.outline,
                   intent: UiIntent.danger,
                   size: UiSize.sm,
-                  onPressed: () => _repo.toggleLike(_note.id),
+                  onPressed: () =>
+                      _noteAction(() => _repo.toggleLike(_note.id)),
                 ),
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
@@ -601,8 +624,9 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
                   leadingIcon: _note.isFavorite
                       ? Icons.bookmark_rounded
                       : Icons.bookmark_border_rounded,
-                  variant:
-                      _note.isFavorite ? UiVariant.soft : UiVariant.outline,
+                  variant: _note.isFavorite
+                      ? UiVariant.soft
+                      : UiVariant.outline,
                   intent: UiIntent.primary,
                   size: UiSize.sm,
                   onPressed: _toggleSaveNote,
@@ -631,12 +655,12 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
             canToggleVisibility: true,
             onToggleVisibility: (v) => _toggleVisibility(),
             currentUser: const CommunityAuthor(
-
               id: 'usr_current',
               handle: 'alex_vance',
               displayName: 'Alex Vance',
               userRole: UserRole.userAdmin,
-              avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+              avatarUrl:
+                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
               verified: true,
               followers: 4890,
               following: 512,

@@ -80,7 +80,10 @@ class AiThreadTile extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: context.sp(theme.spacing.xs)),
-                Row(
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: context.sp(theme.spacing.xxs),
                   children: <Widget>[
                     UiBadge(
                       label: thread.persona.shortLabel,
@@ -89,7 +92,6 @@ class AiThreadTile extends StatelessWidget {
                       variant: UiBadgeVariant.soft,
                       size: UiSize.sm,
                     ),
-                    const Spacer(),
                     if (thread.messageCount > 0)
                       Text(
                         '${thread.messageCount} msgs',

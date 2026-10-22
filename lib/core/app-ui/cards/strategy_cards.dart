@@ -504,8 +504,10 @@ class PlaybookCard extends StatelessWidget {
                         color: colors.border.withValues(alpha: 0.6),
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      spacing: context.sp(theme.spacing.sm),
+                      runSpacing: context.sp(theme.spacing.xs),
                       children: <Widget>[
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -521,7 +523,10 @@ class PlaybookCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              AppTokens.signedMoney(strategy.netPnl, decimals: 0),
+                              AppTokens.signedMoney(
+                                strategy.netPnl,
+                                decimals: 0,
+                              ),
                               style: context.uiText.caption.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: AppTokens.pl(context, strategy.netPnl),

@@ -21,6 +21,10 @@ class StcgCalculatorScreen extends StatefulWidget {
 }
 
 class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
+  EquityTaxPeriod _taxPeriod = EquityTaxPeriod.from23July2024;
+  double get _stcgRate => _taxPeriod.stcgRate;
+  double get _ltcgRate => _taxPeriod.ltcgRate;
+  double get _ltcgExemption => _taxPeriod.exemption;
   String _symbol = 'RELIANCE';
   double _livePrice = 1313.80;
   bool _isLive = false;
@@ -77,7 +81,7 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
   Widget build(BuildContext context) {
     final double offset = _loss > _gain ? _gain : _loss;
     final double taxableBase = _gain - offset;
-    final StcgResult r = calcStcg(gain: taxableBase);
+    final StcgResult r = calcStcg(period: _taxPeriod, gain: taxableBase);
     final double carryForward = _loss > _gain ? _loss - _gain : 0;
 
     // The same gain treated as business income — F&O and intraday go here.
@@ -95,10 +99,12 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
 
     // Tax and take-home across a ladder of gains, at this rate.
     final List<double> taxCurve = <double>[
-      for (final double g in _ladder) calcStcg(gain: g).totalTax,
+      for (final double g in _ladder)
+        calcStcg(period: _taxPeriod, gain: g).totalTax,
     ];
     final List<double> netCurve = <double>[
-      for (final double g in _ladder) calcStcg(gain: g).netGain,
+      for (final double g in _ladder)
+        calcStcg(period: _taxPeriod, gain: g).netGain,
     ];
 
     // Advance tax instalments — the flat schedule applied to this liability.
@@ -118,9 +124,9 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
         footnote:
             '${AppTokens.lakhCrore(_gain)} of short-term gain'
             '${offset > 0 ? ', ${AppTokens.lakhCrore(offset)} of losses set off' : ''}'
-            ' — ${AppTokens.percent(kStcgRate, decimals: 0)} of '
+            ' — ${AppTokens.percent(_stcgRate, decimals: 1)} of '
             '${AppTokens.lakhCrore(r.taxableGain)} plus '
-            '${AppTokens.percent(kCessRate, decimals: 0)} cess leaves '
+            '${AppTokens.percent(kCessRate, decimals: 1)} cess leaves '
             '${AppTokens.lakhCrore(r.netGain)} in hand.',
       ),
       stats: <UiStat>[
@@ -132,7 +138,7 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
               : 'no losses to set off',
         ),
         UiStat(
-          label: 'Tax at ${AppTokens.percent(kStcgRate, decimals: 0)}',
+          label: 'Tax at ${AppTokens.percent(_stcgRate, decimals: 1)}',
           value: AppTokens.price(r.tax),
           intent: UiIntent.bearish,
           hint: 'the special rate',
@@ -141,7 +147,7 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
           label: 'Cess',
           value: AppTokens.price(r.cess),
           intent: UiIntent.bearish,
-          hint: '${AppTokens.percent(kCessRate, decimals: 0)} on the tax',
+          hint: '${AppTokens.percent(kCessRate, decimals: 1)} on the tax',
         ),
         UiStat(
           label: 'Net in hand',
@@ -153,7 +159,7 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
           label: 'As business income',
           value: AppTokens.price(slabTotal),
           intent: slabIsCheaper ? UiIntent.bullish : UiIntent.warning,
-          hint: 'at the ${AppTokens.percent(_slab, decimals: 0)} slab',
+          hint: 'at the ${AppTokens.percent(_slab, decimals: 1)} slab',
         ),
         UiStat(
           label: slabIsCheaper ? 'The slab is cheaper' : 'The flat rate saves',
@@ -164,6 +170,24 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
         ),
       ],
       inputs: <AppCalcInputGroup>[
+        AppCalcInputGroup(
+          label: 'Tax period',
+          hint:
+              'Listed equity assumptions; surcharge and individual exemptions may affect your liability.',
+          children: [
+            UiSelect<EquityTaxPeriod>(
+              label: 'Transfer date',
+              value: _taxPeriod,
+              options: [
+                for (final period in EquityTaxPeriod.values)
+                  UiOption(value: period, label: period.label),
+              ],
+              onChanged: (period) => setState(() {
+                _taxPeriod = period;
+              }),
+            ),
+          ],
+        ),
         AppCalcInputGroup(
           label: 'The gain',
           hint: 'realised profit and how long it was held',
@@ -250,7 +274,8 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
               label: 'Your slab',
               value: _slab,
               onChanged: (double v) => setState(() => _slab = v),
-              helper: 'Sets what the same profit would cost as F&O or intraday '
+              helper:
+                  'Sets what the same profit would cost as F&O or intraday '
                   'income.',
               options: const <UiToggleOption<double>>[
                 UiToggleOption<double>(value: 5, label: '5%'),
@@ -277,7 +302,8 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
                 label: 'Gross gain',
                 value: AppTokens.lakhCrore(_gain),
                 trailing: '100%',
-                detail: 'Sale value less cost, held ${_holdingDays.round()} days',
+                detail:
+                    'Sale value less cost, held ${_holdingDays.round()} days',
               ),
               UiKeyValueRow(
                 label: 'Losses set off',
@@ -304,7 +330,7 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
                 detail: 'What the special rate applies to',
               ),
               UiKeyValueRow(
-                label: 'Tax at ${AppTokens.percent(kStcgRate, decimals: 0)}',
+                label: 'Tax at ${AppTokens.percent(_stcgRate, decimals: 1)}',
                 value: '−${AppTokens.price(r.tax)}',
                 trailing: _gain <= 0
                     ? '—'
@@ -313,7 +339,7 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
                 detail: 'Flat, regardless of the slab',
               ),
               UiKeyValueRow(
-                label: 'Cess at ${AppTokens.percent(kCessRate, decimals: 0)}',
+                label: 'Cess at ${AppTokens.percent(kCessRate, decimals: 1)}',
                 value: '−${AppTokens.price(r.cess)}',
                 trailing: _gain <= 0
                     ? '—'
@@ -395,12 +421,13 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
             valueFormatter: (num v) => AppTokens.compactMoney(v),
             items: <UiBarListItem>[
               UiBarListItem(
-                label: 'Short-term ${AppTokens.percent(kStcgRate, decimals: 0)}',
+                label:
+                    'Short-term ${AppTokens.percent(_stcgRate, decimals: 1)}',
                 value: r.totalTax,
               ),
               for (final double s in const <double>[5, 10, 20, 30])
                 UiBarListItem(
-                  label: 'Slab ${AppTokens.percent(s, decimals: 0)}',
+                  label: 'Slab ${AppTokens.percent(s, decimals: 1)}',
                   value: taxableBase * s / 100 * (1 + kCessRate / 100),
                 ),
             ],
@@ -481,8 +508,8 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
             message:
                 'Listed equity crosses into long-term treatment after 365 days, '
                 'where the rate is '
-                '${AppTokens.percent(kLtcgRate, decimals: 0)} and the first '
-                '${AppTokens.lakhCrore(kLtcgExemption)} of gain each year is '
+                '${AppTokens.percent(_ltcgRate, decimals: 1)} and the first '
+                '${AppTokens.lakhCrore(_ltcgExemption)} of gain each year is '
                 'exempt. The figures here apply the short-term rate and will '
                 'overstate the tax.',
           ),
@@ -503,7 +530,7 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
             message:
                 'The same ${AppTokens.lakhCrore(taxableBase)} as F&O or intraday '
                 'profit would be business income at your '
-                '${AppTokens.percent(_slab, decimals: 0)} slab — '
+                '${AppTokens.percent(_slab, decimals: 1)} slab — '
                 '${AppTokens.price(slabTotal)} against '
                 '${AppTokens.price(r.totalTax)}. Delivery trades are the only '
                 'route to the flat rate.',
@@ -511,12 +538,12 @@ class _StcgCalculatorScreenState extends State<StcgCalculatorScreen> {
       ],
       formula:
           'Taxable = Gain − losses set off\n'
-          'Tax = Taxable × ${kStcgRate.toStringAsFixed(0)}%\n'
+          'Tax = Taxable × ${_stcgRate.toStringAsFixed(0)}%\n'
           'Cess = Tax × ${kCessRate.toStringAsFixed(0)}%\n'
           'Total = Tax + Cess\n'
           'Effective = Total ÷ Gain × 100',
       notes: <String>[
-        'The ${AppTokens.percent(kStcgRate, decimals: 0)} rate applies to '
+        'The ${AppTokens.percent(_stcgRate, decimals: 1)} rate applies to '
             'listed equity and equity mutual funds sold within 365 days, where '
             'STT has been paid. Unlisted shares, property and debt funds are '
             'taxed at the slab instead.',

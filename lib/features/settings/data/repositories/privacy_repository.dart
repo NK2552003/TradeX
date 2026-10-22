@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
@@ -14,6 +15,9 @@ abstract class PrivacyRepository {
 }
 
 class PrivacyRepositoryImpl implements PrivacyRepository {
+  PrivacyRepositoryImpl() {
+    if (!CustomerDataPolicy.allowDemo) _blockedUsers.clear();
+  }
   static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
 
   PrivacySettingsModel _settings = const PrivacySettingsModel(
@@ -39,8 +43,8 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
   ];
 
   DataExportRequest _exportRequest = DataExportRequest(
-    status: 'pending',
-    requestedAt: DateTime.now().subtract(const Duration(hours: 2)),
+    status: 'none',
+    requestedAt: DateTime.now(),
   );
 
   @override
@@ -80,10 +84,13 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
         final user = client.auth.currentUser;
         final targetUserId = user?.id ?? _demoUserId;
 
-        await client.from('profiles').update({
-          'public_journals': enabled,
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', targetUserId);
+        await client
+            .from('profiles')
+            .update({
+              'public_journals': enabled,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', targetUserId);
       } catch (e) {
         debugPrint('PrivacyRepositoryImpl.setPublicJournalsDefault error: $e');
       }
@@ -99,10 +106,13 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
         final user = client.auth.currentUser;
         final targetUserId = user?.id ?? _demoUserId;
 
-        await client.from('profiles').update({
-          'public_stats': enabled,
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', targetUserId);
+        await client
+            .from('profiles')
+            .update({
+              'public_stats': enabled,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', targetUserId);
       } catch (e) {
         debugPrint('PrivacyRepositoryImpl.setPublicStatsEnabled error: $e');
       }
@@ -119,20 +129,29 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
 
         final res = await client
             .from('blocks')
-            .select('blocked_id, profiles!blocks_blocked_id_fkey(handle, display_name, bio, subscription_tier)')
+            .select(
+              'blocked_id, profiles!blocks_blocked_id_fkey(handle, display_name, bio, subscription_tier)',
+            )
             .eq('blocker_id', targetUserId);
 
         if ((res as List).isNotEmpty) {
           final list = <AppTrader>[];
           for (final item in res) {
             final profileMap = item['profiles'] as Map<String, dynamic>? ?? {};
-            final tierStr = profileMap['subscription_tier'] as String? ?? 'free';
-            final tier = AppTier.values.firstWhere((t) => t.name == tierStr, orElse: () => AppTier.free);
+            final tierStr =
+                profileMap['subscription_tier'] as String? ?? 'free';
+            final tier = AppTier.values.firstWhere(
+              (t) => t.name == tierStr,
+              orElse: () => AppTier.free,
+            );
             list.add(
               AppTrader(
                 id: item['blocked_id'] as String,
                 handle: profileMap['handle'] as String? ?? 'user',
-                displayName: profileMap['display_name'] as String? ?? profileMap['handle'] as String? ?? 'User',
+                displayName:
+                    profileMap['display_name'] as String? ??
+                    profileMap['handle'] as String? ??
+                    'User',
                 bio: profileMap['bio'] as String? ?? '',
                 tier: tier,
               ),
@@ -169,78 +188,39 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
 
   @override
   Future<DataExportRequest> requestDataExport() async {
-    _exportRequest = DataExportRequest(
-      status: 'processing',
-      requestedAt: DateTime.now(),
-    );
-
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
-
-        final res = await client.from('data_export_requests').insert({
-          'user_id': targetUserId,
-          'status': 'processing',
-          'requested_at': DateTime.now().toIso8601String(),
-        }).select().maybeSingle();
-
-        if (res != null) {
-          _exportRequest = DataExportRequest(
-            status: res['status'] as String? ?? 'processing',
-            requestedAt: DateTime.tryParse(res['requested_at'] as String? ?? '') ?? DateTime.now(),
-            downloadUrl: res['download_url'] as String?,
-          );
-        }
-      } catch (e) {
-        debugPrint('PrivacyRepositoryImpl.requestDataExport error: $e');
-      }
+    final client = SupabaseConfig.client;
+    final user = client?.auth.currentUser;
+    if (!SupabaseConfig.isConfigured || client == null || user == null) {
+      throw StateError('Data export is not available in this environment.');
     }
-
+    final row = await client
+        .from('data_export_requests')
+        .insert({
+          'user_id': user.id,
+          'status': 'pending',
+          'requested_at': DateTime.now().toIso8601String(),
+        })
+        .select()
+        .single();
+    _exportRequest = DataExportRequest.fromJson(row);
     return _exportRequest;
   }
 
   @override
   Future<DataExportRequest> getDataExportStatus() async {
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
-
-        final res = await client
-            .from('data_export_requests')
-            .select('*')
-            .eq('user_id', targetUserId)
-            .order('created_at', ascending: false)
-            .maybeSingle();
-
-        if (res != null) {
-          _exportRequest = DataExportRequest(
-            status: res['status'] as String? ?? 'ready',
-            requestedAt: DateTime.tryParse(res['requested_at'] as String? ?? '') ?? DateTime.now(),
-            completedAt: DateTime.tryParse(res['completed_at'] as String? ?? ''),
-            expiresAt: DateTime.tryParse(res['expires_at'] as String? ?? ''),
-            downloadUrl: res['download_url'] as String? ?? 'https://tradex.ai/exports/tradex_export_usr_mock_01.zip',
-          );
-          return _exportRequest;
-        }
-      } catch (e) {
-        debugPrint('PrivacyRepositoryImpl.getDataExportStatus error: $e');
-      }
+    final client = SupabaseConfig.client;
+    final user = client?.auth.currentUser;
+    if (!SupabaseConfig.isConfigured || client == null || user == null) {
+      return _exportRequest;
     }
-
-    // Fallback simulation
-    if (_exportRequest.status == 'processing') {
-      _exportRequest = DataExportRequest(
-        status: 'ready',
-        requestedAt: _exportRequest.requestedAt,
-        completedAt: DateTime.now(),
-        expiresAt: DateTime.now().add(const Duration(days: 7)),
-        downloadUrl: 'https://tradex.ai/exports/tradex_export_usr_mock_01.zip',
-      );
-    }
+    final row = await client
+        .from('data_export_requests')
+        .select()
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    if (row != null) _exportRequest = DataExportRequest.fromJson(row);
     return _exportRequest;
   }
 }

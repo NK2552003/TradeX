@@ -6,13 +6,31 @@ library;
 
 import 'dart:math' as math;
 
-const double kStcgRate = 15.0;
-const double kLtcgRate = 10.0;
+const double kStcgRate = 20.0;
+const double kLtcgRate = 12.5;
 
 /// Gains up to this amount are LTCG-exempt in a financial year.
-const double kLtcgExemption = 100000.0;
+const double kLtcgExemption = 125000.0;
 
 const double kCessRate = 4.0;
+
+/// Listed equity under sections 111A/112A, subject to the statutory conditions.
+/// The annual exemption increased for FY 2024-25, including pre-July transfers.
+/// Sources: Income Tax Department capital-gains FAQs and Finance (No. 2) Act 2024.
+enum EquityTaxPeriod {
+  beforeApril2024,
+  aprilToJuly2024,
+  from23July2024;
+
+  double get stcgRate => this == from23July2024 ? kStcgRate : 15;
+  double get ltcgRate => this == from23July2024 ? kLtcgRate : 10;
+  double get exemption => this == beforeApril2024 ? 100000 : kLtcgExemption;
+  String get label => switch (this) {
+    beforeApril2024 => 'Before 1 Apr 2024',
+    aprilToJuly2024 => '1 Apr – 22 Jul 2024',
+    from23July2024 => 'From 23 Jul 2024',
+  };
+}
 
 class StcgResult {
   const StcgResult({
@@ -38,11 +56,14 @@ class StcgResult {
   final double effectiveRatePct;
 }
 
-/// STCG on listed equity: flat 15% (plus cess) with no exemption. A loss is
+/// STCG on listed equity: the selected period rate (plus cess) with no exemption. A loss is
 /// returned untaxed so the screen can show it as carry-forward.
-StcgResult calcStcg({required double gain}) {
+StcgResult calcStcg({
+  required double gain,
+  EquityTaxPeriod period = EquityTaxPeriod.from23July2024,
+}) {
   final double taxable = gain > 0 ? gain : 0;
-  final double tax = taxable * kStcgRate / 100;
+  final double tax = taxable * period.stcgRate / 100;
   final double cess = tax * kCessRate / 100;
   final double total = tax + cess;
   return StcgResult(
@@ -70,7 +91,7 @@ class LtcgResult {
 
   final double gain;
 
-  /// Portion of the ₹1 lakh exemption consumed.
+  /// Portion of the annual exemption consumed.
   final double exemptionUsed;
   final double taxableGain;
   final double tax;
@@ -80,21 +101,22 @@ class LtcgResult {
   final double effectiveRatePct;
 }
 
-/// LTCG on listed equity: 10% (plus cess) on the gain above
+/// LTCG on listed equity at the selected period rate (plus cess) on the gain above
 /// [kLtcgExemption]. [exemptionAlreadyUsed] lets a trader account for gains
 /// already booked earlier in the same financial year.
 LtcgResult calcLtcg({
   required double gain,
   double exemptionAlreadyUsed = 0,
+  EquityTaxPeriod period = EquityTaxPeriod.from23July2024,
 }) {
-  final double remaining = (kLtcgExemption - exemptionAlreadyUsed).clamp(
+  final double remaining = (period.exemption - exemptionAlreadyUsed).clamp(
     0.0,
-    kLtcgExemption,
+    period.exemption,
   );
   final double positive = gain > 0 ? gain : 0;
   final double used = positive < remaining ? positive : remaining;
   final double taxable = positive - used;
-  final double tax = taxable * kLtcgRate / 100;
+  final double tax = taxable * period.ltcgRate / 100;
   final double cess = tax * kCessRate / 100;
   final double total = tax + cess;
   return LtcgResult(
@@ -188,7 +210,11 @@ double slabTaxNew(double income) {
 
 /// Section 87A rebate — ₹60,000 up to ₹12L of taxable income in the new
 /// regime, ₹12,500 up to ₹5L in the old one.
-double rebate87a(double taxableIncome, double tax, {required bool isNewRegime}) {
+double rebate87a(
+  double taxableIncome,
+  double tax, {
+  required bool isNewRegime,
+}) {
   if (isNewRegime) {
     return taxableIncome <= 1200000 ? math.min(tax, 60000) : 0;
   }
@@ -253,6 +279,7 @@ double _surchargeThresholdFor(double income) {
   if (income <= 50000000) return 20000000;
   return 50000000;
 }
+
 /// Surcharge and cess on top of slab tax, with marginal relief.
 ///
 /// Marginal relief is the rule that stops a rupee of extra income from costing
@@ -270,7 +297,8 @@ SurchargeResult calcSurcharge({
   double relief = 0;
   final double threshold = _surchargeThresholdFor(income);
   if (threshold > 0 && surcharge > 0) {
-    final double taxAtThreshold = slabTax(threshold, isNewRegime: isNewRegime) +
+    final double taxAtThreshold =
+        slabTax(threshold, isNewRegime: isNewRegime) +
         slabTax(threshold, isNewRegime: isNewRegime) *
             surchargeRateFor(threshold, isNewRegime: isNewRegime) /
             100;
@@ -350,6 +378,7 @@ class AdvanceTaxResult {
 
   double get totalInterest => interest234b + interest234c;
 }
+
 /// The four dates advance tax falls due on, and what happens if you miss them.
 const List<String> kAdvanceTaxDates = <String>[
   '15 Jun',

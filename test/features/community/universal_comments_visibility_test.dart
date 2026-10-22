@@ -51,42 +51,43 @@ void main() {
       expect(toggledTo, isFalse);
     });
 
-    testWidgets('renders private thread callout banner and Make Public button', (
-      WidgetTester tester,
-    ) async {
-      bool? toggledTo;
+    testWidgets(
+      'renders private thread callout banner and Make Public button',
+      (WidgetTester tester) async {
+        bool? toggledTo;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: UniversalCommentsSection(
-                targetId: 'strategy_456',
-                targetType: 'strategy',
-                comments: const <CommunityComment>[],
-                currentUser: author,
-                isPublic: false,
-                canToggleVisibility: true,
-                onToggleVisibility: (v) => toggledTo = v,
-                onAddComment: (text, {parentCommentId, sentiment}) async {},
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: UniversalCommentsSection(
+                  targetId: 'strategy_456',
+                  targetType: 'strategy',
+                  comments: const <CommunityComment>[],
+                  currentUser: author,
+                  isPublic: false,
+                  canToggleVisibility: true,
+                  onToggleVisibility: (v) => toggledTo = v,
+                  onAddComment: (text, {parentCommentId, sentiment}) async {},
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // Should display Private badge and Private Discussion banner
-      expect(find.text('Private'), findsOneWidget);
-      expect(find.text('Private Playbook Discussion'), findsOneWidget);
-      expect(find.text('Make Public'), findsWidgets);
+        // Should display Private badge and Private Discussion banner
+        expect(find.text('Private'), findsOneWidget);
+        expect(find.text('Private Playbook Discussion'), findsOneWidget);
+        expect(find.text('Make Public'), findsWidgets);
 
-      // Tapping Make Public should trigger onToggleVisibility with true
-      await tester.tap(find.text('Make Public').first);
-      await tester.pumpAndSettle();
+        // Tapping Make Public should trigger onToggleVisibility with true
+        await tester.tap(find.text('Make Public').first);
+        await tester.pumpAndSettle();
 
-      expect(toggledTo, isTrue);
-    });
+        expect(toggledTo, isTrue);
+      },
+    );
   });
 
   group('Repository Visibility Tests', () {
@@ -103,33 +104,45 @@ void main() {
       await repo.setVisibility(initial.id, initial.isPublic);
     });
 
-    test('NotesRepository addComment allows commenting on private note', () async {
-      final repo = NotesRepositoryImpl.instance;
-      final notes = await repo.fetchAll();
-      final initial = notes.first;
+    test(
+      'NotesRepository addComment allows commenting on private note',
+      () async {
+        final repo = NotesRepositoryImpl.instance;
+        final notes = await repo.fetchAll();
+        final initial = notes.first;
 
-      // Set to private
-      await repo.setVisibility(initial.id, false);
-      final updated = await repo.addComment(initial.id, 'My private thesis thought');
-      expect(updated.comments.any((c) => c.body == 'My private thesis thought'), isTrue);
+        // Set to private
+        await repo.setVisibility(initial.id, false);
+        final updated = await repo.addComment(
+          initial.id,
+          'My private thesis thought',
+        );
+        expect(
+          updated.comments.any((c) => c.body == 'My private thesis thought'),
+          isTrue,
+        );
 
-      // Restore
-      await repo.setVisibility(initial.id, initial.isPublic);
-    });
+        // Restore
+        await repo.setVisibility(initial.id, initial.isPublic);
+      },
+    );
 
-    test('CommunityRepository setPostVisibility updates post isPublic flag', () {
-      final repo = CommunityRepository();
-      expect(repo.forYouPosts.isNotEmpty, isTrue);
+    test(
+      'CommunityRepository setPostVisibility updates post isPublic flag',
+      () async {
+        final repo = CommunityRepository();
+        expect(repo.forYouPosts.isNotEmpty, isTrue);
 
-      final post = repo.forYouPosts.first;
-      expect(post.isPublic, isTrue);
+        final post = repo.forYouPosts.first;
+        expect(post.isPublic, isTrue);
 
-      final updated = repo.setPostVisibility(post.id, false);
-      expect(updated, isNotNull);
-      expect(updated!.isPublic, isFalse);
+        final updated = await repo.setPostVisibility(post.id, false);
+        expect(updated, isNotNull);
+        expect(updated!.isPublic, isFalse);
 
-      final restored = repo.setPostVisibility(post.id, true);
-      expect(restored!.isPublic, isTrue);
-    });
+        final restored = await repo.setPostVisibility(post.id, true);
+        expect(restored!.isPublic, isTrue);
+      },
+    );
   });
 }

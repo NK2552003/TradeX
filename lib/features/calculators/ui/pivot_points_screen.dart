@@ -175,7 +175,10 @@ class _PivotPointsCalculatorScreenState
           label: 'Previous session',
           hint: 'the range being carried forward',
           children: <Widget>[
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runSpacing: context.sp(context.ui.spacing.xs),
               children: <Widget>[
                 UiBadge(
                   label: _isLive ? 'Live OHLC · $_symbol' : 'Reference OHLC',
@@ -183,7 +186,7 @@ class _PivotPointsCalculatorScreenState
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
-                const Spacer(),
+
                 UiButton(
                   label: 'Sync Live OHLC',
                   leadingIcon: Icons.refresh,
@@ -269,8 +272,9 @@ class _PivotPointsCalculatorScreenState
                 flex: 2,
                 cell: (BuildContext ctx, _Level l) => Text(
                   l.name,
-                  style: (l.name == 'PP' ? ctx.uiText.bodyStrong : ctx.uiText.body)
-                      .copyWith(color: ctx.uiColors.foreground),
+                  style:
+                      (l.name == 'PP' ? ctx.uiText.bodyStrong : ctx.uiText.body)
+                          .copyWith(color: ctx.uiColors.foreground),
                 ),
               ),
               UiTableColumn<_Level>(
@@ -349,7 +353,8 @@ class _PivotPointsCalculatorScreenState
               for (final _Level l in levels)
                 if (l.name != 'PP')
                   UiBarListItem(
-                    label: '${l.name} · ${AppTokens.money(l.price, decimals: 0)}',
+                    label:
+                        '${l.name} · ${AppTokens.money(l.price, decimals: 0)}',
                     value: (l.price - _ltp).abs(),
                   ),
             ],
@@ -388,22 +393,14 @@ class _PivotPointsCalculatorScreenState
                 intent: UiIntent.primary,
                 below: true,
               ),
-              UiRangeMarker(
-                value: r.r1,
-                label: 'R1',
-                intent: UiIntent.bearish,
-              ),
+              UiRangeMarker(value: r.r1, label: 'R1', intent: UiIntent.bearish),
               UiRangeMarker(
                 value: r.r2,
                 label: 'R2',
                 intent: UiIntent.bearish,
                 below: true,
               ),
-              UiRangeMarker(
-                value: r.s1,
-                label: 'S1',
-                intent: UiIntent.bullish,
-              ),
+              UiRangeMarker(value: r.s1, label: 'S1', intent: UiIntent.bullish),
               UiRangeMarker(
                 value: r.s2,
                 label: 'S2',

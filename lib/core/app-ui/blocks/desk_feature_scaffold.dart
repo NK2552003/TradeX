@@ -115,9 +115,7 @@ class DeskNotificationBanner extends StatelessWidget {
                                   color: actions[i].intent
                                       .color(context)
                                       .withValues(alpha: 0.2),
-                                  borderRadius: context.radius(
-                                    theme.radii.sm,
-                                  ),
+                                  borderRadius: context.radius(theme.radii.sm),
                                 ),
                                 child: Text(
                                   actions[i].badge!,
@@ -191,11 +189,7 @@ class DeskStatCardData {
 }
 
 class DeskStatsOverview extends StatelessWidget {
-  const DeskStatsOverview({
-    super.key,
-    required this.stats,
-    this.maxWidth,
-  });
+  const DeskStatsOverview({super.key, required this.stats, this.maxWidth});
 
   final List<DeskStatCardData> stats;
   final double? maxWidth;
@@ -370,9 +364,7 @@ class DeskFilterDropdown extends StatelessWidget {
 
     final Widget content = Container(
       height: context.sz(32),
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(theme.spacing.sm),
-      ),
+      padding: EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.sm)),
       decoration: BoxDecoration(
         color: isActive
             ? colors.primary.withValues(alpha: 0.08)
@@ -386,8 +378,9 @@ class DeskFilterDropdown extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: isExpanded ? MainAxisSize.max : MainAxisSize.min,
-        mainAxisAlignment:
-            isExpanded ? MainAxisAlignment.spaceBetween : MainAxisAlignment.center,
+        mainAxisAlignment: isExpanded
+            ? MainAxisAlignment.spaceBetween
+            : MainAxisAlignment.center,
         children: <Widget>[
           if (icon != null) ...<Widget>[
             Icon(
@@ -419,10 +412,7 @@ class DeskFilterDropdown extends StatelessWidget {
       ),
     );
 
-    return UiDropdownMenu(
-      items: items,
-      child: content,
-    );
+    return UiDropdownMenu(items: items, child: content);
   }
 }
 
@@ -472,9 +462,7 @@ class DeskViewToggle extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isGrid
-                      ? colors.surfaceMuted
-                      : Colors.transparent,
+                  color: isGrid ? colors.surfaceMuted : Colors.transparent,
                   borderRadius: context.radius(theme.radii.sm),
                 ),
                 child: Icon(
@@ -493,9 +481,7 @@ class DeskViewToggle extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
-                  color: !isGrid
-                      ? colors.surfaceMuted
-                      : Colors.transparent,
+                  color: !isGrid ? colors.surfaceMuted : Colors.transparent,
                   borderRadius: context.radius(theme.radii.sm),
                 ),
                 child: Icon(
@@ -537,61 +523,27 @@ class DeskSectionHeader extends StatelessWidget {
     final UiTheme theme = context.ui;
     final UiColors colors = theme.colors;
 
-    return Row(
-      children: <Widget>[
-        if (accentColor != null) ...<Widget>[
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: accentColor,
-              shape: BoxShape.circle,
-            ),
-          ),
-          SizedBox(width: context.sp(theme.spacing.xs)),
-        ],
-        Text(
-          title.toUpperCase(),
-          style: context.uiText.caption.copyWith(
-            color: colors.foregroundMuted,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.8,
-          ),
-        ),
-        if (countLabel != null) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-            decoration: BoxDecoration(
-              color: colors.surface,
-              borderRadius: context.radius(theme.radii.pill),
-              border: Border.all(color: colors.border.withValues(alpha: 0.6)),
-            ),
-            child: Text(
-              countLabel!,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: colors.foregroundSubtle,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          spacing: context.sp(theme.spacing.xs),
+          runSpacing: context.sp(theme.spacing.xs),
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              title.toUpperCase(),
+              style: context.uiText.caption.copyWith(
+                color: accentColor ?? colors.foregroundMuted,
+                fontWeight: FontWeight.w700,
               ),
             ),
-          ),
-        ],
-        if (showDivider) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.sm)),
-          Expanded(
-            child: Container(
-              height: theme.borders.hairline,
-              color: colors.border.withValues(alpha: 0.6),
-            ),
-          ),
-        ],
-        if (trailing != null) ...<Widget>[
-          SizedBox(width: context.sp(theme.spacing.sm)),
-          trailing!,
-        ],
+            if (countLabel != null)
+              UiBadge(label: countLabel!, size: UiSize.xs),
+            ?trailing,
+          ],
+        ),
+        if (showDivider) const UiDivider(spacing: 4),
       ],
     );
   }
@@ -629,91 +581,25 @@ class DeskPaginationBar extends StatelessWidget {
     final int start = ((currentPage - 1) * pageSize + 1).clamp(1, totalItems);
     final int end = (currentPage * pageSize).clamp(1, totalItems);
 
-    final String infoText =
-        'Showing $start to $end of $totalItems $itemLabel';
+    final String infoText = 'Showing $start to $end of $totalItems $itemLabel';
 
-    if (context.uiRes.isMobile) {
-      return Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: context.sp(theme.spacing.sm),
-          vertical: context.sp(theme.spacing.xs),
-        ),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: context.radius(theme.radii.md),
-          border: Border.all(color: colors.border.withValues(alpha: 0.6)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Text(
-              infoText,
-              textAlign: TextAlign.center,
-              style: context.uiText.caption.copyWith(
-                color: colors.foregroundMuted,
-                fontFamily: 'monospace',
-                fontSize: 11,
-              ),
-            ),
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                UiButton(
-                  label: 'Previous',
-                  size: UiSize.xs,
-                  variant: UiVariant.outline,
-                  onPressed: currentPage > 1
-                      ? () => onPageChanged(currentPage - 1)
-                      : null,
-                ),
-                Text(
-                  'Page $currentPage of $totalPages',
-                  style: context.uiText.caption.copyWith(
-                    color: colors.foreground,
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                UiButton(
-                  label: 'Next',
-                  size: UiSize.xs,
-                  variant: UiVariant.outline,
-                  onPressed: currentPage < totalPages
-                      ? () => onPageChanged(currentPage + 1)
-                      : null,
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(theme.spacing.md),
-        vertical: context.sp(theme.spacing.xs),
-      ),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: context.radius(theme.radii.md),
-        border: Border.all(color: colors.border.withValues(alpha: 0.6)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
+      child: Column(
+        children: [
           Text(
             infoText,
             style: context.uiText.caption.copyWith(
               color: colors.foregroundMuted,
-              fontFamily: 'monospace',
-              fontSize: 11,
             ),
+            textAlign: TextAlign.center,
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: context.sp(theme.spacing.sm),
+            runSpacing: context.sp(theme.spacing.xs),
+            children: [
               UiButton(
                 label: 'Previous',
                 size: UiSize.xs,
@@ -722,18 +608,9 @@ class DeskPaginationBar extends StatelessWidget {
                     ? () => onPageChanged(currentPage - 1)
                     : null,
               ),
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.sm),
-                ),
-                child: Text(
-                  'Page $currentPage of $totalPages',
-                  style: context.uiText.caption.copyWith(
-                    color: colors.foreground,
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              Text(
+                'Page $currentPage of $totalPages',
+                style: context.uiText.caption,
               ),
               UiButton(
                 label: 'Next',
@@ -758,8 +635,8 @@ class DeskPaginationBar extends StatelessWidget {
 class DeskStatusBarFooter extends StatelessWidget {
   const DeskStatusBarFooter({
     super.key,
-    this.syncLabel = 'Broker & Journal Cloud Sync: Active',
-    this.latency = '14ms',
+    this.syncLabel = 'Workspace records',
+    this.latency,
     this.shortcutHints = const <String>[],
   });
 

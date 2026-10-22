@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/record_access.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -29,6 +30,7 @@ class NotesScreen extends StatefulWidget {
   const NotesScreen({
     super.key,
     this.onSubpageChanged,
+    this.onReturnToOrigin,
     this.onOpenRef,
     this.onOpenWriting,
     this.onAttachToPost,
@@ -50,11 +52,28 @@ class NotesScreen extends StatefulWidget {
   /// on the right note.
   final AppLinkOpenRequest? openRequest;
 
+  final VoidCallback? onReturnToOrigin;
+
   @override
   State<NotesScreen> createState() => NotesScreenState();
 }
 
 class NotesScreenState extends State<NotesScreen> {
+  /// The saved record currently displayed, for browser history and sharing.
+  AppLinkRef? get openedRef {
+    final record = _active;
+    if (_view == _NotesView.list || record == null || record.id.isEmpty) {
+      return null;
+    }
+    return AppLinkRef(
+      kind: AppLinkKind.note,
+      id: record.id,
+      title: record.title,
+      isPublicContext:
+          _isPublicContext || _collection == _NotesCollection.public,
+    );
+  }
+
   /// Public entry point so host workspaces (like Writing Desk) can trigger
   /// new note creation.
   void newNote() => _newNote();
@@ -121,6 +140,8 @@ class NotesScreenState extends State<NotesScreen> {
   bool _isPublicContext = false;
   RecordWritingDocument? _sourceWriting;
   bool _openingWriting = false;
+  String? _accessError;
+  int _accessRevision = 0;
 
   NoteEditorMode _editorMode = NoteEditorMode.write;
   bool _editorDetailsOnly = false;
@@ -132,7 +153,18 @@ class NotesScreenState extends State<NotesScreen> {
       (List<AppNote> notes) {
         if (!mounted) return;
         setState(() {
-          _notes = notes;
+          if (_active != null && _view == _NotesView.preview) {
+            final latest = notes
+                .where((note) => note.id == _active!.id)
+                .firstOrNull;
+            if (latest != null) _active = latest;
+            if (_isPublicContext && (latest == null || !latest.isPublic)) {
+              _accessError = 'This note is no longer public.';
+            }
+          }
+          _notes = notes
+              .where((note) => RecordAccess.owns(note.userId))
+              .toList();
           _loading = false;
         });
         if (widget.openRequest != null) _apply(widget.openRequest!);
@@ -169,7 +201,7 @@ class NotesScreenState extends State<NotesScreen> {
     if (request != null && request != oldWidget.openRequest) _apply(request);
   }
 
-  void _apply(AppLinkOpenRequest request) {
+  Future<void> _apply(AppLinkOpenRequest request) async {
     if (request == _appliedRequest) return;
     _isPublicContext = request.publicContext;
     if (request.editWriting && request.kind != AppLinkKind.note) {
@@ -189,12 +221,14 @@ class NotesScreenState extends State<NotesScreen> {
         request.id.startsWith('pst_') ||
         request.id.startsWith('community')) {
       _appliedRequest = request;
-      widget.onOpenRef?.call(AppLinkRef(
-        kind: AppLinkKind.communityPost,
-        id: request.id,
-        title: request.id,
-        isPublicContext: request.publicContext,
-      ));
+      widget.onOpenRef?.call(
+        AppLinkRef(
+          kind: AppLinkKind.communityPost,
+          id: request.id,
+          title: request.id,
+          isPublicContext: request.publicContext,
+        ),
+      );
       return;
     }
     if (request.kind == AppLinkKind.journal ||
@@ -203,44 +237,85 @@ class NotesScreenState extends State<NotesScreen> {
         request.id.startsWith('trn_') ||
         request.id.startsWith('journal_')) {
       _appliedRequest = request;
-      widget.onOpenRef?.call(AppLinkRef(
-        kind: AppLinkKind.journal,
-        id: request.id,
-        title: request.id,
-        isPublicContext: request.publicContext,
-      ));
+      widget.onOpenRef?.call(
+        AppLinkRef(
+          kind: AppLinkKind.journal,
+          id: request.id,
+          title: request.id,
+          isPublicContext: request.publicContext,
+        ),
+      );
       return;
     }
     if (request.kind == AppLinkKind.strategy ||
         request.id.startsWith('strat_') ||
         request.id.startsWith('strategy_')) {
       _appliedRequest = request;
-      widget.onOpenRef?.call(AppLinkRef(
-        kind: AppLinkKind.strategy,
-        id: request.id,
-        title: request.id,
-        isPublicContext: request.publicContext,
-      ));
+      widget.onOpenRef?.call(
+        AppLinkRef(
+          kind: AppLinkKind.strategy,
+          id: request.id,
+          title: request.id,
+          isPublicContext: request.publicContext,
+        ),
+      );
       return;
     }
     if (request.kind != AppLinkKind.note) return;
-    for (final AppNote note in <AppNote>[..._notes, ..._publicNotes]) {
-      if (note.id == request.id) {
-        _appliedRequest = request;
-        if (!_notes.any((AppNote n) => n.id == note.id)) {
-          setState(() => _collection = _NotesCollection.public);
-        }
-        if (request.editWriting) {
-          _edit(note);
-        } else {
-          _open(note);
-        }
+    _appliedRequest = request;
+    final revision = ++_accessRevision;
+    try {
+      final note = await _repo.getById(request.id);
+      if (!mounted || revision != _accessRevision) return;
+      if (note == null ||
+          !RecordAccess.canRead(
+            note.userId,
+            note.isPublic,
+            publicContext: request.publicContext,
+          )) {
+        setState(
+          () => _accessError = 'This note is private, deleted, or unavailable.',
+        );
         return;
+      }
+      if (request.editWriting &&
+          (request.publicContext || !RecordAccess.owns(note.userId))) {
+        setState(
+          () => _accessError =
+              'Only the owner can edit this note in their workspace.',
+        );
+        return;
+      }
+      setState(() {
+        _accessError = null;
+        _isPublicContext =
+            request.publicContext || !RecordAccess.owns(note.userId);
+      });
+      if (request.editWriting) {
+        _edit(note);
+      } else {
+        setState(() {
+          _active = note;
+          _view = _NotesView.preview;
+        });
+        _notifySubpage();
+      }
+    } catch (error) {
+      if (mounted && revision == _accessRevision) {
+        setState(
+          () => _accessError = 'Could not open this note. Please retry.',
+        );
       }
     }
   }
 
   Future<void> _openSourceWriting(AppLinkRef ref) async {
+    if (ref.isPublicContext) {
+      setState(
+        () => _accessError = 'Open the owner workspace to edit this record.',
+      );
+      return;
+    }
     if (_openingWriting) return;
     setState(() => _openingWriting = true);
     try {
@@ -436,6 +511,18 @@ class NotesScreenState extends State<NotesScreen> {
   }
 
   void _open(AppNote note) {
+    _accessError = null;
+    _isPublicContext =
+        _collection == _NotesCollection.public ||
+        !RecordAccess.owns(note.userId);
+    if (!RecordAccess.canRead(
+      note.userId,
+      note.isPublic,
+      publicContext: _isPublicContext,
+    )) {
+      setState(() => _accessError = 'This note is no longer public.');
+      return;
+    }
     setState(() {
       _active = note;
       _view = _NotesView.preview;
@@ -448,6 +535,7 @@ class NotesScreenState extends State<NotesScreen> {
     NoteEditorMode mode = NoteEditorMode.write,
     bool detailsOnly = false,
   }) {
+    if (note.id.isNotEmpty && !RecordAccess.owns(note.userId)) return;
     setState(() {
       _active = note;
       _editorMode = mode;
@@ -466,6 +554,13 @@ class NotesScreenState extends State<NotesScreen> {
   }
 
   void _backToList() {
+    _accessError = null;
+    _isPublicContext = false;
+    _accessRevision++;
+    if (widget.onReturnToOrigin != null) {
+      widget.onReturnToOrigin!();
+      return;
+    }
     setState(() {
       _active = null;
       _view = _NotesView.list;
@@ -495,12 +590,13 @@ class NotesScreenState extends State<NotesScreen> {
       }
       return;
     }
-    final bool isPublic = ref.isPublicContext ||
+    final bool isPublic =
+        ref.isPublicContext ||
         _isPublicContext ||
-        _collection == _NotesCollection.public ||
-        (_active?.isPublic ?? false);
-    final AppLinkRef targetRef =
-        isPublic ? ref.copyWith(isPublicContext: true) : ref;
+        _collection == _NotesCollection.public;
+    final AppLinkRef targetRef = isPublic
+        ? ref.copyWith(isPublicContext: true)
+        : ref;
     final void Function(AppLinkRef ref)? jump = widget.onOpenRef;
     if (jump == null) {
       UiToast.info(
@@ -631,152 +727,33 @@ class NotesScreenState extends State<NotesScreen> {
 
   // ── SubNavbar & Tabs ───────────────────────────────────────────────────────
 
-  Widget _buildCollectionToggle() {
-    final UiTheme theme = context.ui;
-    final UiColors colors = theme.colors;
-    return Container(
-      height: context.sz(32),
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: context.radius(theme.radii.md),
-        border: Border.all(color: colors.border.withValues(alpha: 0.6)),
+  Widget _buildCollectionToggle() => ConstrainedBox(
+    constraints: BoxConstraints(maxWidth: context.sz(320)),
+    child: UiTabs(
+      items: [
+        UiTabItem(
+          label: 'My Notes',
+          icon: Icons.folder_outlined,
+          count: _notes.length,
+        ),
+        UiTabItem(
+          label: 'Public Notes',
+          icon: Icons.public_rounded,
+          count: _publicNotes.length,
+        ),
+      ],
+      selectedIndex: _collection == _NotesCollection.mine ? 0 : 1,
+      onChanged: (index) => _updateFilter(
+        () => _collection = index == 0
+            ? _NotesCollection.mine
+            : _NotesCollection.public,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          InkWell(
-            borderRadius: context.radius(theme.radii.sm),
-            onTap: () =>
-                _updateFilter(() => _collection = _NotesCollection.mine),
-            child: Container(
-              height: context.sz(28),
-              alignment: Alignment.center,
-              padding: EdgeInsets.symmetric(
-                horizontal: context.sp(theme.spacing.sm),
-              ),
-              decoration: BoxDecoration(
-                color: _collection == _NotesCollection.mine
-                    ? colors.foreground
-                    : Colors.transparent,
-                borderRadius: context.radius(theme.radii.sm),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(
-                    Icons.folder_outlined,
-                    size: 14,
-                    color: _collection == _NotesCollection.mine
-                        ? colors.background
-                        : colors.foregroundMuted,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'My Notes',
-                    style: context.uiText.caption.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: _collection == _NotesCollection.mine
-                          ? colors.background
-                          : colors.foregroundMuted,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _collection == _NotesCollection.mine
-                          ? colors.background.withValues(alpha: 0.2)
-                          : colors.foregroundSubtle.withValues(alpha: 0.15),
-                      borderRadius: context.radius(theme.radii.pill),
-                    ),
-                    child: Text(
-                      '${_notes.length}',
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: _collection == _NotesCollection.mine
-                            ? colors.background
-                            : colors.foregroundSubtle,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          InkWell(
-            borderRadius: context.radius(theme.radii.sm),
-            onTap: () =>
-                _updateFilter(() => _collection = _NotesCollection.public),
-            child: Container(
-              height: context.sz(28),
-              alignment: Alignment.center,
-              padding: EdgeInsets.symmetric(
-                horizontal: context.sp(theme.spacing.sm),
-              ),
-              decoration: BoxDecoration(
-                color: _collection == _NotesCollection.public
-                    ? colors.foreground
-                    : Colors.transparent,
-                borderRadius: context.radius(theme.radii.sm),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(
-                    Icons.public_rounded,
-                    size: 14,
-                    color: _collection == _NotesCollection.public
-                        ? colors.background
-                        : colors.foregroundMuted,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Public Notes',
-                    style: context.uiText.caption.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: _collection == _NotesCollection.public
-                          ? colors.background
-                          : colors.foregroundMuted,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _collection == _NotesCollection.public
-                          ? colors.background.withValues(alpha: 0.2)
-                          : colors.foregroundSubtle.withValues(alpha: 0.15),
-                      borderRadius: context.radius(theme.radii.pill),
-                    ),
-                    child: Text(
-                      '${_publicNotes.length}',
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: _collection == _NotesCollection.public
-                            ? colors.background
-                            : colors.foregroundSubtle,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+      variant: UiTabsVariant.segmented,
+      size: UiSize.sm,
+      scrollable: true,
+      showPanel: false,
+    ),
+  );
 
   Widget _buildCategorySegmentButton({
     required String label,
@@ -1226,8 +1203,10 @@ class NotesScreenState extends State<NotesScreen> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: context.sp(theme.spacing.xs),
                   children: <Widget>[
                     countBadge,
                     Row(
@@ -1437,8 +1416,7 @@ class NotesScreenState extends State<NotesScreen> {
     required double maxWidth,
   }) {
     return const DeskStatusBarFooter(
-      syncLabel: 'Auto-synced with Journal & Broker API',
-      latency: '24ms',
+      syncLabel: 'Notes, journal and strategies share linked records',
       shortcutHints: <String>[
         'Press N for New note',
         '/ for Search',
@@ -1452,6 +1430,13 @@ class NotesScreenState extends State<NotesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_accessError != null) {
+      return UiEmptyState(
+        title: 'Note unavailable',
+        message: _accessError,
+        action: UiButton(label: 'Back', onPressed: _backToList),
+      );
+    }
     if (_sourceWriting case final source?) {
       return NoteEditorScreen(
         key: ValueKey<String>(
@@ -1496,10 +1481,9 @@ class NotesScreenState extends State<NotesScreen> {
         },
         onOpenLink: _openRef,
         onAttachToPost: widget.onAttachToPost,
-        canEdit: !_isPublicContext && _collection == _NotesCollection.mine,
-        isPublicContext: _isPublicContext ||
-            _collection == _NotesCollection.public ||
-            _freshest(active).isPublic,
+        canEdit: !_isPublicContext && RecordAccess.owns(active.userId),
+        isPublicContext:
+            _isPublicContext || _collection == _NotesCollection.public,
       ),
       _NotesView.editor when active != null => NoteEditorScreen(
         key: ValueKey<String>('note_editor_${active.id}'),

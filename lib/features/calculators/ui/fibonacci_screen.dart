@@ -20,8 +20,7 @@ class FibonacciCalculatorScreen extends StatefulWidget {
       _FibonacciCalculatorScreenState();
 }
 
-class _FibonacciCalculatorScreenState
-    extends State<FibonacciCalculatorScreen> {
+class _FibonacciCalculatorScreenState extends State<FibonacciCalculatorScreen> {
   String _symbol = 'NIFTY';
   double _high = 23949.85;
   double _low = 23895.85;
@@ -145,7 +144,10 @@ class _FibonacciCalculatorScreenState
           label: 'Swing',
           hint: 'the leg being measured',
           children: <Widget>[
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runSpacing: context.sp(context.ui.spacing.xs),
               children: <Widget>[
                 UiBadge(
                   label: _isLive ? 'Live Quote' : 'Preset',
@@ -153,7 +155,7 @@ class _FibonacciCalculatorScreenState
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
-                const Spacer(),
+
                 UiButton(
                   label: 'Session OHLC',
                   leadingIcon: Icons.refresh,
@@ -284,7 +286,9 @@ class _FibonacciCalculatorScreenState
             series: <AppCalcSeries>[
               AppCalcSeries(
                 name: 'Retracement',
-                values: <double>[for (final (String, double) l in r.levels) l.$2],
+                values: <double>[
+                  for (final (String, double) l in r.levels) l.$2,
+                ],
                 intent: _uptrend ? UiIntent.bullish : UiIntent.bearish,
                 area: true,
               ),

@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -127,9 +128,12 @@ class WorkspacePostService {
         final map = row as Map<String, dynamic>;
         final srcKind = map['source_kind'] as String;
         final isSrcPost = srcKind == 'communityPost';
-        final postId = (isSrcPost ? map['source_id'] : map['target_id']) as String;
-        final recordKindStr = (isSrcPost ? map['target_kind'] : map['source_kind']) as String;
-        final recordId = (isSrcPost ? map['target_id'] : map['source_id']) as String;
+        final postId =
+            (isSrcPost ? map['source_id'] : map['target_id']) as String;
+        final recordKindStr =
+            (isSrcPost ? map['target_kind'] : map['source_kind']) as String;
+        final recordId =
+            (isSrcPost ? map['target_id'] : map['source_id']) as String;
 
         final AppLinkKind recordKind = AppLinkKind.values.firstWhere(
           (k) => k.name.toLowerCase() == recordKindStr.toLowerCase(),
@@ -138,18 +142,26 @@ class WorkspacePostService {
 
         final postRow = await client
             .from('community_posts')
-            .select('title, body, likes_count, comments_count, reposts_count, created_at, profiles(display_name, handle)')
+            .select(
+              'title, body, likes_count, comments_count, reposts_count, created_at, profiles(display_name, handle)',
+            )
             .eq('id', postId)
             .maybeSingle();
 
         final prof = postRow?['profiles'] as Map<String, dynamic>? ?? {};
-        final postTitle = postRow?['title'] as String? ?? (postRow?['body'] as String? ?? 'Post');
+        final postTitle =
+            postRow?['title'] as String? ??
+            (postRow?['body'] as String? ?? 'Post');
         final authorName = prof['display_name'] as String? ?? 'Trader';
-        final authorHandle = prof['handle'] != null ? '@${prof['handle']}' : '@trader';
+        final authorHandle = prof['handle'] != null
+            ? '@${prof['handle']}'
+            : '@trader';
         final likes = (postRow?['likes_count'] as num?)?.toInt() ?? 0;
         final comments = (postRow?['comments_count'] as num?)?.toInt() ?? 0;
         final shares = (postRow?['reposts_count'] as num?)?.toInt() ?? 0;
-        final pubAt = DateTime.tryParse(postRow?['created_at']?.toString() ?? '') ?? DateTime.now();
+        final pubAt =
+            DateTime.tryParse(postRow?['created_at']?.toString() ?? '') ??
+            DateTime.now();
 
         loaded.add(
           AppPostLinkInfo(
@@ -167,7 +179,7 @@ class WorkspacePostService {
         );
       }
 
-      if (loaded.isNotEmpty) {
+      if (loaded.isNotEmpty || !CustomerDataPolicy.allowDemo) {
         _links.clear();
         _links.addAll(loaded);
         _controller.add(allLinks);
@@ -202,6 +214,7 @@ class WorkspacePostService {
   }
 
   void _seedDefaultMockData() {
+    if (!CustomerDataPolicy.allowDemo) return;
     final DateTime now = DateTime.now();
     _links.addAll(<AppPostLinkInfo>[
       AppPostLinkInfo(
@@ -303,22 +316,25 @@ class WorkspacePostService {
 
   /// Total social likes across linked posts.
   int totalLikes({AppLinkKind? kind}) {
-    final Iterable<AppPostLinkInfo> filtered =
-        kind == null ? _links : _links.where((p) => p.recordKind == kind);
+    final Iterable<AppPostLinkInfo> filtered = kind == null
+        ? _links
+        : _links.where((p) => p.recordKind == kind);
     return filtered.fold<int>(0, (sum, p) => sum + p.likesCount);
   }
 
   /// Total comments across linked posts.
   int totalComments({AppLinkKind? kind}) {
-    final Iterable<AppPostLinkInfo> filtered =
-        kind == null ? _links : _links.where((p) => p.recordKind == kind);
+    final Iterable<AppPostLinkInfo> filtered = kind == null
+        ? _links
+        : _links.where((p) => p.recordKind == kind);
     return filtered.fold<int>(0, (sum, p) => sum + p.commentsCount);
   }
 
   /// Total shares across linked posts.
   int totalShares({AppLinkKind? kind}) {
-    final Iterable<AppPostLinkInfo> filtered =
-        kind == null ? _links : _links.where((p) => p.recordKind == kind);
+    final Iterable<AppPostLinkInfo> filtered = kind == null
+        ? _links
+        : _links.where((p) => p.recordKind == kind);
     return filtered.fold<int>(0, (sum, p) => sum + p.sharesCount);
   }
 

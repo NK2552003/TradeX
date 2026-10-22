@@ -1,3 +1,5 @@
+import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/linking/link_graph.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -34,9 +36,19 @@ class AuthWrapper extends StatefulWidget {
     super.key,
     this.initialStage = AuthStage.splash,
     this.authRepository,
+    this.initialDestination,
+    this.openRequest,
+    this.onDestinationChanged,
+    this.onOpenRecord,
+    this.onStageChanged,
   });
 
   final AuthStage initialStage;
+  final String? initialDestination;
+  final AppLinkOpenRequest? openRequest;
+  final ValueChanged<String>? onDestinationChanged;
+  final ValueChanged<AppLinkRef>? onOpenRecord;
+  final ValueChanged<AuthStage>? onStageChanged;
   final AuthRepository? authRepository;
 
   @override
@@ -104,7 +116,20 @@ class _AuthWrapperState extends State<AuthWrapper> {
       if (client != null) {
         _authSubscription = client.auth.onAuthStateChange.listen((data) {
           final event = data.event;
-          if (event == AuthChangeEvent.signedOut) {
+          if (event == AuthChangeEvent.signedIn &&
+              (_sessionState.stage == AuthStage.login ||
+                  _sessionState.stage == AuthStage.signup ||
+                  _sessionState.stage == AuthStage.onboarding)) {
+            unawaited(
+              _restoreActiveSession().then((_) {
+                if (mounted && _sessionState.stage == AuthStage.authenticated) {
+                  widget.onStageChanged?.call(AuthStage.authenticated);
+                }
+              }),
+            );
+          }
+          if (event == AuthChangeEvent.signedOut &&
+              _sessionState.stage != AuthStage.forgotPassword) {
             if (mounted) {
               setState(() {
                 _sessionState = _sessionState.copyWith(stage: AuthStage.login);
@@ -138,8 +163,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
                   if (mounted) {
                     setState(() {
                       _isAuthLoading = false;
-                      _sessionState =
-                          _sessionState.copyWith(stage: AuthStage.login);
+                      _sessionState = _sessionState.copyWith(
+                        stage: AuthStage.login,
+                      );
                     });
                   }
                   return;
@@ -150,8 +176,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 if (mounted) {
                   setState(() {
                     _isAuthLoading = false;
-                    _sessionState =
-                        _sessionState.copyWith(stage: AuthStage.login);
+                    _sessionState = _sessionState.copyWith(
+                      stage: AuthStage.login,
+                    );
                   });
                 }
                 return;
@@ -159,8 +186,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
             }
 
             // Valid active Supabase session confirmed: fetch profile
-            UserProfileModel? profile =
-                await _authRepository.getProfile(user.id);
+            UserProfileModel? profile = await _authRepository.getProfile(
+              user.id,
+            );
             profile ??= await AuthSessionStorage.getStoredProfile();
 
             if (profile != null && mounted) {
@@ -211,7 +239,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
       // 2. Persistent Local Storage Fallback (offline mode / local mock store)
       final storedProfile = await AuthSessionStorage.getStoredProfile();
       if (storedProfile != null) {
-        if (!SupabaseConfig.isConfigured || SupabaseConfig.client?.auth.currentUser != null) {
+        if (!SupabaseConfig.isConfigured ||
+            SupabaseConfig.client?.auth.currentUser != null) {
           final affProfile =
               await AuthSessionStorage.getStoredAffiliateProfile();
 
@@ -254,7 +283,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
         setState(() {
           _isAuthLoading = false;
           _sessionState = _sessionState.copyWith(
-            stage: hasSeenOnboarding ? AuthStage.login : AuthStage.onboarding,
+            stage: widget.initialStage != AuthStage.splash
+                ? widget.initialStage
+                : hasSeenOnboarding
+                ? AuthStage.login
+                : AuthStage.onboarding,
           );
         });
       }
@@ -269,6 +302,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
   }
 
+  @override
+  void didUpdateWidget(covariant AuthWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialStage != widget.initialStage &&
+        widget.initialStage != AuthStage.splash &&
+        !_isAuthLoading) {
+      _sessionState = _sessionState.copyWith(stage: widget.initialStage);
+    }
+  }
+
   void _navigateToStage(AuthStage stage, {UserRole? role, String? email}) {
     final activeService = SupabaseAuthBackendService.instance;
     setState(() {
@@ -280,6 +323,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         affiliateProfile: activeService.currentAffiliateProfile,
       );
     });
+    widget.onStageChanged?.call(stage);
   }
 
   void _handleLogout() async {
@@ -320,6 +364,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
     }
 
+    if (_sessionState.stage == AuthStage.authenticated &&
+        !SupabaseConfig.isConfigured &&
+        !CustomerDataPolicy.allowDemo) {
+      return const UiEmptyState(
+        title: 'Customer service unavailable',
+        message:
+            'The server connection is not configured. Please try again after configuration is restored.',
+      );
+    }
     final activeProfile =
         _sessionState.profile ??
         SupabaseAuthBackendService.instance.currentUserProfile;
@@ -373,23 +426,24 @@ class _AuthWrapperState extends State<AuthWrapper> {
               return SignupPage(
                 initialRole: _sessionState.role,
                 authRepository: _authRepository,
-                onSignupSuccess: (role, email, {bool requiresVerification = false}) {
-                  if (requiresVerification) {
-                    _navigateToStage(
-                      AuthStage.signupVerification,
-                      role: role,
-                      email: email,
-                    );
-                  } else {
-                    _navigateToStage(
-                      role == UserRole.affiliate
-                          ? AuthStage.affiliateApplication
-                          : AuthStage.subscription,
-                      role: role,
-                      email: email,
-                    );
-                  }
-                },
+                onSignupSuccess:
+                    (role, email, {bool requiresVerification = false}) {
+                      if (requiresVerification) {
+                        _navigateToStage(
+                          AuthStage.signupVerification,
+                          role: role,
+                          email: email,
+                        );
+                      } else {
+                        _navigateToStage(
+                          role == UserRole.affiliate
+                              ? AuthStage.affiliateApplication
+                              : AuthStage.subscription,
+                          role: role,
+                          email: email,
+                        );
+                      }
+                    },
                 onNavigateToLogin: (role) {
                   _navigateToStage(AuthStage.login, role: role);
                 },
@@ -410,8 +464,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
                     email: _sessionState.email,
                   );
                 },
-                onBack: () =>
-                    _navigateToStage(AuthStage.signup, role: _sessionState.role),
+                onBack: () => _navigateToStage(
+                  AuthStage.signup,
+                  role: _sessionState.role,
+                ),
               );
 
             case AuthStage.affiliateApplication:
@@ -453,10 +509,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 userId: activeProfile?.id ?? _sessionState.userId,
                 userDisplayName:
                     activeProfile?.displayName ?? _sessionState.displayName,
-                subscriptionTier:
-                    appTierFromId(activeProfile?.subscriptionTier ?? ''),
+                subscriptionTier: appTierFromId(
+                  activeProfile?.subscriptionTier ?? '',
+                ),
                 userEmail: activeProfile?.email ?? _sessionState.email,
-                initialDestination: _initialAppDestination,
+                initialDestination:
+                    widget.initialDestination ?? _initialAppDestination,
+                initialOpenRequest: widget.openRequest,
+                onDestinationChanged: widget.onDestinationChanged,
+                onOpenRecord: widget.onOpenRecord,
                 onLogout: _handleLogout,
                 onRoleChanged: _handleSwitchRole,
                 onReturnToAuth: () => _navigateToStage(AuthStage.login),
@@ -468,9 +529,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     return ColoredBox(
       color: colors.background,
-      child: UiStaggeredPageTransition(
-        child: stageWidget,
-      ),
+      child: UiStaggeredPageTransition(child: stageWidget),
     );
   }
 }

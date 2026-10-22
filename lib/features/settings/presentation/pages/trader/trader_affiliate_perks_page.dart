@@ -78,9 +78,10 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                Wrap(
+                                  alignment: WrapAlignment.spaceBetween,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  runSpacing: context.sp(theme.spacing.sm),
                                   children: [
                                     Container(
                                       padding: EdgeInsets.all(

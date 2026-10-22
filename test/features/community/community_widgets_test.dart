@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
@@ -123,13 +124,15 @@ void main() {
     ) async {
       final now = DateTime.now();
       final attachment = AppWritingPostAttachment.note(
-        AppNote(
-          id: 'linked-note-42',
-          title: 'Risk plan',
-          content: 'Reduce exposure into the event.',
-          createdAt: now,
-          updatedAt: now,
-          isPublic: true,
+        await NotesRepositoryScope.repository.create(
+          AppNote(
+            id: 'linked-note-42',
+            title: 'Risk plan',
+            content: 'Reduce exposure into the event.',
+            createdAt: now,
+            updatedAt: now,
+            isPublic: true,
+          ),
         ),
       );
       const author = CommunityAuthor(
@@ -426,11 +429,18 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        const MaterialApp(home: Scaffold(body: CommunityLiveRoomWidget())),
+        const MaterialApp(
+          home: Scaffold(
+            body: CommunityLiveRoomWidget(
+              title: 'Live Expiry Floor',
+              host: 'Test Host',
+            ),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('LIVE AUDIO SPACE'), findsOneWidget);
+      expect(find.text('AUDIO PREVIEW'), findsOneWidget);
       expect(find.textContaining('Live Expiry Floor'), findsOneWidget);
     });
   });

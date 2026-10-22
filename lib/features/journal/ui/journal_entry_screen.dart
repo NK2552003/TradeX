@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/record_access.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -76,6 +77,14 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     setState(() => _busy = true);
     try {
       await action();
+    } catch (error) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Change was not saved',
+          message: '$error',
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -139,8 +148,12 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     });
   }
 
-  bool get _isPublicViewer =>
-      widget.isPublicContext || !widget.canEdit || _entry.isPublic;
+  bool get _canEdit =>
+      widget.canEdit &&
+      !widget.isPublicContext &&
+      RecordAccess.owns(_entry.userId);
+
+  bool get _isPublicViewer => widget.isPublicContext || !_canEdit;
 
   AppLinkBundle get _bundle =>
       _graph.bundleForJournal(_entry, onlyPublic: _isPublicViewer);
@@ -157,7 +170,6 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     }
   }
 
-
   /// Roughly 220 words a minute, floored at a minute.
   int get _readMinutes => (_entry.wordCount / 220).ceil().clamp(1, 999);
 
@@ -170,13 +182,15 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
         handle: 'sarah_fno',
         displayName: 'Sarah Chen',
         userRole: UserRole.customer,
-        avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+        avatarUrl:
+            'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
         verified: true,
         followers: 3420,
         following: 410,
         winRate: 74.5,
       ),
-      body: 'Clean execution on the breakout retest. Did you account for the liquidity sweep below support before entering?',
+      body:
+          'Clean execution on the breakout retest. Did you account for the liquidity sweep below support before entering?',
       createdAt: DateTime.now().subtract(const Duration(hours: 3)),
       likes: 4,
       reactions: const <String>['💡', '👍'],
@@ -191,13 +205,15 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
             handle: 'alex_vance',
             displayName: 'Alex Vance',
             userRole: UserRole.userAdmin,
-            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+            avatarUrl:
+                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
             verified: true,
             followers: 4890,
             following: 512,
             winRate: 71.2,
           ),
-          body: 'Yes, waited for the 5-min candle close back inside value area before triggering sizing.',
+          body:
+              'Yes, waited for the 5-min candle close back inside value area before triggering sizing.',
           createdAt: DateTime.now().subtract(const Duration(hours: 2)),
           likes: 2,
           reactions: const <String>['👍'],
@@ -220,7 +236,8 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
         handle: 'alex_vance',
         displayName: 'Alex Vance',
         userRole: UserRole.userAdmin,
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        avatarUrl:
+            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
         verified: true,
         followers: 4890,
         following: 512,
@@ -238,7 +255,9 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
       } else {
         CommunityComment? attach(CommunityComment c) {
           if (c.id == parentCommentId) {
-            return c.copyWith(replies: <CommunityComment>[...c.replies, newComment]);
+            return c.copyWith(
+              replies: <CommunityComment>[...c.replies, newComment],
+            );
           }
           if (c.replies.isNotEmpty) {
             return c.copyWith(
@@ -479,8 +498,8 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
       intent: _entry.outcome == AppOutcome.win
           ? UiIntent.bullish
           : (_entry.outcome == AppOutcome.loss
-              ? UiIntent.danger
-              : UiIntent.neutral),
+                ? UiIntent.danger
+                : UiIntent.neutral),
     );
     await ShareToConversationDialog.showShareMenu(
       context,
@@ -639,7 +658,8 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
       repository: AiAssistantRepositoryScope.repository,
       initialPrompt: prompt,
       contextTitle: '${_entry.ticker} (${_entry.side.name.toUpperCase()})',
-      contextSubtitle: 'PnL: \$${_entry.pnl.toStringAsFixed(2)} · ${_entry.outcome.name.toUpperCase()}',
+      contextSubtitle:
+          'PnL: \$${_entry.pnl.toStringAsFixed(2)} · ${_entry.outcome.name.toUpperCase()}',
       contextIcon: Icons.menu_book_outlined,
       contextRef: AppLinkRef(
         id: _entry.id,
@@ -688,10 +708,12 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
         tooltip: 'Export as PDF',
         onPressed: _busy ? null : _exportPdf,
       ),
-      if (widget.canEdit) ...<Widget>[
+      if (_canEdit) ...<Widget>[
         SizedBox(width: context.sp(theme.spacing.xs)),
         UiIconButton(
-          icon: _entry.isPublic ? Icons.public_rounded : Icons.lock_outline_rounded,
+          icon: _entry.isPublic
+              ? Icons.public_rounded
+              : Icons.lock_outline_rounded,
           variant: _entry.isPublic ? UiVariant.soft : UiVariant.ghost,
           intent: _entry.isPublic ? UiIntent.success : UiIntent.warning,
           tooltip: _entry.isPublic
@@ -714,7 +736,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
                 ),
         ),
       ],
-      if (widget.canEdit) ...<Widget>[
+      if (_canEdit) ...<Widget>[
         if (widget.onEditWriting != null)
           UiIconButton(
             icon: Icons.edit_note_rounded,
@@ -778,7 +800,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
                   'The numbers are logged but not the reasoning. Ten honest '
                   'lines now are worth more than an hour of analytics in six '
                   'months.',
-              action: widget.canEdit
+              action: _canEdit
                   ? UiButton(
                       label: 'Write review in Notes',
                       leadingIcon: Icons.edit_outlined,
@@ -797,15 +819,15 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
             title: 'Execution Critique & Peer Discussion',
             comments: _tradeComments,
             isPublic: _entry.isPublic,
-            canToggleVisibility: widget.canEdit,
+            canToggleVisibility: _canEdit,
             onToggleVisibility: (v) => _toggleVisibility(),
             currentUser: const CommunityAuthor(
-
               id: 'usr_current',
               handle: 'alex_vance',
               displayName: 'Alex Vance',
               userRole: UserRole.userAdmin,
-              avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+              avatarUrl:
+                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
               verified: true,
               followers: 4890,
               following: 512,

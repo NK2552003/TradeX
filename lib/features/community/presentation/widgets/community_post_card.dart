@@ -3,7 +3,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_image_viewer_page.dart';
-import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
+import 'package:tradex/features/community/presentation/widgets/public_workspace_attachment.dart';
 import 'package:tradex/features/community/presentation/widgets/community_author_header.dart';
 import 'package:tradex/features/community/presentation/widgets/community_edit_post_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_engagement_bar.dart';
@@ -176,7 +176,8 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
   }
 
   bool get _isAuthor {
-    final current = widget.currentUser ??
+    final current =
+        widget.currentUser ??
         (widget.repository is CommunityRepository
             ? (widget.repository as CommunityRepository).currentAuthor
             : null);
@@ -186,10 +187,14 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
         author.handle.toLowerCase() == current.handle.toLowerCase()) {
       return true;
     }
-    final cleanCurrentHandle =
-        current.handle.toLowerCase().replaceFirst('@', '').trim();
-    final cleanAuthorHandle =
-        author.handle.toLowerCase().replaceFirst('@', '').trim();
+    final cleanCurrentHandle = current.handle
+        .toLowerCase()
+        .replaceFirst('@', '')
+        .trim();
+    final cleanAuthorHandle = author.handle
+        .toLowerCase()
+        .replaceFirst('@', '')
+        .trim();
     if (cleanCurrentHandle.isNotEmpty &&
         cleanCurrentHandle == cleanAuthorHandle) {
       return true;
@@ -218,7 +223,9 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     for (final raw in widget.post.tickers) {
       final String clean = raw.trim().replaceFirst(RegExp(r'^\$+'), '');
       if (clean.isEmpty) continue;
-      final String key = clean.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+      final String key = clean
+          .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+          .toLowerCase();
       if (seen.add(key)) {
         result.add(clean);
       }
@@ -237,7 +244,9 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     for (final raw in widget.post.tags) {
       final String clean = raw.trim().replaceFirst(RegExp(r'^[#\$]+'), '');
       if (clean.isEmpty) continue;
-      final String key = clean.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+      final String key = clean
+          .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+          .toLowerCase();
       // Skip tag if it duplicates an active ticker symbol or was already seen
       if (tickerKeys.contains(key)) continue;
       if (seen.add(key)) {
@@ -275,9 +284,15 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     return InkWell(
       onTap: widget.onTap,
       hoverColor: isDesktop ? Colors.transparent : null,
-      splashColor: isDesktop ? Colors.transparent : theme.colors.primary.withValues(alpha: 0.03),
-      highlightColor: isDesktop ? Colors.transparent : theme.colors.surfaceMuted.withValues(alpha: 0.08),
-      overlayColor: isDesktop ? const WidgetStatePropertyAll<Color>(Colors.transparent) : null,
+      splashColor: isDesktop
+          ? Colors.transparent
+          : theme.colors.primary.withValues(alpha: 0.03),
+      highlightColor: isDesktop
+          ? Colors.transparent
+          : theme.colors.surfaceMuted.withValues(alpha: 0.08),
+      overlayColor: isDesktop
+          ? const WidgetStatePropertyAll<Color>(Colors.transparent)
+          : null,
       child: Padding(
         padding: EdgeInsets.symmetric(
           horizontal: context.sp(
@@ -370,11 +385,7 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
               )
             else
               // Full-width post content when author header is in desktop sidebar
-              _buildPostContent(
-                context,
-                theme,
-                showAvatarInHeader: false,
-              ),
+              _buildPostContent(context, theme, showAvatarInHeader: false),
           ],
         ),
       ),
@@ -561,7 +572,7 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
         // Attached Workspace Record (Note, Trade, Strategy)
         if (post.attachment != null) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.sm)),
-          CommunityAttachmentTile(
+          PublicWorkspaceAttachment(
             attachment: post.attachment!,
             onTap: widget.onOpenRef != null
                 ? () => widget.onOpenRef!(
@@ -638,14 +649,35 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
         // Quoted Post (if any)
         if (post.quoted != null) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.sm)),
-          CommunityQuoteCard(
-            post: post.quoted!,
-            onAuthorTap: widget.onAuthorTap,
-          ),
+          if (widget.repository is CommunityRepository)
+            ListenableBuilder(
+              listenable: widget.repository as CommunityRepository,
+              builder: (context, _) {
+                final original = (widget.repository as CommunityRepository)
+                    .loadPostById(post.quoted!.id);
+                if (original == null || !original.isPublic) {
+                  return const UiEmptyState(
+                    title: 'Original post unavailable',
+                    message:
+                        'The original post is private or has been removed.',
+                  );
+                }
+                return CommunityQuoteCard(
+                  post: original,
+                  onAuthorTap: widget.onAuthorTap,
+                );
+              },
+            )
+          else
+            const UiEmptyState(
+              title: 'Original post unavailable',
+              message: 'The original post could not be verified.',
+            ),
         ],
 
         // Ticker Badges & Hashtags (Cleaned & Deduplicated)
-        if (widget.showTagsAndTickers && (displayTickers.isNotEmpty || displayTags.isNotEmpty)) ...<Widget>[
+        if (widget.showTagsAndTickers &&
+            (displayTickers.isNotEmpty || displayTags.isNotEmpty)) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.sm)),
           Wrap(
             spacing: context.sp(theme.spacing.xs),

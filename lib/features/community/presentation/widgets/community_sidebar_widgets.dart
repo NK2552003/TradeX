@@ -219,7 +219,7 @@ class CommunityLiveRoomWidget extends StatelessWidget {
               SizedBox(width: context.sp(theme.spacing.xs)),
               Flexible(
                 child: UiBadge(
-                  label: 'LIVE AUDIO SPACE',
+                  label: 'AUDIO PREVIEW',
                   intent: UiIntent.danger,
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,

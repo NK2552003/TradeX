@@ -23,15 +23,11 @@ class _FloatingEmoji {
 
 /// A timed segment in the audio room's agenda.
 class _AgendaSegment {
-  const _AgendaSegment({
-    required this.time,
-    required this.title,
-  });
+  const _AgendaSegment({required this.time, required this.title});
 
   final String time;
   final String title;
 }
-
 
 /// Modal bottom sheet representing a full-featured live trading audio space / trading floor.
 class CommunityLiveRoomSheet extends StatefulWidget {
@@ -70,9 +66,9 @@ class CommunityLiveRoomSheet extends StatefulWidget {
     if (repository != null && roomId != null) {
       repository.tuneIntoRoom(roomId);
     }
-    final LiveAudioRoom? activeRoom = repository?.allLiveRooms
-        .where((r) => r.id == roomId)
-        .firstOrNull ?? repository?.activeTunedRoom;
+    final LiveAudioRoom? activeRoom =
+        repository?.allLiveRooms.where((r) => r.id == roomId).firstOrNull ??
+        repository?.activeTunedRoom;
 
     return showModalBottomSheet<void>(
       context: context,
@@ -141,7 +137,6 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
   bool _captionsEnabled = false;
 
   // Connection quality
-  int _connectionBars = 3;
 
   // Host moderation state
   bool _roomLocked = false;
@@ -206,11 +201,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
         }
         _stageTick++;
         if (_stageTick % 7 == 0 && speakers.isNotEmpty) {
-          _activeSpeakerIndex =
-              (_activeSpeakerIndex + 1) % speakers.length;
-        }
-        if (_stageTick % 6 == 0) {
-          _connectionBars = _connectionBars == 3 ? 2 : 3;
+          _activeSpeakerIndex = (_activeSpeakerIndex + 1) % speakers.length;
         }
       });
     });
@@ -359,7 +350,9 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
 
   void _acceptSpeaker(LiveRoomParticipant participant) async {
     setState(() {
-      final idx = _participants.indexWhere((p) => p.userId == participant.userId);
+      final idx = _participants.indexWhere(
+        (p) => p.userId == participant.userId,
+      );
       if (idx >= 0) {
         _participants[idx] = _participants[idx].copyWith(
           role: 'speaker',
@@ -386,7 +379,9 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
 
   void _dismissSpeaker(LiveRoomParticipant participant) async {
     setState(() {
-      final idx = _participants.indexWhere((p) => p.userId == participant.userId);
+      final idx = _participants.indexWhere(
+        (p) => p.userId == participant.userId,
+      );
       if (idx >= 0) {
         _participants[idx] = _participants[idx].copyWith(isHandRaised: false);
       }
@@ -399,7 +394,9 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
 
   void _muteParticipant(LiveRoomParticipant participant, bool mute) async {
     setState(() {
-      final idx = _participants.indexWhere((p) => p.userId == participant.userId);
+      final idx = _participants.indexWhere(
+        (p) => p.userId == participant.userId,
+      );
       if (idx >= 0) {
         _participants[idx] = _participants[idx].copyWith(isMuted: mute);
       }
@@ -427,9 +424,14 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
     }
   }
 
-  void _updateParticipantRole(LiveRoomParticipant participant, String role) async {
+  void _updateParticipantRole(
+    LiveRoomParticipant participant,
+    String role,
+  ) async {
     setState(() {
-      final idx = _participants.indexWhere((p) => p.userId == participant.userId);
+      final idx = _participants.indexWhere(
+        (p) => p.userId == participant.userId,
+      );
       if (idx >= 0) {
         _participants[idx] = _participants[idx].copyWith(role: role);
       }
@@ -461,10 +463,8 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
 
     _chatController.clear();
     final author = widget.repository?.currentAuthor;
-    final userRole = _participants
-            .where((p) => p.userId == author?.id)
-            .firstOrNull
-            ?.role ??
+    final userRole =
+        _participants.where((p) => p.userId == author?.id).firstOrNull?.role ??
         'listener';
 
     final LiveRoomMessage optimisticMsg = LiveRoomMessage(
@@ -494,12 +494,13 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
     });
 
     if (widget.repository != null && widget.roomId != null) {
-      final saved =
-          await widget.repository!.sendRoomMessage(widget.roomId!, text);
+      final saved = await widget.repository!.sendRoomMessage(
+        widget.roomId!,
+        text,
+      );
       if (saved != null && mounted) {
         setState(() {
-          final idx =
-              _chatMessages.indexWhere((m) => m.id == optimisticMsg.id);
+          final idx = _chatMessages.indexWhere((m) => m.id == optimisticMsg.id);
           if (idx >= 0) {
             _chatMessages[idx] = saved;
           }
@@ -520,8 +521,12 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
     if (_userPollVote == choice) return;
 
     setState(() {
-      if (_userPollVote == 0) _pollVotesBullish = math.max(0, _pollVotesBullish - 1);
-      if (_userPollVote == 1) _pollVotesBearish = math.max(0, _pollVotesBearish - 1);
+      if (_userPollVote == 0) {
+        _pollVotesBullish = math.max(0, _pollVotesBullish - 1);
+      }
+      if (_userPollVote == 1) {
+        _pollVotesBearish = math.max(0, _pollVotesBearish - 1);
+      }
 
       _userPollVote = choice;
       if (choice == 0) _pollVotesBullish++;
@@ -597,8 +602,10 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
     );
 
     if (widget.repository != null && widget.roomId != null) {
-      final saved =
-          await widget.repository!.submitRoomQuestion(widget.roomId!, text);
+      final saved = await widget.repository!.submitRoomQuestion(
+        widget.roomId!,
+        text,
+      );
       if (saved != null && mounted) {
         setState(() {
           final idx = _questions.indexWhere((q) => q.id == optimisticQ.id);
@@ -612,8 +619,9 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
 
   void _toggleQuestionUpvote(LiveRoomQuestion q) async {
     final nextHasUpvoted = !q.hasUpvoted;
-    final nextCount =
-        nextHasUpvoted ? q.upvotesCount + 1 : math.max(0, q.upvotesCount - 1);
+    final nextCount = nextHasUpvoted
+        ? q.upvotesCount + 1
+        : math.max(0, q.upvotesCount - 1);
     setState(() {
       final idx = _questions.indexWhere((item) => item.id == q.id);
       if (idx >= 0) {
@@ -771,8 +779,11 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                               );
                               if (!mounted) return;
                               final setup = widget.pinnedSetup;
-                              final totalVotes = _pollVotesBullish + _pollVotesBearish;
-                              final pctBullish = totalVotes > 0 ? (_pollVotesBullish / totalVotes) : 0.5;
+                              final totalVotes =
+                                  _pollVotesBullish + _pollVotesBearish;
+                              final pctBullish = totalVotes > 0
+                                  ? (_pollVotesBullish / totalVotes)
+                                  : 0.5;
                               final bias = pctBullish >= 0.5
                                   ? 'Bullish (${(pctBullish * 100).toStringAsFixed(0)}%)'
                                   : 'Bearish (${((1 - pctBullish) * 100).toStringAsFixed(0)}%)';
@@ -1074,7 +1085,10 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text('Allow Speaking Requests', style: sCtx.uiText.bodyStrong),
+                          Text(
+                            'Allow Speaking Requests',
+                            style: sCtx.uiText.bodyStrong,
+                          ),
                           Text(
                             'Listeners can raise hands to request mic access',
                             style: sCtx.uiText.caption.copyWith(
@@ -1091,7 +1105,9 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                           UiToast.info(
                             context,
                             title: 'Speaker Requests',
-                            message: val ? 'Requests enabled' : 'Requests paused',
+                            message: val
+                                ? 'Requests enabled'
+                                : 'Requests paused',
                           );
                         },
                         size: UiSize.sm,
@@ -1150,7 +1166,8 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
   void _showSpeakerModal(LiveRoomParticipant speaker) {
     final String name = speaker.displayName;
     final bool isHost = speaker.isHost || name == widget.hostName;
-    final bool isMuted = speaker.isMuted || _mutedSpeakers.contains(speaker.userId);
+    final bool isMuted =
+        speaker.isMuted || _mutedSpeakers.contains(speaker.userId);
     final bool isCoHost = speaker.isCoHost || _coHosts.contains(speaker.userId);
 
     showModalBottomSheet<void>(
@@ -1182,7 +1199,9 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                         Text(
                           isHost
                               ? 'Room Host & Founder'
-                              : (isCoHost ? 'Co-Host Moderator' : 'Featured Speaker'),
+                              : (isCoHost
+                                    ? 'Co-Host Moderator'
+                                    : 'Featured Speaker'),
                           style: ctx.uiText.caption.copyWith(
                             color: theme.colors.foregroundMuted,
                           ),
@@ -1230,7 +1249,9 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
               if (!isHost) ...<Widget>[
                 UiButton(
                   label: isMuted ? 'Unmute Speaker' : 'Mute Speaker',
-                  leadingIcon: isMuted ? Icons.mic_rounded : Icons.mic_off_outlined,
+                  leadingIcon: isMuted
+                      ? Icons.mic_rounded
+                      : Icons.mic_off_outlined,
                   variant: UiVariant.soft,
                   intent: isMuted ? UiIntent.success : UiIntent.warning,
                   expand: true,
@@ -1248,7 +1269,10 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                   expand: true,
                   onPressed: () {
                     Navigator.of(ctx).pop();
-                    _updateParticipantRole(speaker, isCoHost ? 'speaker' : 'co_host');
+                    _updateParticipantRole(
+                      speaker,
+                      isCoHost ? 'speaker' : 'co_host',
+                    );
                   },
                 ),
                 SizedBox(height: ctx.sp(theme.spacing.xs)),
@@ -1387,101 +1411,20 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                 ),
               ),
 
-              // Header bar
-              Row(
+              // Preview controls wrap inside narrow mobile sheets.
+              Wrap(
+                spacing: context.sp(theme.spacing.xs),
+                runSpacing: context.sp(theme.spacing.xxs),
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: <Widget>[
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.sp(theme.spacing.xs),
-                      vertical: context.sp(theme.spacing.xxs),
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colors.danger.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(theme.radii.sm),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Container(
-                          width: context.sz(6),
-                          height: context.sz(6),
-                          decoration: BoxDecoration(
-                            color: theme.colors.danger,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.xxs)),
-                        Text(
-                          'LIVE SPACE',
-                          style: context.uiText.label.copyWith(
-                            color: theme.colors.danger,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ],
-                    ),
+                  const UiBadge(
+                    label: 'AUDIO PREVIEW',
+                    intent: UiIntent.warning,
+                    size: UiSize.xs,
                   ),
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  Row(
-                    children: <Widget>[
-                      Icon(
-                        Icons.headphones_rounded,
-                        size: context.sz(14),
-                        color: theme.colors.foregroundMuted,
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.xxs)),
-                      Text(
-                        '${widget.listenerCount} listening',
-                        style: context.uiText.caption.copyWith(
-                          color: theme.colors.foregroundMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  // Connection Quality Badge
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.sp(theme.spacing.xs),
-                      vertical: context.sp(theme.spacing.xxs),
-                    ),
-                    decoration: BoxDecoration(
-                      color: (_connectionBars == 3
-                              ? theme.colors.success
-                              : theme.colors.warning)
-                          .withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(theme.radii.pill),
-                      border: Border.all(
-                        color: (_connectionBars == 3
-                                ? theme.colors.success
-                                : theme.colors.warning)
-                            .withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(
-                          Icons.wifi_tethering_rounded,
-                          size: context.sz(11),
-                          color: _connectionBars == 3
-                              ? theme.colors.success
-                              : theme.colors.warning,
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.xxs)),
-                        Text(
-                          _connectionBars == 3 ? 'HD 24ms' : 'Fair 68ms',
-                          style: context.uiText.label.copyWith(
-                            fontSize: context.fs(10),
-                            color: _connectionBars == 3
-                                ? theme.colors.success
-                                : theme.colors.warning,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
+                  Text(
+                    '${widget.listenerCount} participants',
+                    style: context.uiText.caption,
                   ),
                   if (_roomLocked) ...<Widget>[
                     SizedBox(width: context.sp(theme.spacing.xs)),
@@ -1500,7 +1443,6 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                       size: UiSize.xs,
                     ),
                   ],
-                  const Spacer(),
                   // Share Space
                   UiIconButton(
                     icon: Icons.share_rounded,
@@ -1629,8 +1571,9 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
               // Floating Emojis Reaction Quick Bar
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: <String>['🔥', '🚀', '👏', '💯', '❤️', '🐂']
-                    .map((emoji) {
+                children: <String>['🔥', '🚀', '👏', '💯', '❤️', '🐂'].map((
+                  emoji,
+                ) {
                   return Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: context.sp(theme.spacing.xxs),
@@ -1645,12 +1588,8 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                         ),
                         decoration: BoxDecoration(
                           color: theme.colors.surfaceMuted,
-                          borderRadius: BorderRadius.circular(
-                            theme.radii.pill,
-                          ),
-                          border: Border.all(
-                            color: theme.colors.border,
-                          ),
+                          borderRadius: BorderRadius.circular(theme.radii.pill),
+                          border: Border.all(color: theme.colors.border),
                         ),
                         child: Text(
                           emoji,
@@ -1675,7 +1614,10 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                   borderRadius: BorderRadius.circular(theme.radii.lg),
                   border: Border.all(color: theme.colors.border),
                 ),
-                child: Row(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: context.sp(theme.spacing.xs),
+                  runSpacing: context.sp(theme.spacing.xs),
                   children: <Widget>[
                     UiIconButton(
                       icon: _isMuted ? Icons.mic_off_outlined : Icons.mic,
@@ -1704,7 +1646,6 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                       tooltip: 'Output: $_audioDevice',
                       onPressed: _toggleAudioDevice,
                     ),
-                    const Spacer(),
                     UiButton(
                       label: 'Leave Quietly',
                       leadingIcon: Icons.logout_rounded,
@@ -1723,7 +1664,8 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
         for (final _FloatingEmoji item in _floatingEmojis)
           Positioned(
             bottom: context.sz(140),
-            left: (MediaQuery.sizeOf(context).width / 2) + item.horizontalOffset,
+            left:
+                (MediaQuery.sizeOf(context).width / 2) + item.horizontalOffset,
             child: _FloatingReactionWidget(emoji: item.emoji),
           ),
       ],
@@ -1758,54 +1700,19 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
               borderRadius: BorderRadius.circular(theme.radii.lg),
               border: Border.all(color: theme.colors.border),
             ),
-            child: Row(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: context.sp(theme.spacing.xs),
+              runSpacing: context.sp(theme.spacing.xs),
               children: <Widget>[
                 // Live AI Captions Toggle Button
-                InkWell(
-                  onTap: _toggleCaptions,
-                  borderRadius: BorderRadius.circular(theme.radii.sm),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.sp(theme.spacing.xs),
-                      vertical: context.sp(theme.spacing.xxs),
-                    ),
-                    decoration: BoxDecoration(
-                      color: _captionsEnabled
-                          ? theme.colors.info.withValues(alpha: 0.18)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(theme.radii.sm),
-                      border: Border.all(
-                        color: _captionsEnabled
-                            ? theme.colors.info
-                            : theme.colors.border,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(
-                          Icons.closed_caption_rounded,
-                          size: context.sz(14),
-                          color: _captionsEnabled
-                              ? theme.colors.info
-                              : theme.colors.foregroundMuted,
-                        ),
-                        SizedBox(width: context.sp(theme.spacing.xxs)),
-                        Text(
-                          'AI Captions',
-                          style: context.uiText.label.copyWith(
-                            fontSize: context.fs(11),
-                            fontWeight: FontWeight.w700,
-                            color: _captionsEnabled
-                                ? theme.colors.info
-                                : theme.colors.foregroundMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                UiButton(
+                  label: 'Preview captions',
+                  leadingIcon: Icons.closed_caption_rounded,
+                  size: UiSize.xs,
+                  variant: UiVariant.soft,
+                  onPressed: _toggleCaptions,
                 ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
 
                 // AI Space Recap Button
                 UiButton(
@@ -1825,9 +1732,9 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                   size: UiSize.xs,
                   variant: UiVariant.soft,
                   intent: UiIntent.danger,
-                  onPressed: () => _showTippingModal(context, targetName: widget.hostName),
+                  onPressed: () =>
+                      _showTippingModal(context, targetName: widget.hostName),
                 ),
-                const Spacer(),
 
                 // Host Moderation / Settings Button
                 UiIconButton(
@@ -1920,7 +1827,10 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
           ],
 
           // Speakers Stage Section
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: context.sp(theme.spacing.sm),
+            runSpacing: context.sp(theme.spacing.xxs),
             children: <Widget>[
               Text(
                 'SPEAKERS (${_speakers.length})',
@@ -1930,7 +1840,6 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                   letterSpacing: 0.6,
                 ),
               ),
-              const Spacer(),
               Text(
                 'Host: ${widget.hostName}',
                 style: context.uiText.caption.copyWith(
@@ -1952,11 +1861,16 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
               final LiveRoomParticipant speaker = entry.value;
               final String name = speaker.displayName;
               final bool isHost = speaker.isHost || idx == 0;
-              final bool isCoHost = speaker.isCoHost || _coHosts.contains(speaker.userId);
-              final bool isMuted = speaker.isMuted || _mutedSpeakers.contains(speaker.userId);
+              final bool isCoHost =
+                  speaker.isCoHost || _coHosts.contains(speaker.userId);
+              final bool isMuted =
+                  speaker.isMuted || _mutedSpeakers.contains(speaker.userId);
               final bool isSpeaking =
-                  idx == (_activeSpeakerIndex % math.max(1, _speakers.length)) && !isMuted;
-              final int talkSec = _talkSeconds[speaker.userId] ?? _talkSeconds[name] ?? 0;
+                  idx ==
+                      (_activeSpeakerIndex % math.max(1, _speakers.length)) &&
+                  !isMuted;
+              final int talkSec =
+                  _talkSeconds[speaker.userId] ?? _talkSeconds[name] ?? 0;
               final String talkFormatted = '${talkSec ~/ 60}m ${talkSec % 60}s';
 
               return InkWell(
@@ -1981,7 +1895,8 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                                 border: Border.all(
                                   color: isSpeaking
                                       ? theme.colors.success.withValues(
-                                          alpha: 0.5 +
+                                          alpha:
+                                              0.5 +
                                               (_pulseController.value * 0.5),
                                         )
                                       : Colors.transparent,
@@ -1990,9 +1905,12 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                                 boxShadow: isSpeaking
                                     ? <BoxShadow>[
                                         BoxShadow(
-                                          color: theme.colors.success.withValues(
-                                            alpha: 0.3 * _pulseController.value,
-                                          ),
+                                          color: theme.colors.success
+                                              .withValues(
+                                                alpha:
+                                                    0.3 *
+                                                    _pulseController.value,
+                                              ),
                                           blurRadius: 10,
                                           spreadRadius: 2,
                                         ),
@@ -2002,10 +1920,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                               child: child,
                             );
                           },
-                          child: UiAvatar(
-                            name: name,
-                            size: UiSize.lg,
-                          ),
+                          child: UiAvatar(name: name, size: UiSize.lg),
                         ),
                         // Mic status badge
                         Container(
@@ -2015,9 +1930,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                           decoration: BoxDecoration(
                             color: theme.colors.surface,
                             shape: BoxShape.circle,
-                            border: Border.all(
-                              color: theme.colors.border,
-                            ),
+                            border: Border.all(color: theme.colors.border),
                           ),
                           child: Icon(
                             isMuted
@@ -2027,8 +1940,8 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                             color: isMuted
                                 ? theme.colors.danger
                                 : (isSpeaking
-                                    ? theme.colors.success
-                                    : theme.colors.foregroundMuted),
+                                      ? theme.colors.success
+                                      : theme.colors.foregroundMuted),
                           ),
                         ),
                       ],
@@ -2066,25 +1979,23 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                       children: <Widget>[
                         if (isSpeaking) ...<Widget>[
                           _buildSoundwave(context),
-                          SizedBox(
-                            width: context.sp(theme.spacing.xxs),
-                          ),
+                          SizedBox(width: context.sp(theme.spacing.xxs)),
                         ],
                         Text(
                           isHost
                               ? 'Host'
                               : (isCoHost
-                                  ? 'Co-Host'
-                                  : (isMuted ? 'Muted' : 'Speaker')),
+                                    ? 'Co-Host'
+                                    : (isMuted ? 'Muted' : 'Speaker')),
                           style: context.uiText.label.copyWith(
                             fontSize: context.fs(10),
                             color: isHost
                                 ? theme.colors.primary
                                 : (isCoHost
-                                    ? theme.colors.info
-                                    : (isMuted
-                                        ? theme.colors.danger
-                                        : theme.colors.foregroundMuted)),
+                                      ? theme.colors.info
+                                      : (isMuted
+                                            ? theme.colors.danger
+                                            : theme.colors.foregroundMuted)),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -2100,14 +2011,10 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
           // Raised Hands Queue (for host/moderators)
           if (_raisedHandsQueue.isNotEmpty) ...<Widget>[
             Container(
-              padding: EdgeInsets.all(
-                context.sp(theme.spacing.sm),
-              ),
+              padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
               decoration: BoxDecoration(
                 color: theme.colors.primary.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(
-                  theme.radii.md,
-                ),
+                borderRadius: BorderRadius.circular(theme.radii.md),
                 border: Border.all(
                   color: theme.colors.primary.withValues(alpha: 0.2),
                 ),
@@ -2122,9 +2029,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                         size: context.sz(14),
                         color: theme.colors.primary,
                       ),
-                      SizedBox(
-                        width: context.sp(theme.spacing.xs),
-                      ),
+                      SizedBox(width: context.sp(theme.spacing.xs)),
                       Text(
                         'HANDS RAISED (${_raisedHandsQueue.length})',
                         style: context.uiText.label.copyWith(
@@ -2135,7 +2040,8 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                     ],
                   ),
                   SizedBox(height: context.sp(theme.spacing.xs)),
-                  for (final LiveRoomParticipant person in _raisedHandsQueue) ...<Widget>[
+                  for (final LiveRoomParticipant person
+                      in _raisedHandsQueue) ...<Widget>[
                     Padding(
                       padding: EdgeInsets.symmetric(
                         vertical: context.sp(theme.spacing.xxs),
@@ -2143,9 +2049,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                       child: Row(
                         children: <Widget>[
                           UiAvatar(name: person.displayName, size: UiSize.xs),
-                          SizedBox(
-                            width: context.sp(theme.spacing.xs),
-                          ),
+                          SizedBox(width: context.sp(theme.spacing.xs)),
                           Expanded(
                             child: Text(
                               person.displayName,
@@ -2160,9 +2064,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                             variant: UiVariant.primary,
                             onPressed: () => _acceptSpeaker(person),
                           ),
-                          SizedBox(
-                            width: context.sp(theme.spacing.xxs),
-                          ),
+                          SizedBox(width: context.sp(theme.spacing.xxs)),
                           UiIconButton(
                             icon: Icons.close_rounded,
                             size: UiSize.xs,
@@ -2191,7 +2093,9 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
           SizedBox(height: context.sp(theme.spacing.xs)),
           if (_listeners.isEmpty)
             Padding(
-              padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.sm)),
+              padding: EdgeInsets.symmetric(
+                vertical: context.sp(theme.spacing.sm),
+              ),
               child: Text(
                 'No other listeners yet. Invite fellow traders to join!',
                 style: context.uiText.caption.copyWith(
@@ -2250,11 +2154,11 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
   }
 
   List<_AgendaSegment> get _roomAgenda => const <_AgendaSegment>[
-        _AgendaSegment(time: '00:00', title: 'Floor Opening & Macro Bias'),
-        _AgendaSegment(time: '15:00', title: 'Live Order Flow & Liquidity Heatmap'),
-        _AgendaSegment(time: '30:00', title: 'Open Stage Alpha & Shared Setups'),
-        _AgendaSegment(time: '45:00', title: 'Community Q&A & Invalidation Levels'),
-      ];
+    _AgendaSegment(time: '00:00', title: 'Floor Opening & Macro Bias'),
+    _AgendaSegment(time: '15:00', title: 'Live Order Flow & Liquidity Heatmap'),
+    _AgendaSegment(time: '30:00', title: 'Open Stage Alpha & Shared Setups'),
+    _AgendaSegment(time: '45:00', title: 'Community Q&A & Invalidation Levels'),
+  ];
 
   // -------------------------------------------------------------------------
   // Tab 1: Live Chat & Stream
@@ -2396,8 +2300,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
   // -------------------------------------------------------------------------
   Widget _buildQnaTab(BuildContext context) {
     final UiTheme theme = context.ui;
-    final int unansweredCount =
-        _questions.where((q) => !q.isAnswered).length;
+    final int unansweredCount = _questions.where((q) => !q.isAnswered).length;
 
     return Column(
       children: <Widget>[
@@ -2482,8 +2385,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                           // Upvote column
                           InkWell(
                             onTap: () => _toggleQuestionUpvote(q),
-                            borderRadius:
-                                BorderRadius.circular(theme.radii.sm),
+                            borderRadius: BorderRadius.circular(theme.radii.sm),
                             child: Container(
                               padding: EdgeInsets.symmetric(
                                 horizontal: context.sp(theme.spacing.xs),
@@ -2491,11 +2393,13 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                               ),
                               decoration: BoxDecoration(
                                 color: q.hasUpvoted
-                                    ? theme.colors.primary
-                                        .withValues(alpha: 0.15)
+                                    ? theme.colors.primary.withValues(
+                                        alpha: 0.15,
+                                      )
                                     : theme.colors.surface,
-                                borderRadius:
-                                    BorderRadius.circular(theme.radii.sm),
+                                borderRadius: BorderRadius.circular(
+                                  theme.radii.sm,
+                                ),
                                 border: Border.all(
                                   color: q.hasUpvoted
                                       ? theme.colors.primary
@@ -2561,8 +2465,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                                     UiIconButton(
                                       icon: q.isAnswered
                                           ? Icons.undo_rounded
-                                          : Icons
-                                              .check_circle_outline_rounded,
+                                          : Icons.check_circle_outline_rounded,
                                       size: UiSize.xs,
                                       variant: UiVariant.ghost,
                                       tooltip: q.isAnswered
@@ -2573,9 +2476,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                                     ),
                                   ],
                                 ),
-                                SizedBox(
-                                  height: context.sp(theme.spacing.xxs),
-                                ),
+                                SizedBox(height: context.sp(theme.spacing.xxs)),
                                 Text(
                                   q.question,
                                   style: context.uiText.body.copyWith(
@@ -2633,18 +2534,21 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
   Widget _buildPollAndSetupTab(BuildContext context) {
     final UiTheme theme = context.ui;
     final int totalVotes = _pollVotesBullish + _pollVotesBearish;
-    final double pctBullish =
-        totalVotes > 0 ? (_pollVotesBullish / totalVotes) : 0.5;
-    final double pctBearish =
-        totalVotes > 0 ? (_pollVotesBearish / totalVotes) : 0.5;
+    final double pctBullish = totalVotes > 0
+        ? (_pollVotesBullish / totalVotes)
+        : 0.5;
+    final double pctBearish = totalVotes > 0
+        ? (_pollVotesBearish / totalVotes)
+        : 0.5;
 
-    final LiveAudioRoom? activeRoom = widget.repository?.allLiveRooms
+    final LiveAudioRoom? activeRoom =
+        widget.repository?.allLiveRooms
             .where((r) => r.id == widget.roomId)
             .firstOrNull ??
         widget.repository?.activeTunedRoom;
 
-    final String pollQuestion = (activeRoom != null &&
-            activeRoom.topic.isNotEmpty)
+    final String pollQuestion =
+        (activeRoom != null && activeRoom.topic.isNotEmpty)
         ? 'Floor Poll: ${activeRoom.topic}'
         : 'Floor Poll: What is your market bias into the session close?';
 
@@ -2718,10 +2622,12 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                       children: <Widget>[
                         Row(
                           children: <Widget>[
-                            Text('🟢 Bullish (Call Bias)',
-                                style: context.uiText.caption.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                )),
+                            Text(
+                              '🟢 Bullish (Call Bias)',
+                              style: context.uiText.caption.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                             const Spacer(),
                             Text(
                               '${(pctBullish * 100).toStringAsFixed(1)}% ($_pollVotesBullish)',
@@ -2770,10 +2676,12 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                       children: <Widget>[
                         Row(
                           children: <Widget>[
-                            Text('🔴 Bearish (Put Bias)',
-                                style: context.uiText.caption.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                )),
+                            Text(
+                              '🔴 Bearish (Put Bias)',
+                              style: context.uiText.caption.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                             const Spacer(),
                             Text(
                               '${(pctBearish * 100).toStringAsFixed(1)}% ($_pollVotesBearish)',
@@ -2829,19 +2737,23 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
   // -------------------------------------------------------------------------
   Widget _buildRoomInfoTab(BuildContext context) {
     final UiTheme theme = context.ui;
-    final int currentAgendaIndex =
-        (_stageTick ~/ 60).clamp(0, _roomAgenda.length - 1);
+    final int currentAgendaIndex = (_stageTick ~/ 60).clamp(
+      0,
+      _roomAgenda.length - 1,
+    );
 
-    final LiveAudioRoom? activeRoom = widget.repository?.allLiveRooms
+    final LiveAudioRoom? activeRoom =
+        widget.repository?.allLiveRooms
             .where((r) => r.id == widget.roomId)
             .firstOrNull ??
         widget.repository?.activeTunedRoom;
 
     final List<LiveAudioRoom> upcomingRooms =
         (widget.repository?.allLiveRooms ?? <LiveAudioRoom>[])
-            .where((r) =>
-                r.id != widget.roomId &&
-                r.status == LiveRoomStatus.scheduled)
+            .where(
+              (r) =>
+                  r.id != widget.roomId && r.status == LiveRoomStatus.scheduled,
+            )
             .toList();
 
     final List<String> roomTickers = <String>[
@@ -2907,11 +2819,13 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                               ),
                               decoration: BoxDecoration(
                                 color: isCurrent
-                                    ? theme.colors.primary
-                                        .withValues(alpha: 0.15)
+                                    ? theme.colors.primary.withValues(
+                                        alpha: 0.15,
+                                      )
                                     : theme.colors.surface,
-                                borderRadius:
-                                    BorderRadius.circular(theme.radii.sm),
+                                borderRadius: BorderRadius.circular(
+                                  theme.radii.sm,
+                                ),
                                 border: Border.all(
                                   color: isCurrent
                                       ? theme.colors.primary
@@ -3090,10 +3004,12 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
                     Text('Audio Stream Codec', style: context.uiText.caption),
-                    Text('Opus HD (48 kHz)',
-                        style: context.uiText.caption.copyWith(
-                          fontWeight: FontWeight.w700,
-                        )),
+                    Text(
+                      'Opus HD (48 kHz)',
+                      style: context.uiText.caption.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
                 ),
                 Divider(height: context.sp(theme.spacing.sm)),
@@ -3101,11 +3017,13 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
                     Text('Host Latency', style: context.uiText.caption),
-                    Text('24 ms (Direct Mesh)',
-                        style: context.uiText.caption.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: theme.colors.success,
-                        )),
+                    Text(
+                      '24 ms (Direct Mesh)',
+                      style: context.uiText.caption.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colors.success,
+                      ),
+                    ),
                   ],
                 ),
                 UiDivider(spacing: theme.spacing.sm),
@@ -3228,14 +3146,15 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
       decoration: BoxDecoration(
         color: theme.colors.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(theme.radii.md),
-        border: Border.all(
-          color: theme.colors.primary.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: theme.colors.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Row(
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: context.sp(theme.spacing.xxs),
+            runSpacing: context.sp(theme.spacing.xxs),
             children: <Widget>[
               Icon(
                 Icons.push_pin_rounded,
@@ -3251,7 +3170,6 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                   letterSpacing: 0.5,
                 ),
               ),
-              const Spacer(),
               UiBadge(
                 label: setup.side,
                 intent: setup.side.toUpperCase() == 'LONG'
@@ -3371,9 +3289,10 @@ class _FloatingReactionWidgetState extends State<_FloatingReactionWidget>
       vsync: this,
       duration: const Duration(milliseconds: 1300),
     );
-    _translateY = Tween<double>(begin: 0, end: -160).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
-    );
+    _translateY = Tween<double>(
+      begin: 0,
+      end: -160,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _opacity = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(
         parent: _ctrl,
@@ -3398,10 +3317,7 @@ class _FloatingReactionWidgetState extends State<_FloatingReactionWidget>
           offset: Offset(0, _translateY.value),
           child: Opacity(
             opacity: _opacity.value,
-            child: Text(
-              widget.emoji,
-              style: const TextStyle(fontSize: 32),
-            ),
+            child: Text(widget.emoji, style: const TextStyle(fontSize: 32)),
           ),
         );
       },
@@ -3440,9 +3356,7 @@ class CommunityLiveSpaceMiniPlayer extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colors.surface,
         borderRadius: BorderRadius.circular(theme.radii.pill),
-        border: Border.all(
-          color: theme.colors.danger.withValues(alpha: 0.4),
-        ),
+        border: Border.all(color: theme.colors.danger.withValues(alpha: 0.4)),
         boxShadow: <BoxShadow>[
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.16),

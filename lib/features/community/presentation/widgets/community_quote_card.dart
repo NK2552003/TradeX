@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/community/models/community_models.dart';
-import 'package:tradex/features/community/presentation/widgets/community_attachment_tile.dart';
+import 'package:tradex/features/community/presentation/widgets/public_workspace_attachment.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_highlighted_text.dart';
 
@@ -96,7 +96,10 @@ class CommunityQuoteCard extends StatelessWidget {
           // Quoted attachment (if any)
           if (post.attachment != null) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.xs)),
-            CommunityAttachmentTile(attachment: post.attachment!, dense: true),
+            PublicWorkspaceAttachment(
+              attachment: post.attachment!,
+              dense: true,
+            ),
           ],
 
           // Quoted image (if any)

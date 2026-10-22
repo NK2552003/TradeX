@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/supabase_config.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -33,7 +34,25 @@ class NoteAttachments {
 
   /// Resolved references, so scrolling a note with ten screenshots in it does
   /// not re-issue ten signed-URL requests on every rebuild.
-  static final Map<String, String> _resolved = <String, String>{};
+  static final Map<String, ({String url, DateTime expires})> _resolved = {};
+  static String _cacheKey(String ref, AttachmentUrlResolver? resolver) =>
+      '${SupabaseConfig.client?.auth.currentUser?.id ?? 'signedout'}:${identityHashCode(resolver ?? NotesRepositoryScope.repository)}:$ref';
+  static String? _cached(String key) {
+    final entry = _resolved[key];
+    if (entry == null || !entry.expires.isAfter(DateTime.now())) {
+      _resolved.remove(key);
+      return null;
+    }
+    return entry.url;
+  }
+
+  static void _remember(String key, String url) {
+    if (_resolved.length >= 512) _resolved.clear();
+    _resolved[key] = (
+      url: url,
+      expires: DateTime.now().add(const Duration(minutes: 5)),
+    );
+  }
 
   /// Copies [source] into the app's own attachments directory under a name that
   /// cannot collide and contains no spaces. Pickers hand back paths inside a
@@ -43,7 +62,9 @@ class NoteAttachments {
     final Directory docs = await getApplicationDocumentsDirectory();
     final Directory dir = Directory(p.join(docs.path, 'note_attachments'));
     if (!dir.existsSync()) await dir.create(recursive: true);
-    return source.copy(p.join(dir.path, '${_uuid.v4()}${p.extension(source.path)}'));
+    return source.copy(
+      p.join(dir.path, '${_uuid.v4()}${p.extension(source.path)}'),
+    );
   }
 
   /// The markdown to drop at the cursor for a stored [ref].
@@ -89,7 +110,8 @@ class NoteAttachments {
           ? _framed(UiRemoteImage(url: uri.toString(), fit: BoxFit.contain))
           : _broken(context, 'That image link cannot be opened');
     }
-    final String? cached = _resolved[ref];
+    final String key = _cacheKey(ref, using);
+    final String? cached = _cached(key);
     if (cached != null) return _framed(_bytes(context, cached));
 
     return FutureBuilder<String>(
@@ -104,7 +126,7 @@ class NoteAttachments {
         if (snap.hasError || url == null || url.isEmpty) {
           return _broken(ctx, 'This attachment is no longer available');
         }
-        _resolved[ref] = url;
+        _remember(key, url);
         return _framed(_bytes(ctx, url));
       },
     );
@@ -114,20 +136,47 @@ class NoteAttachments {
   /// [MarkdownPdfExporter.exportAndShare]'s `imageResolver`, chiefly. Returns
   /// null for anything unreachable; the caller drops the image rather than
   /// failing the export.
-  static Future<Uint8List?> bytesFor(Uri uri, {AttachmentUrlResolver? using}) async {
+  static Future<Uint8List?> bytesFor(
+    Uri uri, {
+    AttachmentUrlResolver? using,
+  }) async {
     final String? ref = refOf(uri);
     String source = uri.toString();
     if (ref != null) {
       source =
-          _resolved[ref] ??
-          await (using ??
-              NotesRepositoryScope.repository.resolveAttachmentUrl)(ref);
+          _cached(_cacheKey(ref, using)) ??
+          await (using ?? NotesRepositoryScope.repository.resolveAttachmentUrl)(
+            ref,
+          );
       if (source.isEmpty) return null;
-      _resolved[ref] = source;
+      _remember(_cacheKey(ref, using), source);
     }
-    if (source.startsWith('http')) return _download(Uri.parse(source));
-    final File file = File(source);
-    return file.existsSync() ? file.readAsBytes() : null;
+    final Uri? resolved = Uri.tryParse(source);
+    if (resolved != null &&
+        (resolved.scheme == 'https' || resolved.scheme == 'http')) {
+      return _download(resolved);
+    }
+    // Markdown paths are untrusted. Only repository references may resolve to
+    // local images, and those must remain inside the app's staged attachments.
+    if (ref == null) return null;
+    return _localBytes(source);
+  }
+
+  static Future<Uint8List?> _localBytes(String source) async {
+    try {
+      final Directory docs = await getApplicationDocumentsDirectory();
+      final Directory root = Directory(p.join(docs.path, 'note_attachments'));
+      final String boundary = await root.resolveSymbolicLinks();
+      final resolved = Uri.tryParse(source);
+      final File file = resolved?.scheme == 'file'
+          ? File.fromUri(resolved!)
+          : File(source);
+      final String canonical = await file.resolveSymbolicLinks();
+      if (!p.isWithin(boundary, canonical)) return null;
+      return File(canonical).readAsBytes();
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<Uint8List?> _download(Uri uri) async {
@@ -151,15 +200,23 @@ class NoteAttachments {
     if (source.startsWith('http')) {
       return UiRemoteImage(url: source, fit: BoxFit.contain);
     }
-    final File file = File(source);
-    if (!file.existsSync()) {
-      return _broken(context, 'This attachment was moved or deleted');
-    }
-    return Image.file(
-      file,
-      fit: BoxFit.contain,
-      errorBuilder: (BuildContext ctx, Object _, StackTrace? _) =>
-          _broken(ctx, 'This attachment could not be decoded'),
+    return FutureBuilder<Uint8List?>(
+      future: _localBytes(source),
+      builder: (context, snapshot) {
+        final bytes = snapshot.data;
+        if (bytes == null) {
+          return _broken(
+            context,
+            'This attachment is unavailable or outside app storage',
+          );
+        }
+        return Image.memory(
+          bytes,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stack) =>
+              _broken(context, 'This attachment could not be decoded'),
+        );
+      },
     );
   }
 
@@ -168,7 +225,9 @@ class NoteAttachments {
   /// cannot push the whole note off screen.
   static Widget _framed(Widget child) => Builder(
     builder: (BuildContext context) => Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+      padding: EdgeInsets.symmetric(
+        vertical: context.sp(context.ui.spacing.sm),
+      ),
       child: ClipRRect(
         borderRadius: context.radius(context.ui.radii.lg),
         child: ConstrainedBox(

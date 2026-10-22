@@ -1,3 +1,4 @@
+import 'package:tradex/core/widgets/publication_confirmation.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -1588,7 +1589,12 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
           ? 'This entry can be attached to a public post'
           : 'Only you can read this entry',
       enabled: !reading,
-      onChanged: (bool value) => setState(() => _isPublic = value),
+      onChanged: (bool value) async {
+        if (value && !await confirmRecordPublication(context, 'trade journal')) {
+          return;
+        }
+        if (mounted) setState(() => _isPublic = value);
+      },
     );
 
     return Column(
@@ -1793,7 +1799,8 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
     final UiTheme theme = context.ui;
     final double inset = MediaQuery.viewInsetsOf(context).bottom;
     final double safeBottom = MediaQuery.paddingOf(context).bottom;
-    final double baseBottom = inset > 0 ? inset : safeBottom;
+    // The host Scaffold already removes the keyboard from our constraints.
+    final double baseBottom = inset > 0 ? 0 : safeBottom;
     final double gutter = context.sp(theme.spacing.md);
     final bool editing = _mode != JournalEditorMode.read;
     // The mobile toolbar is docked at the bottom, so anything else that floats

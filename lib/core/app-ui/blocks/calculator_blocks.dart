@@ -292,8 +292,7 @@ class _DesktopCalculator extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final c = theme.colors;
-    final bool hasReference =
-        layout.formula != null || layout.notes.isNotEmpty;
+    final bool hasReference = layout.formula != null || layout.notes.isNotEmpty;
 
     return LayoutBuilder(
       builder: (BuildContext ctx, BoxConstraints constraints) {
@@ -405,18 +404,12 @@ class _AnalysisColumn extends StatelessWidget {
         ],
         if (inlineReference) ...<Widget>[
           SizedBox(height: gap),
-          _ReferenceAccordion(
-            formula: layout.formula,
-            notes: layout.notes,
-          ),
+          _ReferenceAccordion(formula: layout.formula, notes: layout.notes),
         ],
       ],
     );
 
-    final Widget padded = Padding(
-      padding: EdgeInsets.all(pad),
-      child: content,
-    );
+    final Widget padded = Padding(padding: EdgeInsets.all(pad), child: content);
     if (!scroll) return padded;
     return _ScrollPane(child: padded);
   }
@@ -519,7 +512,10 @@ Widget _rule(BuildContext context, {bool vertical = false}) {
   final theme = context.ui;
   final Color color = theme.colors.border;
   return vertical
-      ? SizedBox(width: theme.borders.hairline, child: ColoredBox(color: color))
+      ? SizedBox(
+          width: theme.borders.hairline,
+          child: ColoredBox(color: color),
+        )
       : SizedBox(
           height: theme.borders.hairline,
           child: ColoredBox(color: color),
@@ -637,15 +633,16 @@ class _ReadoutBand extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Row(
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xxs),
             children: <Widget>[
-              Expanded(
-                child: Text(
-                  headline.label.toUpperCase(),
-                  style: uiOverline(context),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              Text(
+                headline.label.toUpperCase(),
+                style: uiOverline(context),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               if (headline.tag != null) ...<Widget>[
                 SizedBox(width: context.sp(theme.spacing.xs)),
@@ -1055,11 +1052,7 @@ class _MobileCalculatorState extends State<_MobileCalculator> {
                 ),
                 _rule(ctx),
               ],
-              _ReadoutBand(
-                headline: l.headline,
-                compact: true,
-                framed: false,
-              ),
+              _ReadoutBand(headline: l.headline, compact: true, framed: false),
               _rule(ctx),
               Padding(
                 padding: EdgeInsets.symmetric(
@@ -1152,24 +1145,20 @@ class _MobileCalculatorState extends State<_MobileCalculator> {
         );
         break;
       case 1:
-        body = stack(
-          <Widget>[
-            if (l.stats.isNotEmpty)
-              UiDataPanel(
-                padding: EdgeInsets.zero,
-                child: UiStatStrip(stats: l.stats, columns: 2),
-              ),
-            for (final AppCalcPanel p in tables) panel(p),
-            ...l.callouts,
-          ],
-          emptyTitle: 'No breakdown',
-        );
+        body = stack(<Widget>[
+          if (l.stats.isNotEmpty)
+            UiDataPanel(
+              padding: EdgeInsets.zero,
+              child: UiStatStrip(stats: l.stats, columns: 2),
+            ),
+          for (final AppCalcPanel p in tables) panel(p),
+          ...l.callouts,
+        ], emptyTitle: 'No breakdown');
         break;
       case 2:
-        body = stack(
-          <Widget>[for (final AppCalcPanel p in visuals) panel(p)],
-          emptyTitle: 'No visuals',
-        );
+        body = stack(<Widget>[
+          for (final AppCalcPanel p in visuals) panel(p),
+        ], emptyTitle: 'No visuals');
         break;
       default:
         body = Padding(
@@ -1243,9 +1232,7 @@ class _AppCalcNumberFieldState extends State<AppCalcNumberField> {
   String _format(double v) {
     if (widget.decimals == 0) return v.round().toString();
     final String s = v.toStringAsFixed(widget.decimals);
-    return s.contains('.')
-        ? s.replaceFirst(RegExp(r'\.?0+$'), '')
-        : s;
+    return s.contains('.') ? s.replaceFirst(RegExp(r'\.?0+$'), '') : s;
   }
 
   @override
@@ -1293,8 +1280,12 @@ class _AppCalcNumberFieldState extends State<AppCalcNumberField> {
               FilteringTextInputFormatter.allow(
                 RegExp(
                   widget.allowNegative
-                      ? (widget.decimals > 0 ? r'^-?[0-9]*\.?[0-9]*' : r'^-?[0-9]*')
-                      : (widget.decimals > 0 ? r'^[0-9]*\.?[0-9]*' : r'^[0-9]*'),
+                      ? (widget.decimals > 0
+                            ? r'^-?[0-9]*\.?[0-9]*'
+                            : r'^-?[0-9]*')
+                      : (widget.decimals > 0
+                            ? r'^[0-9]*\.?[0-9]*'
+                            : r'^[0-9]*'),
                 ),
               ),
             ],
@@ -1313,9 +1304,10 @@ class _AppCalcNumberFieldState extends State<AppCalcNumberField> {
                     label: widget.presetLabel?.call(p) ?? _format(p),
                   ),
               ],
-              value: widget.presets.any(
-                (double p) => (p - widget.value).abs() < 1e-9,
-              )
+              value:
+                  widget.presets.any(
+                    (double p) => (p - widget.value).abs() < 1e-9,
+                  )
                   ? widget.presets.firstWhere(
                       (double p) => (p - widget.value).abs() < 1e-9,
                     )
@@ -1575,12 +1567,18 @@ class AppCalculatorToolIndex extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         for (final AppCalculatorCategory cat in AppCalculatorCategory.values)
-          if (tools.any((AppCalculatorMeta m) => m.category == cat)) ...<Widget>[
+          if (tools.any(
+            (AppCalculatorMeta m) => m.category == cat,
+          )) ...<Widget>[
             Padding(
               padding: EdgeInsets.fromLTRB(
-                isTileLayout ? context.sp(theme.spacing.xs) : context.sp(theme.spacing.md),
+                isTileLayout
+                    ? context.sp(theme.spacing.xs)
+                    : context.sp(theme.spacing.md),
                 context.sp(theme.spacing.md),
-                isTileLayout ? context.sp(theme.spacing.xs) : context.sp(theme.spacing.md),
+                isTileLayout
+                    ? context.sp(theme.spacing.xs)
+                    : context.sp(theme.spacing.md),
                 context.sp(theme.spacing.xs),
               ),
               child: Row(
@@ -1588,7 +1586,10 @@ class AppCalculatorToolIndex extends StatelessWidget {
                   Expanded(
                     child: Text(
                       cat.label.toUpperCase(),
-                      style: uiOverline(context, color: cat.intent.color(context)),
+                      style: uiOverline(
+                        context,
+                        color: cat.intent.color(context),
+                      ),
                     ),
                   ),
                   Text(
@@ -1598,8 +1599,9 @@ class AppCalculatorToolIndex extends StatelessWidget {
                 ],
               ),
             ),
-            for (final AppCalculatorMeta m
-                in tools.where((AppCalculatorMeta m) => m.category == cat)) ...<Widget>[
+            for (final AppCalculatorMeta m in tools.where(
+              (AppCalculatorMeta m) => m.category == cat,
+            )) ...<Widget>[
               AppCalculatorNavItem(
                 meta: m,
                 selected: m.id == selectedId,
@@ -1613,4 +1615,3 @@ class AppCalculatorToolIndex extends StatelessWidget {
     );
   }
 }
-

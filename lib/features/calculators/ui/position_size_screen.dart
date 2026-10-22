@@ -1,3 +1,4 @@
+import 'calculator_journal_draft.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 
@@ -89,6 +90,22 @@ class _PositionSizeCalculatorScreenState
     final double pad = (hi - lo).abs() * 0.8 + 1;
 
     return AppCalculatorLayout(
+      actions: [
+        UiButton(
+          label: 'Log Trade',
+          leadingIcon: Icons.book_outlined,
+          variant: UiVariant.soft,
+          onPressed: r.quantity > 0
+              ? () => openCalculatorJournalDraft(
+                  context,
+                  symbol: _symbol,
+                  entry: _entry,
+                  stopLoss: _sl,
+                  quantity: r.quantity.toDouble(),
+                )
+              : null,
+        ),
+      ],
       meta: calculatorMetaById('position_size'),
       onBack: widget.onBack,
       headline: AppCalcHeadline(
@@ -179,7 +196,10 @@ class _PositionSizeCalculatorScreenState
         AppCalcInputGroup(
           label: 'Trade',
           children: <Widget>[
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runSpacing: context.sp(context.ui.spacing.xs),
               children: <Widget>[
                 UiBadge(
                   label: _isLive
@@ -189,7 +209,7 @@ class _PositionSizeCalculatorScreenState
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
-                const Spacer(),
+
                 UiButton(
                   label: 'Sync LTP',
                   leadingIcon: Icons.refresh,
@@ -325,11 +345,7 @@ class _PositionSizeCalculatorScreenState
               ),
             ],
             markers: <UiRangeMarker>[
-              UiRangeMarker(
-                value: _entry,
-                label: 'Entry',
-                strong: true,
-              ),
+              UiRangeMarker(value: _entry, label: 'Entry', strong: true),
               UiRangeMarker(
                 value: _sl,
                 label: 'Stop',
@@ -350,10 +366,7 @@ class _PositionSizeCalculatorScreenState
                 value: r.positionValue.clamp(0.0, _account),
                 label: 'Deployed',
               ),
-              UiCategorySegment(
-                value: free < 0 ? 0 : free,
-                label: 'Free',
-              ),
+              UiCategorySegment(value: free < 0 ? 0 : free, label: 'Free'),
             ],
           ),
         ),

@@ -132,87 +132,94 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
       AppAiInsightCard(insight: _insight),
     ];
 
-    return Column(
-      children: [
-        // Carousel
-        Expanded(
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (idx) {
-              setState(() {
-                _currentFeatureIndex = idx;
-              });
-            },
-            itemCount: _features.length,
-            itemBuilder: (context, idx) {
-              final card = carouselCards[idx % carouselCards.length];
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: Column(
+          children: [
+            // Carousel
+            SizedBox(
+              height: (constraints.maxHeight * 0.55).clamp(180.0, 480.0),
+              child: PageView.builder(
+                controller: _pageController,
+                onPageChanged: (idx) {
+                  setState(() {
+                    _currentFeatureIndex = idx;
+                  });
+                },
+                itemCount: _features.length,
+                itemBuilder: (context, idx) {
+                  final card = carouselCards[idx % carouselCards.length];
 
-              return Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.sm),
-                ),
-                child: Center(
-                  child: SizedBox(
-                    height: 480,
-                    width: double.infinity,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.center,
-                      child: SizedBox(width: 440, child: card),
+                  return Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.sp(theme.spacing.sm),
                     ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-
-        // Text & Dots Area
-        Padding(
-          padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Dynamic Feature Title & Description
-              Text(
-                _features[_currentFeatureIndex]['title']!,
-                style: context.uiText.heading,
-                textAlign: TextAlign.left,
-              ),
-              SizedBox(height: context.sp(theme.spacing.xs)),
-              Text(
-                _features[_currentFeatureIndex]['desc']!,
-                style: context.uiText.body.copyWith(
-                  color: colors.foregroundMuted,
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.left,
-              ),
-              SizedBox(height: context.sp(theme.spacing.lg)),
-
-              // Carousel Indicator Dots
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_features.length, (index) {
-                  final isActive = index == _currentFeatureIndex;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    margin: EdgeInsets.only(
-                      right: context.sp(theme.spacing.sm),
-                    ),
-                    height: 8,
-                    width: isActive ? 24 : 8,
-                    decoration: BoxDecoration(
-                      color: isActive ? colors.primary : colors.borderStrong,
-                      borderRadius: BorderRadius.circular(4),
+                    child: Center(
+                      child: SizedBox(
+                        height: 480,
+                        width: double.infinity,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.center,
+                          child: SizedBox(width: 440, child: card),
+                        ),
+                      ),
                     ),
                   );
-                }),
+                },
               ),
-            ],
-          ),
+            ),
+
+            // Text & Dots Area
+            Padding(
+              padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Dynamic Feature Title & Description
+                  Text(
+                    _features[_currentFeatureIndex]['title']!,
+                    style: context.uiText.heading,
+                    textAlign: TextAlign.left,
+                  ),
+                  SizedBox(height: context.sp(theme.spacing.xs)),
+                  Text(
+                    _features[_currentFeatureIndex]['desc']!,
+                    style: context.uiText.body.copyWith(
+                      color: colors.foregroundMuted,
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.left,
+                  ),
+                  SizedBox(height: context.sp(theme.spacing.lg)),
+
+                  // Carousel Indicator Dots
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(_features.length, (index) {
+                      final isActive = index == _currentFeatureIndex;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: EdgeInsets.only(
+                          right: context.sp(theme.spacing.sm),
+                        ),
+                        height: 8,
+                        width: isActive ? 24 : 8,
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? colors.primary
+                              : colors.borderStrong,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

@@ -255,10 +255,12 @@ class _AppWeekStripState extends State<AppWeekStrip> {
   }
 
   // Chip geometry, resolved from tokens so the whole strip rescales per device.
-  double _itemWidth(BuildContext context) => context.sz(48);
+  double _itemWidth(BuildContext context) =>
+      context.sz(48) * (MediaQuery.textScalerOf(context).scale(14) / 14);
   double _itemMargin(BuildContext context) =>
       context.sp(context.ui.spacing.xxs);
-  double _stripHeight(BuildContext context) => context.sz(64);
+  double _stripHeight(BuildContext context) =>
+      context.sz(64) * (MediaQuery.textScalerOf(context).scale(14) / 14);
 
   void _scrollToSelected({required bool animate}) {
     if (!_scrollCtrl.hasClients || !mounted) return;
@@ -338,6 +340,8 @@ class _AppWeekStripState extends State<AppWeekStrip> {
                 children: <Widget>[
                   Text(
                     AppTokens.weekdayInitial(d),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: context.uiText.caption.copyWith(
                       color: dowColor,
                       fontWeight: isSelected

@@ -20,6 +20,10 @@ class LtcgCalculatorScreen extends StatefulWidget {
 }
 
 class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
+  EquityTaxPeriod _taxPeriod = EquityTaxPeriod.from23July2024;
+  double get _stcgRate => _taxPeriod.stcgRate;
+  double get _ltcgRate => _taxPeriod.ltcgRate;
+  double get _ltcgExemption => _taxPeriod.exemption;
   String _symbol = 'RELIANCE';
   double _livePrice = 1313.80;
   bool _isLive = false;
@@ -74,22 +78,26 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final LtcgResult r = calcLtcg(gain: _gain, exemptionAlreadyUsed: _used);
-    final double exemptionLeft = kLtcgExemption - _used < 0
+    final LtcgResult r = calcLtcg(
+      period: _taxPeriod,
+      gain: _gain,
+      exemptionAlreadyUsed: _used,
+    );
+    final double exemptionLeft = _ltcgExemption - _used < 0
         ? 0
-        : kLtcgExemption - _used;
+        : _ltcgExemption - _used;
     final double spare = exemptionLeft - r.exemptionUsed;
     final bool fullyExempt = r.taxableGain <= 0;
 
     // The same profit sold a day early, at the short-term rate.
-    final StcgResult asShort = calcStcg(gain: _gain);
+    final StcgResult asShort = calcStcg(period: _taxPeriod, gain: _gain);
     final double savedByHolding = asShort.totalTax - r.totalTax;
     final bool shortTerm = _holdingDays < 365;
     final double keptShare = _gain <= 0 ? 0 : r.netGain / _gain * 100;
 
     // Booking gains up to the exemption every year instead of once at the end.
     final double perYearSaving =
-        kLtcgExemption * kLtcgRate / 100 * (1 + kCessRate / 100);
+        _ltcgExemption * _ltcgRate / 100 * (1 + kCessRate / 100);
     final int yrs = _harvestYears.round();
     final List<double> harvestPath = <double>[
       for (int y = 1; y <= yrs; y++) perYearSaving * y,
@@ -99,10 +107,15 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
     // Tax at both rates across a ladder of gains — the exemption bends one line.
     final List<double> longCurve = <double>[
       for (final double g in _ladder)
-        calcLtcg(gain: g, exemptionAlreadyUsed: _used).totalTax,
+        calcLtcg(
+          period: _taxPeriod,
+          gain: g,
+          exemptionAlreadyUsed: _used,
+        ).totalTax,
     ];
     final List<double> shortCurve = <double>[
-      for (final double g in _ladder) calcStcg(gain: g).totalTax,
+      for (final double g in _ladder)
+        calcStcg(period: _taxPeriod, gain: g).totalTax,
     ];
 
     return AppCalculatorLayout(
@@ -124,7 +137,7 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
             '${AppTokens.lakhCrore(_gain)} of long-term gain — '
             '${AppTokens.price(r.exemptionUsed)} falls under the annual '
             'exemption and ${AppTokens.lakhCrore(r.taxableGain)} is taxed at '
-            '${AppTokens.percent(kLtcgRate, decimals: 0)}, leaving '
+            '${AppTokens.percent(_ltcgRate, decimals: 1)}, leaving '
             '${AppTokens.lakhCrore(r.netGain)}.',
       ),
       stats: <UiStat>[
@@ -142,7 +155,7 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
           hint: 'above the exemption',
         ),
         UiStat(
-          label: 'Tax at ${AppTokens.percent(kLtcgRate, decimals: 0)}',
+          label: 'Tax at ${AppTokens.percent(_ltcgRate, decimals: 1)}',
           value: AppTokens.price(r.tax),
           intent: UiIntent.bearish,
           hint: 'no indexation on equity',
@@ -151,7 +164,7 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
           label: 'Cess',
           value: AppTokens.price(r.cess),
           intent: UiIntent.bearish,
-          hint: '${AppTokens.percent(kCessRate, decimals: 0)} on the tax',
+          hint: '${AppTokens.percent(kCessRate, decimals: 1)} on the tax',
         ),
         UiStat(
           label: 'Net in hand',
@@ -168,6 +181,25 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
         ),
       ],
       inputs: <AppCalcInputGroup>[
+        AppCalcInputGroup(
+          label: 'Tax period',
+          hint:
+              'Listed equity assumptions; surcharge and individual exemptions may affect your liability.',
+          children: [
+            UiSelect<EquityTaxPeriod>(
+              label: 'Transfer date',
+              value: _taxPeriod,
+              options: [
+                for (final period in EquityTaxPeriod.values)
+                  UiOption(value: period, label: period.label),
+              ],
+              onChanged: (period) => setState(() {
+                _taxPeriod = period;
+                _used = _used.clamp(0, period.exemption);
+              }),
+            ),
+          ],
+        ),
         AppCalcInputGroup(
           label: 'The gain',
           hint: 'profit booked, and the exemption already spent',
@@ -222,16 +254,16 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
               label: 'Exemption already used',
               value: _used,
               min: 0,
-              max: kLtcgExemption,
+              max: _ltcgExemption,
               divisions: 20,
-              intent: _used >= kLtcgExemption
+              intent: _used >= _ltcgExemption
                   ? UiIntent.danger
                   : UiIntent.primary,
               valueFormatter: (num v) => AppTokens.price(v),
-              helper: _used >= kLtcgExemption
+              helper: _used >= _ltcgExemption
                   ? 'Spent for the year — the whole gain is taxable.'
                   : '${AppTokens.price(exemptionLeft)} of the '
-                        '${AppTokens.lakhCrore(kLtcgExemption)} limit is left.',
+                        '${AppTokens.lakhCrore(_ltcgExemption)} limit is left.',
               onChanged: (double v) => setState(() => _used = v),
             ),
           ],
@@ -259,7 +291,8 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
               label: 'Harvest across',
               value: _harvestYears,
               onChanged: (double v) => setState(() => _harvestYears = v),
-              helper: 'Booking up to the exemption each year and buying back '
+              helper:
+                  'Booking up to the exemption each year and buying back '
                   'resets the cost base for free.',
               options: const <UiToggleOption<double>>[
                 UiToggleOption<double>(value: 1, label: '1 yr'),
@@ -304,7 +337,7 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
                     : UiIntent.neutral,
                 detail: _used > 0
                     ? '${AppTokens.price(_used)} of the limit was already used'
-                    : 'First ${AppTokens.lakhCrore(kLtcgExemption)} each year',
+                    : 'First ${AppTokens.lakhCrore(_ltcgExemption)} each year',
               ),
               UiKeyValueRow(
                 label: 'Taxable gain',
@@ -320,7 +353,7 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
                 detail: 'Without indexation, on listed equity',
               ),
               UiKeyValueRow(
-                label: 'Tax at ${AppTokens.percent(kLtcgRate, decimals: 0)}',
+                label: 'Tax at ${AppTokens.percent(_ltcgRate, decimals: 1)}',
                 value: r.tax <= 0 ? '—' : '−${AppTokens.price(r.tax)}',
                 trailing: _gain <= 0
                     ? '—'
@@ -329,7 +362,7 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
                 detail: 'The special rate for long-term equity',
               ),
               UiKeyValueRow(
-                label: 'Cess at ${AppTokens.percent(kCessRate, decimals: 0)}',
+                label: 'Cess at ${AppTokens.percent(kCessRate, decimals: 1)}',
                 value: r.cess <= 0 ? '—' : '−${AppTokens.price(r.cess)}',
                 trailing: _gain <= 0
                     ? '—'
@@ -393,12 +426,13 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
               UiKeyValueRow(
                 label: 'Split over two years',
                 value: AppTokens.price(
-                  calcLtcg(gain: _gain / 2).totalTax * 2,
+                  calcLtcg(period: _taxPeriod, gain: _gain / 2).totalTax * 2,
                 ),
                 trailing: 'two exemptions',
                 intent: UiIntent.info,
-                detail: 'Half now, half after 1 April — each year exempts '
-                    '${AppTokens.lakhCrore(kLtcgExemption)}',
+                detail:
+                    'Half now, half after 1 April — each year exempts '
+                    '${AppTokens.lakhCrore(_ltcgExemption)}',
               ),
               UiKeyValueRow(
                 label: 'Harvesting $yrs years',
@@ -470,7 +504,8 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
                 value: r.taxableGain - r.totalTax < 0
                     ? 0
                     : r.taxableGain - r.totalTax,
-                label: 'Kept '
+                label:
+                    'Kept '
                     '${AppTokens.compactMoney(r.taxableGain - r.totalTax)}',
               ),
               UiCategorySegment(
@@ -487,9 +522,9 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
           wide: true,
           child: UiRangeMeter(
             min: 0,
-            max: kLtcgExemption,
+            max: _ltcgExemption,
             minLabel: '0',
-            maxLabel: AppTokens.lakhCrore(kLtcgExemption),
+            maxLabel: AppTokens.lakhCrore(_ltcgExemption),
             valueFormatter: (num v) => AppTokens.compactMoney(v),
             zones: <UiRangeZone>[
               if (_used > 0)
@@ -510,7 +545,7 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
               if (spare > 0)
                 UiRangeZone(
                   start: _used + r.exemptionUsed,
-                  end: kLtcgExemption,
+                  end: _ltcgExemption,
                   intent: UiIntent.info,
                   label: 'spare this year',
                   alpha: 0.10,
@@ -525,7 +560,7 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
               ),
               if (spare > 0)
                 UiRangeMarker(
-                  value: kLtcgExemption,
+                  value: _ltcgExemption,
                   label: '${AppTokens.price(spare)} unused',
                   intent: UiIntent.info,
                   below: true,
@@ -541,7 +576,7 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
             title: 'Held ${_holdingDays.round()} days — not long-term yet',
             message:
                 'Listed equity needs 365 days. Sold now the gain is short-term '
-                'at ${AppTokens.percent(kStcgRate, decimals: 0)} with no '
+                'at ${AppTokens.percent(_stcgRate, decimals: 1)} with no '
                 'exemption — ${AppTokens.price(asShort.totalTax)} against '
                 '${AppTokens.price(r.totalTax)}. Waiting '
                 '${(365 - _holdingDays).round()} more days saves '
@@ -565,21 +600,21 @@ class _LtcgCalculatorScreenState extends State<LtcgCalculatorScreen> {
             message:
                 'Two financial years mean two exemptions. Booking '
                 '${AppTokens.lakhCrore(_gain / 2)} on each side costs '
-                '${AppTokens.price(calcLtcg(gain: _gain / 2).totalTax * 2)} '
+                '${AppTokens.price(calcLtcg(period: _taxPeriod, gain: _gain / 2).totalTax * 2)} '
                 'against ${AppTokens.price(r.totalTax)} in one go — a saving of '
-                '${AppTokens.price(r.totalTax - calcLtcg(gain: _gain / 2).totalTax * 2)} '
+                '${AppTokens.price(r.totalTax - calcLtcg(period: _taxPeriod, gain: _gain / 2).totalTax * 2)} '
                 'for a delay, not a decision about the holding.',
           ),
       ],
       formula:
           'Exemption = ₹1 L a year, across all long-term equity gains\n'
           'Taxable = Gain − exemption remaining\n'
-          'Tax = Taxable × ${kLtcgRate.toStringAsFixed(0)}%\n'
+          'Tax = Taxable × ${_ltcgRate.toStringAsFixed(1)}%\n'
           'Cess = Tax × ${kCessRate.toStringAsFixed(0)}%\n'
           'Effective = (Tax + Cess) ÷ Gain × 100',
       notes: <String>[
-        'The ${AppTokens.percent(kLtcgRate, decimals: 0)} rate and the '
-            '${AppTokens.lakhCrore(kLtcgExemption)} exemption apply to listed '
+        'The ${AppTokens.percent(_ltcgRate, decimals: 1)} rate and the '
+            '${AppTokens.lakhCrore(_ltcgExemption)} exemption apply to listed '
             'equity and equity mutual funds held beyond 365 days, where STT has '
             'been paid. Debt funds, unlisted shares and property follow other '
             'rules entirely.',

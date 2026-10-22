@@ -74,9 +74,12 @@ RiskRewardResult calcRiskReward({
   required double sl,
   required double target,
 }) {
-  final double risk = (entry - sl).abs();
-  final double reward = (target - entry).abs();
-  final double ratio = risk <= 0 ? 0 : reward / risk;
+  final rawRisk = (entry - sl).abs();
+  final rawReward = (target - entry).abs();
+  final double risk = rawRisk.isFinite ? rawRisk : 0;
+  final double reward = rawReward.isFinite ? rawReward : 0;
+  final rawRatio = risk <= 0 ? 0.0 : reward / risk;
+  final double ratio = rawRatio.isFinite ? rawRatio : 0;
   return RiskRewardResult(
     risk: risk,
     reward: reward,
@@ -315,7 +318,8 @@ FibResult calcFibonacci({
 
   String label(double r) => '${(r * 100).toStringAsFixed(r == 0.5 ? 0 : 1)}%';
   double at(double r) => uptrend ? high - range * r : low + range * r;
-  double ext(double r) => uptrend ? high + range * (r - 1) : low - range * (r - 1);
+  double ext(double r) =>
+      uptrend ? high + range * (r - 1) : low - range * (r - 1);
 
   return FibResult(
     levels: <(String, double)>[
@@ -572,7 +576,9 @@ HeatResult calcPortfolioHeat({
   for (final ({double riskPct, String label}) p in openPositions) {
     heat += p.riskPct.abs();
   }
-  final double avgRisk = openPositions.isEmpty ? 0 : heat / openPositions.length;
+  final double avgRisk = openPositions.isEmpty
+      ? 0
+      : heat / openPositions.length;
 
   // Edge as a fraction: a 55% win rate at 1:1 is a 10% edge.
   final double edge = ((winRatePct / 100).clamp(0.0, 1.0) * 2 - 1).clamp(

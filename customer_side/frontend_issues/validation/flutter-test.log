@@ -1,0 +1,399 @@
+00:00 +0: loading /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/sharing/app_post_attachment_test.dart
+00:00 +0: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/sharing/app_post_attachment_test.dart: resolves every Writing Desk source but never a ticker
+00:00 +1: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/sharing/app_post_attachment_test.dart: marks private records before a public post can accept them
+00:00 +2: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/sharing/app_post_attachment_test.dart: a post exposes one dedicated Writing Desk attachment slot
+00:00 +3: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/sharing/app_post_attachment_test.dart: public-only search returns one-source attachment candidates
+00:00 +4: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/sharing/app_post_attachment_test.dart: preview strips markdown rather than leaking raw editor syntax
+00:00 +5: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/flutter-ui/reusable_components_test.dart: AGENTS.md catalog aliases and constructors compile and render
+00:00 +6: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/flutter-ui/reusable_components_test.dart: AGENTS.md catalog aliases and constructors compile and render
+00:00 +7: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/flutter-ui/reusable_components_test.dart: AGENTS.md catalog aliases and constructors compile and render
+00:00 +8: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/flutter-ui/reusable_components_test.dart: AGENTS.md catalog aliases and constructors compile and render
+00:00 +9: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/flutter-ui/reusable_components_test.dart: Domain cards render without overflow on ultra-narrow 320px screen
+00:01 +10: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/flutter-ui/reusable_components_test.dart: Canonical Screen Blocks render without overflow on ultra-narrow 320px screen
+00:01 +11: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/flutter-ui/reusable_components_test.dart: App-UI Domain feature cards render cleanly without overflow on 320px screen
+00:02 +12: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/ui_lazy_content_test.dart: deferred sections build only near their viewport
+00:02 +13: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/ui_lazy_content_test.dart: deferred sections build only near their viewport
+00:02 +14: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/ui_lazy_content_test.dart: deferred sections build only near their viewport
+00:02 +15: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/ui_lazy_content_test.dart: deferred sections build only near their viewport
+00:02 +16: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/ui_lazy_content_test.dart: deferred sections build only near their viewport
+00:02 +17: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: Markdown Preview Ticker Linking Widget Tests RichMarkdownPreview renders clickable ticker badge and dispatches onOpenRef
+00:02 +18: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: Markdown Preview Ticker Linking Widget Tests RichMarkdownPreview renders clickable ticker badge and dispatches onOpenRef
+00:02 +19: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: Markdown Preview Ticker Linking Widget Tests RichMarkdownPreview renders clickable ticker badge and dispatches onOpenRef
+00:02 +20: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: Markdown Preview Ticker Linking Widget Tests RichMarkdownPreview renders clickable ticker badge and dispatches onOpenRef
+00:02 +21: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: Markdown Preview Ticker Linking Widget Tests RichMarkdownPreview renders clickable ticker badge and dispatches onOpenRef
+00:02 +22: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: Markdown Preview Ticker Linking Widget Tests RichMarkdownPreview renders clickable ticker badge and dispatches onOpenRef
+00:02 +23: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/ui_lazy_content_test.dart: lazy lists reveal batches while building visible rows
+00:02 +24: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/ui_lazy_content_test.dart: lazy lists reveal batches while building visible rows
+00:02 +25: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/ui_lazy_content_test.dart: lazy lists reveal batches while building visible rows
+00:02 +26: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/ui_lazy_content_test.dart: lazy lists reveal batches while building visible rows
+00:03 +27: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/ui_lazy_content_test.dart: lazy lists reveal batches while building visible rows
+00:03 +28: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/ui_lazy_content_test.dart: lazy lists reveal batches while building visible rows
+00:03 +29: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/ui_lazy_content_test.dart: lazy lists reveal batches while building visible rows
+00:03 +30: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/ui_lazy_content_test.dart: lazy lists reveal batches while building visible rows
+00:03 +31: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/navigation/community_navigation_regression_test.dart: global header fits 1440.0 px with large text
+00:03 +32: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/navigation/community_navigation_regression_test.dart: global header fits 1440.0 px with large text
+00:03 +33: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: AI Assistant Ticker Linking Tests AppAiMessageBubble renders interactive ticker in assistant markdown message
+00:03 +34: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/navigation/community_navigation_regression_test.dart: mobile community dock opens each selected page
+00:05 +35: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/journal/journal_screen_test.dart: JournalScreen Dashboard Redesign renders dashboard on desktop with 4 metric cards, header, and FAB
+00:05 +36: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/journal/journal_screen_test.dart: JournalScreen Dashboard Redesign renders dashboard on desktop with 4 metric cards, header, and FAB
+00:05 +37: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/messages/messages_redesign_test.dart: Messages Redesign Tests MessagesRootScreen uses UiSplitPane on desktop and AppPaneHeader on secondary views
+00:05 +38: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/messages/messages_widgets_test.dart: MessagesRootScreen Redesign Tests renders mobile layout, taps conversation tile, and views thread
+00:05 +39: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/messages/messages_widgets_test.dart: MessagesRootScreen Redesign Tests renders mobile layout, taps conversation tile, and views thread
+00:06 +40: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/messages/messages_widgets_test.dart: MessagesRootScreen Redesign Tests renders mobile layout, taps conversation tile, and views thread
+00:06 +41: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/messages/messages_widgets_test.dart: MessagesRootScreen Redesign Tests renders mobile layout, taps conversation tile, and views thread
+00:06 +42: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/journal/journal_screen_test.dart: JournalScreen Dashboard Redesign switches between Cards Grid and Table view
+00:06 +43: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/journal/journal_screen_test.dart: JournalScreen Dashboard Redesign switches between Cards Grid and Table view
+00:06 +44: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/messages/shared_entity_deep_linking_test.dart: Shared Entity Message Deep Linking Tests MessageBubble renders AppLinkRefTile and triggers onOpenRef when tapped
+00:06 +45: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/messages/shared_entity_deep_linking_test.dart: Shared Entity Message Deep Linking Tests CommunityRootScreen applies openRequest and opens exact post detail view
+00:07 +45: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/frontend_scale_profile_test.dart: profile graph rebuilds and Markdown extraction at increasing sizes
+PROFILE graph records=100 construct_us=908 first_index_us=73645 rebuild_index_us=1969
+PROFILE graph records=1000 construct_us=1414 first_index_us=145812 rebuild_index_us=3882
+00:08 +46: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/auth_layout_regression_test.dart: welcome fits Size(320.0, 740.0) with text scale 1.0
+00:08 +46: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/frontend_scale_profile_test.dart: profile graph rebuilds and Markdown extraction at increasing sizes
+PROFILE graph records=5000 construct_us=781 first_index_us=330907 rebuild_index_us=9435
+00:08 +47: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/auth_recovery_regression_test.dart: recovery reports failed password update without fake success
+00:08 +47: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/frontend_scale_profile_test.dart: profile graph rebuilds and Markdown extraction at increasing sizes
+PROFILE markdown chars=310000 stats_excerpt_us=62852
+00:08 +48: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/auth_recovery_regression_test.dart: recovery reports failed password update without fake success
+00:08 +49: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/auth_recovery_regression_test.dart: recovery reports failed password update without fake success
+00:08 +50: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/auth_recovery_regression_test.dart: recovery reports failed password update without fake success
+00:08 +51: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/auth_recovery_regression_test.dart: recovery reports failed password update without fake success
+00:09 +52: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/auth_recovery_regression_test.dart: recovery reports failed password update without fake success
+00:09 +53: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/auth_recovery_regression_test.dart: recovery reports failed password update without fake success
+00:09 +54: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/auth_recovery_regression_test.dart: recovery reports failed password update without fake success
+00:09 +55: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/auth_layout_regression_test.dart: welcome fits Size(740.0, 320.0) with text scale 1.0
+00:09 +56: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/record_privacy_flow_test.dart: forged owner URL cannot edit another user note (public=false)
+00:09 +57: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/record_privacy_flow_test.dart: forged owner URL cannot edit another user note (public=false)
+00:09 +58: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/record_privacy_flow_test.dart: forged owner URL cannot edit another user note (public=false)
+00:09 +59: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/record_privacy_flow_test.dart: forged owner URL cannot edit another user note (public=false)
+00:09 +60: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/record_privacy_flow_test.dart: forged owner URL cannot edit another user note (public=false)
+00:09 +61: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/record_privacy_flow_test.dart: forged owner URL cannot edit another user note (public=false)
+00:09 +62: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/record_privacy_flow_test.dart: forged owner URL cannot edit another user note (public=false)
+00:10 +63: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_detail_overflow_test.dart: black_scholes_screen fits 320.0 × 844.0 at text scale 1.0
+00:10 +64: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/record_privacy_flow_test.dart: forged owner URL cannot edit another user note (public=true)
+00:10 +65: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/record_privacy_flow_test.dart: forged owner URL cannot edit another user note (public=true)
+00:10 +66: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_detail_overflow_test.dart: brokerage_screen fits 320.0 × 844.0 at text scale 1.0
+00:10 +67: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:10 +68: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:10 +69: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:10 +70: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:10 +71: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:10 +72: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:10 +73: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:10 +74: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:10 +75: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:10 +76: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:11 +77: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:11 +78: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:11 +79: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:11 +80: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:11 +81: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:11 +82: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:11 +83: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:12 +84: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:12 +85: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:12 +86: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:12 +87: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:12 +88: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:12 +89: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:12 +90: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:12 +91: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/workspace_state_regression_test.dart: workspace restores calendar mode and filters after leaving
+00:12 +92: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/editor_keyboard_regression_test.dart: editor toolbar clears keyboard once
+00:13 +93: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/editor_keyboard_regression_test.dart: editor toolbar clears keyboard once
+00:13 +94: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/editor_keyboard_regression_test.dart: editor toolbar clears keyboard once
+00:13 +95: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_frontend_regression_test.dart: watchlist Add Symbol opens a real picker at 320.0
+00:13 +96: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_frontend_regression_test.dart: watchlist Add Symbol opens a real picker at 320.0
+00:13 +97: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/editor_keyboard_regression_test.dart: public note owner link context remains false
+00:13 +98: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/editor_keyboard_regression_test.dart: public note owner link context remains false
+00:13 +99: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/editor_keyboard_regression_test.dart: public note owner link context remains false
+00:13 +100: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/editor_keyboard_regression_test.dart: public note owner link context remains false
+00:13 +101: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_detail_overflow_test.dart: sip_screen fits 320.0 × 844.0 at text scale 1.0
+00:13 +102: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_frontend_regression_test.dart: watchlist Add Symbol opens a real picker at 768.0
+00:13 +103: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/editor_keyboard_regression_test.dart: public note owner link context remains true
+00:14 +104: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_detail_overflow_test.dart: stcg_screen fits 320.0 × 844.0 at text scale 1.0
+00:14 +105: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/live_room_layout_regression_test.dart: audio preview sheet fits 320.0 px
+00:14 +106: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/live_room_layout_regression_test.dart: audio preview sheet fits 320.0 px
+00:14 +107: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/live_room_layout_regression_test.dart: audio preview sheet fits 320.0 px
+00:14 +108: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/live_room_layout_regression_test.dart: audio preview sheet fits 320.0 px
+00:14 +109: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/live_room_layout_regression_test.dart: audio preview sheet fits 320.0 px
+00:14 +110: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/live_room_layout_regression_test.dart: audio preview sheet fits 320.0 px
+00:14 +111: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_detail_overflow_test.dart: settings-notifications fits 320.0 × 844.0 at text scale 1.0
+00:14 +112: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/live_room_layout_regression_test.dart: audio preview sheet fits 390.0 px
+00:14 +113: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_detail_overflow_test.dart: settings-privacy fits 320.0 × 844.0 at text scale 1.0
+00:14 +114: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/live_room_layout_regression_test.dart: audio preview sheet fits 768.0 px
+00:14 +115: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_detail_overflow_test.dart: settings-appearance fits 320.0 × 844.0 at text scale 1.0
+00:14 +116: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_detail_overflow_test.dart: settings-trading fits 320.0 × 844.0 at text scale 1.0
+00:15 +117: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:15 +118: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:15 +119: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:15 +120: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:15 +121: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:15 +122: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:15 +123: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:15 +124: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:16 +125: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:16 +126: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:16 +127: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:16 +128: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:16 +129: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:16 +130: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:16 +131: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:16 +132: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:16 +133: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:16 +134: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:16 +135: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:16 +136: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → button back restores post on mobile
+00:17 +137: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 320.0
+00:17 +138: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 320.0
+00:17 +139: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 320.0
+00:17 +140: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 320.0
+00:17 +141: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 320.0
+00:17 +142: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 320.0
+00:17 +143: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 320.0
+00:17 +144: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → system back restores post on mobile
+00:17 +145: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → system back restores post on mobile
+00:17 +146: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → system back restores post on mobile
+00:17 +147: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → system back restores post on mobile
+00:17 +148: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/linked_post_back_regression_test.dart: post → linked note → system back restores post on mobile
+00:17 +149: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 320.0
+00:17 +150: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 320.0
+00:17 +151: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 320.0
+00:18 +152: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 320.0
+00:18 +153: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 320.0
+00:18 +154: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 320.0
+00:18 +155: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 320.0
+00:18 +156: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 320.0
+00:18 +157: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 320.0
+00:18 +158: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 320.0
+00:18 +159: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_detail_overflow_test.dart: settings-help fits 390.0 × 844.0 at text scale 1.5
+00:18 +160: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_page_overflow_test.dart: messages fits 320.0 × 844.0 at text scale 1.0
+00:18 +161: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: movers has two responsive panels at 320.0
+00:18 +162: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: movers has two responsive panels at 320.0
+00:18 +163: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: movers has two responsive panels at 320.0
+00:18 +164: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: movers has two responsive panels at 320.0
+00:18 +165: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: movers has two responsive panels at 320.0
+00:18 +166: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: movers has two responsive panels at 320.0
+00:18 +167: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: movers has two responsive panels at 320.0
+00:19 +168: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:19 +169: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:19 +170: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:19 +171: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:19 +172: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:19 +173: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:19 +174: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:19 +175: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:19 +176: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:19 +177: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:19 +178: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:19 +179: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:19 +180: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:20 +181: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:20 +182: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:20 +183: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:20 +184: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/community_restoration_test.dart: Explore previews one story and opens only its category
+00:20 +185: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 320.0
+00:20 +186: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 320.0
+00:20 +187: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 320.0
+00:20 +188: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 320.0
+00:20 +189: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 320.0
+00:20 +190: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 320.0
+00:20 +191: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 320.0
+00:20 +192: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 320.0
+00:20 +193: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 320.0
+00:20 +194: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 320.0
+00:20 +195: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_detail_overflow_test.dart: position_size_screen fits 740.0 × 320.0 at text scale 1.0
+00:20 +196: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_page_overflow_test.dart: notes fits 768.0 × 844.0 at text scale 1.0
+00:20 +197: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/customer_page_overflow_test.dart: notes fits 768.0 × 844.0 at text scale 1.0
+00:20 +198: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 320.0
+00:21 +199: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 320.0
+00:21 +200: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 320.0
+00:21 +201: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 320.0
+00:21 +202: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 320.0
+00:21 +203: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 320.0
+00:21 +204: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 320.0
+00:21 +205: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 320.0
+00:21 +206: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 320.0
+00:21 +207: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: movers use quote changes and actual exported price history
+00:21 +208: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: movers use quote changes and actual exported price history
+00:21 +209: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: movers use quote changes and actual exported price history
+00:21 +210: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: movers use quote changes and actual exported price history
+00:21 +211: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: movers use quote changes and actual exported price history
+00:21 +212: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: movers use quote changes and actual exported price history
+00:21 +213: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: movers use quote changes and actual exported price history
+00:21 +214: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: movers use quote changes and actual exported price history
+00:21 +215: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: movers use quote changes and actual exported price history
+00:21 +216: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: movers use quote changes and actual exported price history
+00:22 +217: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: movers use quote changes and actual exported price history
+00:22 +218: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: coverage has two responsive panels at 320.0
+00:22 +219: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: coverage has two responsive panels at 320.0
+00:22 +220: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: coverage has two responsive panels at 320.0
+00:22 +221: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: coverage has two responsive panels at 320.0
+00:22 +222: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: coverage has two responsive panels at 320.0
+00:22 +223: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: coverage has two responsive panels at 320.0
+00:22 +224: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: coverage has two responsive panels at 320.0
+00:22 +225: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: coverage has two responsive panels at 320.0
+00:22 +226: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:22 +227: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:22 +228: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:22 +229: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:22 +230: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:22 +231: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:22 +232: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:23 +233: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:23 +234: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:23 +235: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:23 +236: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:23 +237: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:23 +238: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:23 +239: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: news search filters stories and video likes persist
+00:23 +240: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 390.0
+00:23 +241: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 390.0
+00:23 +242: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 390.0
+00:24 +243: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: full company dossier charts use exported fields
+00:24 +244: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: full company dossier charts use exported fields
+00:24 +245: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: full company dossier charts use exported fields
+00:24 +246: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: full company dossier charts use exported fields
+00:24 +247: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: full company dossier charts use exported fields
+00:24 +248: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: full company dossier charts use exported fields
+00:24 +249: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: full company dossier charts use exported fields
+00:24 +250: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: full company dossier charts use exported fields
+00:25 +251: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: full company dossier charts use exported fields
+00:25 +252: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: full company dossier charts use exported fields
+00:25 +253: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: full company dossier charts use exported fields
+00:25 +254: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: full company dossier charts use exported fields
+00:25 +255: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: full company dossier charts use exported fields
+00:25 +256: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 390.0
+00:25 +257: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 390.0
+00:25 +258: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 390.0
+00:25 +259: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 390.0
+00:25 +260: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 390.0
+00:25 +261: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 320.0 px
+00:25 +262: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 320.0 px
+00:25 +263: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 320.0 px
+00:26 +264: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 320.0 px
+00:26 +265: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 320.0 px
+00:26 +266: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 320.0 px
+00:27 +267: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 320.0 px
+00:27 +268: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 320.0 px
+00:27 +269: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/ai_assistant/ai_assistant_overlay_sheet_test.dart: AiAssistantOverlaySheet Tests renders overlay sheet with context banner and suggestions
+00:27 +270: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/ai_assistant/ai_assistant_overlay_sheet_test.dart: AiAssistantOverlaySheet Tests renders overlay sheet with context banner and suggestions
+00:27 +271: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 768.0
+00:28 +272: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 768.0
+00:28 +273: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 390.0 px
+00:28 +274: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/ai_assistant/ai_create_sheet_test.dart: every AI create target opens a populated creation sheet
+00:29 +275: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/ai_assistant/ai_create_sheet_test.dart: every AI create target opens a populated creation sheet
+00:29 +276: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/ai_assistant/ai_create_sheet_test.dart: every AI create target opens a populated creation sheet
+00:29 +277: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/ai_assistant/ai_create_sheet_test.dart: every AI create target opens a populated creation sheet
+00:29 +278: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/ai_assistant/ai_assistant_redesign_test.dart: AI Assistant Redesign Tests AiAssistantRootScreen uses UiTabs and responsive panes (no raw TabBar)
+00:29 +279: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/ai_assistant/ai_assistant_redesign_test.dart: AI Assistant Redesign Tests AiAssistantRootScreen uses UiTabs and responsive panes (no raw TabBar)
+00:30 +280: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 768.0
+00:30 +281: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 768.0
+00:30 +282: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 768.0
+00:30 +283: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 768.0
+00:30 +284: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 768.0
+00:30 +285: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 768.0
+00:31 +286: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 768.0
+00:31 +287: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 768.0
+00:31 +288: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 768.0
+00:31 +289: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 1440.0 px
+00:31 +290: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 1440.0 px
+00:31 +291: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 1440.0 px
+00:31 +292: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 1440.0 px
+00:31 +293: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 1440.0 px
+00:31 +294: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 1440.0 px
+00:31 +295: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 1440.0 px
+00:31 +296: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: market news, readers and screeners fit 1440.0 px
+00:31 +297: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 768.0
+00:31 +298: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/community/community_widgets_test.dart: CommunityAttachmentTile Tests renders Note attachment correctly
+00:32 +299: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/e2e_backend_features_test.dart: End-to-End Backend Modules Verification 10. Billing & Subscriptions End-to-End
+00:32 +300: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/e2e_backend_features_test.dart: End-to-End Backend Modules Verification 10. Billing & Subscriptions End-to-End
+00:32 +301: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/e2e_backend_features_test.dart: End-to-End Backend Modules Verification 10. Billing & Subscriptions End-to-End
+00:32 +302: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/e2e_backend_features_test.dart: End-to-End Backend Modules Verification 10. Billing & Subscriptions End-to-End
+00:32 +303: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/e2e_backend_features_test.dart: End-to-End Backend Modules Verification 10. Billing & Subscriptions End-to-End
+00:32 +304: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/e2e_backend_features_test.dart: End-to-End Backend Modules Verification 10. Billing & Subscriptions End-to-End
+00:32 +305: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/e2e_backend_features_test.dart: End-to-End Backend Modules Verification 10. Billing & Subscriptions End-to-End
+00:32 +306: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: desktop overview and full coverage load without layout errors
+00:32 +307: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: desktop overview and full coverage load without layout errors
+00:32 +308: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: desktop overview and full coverage load without layout errors
+00:32 +309: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: coverage has two responsive panels at 768.0
+00:32 +310: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: coverage has two responsive panels at 768.0
+00:32 +311: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: coverage has two responsive panels at 768.0
+00:32 +312: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: desktop screener pagination survives an instrument round trip
+00:32 +313: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: desktop screener pagination survives an instrument round trip
+00:32 +314: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: desktop screener pagination survives an instrument round trip
+00:32 +315: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: desktop screener pagination survives an instrument round trip
+00:32 +316: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: desktop screener pagination survives an instrument round trip
+00:32 +317: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: desktop screener pagination survives an instrument round trip
+00:32 +318: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: desktop screener pagination survives an instrument round trip
+00:33 +319: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: desktop screener pagination survives an instrument round trip
+00:33 +320: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: desktop screener pagination survives an instrument round trip
+00:33 +321: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1024.0
+00:33 +322: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1024.0
+00:33 +323: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1024.0
+00:33 +324: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1024.0
+00:33 +325: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1024.0
+00:33 +326: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1024.0
+00:33 +327: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1024.0
+00:33 +328: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1024.0
+00:33 +329: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1024.0
+00:34 +330: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: community rail contains only gainers and losers with sparklines
+00:34 +331: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/community/community_layout_edit_regression_test.dart: editing setup preserves its candle chart and result
+00:34 +332: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/community/community_layout_edit_regression_test.dart: editing setup preserves its candle chart and result
+00:34 +333: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/community/community_layout_edit_regression_test.dart: editing setup preserves its candle chart and result
+00:34 +334: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/community/community_layout_edit_regression_test.dart: editing setup preserves its candle chart and result
+00:34 +335: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/community/community_layout_edit_regression_test.dart: editing setup preserves its candle chart and result
+00:35 +336: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 1024.0
+00:35 +337: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: mobile shell can reach market tabs and return to community
+00:35 +338: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: mobile shell can reach market tabs and return to community
+00:35 +339: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: mobile shell can reach market tabs and return to community
+00:35 +340: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: mobile shell can reach market tabs and return to community
+00:35 +341: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: mobile shell can reach market tabs and return to community
+00:35 +342: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: mobile shell can reach market tabs and return to community
+00:35 +343: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: mobile shell can reach market tabs and return to community
+00:36 +344: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: mobile shell can reach market tabs and return to community
+00:36 +345: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: mobile shell can reach market tabs and return to community
+00:36 +346: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: mobile shell can reach market tabs and return to community
+00:36 +347: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: mobile shell can reach market tabs and return to community
+00:36 +348: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_feature_test.dart: mobile shell can reach market tabs and return to community
+00:36 +349: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 1024.0
+00:36 +350: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 1024.0
+00:36 +351: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 1024.0
+00:37 +352: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 1024.0
+00:37 +353: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/community/community_layout_edit_regression_test.dart: live space cards fit 390.0 px
+00:37 +354: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 1024.0
+00:37 +355: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 1024.0
+00:37 +356: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 1024.0
+00:37 +357: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 1024.0
+00:37 +358: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/community/community_ai_overlay_merge_test.dart: Community & Main AI Assistant Overlay Merge Tests CommunityAiFloatingBar opens canonical AiAssistantOverlaySheet with community intelligence context
+00:37 +359: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/community/community_ai_overlay_merge_test.dart: Community & Main AI Assistant Overlay Merge Tests CommunityAiFloatingBar opens canonical AiAssistantOverlaySheet with community intelligence context
+00:37 +360: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/community/community_ai_overlay_merge_test.dart: Community & Main AI Assistant Overlay Merge Tests CommunityAiFloatingBar opens canonical AiAssistantOverlaySheet with community intelligence context
+00:37 +361: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/community/community_ai_overlay_merge_test.dart: Community & Main AI Assistant Overlay Merge Tests CommunityAiFloatingBar opens canonical AiAssistantOverlaySheet with community intelligence context
+00:37 +362: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/community/community_ai_overlay_merge_test.dart: Community & Main AI Assistant Overlay Merge Tests CommunityAiFloatingBar opens canonical AiAssistantOverlaySheet with community intelligence context
+00:38 +363: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: coverage has two responsive panels at 1024.0
+00:38 +364: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/public_site/public_content_test.dart: assets parse and market data matches exported JSON
+00:38 +365: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/public_site/public_content_test.dart: assets parse and market data matches exported JSON
+00:38 +366: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1440.0
+00:38 +367: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1440.0
+00:38 +368: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1440.0
+00:38 +369: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1440.0
+00:38 +370: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1440.0
+00:38 +371: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1440.0
+00:38 +372: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: overview has two responsive panels at 1440.0
+00:38 +373: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/public_site/public_content_test.dart: dynamic landing and pricing fit 320.0 px
+00:39 +374: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: news has two responsive panels at 1440.0
+00:39 +375: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/public_site/public_content_test.dart: dynamic landing and pricing fit 390.0 px
+00:39 +376: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: movers has two responsive panels at 1440.0
+00:40 +377: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/main_research_preview_smoke_test.dart: Research Preview & AppScaffold Smoke Tests mounts AppScaffold with Market destination successfully
+00:40 +378: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/main_research_preview_smoke_test.dart: Research Preview & AppScaffold Smoke Tests mounts AppScaffold with Market destination successfully
+00:40 +379: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 1440.0
+00:40 +380: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 1440.0
+00:40 +381: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 1440.0
+00:40 +382: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 1440.0
+00:41 +383: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instruments has two responsive panels at 1440.0
+00:41 +384: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: screeners has two responsive panels at 1440.0
+00:41 +385: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: coverage has two responsive panels at 1440.0
+00:41 +386: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instrument charts and every research section work at 390.0
+00:43 +387: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instrument charts and every research section work at 768.0
+00:45 +388: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: instrument charts and every research section work at 1440.0
+00:46 +389: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/market_data/market_redesign_test.dart: compact panel scope works inside a wide desktop viewport
+00:46 +390: All tests passed!

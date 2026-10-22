@@ -1,3 +1,4 @@
+import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:tradex/features/market_data/presentation/market_sidebar.dart';
@@ -108,7 +109,23 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
       onRepost: () {
         widget.repository.toggleRepost(widget.post.id);
       },
-      onQuote: () {},
+      onQuote: () => _quotePost(_currentPost),
+    );
+  }
+
+  void _quotePost(CommunityPost post) {
+    UiDialog.show<void>(
+      context,
+      maxWidth: 680,
+      child: Builder(
+        builder: (dialogContext) => CommunityComposerCard(
+          author: widget.currentUser,
+          repository: widget.repository,
+          quotedPost: post,
+          onPostCreated: () => Navigator.of(dialogContext).pop(),
+          onClose: () => Navigator.of(dialogContext).pop(),
+        ),
+      ),
     );
   }
 
@@ -140,7 +157,18 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
       );
       if (!ok || !mounted) return;
     }
-    widget.repository.setPostVisibility(_currentPost.id, next);
+    try {
+      await widget.repository.setPostVisibility(_currentPost.id, next);
+    } catch (error) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Visibility was not changed',
+          message: '$error',
+        );
+      }
+      return;
+    }
     if (mounted) {
       UiToast.show(
         context,
@@ -491,7 +519,10 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                               repository: widget.repository,
                               currentUser: widget.currentUser,
                               onLike: _handleLike,
-                              onRepost: _handleRepost,
+                              onRepost: () => widget.repository.toggleRepost(
+                                widget.post.id,
+                              ),
+                              onQuote: _quotePost,
                               onBookmark: _handleBookmark,
                               onShare: _handleShare,
                               onCopySetup: _currentPost.tradeSetup == null
@@ -631,7 +662,9 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                       }
                     },
                     onLike: _handleLike,
-                    onRepost: _handleRepost,
+                    onRepost: () =>
+                        widget.repository.toggleRepost(widget.post.id),
+                    onQuote: _quotePost,
                     onBookmark: _handleBookmark,
                     onShare: _handleShare,
                     onCopySetup: _currentPost.tradeSetup == null

@@ -107,12 +107,12 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
     final String displayBio = widget.bio?.trim().isNotEmpty == true
         ? widget.bio!
         : (widget.author?.bio?.trim().isNotEmpty == true
-            ? widget.author!.bio!
-            : (isAdmin
-                  ? 'Chief Risk Officer & Proprietary Desk Overseer. Managing firm-wide risk boundaries, capital allocation matrices, and trading engine infrastructure.'
-                  : (isAffiliate
-                        ? 'Official TradeX Partner & trading educator. Sharing trade setups, execution blueprints, and exclusive member discounts.'
-                        : '')));
+              ? widget.author!.bio!
+              : (isAdmin
+                    ? 'Chief Risk Officer & Proprietary Desk Overseer. Managing firm-wide risk boundaries, capital allocation matrices, and trading engine infrastructure.'
+                    : (isAffiliate
+                          ? 'Official TradeX Partner & trading educator. Sharing trade setups, execution blueprints, and exclusive member discounts.'
+                          : '')));
 
     final List<UiTabItem> tabItems = switch (widget.userRole) {
       UserRole.userAdmin => <UiTabItem>[
@@ -212,15 +212,17 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
       ],
     };
 
-    tabItems.add(UiTabItem(
-      label: 'Spaces History',
-      icon: Icons.podcasts_rounded,
-      content: CommunitySpaceHistory(
-        handle: widget.handle,
-        authorId: widget.author?.id,
-        repository: widget.repository,
+    tabItems.add(
+      UiTabItem(
+        label: 'Spaces History',
+        icon: Icons.podcasts_rounded,
+        content: CommunitySpaceHistory(
+          handle: widget.handle,
+          authorId: widget.author?.id,
+          repository: widget.repository,
+        ),
       ),
-    ));
+    );
 
     final Color bannerColor = isAdmin
         ? theme.colors.destructive
@@ -382,163 +384,166 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                 spacing: context.sp(theme.spacing.xs),
                                 runSpacing: context.sp(theme.spacing.xs),
                                 children: <Widget>[
-                                if (isAdmin) ...[
-                                  UiButton(
-                                    label: 'Root Terminal',
-                                    leadingIcon: Icons.terminal_rounded,
-                                    variant: UiVariant.primary,
-                                    intent: UiIntent.danger,
-                                    size: UiSize.sm,
-                                    expandOnMobile: false,
-                                    onPressed: () {
-                                      UiToast.show(
-                                        context,
-                                        title: 'Admin Terminal',
-                                        message:
-                                            'Initializing root administrative session with Level 5 clearance...',
-                                        intent: UiIntent.danger,
-                                      );
-                                    },
-                                  ),
-                                  UiIconButton(
-                                    icon: Icons.crisis_alert_rounded,
-                                    tooltip: 'Emergency Killswitch',
-                                    variant: UiVariant.outline,
-                                    onPressed: () {
-                                      UiToast.show(
-                                        context,
-                                        title: 'Killswitch Armed',
-                                        message:
-                                            'Global trade matching and margin engines are nominal.',
-                                        intent: UiIntent.warning,
-                                      );
-                                    },
-                                  ),
-                                  UiIconButton(
-                                    icon: Icons.tune_rounded,
-                                    tooltip: 'Risk Governance Config',
-                                    variant: UiVariant.outline,
-                                    onPressed: () {
-                                      UiToast.show(
-                                        context,
-                                        title: 'Risk Config',
-                                        message:
-                                            'Opening institutional risk parameters panel.',
-                                        intent: UiIntent.info,
-                                      );
-                                    },
-                                  ),
-                                ] else ...[
-                                  UiIconButton(
-                                    icon: Icons.share_outlined,
-                                    tooltip: isAffiliate
-                                        ? 'Share Referral Link'
-                                        : 'Share Profile',
-                                    variant: UiVariant.outline,
-                                    onPressed: () {
-                                      final link = isAffiliate
-                                          ? 'https://tradex.io/join/${widget.referralCode ?? widget.handle}'
-                                          : 'https://tradex.io/@${widget.handle}';
-                                      Clipboard.setData(
-                                        ClipboardData(text: link),
-                                      );
-                                      UiToast.show(
-                                        context,
-                                        title: isAffiliate
-                                            ? 'Referral link copied'
-                                            : 'Profile link copied',
-                                        message: link,
-                                        intent: UiIntent.success,
-                                      );
-                                    },
-                                  ),
-                                  UiIconButton(
-                                    icon: Icons.mail_outline_rounded,
-                                    tooltip: 'Direct Message',
-                                    variant: UiVariant.outline,
-                                    onPressed: () {
-                                      final AppTrader peer = AppTrader(
-                                        id: widget.author?.id ??
-                                            'trader_${widget.handle}',
-                                        handle: widget.handle,
-                                        displayName: widget.displayName,
-                                        avatarUrl: widget.avatarUrl,
-                                        bio: widget.bio,
-                                        tier: widget.userRole ==
-                                                UserRole.affiliate
-                                            ? AppTier.premium
-                                            : AppTier.free,
-                                      );
-                                      if (widget.onDirectMessage != null) {
-                                        widget.onDirectMessage!(peer);
-                                      } else {
-                                        try {
-                                          MessagesRepositoryScope.repository
-                                              .startConversation(peer);
-                                          UiToast.show(
-                                            context,
-                                            title: 'Direct Message',
-                                            message:
-                                                'Started conversation with @${widget.handle}',
-                                            intent: UiIntent.success,
-                                          );
-                                        } catch (_) {
-                                          UiToast.show(
-                                            context,
-                                            title: 'Direct Message',
-                                            message:
-                                                'Opening conversation with @${widget.handle}',
-                                            intent: UiIntent.info,
-                                          );
+                                  if (isAdmin) ...[
+                                    UiButton(
+                                      label: 'Root Terminal',
+                                      leadingIcon: Icons.terminal_rounded,
+                                      variant: UiVariant.primary,
+                                      intent: UiIntent.danger,
+                                      size: UiSize.sm,
+                                      expandOnMobile: false,
+                                      onPressed: () {
+                                        UiToast.show(
+                                          context,
+                                          title: 'Admin Terminal',
+                                          message:
+                                              'Initializing root administrative session with Level 5 clearance...',
+                                          intent: UiIntent.danger,
+                                        );
+                                      },
+                                    ),
+                                    UiIconButton(
+                                      icon: Icons.crisis_alert_rounded,
+                                      tooltip: 'Emergency Killswitch',
+                                      variant: UiVariant.outline,
+                                      onPressed: () {
+                                        UiToast.show(
+                                          context,
+                                          title: 'Killswitch Armed',
+                                          message:
+                                              'Global trade matching and margin engines are nominal.',
+                                          intent: UiIntent.warning,
+                                        );
+                                      },
+                                    ),
+                                    UiIconButton(
+                                      icon: Icons.tune_rounded,
+                                      tooltip: 'Risk Governance Config',
+                                      variant: UiVariant.outline,
+                                      onPressed: () {
+                                        UiToast.show(
+                                          context,
+                                          title: 'Risk Config',
+                                          message:
+                                              'Opening institutional risk parameters panel.',
+                                          intent: UiIntent.info,
+                                        );
+                                      },
+                                    ),
+                                  ] else ...[
+                                    UiIconButton(
+                                      icon: Icons.share_outlined,
+                                      tooltip: isAffiliate
+                                          ? 'Share Referral Link'
+                                          : 'Share Profile',
+                                      variant: UiVariant.outline,
+                                      onPressed: () {
+                                        final link = isAffiliate
+                                            ? 'https://tradex.io/join/${widget.referralCode ?? widget.handle}'
+                                            : 'https://tradex.io/@${widget.handle}';
+                                        Clipboard.setData(
+                                          ClipboardData(text: link),
+                                        );
+                                        UiToast.show(
+                                          context,
+                                          title: isAffiliate
+                                              ? 'Referral link copied'
+                                              : 'Profile link copied',
+                                          message: link,
+                                          intent: UiIntent.success,
+                                        );
+                                      },
+                                    ),
+                                    UiIconButton(
+                                      icon: Icons.mail_outline_rounded,
+                                      tooltip: 'Direct Message',
+                                      variant: UiVariant.outline,
+                                      onPressed: () {
+                                        final AppTrader peer = AppTrader(
+                                          id:
+                                              widget.author?.id ??
+                                              'trader_${widget.handle}',
+                                          handle: widget.handle,
+                                          displayName: widget.displayName,
+                                          avatarUrl: widget.avatarUrl,
+                                          bio: widget.bio,
+                                          tier:
+                                              widget.userRole ==
+                                                  UserRole.affiliate
+                                              ? AppTier.premium
+                                              : AppTier.free,
+                                        );
+                                        if (widget.onDirectMessage != null) {
+                                          widget.onDirectMessage!(peer);
+                                        } else {
+                                          try {
+                                            MessagesRepositoryScope.repository
+                                                .startConversation(peer);
+                                            UiToast.show(
+                                              context,
+                                              title: 'Direct Message',
+                                              message:
+                                                  'Started conversation with @${widget.handle}',
+                                              intent: UiIntent.success,
+                                            );
+                                          } catch (_) {
+                                            UiToast.show(
+                                              context,
+                                              title: 'Direct Message',
+                                              message:
+                                                  'Opening conversation with @${widget.handle}',
+                                              intent: UiIntent.info,
+                                            );
+                                          }
                                         }
-                                      }
-                                    },
-                                  ),
-                                  UiIconButton(
-                                    icon: _isFollowing
-                                        ? Icons.check_rounded
-                                        : (isAffiliate
-                                              ? Icons.stars_rounded
-                                              : Icons.person_add_alt_1_rounded),
-                                    variant: _isFollowing
-                                        ? UiVariant.outline
-                                        : UiVariant.primary,
-                                    intent: isAffiliate
-                                        ? UiIntent.warning
-                                        : UiIntent.primary,
-                                    size: UiSize.sm,
-                                    tooltip: isAffiliate
-                                        ? (_isFollowing
+                                      },
+                                    ),
+                                    UiIconButton(
+                                      icon: _isFollowing
+                                          ? Icons.check_rounded
+                                          : (isAffiliate
+                                                ? Icons.stars_rounded
+                                                : Icons
+                                                      .person_add_alt_1_rounded),
+                                      variant: _isFollowing
+                                          ? UiVariant.outline
+                                          : UiVariant.primary,
+                                      intent: isAffiliate
+                                          ? UiIntent.warning
+                                          : UiIntent.primary,
+                                      size: UiSize.sm,
+                                      tooltip: isAffiliate
+                                          ? (_isFollowing
+                                                ? 'Subscribed to @${widget.handle}'
+                                                : 'Subscribe to @${widget.handle}')
+                                          : (_isFollowing
+                                                ? 'Following @${widget.handle}'
+                                                : 'Follow @${widget.handle}'),
+                                      onPressed: () {
+                                        setState(
+                                          () => _isFollowing = !_isFollowing,
+                                        );
+                                        UiToast.show(
+                                          context,
+                                          title: _isFollowing
                                               ? 'Subscribed to @${widget.handle}'
-                                              : 'Subscribe to @${widget.handle}')
-                                        : (_isFollowing
-                                              ? 'Following @${widget.handle}'
-                                              : 'Follow @${widget.handle}'),
-                                    onPressed: () {
-                                      setState(
-                                        () => _isFollowing = !_isFollowing,
-                                      );
-                                      UiToast.show(
-                                        context,
-                                        title: _isFollowing
-                                            ? 'Subscribed to @${widget.handle}'
-                                            : 'Unsubscribed from @${widget.handle}',
-                                        message: _isFollowing
-                                            ? 'You will receive creator market playbooks and discount updates.'
-                                            : 'You have unsubscribed from partner alerts.',
-                                        intent: _isFollowing
-                                            ? UiIntent.success
-                                            : UiIntent.neutral,
-                                      );
-                                    },
-                                  ),
+                                              : 'Unsubscribed from @${widget.handle}',
+                                          message: _isFollowing
+                                              ? 'You will receive creator market playbooks and discount updates.'
+                                              : 'You have unsubscribed from partner alerts.',
+                                          intent: _isFollowing
+                                              ? UiIntent.success
+                                              : UiIntent.neutral,
+                                        );
+                                      },
+                                    ),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
                     ),
 
                     // 3. User Identity & Details
@@ -653,15 +658,24 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                   isLink: true,
                                 ),
                               ] else ...[
-                                if (widget.location?.trim().isNotEmpty == true ||
-                                    widget.author?.location?.trim().isNotEmpty == true)
+                                if (widget.location?.trim().isNotEmpty ==
+                                        true ||
+                                    widget.author?.location
+                                            ?.trim()
+                                            .isNotEmpty ==
+                                        true)
                                   _MetaItem(
                                     icon: Icons.location_on_outlined,
-                                    text: widget.location?.trim().isNotEmpty == true
+                                    text:
+                                        widget.location?.trim().isNotEmpty ==
+                                            true
                                         ? widget.location!
                                         : widget.author!.location!,
                                   ),
-                                if (widget.author?.joinedDate?.trim().isNotEmpty == true)
+                                if (widget.author?.joinedDate
+                                        ?.trim()
+                                        .isNotEmpty ==
+                                    true)
                                   _MetaItem(
                                     icon: Icons.calendar_month_outlined,
                                     text: widget.author!.joinedDate!,
@@ -669,42 +683,63 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                 if (isAffiliate)
                                   _MetaItem(
                                     icon: Icons.link_rounded,
-                                    text: 'tradex.io/join/${widget.referralCode ?? widget.handle}',
+                                    text:
+                                        'tradex.io/join/${widget.referralCode ?? widget.handle}',
                                     isLink: true,
                                   )
-                                else if (widget.website?.trim().isNotEmpty == true ||
-                                    widget.author?.website?.trim().isNotEmpty == true)
+                                else if (widget.website?.trim().isNotEmpty ==
+                                        true ||
+                                    widget.author?.website?.trim().isNotEmpty ==
+                                        true)
                                   _MetaItem(
                                     icon: Icons.link_rounded,
-                                    text: widget.website?.trim().isNotEmpty == true
+                                    text:
+                                        widget.website?.trim().isNotEmpty ==
+                                            true
                                         ? widget.website!
                                         : widget.author!.website!,
                                     isLink: true,
                                   ),
                                 if (isAffiliate) ...[
-                                  if (widget.topStrategy?.trim().isNotEmpty == true)
+                                  if (widget.topStrategy?.trim().isNotEmpty ==
+                                      true)
                                     _MetaItem(
                                       icon: Icons.smart_display_outlined,
                                       text: widget.topStrategy!,
                                     ),
-                                  if (widget.audienceReach?.trim().isNotEmpty == true)
+                                  if (widget.audienceReach?.trim().isNotEmpty ==
+                                      true)
                                     _MetaItem(
                                       icon: Icons.groups_outlined,
                                       text: 'Reach: ${widget.audienceReach!}',
                                     ),
                                 ] else ...[
-                                  if (widget.avgHoldDuration?.trim().isNotEmpty == true ||
-                                      widget.author?.avgHoldDuration?.trim().isNotEmpty == true)
+                                  if (widget.avgHoldDuration
+                                              ?.trim()
+                                              .isNotEmpty ==
+                                          true ||
+                                      widget.author?.avgHoldDuration
+                                              ?.trim()
+                                              .isNotEmpty ==
+                                          true)
                                     _MetaItem(
                                       icon: Icons.bolt_rounded,
                                       text:
                                           'Avg Hold: ${widget.avgHoldDuration?.trim().isNotEmpty == true ? widget.avgHoldDuration! : widget.author!.avgHoldDuration!}',
                                     ),
-                                  if (widget.primaryMarket?.trim().isNotEmpty == true ||
-                                      widget.author?.primaryMarket?.trim().isNotEmpty == true)
+                                  if (widget.primaryMarket?.trim().isNotEmpty ==
+                                          true ||
+                                      widget.author?.primaryMarket
+                                              ?.trim()
+                                              .isNotEmpty ==
+                                          true)
                                     _MetaItem(
                                       icon: Icons.show_chart_rounded,
-                                      text: widget.primaryMarket?.trim().isNotEmpty == true
+                                      text:
+                                          widget.primaryMarket
+                                                  ?.trim()
+                                                  .isNotEmpty ==
+                                              true
                                           ? widget.primaryMarket!
                                           : widget.author!.primaryMarket!,
                                     ),
@@ -740,42 +775,64 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                 : (isAffiliate
                                       ? <Widget>[
                                           _SocialStat(
-                                            count: widget.audienceReach ??
-                                                _formatCount(widget.author?.followers ?? 0),
+                                            count:
+                                                widget.audienceReach ??
+                                                _formatCount(
+                                                  widget.author?.followers ?? 0,
+                                                ),
                                             label: 'Audience Reach',
                                           ),
                                           _SocialStat(
-                                            count: _formatCount(widget.author?.followers ?? 0),
+                                            count: _formatCount(
+                                              widget.author?.followers ?? 0,
+                                            ),
                                             label: 'Followers',
                                           ),
                                           _SocialStat(
-                                            count: _formatCount(widget.author?.postsCount ?? 0),
+                                            count: _formatCount(
+                                              widget.author?.postsCount ?? 0,
+                                            ),
                                             label: 'Public Posts',
                                           ),
                                           _SocialStat(
-                                            count: widget.referralCode ?? 'PARTNER',
+                                            count:
+                                                widget.referralCode ??
+                                                'PARTNER',
                                             label: 'Partner Code',
                                           ),
                                         ]
                                       : <Widget>[
                                           _SocialStat(
-                                            count: _formatCount(widget.author?.following ?? 0),
+                                            count: _formatCount(
+                                              widget.author?.following ?? 0,
+                                            ),
                                             label: 'Following',
                                           ),
                                           _SocialStat(
-                                            count: _formatCount(widget.author?.followers ?? 0),
+                                            count: _formatCount(
+                                              widget.author?.followers ?? 0,
+                                            ),
                                             label: 'Followers',
                                           ),
                                           _SocialStat(
                                             count: _formatCount(
-                                              widget.repository != null && widget.author != null
-                                                  ? widget.repository!.postsForAuthor(widget.author!.id).length
-                                                  : (widget.author?.postsCount ?? 0),
+                                              widget.repository != null &&
+                                                      widget.author != null
+                                                  ? widget.repository!
+                                                        .postsForAuthor(
+                                                          widget.author!.id,
+                                                        )
+                                                        .length
+                                                  : (widget
+                                                            .author
+                                                            ?.postsCount ??
+                                                        0),
                                             ),
                                             label: 'Public Posts',
                                           ),
                                           _SocialStat(
-                                            count: widget.author?.winRate != null
+                                            count:
+                                                widget.author?.winRate != null
                                                 ? '${(widget.author!.winRate! * (widget.author!.winRate! <= 1 ? 100 : 1)).toStringAsFixed(1)}%'
                                                 : '--',
                                             label: 'Win Rate',
@@ -1044,37 +1101,54 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       }
                                     }
 
-                                    final String winRateStr = widget.author?.winRate != null
+                                    final String winRateStr =
+                                        widget.author?.winRate != null
                                         ? '${(widget.author!.winRate! * (widget.author!.winRate! <= 1 ? 100 : 1)).toStringAsFixed(1)}%'
                                         : '--';
                                     final String topStrategyText =
                                         widget.topStrategy?.trim().isNotEmpty ==
-                                                true
-                                            ? widget.topStrategy!
-                                            : (widget.author?.tradingStyle?.trim().isNotEmpty == true
-                                                ? widget.author!.tradingStyle!
-                                                : '--');
+                                            true
+                                        ? widget.topStrategy!
+                                        : (widget.author?.tradingStyle
+                                                      ?.trim()
+                                                      .isNotEmpty ==
+                                                  true
+                                              ? widget.author!.tradingStyle!
+                                              : '--');
                                     final String marketText =
-                                        widget.primaryMarket?.trim().isNotEmpty ==
-                                                true
-                                            ? widget.primaryMarket!
-                                            : (widget.author?.primaryMarket?.trim().isNotEmpty == true
-                                                ? widget.author!.primaryMarket!
-                                                : '--');
+                                        widget.primaryMarket
+                                                ?.trim()
+                                                .isNotEmpty ==
+                                            true
+                                        ? widget.primaryMarket!
+                                        : (widget.author?.primaryMarket
+                                                      ?.trim()
+                                                      .isNotEmpty ==
+                                                  true
+                                              ? widget.author!.primaryMarket!
+                                              : '--');
                                     final String holdStr =
-                                        widget.avgHoldDuration?.trim().isNotEmpty ==
-                                                true
-                                            ? widget.avgHoldDuration!
-                                            : (widget.author?.avgHoldDuration?.trim().isNotEmpty == true
-                                                ? widget.author!.avgHoldDuration!
-                                                : '--');
+                                        widget.avgHoldDuration
+                                                ?.trim()
+                                                .isNotEmpty ==
+                                            true
+                                        ? widget.avgHoldDuration!
+                                        : (widget.author?.avgHoldDuration
+                                                      ?.trim()
+                                                      .isNotEmpty ==
+                                                  true
+                                              ? widget.author!.avgHoldDuration!
+                                              : '--');
                                     final String mantraStr =
                                         widget.riskMantra?.trim().isNotEmpty ==
-                                                true
-                                            ? widget.riskMantra!
-                                            : (widget.author?.riskMantra?.trim().isNotEmpty == true
-                                                ? widget.author!.riskMantra!
-                                                : '--');
+                                            true
+                                        ? widget.riskMantra!
+                                        : (widget.author?.riskMantra
+                                                      ?.trim()
+                                                      .isNotEmpty ==
+                                                  true
+                                              ? widget.author!.riskMantra!
+                                              : '--');
 
                                     if (constraints.maxWidth > 520) {
                                       return Row(
@@ -1083,7 +1157,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             child: _KpiPill(
                                               label: 'Win Rate',
                                               value: winRateStr,
-                                              isPositive: widget.author?.winRate != null,
+                                              isPositive:
+                                                  widget.author?.winRate !=
+                                                  null,
                                             ),
                                           ),
                                           _buildKpiDivider(theme),
@@ -1091,7 +1167,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             child: _KpiPill(
                                               label: 'Avg Hold',
                                               value: holdStr,
-                                              isPositive: holdStr != '--' ? true : null,
+                                              isPositive: holdStr != '--'
+                                                  ? true
+                                                  : null,
                                             ),
                                           ),
                                           _buildKpiDivider(theme),
@@ -1107,7 +1185,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             child: _KpiPill(
                                               label: 'Risk Mantra',
                                               value: mantraStr,
-                                              isPositive: mantraStr != '--' ? true : null,
+                                              isPositive: mantraStr != '--'
+                                                  ? true
+                                                  : null,
                                             ),
                                           ),
                                           _buildKpiDivider(theme),
@@ -1130,7 +1210,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                 child: _KpiPill(
                                                   label: 'Win Rate',
                                                   value: winRateStr,
-                                                  isPositive: widget.author?.winRate != null,
+                                                  isPositive:
+                                                      widget.author?.winRate !=
+                                                      null,
                                                 ),
                                               ),
                                               Expanded(
@@ -1244,7 +1326,9 @@ class _MetaItem extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: context.uiText.caption.copyWith(
-              color: isLink ? theme.colors.primary : theme.colors.foregroundMuted,
+              color: isLink
+                  ? theme.colors.primary
+                  : theme.colors.foregroundMuted,
               fontWeight: isLink ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
@@ -1361,12 +1445,16 @@ class _TwitterFeedPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    final bool isAuthor = isCurrentUser ||
-        (author != null && repository != null &&
-            (author!.id == repository!.currentAuthor.id ||
-             author!.handle.toLowerCase() == repository!.currentAuthor.handle.toLowerCase())) ||
+    final bool isAuthor =
+        isCurrentUser ||
         (author != null &&
-            (author!.handle.toLowerCase() == handle.toLowerCase() && isCurrentUser)) ||
+            repository != null &&
+            (author!.id == repository!.currentAuthor.id ||
+                author!.handle.toLowerCase() ==
+                    repository!.currentAuthor.handle.toLowerCase())) ||
+        (author != null &&
+            (author!.handle.toLowerCase() == handle.toLowerCase() &&
+                isCurrentUser)) ||
         (isCurrentUser && handle.isEmpty);
 
     List<CommunityPost> authorPosts = <CommunityPost>[];
@@ -1387,8 +1475,8 @@ class _TwitterFeedPreview extends StatelessWidget {
           final timeStr = diff.inMinutes < 60
               ? '${diff.inMinutes}m ago'
               : (diff.inHours < 24
-                  ? '${diff.inHours}h ago'
-                  : (diff.inDays == 1 ? 'Yesterday' : '${diff.inDays}d ago'));
+                    ? '${diff.inHours}h ago'
+                    : (diff.inDays == 1 ? 'Yesterday' : '${diff.inDays}d ago'));
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
@@ -1519,8 +1607,14 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
         return true;
       }
     }
-    final cleanCurrent = current.handle.toLowerCase().replaceFirst('@', '').trim();
-    final cleanHandle = widget.handle.toLowerCase().replaceFirst('@', '').trim();
+    final cleanCurrent = current.handle
+        .toLowerCase()
+        .replaceFirst('@', '')
+        .trim();
+    final cleanHandle = widget.handle
+        .toLowerCase()
+        .replaceFirst('@', '')
+        .trim();
     if (cleanCurrent.isNotEmpty && cleanCurrent == cleanHandle) {
       return true;
     }
@@ -1556,7 +1650,7 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
       onEdit: authorMode ? () => _handleEditPost(context) : null,
       onDelete: authorMode
           ? () {
-              repo.deletePost(effectivePost.id);
+              if (mounted) setState(() {});
               UiToast.show(
                 context,
                 title: 'Post deleted',
@@ -1604,8 +1698,10 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
       createdAt: DateTime.now().subtract(const Duration(hours: 2)),
       tags: widget.tags,
       likes: int.tryParse(widget.likes.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
-      reposts: int.tryParse(widget.reposts.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
-      comments: int.tryParse(widget.replies.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
+      reposts:
+          int.tryParse(widget.reposts.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
+      comments:
+          int.tryParse(widget.replies.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
       views: int.tryParse(widget.views.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
     );
   }
@@ -1671,228 +1767,229 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                 // Right: author header + body + tags + engagement bar
                 Expanded(
                   child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        // Author row
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Expanded(
-                              child: Wrap(
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                spacing: 4,
-                                children: <Widget>[
-                                  Text(
-                                    widget.displayName,
-                                    style: context.uiText.bodyStrong.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      // Author row
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Expanded(
+                            child: Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 4,
+                              children: <Widget>[
+                                Text(
+                                  widget.displayName,
+                                  style: context.uiText.bodyStrong.copyWith(
+                                    fontWeight: FontWeight.w700,
                                   ),
-                                  Icon(
-                                    Icons.verified_rounded,
-                                    color: widget.verifiedColor,
-                                    size: context.sz(14),
+                                ),
+                                Icon(
+                                  Icons.verified_rounded,
+                                  color: widget.verifiedColor,
+                                  size: context.sz(14),
+                                ),
+                                Text(
+                                  '@${widget.handle}',
+                                  style: context.uiText.caption.copyWith(
+                                    color: theme.colors.foregroundMuted,
                                   ),
-                                  Text(
-                                    '@${widget.handle}',
-                                    style: context.uiText.caption.copyWith(
-                                      color: theme.colors.foregroundMuted,
-                                    ),
+                                ),
+                                Text(
+                                  '· ${widget.timestamp}',
+                                  style: context.uiText.caption.copyWith(
+                                    color: theme.colors.foregroundMuted,
                                   ),
-                                  Text(
-                                    '· ${widget.timestamp}',
-                                    style: context.uiText.caption.copyWith(
-                                      color: theme.colors.foregroundMuted,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                            if (_isAuthor) ...<Widget>[
-                              UiButton(
-                                label: 'Edit',
-                                icon: Icons.edit_outlined,
-                                size: UiSize.xs,
-                                variant: UiVariant.soft,
-                                intent: UiIntent.primary,
-                                onPressed: () => _handleEditPost(context),
-                              ),
-                              SizedBox(width: context.sp(theme.spacing.xs)),
-                            ],
-                            UiIconButton(
-                              icon: Icons.more_horiz_rounded,
-                              size: UiSize.xs,
-                              tooltip: 'Post options',
-                              onPressed: () => _showPostOptions(context),
-                            ),
-                          ],
-                        ),
-
-                        // Body
-                        SizedBox(height: context.sp(theme.spacing.xs)),
-                        Text(
-                          _body,
-                          style: context.uiText.body.copyWith(
-                            height: 1.45,
-                            fontSize: context.fs(14),
                           ),
-                        ),
-
-                        // Embedded trade setup card
-                        if (widget.setupSnapshot != null) ...<Widget>[
-                          SizedBox(height: context.sp(theme.spacing.sm)),
-                          widget.setupSnapshot!,
+                          if (_isAuthor) ...<Widget>[
+                            UiButton(
+                              label: 'Edit',
+                              icon: Icons.edit_outlined,
+                              size: UiSize.xs,
+                              variant: UiVariant.soft,
+                              intent: UiIntent.primary,
+                              onPressed: () => _handleEditPost(context),
+                            ),
+                            SizedBox(width: context.sp(theme.spacing.xs)),
+                          ],
+                          UiIconButton(
+                            icon: Icons.more_horiz_rounded,
+                            size: UiSize.xs,
+                            tooltip: 'Post options',
+                            onPressed: () => _showPostOptions(context),
+                          ),
                         ],
+                      ),
 
-                        // Embedded writing desk record attachment (notes/journal/strategy)
-                        if (widget.post?.attachment != null) ...<Widget>[
-                          SizedBox(height: context.sp(theme.spacing.sm)),
-                          CommunityAttachmentTile(
-                            attachment: widget.post!.attachment!,
-                            onTap: () async {
-                              final source = widget.post!.attachment!.source;
-                              if (widget.onOpenRef != null) {
-                                if (ModalRoute.of(context)?.isCurrent == true &&
-                                    Navigator.of(context).canPop()) {
-                                  Navigator.of(context).pop();
+                      // Body
+                      SizedBox(height: context.sp(theme.spacing.xs)),
+                      Text(
+                        _body,
+                        style: context.uiText.body.copyWith(
+                          height: 1.45,
+                          fontSize: context.fs(14),
+                        ),
+                      ),
+
+                      // Embedded trade setup card
+                      if (widget.setupSnapshot != null) ...<Widget>[
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        widget.setupSnapshot!,
+                      ],
+
+                      // Embedded writing desk record attachment (notes/journal/strategy)
+                      if (widget.post?.attachment != null) ...<Widget>[
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        CommunityAttachmentTile(
+                          attachment: widget.post!.attachment!,
+                          onTap: () async {
+                            final source = widget.post!.attachment!.source;
+                            if (widget.onOpenRef != null) {
+                              if (ModalRoute.of(context)?.isCurrent == true &&
+                                  Navigator.of(context).canPop()) {
+                                Navigator.of(context).pop();
+                              }
+                              widget.onOpenRef!(source);
+                            } else {
+                              if (source.kind == AppLinkKind.journal) {
+                                final trade = await JournalRepositoryScope
+                                    .repository
+                                    .getById(source.id);
+                                if (trade != null && context.mounted) {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (ctx) => Scaffold(
+                                        body: JournalEntryScreen(
+                                          entry: trade,
+                                          onClose: () =>
+                                              Navigator.of(ctx).pop(),
+                                          onEdit: () {},
+                                        ),
+                                      ),
+                                    ),
+                                  );
                                 }
-                                widget.onOpenRef!(source);
-                              } else {
-                                if (source.kind == AppLinkKind.journal) {
-                                  final trade = await JournalRepositoryScope
-                                      .repository
-                                      .getById(source.id);
-                                  if (trade != null && context.mounted) {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (ctx) => Scaffold(
-                                          body: JournalEntryScreen(
-                                            entry: trade,
-                                            onClose: () =>
-                                                Navigator.of(ctx).pop(),
-                                            onEdit: () {},
-                                          ),
+                              } else if (source.kind == AppLinkKind.note) {
+                                final note = await NotesRepositoryScope
+                                    .repository
+                                    .getById(source.id);
+                                if (note != null && context.mounted) {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (ctx) => Scaffold(
+                                        body: NotePreviewScreen(
+                                          note: note,
+                                          onClose: () =>
+                                              Navigator.of(ctx).pop(),
+                                          onEdit: () {},
                                         ),
                                       ),
-                                    );
-                                  }
-                                } else if (source.kind == AppLinkKind.note) {
-                                  final note = await NotesRepositoryScope
-                                      .repository
-                                      .getById(source.id);
-                                  if (note != null && context.mounted) {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (ctx) => Scaffold(
-                                          body: NotePreviewScreen(
-                                            note: note,
-                                            onClose: () =>
-                                                Navigator.of(ctx).pop(),
-                                            onEdit: () {},
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  }
+                                    ),
+                                  );
                                 }
                               }
+                            }
+                          },
+                        ),
+                      ],
+
+                      // Hashtag badges
+                      if (_tags.isNotEmpty) ...<Widget>[
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        Wrap(
+                          spacing: context.sp(theme.spacing.xs),
+                          runSpacing: context.sp(theme.spacing.xs),
+                          children: _tags
+                              .map(
+                                (String tag) => UiBadge(
+                                  label: '#$tag',
+                                  intent: UiIntent.primary,
+                                  variant: UiBadgeVariant.soft,
+                                  size: UiSize.xs,
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ],
+
+                      // Engagement bar
+                      SizedBox(height: context.sp(theme.spacing.sm)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          _EngagementButton(
+                            icon: Icons.chat_bubble_outline_rounded,
+                            count: widget.replies,
+                            activeColor: theme.colors.primary,
+                            onTap: () => _openActualPost(context),
+                          ),
+                          _EngagementButton(
+                            icon: Icons.repeat_rounded,
+                            count: widget.reposts,
+                            activeColor: theme.colors.bullish,
+                            onTap: () {
+                              UiToast.show(
+                                context,
+                                title: 'Reposted',
+                                message:
+                                    'Setup reposted to your community followers.',
+                                intent: UiIntent.success,
+                              );
+                            },
+                          ),
+                          _EngagementButton(
+                            icon: _liked
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            count:
+                                (int.tryParse(widget.likes) ?? 0) +
+                                        (_liked ? 1 : 0) ==
+                                    0
+                                ? widget.likes
+                                : '${(int.tryParse(widget.likes) ?? 0) + (_liked ? 1 : 0)}',
+                            isActive: _liked,
+                            activeColor: Colors.redAccent,
+                            onTap: () => setState(() => _liked = !_liked),
+                          ),
+                          _EngagementButton(
+                            icon: Icons.bar_chart_rounded,
+                            count: widget.views,
+                            activeColor: theme.colors.primary,
+                            onTap: () {
+                              UiToast.show(
+                                context,
+                                title: 'Analytics',
+                                message:
+                                    '${widget.views} traders viewed this setup.',
+                                intent: UiIntent.info,
+                              );
+                            },
+                          ),
+                          _EngagementButton(
+                            icon: _bookmarked
+                                ? Icons.bookmark_rounded
+                                : Icons.bookmark_border_rounded,
+                            count: '',
+                            isActive: _bookmarked,
+                            activeColor: theme.colors.warning,
+                            onTap: () {
+                              setState(() => _bookmarked = !_bookmarked);
+                              final p = widget.post ?? _buildFallbackPost();
+                              widget.repository?.toggleBookmark(p.id);
                             },
                           ),
                         ],
+                      ),
 
-                        // Hashtag badges
-                        if (_tags.isNotEmpty) ...<Widget>[
-                          SizedBox(height: context.sp(theme.spacing.sm)),
-                          Wrap(
-                            spacing: context.sp(theme.spacing.xs),
-                            runSpacing: context.sp(theme.spacing.xs),
-                            children: _tags
-                                .map(
-                                  (String tag) => UiBadge(
-                                    label: '#$tag',
-                                    intent: UiIntent.primary,
-                                    variant: UiBadgeVariant.soft,
-                                    size: UiSize.xs,
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ],
-
-                        // Engagement bar
-                        SizedBox(height: context.sp(theme.spacing.sm)),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: <Widget>[
-                            _EngagementButton(
-                              icon: Icons.chat_bubble_outline_rounded,
-                              count: widget.replies,
-                              activeColor: theme.colors.primary,
-                              onTap: () => _openActualPost(context),
-                            ),
-                            _EngagementButton(
-                              icon: Icons.repeat_rounded,
-                              count: widget.reposts,
-                              activeColor: theme.colors.bullish,
-                              onTap: () {
-                                UiToast.show(
-                                  context,
-                                  title: 'Reposted',
-                                  message:
-                                      'Setup reposted to your community followers.',
-                                  intent: UiIntent.success,
-                                );
-                              },
-                            ),
-                            _EngagementButton(
-                              icon: _liked
-                                  ? Icons.favorite_rounded
-                                  : Icons.favorite_border_rounded,
-                              count: (int.tryParse(widget.likes) ?? 0) +
-                                      (_liked ? 1 : 0) ==
-                                  0
-                                  ? widget.likes
-                                  : '${(int.tryParse(widget.likes) ?? 0) + (_liked ? 1 : 0)}',
-                              isActive: _liked,
-                              activeColor: Colors.redAccent,
-                              onTap: () => setState(() => _liked = !_liked),
-                            ),
-                            _EngagementButton(
-                              icon: Icons.bar_chart_rounded,
-                              count: widget.views,
-                              activeColor: theme.colors.primary,
-                              onTap: () {
-                                UiToast.show(
-                                  context,
-                                  title: 'Analytics',
-                                  message:
-                                      '${widget.views} traders viewed this setup.',
-                                  intent: UiIntent.info,
-                                );
-                              },
-                            ),
-                            _EngagementButton(
-                              icon: _bookmarked
-                                  ? Icons.bookmark_rounded
-                                  : Icons.bookmark_border_rounded,
-                              count: '',
-                              isActive: _bookmarked,
-                              activeColor: theme.colors.warning,
-                              onTap: () {
-                                setState(() => _bookmarked = !_bookmarked);
-                                final p = widget.post ?? _buildFallbackPost();
-                                widget.repository?.toggleBookmark(p.id);
-                              },
-                            ),
-                          ],
-                        ),
-
-                        SizedBox(height: context.sp(theme.spacing.xs)),
-                      ],
-                    ),
+                      SizedBox(height: context.sp(theme.spacing.xs)),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
+            ),
 
             // Bottom separator hairline
             Divider(
@@ -1987,32 +2084,29 @@ class _TradeSetupSnippet extends StatelessWidget {
     } else {
       final actualTrade =
           await JournalRepositoryScope.repository.getById(id) ??
-              AppTrade(
-                id: id,
-                ticker: ticker,
-                side: side.toUpperCase() == 'LONG'
-                    ? AppSide.long
-                    : AppSide.short,
-                entry:
-                    double.tryParse(entry.replaceAll(RegExp(r'[^0-9.]'), '')) ??
-                        0.0,
-                exit:
-                    double.tryParse(exit.replaceAll(RegExp(r'[^0-9.]'), '')) ??
-                        0.0,
-                size: 100,
-                pnl:
-                    double.tryParse(pnl.replaceAll(RegExp(r'[^0-9.-]'), '')) ??
-                        0.0,
-                pnlPercent: 0.0,
-                rMultiple: double.tryParse(
-                      rMultiple.replaceAll(RegExp(r'[^0-9.-]'), ''),
-                    ) ??
-                    0.0,
-                outcome: isWin ? AppOutcome.win : AppOutcome.loss,
-                openedAt: DateTime.now(),
-                notes: 'Trade setup shared via profile.',
-                isPublic: true,
-              );
+          AppTrade(
+            id: id,
+            ticker: ticker,
+            side: side.toUpperCase() == 'LONG' ? AppSide.long : AppSide.short,
+            entry:
+                double.tryParse(entry.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+                0.0,
+            exit:
+                double.tryParse(exit.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
+            size: 100,
+            pnl:
+                double.tryParse(pnl.replaceAll(RegExp(r'[^0-9.-]'), '')) ?? 0.0,
+            pnlPercent: 0.0,
+            rMultiple:
+                double.tryParse(
+                  rMultiple.replaceAll(RegExp(r'[^0-9.-]'), ''),
+                ) ??
+                0.0,
+            outcome: isWin ? AppOutcome.win : AppOutcome.loss,
+            openedAt: DateTime.now(),
+            notes: 'Trade setup shared via profile.',
+            isPublic: true,
+          );
       if (context.mounted) {
         Navigator.of(context).push(
           MaterialPageRoute<void>(
@@ -2125,10 +2219,11 @@ class _PublicJournalPreview extends StatelessWidget {
         final List<AppTrade> allTrades = snapshot.data ?? <AppTrade>[];
         final List<AppTrade> authorTrades =
             (authorId != null && authorId!.isNotEmpty)
-                ? allTrades.where((t) => t.userId == authorId).toList()
-                : allTrades;
-        final List<AppTrade> trades =
-            authorTrades.isNotEmpty ? authorTrades : allTrades;
+            ? allTrades.where((t) => t.userId == authorId).toList()
+            : allTrades;
+        final List<AppTrade> trades = authorTrades.isNotEmpty
+            ? authorTrades
+            : allTrades;
 
         if (trades.isEmpty) {
           return Padding(
@@ -2151,10 +2246,13 @@ class _PublicJournalPreview extends StatelessWidget {
         final int wins = trades.where((t) => t.pnl > 0).length;
         final int losses = trades.where((t) => t.pnl < 0).length;
         final int closedTrades = wins + losses;
-        final double winRatio =
-            closedTrades > 0 ? (wins / closedTrades) * 100 : 0.0;
-        final double totalR =
-            trades.fold(0.0, (sum, t) => sum + (t.rMultiple ?? 0.0));
+        final double winRatio = closedTrades > 0
+            ? (wins / closedTrades) * 100
+            : 0.0;
+        final double totalR = trades.fold(
+          0.0,
+          (sum, t) => sum + (t.rMultiple ?? 0.0),
+        );
 
         final List<AppTrade> filteredTrades = switch (selectedFilter) {
           1 => trades.where((t) => t.pnl > 0).toList(),
@@ -2243,24 +2341,25 @@ class _PublicJournalPreview extends StatelessWidget {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: <String>[
-                  'All Trades ($totalLogged)',
-                  'Wins ($wins)',
-                  'Losses ($losses)',
-                ].asMap().entries.map((MapEntry<int, String> e) {
-                  final bool isSelected = selectedFilter == e.key;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(e.value),
-                      selected: isSelected,
-                      selectedColor: theme.colors.primary.withValues(
-                        alpha: 0.2,
-                      ),
-                      onSelected: (_) => onFilterChanged(e.key),
-                    ),
-                  );
-                }).toList(),
+                children:
+                    <String>[
+                      'All Trades ($totalLogged)',
+                      'Wins ($wins)',
+                      'Losses ($losses)',
+                    ].asMap().entries.map((MapEntry<int, String> e) {
+                      final bool isSelected = selectedFilter == e.key;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(e.value),
+                          selected: isSelected,
+                          selectedColor: theme.colors.primary.withValues(
+                            alpha: 0.2,
+                          ),
+                          onSelected: (_) => onFilterChanged(e.key),
+                        ),
+                      );
+                    }).toList(),
               ),
             ),
             SizedBox(height: context.sp(theme.spacing.sm)),
@@ -2295,8 +2394,8 @@ class _PublicJournalPreview extends StatelessWidget {
                   notes: trade.notes?.isNotEmpty == true
                       ? trade.notes!
                       : (trade.title.isNotEmpty
-                          ? trade.title
-                          : 'No execution notes recorded.'),
+                            ? trade.title
+                            : 'No execution notes recorded.'),
                   tags: trade.tags,
                   onOpenRef: onOpenRef,
                 ),
@@ -2387,28 +2486,31 @@ class _JournalTradeCard extends StatelessWidget {
       }
       onOpenRef!(AppLinkRef(kind: AppLinkKind.journal, id: id, title: ticker));
     } else {
-      final actualTrade = trade ??
+      final actualTrade =
+          trade ??
           AppTrade(
             id: id,
             ticker: ticker,
-            side: side.toUpperCase() == 'LONG'
-                ? AppSide.long
-                : AppSide.short,
+            side: side.toUpperCase() == 'LONG' ? AppSide.long : AppSide.short,
             entry:
-                double.tryParse(entryPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ??
-                    0.0,
+                double.tryParse(
+                  entryPrice.replaceAll(RegExp(r'[^0-9.]'), ''),
+                ) ??
+                0.0,
             exit:
                 double.tryParse(exitPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ??
-                    0.0,
+                0.0,
             size:
                 double.tryParse(quantity.replaceAll(RegExp(r'[^0-9.]'), '')) ??
-                    100.0,
+                100.0,
             pnl:
                 double.tryParse(pnl.replaceAll(RegExp(r'[^0-9.-]'), '')) ?? 0.0,
             pnlPercent: 0.0,
             rMultiple:
-                double.tryParse(rMultiple.replaceAll(RegExp(r'[^0-9.-]'), '')) ??
-                    0.0,
+                double.tryParse(
+                  rMultiple.replaceAll(RegExp(r'[^0-9.-]'), ''),
+                ) ??
+                0.0,
             outcome: isWin ? AppOutcome.win : AppOutcome.loss,
             openedAt: DateTime.now(),
             notes: notes,
@@ -2532,11 +2634,7 @@ class _JournalTradeCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _NotesPlaybooksPreview extends StatelessWidget {
-  const _NotesPlaybooksPreview({
-    this.authorId,
-    this.handle,
-    this.onOpenRef,
-  });
+  const _NotesPlaybooksPreview({this.authorId, this.handle, this.onOpenRef});
 
   final String? authorId;
   final String? handle;
@@ -2552,10 +2650,11 @@ class _NotesPlaybooksPreview extends StatelessWidget {
         final List<AppNote> allNotes = snapshot.data ?? <AppNote>[];
         final List<AppNote> authorNotes =
             (authorId != null && authorId!.isNotEmpty)
-                ? allNotes.where((n) => n.userId == authorId).toList()
-                : allNotes;
-        final List<AppNote> notes =
-            authorNotes.isNotEmpty ? authorNotes : allNotes;
+            ? allNotes.where((n) => n.userId == authorId).toList()
+            : allNotes;
+        final List<AppNote> notes = authorNotes.isNotEmpty
+            ? authorNotes
+            : allNotes;
 
         if (notes.isEmpty) {
           return Padding(
@@ -2580,13 +2679,18 @@ class _NotesPlaybooksPreview extends StatelessWidget {
             final timeStr = diff.inMinutes < 60
                 ? '${diff.inMinutes}m ago'
                 : (diff.inHours < 24
-                    ? '${diff.inHours}h ago'
-                    : (diff.inDays == 1 ? 'Yesterday' : '${diff.inDays}d ago'));
+                      ? '${diff.inHours}h ago'
+                      : (diff.inDays == 1
+                            ? 'Yesterday'
+                            : '${diff.inDays}d ago'));
 
-            final cleanSummary = note.content
-                .split('\n')
-                .where((line) => line.trim().isNotEmpty && !line.startsWith('#'))
-                .firstOrNull ??
+            final cleanSummary =
+                note.content
+                    .split('\n')
+                    .where(
+                      (line) => line.trim().isNotEmpty && !line.startsWith('#'),
+                    )
+                    .firstOrNull ??
                 'No description provided.';
 
             return Padding(
@@ -2642,7 +2746,8 @@ class _NotePlaybookCard extends StatelessWidget {
       }
       onOpenRef!(AppLinkRef(kind: AppLinkKind.note, id: id, title: title));
     } else {
-      final actualNote = note ??
+      final actualNote =
+          note ??
           AppNote(
             id: id,
             title: title,

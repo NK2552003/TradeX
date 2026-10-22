@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -46,7 +47,17 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
 
   static final ProfileSettingsRepositoryImpl instance =
       ProfileSettingsRepositoryImpl._();
-  ProfileSettingsRepositoryImpl._();
+  ProfileSettingsRepositoryImpl._() {
+    if (!CustomerDataPolicy.allowDemo) {
+      _profile = UserProfileModel(
+        id: '',
+        handle: '',
+        email: '',
+        role: UserRole.customer,
+        displayName: 'Your account',
+      );
+    }
+  }
   factory ProfileSettingsRepositoryImpl() => instance;
 
   UserProfileModel _profile = UserProfileModel(
@@ -69,19 +80,6 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     publicJournals: true,
     createdAt: DateTime.now().subtract(const Duration(days: 180)),
   );
-
-  final List<ConnectedAccount> _connectedAccounts = <ConnectedAccount>[
-    ConnectedAccount(
-      provider: 'google',
-      linkedAt: DateTime.now().subtract(const Duration(days: 90)),
-      email: 'demo@tradex.ai',
-    ),
-    ConnectedAccount(
-      provider: 'apple',
-      linkedAt: DateTime.now().subtract(const Duration(days: 45)),
-      email: 'nitish@privaterelay.appleid.com',
-    ),
-  ];
 
   @override
   UserProfileModel get cachedProfile =>
@@ -157,7 +155,10 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
         final updateData = <String, dynamic>{
           'display_name': _profile.displayName,
           'bio': _profile.bio,
-          'avatar_url': (effectiveAvatarUrl != null && effectiveAvatarUrl.isNotEmpty) ? effectiveAvatarUrl : null,
+          'avatar_url':
+              (effectiveAvatarUrl != null && effectiveAvatarUrl.isNotEmpty)
+              ? effectiveAvatarUrl
+              : null,
           'experience_level': _profile.experienceLevel,
           'trading_style': _profile.tradingStyle,
           'location': _profile.location,
@@ -200,19 +201,26 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       final targetUserId = user?.id ?? _demoUserId;
 
       try {
-        final ext = contentType.contains('jpeg') || contentType.contains('jpg') ? 'jpg' : 'png';
-        final fileName = '${targetUserId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
-        await client.storage.from('avatars').uploadBinary(
-          fileName,
-          imageBytes,
-          fileOptions: FileOptions(contentType: contentType, upsert: true),
-        );
+        final ext = contentType.contains('jpeg') || contentType.contains('jpg')
+            ? 'jpg'
+            : 'png';
+        final fileName =
+            '${targetUserId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        await client.storage
+            .from('avatars')
+            .uploadBinary(
+              fileName,
+              imageBytes,
+              fileOptions: FileOptions(contentType: contentType, upsert: true),
+            );
         final publicUrl = client.storage.from('avatars').getPublicUrl(fileName);
         if (publicUrl.isNotEmpty) {
           finalAvatarUrl = publicUrl;
         }
       } catch (e) {
-        debugPrint('[ProfileSettingsRepository] uploadAvatar storage error: $e');
+        debugPrint(
+          '[ProfileSettingsRepository] uploadAvatar storage error: $e',
+        );
       }
 
       if (finalAvatarUrl.isEmpty) {
@@ -220,9 +228,14 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       }
 
       try {
-        await client.from('profiles').update({'avatar_url': finalAvatarUrl}).eq('id', targetUserId);
+        await client
+            .from('profiles')
+            .update({'avatar_url': finalAvatarUrl})
+            .eq('id', targetUserId);
       } catch (e) {
-        debugPrint('[ProfileSettingsRepository] uploadAvatar database update error: $e');
+        debugPrint(
+          '[ProfileSettingsRepository] uploadAvatar database update error: $e',
+        );
       }
     } else {
       finalAvatarUrl = 'data:$contentType;base64,${base64Encode(imageBytes)}';
@@ -239,7 +252,10 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
         final targetUserId = user?.id ?? _demoUserId;
-        await client.from('profiles').update({'avatar_url': null}).eq('id', targetUserId);
+        await client
+            .from('profiles')
+            .update({'avatar_url': null})
+            .eq('id', targetUserId);
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] removeAvatar error: $e');
       }
@@ -262,13 +278,23 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
+        final email = client.auth.currentUser?.email;
+        if (email == null) {
+          throw StateError('Sign in before changing your email.');
+        }
+        await client.auth.signInWithPassword(
+          email: email,
+          password: currentPassword,
+        );
         await client.auth.updateUser(UserAttributes(email: newEmail));
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] requestEmailChange error: $e');
         rethrow;
       }
     }
-    _profile = _profile.copyWith(email: newEmail);
+    if (!SupabaseConfig.isConfigured) {
+      throw StateError('Email changes are unavailable in this environment.');
+    }
   }
 
   @override
@@ -286,49 +312,94 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
+        final email = client.auth.currentUser?.email;
+        if (email == null) {
+          throw StateError('Sign in before changing your password.');
+        }
+        await client.auth.signInWithPassword(
+          email: email,
+          password: currentPassword,
+        );
         await client.auth.updateUser(UserAttributes(password: newPassword));
       } catch (e) {
         debugPrint('[ProfileSettingsRepository] changePassword error: $e');
         rethrow;
       }
     }
+    if (!SupabaseConfig.isConfigured) {
+      throw StateError('Password changes are unavailable in this environment.');
+    }
   }
 
   @override
   Future<List<ConnectedAccount>> getConnectedAccounts() async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    return List<ConnectedAccount>.from(_connectedAccounts);
+    final client = SupabaseConfig.client;
+    if (!SupabaseConfig.isConfigured || client?.auth.currentUser == null) {
+      return [];
+    }
+    final identities = await client!.auth.getUserIdentities();
+    return [
+      for (final identity in identities.where(
+        (i) => i.provider == 'google' || i.provider == 'apple',
+      ))
+        ConnectedAccount(
+          provider: identity.provider,
+          linkedAt:
+              DateTime.tryParse(identity.createdAt ?? '') ?? DateTime.now(),
+          email: identity.identityData?['email'] as String?,
+        ),
+    ];
   }
 
   @override
   Future<void> unlinkConnectedAccount(String provider) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    _connectedAccounts.removeWhere((a) => a.provider == provider);
+    final client = SupabaseConfig.client;
+    if (!SupabaseConfig.isConfigured || client?.auth.currentUser == null) {
+      throw StateError('Sign in to manage connected accounts.');
+    }
+    final identities = await client!.auth.getUserIdentities();
+    final identity = identities
+        .where((i) => i.provider == provider)
+        .firstOrNull;
+    if (identity == null) {
+      throw StateError('This identity is no longer connected.');
+    }
+    await client.auth.unlinkIdentity(identity);
   }
 
   @override
   Future<void> linkConnectedAccount(String provider) async {
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-    _connectedAccounts.add(
-      ConnectedAccount(
-        provider: provider,
-        linkedAt: DateTime.now(),
-        email: 'nitish@${provider == 'apple' ? 'icloud.com' : 'gmail.com'}',
-      ),
-    );
+    final client = SupabaseConfig.client;
+    if (!SupabaseConfig.isConfigured || client?.auth.currentUser == null) {
+      throw StateError('Sign in to manage connected accounts.');
+    }
+    final oauth = switch (provider) {
+      'google' => OAuthProvider.google,
+      'apple' => OAuthProvider.apple,
+      _ => throw ArgumentError('Unsupported identity provider'),
+    };
+    if (!await client!.auth.linkIdentity(
+      oauth,
+      redirectTo: kIsWeb ? null : 'tradex://auth/callback',
+    )) {
+      throw StateError('Could not open the identity provider. Please retry.');
+    }
   }
 
   @override
   Future<void> requestAccountDeletion({String? reason}) async {
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
-        await client.from('profiles').update({'status': 'pending_approval'}).eq('id', targetUserId);
-      } catch (e) {
-        debugPrint('[ProfileSettingsRepository] requestAccountDeletion error: $e');
-      }
+    final client = SupabaseConfig.client;
+    final user = client?.auth.currentUser;
+    if (!SupabaseConfig.isConfigured || client == null || user == null) {
+      throw StateError('Account deletion requests are unavailable.');
     }
+    // The existing backend supports a review request, not completed erasure.
+    // Require a returned row so denied/no-op writes cannot report success.
+    await client
+        .from('profiles')
+        .update({'status': 'pending_approval'})
+        .eq('id', user.id)
+        .select('id')
+        .single();
   }
 }

@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -164,12 +165,13 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
     widget.onSubpageChanged?.call(quote.symbol, Icons.show_chart, _back);
   }
 
+  String get _likesKey =>
+      'market_intelligence_likes:${SupabaseConfig.client?.auth.currentUser?.id ?? 'guest'}';
+
   Future<void> _restoreLikes() async {
     try {
       final saved =
-          (await SharedPreferences.getInstance()).getStringList(
-            'market_intelligence_likes',
-          ) ??
+          (await SharedPreferences.getInstance()).getStringList(_likesKey) ??
           const <String>[];
       if (mounted) setState(() => _likedArticles.addAll(saved));
     } catch (_) {
@@ -188,10 +190,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
   Future<void> _saveLikes() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(
-        'market_intelligence_likes',
-        _likedArticles.toList(),
-      );
+      await prefs.setStringList(_likesKey, _likedArticles.toList());
     } catch (_) {
       // The visible selection still works for this session.
     }
@@ -335,6 +334,11 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Text(
+              'Bundled market snapshots · May be out of date · Analytics, not investment advice',
+              style: context.uiText.caption,
+            ),
+            UiGap.v(context.ui.spacing.xs),
             if (_article == null && _instrument == null) ...[
               UiCard(
                 padding: EdgeInsets.all(context.sp(context.ui.spacing.sm)),

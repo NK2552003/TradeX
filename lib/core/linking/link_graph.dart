@@ -297,14 +297,16 @@ class AppLinkGraph {
       for (final String id in entry.linkedNoteIds)
         if (!isPub || (note(id)?.isPublic ?? false)) id,
       for (final AppNote n in noteList)
-        if (n.linkedJournalIds.contains(entry.id) && (!isPub || n.isPublic)) n.id,
+        if (n.linkedJournalIds.contains(entry.id) && (!isPub || n.isPublic))
+          n.id,
     };
     final Set<String> strategyIds = <String>{
       if (entry.strategyId != null && entry.strategyId!.isNotEmpty)
         if (!isPub || (strategy(entry.strategyId!)?.isPublic ?? false))
           entry.strategyId!,
       for (final AppStrategy s in strategyList)
-        if (s.linkedJournalIds.contains(entry.id) && (!isPub || s.isPublic)) s.id,
+        if (s.linkedJournalIds.contains(entry.id) && (!isPub || s.isPublic))
+          s.id,
     };
     final AppLinkBundle bundle = _withInline(
       AppLinkKind.journal,
@@ -336,7 +338,10 @@ class AppLinkGraph {
   /// union of the ones the playbook names and the ones its entries were actually
   /// traded on — a playbook written for the index that keeps getting traded on
   /// bank futures is worth seeing.
-  AppLinkBundle bundleForStrategy(AppStrategy strategy, {bool onlyPublic = false}) {
+  AppLinkBundle bundleForStrategy(
+    AppStrategy strategy, {
+    bool onlyPublic = false,
+  }) {
     final bool isPub = onlyPublic;
     final Set<String> noteIds = <String>{
       for (final String id in strategy.linkedNoteIds)
@@ -449,55 +454,66 @@ class AppLinkGraph {
   late final Map<(AppLinkKind, String), Set<(AppLinkKind, String)>>
   _inlineEdges = _indexInlineLinks();
 
-  Map<(AppLinkKind, String), Set<(AppLinkKind, String)>> _indexInlineLinks() {
-    final edges = <(AppLinkKind, String), Set<(AppLinkKind, String)>>{};
-    final documents = <(AppLinkKind, String), String>{
-      for (final note in noteList) (AppLinkKind.note, note.id): note.content,
-      for (final trade in journalList)
-        (AppLinkKind.journal, trade.id): trade.content,
-      for (final strategy in strategyList)
-        (AppLinkKind.strategy, strategy.id): strategy.content,
-    };
-    for (final document in documents.entries) {
-      void visit(md.Node node) {
-        if (node is! md.Element) return;
-        if (node.tag == 'a') {
-          final uri = Uri.tryParse(node.attributes['href'] ?? '');
-          final target = uri == null ? null : AppDeepLink.target(uri);
-          if (target != null) {
-            final to = (
-              target.kind,
-              target.kind == AppLinkKind.ticker
-                  ? target.id.toUpperCase()
-                  : target.id,
-            );
-            if (to != document.key) {
-              edges.putIfAbsent(document.key, () => {}).add(to);
-              edges.putIfAbsent(to, () => {}).add(document.key);
-            }
-          }
-        }
-        for (final child in node.children ?? <md.Node>[]) {
-          visit(child);
+  // Weak keys let immutable records reuse their parsed links across graph
+  // snapshots without retaining deleted records or their private Markdown.
+  static final Expando<Set<(AppLinkKind, String)>> _parsedTargets =
+      Expando<Set<(AppLinkKind, String)>>('record inline links');
+
+  static Set<(AppLinkKind, String)> _targets(Object source, String content) {
+    final cached = _parsedTargets[source];
+    if (cached != null) return cached;
+    final targets = <(AppLinkKind, String)>{};
+    void visit(md.Node node) {
+      if (node is! md.Element) return;
+      if (node.tag == 'a') {
+        final uri = Uri.tryParse(node.attributes['href'] ?? '');
+        final target = uri == null ? null : AppDeepLink.target(uri);
+        if (target != null) {
+          targets.add((
+            target.kind,
+            target.kind == AppLinkKind.ticker
+                ? target.id.toUpperCase()
+                : target.id,
+          ));
         }
       }
+      for (final child in node.children ?? <md.Node>[]) {
+        visit(child);
+      }
+    }
 
-      for (final node in md.Document().parseLines(document.value.split('\n'))) {
+    if (content.toLowerCase().contains('tradex:')) {
+      for (final node in md.Document().parseLines(content.split('\n'))) {
         visit(node);
       }
+    }
+    final tickerMatches = RegExp(
+      r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)',
+    ).allMatches(content);
+    for (final match in tickerMatches) {
+      final symbol = match.group(1)?.toUpperCase();
+      if (symbol != null && symbol.isNotEmpty) {
+        targets.add((AppLinkKind.ticker, symbol));
+      }
+    }
+    return _parsedTargets[source] = Set.unmodifiable(targets);
+  }
 
-      final tickerMatches = RegExp(
-        r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)',
-      ).allMatches(document.value);
-      for (final m in tickerMatches) {
-        final sym = m.group(1)?.toUpperCase();
-        if (sym != null && sym.isNotEmpty) {
-          final to = (AppLinkKind.ticker, sym);
-          if (to != document.key) {
-            edges.putIfAbsent(document.key, () => {}).add(to);
-            edges.putIfAbsent(to, () => {}).add(document.key);
-          }
-        }
+  Map<(AppLinkKind, String), Set<(AppLinkKind, String)>> _indexInlineLinks() {
+    final edges = <(AppLinkKind, String), Set<(AppLinkKind, String)>>{};
+    final documents = <(AppLinkKind, String), (Object, String)>{
+      for (final note in noteList)
+        (AppLinkKind.note, note.id): (note, note.content),
+      for (final trade in journalList)
+        (AppLinkKind.journal, trade.id): (trade, trade.content),
+      for (final strategy in strategyList)
+        (AppLinkKind.strategy, strategy.id): (strategy, strategy.content),
+    };
+    for (final document in documents.entries) {
+      for (final to in _targets(document.value.$1, document.value.$2)) {
+        if (to == document.key) continue;
+        edges.putIfAbsent(document.key, () => {}).add(to);
+        edges.putIfAbsent(to, () => {}).add(document.key);
       }
     }
     return edges;
@@ -540,10 +556,12 @@ class AppLinkGraph {
     if (sid == null || sid.isEmpty) return const <AppLinkRef>[];
     final List<AppTrade> peers =
         journalList
-            .where((AppTrade t) =>
-                t.id != entry.id &&
-                t.strategyId == sid &&
-                (!isPub || t.isPublic))
+            .where(
+              (AppTrade t) =>
+                  t.id != entry.id &&
+                  t.strategyId == sid &&
+                  (!isPub || t.isPublic),
+            )
             .toList()
           ..sort((AppTrade a, AppTrade b) => b.sortDate.compareTo(a.sortDate));
     return <AppLinkRef>[

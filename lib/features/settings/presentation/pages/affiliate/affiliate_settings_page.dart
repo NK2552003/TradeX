@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/settings/data/repositories/affiliate_settings_repository.dart';
@@ -296,7 +297,11 @@ class _AffiliateSettingsPageState extends State<AffiliateSettingsPage> {
                                       label: 'Copy Link',
                                       leadingIcon: Icons.copy_rounded,
                                       intent: UiIntent.primary,
-                                      onPressed: () {
+                                      onPressed: () async {
+                                        await Clipboard.setData(
+                                          ClipboardData(text: fullReferralUrl),
+                                        );
+                                        if (!context.mounted) return;
                                         UiToast.show(
                                           context,
                                           title: 'Copied!',
@@ -327,7 +332,11 @@ class _AffiliateSettingsPageState extends State<AffiliateSettingsPage> {
                                     label: 'Copy Link',
                                     leadingIcon: Icons.copy_rounded,
                                     intent: UiIntent.primary,
-                                    onPressed: () {
+                                    onPressed: () async {
+                                      await Clipboard.setData(
+                                        ClipboardData(text: fullReferralUrl),
+                                      );
+                                      if (!context.mounted) return;
                                       UiToast.show(
                                         context,
                                         title: 'Copied!',

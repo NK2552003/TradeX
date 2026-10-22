@@ -1,3 +1,7 @@
+import 'package:tradex/core/config/record_access.dart';
+import 'package:tradex/core/data/owned_record_writer.dart';
+import 'community_post_writer.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -63,41 +67,42 @@ class CommunityRepository extends ChangeNotifier {
 
     try {
       final client = SupabaseConfig.client!;
-      _realtimeChannel = client
-          .channel('public:community_posts_channel')
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'community_posts',
-            callback: (PostgresChangePayload payload) {
-              fetchFromSupabase();
-            },
-          )
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'community_comments',
-            callback: (PostgresChangePayload payload) {
-              fetchFromSupabase();
-            },
-          )
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'community_post_attachments',
-            callback: (PostgresChangePayload payload) {
-              fetchFromSupabase();
-            },
-          )
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'community_live_rooms',
-            callback: (PostgresChangePayload payload) {
-              fetchLiveRooms();
-            },
-          )
-        ..subscribe();
+      _realtimeChannel =
+          client
+              .channel('public:community_posts_channel')
+              .onPostgresChanges(
+                event: PostgresChangeEvent.all,
+                schema: 'public',
+                table: 'community_posts',
+                callback: (PostgresChangePayload payload) {
+                  fetchFromSupabase();
+                },
+              )
+              .onPostgresChanges(
+                event: PostgresChangeEvent.all,
+                schema: 'public',
+                table: 'community_comments',
+                callback: (PostgresChangePayload payload) {
+                  fetchFromSupabase();
+                },
+              )
+              .onPostgresChanges(
+                event: PostgresChangeEvent.all,
+                schema: 'public',
+                table: 'community_post_attachments',
+                callback: (PostgresChangePayload payload) {
+                  fetchFromSupabase();
+                },
+              )
+              .onPostgresChanges(
+                event: PostgresChangeEvent.all,
+                schema: 'public',
+                table: 'community_live_rooms',
+                callback: (PostgresChangePayload payload) {
+                  fetchLiveRooms();
+                },
+              )
+            ..subscribe();
     } catch (e) {
       debugPrint('[CommunityRepository] Realtime subscription error: $e');
     }
@@ -169,7 +174,8 @@ class CommunityRepository extends ChangeNotifier {
         final author = CommunityAuthor(
           id: authorId,
           handle: authorProfile?['username'] as String? ?? 'trader',
-          displayName: authorProfile?['display_name'] as String? ??
+          displayName:
+              authorProfile?['display_name'] as String? ??
               authorProfile?['username'] as String? ??
               'Trader',
           userRole: _parseUserRole(authorProfile?['role'] as String?),
@@ -177,14 +183,11 @@ class CommunityRepository extends ChangeNotifier {
           bio: authorProfile?['bio'] as String?,
           verified: authorProfile?['verified'] as bool? ?? false,
           isFollowing: followedAuthorIds.contains(authorId),
-          followers:
-              (authorProfile?['followers_count'] as num?)?.toInt() ?? 0,
-          following:
-              (authorProfile?['following_count'] as num?)?.toInt() ?? 0,
+          followers: (authorProfile?['followers_count'] as num?)?.toInt() ?? 0,
+          following: (authorProfile?['following_count'] as num?)?.toInt() ?? 0,
           winRate: (authorProfile?['win_rate'] as num?)?.toDouble(),
           tradingStyle: authorProfile?['trading_style'] as String?,
-          postsCount:
-              (authorProfile?['posts_count'] as num?)?.toInt() ?? 0,
+          postsCount: (authorProfile?['posts_count'] as num?)?.toInt() ?? 0,
         );
 
         CommunityTradeSetup? setup;
@@ -193,7 +196,9 @@ class CommunityRepository extends ChangeNotifier {
           final s = setupsList.first as Map<String, dynamic>;
           setup = CommunityTradeSetup(
             ticker: s['ticker'] as String? ?? '',
-            side: (s['side']?.toString().toUpperCase() == 'SHORT') ? 'SHORT' : 'LONG',
+            side: (s['side']?.toString().toUpperCase() == 'SHORT')
+                ? 'SHORT'
+                : 'LONG',
             entry: s['entry']?.toString() ?? '0.0',
             stopLoss: s['stop_loss']?.toString(),
             target: s['target1']?.toString(),
@@ -241,16 +246,14 @@ class CommunityRepository extends ChangeNotifier {
           body: row['body'] as String? ?? '',
           createdAt:
               DateTime.tryParse(row['created_at']?.toString() ?? '') ??
-                  DateTime.now(),
+              DateTime.now(),
           isPinned: row['is_pinned'] as bool? ?? false,
-          isPublic: row['is_public'] as bool? ?? true,
-          tickers: (row['tickers'] as List?)
-                  ?.map((e) => e.toString())
-                  .toList() ??
+          isPublic: row['is_public'] as bool? ?? false,
+          tickers:
+              (row['tickers'] as List?)?.map((e) => e.toString()).toList() ??
               const [],
-          tags: (row['tags'] as List?)
-                  ?.map((e) => e.toString())
-                  .toList() ??
+          tags:
+              (row['tags'] as List?)?.map((e) => e.toString()).toList() ??
               const [],
           tradeSetup: setup,
           imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
@@ -278,9 +281,7 @@ class CommunityRepository extends ChangeNotifier {
       try {
         final commentsRes = await client
             .from('community_comments')
-            .select(
-              '*, profiles(id, username, display_name, avatar_url, role)',
-            )
+            .select('*, profiles(id, username, display_name, avatar_url, role)')
             .order('created_at', ascending: true);
 
         final Map<String, List<CommunityComment>> newComments = {};
@@ -305,7 +306,7 @@ class CommunityRepository extends ChangeNotifier {
             body: row['body'] as String? ?? '',
             createdAt:
                 DateTime.tryParse(row['created_at']?.toString() ?? '') ??
-                    DateTime.now(),
+                DateTime.now(),
             likes: (row['likes_count'] as num?)?.toInt() ?? 0,
             parentCommentId: row['parent_id']?.toString(),
           );
@@ -360,7 +361,8 @@ class CommunityRepository extends ChangeNotifier {
         final host = CommunityAuthor(
           id: hostId,
           handle: hostProfile?['username'] as String? ?? 'host',
-          displayName: hostProfile?['display_name'] as String? ??
+          displayName:
+              hostProfile?['display_name'] as String? ??
               hostProfile?['username'] as String? ??
               'Space Host',
           userRole: _parseUserRole(hostProfile?['role'] as String?),
@@ -373,9 +375,7 @@ class CommunityRepository extends ChangeNotifier {
         final room = LiveAudioRoom.fromMap(
           row,
           host: host,
-        ).copyWith(
-          hasReminder: remindedRoomIds.contains(roomId),
-        );
+        ).copyWith(hasReminder: remindedRoomIds.contains(roomId));
         rooms.add(room);
       }
 
@@ -489,6 +489,9 @@ class CommunityRepository extends ChangeNotifier {
   List<CommunityPost> get forYouPosts => _forYouPosts
       .where(
         (p) =>
+            p.isPublic &&
+            (p.scheduledFor == null ||
+                !p.scheduledFor!.isAfter(DateTime.now())) &&
             !_mutedUsers.contains(p.author.id) &&
             !_blockedUsers.contains(p.author.id),
       )
@@ -496,6 +499,9 @@ class CommunityRepository extends ChangeNotifier {
   List<CommunityPost> get followingPosts => _followingPosts
       .where(
         (p) =>
+            p.isPublic &&
+            (p.scheduledFor == null ||
+                !p.scheduledFor!.isAfter(DateTime.now())) &&
             !_mutedUsers.contains(p.author.id) &&
             !_blockedUsers.contains(p.author.id),
       )
@@ -503,11 +509,16 @@ class CommunityRepository extends ChangeNotifier {
   List<CommunityPost> get signalPosts => _signalPosts
       .where(
         (p) =>
+            p.isPublic &&
+            (p.scheduledFor == null ||
+                !p.scheduledFor!.isAfter(DateTime.now())) &&
             !_mutedUsers.contains(p.author.id) &&
             !_blockedUsers.contains(p.author.id),
       )
       .toList();
-  List<CommunityPost> get bookmarkedPosts => _bookmarkedPosts;
+  List<CommunityPost> get bookmarkedPosts => _bookmarkedPosts
+      .where((post) => post.isPublic || post.author.id == currentAuthor.id)
+      .toList();
   List<CommunityAuthor> get suggestedTraders =>
       _suggestedTraders.where((a) => !_blockedUsers.contains(a.id)).toList();
   List<MapEntry<CommunityAuthor, double>> get leaderboard => _leaderboard;
@@ -623,10 +634,19 @@ class CommunityRepository extends ChangeNotifier {
   /// from their notes, journal entries and strategies. Sorted most-recent first.
   List<AppWritingPostAttachment> get attachableRecords => _attachableRecords;
 
+  void replaceAttachableRecords(List<AppWritingPostAttachment> records) {
+    _attachableRecords = List.of(records);
+    notifyListeners();
+  }
+
   void addAttachableRecord(AppWritingPostAttachment record) {
     _attachableRecords = <AppWritingPostAttachment>[
       record,
-      ..._attachableRecords,
+      ..._attachableRecords.where(
+        (existing) =>
+            existing.source.kind != record.source.kind ||
+            existing.source.id != record.source.id,
+      ),
     ];
     notifyListeners();
   }
@@ -645,15 +665,20 @@ class CommunityRepository extends ChangeNotifier {
     final cleanId = authorId.toLowerCase().replaceFirst('@', '').trim();
     return all.where((p) {
       final pAuthorId = p.author.id.toLowerCase().trim();
-      final pAuthorHandle =
-          p.author.handle.toLowerCase().replaceFirst('@', '').trim();
+      final pAuthorHandle = p.author.handle
+          .toLowerCase()
+          .replaceFirst('@', '')
+          .trim();
       final matches = pAuthorId == cleanId || pAuthorHandle == cleanId;
-      return matches && seen.add(p.id);
+      return matches &&
+          (p.isPublic || p.author.id == currentAuthor.id) &&
+          seen.add(p.id);
     }).toList();
   }
 
   CommunityAuthor? authorById(String id) {
     if (id == currentAuthor.id) return currentAuthor;
+    if (!CustomerDataPolicy.allowDemo) return null;
     final all = <CommunityAuthor>[
       _defaultCurrentUser,
       _alexVance,
@@ -690,27 +715,31 @@ class CommunityRepository extends ChangeNotifier {
         final client = SupabaseConfig.client!;
         final targetUserId = _resolveUserId();
         final post = _forYouPosts.cast<CommunityPost?>().firstWhere(
-              (p) => p?.id == postId,
-              orElse: () => null,
-            );
+          (p) => p?.id == postId,
+          orElse: () => null,
+        );
         final isLikedNow = post?.liked ?? false;
 
         if (isLikedNow) {
-          unawaited(client.from('community_likes').insert({
-            'post_id': postId,
-            'user_id': targetUserId,
-          }).catchError((e) {
-            debugPrint('[CommunityRepository] like insert error: $e');
-          }));
+          unawaited(
+            client
+                .from('community_likes')
+                .insert({'post_id': postId, 'user_id': targetUserId})
+                .catchError((e) {
+                  debugPrint('[CommunityRepository] like insert error: $e');
+                }),
+          );
         } else {
-          unawaited(client
-              .from('community_likes')
-              .delete()
-              .eq('post_id', postId)
-              .eq('user_id', targetUserId)
-              .catchError((e) {
-            debugPrint('[CommunityRepository] like delete error: $e');
-          }));
+          unawaited(
+            client
+                .from('community_likes')
+                .delete()
+                .eq('post_id', postId)
+                .eq('user_id', targetUserId)
+                .catchError((e) {
+                  debugPrint('[CommunityRepository] like delete error: $e');
+                }),
+          );
         }
       } catch (e) {
         debugPrint('[CommunityRepository] toggleLike error: $e');
@@ -774,27 +803,31 @@ class CommunityRepository extends ChangeNotifier {
         final client = SupabaseConfig.client!;
         final targetUserId = _resolveUserId();
         final post = _forYouPosts.cast<CommunityPost?>().firstWhere(
-              (p) => p?.id == postId,
-              orElse: () => null,
-            );
+          (p) => p?.id == postId,
+          orElse: () => null,
+        );
         final isBookmarkedNow = post?.bookmarked ?? false;
 
         if (isBookmarkedNow) {
-          unawaited(client.from('community_bookmarks').insert({
-            'post_id': postId,
-            'user_id': targetUserId,
-          }).catchError((e) {
-            debugPrint('[CommunityRepository] bookmark insert error: $e');
-          }));
+          unawaited(
+            client
+                .from('community_bookmarks')
+                .insert({'post_id': postId, 'user_id': targetUserId})
+                .catchError((e) {
+                  debugPrint('[CommunityRepository] bookmark insert error: $e');
+                }),
+          );
         } else {
-          unawaited(client
-              .from('community_bookmarks')
-              .delete()
-              .eq('post_id', postId)
-              .eq('user_id', targetUserId)
-              .catchError((e) {
-            debugPrint('[CommunityRepository] bookmark delete error: $e');
-          }));
+          unawaited(
+            client
+                .from('community_bookmarks')
+                .delete()
+                .eq('post_id', postId)
+                .eq('user_id', targetUserId)
+                .catchError((e) {
+                  debugPrint('[CommunityRepository] bookmark delete error: $e');
+                }),
+          );
         }
       } catch (e) {
         debugPrint('[CommunityRepository] toggleBookmark error: $e');
@@ -881,15 +914,21 @@ class CommunityRepository extends ChangeNotifier {
         final client = SupabaseConfig.client!;
         final targetUserId = _resolveUserId();
         final commentId = const Uuid().v4();
-        unawaited(client.from('community_comments').insert({
-          'id': commentId,
-          'post_id': postId,
-          'author_id': targetUserId,
-          'body': body.trim(),
-          if (parentId != null && _isUuid(parentId)) 'parent_id': parentId,
-        }).catchError((e) {
-          debugPrint('[CommunityRepository] addComment error: $e');
-        }));
+        unawaited(
+          client
+              .from('community_comments')
+              .insert({
+                'id': commentId,
+                'post_id': postId,
+                'author_id': targetUserId,
+                'body': body.trim(),
+                if (parentId != null && _isUuid(parentId))
+                  'parent_id': parentId,
+              })
+              .catchError((e) {
+                debugPrint('[CommunityRepository] addComment error: $e');
+              }),
+        );
       } catch (e) {
         debugPrint('[CommunityRepository] addComment error: $e');
       }
@@ -1003,26 +1042,37 @@ class CommunityRepository extends ChangeNotifier {
         final client = SupabaseConfig.client!;
         final currentUserId = _resolveUserId();
         final trader = _suggestedTraders.cast<CommunityAuthor?>().firstWhere(
-              (a) => a?.id == traderId,
-              orElse: () => null,
-            );
+          (a) => a?.id == traderId,
+          orElse: () => null,
+        );
         final isFollowingNow = trader?.isFollowing ?? false;
         if (isFollowingNow) {
-          unawaited(client.from('community_follows').insert({
-            'follower_id': currentUserId,
-            'following_id': traderId,
-          }).catchError((e) {
-            debugPrint('[CommunityRepository] toggleFollow insert error: $e');
-          }));
+          unawaited(
+            client
+                .from('community_follows')
+                .insert({
+                  'follower_id': currentUserId,
+                  'following_id': traderId,
+                })
+                .catchError((e) {
+                  debugPrint(
+                    '[CommunityRepository] toggleFollow insert error: $e',
+                  );
+                }),
+          );
         } else {
-          unawaited(client
-              .from('community_follows')
-              .delete()
-              .eq('follower_id', currentUserId)
-              .eq('following_id', traderId)
-              .catchError((e) {
-            debugPrint('[CommunityRepository] toggleFollow delete error: $e');
-          }));
+          unawaited(
+            client
+                .from('community_follows')
+                .delete()
+                .eq('follower_id', currentUserId)
+                .eq('following_id', traderId)
+                .catchError((e) {
+                  debugPrint(
+                    '[CommunityRepository] toggleFollow delete error: $e',
+                  );
+                }),
+          );
         }
       } catch (e) {
         debugPrint('[CommunityRepository] toggleFollow error: $e');
@@ -1033,7 +1083,7 @@ class CommunityRepository extends ChangeNotifier {
   /// @backend POST /api/v1/community/posts
   /// Body: Post create schema
   /// Returns: CommunityPost JSON
-  void createPost({
+  Future<void> createPost({
     required String body,
     List<String> tickers = const <String>[],
     List<String> tags = const <String>[],
@@ -1048,7 +1098,8 @@ class CommunityRepository extends ChangeNotifier {
     bool isDeskAlert = false,
     DateTime? scheduledFor,
     required CommunityAuthor author,
-  }) {
+  }) async {
+    RecordAccess.requireService();
     final newId = SupabaseConfig.isConfigured
         ? const Uuid().v4()
         : 'post_${DateTime.now().millisecondsSinceEpoch}';
@@ -1073,66 +1124,19 @@ class CommunityRepository extends ChangeNotifier {
       scheduledFor: scheduledFor,
       views: 1,
     );
+    if (SupabaseConfig.isConfigured) {
+      await CommunityPostWriter(
+        SupabaseConfig.client!,
+        SupabaseConfig.client!.auth.currentUser?.id ?? '',
+      ).create(post);
+    }
+
     _forYouPosts = <CommunityPost>[post, ..._forYouPosts];
     _followingPosts = <CommunityPost>[post, ..._followingPosts];
     if (tradeSetup != null) {
       _signalPosts = <CommunityPost>[post, ..._signalPosts];
     }
     notifyListeners();
-
-    if (SupabaseConfig.isConfigured) {
-      unawaited(() async {
-        try {
-          final client = SupabaseConfig.client!;
-          final userId = _resolveUserId();
-          await client.from('community_posts').insert({
-            'id': post.id,
-            'author_id': userId,
-            'title': tickers.isNotEmpty ? tickers.first : 'Post',
-            'body': post.body,
-            'kind': tradeSetup != null ? 'setup' : (isDeskAlert ? 'alert' : 'general'),
-            'tickers': tickers,
-            'tags': tags,
-            'is_public': true,
-            'visibility': 'public',
-            'created_at': post.createdAt.toIso8601String(),
-          });
-          if (tradeSetup != null) {
-            await client.from('community_post_trade_setups').insert({
-              'post_id': post.id,
-              'ticker': tradeSetup.ticker,
-              'side': tradeSetup.side.toLowerCase(),
-              'entry': double.tryParse(tradeSetup.entry) ?? 0.0,
-              if (tradeSetup.stopLoss != null)
-                'stop_loss': double.tryParse(tradeSetup.stopLoss!),
-              if (tradeSetup.target != null)
-                'target1': double.tryParse(tradeSetup.target!),
-            });
-          }
-          for (final imgUrl in post.effectiveImageUrls) {
-            await client.from('community_post_attachments').insert({
-              'post_id': post.id,
-              'kind': 'image',
-              'ref_id': imgUrl,
-              'title': 'Chart Image',
-              'url': imgUrl,
-            });
-          }
-          if (post.attachment != null) {
-            final att = post.attachment!;
-            await client.from('community_post_attachments').insert({
-              'post_id': post.id,
-              'kind': att.source.kind.name,
-              'ref_id': att.source.id,
-              'title': att.source.title,
-              'url': att.source.subtitle,
-            });
-          }
-        } catch (e) {
-          debugPrint('[CommunityRepository] createPost Supabase error: $e');
-        }
-      }());
-    }
 
     final Set<String> linkedTickers = <String>{
       ...tickers,
@@ -1165,29 +1169,47 @@ class CommunityRepository extends ChangeNotifier {
         final client = SupabaseConfig.client!;
         final ext = filename != null && filename.contains('.')
             ? filename.split('.').last
-            : (file != null && file.path.contains('.') ? file.path.split('.').last : 'png');
+            : (file != null && file.path.contains('.')
+                  ? file.path.split('.').last
+                  : 'png');
         final cleanName = '${const Uuid().v4()}.$ext';
-        final storagePath = '$postId/$cleanName';
+        final actor = client.auth.currentUser?.id;
+        if (actor == null) throw StateError('Sign in to upload an attachment.');
+        final storagePath = '$actor/$postId/$cleanName';
 
         if (bytes != null) {
-          await client.storage.from('community-attachments').uploadBinary(
+          await client.storage
+              .from('community-attachments')
+              .uploadBinary(
                 storagePath,
                 bytes,
-                fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+                fileOptions: const FileOptions(
+                  cacheControl: '3600',
+                  upsert: true,
+                ),
               );
         } else if (file != null) {
           final fileBytes = await file.readAsBytes();
-          await client.storage.from('community-attachments').uploadBinary(
+          await client.storage
+              .from('community-attachments')
+              .uploadBinary(
                 storagePath,
                 fileBytes,
-                fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+                fileOptions: const FileOptions(
+                  cacheControl: '3600',
+                  upsert: true,
+                ),
               );
         }
-        return client.storage.from('community-attachments').getPublicUrl(storagePath);
+        return client.storage
+            .from('community-attachments')
+            .getPublicUrl(storagePath);
       } catch (e) {
         debugPrint('[CommunityRepository] uploadAttachment error: $e');
+        rethrow;
       }
     }
+    RecordAccess.requireService();
     return file?.path ?? filename ?? '';
   }
 
@@ -1210,24 +1232,27 @@ class CommunityRepository extends ChangeNotifier {
 
   /// @backend DELETE /api/v1/community/posts/{postId}
   /// Returns: { "success": true }
-  void deletePost(String postId) {
-    _forYouPosts = _forYouPosts.where((p) => p.id != postId).toList();
-    _followingPosts = _followingPosts.where((p) => p.id != postId).toList();
-    _signalPosts = _signalPosts.where((p) => p.id != postId).toList();
-    _bookmarkedPosts = _bookmarkedPosts.where((p) => p.id != postId).toList();
-    notifyListeners();
-
-    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
-      unawaited(() async {
-        try {
-          final client = SupabaseConfig.client!;
-          await client.from('community_posts').delete().eq('id', postId);
-        } catch (e) {
-          debugPrint('[CommunityRepository] deletePost Supabase error: $e');
-        }
-      }());
+  Future<void> deletePost(String postId) async {
+    RecordAccess.requireService();
+    final post = loadPostById(postId);
+    if (post == null) throw StateError('This post is no longer available.');
+    final actor =
+        SupabaseConfig.client?.auth.currentUser?.id ?? currentAuthor.id;
+    if (post.author.id != actor) {
+      throw StateError('Only the author can delete this post.');
     }
-
+    if (SupabaseConfig.isConfigured) {
+      await OwnedRecordWriter().delete(
+        'community_posts',
+        postId,
+        ownerColumn: 'author_id',
+      );
+    }
+    _forYouPosts.removeWhere((post) => post.id == postId);
+    _followingPosts.removeWhere((post) => post.id == postId);
+    _signalPosts.removeWhere((post) => post.id == postId);
+    _bookmarkedPosts.removeWhere((post) => post.id == postId);
+    notifyListeners();
     unawaited(
       EntityTickerLinksRepository.instance.removeLinks(
         entityType: 'community_post',
@@ -1239,7 +1264,7 @@ class CommunityRepository extends ChangeNotifier {
   /// @backend PATCH /api/v1/community/posts/{postId}
   /// Body: { "body": String, ... }
   /// Returns: CommunityPost JSON
-  void editPost(
+  Future<void> editPost(
     String postId,
     String newBody, {
     List<String>? tickers,
@@ -1254,7 +1279,94 @@ class CommunityRepository extends ChangeNotifier {
     bool clearSentiment = false,
     CommunityReplyAudience? replyAudience,
     List<String>? imageUrls,
-  }) {
+  }) async {
+    RecordAccess.requireService();
+    final existing = loadPostById(postId);
+    if (existing == null) throw StateError('This post is no longer available.');
+    final actor =
+        SupabaseConfig.client?.auth.currentUser?.id ?? currentAuthor.id;
+    if (existing.author.id != actor) {
+      throw StateError('Only the author can edit this post.');
+    }
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      await (() async {
+        try {
+          final client = SupabaseConfig.client!;
+          await client
+              .from('community_posts')
+              .update({
+                'body': newBody,
+                'tickers': ?tickers,
+                'tags': ?tags,
+                'updated_at': DateTime.now().toIso8601String(),
+              })
+              .eq('id', postId)
+              .eq('author_id', actor)
+              .select('id')
+              .single();
+
+          if (tradeSetup != null) {
+            final entry = double.tryParse(tradeSetup.entry);
+            if (entry == null || !entry.isFinite || entry <= 0) {
+              throw StateError('Enter a valid entry price.');
+            }
+            await client.from('community_post_trade_setups').upsert({
+              'post_id': postId,
+              'ticker': tradeSetup.ticker,
+              'side': tradeSetup.side.toLowerCase(),
+              'entry': entry,
+              'stop_loss': double.tryParse(tradeSetup.stopLoss ?? ''),
+              'target1': double.tryParse(tradeSetup.target ?? ''),
+            }, onConflict: 'post_id');
+          } else if (clearTradeSetup) {
+            await client
+                .from('community_post_trade_setups')
+                .delete()
+                .eq('post_id', postId);
+          }
+          if (imageUrls != null) {
+            await client
+                .from('community_post_attachments')
+                .delete()
+                .eq('post_id', postId)
+                .eq('kind', 'image');
+            for (final imgUrl in imageUrls) {
+              await client.from('community_post_attachments').insert({
+                'post_id': postId,
+                'kind': 'image',
+                'ref_id': imgUrl,
+                'title': 'Chart Image',
+                'url': imgUrl,
+              });
+            }
+          }
+          if (attachment != null) {
+            await client
+                .from('community_post_attachments')
+                .delete()
+                .eq('post_id', postId)
+                .neq('kind', 'image');
+            await client.from('community_post_attachments').insert({
+              'post_id': postId,
+              'kind': attachment.source.kind.name,
+              'ref_id': attachment.source.id,
+              'title': attachment.source.title,
+              'url': attachment.source.subtitle,
+            });
+          } else if (clearAttachment) {
+            await client
+                .from('community_post_attachments')
+                .delete()
+                .eq('post_id', postId)
+                .neq('kind', 'image');
+          }
+        } catch (e) {
+          debugPrint('[CommunityRepository] editPost Supabase error: $e');
+          rethrow;
+        }
+      }());
+    }
+
     _forYouPosts = _editPostInList(
       _forYouPosts,
       postId,
@@ -1308,59 +1420,6 @@ class CommunityRepository extends ChangeNotifier {
     );
     notifyListeners();
 
-    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
-      unawaited(() async {
-        try {
-          final client = SupabaseConfig.client!;
-          await client.from('community_posts').update({
-            'body': newBody,
-            'tickers': ?tickers,
-            'tags': ?tags,
-            'updated_at': DateTime.now().toIso8601String(),
-          }).eq('id', postId);
-
-          if (imageUrls != null) {
-            await client
-                .from('community_post_attachments')
-                .delete()
-                .eq('post_id', postId)
-                .eq('kind', 'image');
-            for (final imgUrl in imageUrls) {
-              await client.from('community_post_attachments').insert({
-                'post_id': postId,
-                'kind': 'image',
-                'ref_id': imgUrl,
-                'title': 'Chart Image',
-                'url': imgUrl,
-              });
-            }
-          }
-          if (attachment != null) {
-            await client
-                .from('community_post_attachments')
-                .delete()
-                .eq('post_id', postId)
-                .neq('kind', 'image');
-            await client.from('community_post_attachments').insert({
-              'post_id': postId,
-              'kind': attachment.source.kind.name,
-              'ref_id': attachment.source.id,
-              'title': attachment.source.title,
-              'url': attachment.source.subtitle,
-            });
-          } else if (clearAttachment) {
-            await client
-                .from('community_post_attachments')
-                .delete()
-                .eq('post_id', postId)
-                .neq('kind', 'image');
-          }
-        } catch (e) {
-          debugPrint('[CommunityRepository] editPost Supabase error: $e');
-        }
-      }());
-    }
-
     final Set<String> linkedTickers = <String>{
       ...?tickers,
       if (tradeSetup?.ticker != null && tradeSetup!.ticker.isNotEmpty)
@@ -1386,38 +1445,29 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
-  CommunityPost? setPostVisibility(String postId, bool isPublic) {
-    CommunityPost? updated;
-    CommunityPost update(CommunityPost p) {
-      if (p.id == postId) {
-        updated = p.copyWith(isPublic: isPublic);
-        return updated!;
-      }
-      return p;
+  Future<CommunityPost?> setPostVisibility(String postId, bool isPublic) async {
+    RecordAccess.requireService();
+    final existing = loadPostById(postId);
+    if (existing == null) throw StateError('This post is no longer available.');
+    final actor =
+        SupabaseConfig.client?.auth.currentUser?.id ?? currentAuthor.id;
+    if (existing.author.id != actor) {
+      throw StateError('Only the author can change post visibility.');
     }
-
-    _forYouPosts = _forYouPosts.map(update).toList();
-    _followingPosts = _followingPosts.map(update).toList();
-    _signalPosts = _signalPosts.map(update).toList();
-    _bookmarkedPosts = _bookmarkedPosts.map(update).toList();
-
+    if (SupabaseConfig.isConfigured) {
+      await OwnedRecordWriter().update('community_posts', postId, {
+        'is_public': isPublic,
+        'visibility': isPublic ? 'public' : 'private',
+      }, ownerColumn: 'author_id');
+    }
+    final updated = existing.copyWith(isPublic: isPublic);
+    CommunityPost replace(CommunityPost post) =>
+        post.id == postId ? updated : post;
+    _forYouPosts = _forYouPosts.map(replace).toList();
+    _followingPosts = _followingPosts.map(replace).toList();
+    _signalPosts = _signalPosts.map(replace).toList();
+    _bookmarkedPosts = _bookmarkedPosts.map(replace).toList();
     notifyListeners();
-
-    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
-      unawaited(() async {
-        try {
-          final client = SupabaseConfig.client!;
-          await client.from('community_posts').update({
-            'is_public': isPublic,
-            'visibility': isPublic ? 'public' : 'private',
-            'updated_at': DateTime.now().toIso8601String(),
-          }).eq('id', postId);
-        } catch (e) {
-          debugPrint('[CommunityRepository] setPostVisibility Supabase error: $e');
-        }
-      }());
-    }
-
     return updated;
   }
 
@@ -1525,8 +1575,9 @@ class CommunityRepository extends ChangeNotifier {
     CommunityReportReason reason, {
     String? notes,
   }) {
-    // Dispatched to moderation queue.
-    notifyListeners();
+    throw StateError(
+      'Moderation delivery is not connected. No report has been submitted.',
+    );
   }
 
   /// @backend POST /api/v1/community/moderation/mute
@@ -1571,7 +1622,10 @@ class CommunityRepository extends ChangeNotifier {
       ..._bookmarkedPosts,
     ];
     try {
-      return all.firstWhere((p) => p.id == postId);
+      return all.firstWhere(
+        (p) =>
+            p.id == postId && (p.isPublic || p.author.id == currentAuthor.id),
+      );
     } catch (_) {
       return null;
     }
@@ -1580,8 +1634,7 @@ class CommunityRepository extends ChangeNotifier {
   /// Asynchronously fetches a post from Supabase if not present in the local cache.
   Future<CommunityPost?> fetchPostById(String postId) async {
     final cached = loadPostById(postId);
-    if (cached != null) return cached;
-    if (!SupabaseConfig.isConfigured) return null;
+    if (!SupabaseConfig.isConfigured) return cached;
     try {
       final client = SupabaseConfig.client!;
       final res = await client
@@ -1595,10 +1648,15 @@ class CommunityRepository extends ChangeNotifier {
         final row = res;
         final authorProfile = row['profiles'] as Map<String, dynamic>?;
         final authorId = row['author_id']?.toString() ?? '';
+        if (row['is_public'] != true &&
+            authorId != SupabaseConfig.client?.auth.currentUser?.id) {
+          return null;
+        }
         final author = CommunityAuthor(
           id: authorId,
           handle: authorProfile?['username'] as String? ?? 'trader',
-          displayName: authorProfile?['display_name'] as String? ??
+          displayName:
+              authorProfile?['display_name'] as String? ??
               authorProfile?['username'] as String? ??
               'Trader',
           userRole: _parseUserRole(authorProfile?['role'] as String?),
@@ -1617,7 +1675,9 @@ class CommunityRepository extends ChangeNotifier {
           final s = setupsList.first as Map<String, dynamic>;
           setup = CommunityTradeSetup(
             ticker: s['ticker'] as String? ?? '',
-            side: (s['side']?.toString().toUpperCase() == 'SHORT') ? 'SHORT' : 'LONG',
+            side: (s['side']?.toString().toUpperCase() == 'SHORT')
+                ? 'SHORT'
+                : 'LONG',
             entry: s['entry']?.toString() ?? '0.0',
             stopLoss: s['stop_loss']?.toString(),
             target: s['target1']?.toString(),
@@ -1660,11 +1720,17 @@ class CommunityRepository extends ChangeNotifier {
           id: postId,
           author: author,
           body: row['body'] as String? ?? '',
-          createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '') ?? DateTime.now(),
+          createdAt:
+              DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+              DateTime.now(),
           isPinned: row['is_pinned'] as bool? ?? false,
-          isPublic: row['is_public'] as bool? ?? true,
-          tickers: (row['tickers'] as List?)?.map((e) => e.toString()).toList() ?? const [],
-          tags: (row['tags'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+          isPublic: row['is_public'] as bool? ?? false,
+          tickers:
+              (row['tickers'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
+          tags:
+              (row['tags'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
           tradeSetup: setup,
           imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
           imageUrls: imageUrls,
@@ -1692,15 +1758,13 @@ class CommunityRepository extends ChangeNotifier {
     final post = loadPostById(postId);
     final insights = CommunityPostInsights(
       postId: postId,
-      impressions: math.max(post?.views ?? 240, 320),
+      impressions: post?.views ?? 0,
       engagements:
-          (post?.likes ?? 12) +
-          (post?.reposts ?? 4) +
-          (post?.comments ?? 3) * 2,
-      detailExpands: ((post?.views ?? 200) * 0.18).round(),
-      profileVisits: ((post?.views ?? 200) * 0.05).round(),
-      linkClicks: ((post?.views ?? 200) * 0.08).round(),
-      shares: (post?.reposts ?? 2) * 2,
+          (post?.likes ?? 0) + (post?.reposts ?? 0) + (post?.comments ?? 0),
+      detailExpands: 0,
+      profileVisits: 0,
+      linkClicks: 0,
+      shares: post?.reposts ?? 0,
     );
     _insightsByPost[postId] = insights;
     return insights;
@@ -1710,9 +1774,9 @@ class CommunityRepository extends ChangeNotifier {
   /// Query: q=..., category=...
   /// Returns: `List<CommunityPost>` JSON
   List<CommunityPost> searchPosts(String query, {String? category}) {
-    if (query.trim().isEmpty) return _forYouPosts;
+    if (query.trim().isEmpty) return forYouPosts;
     final q = query.toLowerCase();
-    return _forYouPosts.where((p) {
+    return forYouPosts.where((p) {
       final matchesText =
           p.body.toLowerCase().contains(q) ||
           p.author.displayName.toLowerCase().contains(q) ||
@@ -1736,14 +1800,19 @@ class CommunityRepository extends ChangeNotifier {
     if (query.trim().isEmpty) return _suggestedTraders;
     final q = query.toLowerCase();
     final all = <CommunityAuthor>[
-      _alexVance,
-      _marcoSilva,
-      _elenaRostova,
-      _priyaSharma,
-      _tradexWire,
-      _arisThorne,
-      _rajeshPatel,
-      _sarahWong,
+      if (!CustomerDataPolicy.allowDemo) ...{
+        for (final post in _forYouPosts) post.author,
+      },
+      if (CustomerDataPolicy.allowDemo) ...[
+        _alexVance,
+        _marcoSilva,
+        _elenaRostova,
+        _priyaSharma,
+        _tradexWire,
+        _arisThorne,
+        _rajeshPatel,
+        _sarahWong,
+      ],
     ];
     return all.where((a) {
       return a.displayName.toLowerCase().contains(q) ||
@@ -1898,7 +1967,10 @@ class CommunityRepository extends ChangeNotifier {
     if (SupabaseConfig.isConfigured && _isUuid(leavingRoomId)) {
       try {
         final client = SupabaseConfig.client!;
-        await client.rpc('leave_live_room', params: {'p_room_id': leavingRoomId});
+        await client.rpc(
+          'leave_live_room',
+          params: {'p_room_id': leavingRoomId},
+        );
       } catch (e) {
         debugPrint('[CommunityRepository] leave_live_room RPC error: $e');
       }
@@ -1915,10 +1987,15 @@ class CommunityRepository extends ChangeNotifier {
     notifyListeners();
 
     final targetRoom = roomId ?? _tunedRoomId;
-    if (SupabaseConfig.isConfigured && targetRoom != null && _isUuid(targetRoom)) {
+    if (SupabaseConfig.isConfigured &&
+        targetRoom != null &&
+        _isUuid(targetRoom)) {
       try {
         final client = SupabaseConfig.client!;
-        await client.rpc('toggle_live_room_hand', params: {'p_room_id': targetRoom});
+        await client.rpc(
+          'toggle_live_room_hand',
+          params: {'p_room_id': targetRoom},
+        );
       } catch (e) {
         debugPrint('[CommunityRepository] toggle_live_room_hand RPC error: $e');
       }
@@ -1936,9 +2013,14 @@ class CommunityRepository extends ChangeNotifier {
     if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
       try {
         final client = SupabaseConfig.client!;
-        await client.rpc('toggle_live_room_reminder', params: {'p_room_id': roomId});
+        await client.rpc(
+          'toggle_live_room_reminder',
+          params: {'p_room_id': roomId},
+        );
       } catch (e) {
-        debugPrint('[CommunityRepository] toggle_live_room_reminder RPC error: $e');
+        debugPrint(
+          '[CommunityRepository] toggle_live_room_reminder RPC error: $e',
+        );
       }
     }
   }
@@ -1948,9 +2030,13 @@ class CommunityRepository extends ChangeNotifier {
     if (index != -1) {
       final room = _liveRooms[index];
       if (vote == 'bullish') {
-        _liveRooms[index] = room.copyWith(pollBullishVotes: room.pollBullishVotes + 1);
+        _liveRooms[index] = room.copyWith(
+          pollBullishVotes: room.pollBullishVotes + 1,
+        );
       } else {
-        _liveRooms[index] = room.copyWith(pollBearishVotes: room.pollBearishVotes + 1);
+        _liveRooms[index] = room.copyWith(
+          pollBearishVotes: room.pollBearishVotes + 1,
+        );
       }
       notifyListeners();
     }
@@ -1958,10 +2044,10 @@ class CommunityRepository extends ChangeNotifier {
     if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
       try {
         final client = SupabaseConfig.client!;
-        await client.rpc('vote_live_room_poll', params: {
-          'p_room_id': roomId,
-          'p_vote': vote,
-        });
+        await client.rpc(
+          'vote_live_room_poll',
+          params: {'p_room_id': roomId, 'p_vote': vote},
+        );
       } catch (e) {
         debugPrint('[CommunityRepository] vote_live_room_poll RPC error: $e');
       }
@@ -2061,7 +2147,10 @@ class CommunityRepository extends ChangeNotifier {
         });
 
         if (startNow) {
-          await client.rpc('tune_into_live_room', params: {'p_room_id': roomId});
+          await client.rpc(
+            'tune_into_live_room',
+            params: {'p_room_id': roomId},
+          );
         }
       } catch (e) {
         debugPrint('[CommunityRepository] createLiveRoom Supabase error: $e');
@@ -2108,7 +2197,11 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
-  Future<void> updateParticipantRole(String roomId, String targetUserId, String role) async {
+  Future<void> updateParticipantRole(
+    String roomId,
+    String targetUserId,
+    String role,
+  ) async {
     if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
       try {
         final client = SupabaseConfig.client!;
@@ -2123,7 +2216,11 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
-  Future<void> setParticipantMute(String roomId, String targetUserId, bool isMuted) async {
+  Future<void> setParticipantMute(
+    String roomId,
+    String targetUserId,
+    bool isMuted,
+  ) async {
     if (SupabaseConfig.isConfigured && _isUuid(roomId)) {
       try {
         final client = SupabaseConfig.client!;
@@ -2147,7 +2244,9 @@ class CommunityRepository extends ChangeNotifier {
       final client = SupabaseConfig.client!;
       final res = await client
           .from('community_live_room_messages')
-          .select('*, profiles:sender_id(id, username, display_name, avatar_url)')
+          .select(
+            '*, profiles:sender_id(id, username, display_name, avatar_url)',
+          )
           .eq('room_id', roomId)
           .order('created_at', ascending: true);
 
@@ -2187,7 +2286,9 @@ class CommunityRepository extends ChangeNotifier {
             'sender_id': userId,
             'message': text.trim(),
           })
-          .select('*, profiles:sender_id(id, username, display_name, avatar_url)')
+          .select(
+            '*, profiles:sender_id(id, username, display_name, avatar_url)',
+          )
           .single();
 
       return LiveRoomMessage.fromMap(res);
@@ -2222,7 +2323,9 @@ class CommunityRepository extends ChangeNotifier {
 
       final res = await client
           .from('community_live_room_questions')
-          .select('*, profiles:author_id(id, username, display_name, avatar_url)')
+          .select(
+            '*, profiles:author_id(id, username, display_name, avatar_url)',
+          )
           .eq('room_id', roomId)
           .order('upvotes_count', ascending: false)
           .order('created_at', ascending: false);
@@ -2241,7 +2344,10 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
-  Future<LiveRoomQuestion?> submitRoomQuestion(String roomId, String text) async {
+  Future<LiveRoomQuestion?> submitRoomQuestion(
+    String roomId,
+    String text,
+  ) async {
     if (text.trim().isEmpty) return null;
 
     if (!SupabaseConfig.isConfigured || !_isUuid(roomId)) {
@@ -2269,7 +2375,9 @@ class CommunityRepository extends ChangeNotifier {
             'question': text.trim(),
             'upvotes_count': 1,
           })
-          .select('*, profiles:author_id(id, username, display_name, avatar_url)')
+          .select(
+            '*, profiles:author_id(id, username, display_name, avatar_url)',
+          )
           .single();
 
       final question = LiveRoomQuestion.fromMap(res, hasUpvoted: true);
@@ -2509,6 +2617,7 @@ class CommunityRepository extends ChangeNotifier {
       postsCount: 87,
     );
 
+    if (!CustomerDataPolicy.allowDemo) return;
     _attachableRecords = _buildAttachableRecords();
     _seedPosts();
     _seedComments();

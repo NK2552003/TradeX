@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -14,11 +15,13 @@ class AiRepositoryImpl implements AiRepository {
   static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
 
   List<AppAiInsight> _fallbackInsights() {
+    if (!CustomerDataPolicy.allowDemo) return [];
     return <AppAiInsight>[
       AppAiInsight(
         id: 'ai_001',
         title: 'NIFTY50 Volatility Compression',
-        body: 'Bollinger Band width on NIFTY50 daily chart hit a 6-month low. Breakout expected towards 24,600 within 3-5 sessions.',
+        body:
+            'Bollinger Band width on NIFTY50 daily chart hit a 6-month low. Breakout expected towards 24,600 within 3-5 sessions.',
         confidence: 0.88,
         sentimentScore: 0.75,
         tickers: const ['NIFTY50'],
@@ -27,7 +30,8 @@ class AiRepositoryImpl implements AiRepository {
       AppAiInsight(
         id: 'ai_002',
         title: 'RELIANCE Institutional Accumulation',
-        body: 'Large block transactions detected on RELIANCE at 2,900 support level coinciding with positive RSI divergence.',
+        body:
+            'Large block transactions detected on RELIANCE at 2,900 support level coinciding with positive RSI divergence.',
         confidence: 0.82,
         sentimentScore: 0.68,
         tickers: const ['RELIANCE'],
@@ -45,7 +49,9 @@ class AiRepositoryImpl implements AiRepository {
         if (ticker != null && ticker.isNotEmpty) {
           query = query.eq('ticker', ticker.toUpperCase());
         }
-        final response = await query.order('generated_at', ascending: false).limit(20);
+        final response = await query
+            .order('generated_at', ascending: false)
+            .limit(20);
 
         final insights = (response as List<dynamic>).map((row) {
           final map = row as Map<String, dynamic>;
@@ -61,7 +67,9 @@ class AiRepositoryImpl implements AiRepository {
             confidence: confidenceVal.toDouble(),
             sentimentScore: sentimentVal.toDouble(),
             tickers: [rowTicker],
-            createdAt: map['generated_at'] != null ? DateTime.parse(map['generated_at'] as String) : DateTime.now(),
+            createdAt: map['generated_at'] != null
+                ? DateTime.parse(map['generated_at'] as String)
+                : DateTime.now(),
           );
         }).toList();
 
@@ -74,7 +82,10 @@ class AiRepositoryImpl implements AiRepository {
   }
 
   @override
-  Future<AppAiInsight> requestInsight({required String kind, String? ticker}) async {
+  Future<AppAiInsight> requestInsight({
+    required String kind,
+    String? ticker,
+  }) async {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
@@ -91,9 +102,14 @@ class AiRepositoryImpl implements AiRepository {
       }
     }
 
+    if (!CustomerDataPolicy.allowDemo) {
+      throw StateError('AI service is unavailable.');
+    }
     return AppAiInsight(
       id: 'ai_${DateTime.now().millisecondsSinceEpoch}',
-      title: ticker != null ? '${ticker.toUpperCase()} Dynamic Signal' : 'Market Quant Synthesis',
+      title: ticker != null
+          ? '${ticker.toUpperCase()} Dynamic Signal'
+          : 'Market Quant Synthesis',
       body: ticker != null
           ? 'Automated pattern scanner detected momentum breakout setup on ${ticker.toUpperCase()} with 1:3.2 Risk/Reward ratio.'
           : 'Broad market breadth indicates high institutional accumulation in Semiconductor & Tech sectors.',

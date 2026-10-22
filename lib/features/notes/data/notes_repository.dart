@@ -1,3 +1,7 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tradex/core/config/record_access.dart';
+import 'package:tradex/core/data/owned_record_writer.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -74,6 +78,7 @@ class NotesRepositoryImpl implements NotesRepository {
       StreamController<List<AppNote>>.broadcast();
 
   bool _initialized = false;
+  String? _cacheActor;
   bool _subscribedToRealtime = false;
   RealtimeChannel? _realtimeChannel;
 
@@ -92,9 +97,26 @@ class NotesRepositoryImpl implements NotesRepository {
   bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
 
   Future<void> _init() async {
+    final actor = _resolveUserId();
+    if (_cacheActor != actor) {
+      _notes.clear();
+      _likedNoteIds.clear();
+      _favoriteNoteIds.clear();
+      _commentsByNoteId.clear();
+      _initialized = false;
+      _cacheActor = actor;
+    }
     if (_initialized) return;
     _initialized = true;
+    final preferences = await SharedPreferences.getInstance();
+    _favoriteNoteIds.addAll(
+      preferences.getStringList('note_favorites:$actor') ?? const <String>[],
+    );
 
+    if (!SupabaseConfig.isConfigured && !CustomerDataPolicy.allowDemo) {
+      _publish();
+      return;
+    }
     if (SupabaseConfig.isConfigured) {
       _initRealtime();
       await _fetchFromSupabase();
@@ -113,17 +135,18 @@ class NotesRepositoryImpl implements NotesRepository {
 
     try {
       final client = SupabaseConfig.client!;
-      _realtimeChannel = client
-          .channel('public:trader_notes_channel')
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'trader_notes',
-            callback: (PostgresChangePayload payload) {
-              _handlePostgresChange(payload);
-            },
-          )
-        ..subscribe();
+      _realtimeChannel =
+          client
+              .channel('public:trader_notes_channel')
+              .onPostgresChanges(
+                event: PostgresChangeEvent.all,
+                schema: 'public',
+                table: 'trader_notes',
+                callback: (PostgresChangePayload payload) {
+                  _handlePostgresChange(payload);
+                },
+              )
+            ..subscribe();
     } catch (e) {
       debugPrint('[NotesRepository] Realtime subscription error: $e');
     }
@@ -251,7 +274,8 @@ class NotesRepositoryImpl implements NotesRepository {
         if (noteId == null) continue;
 
         final profiles = row['profiles'] as Map<String, dynamic>?;
-        final author = profiles?['display_name'] as String? ??
+        final author =
+            profiles?['display_name'] as String? ??
             profiles?['username'] as String? ??
             'Trader';
 
@@ -260,7 +284,8 @@ class NotesRepositoryImpl implements NotesRepository {
           userId: row['user_id']?.toString() ?? '',
           authorName: author,
           body: row['content']?.toString() ?? '',
-          createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+          createdAt:
+              DateTime.tryParse(row['created_at']?.toString() ?? '') ??
               DateTime.now(),
         );
 
@@ -321,8 +346,7 @@ class NotesRepositoryImpl implements NotesRepository {
         : const <String>[];
 
     final isLiked = _likedNoteIds.contains(id);
-    final isFavorite = _favoriteNoteIds.contains(id) ||
-        (row['is_favorite'] as bool? ?? false);
+    final isFavorite = _favoriteNoteIds.contains(id);
     final comments = _commentsByNoteId[id] ?? const <AppNoteComment>[];
 
     return AppNote(
@@ -330,9 +354,11 @@ class NotesRepositoryImpl implements NotesRepository {
       userId: row['user_id']?.toString() ?? '',
       title: row['title'] as String? ?? '',
       content: row['content'] as String? ?? '',
-      createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+      createdAt:
+          DateTime.tryParse(row['created_at']?.toString() ?? '') ??
           DateTime.now(),
-      updatedAt: DateTime.tryParse(row['updated_at']?.toString() ?? '') ??
+      updatedAt:
+          DateTime.tryParse(row['updated_at']?.toString() ?? '') ??
           DateTime.now(),
       noteType: AppNoteType.fromId(row['note_type'] as String?),
       tags: tags,
@@ -397,8 +423,10 @@ class NotesRepositoryImpl implements NotesRepository {
   @override
   Future<AppNote?> getById(String id) async {
     await _init();
-    for (final AppNote note in _notes) {
-      if (note.id == id) return note;
+    if (!SupabaseConfig.isConfigured) {
+      for (final AppNote note in _notes) {
+        if (note.id == id) return note;
+      }
     }
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
@@ -410,14 +438,20 @@ class NotesRepositoryImpl implements NotesRepository {
             .maybeSingle();
         if (res != null) {
           final note = _mapRowToNote(res);
+          if (!RecordAccess.canRead(note.userId, note.isPublic)) {
+            _notes.removeWhere((item) => item.id == id);
+            return null;
+          }
           _notes.removeWhere((n) => n.id == note.id);
           _notes.insert(0, note);
           _recordTickerLinks(note);
           _publish();
           return note;
         }
+        _notes.removeWhere((record) => record.id == id);
       } catch (e) {
         debugPrint('[NotesRepository] getById error: $e');
+        rethrow;
       }
     }
     return null;
@@ -425,16 +459,19 @@ class NotesRepositoryImpl implements NotesRepository {
 
   @override
   Future<AppNote> create(AppNote draft) async {
+    RecordAccess.requireService();
     await _init();
     final DateTime now = DateTime.now();
     final String assignedId =
-        draft.id.isEmpty ? const Uuid().v4() : draft.id;
+        draft.id.isEmpty || (SupabaseConfig.isConfigured && !_isUuid(draft.id))
+        ? const Uuid().v4()
+        : draft.id;
     final String currentUserId = _resolveUserId();
 
     final AppNote saved = draft
         .copyWith(
           id: assignedId,
-          userId: draft.userId.isNotEmpty ? draft.userId : currentUserId,
+          userId: currentUserId,
           createdAt: now,
           updatedAt: now,
         )
@@ -443,8 +480,9 @@ class NotesRepositoryImpl implements NotesRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final String supabaseId =
-            _isUuid(assignedId) ? assignedId : const Uuid().v4();
+        final String supabaseId = _isUuid(assignedId)
+            ? assignedId
+            : const Uuid().v4();
         final Map<String, dynamic> row = <String, dynamic>{
           'id': supabaseId,
           'user_id': saved.userId,
@@ -454,8 +492,7 @@ class NotesRepositoryImpl implements NotesRepository {
           'tags': saved.tags,
           'linked_tickers': saved.linkedTickers,
           if (_isUuid(saved.strategyId)) 'strategy_id': saved.strategyId,
-          'linked_journal_ids':
-              saved.linkedJournalIds.where(_isUuid).toList(),
+          'linked_journal_ids': saved.linkedJournalIds.where(_isUuid).toList(),
           'is_public': saved.isPublic,
           'word_count': saved.wordCount,
           'checklist_done': saved.checklistDone,
@@ -467,9 +504,10 @@ class NotesRepositoryImpl implements NotesRepository {
           'created_at': now.toIso8601String(),
           'updated_at': now.toIso8601String(),
         };
-        await client.from('trader_notes').insert(row);
+        await client.from('trader_notes').insert(row).select('id').single();
       } catch (e) {
         debugPrint('[NotesRepository] create error: $e');
+        rethrow;
       }
     }
 
@@ -481,15 +519,18 @@ class NotesRepositoryImpl implements NotesRepository {
 
   @override
   Future<AppNote> update(AppNote note) async {
+    RecordAccess.requireService();
+    final owned = await getById(note.id);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     await _init();
     final DateTime now = DateTime.now();
     final AppNote saved = note
-        .copyWith(updatedAt: now)
+        .copyWith(userId: owned.userId, updatedAt: now)
         .withDerivedCounts();
 
     if (SupabaseConfig.isConfigured && _isUuid(saved.id)) {
       try {
-        final client = SupabaseConfig.client!;
         final Map<String, dynamic> row = <String, dynamic>{
           'title': saved.title,
           'content': saved.content,
@@ -497,8 +538,7 @@ class NotesRepositoryImpl implements NotesRepository {
           'tags': saved.tags,
           'linked_tickers': saved.linkedTickers,
           'strategy_id': _isUuid(saved.strategyId) ? saved.strategyId : null,
-          'linked_journal_ids':
-              saved.linkedJournalIds.where(_isUuid).toList(),
+          'linked_journal_ids': saved.linkedJournalIds.where(_isUuid).toList(),
           'is_public': saved.isPublic,
           'word_count': saved.wordCount,
           'checklist_done': saved.checklistDone,
@@ -507,9 +547,10 @@ class NotesRepositoryImpl implements NotesRepository {
           'has_code': saved.hasCode,
           'updated_at': now.toIso8601String(),
         };
-        await client.from('trader_notes').update(row).eq('id', saved.id);
+        await OwnedRecordWriter().update('trader_notes', saved.id, row);
       } catch (e) {
         debugPrint('[NotesRepository] update error: $e');
+        rethrow;
       }
     }
 
@@ -526,13 +567,17 @@ class NotesRepositoryImpl implements NotesRepository {
 
   @override
   Future<void> delete(String id) async {
+    RecordAccess.requireService();
+    final owned = await getById(id);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     await _init();
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
-        final client = SupabaseConfig.client!;
-        await client.from('trader_notes').delete().eq('id', id);
+        await OwnedRecordWriter().delete('trader_notes', id);
       } catch (e) {
         debugPrint('[NotesRepository] delete error: $e');
+        rethrow;
       }
     }
 
@@ -560,92 +605,80 @@ class NotesRepositoryImpl implements NotesRepository {
 
   @override
   Future<AppNote> recordView(String id) async {
-    await _init();
-    if (SupabaseConfig.isConfigured && _isUuid(id)) {
+    final current = await getById(id);
+    if (current == null) throw StateError('This note is no longer available.');
+    if (!current.isPublic) return current;
+    if (SupabaseConfig.isConfigured) {
+      final actor = SupabaseConfig.client?.auth.currentUser?.id;
+      if (actor == null) return current;
       try {
-        final client = SupabaseConfig.client!;
-        final userId = _resolveUserId();
-        await client.from('trader_note_views').upsert({
-          'note_id': id,
-          'user_id': userId,
-          'viewed_at': DateTime.now().toUtc().toIso8601String(),
-        });
-        await client.rpc(
-          'increment_note_view',
-          params: {'note_uuid': id},
-        ).catchError((_) async {
-          final current = await getById(id);
-          if (current != null) {
-            await client
-                .from('trader_notes')
-                .update({'view_count': current.viewCount + 1})
-                .eq('id', id);
-          }
-        });
-      } catch (e) {
-        debugPrint('[NotesRepository] recordView error: $e');
+        await SupabaseConfig.client!
+            .from('trader_note_views')
+            .upsert({
+              'note_id': id,
+              'user_id': actor,
+              'viewed_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .select('note_id')
+            .single();
+        return await getById(id) ?? current;
+      } catch (error) {
+        debugPrint('[NotesRepository] view could not be recorded: $error');
+        return current;
       }
     }
-
-    return _mutate(
-      id,
-      (AppNote note) =>
-          note.isPublic ? note.copyWith(viewCount: note.viewCount + 1) : note,
-    );
+    return _mutate(id, (note) => note.copyWith(viewCount: note.viewCount + 1));
   }
 
   @override
   Future<AppNote> toggleLike(String id) async {
-    await _init();
+    RecordAccess.requireService();
+    final current = await getById(id);
+    if (current == null || !current.isPublic) {
+      throw StateError('Only a public note can be liked.');
+    }
     final isLikedNow = !_likedNoteIds.contains(id);
+    if (SupabaseConfig.isConfigured) {
+      final actor = SupabaseConfig.client?.auth.currentUser?.id;
+      if (actor == null) throw StateError('Sign in to like a note.');
+      final query = SupabaseConfig.client!.from('trader_note_likes');
+      if (isLikedNow) {
+        await query
+            .insert({'note_id': id, 'user_id': actor})
+            .select('note_id')
+            .single();
+      } else {
+        await query
+            .delete()
+            .eq('note_id', id)
+            .eq('user_id', actor)
+            .select('note_id')
+            .single();
+      }
+    }
     if (isLikedNow) {
       _likedNoteIds.add(id);
     } else {
       _likedNoteIds.remove(id);
     }
-
-    if (SupabaseConfig.isConfigured && _isUuid(id)) {
-      try {
-        final client = SupabaseConfig.client!;
-        final userId = _resolveUserId();
-        if (isLikedNow) {
-          await client.from('trader_note_likes').insert({
-            'note_id': id,
-            'user_id': userId,
-          });
-        } else {
-          await client
-              .from('trader_note_likes')
-              .delete()
-              .eq('note_id', id)
-              .eq('user_id', userId);
-        }
-        final note = await getById(id);
-        if (note != null) {
-          final updatedCount =
-              (note.likeCount + (isLikedNow ? 1 : -1)).clamp(0, 1 << 30);
-          await client
-              .from('trader_notes')
-              .update({'like_count': updatedCount})
-              .eq('id', id);
-        }
-      } catch (e) {
-        debugPrint('[NotesRepository] toggleLike error: $e');
-      }
-    }
-
-    return _mutate(id, (AppNote note) {
-      if (!note.isPublic) return note;
-      return note.copyWith(
+    // The database trigger owns aggregate counts. Never overwrite them with a
+    // stale client-side increment or modify another author's note row.
+    if (SupabaseConfig.isConfigured) return await getById(id) ?? current;
+    return _mutate(
+      id,
+      (note) => note.copyWith(
         liked: isLikedNow,
         likeCount: (note.likeCount + (isLikedNow ? 1 : -1)).clamp(0, 1 << 30),
-      );
-    });
+      ),
+    );
   }
 
   @override
   Future<AppNote> toggleFavorite(String id) async {
     await _init();
+    if (await getById(id) == null) {
+      throw StateError('This note is no longer available.');
+    }
     final isFav = !_favoriteNoteIds.contains(id);
     if (isFav) {
       _favoriteNoteIds.add(id);
@@ -653,37 +686,26 @@ class NotesRepositoryImpl implements NotesRepository {
       _favoriteNoteIds.remove(id);
     }
 
-    if (SupabaseConfig.isConfigured && _isUuid(id)) {
-      try {
-        final client = SupabaseConfig.client!;
-        await client
-            .from('trader_notes')
-            .update({'is_favorite': isFav})
-            .eq('id', id);
-      } catch (e) {
-        debugPrint('[NotesRepository] toggleFavorite error: $e');
-      }
-    }
-
-    return _mutate(
-      id,
-      (AppNote note) => note.copyWith(isFavorite: isFav),
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setStringList(
+      'note_favorites:${_resolveUserId()}',
+      _favoriteNoteIds.toList(),
     );
+
+    return _mutate(id, (AppNote note) => note.copyWith(isFavorite: isFav));
   }
 
   @override
   Future<AppNote> setVisibility(String id, bool isPublic) async {
+    RecordAccess.requireService();
+    final owned = await getById(id);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     await _init();
-    if (SupabaseConfig.isConfigured && _isUuid(id)) {
-      try {
-        final client = SupabaseConfig.client!;
-        await client
-            .from('trader_notes')
-            .update({'is_public': isPublic})
-            .eq('id', id);
-      } catch (e) {
-        debugPrint('[NotesRepository] setVisibility error: $e');
-      }
+    if (SupabaseConfig.isConfigured) {
+      await OwnedRecordWriter().update('trader_notes', id, {
+        'is_public': isPublic,
+      });
     }
 
     return _mutate(id, (AppNote note) => note.copyWith(isPublic: isPublic));
@@ -738,18 +760,31 @@ class NotesRepositoryImpl implements NotesRepository {
 
   @override
   Future<String> uploadAttachment(String noteId, File file) async {
+    RecordAccess.requireService();
+    if (SupabaseConfig.isConfigured) {
+      final owner = await getById(noteId);
+      if (owner == null) {
+        throw StateError('Save this record before adding attachments.');
+      }
+      RecordAccess.requireOwner(owner.userId);
+    }
     if (SupabaseConfig.isConfigured && _isUuid(noteId)) {
       try {
         final client = SupabaseConfig.client!;
         final ext = file.path.contains('.') ? file.path.split('.').last : 'png';
         final fileName = '${const Uuid().v4()}.$ext';
-        final storagePath = '$noteId/$fileName';
+        final storagePath = '${_resolveUserId()}/$noteId/$fileName';
 
-        await client.storage.from('note-attachments').upload(
-          storagePath,
-          file,
-          fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
-        );
+        await client.storage
+            .from('note-attachments')
+            .upload(
+              storagePath,
+              file,
+              fileOptions: const FileOptions(
+                cacheControl: '3600',
+                upsert: true,
+              ),
+            );
 
         final length = await file.length().catchError((_) => 0);
         await client.from('trader_note_attachments').insert({
@@ -765,6 +800,7 @@ class NotesRepositoryImpl implements NotesRepository {
         return storagePath;
       } catch (e) {
         debugPrint('[NotesRepository] uploadAttachment error: $e');
+        rethrow;
       }
     }
     return file.path;
@@ -772,17 +808,18 @@ class NotesRepositoryImpl implements NotesRepository {
 
   @override
   Future<String> resolveAttachmentUrl(String ref) async {
-    if (SupabaseConfig.isConfigured &&
-        !ref.startsWith('http') &&
-        !File(ref).existsSync()) {
-      try {
-        final client = SupabaseConfig.client!;
-        return client.storage.from('note-attachments').getPublicUrl(ref);
-      } catch (e) {
-        debugPrint('[NotesRepository] resolveAttachmentUrl error: $e');
-      }
+    if (!SupabaseConfig.isConfigured ||
+        ref.startsWith('https://') ||
+        ref.startsWith('http://') ||
+        ref.startsWith('/') ||
+        ref.contains(':\\') ||
+        ref.startsWith('file:') ||
+        ref.startsWith('data:')) {
+      return ref;
     }
-    return ref;
+    return SupabaseConfig.client!.storage
+        .from('note-attachments')
+        .createSignedUrl(ref, 600);
   }
 }
 

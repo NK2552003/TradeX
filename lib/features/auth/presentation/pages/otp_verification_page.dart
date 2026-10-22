@@ -49,7 +49,8 @@ class OtpVerificationPage extends StatefulWidget {
 }
 
 class _OtpVerificationPageState extends State<OtpVerificationPage> {
-  late final AuthOtpRepository _repository = widget.repository ??
+  late final AuthOtpRepository _repository =
+      widget.repository ??
       (SupabaseConfig.isConfigured
           ? SupabaseAuthOtpRepository()
           : AuthOtpRepositoryImpl());
@@ -76,7 +77,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       if (client != null && SupabaseConfig.isConfigured) {
         final session = client.auth.currentSession;
         final user = client.auth.currentUser ?? session?.user;
-        if (session != null || (user != null && user.emailConfirmedAt != null)) {
+        if (session != null ||
+            (user != null && user.emailConfirmedAt != null)) {
           if (mounted) {
             setState(() {
               _isAlreadyConfirmed = true;
@@ -175,7 +177,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       if (!mounted) return;
       setState(() {
         _isResending = false;
-        _errorText = 'Unable to resend OTP: ${e.toString().replaceAll('AuthException: ', '')}';
+        _errorText =
+            'Unable to resend OTP: ${e.toString().replaceAll('AuthException: ', '')}';
       });
     }
   }
@@ -201,9 +204,10 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
               ),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: (viewportConstraints.maxHeight -
-                          context.sp(theme.spacing.xl) * 2)
-                      .clamp(0.0, double.infinity),
+                  minHeight:
+                      (viewportConstraints.maxHeight -
+                              context.sp(theme.spacing.xl) * 2)
+                          .clamp(0.0, double.infinity),
                 ),
                 child: Center(
                   child: ConstrainedBox(
@@ -256,7 +260,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                                     message: _errorText!,
                                     intent: UiIntent.danger,
                                   ),
-                                  SizedBox(height: context.sp(theme.spacing.md)),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.md),
+                                  ),
                                 ],
                                 if (_isAlreadyConfirmed) ...<Widget>[
                                   UiCallout(
@@ -265,141 +271,156 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                                         'Your email (${widget.identifier}) is already verified in Supabase! You can proceed directly without entering a code.',
                                     intent: UiIntent.success,
                                   ),
-                                  SizedBox(height: context.sp(theme.spacing.md)),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.md),
+                                  ),
                                   UiButton(
                                     label: 'Continue to Account Setup',
                                     variant: UiVariant.primary,
                                     intent: UiIntent.success,
                                     size: UiSize.lg,
-                                    onPressed: () => widget.onVerified('already_confirmed'),
+                                    onPressed: () =>
+                                        widget.onVerified('already_confirmed'),
                                   ),
-                                  SizedBox(height: context.sp(theme.spacing.lg)),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.lg),
+                                  ),
                                   UiDivider(label: 'OR ENTER CODE'),
-                                  SizedBox(height: context.sp(theme.spacing.md)),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.md),
+                                  ),
                                 ],
 
-                          const AuthStepIcon(
-                            icon: Icons.mark_email_read_outlined,
-                            intent: UiIntent.info,
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.md)),
-                          Text(
-                            widget.purpose.title,
-                            textAlign: TextAlign.center,
-                            style: context.uiText.display.copyWith(
-                              fontSize: 28.0,
-                              fontWeight: FontWeight.w400,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.xxs)),
-                          Text(
-                            '${widget.purpose.subtitle} ${widget.identifier}',
-                            textAlign: TextAlign.center,
-                            style: context.uiText.body.copyWith(
-                              color: colors.foregroundMuted,
-                              fontSize: 13.5,
-                            ),
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.xl)),
-
-                          Center(
-                            child: UiOtpField(
-                              controller: _codeController,
-                              length: widget.codeLength,
-                              autofocus: true,
-                              enabled: !_isVerifying,
-                              error: _errorText != null,
-                              onChanged: (_) {
-                                if (_errorText != null) {
-                                  setState(() => _errorText = null);
-                                }
-                              },
-                              onCompleted: (String code) => _handleVerify(code),
-                            ),
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.lg)),
-
-                          Wrap(
-                            alignment: WrapAlignment.center,
-                            runSpacing: context.sp(theme.spacing.xs),
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: <Widget>[
-                              Text(
-                                _timerSeconds > 0
-                                    ? 'Resend code in ${_timerSeconds}s'
-                                    : "Didn't get a code?",
-                                style: context.uiText.caption.copyWith(
-                                  color: colors.foregroundSubtle,
+                                const AuthStepIcon(
+                                  icon: Icons.mark_email_read_outlined,
+                                  intent: UiIntent.info,
                                 ),
-                              ),
-                              if (_timerSeconds == 0) ...<Widget>[
-                                SizedBox(width: context.sp(theme.spacing.xs)),
-                                GestureDetector(
-                                  onTap: _isResending ? null : _handleResend,
-                                  child: Text(
-                                    _isResending ? 'Sending…' : 'Resend OTP',
-                                    style: context.uiText.caption.copyWith(
-                                      color: colors.primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                SizedBox(height: context.sp(theme.spacing.md)),
+                                Text(
+                                  widget.purpose.title,
+                                  textAlign: TextAlign.center,
+                                  style: context.uiText.display.copyWith(
+                                    fontSize: 28.0,
+                                    fontWeight: FontWeight.w400,
+                                    letterSpacing: -0.5,
                                   ),
                                 ),
+                                SizedBox(height: context.sp(theme.spacing.xxs)),
+                                Text(
+                                  '${widget.purpose.subtitle} ${widget.identifier}',
+                                  textAlign: TextAlign.center,
+                                  style: context.uiText.body.copyWith(
+                                    color: colors.foregroundMuted,
+                                    fontSize: 13.5,
+                                  ),
+                                ),
+                                SizedBox(height: context.sp(theme.spacing.xl)),
+
+                                Center(
+                                  child: UiOtpField(
+                                    controller: _codeController,
+                                    length: widget.codeLength,
+                                    autofocus: true,
+                                    enabled: !_isVerifying,
+                                    error: _errorText != null,
+                                    onChanged: (_) {
+                                      if (_errorText != null) {
+                                        setState(() => _errorText = null);
+                                      }
+                                    },
+                                    onCompleted: (String code) =>
+                                        _handleVerify(code),
+                                  ),
+                                ),
+                                SizedBox(height: context.sp(theme.spacing.lg)),
+
+                                Wrap(
+                                  alignment: WrapAlignment.center,
+                                  runSpacing: context.sp(theme.spacing.xs),
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: <Widget>[
+                                    Text(
+                                      _timerSeconds > 0
+                                          ? 'Resend code in ${_timerSeconds}s'
+                                          : "Didn't get a code?",
+                                      style: context.uiText.caption.copyWith(
+                                        color: colors.foregroundSubtle,
+                                      ),
+                                    ),
+                                    if (_timerSeconds == 0) ...<Widget>[
+                                      SizedBox(
+                                        width: context.sp(theme.spacing.xs),
+                                      ),
+                                      GestureDetector(
+                                        onTap: _isResending
+                                            ? null
+                                            : _handleResend,
+                                        child: Text(
+                                          _isResending
+                                              ? 'Sending…'
+                                              : 'Resend OTP',
+                                          style: context.uiText.caption
+                                              .copyWith(
+                                                color: colors.primary,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                SizedBox(height: context.sp(theme.spacing.lg)),
+
+                                UiButton(
+                                  label: _isVerifying
+                                      ? 'Verifying…'
+                                      : 'Verify & Continue',
+                                  variant: UiVariant.primary,
+                                  intent: UiIntent.primary,
+                                  size: UiSize.lg,
+                                  onPressed: _isVerifying
+                                      ? null
+                                      : () => _handleVerify(),
+                                ),
                               ],
-                            ],
-                          ),
-                          SizedBox(height: context.sp(theme.spacing.lg)),
-
-                          UiButton(
-                            label: _isVerifying
-                                ? 'Verifying…'
-                                : 'Verify & Continue',
-                            variant: UiVariant.primary,
-                            intent: UiIntent.primary,
-                            size: UiSize.lg,
-                            onPressed: _isVerifying
-                                ? null
-                                : () => _handleVerify(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.lg)),
-
-                  // Trust footer — same reassurance note used by the rest of
-                  // the security-sensitive auth flows.
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Icon(
-                        Icons.verified_user_outlined,
-                        size: context.sz(14),
-                        color: colors.foregroundSubtle,
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.xs)),
-                      Flexible(
-                        child: Text(
-                          'Your data is encrypted end-to-end',
-                          overflow: TextOverflow.ellipsis,
-                          style: context.uiText.caption.copyWith(
-                            color: colors.foregroundSubtle,
-                            fontSize: 11.5,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                        SizedBox(height: context.sp(theme.spacing.lg)),
+
+                        // Trust footer — same reassurance note used by the rest of
+                        // the security-sensitive auth flows.
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Icon(
+                              Icons.verified_user_outlined,
+                              size: context.sz(14),
+                              color: colors.foregroundSubtle,
+                            ),
+                            SizedBox(width: context.sp(theme.spacing.xs)),
+                            Flexible(
+                              child: Text(
+                                'Manage your account and privacy settings in TradeX',
+                                overflow: TextOverflow.ellipsis,
+                                style: context.uiText.caption.copyWith(
+                                  color: colors.foregroundSubtle,
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-              ],
-            ),
-          ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
-  },
-),
-),
-);
   }
 }

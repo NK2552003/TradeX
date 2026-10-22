@@ -1,3 +1,4 @@
+import 'package:tradex/core/utils/markdown_pdf_export.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/settings/models/billing_models.dart';
@@ -24,6 +25,16 @@ class InvoiceDetailPage extends StatelessWidget {
   /// worse than one that omits the line.
   final String? billedToName;
   final String? billedToEmail;
+
+  String get _exportSummary => [
+    'Issued: ${AppTokens.shortDate(invoice.issuedAt)}',
+    if (invoice.issuer != null) 'Issuer: ${invoice.issuer!.name}',
+    for (final line in invoice.lineItems)
+      '${line.description} × ${line.quantity}: ${line.amount.toStringAsFixed(2)} ${invoice.currency}',
+    'Net amount: ${invoice.netAmount.toStringAsFixed(2)} ${invoice.currency}',
+    'Included tax (${invoice.taxPercent}%): ${invoice.taxAmount.toStringAsFixed(2)} ${invoice.currency}',
+    'Total: ${invoice.amount.toStringAsFixed(2)} ${invoice.currency}',
+  ].join('\n\n');
 
   bool get _paid => invoice.status == 'paid';
 
@@ -52,12 +63,22 @@ class InvoiceDetailPage extends StatelessWidget {
                   label: 'Download PDF',
                   leadingIcon: Icons.picture_as_pdf_outlined,
                   size: UiSize.xs,
-                  onPressed: () => UiToast.show(
-                    context,
-                    title: 'Preparing ${invoice.id}.pdf',
-                    message: 'Your receipt will download in a moment.',
-                    intent: UiIntent.info,
-                  ),
+                  onPressed: () async {
+                    final exported = await MarkdownPdfExporter.exportAndShare(
+                      title: 'Invoice ${invoice.id}',
+                      markdown:
+                          '# TradeX receipt\n\nInvoice: ${invoice.id}\n\nStatus: ${invoice.status}\n\n${billedToName ?? ""}\n\n${billedToEmail ?? ""}\n\n$_exportSummary',
+                    );
+                    if (!exported && context.mounted) {
+                      UiToast.show(
+                        context,
+                        title: 'Export failed',
+                        message:
+                            'Could not generate this receipt. Please retry.',
+                        intent: UiIntent.danger,
+                      );
+                    }
+                  },
                 ),
               ),
               UiGap.v(theme.spacing.sm),

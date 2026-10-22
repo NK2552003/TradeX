@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
@@ -140,15 +141,38 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
     final RenderBox? box =
         _triggerKey.currentContext?.findRenderObject() as RenderBox?;
     final double triggerWidth = box?.size.width ?? 160;
-    final double width =
-        widget.width ?? (triggerWidth < 220 ? 220 : triggerWidth);
+    final media = MediaQuery.of(context);
+    final double gutter = context.sp(context.ui.spacing.sm);
+    final double width = math.min(
+      widget.width ?? math.max(triggerWidth, 220),
+      math.max(0, media.size.width - gutter * 2),
+    );
 
     final Offset triggerPos = box?.localToGlobal(Offset.zero) ?? Offset.zero;
-    final double screenHeight = MediaQuery.sizeOf(context).height;
+    final double screenHeight =
+        media.size.height - media.viewInsets.bottom - media.padding.bottom;
+    final double above = math.max(
+      0,
+      triggerPos.dy - media.padding.top - gutter,
+    );
+    final double below = math.max(
+      0,
+      screenHeight - triggerPos.dy - (box?.size.height ?? 0) - gutter,
+    );
     final bool openUpward =
-        (triggerPos.dy + (box?.size.height ?? 0) + widget.maxHeight) >
-            screenHeight &&
-        triggerPos.dy > widget.maxHeight;
+        below < context.sz(widget.maxHeight) && above > below;
+
+    final double desiredLeft = widget.alignRight
+        ? triggerPos.dx + triggerWidth - width
+        : triggerPos.dx;
+    final double safeLeft = desiredLeft.clamp(
+      gutter,
+      math.max(gutter, media.size.width - width - gutter),
+    );
+    final double horizontalShift = safeLeft - desiredLeft;
+    final double availableHeight = openUpward
+        ? triggerPos.dy - media.padding.top - gutter
+        : screenHeight - triggerPos.dy - (box?.size.height ?? 0) - gutter;
 
     _entry = OverlayEntry(
       builder: (BuildContext ctx) => Stack(
@@ -168,35 +192,39 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
             targetAnchor: openUpward
                 ? (widget.alignRight ? Alignment.topRight : Alignment.topLeft)
                 : (widget.alignRight
-                    ? Alignment.bottomRight
-                    : Alignment.bottomLeft),
+                      ? Alignment.bottomRight
+                      : Alignment.bottomLeft),
             followerAnchor: openUpward
                 ? (widget.alignRight
-                    ? Alignment.bottomRight
-                    : Alignment.bottomLeft)
-                : (widget.alignRight
-                    ? Alignment.topRight
-                    : Alignment.topLeft),
+                      ? Alignment.bottomRight
+                      : Alignment.bottomLeft)
+                : (widget.alignRight ? Alignment.topRight : Alignment.topLeft),
             offset: Offset(
-              0,
+              horizontalShift,
               openUpward
                   ? -context.sz(widget.offset)
                   : context.sz(widget.offset),
             ),
             child: _MenuSurface(
               width: width,
-              maxHeight: widget.maxHeight,
+              maxHeight: math.max(
+                0,
+                math.min(
+                  widget.maxHeight,
+                  availableHeight / context.uiRes.scale.size,
+                ),
+              ),
               size: widget.size,
               density: widget.density,
               header: widget.header,
               footer: widget.footer,
               items: widget.items,
               onSelected: (UiMenuItem item) {
-                item.onTap?.call();
                 if (widget.closeOnSelect) {
                   _remove();
-                  setState(() {});
+                  if (mounted) setState(() {});
                 }
+                item.onTap?.call();
               },
             ),
           ),
@@ -220,7 +248,8 @@ class _UiDropdownMenuState extends State<UiDropdownMenu> {
           enabled: widget.enabled,
           onTap: widget.enabled ? _toggle : null,
           selected: _entry != null,
-          builder: (BuildContext ctx, UiInteractiveState s) => widget.child,
+          builder: (BuildContext ctx, UiInteractiveState s) =>
+              ExcludeFocus(child: IgnorePointer(child: widget.child)),
         ),
       ),
     );

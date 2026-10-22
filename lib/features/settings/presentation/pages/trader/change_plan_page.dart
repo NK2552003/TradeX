@@ -244,40 +244,11 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                     ],
                   ),
                   SizedBox(height: context.sp(context.ui.spacing.md)),
-                  Text(
-                    'Payment details',
-                    style: context.uiText.caption.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: context.sp(context.ui.spacing.xs)),
-                  const UiField(
-                    label: 'Card number',
-                    child: UiInput(
-                      hintText: '4242 4242 4242 4242',
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  SizedBox(height: context.sp(context.ui.spacing.xs)),
-                  Row(
-                    children: <Widget>[
-                      const Expanded(
-                        child: UiField(
-                          label: 'MM / YY',
-                          child: UiInput(hintText: '12/28'),
-                        ),
-                      ),
-                      SizedBox(width: context.sp(context.ui.spacing.sm)),
-                      const Expanded(
-                        child: UiField(
-                          label: 'CVC',
-                          child: UiInput(
-                            hintText: '123',
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                      ),
-                    ],
+                  const UiCallout(
+                    title: 'Paid checkout unavailable',
+                    message:
+                        'A secure payment provider is not connected. Paid plan activation is disabled until checkout is available.',
+                    intent: UiIntent.info,
                   ),
                 ],
                 SizedBox(height: context.sp(context.ui.spacing.md)),
@@ -302,38 +273,40 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                     : 'Confirm Change',
                 intent: UiIntent.primary,
                 loading: processing,
-                onPressed: () async {
-                  setDialogState(() => processing = true);
-                  try {
-                    await _pricingRepo.selectPlan(
-                      tierId: plan.id,
-                      billingCycle: _isAnnual ? 'annual' : 'monthly',
-                    );
-                    if (ctx.mounted) Navigator.of(ctx).pop();
-                    if (!mounted) return;
+                onPressed: payable
+                    ? null
+                    : () async {
+                        setDialogState(() => processing = true);
+                        try {
+                          await _pricingRepo.selectPlan(
+                            tierId: plan.id,
+                            billingCycle: _isAnnual ? 'annual' : 'monthly',
+                          );
+                          if (ctx.mounted) Navigator.of(ctx).pop();
+                          if (!mounted) return;
 
-                    widget.onPlanChanged?.call(plan.tier);
+                          widget.onPlanChanged?.call(plan.tier);
 
-                    UiToast.show(
-                      context,
-                      title: payable ? 'Plan Active' : 'Plan Changed',
-                      message: 'You are now on TradeX ${plan.name}.',
-                      intent: UiIntent.success,
-                    );
-                    closeSettingsSubpage(context);
-                  } catch (_) {
-                    if (!dialogCtx.mounted) return;
-                    setDialogState(() => processing = false);
-                    if (!mounted) return;
-                    UiToast.show(
-                      context,
-                      title: 'Payment failed',
-                      message:
-                          'Could not process card payment. Please try another method.',
-                      intent: UiIntent.danger,
-                    );
-                  }
-                },
+                          UiToast.show(
+                            context,
+                            title: payable ? 'Plan Active' : 'Plan Changed',
+                            message: 'You are now on TradeX ${plan.name}.',
+                            intent: UiIntent.success,
+                          );
+                          closeSettingsSubpage(context);
+                        } catch (_) {
+                          if (!dialogCtx.mounted) return;
+                          setDialogState(() => processing = false);
+                          if (!mounted) return;
+                          UiToast.show(
+                            context,
+                            title: 'Payment failed',
+                            message:
+                                'Could not process card payment. Please try another method.',
+                            intent: UiIntent.danger,
+                          );
+                        }
+                      },
               ),
             ],
           );
@@ -885,143 +858,143 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                    Padding(
-                      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-                      child: Row(
-                        children: <Widget>[
-                          Expanded(
-                            flex: 3,
+                  Padding(
+                    padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+                    child: Row(
+                      children: <Widget>[
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            'Features & Capabilities',
+                            style: context.uiText.bodyStrong.copyWith(
+                              color: colors.foregroundMuted,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Center(
                             child: Text(
-                              'Features & Capabilities',
+                              'Free',
                               style: context.uiText.bodyStrong.copyWith(
-                                color: colors.foregroundMuted,
                                 fontSize: 13,
                               ),
                             ),
                           ),
-                          Expanded(
-                            flex: 2,
-                            child: Center(
-                              child: Text(
-                                'Free',
-                                style: context.uiText.bodyStrong.copyWith(
-                                  fontSize: 13,
-                                ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Center(
+                            child: Text(
+                              'Pro',
+                              style: context.uiText.bodyStrong.copyWith(
+                                fontSize: 13,
+                                color: colors.primary,
                               ),
                             ),
                           ),
-                          Expanded(
-                            flex: 2,
-                            child: Center(
-                              child: Text(
-                                'Pro',
-                                style: context.uiText.bodyStrong.copyWith(
-                                  fontSize: 13,
-                                  color: colors.primary,
-                                ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Center(
+                            child: Text(
+                              'Enterprise',
+                              style: context.uiText.bodyStrong.copyWith(
+                                fontSize: 13,
                               ),
                             ),
                           ),
-                          Expanded(
-                            flex: 2,
-                            child: Center(
-                              child: Text(
-                                'Enterprise',
-                                style: context.uiText.bodyStrong.copyWith(
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const UiDivider(),
+
+                  for (final PlanFeatureCategory cat in categories) ...<Widget>[
+                    Container(
+                      color: colors.surfaceMuted.withValues(alpha: 0.3),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.sp(theme.spacing.md),
+                        vertical: context.sp(theme.spacing.xs),
+                      ),
+                      child: Text(
+                        cat.name.toUpperCase(),
+                        style: context.uiText.caption.copyWith(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.6,
+                          color: colors.foregroundSubtle,
+                          fontSize: 11.0,
+                        ),
                       ),
                     ),
                     const UiDivider(),
 
-                    for (final PlanFeatureCategory cat in categories) ...<Widget>[
-                      Container(
-                        color: colors.surfaceMuted.withValues(alpha: 0.3),
+                    for (final PlanComparisonRow row in cat.rows) ...<Widget>[
+                      Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: context.sp(theme.spacing.md),
-                          vertical: context.sp(theme.spacing.xs),
+                          vertical: context.sp(theme.spacing.sm),
                         ),
-                        child: Text(
-                          cat.name.toUpperCase(),
-                          style: context.uiText.caption.copyWith(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.6,
-                            color: colors.foregroundSubtle,
-                            fontSize: 11.0,
-                          ),
+                        child: Row(
+                          children: <Widget>[
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                row.title,
+                                style: context.uiText.body.copyWith(
+                                  fontSize: 12.5,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Center(
+                                child: _renderMatrixValue(
+                                  context,
+                                  colors,
+                                  row.freeValue,
+                                  row.isBoolean,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Center(
+                                child: _renderMatrixValue(
+                                  context,
+                                  colors,
+                                  row.proValue,
+                                  row.isBoolean,
+                                  isPrimary: true,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Center(
+                                child: _renderMatrixValue(
+                                  context,
+                                  colors,
+                                  row.enterpriseValue,
+                                  row.isBoolean,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const UiDivider(),
-
-                      for (final PlanComparisonRow row in cat.rows) ...<Widget>[
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: context.sp(theme.spacing.md),
-                            vertical: context.sp(theme.spacing.sm),
-                          ),
-                          child: Row(
-                            children: <Widget>[
-                              Expanded(
-                                flex: 3,
-                                child: Text(
-                                  row.title,
-                                  style: context.uiText.body.copyWith(
-                                    fontSize: 12.5,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Center(
-                                  child: _renderMatrixValue(
-                                    context,
-                                    colors,
-                                    row.freeValue,
-                                    row.isBoolean,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Center(
-                                  child: _renderMatrixValue(
-                                    context,
-                                    colors,
-                                    row.proValue,
-                                    row.isBoolean,
-                                    isPrimary: true,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Center(
-                                  child: _renderMatrixValue(
-                                    context,
-                                    colors,
-                                    row.enterpriseValue,
-                                    row.isBoolean,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const UiDivider(),
-                      ],
                     ],
                   ],
-                ),
+                ],
               ),
             ),
           ),
-        ],
-      );
-    }
+        ),
+      ],
+    );
+  }
 
   Widget _renderMatrixValue(
     BuildContext context,

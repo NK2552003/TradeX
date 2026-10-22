@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -32,12 +33,18 @@ class AiAssistantRepository extends ChangeNotifier {
   AiAssistantRepository({
     CommunityRepository? communityRepository,
     List<AiThread>? seedThreads,
-  })  : _community = communityRepository,
-        _threads = seedThreads ?? AiSeedData.threads() {
+  }) : _community = communityRepository,
+       _threads =
+           seedThreads ??
+           (CustomerDataPolicy.allowDemo
+               ? AiSeedData.threads()
+               : <AiThread>[]) {
     _threads.sort(_threadOrder);
     if (_threads.isEmpty) _threads.add(_blankThread(AiPersona.swing));
     _activeThreadId = _threads.first.id;
-    _insights = List<AppAiInsight>.from(AiSeedData.insights());
+    _insights = CustomerDataPolicy.allowDemo
+        ? List<AppAiInsight>.from(AiSeedData.insights())
+        : [];
   }
 
   /// Injected so AI-created community posts land in the real feed. When null,
@@ -68,9 +75,9 @@ class AiAssistantRepository extends ChangeNotifier {
   List<AiThread> get threads => List<AiThread>.unmodifiable(_threads);
 
   AiThread get activeThread => _threads.firstWhere(
-        (AiThread t) => t.id == _activeThreadId,
-        orElse: () => _threads.first,
-      );
+    (AiThread t) => t.id == _activeThreadId,
+    orElse: () => _threads.first,
+  );
 
   String get activeThreadId => _activeThreadId;
 
@@ -85,8 +92,10 @@ class AiAssistantRepository extends ChangeNotifier {
   /// Seed content passthroughs — kept out of the widgets.
   List<AiCapability> get capabilities => AiSeedData.capabilities();
   List<AppAiPrompt> get quickPrompts => AiSeedData.quickPrompts();
-  Map<String, List<AppAiPrompt>> get promptLibrary => AiSeedData.promptLibrary();
-  List<AiChartSetup> get chartSetups => AiSeedData.chartSetups();
+  Map<String, List<AppAiPrompt>> get promptLibrary =>
+      AiSeedData.promptLibrary();
+  List<AiChartSetup> get chartSetups =>
+      CustomerDataPolicy.allowDemo ? AiSeedData.chartSetups() : [];
   List<AppAiInsight> get insights => List<AppAiInsight>.unmodifiable(_insights);
 
   void dismissInsight(AppAiInsight insight) {
@@ -95,14 +104,25 @@ class AiAssistantRepository extends ChangeNotifier {
   }
 
   void generateInsight() {
-    final List<String> symbols = <String>['NVDA', 'TSLA', 'AAPL', 'BTC', 'ETH', 'SPY', 'QQQ', 'AMD'];
+    final List<String> symbols = <String>[
+      'NVDA',
+      'TSLA',
+      'AAPL',
+      'BTC',
+      'ETH',
+      'SPY',
+      'QQQ',
+      'AMD',
+    ];
     final Random rng = Random();
     final String symbol = symbols[rng.nextInt(symbols.length)];
     final bool bullish = rng.nextBool();
     final AppAiInsight fresh = AppAiInsight(
       id: 'insight_${DateTime.now().millisecondsSinceEpoch}',
-      title: '$symbol ${bullish ? "Bullish Volume Breakout" : "Bearish Rejection at Resistance"}',
-      body: 'AI detected unusual ${bullish ? "accumulation" : "distribution"} patterns on the 1H timeframe with high institutional order flow.',
+      title:
+          '$symbol ${bullish ? "Bullish Volume Breakout" : "Bearish Rejection at Resistance"}',
+      body:
+          'AI detected unusual ${bullish ? "accumulation" : "distribution"} patterns on the 1H timeframe with high institutional order flow.',
       confidence: 0.88,
       sentimentScore: bullish ? 0.75 : -0.65,
       tickers: <String>[symbol],
@@ -219,6 +239,7 @@ class AiAssistantRepository extends ChangeNotifier {
   ///
   /// @backend POST /ai/threads/{id}/messages — stream the assistant response.
   void sendPrompt(String rawText, {AiPersona? persona}) {
+    if (!CustomerDataPolicy.allowDemo) return;
     final String text = rawText.trim();
     if (text.isEmpty) return;
 
@@ -282,10 +303,12 @@ class AiAssistantRepository extends ChangeNotifier {
   ///
   /// @backend POST /ai/messages/{id}/regenerate
   void regenerate(AppAiMessage assistantMessage) {
+    if (!CustomerDataPolicy.allowDemo) return;
     if (assistantMessage.role != AppAiRole.assistant) return;
     final AiThread thread = activeThread;
-    final int idx =
-        thread.messages.indexWhere((AppAiMessage m) => m.id == assistantMessage.id);
+    final int idx = thread.messages.indexWhere(
+      (AppAiMessage m) => m.id == assistantMessage.id,
+    );
     if (idx <= 0) return;
 
     int u = idx - 1;
@@ -329,7 +352,8 @@ class AiAssistantRepository extends ChangeNotifier {
         String body,
         List<String> sources,
         List<AiSuggestedAction> actions,
-      }) reply = AiSeedData.replyFor(userText, persona);
+      })
+      reply = AiSeedData.replyFor(userText, persona);
       final String body =
           '${persona.opener}\n\n${reply.body}\n\n${persona.emphasis}';
       _finalizePending(threadId, pendingId, body, reply.sources, reply.actions);
@@ -389,8 +413,10 @@ class AiAssistantRepository extends ChangeNotifier {
 
   /// @backend POST /notes
   Future<AppLinkRef> _createNote(AiCreateDraft draft) async {
-    final int wordCount =
-        draft.body.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    final int wordCount = draft.body
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .length;
     final AppNote note = await NotesRepositoryScope.repository.create(
       AppNote(
         id: 'note_ai_${_uid()}',
@@ -429,20 +455,22 @@ class AiAssistantRepository extends ChangeNotifier {
     final double exit = draft.isClosed ? (target ?? entry) : 0.0;
     final double pnl = draft.isClosed
         ? (draft.side == AppSide.long ? (exit - entry) : (entry - exit)) *
-            draft.quantity
+              draft.quantity
         : 0.0;
     final double pnlPercent = draft.isClosed && entry > 0
         ? ((draft.side == AppSide.long ? (exit - entry) : (entry - exit)) /
-                entry) *
-            100
+                  entry) *
+              100
         : 0.0;
     final AppOutcome outcome = !draft.isClosed
         ? AppOutcome.open
         : (pnl > 0
-            ? AppOutcome.win
-            : (pnl < 0 ? AppOutcome.loss : AppOutcome.breakeven));
-    final int wordCount =
-        draft.body.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+              ? AppOutcome.win
+              : (pnl < 0 ? AppOutcome.loss : AppOutcome.breakeven));
+    final int wordCount = draft.body
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .length;
 
     final AppTrade trade = await JournalRepositoryScope.repository.create(
       AppTrade(
@@ -484,8 +512,10 @@ class AiAssistantRepository extends ChangeNotifier {
 
   /// @backend POST /strategies
   Future<AppLinkRef> _createStrategy(AiCreateDraft draft) async {
-    final int wordCount =
-        draft.body.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    final int wordCount = draft.body
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .length;
     final AppStrategy strat = await StrategiesRepositoryScope.repository.create(
       AppStrategy(
         id: 'strat_ai_${_uid()}',
@@ -535,16 +565,17 @@ class AiAssistantRepository extends ChangeNotifier {
             rMultiple: '${s.rrRatio.toStringAsFixed(1)}R',
           )
         : (draft.entryPrice != null && draft.target1 != null
-            ? CommunityTradeSetup(
-                ticker:
-                    draft.tickers.isNotEmpty ? draft.tickers.first : 'NIFTY50',
-                side: draft.side.name.toUpperCase(),
-                entry: draft.entryPrice!.toStringAsFixed(2),
-                stopLoss: (draft.stopLoss ?? 0).toStringAsFixed(2),
-                target: draft.target1!.toStringAsFixed(2),
-                rMultiple: '${(draft.rMultiple ?? 2.0).toStringAsFixed(1)}R',
-              )
-            : null);
+              ? CommunityTradeSetup(
+                  ticker: draft.tickers.isNotEmpty
+                      ? draft.tickers.first
+                      : 'NIFTY50',
+                  side: draft.side.name.toUpperCase(),
+                  entry: draft.entryPrice!.toStringAsFixed(2),
+                  stopLoss: (draft.stopLoss ?? 0).toStringAsFixed(2),
+                  target: draft.target1!.toStringAsFixed(2),
+                  rMultiple: '${(draft.rMultiple ?? 2.0).toStringAsFixed(1)}R',
+                )
+              : null);
 
     community.createPost(
       body: draft.body,
@@ -572,7 +603,8 @@ class AiAssistantRepository extends ChangeNotifier {
         return AiCreateDraft(
           target: target,
           title: '${setup.symbol} ${setup.pattern} Playbook',
-          summary: 'High-conviction ${setup.pattern} trading system on ${setup.symbol} with defined risk parameters.',
+          summary:
+              'High-conviction ${setup.pattern} trading system on ${setup.symbol} with defined risk parameters.',
           category: 'Breakout Momentum',
           strategyStatus: AppStrategyStatus.live,
           body: AiSeedData.strategyBodyForSetup(setup),
@@ -597,7 +629,8 @@ class AiAssistantRepository extends ChangeNotifier {
           target2: setup.target2,
           quantity: 50.0,
           rMultiple: setup.rrRatio,
-          body: '## Setup Thesis: ${setup.symbol}\n'
+          body:
+              '## Setup Thesis: ${setup.symbol}\n'
               '${setup.rationale}\n\n'
               '### Execution Strategy\n'
               '- **Key Invalidation Level:** ${setup.stopLoss.toStringAsFixed(2)}\n'
@@ -648,8 +681,9 @@ class AiAssistantRepository extends ChangeNotifier {
   /// generic scaffold when the thread is empty).
   AiCreateDraft draftFromChat(AiCreateTarget target) {
     final String source = _lastAssistantBody() ?? '';
-    final String symbol =
-        AiSeedData.symbolFrom(source.isEmpty ? activeThread.title : source);
+    final String symbol = AiSeedData.symbolFrom(
+      source.isEmpty ? activeThread.title : source,
+    );
     final String title = switch (target) {
       AiCreateTarget.note => '$symbol In-Depth Research Note',
       AiCreateTarget.journal => '$symbol Trade Execution Idea',
@@ -660,13 +694,15 @@ class AiAssistantRepository extends ChangeNotifier {
     final String body = source.isNotEmpty
         ? source
         : '# $symbol Analysis\n\n'
-            'Comprehensive technical and macro breakdown for **$symbol** generated by the TradeX AI Copilot.\n\n'
-            '## Key Observations\n'
-            '- Momentum structure remains aligned with higher timeframe trends.\n'
-            '- Invalidation and liquidity pools have been mapped.\n'
-            '- Review risk parameters before committing capital.\n';
+              'Comprehensive technical and macro breakdown for **$symbol** generated by the TradeX AI Copilot.\n\n'
+              '## Key Observations\n'
+              '- Momentum structure remains aligned with higher timeframe trends.\n'
+              '- Invalidation and liquidity pools have been mapped.\n'
+              '- Review risk parameters before committing capital.\n';
     return AiCreateDraft(
-      target: target == AiCreateTarget.chartAnalysis ? AiCreateTarget.note : target,
+      target: target == AiCreateTarget.chartAnalysis
+          ? AiCreateTarget.note
+          : target,
       title: title,
       body: body,
       tickers: <String>[symbol],
@@ -693,12 +729,12 @@ class AiAssistantRepository extends ChangeNotifier {
   }
 
   AiThread _blankThread(AiPersona persona) => AiThread(
-        id: 'thread_${DateTime.now().microsecondsSinceEpoch}',
-        title: 'New chat',
-        persona: persona,
-        messages: const <AppAiMessage>[],
-        updatedAt: DateTime.now(),
-      );
+    id: 'thread_${DateTime.now().microsecondsSinceEpoch}',
+    title: 'New chat',
+    persona: persona,
+    messages: const <AppAiMessage>[],
+    updatedAt: DateTime.now(),
+  );
 
   void _replace(AiThread updated) {
     final int idx = _threads.indexWhere((AiThread t) => t.id == updated.id);
@@ -741,15 +777,14 @@ class AiAssistantRepository extends ChangeNotifier {
     String id,
     String title, {
     String? subtitle,
-  }) =>
-      AppLinkRef(
-        kind: kind,
-        id: id,
-        title: title,
-        subtitle: subtitle,
-        intent: kind.intent,
-        icon: kind.icon,
-      );
+  }) => AppLinkRef(
+    kind: kind,
+    id: id,
+    title: title,
+    subtitle: subtitle,
+    intent: kind.intent,
+    icon: kind.icon,
+  );
 
   String _uid() => DateTime.now().microsecondsSinceEpoch.toRadixString(36);
 

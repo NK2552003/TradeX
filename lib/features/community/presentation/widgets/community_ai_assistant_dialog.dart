@@ -112,7 +112,8 @@ const CommunityAuthor _kCurrentUserAuthor = CommunityAuthor(
   handle: 'alex_vance',
   displayName: 'Alex Vance',
   userRole: UserRole.userAdmin,
-  avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+  avatarUrl:
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
   verified: true,
   followers: 4890,
   following: 512,
@@ -122,7 +123,12 @@ const CommunityAuthor _kCurrentUserAuthor = CommunityAuthor(
 /// AI persona / model flavour selectable in the conversational copilot. Each
 /// persona changes the opening line and the emphasis appended to answers so the
 /// same synthesized intelligence reads through a different analytical lens.
-enum _AiPersona { momentumScalper, swingStrategist, macroEconomist, optionsQuant }
+enum _AiPersona {
+  momentumScalper,
+  swingStrategist,
+  macroEconomist,
+  optionsQuant,
+}
 
 extension _AiPersonaX on _AiPersona {
   String get label => switch (this) {
@@ -149,25 +155,24 @@ extension _AiPersonaX on _AiPersona {
   /// Opening line prefixed to every answer for this persona.
   String get opener => switch (this) {
     _AiPersona.momentumScalper =>
-        '⚡ *Scalper lens — intraday momentum & order flow:*',
+      '⚡ *Scalper lens — intraday momentum & order flow:*',
     _AiPersona.swingStrategist =>
-        '📈 *Swing lens — multi-day structure & positioning:*',
+      '📈 *Swing lens — multi-day structure & positioning:*',
     _AiPersona.macroEconomist =>
-        '🌐 *Macro lens — liquidity, rates & cross-asset flow:*',
-    _AiPersona.optionsQuant =>
-        '🧮 *Quant lens — volatility surface & Greeks:*',
+      '🌐 *Macro lens — liquidity, rates & cross-asset flow:*',
+    _AiPersona.optionsQuant => '🧮 *Quant lens — volatility surface & Greeks:*',
   };
 
   /// Emphasis note appended to every answer for this persona.
   String get emphasis => switch (this) {
     _AiPersona.momentumScalper =>
-        '🎯 Scalper note: only trigger on a confirmed break-and-retest; kill the idea if the 1m momentum stalls.',
+      '🎯 Scalper note: only trigger on a confirmed break-and-retest; kill the idea if the 1m momentum stalls.',
     _AiPersona.swingStrategist =>
-        '🎯 Swing note: scale in against the higher-timeframe demand and hold for the measured move, not the first target.',
+      '🎯 Swing note: scale in against the higher-timeframe demand and hold for the measured move, not the first target.',
     _AiPersona.macroEconomist =>
-        '🎯 Macro note: size down into high-impact prints; the tape follows liquidity, not the narrative.',
+      '🎯 Macro note: size down into high-impact prints; the tape follows liquidity, not the narrative.',
     _AiPersona.optionsQuant =>
-        '🎯 Quant note: express this via defined-risk spreads while IV rank is elevated to stay theta-neutral.',
+      '🎯 Quant note: express this via defined-risk spreads while IV rank is elevated to stay theta-neutral.',
   };
 }
 
@@ -287,10 +292,8 @@ class _EquitySparklinePainter extends CustomPainter {
     }
     final double span = (maxV - minV) <= 0 ? 1 : (maxV - minV);
     final double dx = size.width / (points.length - 1);
-    Offset at(int i) => Offset(
-      i * dx,
-      size.height - ((points[i] - minV) / span) * size.height,
-    );
+    Offset at(int i) =>
+        Offset(i * dx, size.height - ((points[i] - minV) / span) * size.height);
 
     final Path line = Path()..moveTo(at(0).dx, at(0).dy);
     for (int i = 1; i < points.length; i++) {
@@ -330,11 +333,7 @@ class _EquitySparklinePainter extends CustomPainter {
     }
 
     // End marker dot.
-    canvas.drawCircle(
-      at(points.length - 1),
-      2.5,
-      Paint()..color = color,
-    );
+    canvas.drawCircle(at(points.length - 1), 2.5, Paint()..color = color);
   }
 
   @override
@@ -634,7 +633,8 @@ class _CommunityAiAssistantDialogState
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: isMobile ? double.infinity : context.sz(760),
-          maxHeight: MediaQuery.sizeOf(context).height * (isMobile ? 0.92 : 0.88),
+          maxHeight:
+              MediaQuery.sizeOf(context).height * (isMobile ? 0.92 : 0.88),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -727,7 +727,8 @@ class _CommunityAiAssistantDialogState
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: <Widget>[
-                          for (final AiChartPreset preset in kAiChartPresets) ...<Widget>[
+                          for (final AiChartPreset preset
+                              in kAiChartPresets) ...<Widget>[
                             Padding(
                               padding: EdgeInsets.only(
                                 right: context.sp(theme.spacing.xs),
@@ -736,8 +737,8 @@ class _CommunityAiAssistantDialogState
                                 label: preset.title,
                                 leadingIcon:
                                     preset.direction.toLowerCase() == 'long'
-                                        ? Icons.trending_up_rounded
-                                        : Icons.trending_down_rounded,
+                                    ? Icons.trending_up_rounded
+                                    : Icons.trending_down_rounded,
                                 variant: _selectedPreset?.id == preset.id
                                     ? UiVariant.primary
                                     : UiVariant.outline,
@@ -754,7 +755,8 @@ class _CommunityAiAssistantDialogState
                     // Dropzone
                     UiDropzone(
                       title: 'Drag & drop technical chart screenshot',
-                      message: 'Supports TradingView, MT5, Zerodha, Dhan charts',
+                      message:
+                          'Supports TradingView, MT5, Zerodha, Dhan charts',
                       icon: Icons.add_photo_alternate_outlined,
                       height: 120,
                       onFilesDropped: (List<String> files) {
@@ -785,7 +787,8 @@ class _CommunityAiAssistantDialogState
                             ),
                             SizedBox(height: context.sp(theme.spacing.sm)),
                             UiProgressBar(
-                              value: (_analysisStep + 1) / _pipelineSteps.length,
+                              value:
+                                  (_analysisStep + 1) / _pipelineSteps.length,
                               intent: UiIntent.primary,
                             ),
                           ],
@@ -820,7 +823,8 @@ class _CommunityAiAssistantDialogState
                                 UiBadge(
                                   label: setup.direction.toUpperCase(),
                                   variant: UiBadgeVariant.soft,
-                                  intent: setup.direction.toLowerCase() == 'long'
+                                  intent:
+                                      setup.direction.toLowerCase() == 'long'
                                       ? UiIntent.success
                                       : UiIntent.danger,
                                 ),
@@ -954,7 +958,9 @@ class _CommunityAiAssistantDialogState
                             leadingIcon: Icons.forum_outlined,
                             variant: UiVariant.primary,
                             size: UiSize.sm,
-                            onPressed: _exporting ? null : _exportToCommunityPost,
+                            onPressed: _exporting
+                                ? null
+                                : _exportToCommunityPost,
                           ),
                           UiButton(
                             label: 'Save to Notes',
@@ -1048,11 +1054,7 @@ class _CommunityAiAssistantDialogState
               s.previewUrl,
               fit: BoxFit.cover,
               loadingBuilder:
-                  (
-                    BuildContext ctx,
-                    Widget child,
-                    ImageChunkEvent? progress,
-                  ) {
+                  (BuildContext ctx, Widget child, ImageChunkEvent? progress) {
                     if (progress == null) return child;
                     return _previewFallback(context, loading: true);
                   },
@@ -1253,9 +1255,7 @@ class _CommunityAiAssistantDialogState
   Widget _buildConfluenceSection(BuildContext context, AiChartPreset s) {
     final UiTheme theme = context.ui;
     final List<_Confluence> items = _confluencesFor(s);
-    final int maxW = items
-        .map((_Confluence e) => e.weight)
-        .reduce(math.max);
+    final int maxW = items.map((_Confluence e) => e.weight).reduce(math.max);
     return UiCard(
       variant: UiCardVariant.surface,
       padding: EdgeInsets.all(context.sp(theme.spacing.md)),
@@ -1769,10 +1769,10 @@ class _CommunityAiFloatingBarState extends State<CommunityAiFloatingBar> {
   bool _isOpen = false;
 
   static const List<String> _telemetryMessages = <String>[
-    '🟢 Nifty Bias: 72% Bullish',
-    '⚡ FII Flow: +₹1,420 Cr Inflow',
-    '🔥 3 Alpha Breakouts Active',
-    '🎯 BankNifty FVG Retest in Play',
+    'Review a trading thesis',
+    'Explore a setup and its risks',
+    'Discuss market research',
+    'Review your trading process',
   ];
 
   @override
@@ -1825,10 +1825,7 @@ class _CommunityAiFloatingBarState extends State<CommunityAiFloatingBar> {
         decoration: BoxDecoration(
           color: theme.colors.surface,
           borderRadius: BorderRadius.circular(theme.radii.pill),
-          border: Border.all(
-            color: theme.colors.border,
-            width: 1.2,
-          ),
+          border: Border.all(color: theme.colors.border, width: 1.2),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.35),
@@ -1923,8 +1920,7 @@ class _CommunityAiFloatingBarState extends State<CommunityAiFloatingBar> {
                     setState(() => _isComposePressed = false);
                     widget.onCompose?.call();
                   },
-                  onTapCancel: () =>
-                      setState(() => _isComposePressed = false),
+                  onTapCancel: () => setState(() => _isComposePressed = false),
                   child: AnimatedScale(
                     scale: _isComposePressed
                         ? 0.90
@@ -2110,9 +2106,7 @@ class _CommunityAiFullViewOverlayState
               onTap: () => Navigator.of(context).pop(),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                child: Container(
-                  color: Colors.transparent,
-                ),
+                child: Container(color: Colors.transparent),
               ),
             ),
           ),
@@ -2398,9 +2392,7 @@ class _CommunityAiFullViewOverlayState
             child: TextField(
               controller: _promptController,
               onSubmitted: _dispatchPrompt,
-              style: context.uiText.body.copyWith(
-                fontSize: context.fs(13),
-              ),
+              style: context.uiText.body.copyWith(fontSize: context.fs(13)),
               decoration: InputDecoration(
                 hintText:
                     'Ask Copilot, analyze symbol (e.g. \$NIFTY 24800 CE, \$RELIANCE), or execute command...',
@@ -2436,9 +2428,7 @@ class _CommunityAiFullViewOverlayState
       decoration: BoxDecoration(
         color: theme.colors.surfaceMuted.withValues(alpha: 0.4),
         border: Border(
-          bottom: BorderSide(
-            color: theme.colors.border.withValues(alpha: 0.5),
-          ),
+          bottom: BorderSide(color: theme.colors.border.withValues(alpha: 0.5)),
         ),
       ),
       padding: EdgeInsets.symmetric(
@@ -2545,10 +2535,7 @@ class _CommunityAiFullViewOverlayState
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Text(
         '|',
-        style: TextStyle(
-          color: theme.colors.border,
-          fontSize: 11,
-        ),
+        style: TextStyle(color: theme.colors.border, fontSize: 11),
       ),
     );
   }
@@ -2671,10 +2658,12 @@ class _CommunityAiFullViewOverlayState
     if (isMobile) {
       return Column(
         children: items
-            .map((item) => Padding(
-                  padding: EdgeInsets.only(bottom: spacingXs),
-                  child: item,
-                ))
+            .map(
+              (item) => Padding(
+                padding: EdgeInsets.only(bottom: spacingXs),
+                child: item,
+              ),
+            )
             .toList(),
       );
     }
@@ -2686,21 +2675,14 @@ class _CommunityAiFullViewOverlayState
           spacing: spacingXs,
           runSpacing: spacingXs,
           children: items
-              .map((item) => SizedBox(
-                    width: cardWidth,
-                    child: item,
-                  ))
+              .map((item) => SizedBox(width: cardWidth, child: item))
               .toList(),
         );
       },
     );
   }
 
-  Widget _buildPromptChip(
-    BuildContext context,
-    UiTheme theme,
-    String prompt,
-  ) {
+  Widget _buildPromptChip(BuildContext context, UiTheme theme, String prompt) {
     return InkWell(
       onTap: () => _dispatchPrompt(prompt),
       borderRadius: BorderRadius.circular(theme.radii.pill),
@@ -2712,9 +2694,7 @@ class _CommunityAiFullViewOverlayState
         decoration: BoxDecoration(
           color: theme.colors.surfaceMuted.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(theme.radii.pill),
-          border: Border.all(
-            color: theme.colors.border.withValues(alpha: 0.7),
-          ),
+          border: Border.all(color: theme.colors.border.withValues(alpha: 0.7)),
         ),
         child: Text(
           prompt,
@@ -2956,10 +2936,12 @@ class CommunityAiQuickPromptDialog extends StatefulWidget {
   }
 
   @override
-  State<CommunityAiQuickPromptDialog> createState() => _CommunityAiQuickPromptDialogState();
+  State<CommunityAiQuickPromptDialog> createState() =>
+      _CommunityAiQuickPromptDialogState();
 }
 
-class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDialog> {
+class _CommunityAiQuickPromptDialogState
+    extends State<CommunityAiQuickPromptDialog> {
   final TextEditingController _promptCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
   _AiPersona _selectedPersona = _AiPersona.momentumScalper;
@@ -3012,7 +2994,8 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
     final List<String> followUps;
 
     if (q.contains('Pivot Levels') || q.contains('Nifty')) {
-      body = '• Current Spot: 24,820 | Trend: Bullish Continuation Above VWAP\n'
+      body =
+          '• Current Spot: 24,820 | Trend: Bullish Continuation Above VWAP\n'
           '• Critical Support 1: 24,780 (Order Block Mitigation Zone)\n'
           '• Key Resistance: 24,940 - 25,000 (Major Call Open Interest Wall)\n'
           '• Hard Invalidation: 15m candle close below 24,740 flips structure to neutral.';
@@ -3022,7 +3005,8 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
         'Show 15m volume delta',
       ];
     } else if (q.contains('Breakouts')) {
-      body = '1. **RELIANCE**: Long above ₹3,020. Bull flag breakout with 2.4x volume surge. Target: ₹3,110 (R:R 1:2.8).\n'
+      body =
+          '1. **RELIANCE**: Long above ₹3,020. Bull flag breakout with 2.4x volume surge. Target: ₹3,110 (R:R 1:2.8).\n'
           '2. **HDFCBANK**: Consolidating at 50-EMA support. Reversal trigger at ₹1,680. Target: ₹1,735.\n'
           '3. **NVDA**: Ascending triangle compression. Breakout trigger \$128.50. Target: \$139.00.';
       followUps = <String>[
@@ -3031,7 +3015,8 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
         'Give me the option strike equivalent',
       ];
     } else if (q.contains('FII') || q.contains('Positioning')) {
-      body = '• FII Net Long Index Futures: 64.2% (+4,800 contracts today)\n'
+      body =
+          '• FII Net Long Index Futures: 64.2% (+4,800 contracts today)\n'
           '• Put-Call Ratio (PCR): 1.18 (Bullish Contango)\n'
           '• DII Cash Inflow: +₹1,420 Crores absorbing retail profit booking.\n'
           '• Smart money consensus: Holding long bias into weekly expiry settlement.';
@@ -3041,7 +3026,8 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
         'How does current PCR compare to last expiry?',
       ];
     } else if (q.contains('Risk') || q.contains('Sizing')) {
-      body = '• Max Risk: ₹15,000 | Account Equity: ₹5,00,000 (3.0% Risk Limit)\n'
+      body =
+          '• Max Risk: ₹15,000 | Account Equity: ₹5,00,000 (3.0% Risk Limit)\n'
           '• NIFTY Setup: Entry 24,850 | SL 24,780 (70 points at risk)\n'
           '• Nifty Lot Size: 50 | Risk per Lot: 70 * 50 = ₹3,500\n'
           '• Recommended Sizing: **4 Lots (200 qty)** = ₹14,000 Max Loss (Within risk limit!).';
@@ -3050,8 +3036,11 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
         'What if I use trailing stop at 1:1.5?',
         'Show position sizing for BankNifty',
       ];
-    } else if (q.contains('Greeks') || q.contains('Volatility') || q.contains('Option')) {
-      body = '• India VIX: 13.85 (-3.2% cooling off post-open)\n'
+    } else if (q.contains('Greeks') ||
+        q.contains('Volatility') ||
+        q.contains('Option')) {
+      body =
+          '• India VIX: 13.85 (-3.2% cooling off post-open)\n'
           '• ATM Implied Volatility: 12.4% (IV Rank at 24th percentile - cheap options)\n'
           '• Gamma Peak: 24,900 CE with heavy pinning expected\n'
           '• Preferred Structure: Bull Call Spread (24,850 / 25,000 CE) to reduce theta decay.';
@@ -3061,7 +3050,8 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
         'Where is the max pain strike?',
       ];
     } else {
-      body = '• Analytical scan for: "$q"\n'
+      body =
+          '• Analytical scan for: "$q"\n'
           '• Technical structure: Consolidating near key liquidity pool with positive volume divergence.\n'
           '• Actionable rule: Wait for confirmed retest of prior breakout level before executing.';
       followUps = <String>[
@@ -3071,7 +3061,8 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
       ];
     }
 
-    final String synthesized = '${persona.opener}\n\n$body\n\n${persona.emphasis}';
+    final String synthesized =
+        '${persona.opener}\n\n$body\n\n${persona.emphasis}';
 
     setState(() {
       _generating = false;
@@ -3090,7 +3081,8 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
   void _shareToCommunity(String content) {
     final CommunityRepository repo = widget.repository ?? CommunityRepository();
     repo.createPost(
-      body: '🤖 **AI Copilot Intelligence [${_selectedPersona.label}]**:\n\n$content\n\n#TradeX #AICopilot #${_selectedPersona.shortLabel}',
+      body:
+          '🤖 **AI Copilot Intelligence [${_selectedPersona.label}]**:\n\n$content\n\n#TradeX #AICopilot #${_selectedPersona.shortLabel}',
       author: _kCurrentUserAuthor,
       tags: <String>['AICopilot', _selectedPersona.shortLabel, 'Alpha'],
     );
@@ -3275,8 +3267,12 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
                             children: <Widget>[
                               for (final String p in _promptPresets)
                                 InkWell(
-                                  onTap: _generating ? null : () => _runPrompt(p),
-                                  borderRadius: context.radius(theme.radii.pill),
+                                  onTap: _generating
+                                      ? null
+                                      : () => _runPrompt(p),
+                                  borderRadius: context.radius(
+                                    theme.radii.pill,
+                                  ),
                                   child: Container(
                                     padding: EdgeInsets.symmetric(
                                       horizontal: context.sp(theme.spacing.sm),
@@ -3284,8 +3280,12 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
                                     ),
                                     decoration: BoxDecoration(
                                       color: theme.colors.surfaceMuted,
-                                      borderRadius: context.radius(theme.radii.pill),
-                                      border: Border.all(color: theme.colors.border),
+                                      borderRadius: context.radius(
+                                        theme.radii.pill,
+                                      ),
+                                      border: Border.all(
+                                        color: theme.colors.border,
+                                      ),
                                     ),
                                     child: Text(
                                       p,
@@ -3324,7 +3324,9 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
                                     topLeft: Radius.circular(theme.radii.md),
                                     topRight: Radius.circular(theme.radii.sm),
                                     bottomLeft: Radius.circular(theme.radii.md),
-                                    bottomRight: Radius.circular(theme.radii.md),
+                                    bottomRight: Radius.circular(
+                                      theme.radii.md,
+                                    ),
                                   ),
                                 ),
                                 child: Text(
@@ -3354,7 +3356,8 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
                                 variant: UiCardVariant.surface,
                                 padding: EdgeInsets.all(gap),
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: <Widget>[
                                     Row(
                                       children: <Widget>[
@@ -3370,7 +3373,8 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
                                           tooltip: 'Copy',
                                           size: UiSize.xs,
                                           variant: UiVariant.ghost,
-                                          onPressed: () => _copyToClipboard(msg.text),
+                                          onPressed: () =>
+                                              _copyToClipboard(msg.text),
                                         ),
                                         SizedBox(width: gapXs),
                                         UiButton(
@@ -3378,7 +3382,8 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
                                           leadingIcon: Icons.share_rounded,
                                           size: UiSize.xs,
                                           variant: UiVariant.soft,
-                                          onPressed: () => _shareToCommunity(msg.text),
+                                          onPressed: () =>
+                                              _shareToCommunity(msg.text),
                                         ),
                                       ],
                                     ),
@@ -3393,7 +3398,8 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
                                   ],
                                 ),
                               ),
-                              if (isLast && msg.followUps.isNotEmpty) ...<Widget>[
+                              if (isLast &&
+                                  msg.followUps.isNotEmpty) ...<Widget>[
                                 SizedBox(height: gapXs),
                                 Wrap(
                                   spacing: gapXs,
@@ -3404,19 +3410,23 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
                                         onTap: _generating
                                             ? null
                                             : () => _runPrompt(followUp),
-                                        borderRadius:
-                                            context.radius(theme.radii.pill),
+                                        borderRadius: context.radius(
+                                          theme.radii.pill,
+                                        ),
                                         child: Container(
                                           padding: EdgeInsets.symmetric(
-                                            horizontal:
-                                                context.sp(theme.spacing.xs),
-                                            vertical:
-                                                context.sp(theme.spacing.xxs),
+                                            horizontal: context.sp(
+                                              theme.spacing.xs,
+                                            ),
+                                            vertical: context.sp(
+                                              theme.spacing.xxs,
+                                            ),
                                           ),
                                           decoration: BoxDecoration(
                                             color: theme.colors.surfaceMuted,
-                                            borderRadius:
-                                                context.radius(theme.radii.pill),
+                                            borderRadius: context.radius(
+                                              theme.radii.pill,
+                                            ),
                                             border: Border.all(
                                               color: theme.colors.primary
                                                   .withValues(alpha: 0.35),
@@ -3435,10 +3445,12 @@ class _CommunityAiQuickPromptDialogState extends State<CommunityAiQuickPromptDia
                                                 followUp,
                                                 style: context.uiText.caption
                                                     .copyWith(
-                                                  fontSize: context.fs(11),
-                                                  fontWeight: FontWeight.w600,
-                                                  color: theme.colors.primary,
-                                                ),
+                                                      fontSize: context.fs(11),
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color:
+                                                          theme.colors.primary,
+                                                    ),
                                               ),
                                             ],
                                           ),
@@ -3559,7 +3571,8 @@ class CommunityAiMarketPulseDialog extends StatelessWidget {
   void _sharePulse(BuildContext context) {
     final CommunityRepository repo = repository ?? CommunityRepository();
     repo.createPost(
-      body: '📊 **Market Pulse & Community Sentiment Radar**\n\n'
+      body:
+          '📊 **Market Pulse & Community Sentiment Radar**\n\n'
           '• Overall Sentiment: 74% Bullish | 26% Bearish (Contango Breadth)\n'
           '• Leading Sectors: Nifty Metal (+2.45%), Nifty Auto (+1.82%)\n'
           '• Most Discussed: NIFTY 50 (78% Bullish), RELIANCE (82% Bullish)\n'
@@ -3625,10 +3638,7 @@ class CommunityAiMarketPulseDialog extends StatelessWidget {
                       ],
                     ),
                     SizedBox(height: gapXs),
-                    UiProgressBar(
-                      value: 0.74,
-                      intent: UiIntent.success,
-                    ),
+                    UiProgressBar(value: 0.74, intent: UiIntent.success),
                     SizedBox(height: gapXs),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3686,8 +3696,8 @@ class CommunityAiMarketPulseDialog extends StatelessWidget {
                               intent: _tickers[i].bullishPct >= 60
                                   ? UiIntent.success
                                   : (_tickers[i].bullishPct <= 45
-                                      ? UiIntent.danger
-                                      : UiIntent.warning),
+                                        ? UiIntent.danger
+                                        : UiIntent.warning),
                             ),
                           ),
                           SizedBox(width: gapXs),
@@ -3712,8 +3722,7 @@ class CommunityAiMarketPulseDialog extends StatelessWidget {
                           ),
                         ],
                       ),
-                      if (i < _tickers.length - 1)
-                        SizedBox(height: gapXs),
+                      if (i < _tickers.length - 1) SizedBox(height: gapXs),
                     ],
                   ],
                 ),
@@ -3885,7 +3894,9 @@ class CommunityAiSignalsDialog extends StatelessWidget {
           children: [
             Text(
               'Real-time institutional trade setups detected across indices and large-cap equities:',
-              style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted),
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             ),
             SizedBox(height: gap),
 
@@ -3943,10 +3954,28 @@ class CommunityAiSignalsDialog extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Entry: ₹${preset.entry}', style: context.uiText.caption),
-                        Text('SL: ₹${preset.stopLoss}', style: context.uiText.caption.copyWith(color: theme.colors.danger)),
-                        Text('Target: ₹${preset.target1}', style: context.uiText.caption.copyWith(color: theme.colors.success)),
-                        Text('R:R 1:${preset.rrRatio.toStringAsFixed(1)}', style: context.uiText.caption.copyWith(fontWeight: FontWeight.w700)),
+                        Text(
+                          'Entry: ₹${preset.entry}',
+                          style: context.uiText.caption,
+                        ),
+                        Text(
+                          'SL: ₹${preset.stopLoss}',
+                          style: context.uiText.caption.copyWith(
+                            color: theme.colors.danger,
+                          ),
+                        ),
+                        Text(
+                          'Target: ₹${preset.target1}',
+                          style: context.uiText.caption.copyWith(
+                            color: theme.colors.success,
+                          ),
+                        ),
+                        Text(
+                          'R:R 1:${preset.rrRatio.toStringAsFixed(1)}',
+                          style: context.uiText.caption.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ],
                     ),
                     SizedBox(height: gapXs),
@@ -4004,11 +4033,14 @@ class CommunityAiRiskCalcDialog extends StatefulWidget {
   }
 
   @override
-  State<CommunityAiRiskCalcDialog> createState() => _CommunityAiRiskCalcDialogState();
+  State<CommunityAiRiskCalcDialog> createState() =>
+      _CommunityAiRiskCalcDialogState();
 }
 
 class _CommunityAiRiskCalcDialogState extends State<CommunityAiRiskCalcDialog> {
-  final TextEditingController _capitalCtrl = TextEditingController(text: '500000');
+  final TextEditingController _capitalCtrl = TextEditingController(
+    text: '500000',
+  );
   final TextEditingController _entryCtrl = TextEditingController(text: '24850');
   final TextEditingController _slCtrl = TextEditingController(text: '24780');
   final TextEditingController _lotSizeCtrl = TextEditingController(text: '50');
@@ -4037,7 +4069,9 @@ class _CommunityAiRiskCalcDialogState extends State<CommunityAiRiskCalcDialog> {
     final maxLossAllowed = capital * (_riskPercent / 100);
     final pointsAtRisk = (entry - sl).abs();
     final riskPerLot = pointsAtRisk * lotSize;
-    final recommendedLots = riskPerLot > 0 ? (maxLossAllowed / riskPerLot).floor() : 0;
+    final recommendedLots = riskPerLot > 0
+        ? (maxLossAllowed / riskPerLot).floor()
+        : 0;
     final totalQty = recommendedLots * lotSize;
     final totalActualRisk = totalQty * pointsAtRisk;
 
@@ -4051,7 +4085,9 @@ class _CommunityAiRiskCalcDialogState extends State<CommunityAiRiskCalcDialog> {
           children: [
             Text(
               'Never risk more than your capital preservation rules allow:',
-              style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted),
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
             ),
             SizedBox(height: gap),
 
@@ -4085,15 +4121,21 @@ class _CommunityAiRiskCalcDialogState extends State<CommunityAiRiskCalcDialog> {
                             : theme.colors.surfaceMuted,
                         borderRadius: context.radius(theme.radii.pill),
                         border: Border.all(
-                          color: _riskPercent == r ? theme.colors.primary : theme.colors.border,
+                          color: _riskPercent == r
+                              ? theme.colors.primary
+                              : theme.colors.border,
                         ),
                       ),
                       child: Text(
                         '$r%',
                         style: context.uiText.caption.copyWith(
                           fontSize: context.fs(11),
-                          fontWeight: _riskPercent == r ? FontWeight.w700 : FontWeight.w500,
-                          color: _riskPercent == r ? theme.colors.primary : theme.colors.foreground,
+                          fontWeight: _riskPercent == r
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: _riskPercent == r
+                              ? theme.colors.primary
+                              : theme.colors.foreground,
                         ),
                       ),
                     ),
@@ -4155,31 +4197,61 @@ class _CommunityAiRiskCalcDialogState extends State<CommunityAiRiskCalcDialog> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Max Risk Budget:', style: context.uiText.caption),
-                      Text('₹${maxLossAllowed.toStringAsFixed(0)} ($_riskPercent%)', style: context.uiText.bodyStrong.copyWith(color: theme.colors.danger)),
+                      Text(
+                        '₹${maxLossAllowed.toStringAsFixed(0)} ($_riskPercent%)',
+                        style: context.uiText.bodyStrong.copyWith(
+                          color: theme.colors.danger,
+                        ),
+                      ),
                     ],
                   ),
                   SizedBox(height: gapXs),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Stop Loss Distance:', style: context.uiText.caption),
-                      Text('${pointsAtRisk.toStringAsFixed(1)} points', style: context.uiText.bodyStrong),
+                      Text(
+                        'Stop Loss Distance:',
+                        style: context.uiText.caption,
+                      ),
+                      Text(
+                        '${pointsAtRisk.toStringAsFixed(1)} points',
+                        style: context.uiText.bodyStrong,
+                      ),
                     ],
                   ),
                   SizedBox(height: gapXs),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Recommended Lots:', style: context.uiText.label.copyWith(fontWeight: FontWeight.w700)),
-                      Text('$recommendedLots Lots ($totalQty Qty)', style: context.uiText.subheading.copyWith(color: theme.colors.primary, fontWeight: FontWeight.w800)),
+                      Text(
+                        'Recommended Lots:',
+                        style: context.uiText.label.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        '$recommendedLots Lots ($totalQty Qty)',
+                        style: context.uiText.subheading.copyWith(
+                          color: theme.colors.primary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ],
                   ),
                   SizedBox(height: gapXs),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Actual Risk Exposure:', style: context.uiText.caption),
-                      Text('₹${totalActualRisk.toStringAsFixed(0)}', style: context.uiText.caption.copyWith(fontWeight: FontWeight.w700)),
+                      Text(
+                        'Actual Risk Exposure:',
+                        style: context.uiText.caption,
+                      ),
+                      Text(
+                        '₹${totalActualRisk.toStringAsFixed(0)}',
+                        style: context.uiText.caption.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -4215,10 +4287,12 @@ class CommunityAiAudioBriefDialog extends StatefulWidget {
   }
 
   @override
-  State<CommunityAiAudioBriefDialog> createState() => _CommunityAiAudioBriefDialogState();
+  State<CommunityAiAudioBriefDialog> createState() =>
+      _CommunityAiAudioBriefDialogState();
 }
 
-class _CommunityAiAudioBriefDialogState extends State<CommunityAiAudioBriefDialog> {
+class _CommunityAiAudioBriefDialogState
+    extends State<CommunityAiAudioBriefDialog> {
   bool _isPlaying = false;
   double _speed = 1.0;
   double _progress = 0.25;
@@ -4239,11 +4313,17 @@ class _CommunityAiAudioBriefDialogState extends State<CommunityAiAudioBriefDialo
           children: [
             Row(
               children: [
-                UiBadge(label: 'TODAY 08:30 AM', intent: UiIntent.primary, size: UiSize.xs),
+                UiBadge(
+                  label: 'TODAY 08:30 AM',
+                  intent: UiIntent.primary,
+                  size: UiSize.xs,
+                ),
                 SizedBox(width: gapXs),
                 Text(
                   'Institutional Pre-Market Synthesis',
-                  style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted),
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
                 ),
               ],
             ),
@@ -4268,7 +4348,9 @@ class _CommunityAiAudioBriefDialogState extends State<CommunityAiAudioBriefDialo
                     width: context.sz(3),
                     height: context.sz(h),
                     decoration: BoxDecoration(
-                      color: index < 6 ? theme.colors.primary : theme.colors.foregroundMuted.withValues(alpha: 0.4),
+                      color: index < 6
+                          ? theme.colors.primary
+                          : theme.colors.foregroundMuted.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   );
@@ -4304,7 +4386,9 @@ class _CommunityAiAudioBriefDialogState extends State<CommunityAiAudioBriefDialo
                   icon: Icons.replay_10_rounded,
                   size: UiSize.sm,
                   variant: UiVariant.ghost,
-                  onPressed: () => setState(() => _progress = (_progress - 0.05).clamp(0.0, 1.0)),
+                  onPressed: () => setState(
+                    () => _progress = (_progress - 0.05).clamp(0.0, 1.0),
+                  ),
                 ),
                 SizedBox(width: gap),
                 Container(
@@ -4313,7 +4397,9 @@ class _CommunityAiAudioBriefDialogState extends State<CommunityAiAudioBriefDialo
                     shape: BoxShape.circle,
                   ),
                   child: UiIconButton(
-                    icon: _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    icon: _isPlaying
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
                     size: UiSize.md,
                     variant: UiVariant.ghost,
                     onPressed: () => setState(() => _isPlaying = !_isPlaying),
@@ -4324,7 +4410,9 @@ class _CommunityAiAudioBriefDialogState extends State<CommunityAiAudioBriefDialo
                   icon: Icons.forward_10_rounded,
                   size: UiSize.sm,
                   variant: UiVariant.ghost,
-                  onPressed: () => setState(() => _progress = (_progress + 0.05).clamp(0.0, 1.0)),
+                  onPressed: () => setState(
+                    () => _progress = (_progress + 0.05).clamp(0.0, 1.0),
+                  ),
                 ),
                 SizedBox(width: gap),
                 UiButton(
@@ -4378,4 +4466,3 @@ class _CommunityAiAudioBriefDialogState extends State<CommunityAiAudioBriefDialo
     );
   }
 }
-

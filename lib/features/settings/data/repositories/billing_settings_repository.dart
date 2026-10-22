@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
@@ -68,7 +69,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     billingCycle: _session.billingCycle,
     renewedAt: _session.renewedAt,
     expiresAt: _session.expiresAt,
-    usage: _source.accountUsage(_tier),
+    usage: CustomerDataPolicy.allowDemo ? _source.accountUsage(_tier) : {},
     monthlyAmount: _source.planPrice(_tier),
     annualMonthsBilled: _source.annualMonthsBilled,
     cancelAtPeriodEnd: _session.cancelAtPeriodEnd,
@@ -84,10 +85,17 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
         final user = client.auth.currentUser;
         final targetUserId = user?.id ?? _demoUserId;
 
-        final data = await client.from('subscriptions').select('*').eq('user_id', targetUserId).maybeSingle();
+        final data = await client
+            .from('subscriptions')
+            .select('*')
+            .eq('user_id', targetUserId)
+            .maybeSingle();
         if (data != null) {
           final tierStr = data['tier'] as String? ?? 'free';
-          final tier = AppTier.values.firstWhere((t) => t.name == tierStr, orElse: () => AppTier.free);
+          final tier = AppTier.values.firstWhere(
+            (t) => t.name == tierStr,
+            orElse: () => AppTier.free,
+          );
           final statusStr = data['status'] as String? ?? 'active';
           final cycleStr = data['billing_cycle'] as String? ?? 'monthly';
           _session.startPeriod(tier, cycleStr);
@@ -133,7 +141,9 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
           'status': 'active',
           'billing_cycle': billingCycle,
           'renewed_at': DateTime.now().toIso8601String(),
-          'expires_at': DateTime.now().add(Duration(days: billingCycle == 'annual' ? 365 : 30)).toIso8601String(),
+          'expires_at': DateTime.now()
+              .add(Duration(days: billingCycle == 'annual' ? 365 : 30))
+              .toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         });
       } catch (e) {
@@ -153,12 +163,17 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
         final user = client.auth.currentUser;
         final targetUserId = user?.id ?? _demoUserId;
 
-        await client.from('subscriptions').update({
-          'status': cancel ? 'canceled' : 'active',
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('user_id', targetUserId);
+        await client
+            .from('subscriptions')
+            .update({
+              'status': cancel ? 'canceled' : 'active',
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('user_id', targetUserId);
       } catch (e) {
-        debugPrint('BillingSettingsRepositoryImpl.setCancelAtPeriodEnd error: $e');
+        debugPrint(
+          'BillingSettingsRepositoryImpl.setCancelAtPeriodEnd error: $e',
+        );
       }
     }
     return _summary();
@@ -167,6 +182,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
   @override
   Future<int?> redeemCoupon(String code) async {
     await Future<void>.delayed(const Duration(milliseconds: 520));
+    if (!CustomerDataPolicy.allowDemo) return null;
     final int? percent = _coupons[code.trim().toUpperCase()];
     if (percent == null) return null;
     _session.discountCode = code.trim().toUpperCase();
@@ -198,7 +214,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
   @override
   Future<PaymentMethodSummary?> getPaymentMethod() async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
-    return _card();
+    return CustomerDataPolicy.allowDemo ? _card() : null;
   }
 
   /// The card on file, or null when there is none. A free account has never been
@@ -242,7 +258,8 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
             final lineItems = rawItems.map((li) {
               final map = li as Map<String, dynamic>;
               return InvoiceLineItem(
-                description: map['description'] as String? ?? 'Subscription Charge',
+                description:
+                    map['description'] as String? ?? 'Subscription Charge',
                 amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
                 quantity: (map['quantity'] as num?)?.toInt() ?? 1,
               );
@@ -254,11 +271,17 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
                 amount: (item['amount'] as num?)?.toDouble() ?? 0.0,
                 currency: item['currency'] as String? ?? 'INR',
                 status: item['status'] as String? ?? 'paid',
-                issuedAt: DateTime.tryParse(item['issued_at'] as String? ?? '') ?? DateTime.now(),
-                pdfUrl: item['pdf_url'] as String? ?? 'https://tradex.ai/invoices/${item['invoice_ref']}.pdf',
+                issuedAt:
+                    DateTime.tryParse(item['issued_at'] as String? ?? '') ??
+                    DateTime.now(),
+                pdfUrl:
+                    item['pdf_url'] as String? ??
+                    'https://tradex.ai/invoices/${item['invoice_ref']}.pdf',
                 issuer: _issuer,
                 taxPercent: _taxPercent,
-                paymentMethodLabel: card == null ? null : '${card.brand} •••• ${card.last4}',
+                paymentMethodLabel: card == null
+                    ? null
+                    : '${card.brand} •••• ${card.last4}',
                 lineItems: lineItems,
               ),
             );
@@ -269,7 +292,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
         debugPrint('BillingSettingsRepositoryImpl.getBillingHistory error: $e');
       }
     }
-    return _invoices();
+    return CustomerDataPolicy.allowDemo ? _invoices() : [];
   }
 
   @override
@@ -359,12 +382,17 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
         final user = client.auth.currentUser;
         final targetUserId = user?.id ?? _demoUserId;
 
-        await client.from('subscriptions').update({
-          'status': 'canceled',
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('user_id', targetUserId);
+        await client
+            .from('subscriptions')
+            .update({
+              'status': 'canceled',
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('user_id', targetUserId);
       } catch (e) {
-        debugPrint('BillingSettingsRepositoryImpl.cancelSubscription error: $e');
+        debugPrint(
+          'BillingSettingsRepositoryImpl.cancelSubscription error: $e',
+        );
       }
     }
   }

@@ -127,7 +127,7 @@ class CommunityAdvisorDisclosureSheet extends StatelessWidget {
             ),
             child: Column(
               children: [
-                _InfoRow(label: 'Registration Number', value: 'INH000009412'),
+                _InfoRow(label: 'Registration Number', value: 'Not verified'),
                 _InfoRow(
                   label: 'Regulatory Body',
                   value: 'SEBI (Securities & Exchange Board of India)',

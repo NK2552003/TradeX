@@ -1,7 +1,10 @@
+import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
-import 'package:tradex/core/markdown_kit/math_syntax.dart' show HighlightMarkBuilder;
+import 'package:tradex/core/markdown_kit/math_syntax.dart'
+    show HighlightMarkBuilder;
 import 'package:tradex/core/markdown_kit/scrollable_table.dart';
 
 /// ---------------------------------------------------------------------
@@ -76,14 +79,47 @@ const Set<String> kHtmlVoidTags = <String>{'br', 'hr', 'img'};
 /// stripped entirely, along with all of their content, rather than being
 /// rendered as text or passed through.
 const Set<String> kHtmlStrippedTags = <String>{
-  'script', 'style', 'iframe', 'object', 'embed', 'form', 'input',
+  'script',
+  'style',
+  'iframe',
+  'object',
+  'embed',
+  'form',
+  'input',
 };
 
 const Set<String> _inlineFormatTags = <String>{
-  'b', 'strong', 'i', 'em', 'u', 's', 'del', 'mark', 'br', 'sub', 'sup', 'span', 'a',
+  'b',
+  'strong',
+  'i',
+  'em',
+  'u',
+  's',
+  'del',
+  'mark',
+  'br',
+  'sub',
+  'sup',
+  'span',
+  'a',
 };
-const Set<String> _structuralTags = <String>{'div', 'p', 'blockquote', 'hr', 'ul', 'ol', 'li'};
-const Set<String> _tableTags = <String>{'table', 'thead', 'tbody', 'tr', 'td', 'th'};
+const Set<String> _structuralTags = <String>{
+  'div',
+  'p',
+  'blockquote',
+  'hr',
+  'ul',
+  'ol',
+  'li',
+};
+const Set<String> _tableTags = <String>{
+  'table',
+  'thead',
+  'tbody',
+  'tr',
+  'td',
+  'th',
+};
 
 /// Every tag [renderSafeHtml] will actually render something for.
 const Set<String> kHtmlAllowedTags = <String>{
@@ -93,10 +129,20 @@ const Set<String> kHtmlAllowedTags = <String>{
   'img',
 };
 
-const Set<String> _blockLevelTags = <String>{'div', 'p', 'blockquote', 'ul', 'ol', 'hr', 'table'};
+const Set<String> _blockLevelTags = <String>{
+  'div',
+  'p',
+  'blockquote',
+  'ul',
+  'ol',
+  'hr',
+  'table',
+};
 
 final RegExp _fenceLine = RegExp(r'^ {0,3}(```+|~~~+)');
-final RegExp _htmlTag = RegExp(r'<(/?)([a-zA-Z][a-zA-Z0-9]*)((?:\s+[^<>]*?)?)\s*(/?)>');
+final RegExp _htmlTag = RegExp(
+  r'<(/?)([a-zA-Z][a-zA-Z0-9]*)((?:\s+[^<>]*?)?)\s*(/?)>',
+);
 final RegExp _attrPattern = RegExp(
   r'''([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*(?:=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?''',
 );
@@ -106,7 +152,9 @@ final RegExp _attrPattern = RegExp(
 /// vanishingly unlikely to collide with anything a person actually types,
 /// and matched by [HtmlPlaceholderSyntax] via [_placeholderPattern].
 const String _htmlPlaceholderMarker = '\uE000';
-final RegExp _placeholderPattern = RegExp('$_htmlPlaceholderMarker(\\d+)$_htmlPlaceholderMarker');
+final RegExp _placeholderPattern = RegExp(
+  '$_htmlPlaceholderMarker(\\d+)$_htmlPlaceholderMarker',
+);
 
 class _IdGen {
   int _next = 0;
@@ -114,7 +162,11 @@ class _IdGen {
 }
 
 class _OpenFrame {
-  _OpenFrame({required this.tag, required this.attributes, required this.stripped});
+  _OpenFrame({
+    required this.tag,
+    required this.attributes,
+    required this.stripped,
+  });
   final String tag;
   final Map<String, String> attributes;
   final bool stripped;
@@ -160,7 +212,11 @@ String renderSafeHtml(String source, Map<String, HtmlNode> registry) {
   return out.join('\n');
 }
 
-String _transformHtmlSegment(String text, Map<String, HtmlNode> registry, _IdGen gen) {
+String _transformHtmlSegment(
+  String text,
+  Map<String, HtmlNode> registry,
+  _IdGen gen,
+) {
   if (!text.contains('<')) return text;
 
   final StringBuffer out = StringBuffer();
@@ -193,7 +249,9 @@ String _transformHtmlSegment(String text, Map<String, HtmlNode> registry, _IdGen
   for (final RegExpMatch m in _htmlTag.allMatches(text)) {
     final bool isClose = m.group(1) == '/';
     final String tagName = m.group(2)!.toLowerCase();
-    final bool recognized = kHtmlAllowedTags.contains(tagName) || kHtmlStrippedTags.contains(tagName);
+    final bool recognized =
+        kHtmlAllowedTags.contains(tagName) ||
+        kHtmlStrippedTags.contains(tagName);
     if (!recognized) continue; // Left as literal text, exactly as today.
 
     captureText(lastPos, m.start);
@@ -209,16 +267,21 @@ String _transformHtmlSegment(String text, Map<String, HtmlNode> registry, _IdGen
     if (!isClose) {
       final Map<String, String> attrs = _parseAttrs(m.group(3) ?? '');
       final bool stripped = kHtmlStrippedTags.contains(tagName);
-      final bool selfClosing = m.group(4) == '/' || kHtmlVoidTags.contains(tagName);
+      final bool selfClosing =
+          m.group(4) == '/' || kHtmlVoidTags.contains(tagName);
       if (selfClosing) {
-        final HtmlNode? node = stripped ? null : HtmlElementNode(tagName, attrs, const <HtmlNode>[]);
+        final HtmlNode? node = stripped
+            ? null
+            : HtmlElementNode(tagName, attrs, const <HtmlNode>[]);
         if (stack.isEmpty) {
           finishRun(node, m.end);
         } else if (node != null) {
           attach(node);
         }
       } else {
-        stack.add(_OpenFrame(tag: tagName, attributes: attrs, stripped: stripped));
+        stack.add(
+          _OpenFrame(tag: tagName, attributes: attrs, stripped: stripped),
+        );
       }
       continue;
     }
@@ -236,11 +299,14 @@ String _transformHtmlSegment(String text, Map<String, HtmlNode> registry, _IdGen
     // Auto-close anything opened (and never closed) after the match.
     while (stack.length - 1 > idx) {
       final _OpenFrame popped = stack.removeLast();
-      if (!popped.stripped) attach(HtmlElementNode(popped.tag, popped.attributes, popped.children));
+      if (!popped.stripped) {
+        attach(HtmlElementNode(popped.tag, popped.attributes, popped.children));
+      }
     }
     final _OpenFrame closing = stack.removeLast();
-    final HtmlNode? node =
-        closing.stripped ? null : HtmlElementNode(closing.tag, closing.attributes, closing.children);
+    final HtmlNode? node = closing.stripped
+        ? null
+        : HtmlElementNode(closing.tag, closing.attributes, closing.children);
     if (stack.isEmpty) {
       finishRun(node, m.end);
     } else if (node != null) {
@@ -254,10 +320,14 @@ String _transformHtmlSegment(String text, Map<String, HtmlNode> registry, _IdGen
     // auto-closing everything still open instead of losing the run.
     while (stack.length > 1) {
       final _OpenFrame popped = stack.removeLast();
-      if (!popped.stripped) attach(HtmlElementNode(popped.tag, popped.attributes, popped.children));
+      if (!popped.stripped) {
+        attach(HtmlElementNode(popped.tag, popped.attributes, popped.children));
+      }
     }
     final _OpenFrame root = stack.removeLast();
-    final HtmlNode? node = root.stripped ? null : HtmlElementNode(root.tag, root.attributes, root.children);
+    final HtmlNode? node = root.stripped
+        ? null
+        : HtmlElementNode(root.tag, root.attributes, root.children);
     finishRun(node, text.length);
   }
 
@@ -285,8 +355,11 @@ String _unescapeEntities(String text) => text
     .replaceAll('&amp;', '&');
 
 bool _isSafeUrl(String value) {
-  final String normalized = value.replaceAll(RegExp(r'[\x00-\x20]'), '').toLowerCase();
-  return !normalized.startsWith('javascript:') && !normalized.startsWith('data:text/html');
+  final String normalized = value
+      .replaceAll(RegExp(r'[\x00-\x20]'), '')
+      .toLowerCase();
+  return !normalized.startsWith('javascript:') &&
+      !normalized.startsWith('data:text/html');
 }
 
 double? _parseLength(String? raw) {
@@ -342,7 +415,10 @@ class HtmlInlineBuilder extends MarkdownElementBuilder {
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     final HtmlNode? node = registry[element.textContent];
     if (node == null) return null;
-    return _renderBlockNode(node, preferredStyle ?? styleSheet.p ?? const TextStyle());
+    return _renderBlockNode(
+      node,
+      preferredStyle ?? styleSheet.p ?? const TextStyle(),
+    );
   }
 
   Widget _renderBlockNode(HtmlNode node, TextStyle style) {
@@ -356,13 +432,18 @@ class HtmlInlineBuilder extends MarkdownElementBuilder {
       case 'td':
       case 'th':
         final md.Element? table = _toMdTableElement(el);
-        final Widget? widget = table == null ? null : tableBuilder.buildTable(table);
+        final Widget? widget = table == null
+            ? null
+            : tableBuilder.buildTable(table);
         return widget ?? const SizedBox.shrink();
       case 'blockquote':
         return Container(
           decoration: styleSheet.blockquoteDecoration,
           padding: styleSheet.blockquotePadding,
-          child: _renderChildrenAsBlocks(el.children, style.merge(styleSheet.blockquote)),
+          child: _renderChildrenAsBlocks(
+            el.children,
+            style.merge(styleSheet.blockquote),
+          ),
         );
       case 'div':
       case 'p':
@@ -377,7 +458,10 @@ class HtmlInlineBuilder extends MarkdownElementBuilder {
       case 'ol':
         return _renderList(el, style);
       case 'li':
-        return _renderList(HtmlElementNode('ul', const <String, String>{}, <HtmlNode>[el]), style);
+        return _renderList(
+          HtmlElementNode('ul', const <String, String>{}, <HtmlNode>[el]),
+          style,
+        );
       default:
         // An inline-formatting tag (b, i, span, a, mark, ...) sitting at
         // the outermost level of a run — render it as one paragraph.
@@ -398,7 +482,8 @@ class HtmlInlineBuilder extends MarkdownElementBuilder {
     }
 
     for (final HtmlNode child in children) {
-      final bool isBlock = child is HtmlElementNode && _blockLevelTags.contains(child.tag);
+      final bool isBlock =
+          child is HtmlElementNode && _blockLevelTags.contains(child.tag);
       if (isBlock) {
         flushPending();
         if (widgets.isNotEmpty) widgets.add(SizedBox(height: spacing));
@@ -420,8 +505,10 @@ class HtmlInlineBuilder extends MarkdownElementBuilder {
 
   Widget _renderList(HtmlElementNode list, TextStyle style) {
     final bool ordered = list.tag == 'ol';
-    final List<HtmlElementNode> items =
-        list.children.whereType<HtmlElementNode>().where((HtmlElementNode c) => c.tag == 'li').toList();
+    final List<HtmlElementNode> items = list.children
+        .whereType<HtmlElementNode>()
+        .where((HtmlElementNode c) => c.tag == 'li')
+        .toList();
     if (items.isEmpty) return const SizedBox.shrink();
     final double indent = styleSheet.listIndent ?? 22;
     final TextStyle bulletStyle = styleSheet.listBullet ?? style;
@@ -438,10 +525,16 @@ class HtmlInlineBuilder extends MarkdownElementBuilder {
               children: <Widget>[
                 SizedBox(
                   width: indent,
-                  child: Text(ordered ? '${i + 1}.' : '\u2022', style: bulletStyle, textAlign: TextAlign.right),
+                  child: Text(
+                    ordered ? '${i + 1}.' : '\u2022',
+                    style: bulletStyle,
+                    textAlign: TextAlign.right,
+                  ),
                 ),
                 const SizedBox(width: 6),
-                Expanded(child: _renderChildrenAsBlocks(items[i].children, style)),
+                Expanded(
+                  child: _renderChildrenAsBlocks(items[i].children, style),
+                ),
               ],
             ),
           ),
@@ -469,32 +562,51 @@ class HtmlInlineBuilder extends MarkdownElementBuilder {
         case 'b':
         case 'strong':
           spans.addAll(
-            _inlineSpans(el.children, style.merge(styleSheet.strong).copyWith(fontWeight: FontWeight.w700)),
+            _inlineSpans(
+              el.children,
+              style
+                  .merge(styleSheet.strong)
+                  .copyWith(fontWeight: FontWeight.w700),
+            ),
           );
           break;
         case 'i':
         case 'em':
           spans.addAll(
-            _inlineSpans(el.children, style.merge(styleSheet.em).copyWith(fontStyle: FontStyle.italic)),
+            _inlineSpans(
+              el.children,
+              style.merge(styleSheet.em).copyWith(fontStyle: FontStyle.italic),
+            ),
           );
           break;
         case 'u':
-          spans.addAll(_inlineSpans(el.children, style.copyWith(decoration: TextDecoration.underline)));
+          spans.addAll(
+            _inlineSpans(
+              el.children,
+              style.copyWith(decoration: TextDecoration.underline),
+            ),
+          );
           break;
         case 's':
         case 'del':
           spans.addAll(
             _inlineSpans(
               el.children,
-              style.merge(styleSheet.del).copyWith(decoration: TextDecoration.lineThrough),
+              style
+                  .merge(styleSheet.del)
+                  .copyWith(decoration: TextDecoration.lineThrough),
             ),
           );
           break;
         case 'mark':
-          final Widget? highlighted = HighlightMarkBuilder(dark: dark)
-              .visitElementAfter(md.Element.text('mark', _plainText(el)), style);
+          final Widget? highlighted = HighlightMarkBuilder(
+            dark: dark,
+          ).visitElementAfter(md.Element.text('mark', _plainText(el)), style);
           spans.add(
-            WidgetSpan(alignment: PlaceholderAlignment.middle, child: highlighted ?? const SizedBox.shrink()),
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: highlighted ?? const SizedBox.shrink(),
+            ),
           );
           break;
         case 'br':
@@ -507,13 +619,43 @@ class HtmlInlineBuilder extends MarkdownElementBuilder {
           spans.add(_scriptSpan(el, style, dy: -6));
           break;
         case 'span':
-          spans.addAll(_inlineSpans(el.children, style.merge(_spanStyle(el.attributes))));
+          spans.addAll(
+            _inlineSpans(el.children, style.merge(_spanStyle(el.attributes))),
+          );
           break;
         case 'a':
-          spans.addAll(_inlineSpans(el.children, style.merge(styleSheet.a)));
+          final href = el.attributes['href'];
+          final uri = href == null ? null : Uri.tryParse(href);
+          final allowed =
+              uri != null &&
+              const {'https', 'http', 'mailto'}.contains(uri.scheme);
+          if (!allowed) {
+            spans.addAll(_inlineSpans(el.children, style));
+            break;
+          }
+          String labelOf(HtmlNode node) => node is HtmlTextNode
+              ? node.text
+              : (node as HtmlElementNode).children.map(labelOf).join();
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: UiButton(
+                label: el.children.map(labelOf).join(),
+                variant: UiVariant.link,
+                size: UiSize.sm,
+                onPressed: () =>
+                    launchUrl(uri, mode: LaunchMode.externalApplication),
+              ),
+            ),
+          );
           break;
         case 'img':
-          spans.add(WidgetSpan(alignment: PlaceholderAlignment.middle, child: _image(el)));
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: _image(el),
+            ),
+          );
           break;
         default:
           // Block-level tag reached from inline context (e.g. a stray <p>
@@ -524,14 +666,22 @@ class HtmlInlineBuilder extends MarkdownElementBuilder {
     return spans;
   }
 
-  WidgetSpan _scriptSpan(HtmlElementNode el, TextStyle style, {required double dy}) {
-    final TextStyle smaller = style.copyWith(fontSize: (style.fontSize ?? 14) * 0.7);
+  WidgetSpan _scriptSpan(
+    HtmlElementNode el,
+    TextStyle style, {
+    required double dy,
+  }) {
+    final TextStyle smaller = style.copyWith(
+      fontSize: (style.fontSize ?? 14) * 0.7,
+    );
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
       child: Transform.translate(
         offset: Offset(0, dy),
-        child: Text.rich(TextSpan(children: _inlineSpans(el.children, smaller))),
+        child: Text.rich(
+          TextSpan(children: _inlineSpans(el.children, smaller)),
+        ),
       ),
     );
   }
@@ -552,7 +702,9 @@ class HtmlInlineBuilder extends MarkdownElementBuilder {
       final String prop = decl.substring(0, i).trim().toLowerCase();
       final String value = decl.substring(i + 1).trim();
       if (prop == 'color') color = _parseCssColor(value);
-      if (prop == 'background-color' || prop == 'background') background = _parseCssColor(value);
+      if (prop == 'background-color' || prop == 'background') {
+        background = _parseCssColor(value);
+      }
     }
     return TextStyle(color: color, backgroundColor: background);
   }
@@ -572,7 +724,12 @@ class HtmlInlineBuilder extends MarkdownElementBuilder {
     if (resolveImage != null) {
       child = resolveImage!(uri);
     } else if (uri.scheme == 'http' || uri.scheme == 'https') {
-      child = Image.network(src, width: width, height: height, semanticLabel: alt.isEmpty ? null : alt);
+      child = Image.network(
+        src,
+        width: width,
+        height: height,
+        semanticLabel: alt.isEmpty ? null : alt,
+      );
     } else {
       return Tooltip(
         message: alt.isEmpty ? 'Image unavailable' : alt,
@@ -618,13 +775,16 @@ Color? _parseCssColor(String value) {
     final int? argb = int.tryParse(hex, radix: 16);
     return argb == null ? null : Color(argb);
   }
-  final RegExpMatch? rgb =
-      RegExp(r'^rgba?\(([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s]+([\d.]+))?\)$').firstMatch(v);
+  final RegExpMatch? rgb = RegExp(
+    r'^rgba?\(([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s]+([\d.]+))?\)$',
+  ).firstMatch(v);
   if (rgb != null) {
     final int r = (int.tryParse(rgb.group(1) ?? '') ?? 0).clamp(0, 255).toInt();
     final int g = (int.tryParse(rgb.group(2) ?? '') ?? 0).clamp(0, 255).toInt();
     final int b = (int.tryParse(rgb.group(3) ?? '') ?? 0).clamp(0, 255).toInt();
-    final double a = (double.tryParse(rgb.group(4) ?? '1') ?? 1).clamp(0, 1).toDouble();
+    final double a = (double.tryParse(rgb.group(4) ?? '1') ?? 1)
+        .clamp(0, 1)
+        .toDouble();
     return Color.fromRGBO(r, g, b, a);
   }
   return _namedCssColors[v];
@@ -634,8 +794,9 @@ Color? _parseCssColor(String value) {
 /// into the `md.Element` shape [ScrollableTableBuilder.buildTable] already
 /// knows how to render, so the actual table layout is never duplicated.
 md.Element? _toMdTableElement(HtmlElementNode el) {
-  final HtmlElementNode table =
-      el.tag == 'table' ? el : HtmlElementNode('table', const <String, String>{}, <HtmlNode>[el]);
+  final HtmlElementNode table = el.tag == 'table'
+      ? el
+      : HtmlElementNode('table', const <String, String>{}, <HtmlNode>[el]);
   final md.Node converted = _toMdNode(table);
   return converted is md.Element ? converted : null;
 }
@@ -652,9 +813,16 @@ md.Node _toMdNode(HtmlNode node) {
   final List<md.Node> children = el.children.map(_toMdNode).toList();
   final md.Element built = md.Element(tag, children);
   if (tag == 'td' || tag == 'th') {
-    final String raw = (el.attributes['style'] ?? '').toLowerCase().replaceAll(' ', '');
-    if (raw.contains('text-align:center')) built.attributes['style'] = 'text-align: center;';
-    if (raw.contains('text-align:right')) built.attributes['style'] = 'text-align: right;';
+    final String raw = (el.attributes['style'] ?? '').toLowerCase().replaceAll(
+      ' ',
+      '',
+    );
+    if (raw.contains('text-align:center')) {
+      built.attributes['style'] = 'text-align: center;';
+    }
+    if (raw.contains('text-align:right')) {
+      built.attributes['style'] = 'text-align: right;';
+    }
   }
   return built;
 }

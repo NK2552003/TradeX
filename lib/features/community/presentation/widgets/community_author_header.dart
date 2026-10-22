@@ -38,6 +38,12 @@ class CommunityAuthorHeader extends StatelessWidget {
   final VoidCallback? onMoreTap;
   final VoidCallback? onEdit;
 
+  String get _displayName => author.displayName.trim().isNotEmpty
+      ? author.displayName
+      : author.handle.trim().isNotEmpty
+      ? author.handle
+      : 'Trader';
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
@@ -54,11 +60,13 @@ class CommunityAuthorHeader extends StatelessWidget {
               CommunityAuthorPopover.show(
                 context,
                 author: author,
-                onViewProfile: onAuthorTap == null ? null : () => onAuthorTap!(author),
+                onViewProfile: onAuthorTap == null
+                    ? null
+                    : () => onAuthorTap!(author),
               );
             },
             child: UiAvatar(
-              name: author.displayName,
+              name: _displayName,
               imageUrl: author.avatarUrl,
               size: avatarSize,
               verified: author.verified,
@@ -97,7 +105,6 @@ class CommunityAuthorHeader extends StatelessWidget {
     );
   }
 
-
   Widget _buildInlineMeta(
     BuildContext context,
     UiTheme theme,
@@ -112,7 +119,7 @@ class CommunityAuthorHeader extends StatelessWidget {
         GestureDetector(
           onTap: onAuthorTap == null ? null : () => onAuthorTap!(author),
           child: Text(
-            author.displayName,
+            _displayName,
             style: context.uiText.bodyStrong.copyWith(
               fontWeight: FontWeight.w700,
               color: theme.colors.foreground,
@@ -141,12 +148,13 @@ class CommunityAuthorHeader extends StatelessWidget {
             variant: UiBadgeVariant.soft,
             size: UiSize.xs,
           ),
-        Text(
-          '@${author.handle}',
-          style: context.uiText.caption.copyWith(
-            color: theme.colors.foregroundMuted,
+        if (author.handle.isNotEmpty)
+          Text(
+            '@${author.handle}',
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+            ),
           ),
-        ),
         Text(
           '· $timeAgo',
           style: context.uiText.caption.copyWith(
@@ -174,7 +182,7 @@ class CommunityAuthorHeader extends StatelessWidget {
               child: GestureDetector(
                 onTap: onAuthorTap == null ? null : () => onAuthorTap!(author),
                 child: Text(
-                  author.displayName,
+                  _displayName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: context.uiText.bodyStrong.copyWith(
@@ -207,7 +215,9 @@ class CommunityAuthorHeader extends StatelessWidget {
               const SizedBox(width: 4),
               UiBadge(
                 label: '${author.winRate!.toStringAsFixed(0)}% Win',
-                intent: author.winRate! >= 60 ? UiIntent.success : UiIntent.neutral,
+                intent: author.winRate! >= 60
+                    ? UiIntent.success
+                    : UiIntent.neutral,
                 variant: UiBadgeVariant.soft,
                 size: UiSize.xs,
               ),
@@ -216,7 +226,7 @@ class CommunityAuthorHeader extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          '@${author.handle} · $timeAgo',
+          author.handle.isEmpty ? timeAgo : '@${author.handle} · $timeAgo',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: context.uiText.caption.copyWith(
@@ -254,17 +264,19 @@ class CommunityAuthorHeader extends StatelessWidget {
         UiMenuItem(
           label: 'Mute @${author.handle}',
           icon: Icons.volume_off_outlined,
-          onPressed: onMute ?? () {},
+          onPressed: onMute,
+          enabled: onMute != null,
         ),
         UiMenuItem(
           label: 'Report post',
           icon: Icons.flag_outlined,
-          onPressed: onReport ?? () {},
+          onPressed: onReport,
+          enabled: onReport != null,
         ),
       ],
       child: UiIconButton(
         icon: Icons.more_horiz_rounded,
-        size: UiSize.xs,
+        size: context.uiRes.isMobile ? UiSize.lg : UiSize.xs,
         tooltip: 'More options',
         onPressed: null,
       ),

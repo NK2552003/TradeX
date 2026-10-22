@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -156,6 +157,12 @@ class _AiChatViewState extends State<AiChatView> {
     return AiDensityScope(
       child: Column(
         children: [
+          UiBadge(
+            label: CustomerDataPolicy.allowDemo
+                ? 'Demo assistant · Responses are simulated'
+                : 'Assistant service unavailable',
+            intent: UiIntent.info,
+          ),
           // Header area
           Padding(
             padding: EdgeInsets.symmetric(
@@ -256,9 +263,7 @@ class _AiChatViewState extends State<AiChatView> {
           Expanded(
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: kAiChatMaxWidth,
-                ),
+                constraints: const BoxConstraints(maxWidth: kAiChatMaxWidth),
                 child: isEmpty
                     ? _buildEmptyState()
                     : _buildChatBlock(messages, generating, actions),
@@ -401,6 +406,13 @@ class _AiChatViewState extends State<AiChatView> {
     bool generating,
     List<AiSuggestedAction> actions,
   ) {
+    if (!CustomerDataPolicy.allowDemo) {
+      return const UiEmptyState(
+        title: 'Assistant service unavailable',
+        message:
+            'AI responses require a configured service. No simulated answers are shown in your account.',
+      );
+    }
     final bool hasAssistantMsg = messages.any(
       (m) => m.role == AppAiRole.assistant && !m.pending,
     );

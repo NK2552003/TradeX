@@ -39,14 +39,18 @@ class UiDivider extends StatelessWidget {
           : Row(
               children: <Widget>[
                 line,
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.sp(theme.spacing.md),
-                  ),
-                  child: Text(
-                    label!,
-                    style: context.uiText.caption.copyWith(
-                      color: theme.colors.foregroundSubtle,
+                Flexible(
+                  flex: 3,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.sp(theme.spacing.md),
+                    ),
+                    child: Text(
+                      label!,
+                      textAlign: TextAlign.center,
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.foregroundSubtle,
+                      ),
                     ),
                   ),
                 ),

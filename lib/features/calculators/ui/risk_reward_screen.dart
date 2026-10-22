@@ -1,3 +1,4 @@
+import 'calculator_journal_draft.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 
@@ -69,15 +70,36 @@ class _RiskRewardCalculatorScreenState
     final bool long = _target >= _entry;
     final double edge = _winRate - r.breakevenWinRatePct;
     final bool thin = r.ratio < 1.5;
-    final double lo = <double>[_entry, _sl, _target].reduce(
-      (double a, double b) => a < b ? a : b,
-    );
-    final double hi = <double>[_entry, _sl, _target].reduce(
-      (double a, double b) => a > b ? a : b,
-    );
+    final double lo = <double>[
+      _entry,
+      _sl,
+      _target,
+    ].reduce((double a, double b) => a < b ? a : b);
+    final double hi = <double>[
+      _entry,
+      _sl,
+      _target,
+    ].reduce((double a, double b) => a > b ? a : b);
     final double pad = (hi - lo) * 0.12 + 1;
 
     return AppCalculatorLayout(
+      actions: [
+        UiButton(
+          label: 'Log Trade',
+          leadingIcon: Icons.book_outlined,
+          variant: UiVariant.soft,
+          onPressed: r.risk > 0 && _riskAmount.isFinite && _riskAmount > 0
+              ? () => openCalculatorJournalDraft(
+                  context,
+                  symbol: _symbol,
+                  entry: _entry,
+                  stopLoss: _sl,
+                  quantity: (_riskAmount / r.risk).floorToDouble(),
+                  target: _target,
+                )
+              : null,
+        ),
+      ],
       meta: calculatorMetaById('risk_reward'),
       onBack: widget.onBack,
       headline: AppCalcHeadline(
@@ -123,7 +145,8 @@ class _RiskRewardCalculatorScreenState
           label: 'Expectancy',
           value: AppTokens.rr(e.expectancyR),
           intent: AppTokens.plIntent(e.expectancyR),
-          hint: '${AppTokens.signedMoney(e.expectancyMoney, decimals: 0)} '
+          hint:
+              '${AppTokens.signedMoney(e.expectancyMoney, decimals: 0)} '
               'per trade',
         ),
         UiStat(
@@ -138,7 +161,10 @@ class _RiskRewardCalculatorScreenState
         AppCalcInputGroup(
           label: 'Levels',
           children: <Widget>[
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runSpacing: context.sp(context.ui.spacing.xs),
               children: <Widget>[
                 UiBadge(
                   label: _isLive
@@ -148,7 +174,7 @@ class _RiskRewardCalculatorScreenState
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
-                const Spacer(),
+
                 UiButton(
                   label: 'Sync LTP',
                   leadingIcon: Icons.refresh,
@@ -203,7 +229,8 @@ class _RiskRewardCalculatorScreenState
               divisions: 80,
               intent: edge >= 0 ? UiIntent.bullish : UiIntent.bearish,
               valueFormatter: (num v) => AppTokens.percent(v),
-              helper: 'Breakeven sits at '
+              helper:
+                  'Breakeven sits at '
                   '${AppTokens.percent(r.breakevenWinRatePct)}.',
               onChanged: (double v) => setState(() => _winRate = v),
             ),

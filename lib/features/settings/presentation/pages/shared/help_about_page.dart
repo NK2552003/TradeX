@@ -3,7 +3,10 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
 
 class HelpAboutPage extends StatefulWidget {
-  const HelpAboutPage({super.key});
+  const HelpAboutPage({super.key, this.submitTicket});
+
+  final Future<void> Function(String category, String subject, String message)?
+  submitTicket;
 
   @override
   State<HelpAboutPage> createState() => _HelpAboutPageState();
@@ -281,7 +284,25 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
     }
 
     setState(() => _sending = true);
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    try {
+      final submit = widget.submitTicket;
+      if (submit == null) {
+        throw StateError('Support ticket service is unavailable.');
+      }
+      await submit(_category, sub, msg);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _sending = false);
+        UiToast.show(
+          context,
+          title: 'Ticket not sent',
+          message:
+              'Your message has been kept. Please retry when support is available.',
+          intent: UiIntent.warning,
+        );
+      }
+      return;
+    }
     if (mounted) {
       setState(() {
         _subjectController.clear();
@@ -325,8 +346,9 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
               // Contact Support Form
               AppSettingsSectionBlock(
                 title: 'Contact Support & Desk Assistance',
-                description:
-                    'Have a question or encountering an issue? Send a direct message to our support team.',
+                description: widget.submitTicket == null
+                    ? 'Ticket delivery is not connected in this environment. Support messages cannot be sent yet.'
+                    : 'Have a question or encountering an issue? Send a direct message to our support team.',
                 children: [
                   UiCard(
                     child: Column(
@@ -372,10 +394,14 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
                           child: SizedBox(
                             width: isMobile ? double.infinity : null,
                             child: UiButton(
-                              label: 'Send Support Ticket',
+                              label: widget.submitTicket == null
+                                  ? 'Support unavailable'
+                                  : 'Send Support Ticket',
                               intent: UiIntent.primary,
                               loading: _sending,
-                              onPressed: _submitSupport,
+                              onPressed: widget.submitTicket == null
+                                  ? null
+                                  : _submitSupport,
                             ),
                           ),
                         ),
@@ -428,7 +454,7 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
                       size: UiSize.sm,
                       onPressed: () => _showLegalDialog(
                         'Privacy Policy',
-                        'We never sell your trading data or order flow. All journal entries and API credentials are encrypted with AES-256 and stored in compliant tier-IV data centers.',
+                        'Review your data visibility and export preferences in Privacy Settings. Only publish records you intend to share.',
                       ),
                     ),
                   ),

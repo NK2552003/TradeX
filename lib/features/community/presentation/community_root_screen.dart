@@ -45,6 +45,7 @@ class CommunityRootScreen extends StatefulWidget {
     this.userRole = UserRole.customer,
     this.currentTrader,
     this.onSubpageChanged,
+    this.onOpenRecord,
     this.onNavigateToMessages,
     this.onOpenThread,
     this.onStartDirectMessage,
@@ -84,6 +85,7 @@ class CommunityRootScreen extends StatefulWidget {
   final String? searchQuery;
 
   /// Link request to open a specific post.
+  final ValueChanged<AppLinkRef>? onOpenRecord;
   final AppLinkOpenRequest? openRequest;
 
   @override
@@ -301,11 +303,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       final String symbol = tag.substring(1).trim().toUpperCase();
       if (symbol.isNotEmpty && widget.onOpenRef != null) {
         widget.onOpenRef!(
-          AppLinkRef(
-            kind: AppLinkKind.ticker,
-            id: symbol,
-            title: symbol,
-          ),
+          AppLinkRef(kind: AppLinkKind.ticker, id: symbol, title: symbol),
         );
         return;
       }
@@ -314,6 +312,22 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   }
 
   void _openPostDetail(CommunityPost post) {
+    if (!post.isPublic && post.author.id != _currentAuthor.id) {
+      UiToast.error(
+        context,
+        title: 'Post unavailable',
+        message: 'The post is private or was removed.',
+      );
+      return;
+    }
+    widget.onOpenRecord?.call(
+      AppLinkRef(
+        kind: AppLinkKind.communityPost,
+        id: post.id,
+        title: 'Post',
+        isPublicContext: true,
+      ),
+    );
     _openSubpage(
       title: 'Post',
       page: CommunityPostDetailView(

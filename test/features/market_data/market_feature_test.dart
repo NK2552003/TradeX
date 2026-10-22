@@ -137,7 +137,7 @@ void main() {
     );
     final prefs = await SharedPreferences.getInstance();
     expect(
-      prefs.getStringList('market_intelligence_likes'),
+      prefs.getStringList('market_intelligence_likes:guest'),
       contains(video.link),
     );
     expect(tester.takeException(), isNull);
@@ -208,6 +208,7 @@ void main() {
       expect(find.byType(MarketNewsCard), findsWidgets);
       expect(find.byType(UiRemoteImage), findsWidgets);
       expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.text(data.articles.first.title).first);
       await tester.tap(find.text(data.articles.first.title).first);
       await tester.pump();
       expect(find.byType(MarketArticleView), findsOneWidget);

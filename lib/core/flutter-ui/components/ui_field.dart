@@ -109,10 +109,12 @@ class UiField extends StatelessWidget {
               ),
               if (optionalLabel != null && !required) ...<Widget>[
                 SizedBox(width: context.sp(theme.spacing.xs)),
-                Text(
-                  optionalLabel!,
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundSubtle,
+                Flexible(
+                  child: Text(
+                    optionalLabel!,
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundSubtle,
+                    ),
                   ),
                 ),
               ],
@@ -132,7 +134,7 @@ class UiField extends StatelessWidget {
         ),
         if (headerAction != null) ...<Widget>[
           SizedBox(width: context.sp(theme.spacing.xs)),
-          headerAction!,
+          Flexible(child: headerAction!),
         ],
       ],
     );

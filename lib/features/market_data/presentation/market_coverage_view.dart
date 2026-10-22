@@ -173,15 +173,18 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
                 ],
                 onRowTap: (r) {
                   final quote = quotes[r['ticker']];
-                  if (quote != null) {
-                    widget.onInstrument(quote);
-                  } else {
-                    UiToast.show(
-                      context,
-                      title: 'No price quote was exported for ${r['ticker']}',
-                      intent: UiIntent.info,
-                    );
-                  }
+                  widget.onInstrument(
+                    quote ??
+                        MarketInstrument.fromJson(
+                          {
+                            'ticker': r['ticker'],
+                            'market': r['market'],
+                            'price': double.nan,
+                            'change_pct': 0,
+                          },
+                          {'name': r['name'] ?? r['ticker']},
+                        ),
+                  );
                 },
               ),
             ],

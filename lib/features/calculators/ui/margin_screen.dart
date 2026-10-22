@@ -115,8 +115,11 @@ class _MarginCalculatorScreenState extends State<MarginCalculatorScreen> {
         label: 'Margin blocked',
         value: AppTokens.lakhCrore(required),
         intent: utilPct > 100 ? UiIntent.danger : UiIntent.primary,
-        tag: '${_hedged ? 'hedged' : 'naked'} · ${_isLive ? 'Live LTP' : 'Ref'}',
-        tagIntent: _isLive ? UiIntent.success : (_hedged ? UiIntent.bullish : UiIntent.warning),
+        tag:
+            '${_hedged ? 'hedged' : 'naked'} · ${_isLive ? 'Live LTP' : 'Ref'}',
+        tagIntent: _isLive
+            ? UiIntent.success
+            : (_hedged ? UiIntent.bullish : UiIntent.warning),
         footnote:
             '$_lots ${_lots == 1 ? 'lot' : 'lots'} of $_symbol at '
             '${AppTokens.percent(s.marginPct)} of '
@@ -126,7 +129,8 @@ class _MarginCalculatorScreenState extends State<MarginCalculatorScreen> {
         UiStat(
           label: 'Notional',
           value: AppTokens.lakhCrore(s.notional),
-          hint: '$_lots × ${AppTokens.count(_lotSize)} × '
+          hint:
+              '$_lots × ${AppTokens.count(_lotSize)} × '
               '${AppTokens.money(_price, decimals: 0)}',
         ),
         UiStat(
@@ -167,7 +171,10 @@ class _MarginCalculatorScreenState extends State<MarginCalculatorScreen> {
           label: 'Contract',
           hint: 'lot size follows the symbol',
           children: <Widget>[
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runSpacing: context.sp(context.ui.spacing.xs),
               children: <Widget>[
                 UiBadge(
                   label: _isLive
@@ -177,7 +184,7 @@ class _MarginCalculatorScreenState extends State<MarginCalculatorScreen> {
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
-                const Spacer(),
+
                 UiButton(
                   label: 'Sync LTP',
                   leadingIcon: Icons.refresh,
@@ -203,9 +210,7 @@ class _MarginCalculatorScreenState extends State<MarginCalculatorScreen> {
               value: _price,
               prefix: '₹',
               decimals: 0,
-              helper: _isLive
-                  ? 'Live spot from Yahoo Finance v8.'
-                  : null,
+              helper: _isLive ? 'Live spot from Yahoo Finance v8.' : null,
               onChanged: (double v) => setState(() => _price = v),
             ),
             AppCalcNumberField(
@@ -430,7 +435,8 @@ class _MarginCalculatorScreenState extends State<MarginCalculatorScreen> {
         if (!_hedged && s.savedPct > 0)
           UiCallout(
             intent: UiIntent.info,
-            title: 'A hedge would free '
+            title:
+                'A hedge would free '
                 '${AppTokens.percent(s.savedPct, decimals: 0)}',
             message:
                 'Adding an offsetting leg cuts the block to '

@@ -74,7 +74,9 @@ class _CommunityReportDialogState extends State<CommunityReportDialog> {
             SizedBox(width: context.sp(theme.spacing.xs)),
             Text(
               'Report Post',
-              style: context.uiText.heading.copyWith(fontWeight: FontWeight.w700),
+              style: context.uiText.heading.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const Spacer(),
             UiIconButton(
@@ -87,7 +89,7 @@ class _CommunityReportDialogState extends State<CommunityReportDialog> {
         ),
         SizedBox(height: context.sp(theme.spacing.sm)),
         Text(
-          'Help us understand what is wrong with this post. Your report is completely confidential.',
+          'Moderation delivery is not connected yet. Reports cannot be submitted from this screen.',
           style: context.uiText.caption.copyWith(
             color: theme.colors.foregroundMuted,
             height: 1.4,
@@ -131,20 +133,7 @@ class _CommunityReportDialogState extends State<CommunityReportDialog> {
             UiButton(
               label: 'Submit Report',
               variant: UiVariant.destructive,
-              onPressed: () {
-                widget.repository.reportPost(
-                  widget.postId,
-                  _selectedReason,
-                  notes: _notes,
-                );
-                Navigator.of(context).pop();
-                UiToast.show(
-                  context,
-                  title: 'Report Submitted',
-                  message: 'Thank you. Our moderation desk will review this post.',
-                  intent: UiIntent.info,
-                );
-              },
+              onPressed: null,
             ),
           ],
         ),

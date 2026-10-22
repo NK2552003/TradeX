@@ -1,3 +1,4 @@
+import 'package:tradex/features/community/data/workspace_attachment_service.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
@@ -81,6 +82,32 @@ class CommunityAttachmentPicker extends StatefulWidget {
 class _CommunityAttachmentPickerState extends State<CommunityAttachmentPicker> {
   String _selectedKind = 'all';
   String _searchQuery = '';
+  bool _loading = true;
+  String? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  Future<void> _reload() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final records = await WorkspaceAttachmentService().ownedRecords();
+      if (!mounted) return;
+      widget.repository.replaceAttachableRecords(records);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _loadError = 'Could not load your workspace records.');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   static const List<UiToggleOption<String>> _kindOptions =
       <UiToggleOption<String>>[
@@ -111,6 +138,14 @@ class _CommunityAttachmentPickerState extends State<CommunityAttachmentPicker> {
         })
         .toList();
 
+    if (_loading) return const UiSkeleton(height: 240);
+    if (_loadError != null) {
+      return UiEmptyState(
+        title: 'Workspace unavailable',
+        message: _loadError,
+        action: UiButton(label: 'Retry', onPressed: _reload),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -130,13 +165,14 @@ class _CommunityAttachmentPickerState extends State<CommunityAttachmentPicker> {
                 size: context.sz(20),
               ),
               SizedBox(width: context.sp(theme.spacing.xs)),
-              Text(
-                'Attach Workspace Record',
-                style: context.uiText.heading.copyWith(
-                  fontWeight: FontWeight.w700,
+              Expanded(
+                child: Text(
+                  'Attach Workspace Record',
+                  style: context.uiText.heading.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-              const Spacer(),
               UiIconButton(
                 icon: Icons.close_rounded,
                 size: UiSize.sm,
@@ -184,19 +220,22 @@ class _CommunityAttachmentPickerState extends State<CommunityAttachmentPicker> {
                     label: '+ Note',
                     size: UiSize.xs,
                     variant: UiVariant.ghost,
-                    onPressed: () => _openQuickCreate(context, AppLinkKind.note),
+                    onPressed: () =>
+                        _openQuickCreate(context, AppLinkKind.note),
                   ),
                   UiButton(
                     label: '+ Journal',
                     size: UiSize.xs,
                     variant: UiVariant.ghost,
-                    onPressed: () => _openQuickCreate(context, AppLinkKind.journal),
+                    onPressed: () =>
+                        _openQuickCreate(context, AppLinkKind.journal),
                   ),
                   UiButton(
                     label: '+ Strategy',
                     size: UiSize.xs,
                     variant: UiVariant.ghost,
-                    onPressed: () => _openQuickCreate(context, AppLinkKind.strategy),
+                    onPressed: () =>
+                        _openQuickCreate(context, AppLinkKind.strategy),
                   ),
                 ],
               ),
@@ -219,7 +258,8 @@ class _CommunityAttachmentPickerState extends State<CommunityAttachmentPicker> {
                       message:
                           'Create a note, journal trade, or strategy above to attach it to your post immediately.',
                       actionLabel: '+ Quick Create Note',
-                      onActionPressed: () => _openQuickCreate(context, AppLinkKind.note),
+                      onActionPressed: () =>
+                          _openQuickCreate(context, AppLinkKind.note),
                     ),
                   ),
                 )
@@ -245,6 +285,8 @@ class _CommunityAttachmentPickerState extends State<CommunityAttachmentPicker> {
     final titleCtrl = TextEditingController();
     final excerptCtrl = TextEditingController();
     final tickerCtrl = TextEditingController();
+    final entryCtrl = TextEditingController();
+    final quantityCtrl = TextEditingController();
     final UiTheme theme = context.ui;
 
     final String kindLabel = switch (kind) {
@@ -273,9 +315,26 @@ class _CommunityAttachmentPickerState extends State<CommunityAttachmentPicker> {
               controller: tickerCtrl,
             ),
             SizedBox(height: context.sp(theme.spacing.sm)),
+            if (kind == AppLinkKind.journal) ...[
+              UiInput(
+                label: 'Entry price',
+                controller: entryCtrl,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+              ),
+              UiInput(
+                label: 'Quantity',
+                controller: quantityCtrl,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+              ),
+            ],
             UiTextarea(
               label: 'Summary / Thesis',
-              hintText: 'Key reasoning, risk parameters, and execution rules...',
+              hintText:
+                  'Key reasoning, risk parameters, and execution rules...',
               controller: excerptCtrl,
               maxLines: 3,
             ),
@@ -289,10 +348,10 @@ class _CommunityAttachmentPickerState extends State<CommunityAttachmentPicker> {
             onPressed: () => Navigator.of(dialogCtx).pop(),
           ),
           UiButton(
-            label: 'Create & Attach',
+            label: 'Create private record & attach',
             variant: UiVariant.primary,
             size: UiSize.sm,
-            onPressed: () {
+            onPressed: () async {
               final title = titleCtrl.text.trim().isEmpty
                   ? 'Untitled $kindLabel'
                   : titleCtrl.text.trim();
@@ -303,18 +362,27 @@ class _CommunityAttachmentPickerState extends State<CommunityAttachmentPicker> {
                   ? null
                   : tickerCtrl.text.trim().toUpperCase();
 
-              final newRecord = AppWritingPostAttachment.manual(
-                source: AppLinkRef(
+              AppWritingPostAttachment newRecord;
+              try {
+                newRecord = await WorkspaceAttachmentService().create(
                   kind: kind,
-                  id: 'rec_${DateTime.now().millisecondsSinceEpoch}',
                   title: title,
-                ),
-                excerpt: excerpt,
-                primaryTicker: ticker,
-                updatedAt: DateTime.now(),
-                tags: ticker != null ? [ticker] : const [],
-              );
-
+                  content: excerpt,
+                  ticker: ticker,
+                  entry: double.tryParse(entryCtrl.text),
+                  quantity: double.tryParse(quantityCtrl.text),
+                );
+              } catch (error) {
+                if (dialogCtx.mounted) {
+                  UiToast.error(
+                    dialogCtx,
+                    title: 'Could not create note',
+                    message: '$error',
+                  );
+                }
+                return;
+              }
+              if (!mounted || !dialogCtx.mounted) return;
               widget.repository.addAttachableRecord(newRecord);
               Navigator.of(dialogCtx).pop();
               Navigator.of(context).pop(newRecord);

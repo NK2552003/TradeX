@@ -1005,6 +1005,20 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
     ].join(' · ');
   }
 
+  Future<void> _setPublicVisibility(bool value) async {
+    if (value && !_isPublic) {
+      final bool accepted = await UiDialog.confirm(
+        context,
+        title: 'Publish this playbook?',
+        description:
+            'Saving will make the playbook content and metadata public. Review proprietary rules before publishing. Linked private records remain private.',
+        confirmLabel: 'Make public',
+      );
+      if (!accepted || !mounted) return;
+    }
+    if (mounted) setState(() => _isPublic = value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
@@ -1140,7 +1154,7 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
                   ? 'Only you can read it'
                   : 'Rules only — your trades and P/L stay private',
               enabled: !_saving,
-              onTap: () => setState(() => _isPublic = !_isPublic),
+              onTap: () => _setPublicVisibility(!_isPublic),
             ),
             const UiMenuItem.divider(),
             UiMenuItem(
@@ -1568,7 +1582,7 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
         label: 'Share to the community feed',
         description: 'Rules and instruments only — your trades stay private',
         enabled: _mode != StrategyEditorMode.read,
-        onChanged: (bool value) => setState(() => _isPublic = value),
+        onChanged: _setPublicVisibility,
       ),
       if (_isPublic) ...<Widget>[
         SizedBox(height: context.sp(context.ui.spacing.sm)),
@@ -1767,7 +1781,8 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
     final UiTheme theme = context.ui;
     final double inset = MediaQuery.viewInsetsOf(context).bottom;
     final double safeBottom = MediaQuery.paddingOf(context).bottom;
-    final double baseBottom = inset > 0 ? inset : safeBottom;
+    // The host Scaffold already removes the keyboard from our constraints.
+    final double baseBottom = inset > 0 ? 0 : safeBottom;
     final double gutter = context.sp(theme.spacing.md);
     final bool editing = _mode != StrategyEditorMode.read;
     // The mobile toolbar is docked at the bottom, so anything else that floats

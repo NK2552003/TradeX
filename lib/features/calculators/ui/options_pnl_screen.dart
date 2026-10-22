@@ -90,12 +90,16 @@ class _OptionsPnlCalculatorScreenState
     final List<double> curve = <double>[
       for (final (double, double) p in r.payoff) p.$2,
     ];
-    final double lo = <double>[_strike, r.breakeven, _spot].reduce(
-      (double a, double b) => a < b ? a : b,
-    );
-    final double hi = <double>[_strike, r.breakeven, _spot].reduce(
-      (double a, double b) => a > b ? a : b,
-    );
+    final double lo = <double>[
+      _strike,
+      r.breakeven,
+      _spot,
+    ].reduce((double a, double b) => a < b ? a : b);
+    final double hi = <double>[
+      _strike,
+      r.breakeven,
+      _spot,
+    ].reduce((double a, double b) => a > b ? a : b);
     final double pad = (hi - lo) * 0.35 + _premium;
     final List<double> grid = <double>[
       _strike * 0.90,
@@ -158,7 +162,8 @@ class _OptionsPnlCalculatorScreenState
         UiStat(
           label: 'Contracts',
           value: AppTokens.count(qty),
-          hint: '${_lots.toStringAsFixed(0)} × '
+          hint:
+              '${_lots.toStringAsFixed(0)} × '
               '${AppTokens.count(_lotSize)}',
           spark: curve,
         ),
@@ -208,7 +213,10 @@ class _OptionsPnlCalculatorScreenState
         AppCalcInputGroup(
           label: 'Size and spot',
           children: <Widget>[
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runSpacing: context.sp(context.ui.spacing.xs),
               children: <Widget>[
                 UiBadge(
                   label: _isLive
@@ -218,7 +226,7 @@ class _OptionsPnlCalculatorScreenState
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
-                const Spacer(),
+
                 UiButton(
                   label: 'Sync Spot',
                   leadingIcon: Icons.refresh,
@@ -281,7 +289,10 @@ class _OptionsPnlCalculatorScreenState
               for (final double s in grid)
                 UiKeyValueRow(
                   label: AppTokens.money(s, decimals: 0),
-                  value: AppTokens.signedMoney(_perShareAt(s) * qty, decimals: 0),
+                  value: AppTokens.signedMoney(
+                    _perShareAt(s) * qty,
+                    decimals: 0,
+                  ),
                   trailing: AppTokens.signedMoney(_perShareAt(s), decimals: 1),
                   intent: AppTokens.plIntent(_perShareAt(s)),
                   detail: s == _strike

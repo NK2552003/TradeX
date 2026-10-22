@@ -1,0 +1,22 @@
+00:00 +0: loading /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart
+00:00 +0: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/public_context_link_privacy_test.dart: AppLinkRef & AppLinkOpenRequest public context tests AppLinkRef.copyWith(isPublicContext: true) retains all attributes
+00:00 +1: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/public_context_link_privacy_test.dart: AppLinkRef & AppLinkOpenRequest public context tests AppLinkOpenRequest accepts and stores publicContext
+00:00 +2: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/public_context_link_privacy_test.dart: AppLinkGraph Privacy Bundle Filtering Tests bundleForStrategy with onlyPublic: false returns all notes and trades
+00:00 +3: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/public_context_link_privacy_test.dart: AppLinkGraph Privacy Bundle Filtering Tests bundleForStrategy with onlyPublic: true strictly excludes private records
+00:00 +4: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/public_context_link_privacy_test.dart: AppLinkGraph Privacy Bundle Filtering Tests siblingEntries with onlyPublic: true hides private trades under the same playbook
+00:00 +5: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/public_context_link_privacy_test.dart: AppLinkGraph Privacy Bundle Filtering Tests bundleForNote with onlyPublic: true excludes private peer notes and trades
+00:00 +6: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/public_context_link_privacy_test.dart: AppLinkGraph Privacy Bundle Filtering Tests bundleForJournal with onlyPublic: true excludes private notes
+00:00 +7: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: Ticker Syntax & Cashtag Unit Tests TickerInlineSyntax matches tickers and ignores currency/math
+00:00 +8: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: Ticker Syntax & Cashtag Unit Tests CommunityHighlightedText regex matches cashtags and tags, ignoring prices
+00:00 +9: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: Markdown Preview Ticker Linking Widget Tests RichMarkdownPreview renders clickable ticker badge and dispatches onOpenRef
+00:00 +9: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/features/customer_frontend/frontend_scale_profile_test.dart: profile graph rebuilds and Markdown extraction at increasing sizes
+PROFILE graph records=100 construct_us=665 first_index_us=34697 rebuild_index_us=580
+PROFILE graph records=1000 construct_us=608 first_index_us=68613 rebuild_index_us=1940
+PROFILE graph records=5000 construct_us=601 first_index_us=176391 rebuild_index_us=4563
+PROFILE markdown chars=310000 stats_excerpt_us=43890
+00:00 +10: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: Markdown Preview Ticker Linking Widget Tests RichMarkdownPreview renders clickable ticker badge and dispatches onOpenRef
+00:00 +11: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: Markdown Preview Ticker Linking Widget Tests RichMarkdownPreview handles deep link tradex://ticker/BTCUSDT
+00:00 +12: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: Messages Ticker Linking Tests MessageBubble renders interactive ticker span and dispatches onOpenRef
+00:00 +13: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: AI Assistant Ticker Linking Tests AppAiMessageBubble renders interactive ticker in user message
+00:00 +14: /Users/nitishkumar/Downloads/Projects/nk2552003/TradeX/test/core/linking/ticker_linking_test.dart: AI Assistant Ticker Linking Tests AppAiMessageBubble renders interactive ticker in assistant markdown message
+00:00 +15: All tests passed!

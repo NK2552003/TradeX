@@ -1,3 +1,4 @@
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
@@ -52,9 +53,9 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               UiCallout(
-                title: '30-Day Soft Deletion Window',
+                title: 'Request account deletion',
                 message:
-                    'Your account will be deactivated immediately and scheduled for permanent deletion in 30 days. You can cancel this request anytime by simply logging back in.',
+                    'This submits an account deletion request for review and signs you out. Permanent erasure requires backend processing; this screen does not confirm that erasure is complete.',
                 intent: UiIntent.bearish,
               ),
               SizedBox(height: context.sp(context.ui.spacing.md)),
@@ -80,7 +81,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
               onPressed: () => Navigator.of(ctx).pop(),
             ),
             UiButton(
-              label: 'Permanently Delete Account',
+              label: 'Submit Deletion Request',
               intent: UiIntent.danger,
               loading: _deleting,
               onPressed: confirmed
@@ -92,13 +93,14 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                           reason:
                               '$_selectedReason: ${_customFeedbackController.text.trim()}',
                         );
+                        await SupabaseAuthBackendService.instance.signOut();
                         if (mounted) {
                           setState(() => _deleting = false);
                           UiToast.show(
                             context,
-                            title: 'Deletion Scheduled',
+                            title: 'Deletion requested',
                             message:
-                                'Your account deletion request has been submitted (30-day grace period).',
+                                'Your request is pending review. You have been signed out.',
                             intent: UiIntent.info,
                           );
                           closeSettingsSubpage(context);

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
@@ -33,7 +33,8 @@ class AppLinkGraphService {
        _strategies = strategies ?? StrategiesRepositoryScope.repository,
        // Tickers are reference data, not user records: the watchlist is a market
        // feed, so the graph takes a snapshot rather than subscribing.
-       _tickers = tickers ?? DemoDataSource.instance.tickers();
+       _tickers = tickers ?? [],
+       _loadCatalogue = tickers == null;
 
   /// The app-wide instance. Screens read [current] for a synchronous answer and
   /// [watch] when they need to rebuild on change.
@@ -42,7 +43,8 @@ class AppLinkGraphService {
   final NotesRepository _notes;
   final JournalRepository _journal;
   final StrategiesRepository _strategies;
-  final List<AppTicker> _tickers;
+  List<AppTicker> _tickers;
+  final bool _loadCatalogue;
 
   final StreamController<AppLinkGraph> _out =
       StreamController<AppLinkGraph>.broadcast();
@@ -83,6 +85,7 @@ class AppLinkGraphService {
   void _listen() {
     if (_listening) return;
     _listening = true;
+    if (_loadCatalogue) unawaited(_refreshTickers());
     // Subscribed once for the life of the process. Each repository's stream
     // replays its current value to a new listener, so the first three events
     // arrive synchronously enough that the graph is populated before the first
@@ -99,6 +102,25 @@ class AppLinkGraphService {
       _strategyList = items;
       _rebuild();
     });
+  }
+
+  Future<void> _refreshTickers() async {
+    try {
+      final snapshot = await AssetMarketRepository.shared.snapshot();
+      if (_out.isClosed) return;
+      _tickers = [
+        for (final quote in snapshot.instruments)
+          AppTicker(
+            symbol: quote.symbol,
+            name: quote.name,
+            price: quote.price,
+            changePercent: quote.changePercent,
+          ),
+      ];
+      _rebuild();
+    } catch (_) {
+      /* Existing record links remain usable when market assets fail. */
+    }
   }
 
   void _rebuild() {
@@ -140,7 +162,10 @@ class AppLinkGraphService {
     // operation. Twelve directional cases collapse to four pairs.
     final Set<AppLinkKind> pair = <AppLinkKind>{fromKind, toKind};
 
-    if (pair.containsAll(<AppLinkKind>{AppLinkKind.note, AppLinkKind.journal})) {
+    if (pair.containsAll(<AppLinkKind>{
+      AppLinkKind.note,
+      AppLinkKind.journal,
+    })) {
       final String noteId = fromKind == AppLinkKind.note ? fromId : toId;
       final String entryId = fromKind == AppLinkKind.journal ? fromId : toId;
       await _noteJournal(noteId, entryId, attach: attach);
@@ -151,7 +176,9 @@ class AppLinkGraphService {
       AppLinkKind.strategy,
     })) {
       final String noteId = fromKind == AppLinkKind.note ? fromId : toId;
-      final String strategyId = fromKind == AppLinkKind.strategy ? fromId : toId;
+      final String strategyId = fromKind == AppLinkKind.strategy
+          ? fromId
+          : toId;
       await _noteStrategy(noteId, strategyId, attach: attach);
       return;
     }
@@ -160,13 +187,15 @@ class AppLinkGraphService {
       AppLinkKind.strategy,
     })) {
       final String entryId = fromKind == AppLinkKind.journal ? fromId : toId;
-      final String strategyId = fromKind == AppLinkKind.strategy ? fromId : toId;
+      final String strategyId = fromKind == AppLinkKind.strategy
+          ? fromId
+          : toId;
       await _journalStrategy(entryId, strategyId, attach: attach);
       return;
     }
     if (pair.contains(AppLinkKind.ticker)) {
-      final String symbol =
-          (fromKind == AppLinkKind.ticker ? fromId : toId).toUpperCase();
+      final String symbol = (fromKind == AppLinkKind.ticker ? fromId : toId)
+          .toUpperCase();
       final AppLinkKind ownerKind = fromKind == AppLinkKind.ticker
           ? toKind
           : fromKind;

@@ -77,14 +77,19 @@ class AppTickerCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
                 Expanded(
-                  child: AppCountUp(
-                    value: ticker.price,
-                    formatter: (num v) =>
-                        AppTokens.money(v, symbol: ticker.currencySymbol),
-                    style: context.uiText.title,
-                  ),
+                  child: !ticker.price.isFinite
+                      ? Text(
+                          'Quote unavailable',
+                          style: context.uiText.bodyStrong,
+                        )
+                      : AppCountUp(
+                          value: ticker.price,
+                          formatter: (num v) =>
+                              AppTokens.money(v, symbol: ticker.currencySymbol),
+                          style: context.uiText.title,
+                        ),
                 ),
-                UiBadge.delta(ticker.changePercent),
+                if (ticker.price.isFinite) UiBadge.delta(ticker.changePercent),
               ],
             ),
             if (ticker.spark.isNotEmpty) ...<Widget>[

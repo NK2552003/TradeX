@@ -1,3 +1,4 @@
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 
@@ -382,72 +383,24 @@ class TradeXFooter extends StatelessWidget {
         ),
         SizedBox(height: context.sp(theme.spacing.lg)),
 
-        // Social Media Links Row
-        Row(
-          children: <Widget>[
-            _buildSocialIconButton(
-              context,
-              icon: Icons.alternate_email_rounded,
-              tooltip: 'X (Twitter)',
-              onTap: () => UiToast.show(
+        // Only a verified project destination is exposed until social URLs are configured.
+        UiButton(
+          label: 'Project on GitHub',
+          leadingIcon: Icons.code_rounded,
+          variant: UiVariant.link,
+          onPressed: () async {
+            final opened = await launchUrl(
+              Uri.parse('https://github.com/NK2552003/TradeX'),
+              mode: LaunchMode.externalApplication,
+            );
+            if (!opened && context.mounted) {
+              UiToast.show(
                 context,
-                title: 'Twitter Community',
-                message:
-                    'Follow @TradeXHQ for market updates and quant setups.',
-                intent: UiIntent.primary,
-              ),
-            ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-            _buildSocialIconButton(
-              context,
-              icon: Icons.forum_outlined,
-              tooltip: 'Discord Community',
-              onTap: () => UiToast.show(
-                context,
-                title: 'Trader Discord',
-                message:
-                    'Join 14,000+ verified Indian traders discussing market setups.',
-                intent: UiIntent.primary,
-              ),
-            ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-            _buildSocialIconButton(
-              context,
-              icon: Icons.play_circle_outline_rounded,
-              tooltip: 'YouTube Masterclasses',
-              onTap: () => UiToast.show(
-                context,
-                title: 'YouTube Channel',
-                message:
-                    'Watch step-by-step quant journaling and broker auto-sync tutorials.',
-                intent: UiIntent.primary,
-              ),
-            ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-            _buildSocialIconButton(
-              context,
-              icon: Icons.send_rounded,
-              tooltip: 'Telegram Channel',
-              onTap: () => UiToast.show(
-                context,
-                title: 'Telegram Alerts',
-                message: 'Receive breaking market news and macro alerts.',
-                intent: UiIntent.primary,
-              ),
-            ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-            _buildSocialIconButton(
-              context,
-              icon: Icons.code_rounded,
-              tooltip: 'Developer GitHub',
-              onTap: () => UiToast.show(
-                context,
-                title: 'GitHub SDKs',
-                message: 'Explore Python & Node.js webhook client libraries.',
-                intent: UiIntent.primary,
-              ),
-            ),
-          ],
+                title: 'Could not open GitHub',
+                intent: UiIntent.warning,
+              );
+            }
+          },
         ),
       ],
     );
@@ -643,41 +596,6 @@ class TradeXFooter extends StatelessWidget {
     );
   }
 
-  Widget _buildSocialIconButton(
-    BuildContext context, {
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-  }) {
-    final UiTheme theme = context.ui;
-    final UiColors colors = theme.colors;
-
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        borderRadius: context.radius(theme.radii.pill),
-        onTap: onTap,
-        child: Container(
-          padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
-          decoration: BoxDecoration(
-            color: colors.surfaceMuted.withValues(alpha: 0.5),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: colors.border.withValues(alpha: 0.5),
-              width: theme.borders.hairline,
-            ),
-          ),
-          child: Icon(
-            icon,
-            size: context.sz(16),
-            color: colors.foregroundMuted,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Dialog Content Helpers
   void _showBrokerModal(
     BuildContext context,
     String broker,
@@ -688,7 +606,7 @@ class TradeXFooter extends StatelessWidget {
       title: broker,
       category: 'BROKER INTEGRATION',
       content:
-          '$description\n\nTradeX connects via secure OAuth 2.0 and API token authentication. Broker tokens are encrypted client-side using AES-256 GCM. TradeX never requests fund withdrawal permissions or trading account ownership.',
+          '$description\n\nTradeX connects via secure OAuth 2.0 and API token authentication. Review broker permissions before connecting an account. TradeX never requests fund withdrawal permissions or trading account ownership.',
     );
   }
 
@@ -724,9 +642,9 @@ class TradeXFooter extends StatelessWidget {
       title: 'Security & Encryption Architecture',
       category: 'ENTERPRISE SECURITY',
       content:
-          '• AES-256 GCM Client Encryption: Broker API credentials and private strategy journals are encrypted before hitting storage.\n\n'
+          '• Account privacy: Manage the visibility of your notes, strategies, and journal entries.\n\n'
           '• Zero Custody: TradeX operates in read-only / execution-audit mode without withdrawal permissions.\n\n'
-          '• TLS 1.3 Strict Transport: All WebSocket ticks and REST traffic are end-to-end encrypted.\n\n'
+          '• Transport security: Use secure HTTPS connections when accessing TradeX.\n\n'
           '• Automated SOC-2 Compliant Cloud Backups: Redundant backups with 99.99% uptime guarantee.',
     );
   }

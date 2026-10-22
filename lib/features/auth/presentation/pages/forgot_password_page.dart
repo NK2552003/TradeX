@@ -1,9 +1,9 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
-import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
 import 'package:tradex/features/auth/data/repositories/auth_otp_repository.dart';
 import 'package:tradex/features/auth/data/repositories/supabase_auth_otp_repository.dart';
 import 'package:tradex/features/auth/models/otp_purpose.dart';
@@ -19,10 +19,13 @@ class ForgotPasswordPage extends StatefulWidget {
     super.key,
     this.authRepository,
     this.otpRepository,
+    this.completePasswordReset,
     required this.onBackToLogin,
   });
 
   final AuthRepository? authRepository;
+  final Future<void> Function(String token, String password)?
+  completePasswordReset;
   final AuthOtpRepository? otpRepository;
   final VoidCallback onBackToLogin;
 
@@ -31,11 +34,10 @@ class ForgotPasswordPage extends StatefulWidget {
 }
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
-  late final AuthRepository _repository;
   int _currentStep =
       0; // 0: Email Input, 1: OTP Entry, 2: New Password, 3: Success
   final TextEditingController _emailController = TextEditingController(
-    text: 'nitish@tradex.ai',
+    text: '',
   );
   final UiOtpFieldController _otpController = UiOtpFieldController();
   final TextEditingController _newPasswordController = TextEditingController();
@@ -44,7 +46,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   /// Single seam for the OTP send/verify/resend network calls — swap for a
   /// real implementation, see the contract documented on [AuthOtpRepository].
-  late final AuthOtpRepository _otpRepository = widget.otpRepository ??
+  late final AuthOtpRepository _otpRepository =
+      widget.otpRepository ??
       (SupabaseConfig.isConfigured
           ? SupabaseAuthOtpRepository()
           : AuthOtpRepositoryImpl());
@@ -59,12 +62,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   String? _errorText;
   int _timerSeconds = 60;
   Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _repository = widget.authRepository ?? AuthBackendService.instance;
-  }
 
   @override
   void dispose() {
@@ -92,6 +89,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   void _handleSendResetLink() async {
+    if (_isLoading) return;
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
       setState(() => _errorText = 'Please enter a valid email address');
@@ -103,38 +101,43 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _errorText = null;
     });
 
-    final result = await _repository.resetPassword(email);
-    await _otpRepository.sendOtp(
-      identifier: email,
-      purpose: OtpPurpose.passwordReset,
-    );
-
-    if (!mounted) return;
-
-    if (!result.isSuccess) {
+    try {
+      if (widget.otpRepository == null && !SupabaseConfig.isConfigured) {
+        throw StateError(
+          'Password recovery is unavailable in this environment.',
+        );
+      }
+      await _otpRepository.sendOtp(
+        identifier: email,
+        purpose: OtpPurpose.passwordReset,
+      );
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorText = result.message;
+        _currentStep = 1;
       });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorText = 'Could not send a recovery code. Please retry.';
+        });
+      }
       return;
     }
-
-    setState(() {
-      _isLoading = false;
-      _currentStep = 1;
-    });
 
     _otpController.clear();
     _startResendTimer();
     UiToast.show(
       context,
       title: 'Code Sent',
-      message: result.message,
+      message: 'Check your email for the recovery code.',
       intent: UiIntent.info,
     );
   }
 
   void _handleVerifyOtp([String? autoSubmittedCode]) async {
+    if (_isLoading) return;
     final code = autoSubmittedCode ?? _otpController.value;
     if (code.length < 6) {
       setState(() => _errorText = 'Please enter the full 6-digit code');
@@ -146,11 +149,22 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _errorText = null;
     });
 
-    final OtpVerifyResult result = await _otpRepository.verifyOtp(
-      identifier: _emailController.text.trim(),
-      purpose: OtpPurpose.passwordReset,
-      code: code,
-    );
+    final OtpVerifyResult result;
+    try {
+      result = await _otpRepository.verifyOtp(
+        identifier: _emailController.text.trim(),
+        purpose: OtpPurpose.passwordReset,
+        code: code,
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorText = 'Could not verify the code. Please retry.';
+        });
+      }
+      return;
+    }
 
     if (!mounted) return;
 
@@ -169,6 +183,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   void _handleResetPassword() async {
+    if (_isLoading) return;
     final pwd = _newPasswordController.text;
     final confirm = _confirmPasswordController.text;
 
@@ -186,23 +201,45 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _errorText = null;
     });
 
-    // Backend contract: POST the new password together with `_resetToken`
-    // (the value returned by AuthOtpRepository.verifyOtp) to your
-    // "confirm password reset" endpoint, e.g.
-    //   POST /auth/password/reset { resetToken: _resetToken, newPassword: pwd }
-    // Reject the request server-side if the token is missing, expired, or
-    // was already consumed.
-    if (_resetToken != null) {
-      // Mock validation token check
+    try {
+      final token = _resetToken;
+      if (token == null || token.isEmpty) {
+        throw StateError('Verify a new recovery code first.');
+      }
+      if (widget.completePasswordReset != null) {
+        await widget.completePasswordReset!(token, pwd);
+      } else {
+        final client = SupabaseConfig.client;
+        final session = client?.auth.currentSession;
+        if (!SupabaseConfig.isConfigured ||
+            client == null ||
+            session == null ||
+            session.accessToken != token) {
+          throw StateError(
+            'Your recovery session expired. Request another code.',
+          );
+        }
+        await client.auth.updateUser(UserAttributes(password: pwd));
+        await client.auth.signOut();
+      }
+      if (!mounted) return;
+      _resetToken = null;
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+      setState(() {
+        _isLoading = false;
+        _currentStep = 3;
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorText = error is AuthException
+              ? error.message
+              : error.toString().replaceFirst('Bad state: ', '');
+        });
+      }
     }
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = false;
-      _currentStep = 3;
-    });
   }
 
   @override
@@ -226,9 +263,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               ),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: (viewportConstraints.maxHeight -
-                          context.sp(theme.spacing.xl) * 2)
-                      .clamp(0.0, double.infinity),
+                  minHeight:
+                      (viewportConstraints.maxHeight -
+                              context.sp(theme.spacing.xl) * 2)
+                          .clamp(0.0, double.infinity),
                 ),
                 child: Center(
                   child: ConstrainedBox(
@@ -272,15 +310,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                           const AppLogoMark(size: 20),
                                           if (!responsive.isMobile) ...[
                                             SizedBox(
-                                              width: context.sp(theme.spacing.xs),
+                                              width: context.sp(
+                                                theme.spacing.xs,
+                                              ),
                                             ),
                                             Text(
                                               'TradeX',
                                               style: context.uiText.bodyStrong
                                                   .copyWith(
-                                                fontSize: 16,
-                                                letterSpacing: -0.2,
-                                              ),
+                                                    fontSize: 16,
+                                                    letterSpacing: -0.2,
+                                                  ),
                                             ),
                                           ],
                                         ],
@@ -337,8 +377,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                                 color: i <= _currentStep
                                                     ? colors.primary
                                                     : colors.borderStrong
-                                                        .withValues(
-                                                            alpha: 0.5),
+                                                          .withValues(
+                                                            alpha: 0.5,
+                                                          ),
                                               ),
                                             ),
                                           ),
@@ -347,278 +388,320 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                   ],
                                 ],
                                 SizedBox(height: context.sp(theme.spacing.xl)),
-                          if (_errorText != null) ...[
-                            UiCallout(
-                              title: 'Error',
-                              message: _errorText!,
-                              intent: UiIntent.danger,
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.md)),
-                          ],
-
-                          // Step 0: Email Input Form
-                          if (_currentStep == 0) ...[
-                            const AuthStepIcon(
-                              icon: Icons.lock_reset_rounded,
-                              intent: UiIntent.primary,
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.md)),
-                            Text(
-                              'Reset your password',
-                              textAlign: TextAlign.center,
-                              style: context.uiText.display.copyWith(
-                                fontSize: 28.0,
-                                fontWeight: FontWeight.w400,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.xxs)),
-                            Text(
-                              'Enter your email address and we will send you a 6-digit verification code.',
-                              textAlign: TextAlign.center,
-                              style: context.uiText.body.copyWith(
-                                color: colors.foregroundMuted,
-                                fontSize: 13.5,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.lg)),
-                            UiField(
-                              label: 'Registered Email',
-                              required: true,
-                              child: UiInput(
-                                value: _emailController.text,
-                                hintText: 'm@example.com',
-                                keyboardType: TextInputType.emailAddress,
-                                onChanged: (v) => _emailController.text = v,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.lg)),
-                            UiButton(
-                              label: _isLoading
-                                  ? 'Sending Code…'
-                                  : 'Send Reset Code',
-                              variant: UiVariant.primary,
-                              intent: UiIntent.primary,
-                              size: UiSize.lg,
-                              onPressed: _isLoading
-                                  ? null
-                                  : _handleSendResetLink,
-                            ),
-                          ],
-
-                          // Step 1: Verification OTP Entry
-                          if (_currentStep == 1) ...[
-                            const AuthStepIcon(
-                              icon: Icons.mark_email_read_outlined,
-                              intent: UiIntent.info,
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.md)),
-                            Text(
-                              'Enter Verification Code',
-                              textAlign: TextAlign.center,
-                              style: context.uiText.display.copyWith(
-                                fontSize: 28.0,
-                                fontWeight: FontWeight.w400,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.xxs)),
-                            Text(
-                              'We sent a 6-digit code to ${_emailController.text}',
-                              textAlign: TextAlign.center,
-                              style: context.uiText.body.copyWith(
-                                color: colors.foregroundMuted,
-                                fontSize: 13.5,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.lg)),
-                            Center(
-                              child: UiOtpField(
-                                controller: _otpController,
-                                length: 6,
-                                autofocus: true,
-                                enabled: !_isLoading,
-                                error: _errorText != null,
-                                onChanged: (_) {
-                                  if (_errorText != null) {
-                                    setState(() => _errorText = null);
-                                  }
-                                },
-                                onCompleted: (code) => _handleVerifyOtp(code),
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.md)),
-                            Wrap(
-                              alignment: WrapAlignment.center,
-                              runSpacing: context.sp(theme.spacing.xs),
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                Text(
-                                  _timerSeconds > 0
-                                      ? 'Resend code in ${_timerSeconds}s'
-                                      : "Didn't get a code?",
-                                  style: context.uiText.caption.copyWith(
-                                    color: colors.foregroundSubtle,
+                                if (_errorText != null) ...[
+                                  UiCallout(
+                                    title: 'Error',
+                                    message: _errorText!,
+                                    intent: UiIntent.danger,
                                   ),
-                                ),
-                                if (_timerSeconds == 0) ...[
-                                  SizedBox(width: context.sp(theme.spacing.xs)),
-                                  GestureDetector(
-                                    onTap: _handleSendResetLink,
-                                    child: Text(
-                                      'Resend OTP',
-                                      style: context.uiText.caption.copyWith(
-                                        color: colors.primary,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.md),
+                                  ),
+                                ],
+
+                                // Step 0: Email Input Form
+                                if (_currentStep == 0) ...[
+                                  const AuthStepIcon(
+                                    icon: Icons.lock_reset_rounded,
+                                    intent: UiIntent.primary,
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.md),
+                                  ),
+                                  Text(
+                                    'Reset your password',
+                                    textAlign: TextAlign.center,
+                                    style: context.uiText.display.copyWith(
+                                      fontSize: 28.0,
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: -0.5,
                                     ),
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxs),
+                                  ),
+                                  Text(
+                                    'Enter your email address and we will send you a 6-digit verification code.',
+                                    textAlign: TextAlign.center,
+                                    style: context.uiText.body.copyWith(
+                                      color: colors.foregroundMuted,
+                                      fontSize: 13.5,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.lg),
+                                  ),
+                                  UiField(
+                                    label: 'Registered Email',
+                                    required: true,
+                                    child: UiInput(
+                                      value: _emailController.text,
+                                      hintText: 'm@example.com',
+                                      keyboardType: TextInputType.emailAddress,
+                                      onChanged: (v) =>
+                                          _emailController.text = v,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.lg),
+                                  ),
+                                  UiButton(
+                                    label: _isLoading
+                                        ? 'Sending Code…'
+                                        : 'Send Reset Code',
+                                    variant: UiVariant.primary,
+                                    intent: UiIntent.primary,
+                                    size: UiSize.lg,
+                                    onPressed: _isLoading
+                                        ? null
+                                        : _handleSendResetLink,
+                                  ),
+                                ],
+
+                                // Step 1: Verification OTP Entry
+                                if (_currentStep == 1) ...[
+                                  const AuthStepIcon(
+                                    icon: Icons.mark_email_read_outlined,
+                                    intent: UiIntent.info,
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.md),
+                                  ),
+                                  Text(
+                                    'Enter Verification Code',
+                                    textAlign: TextAlign.center,
+                                    style: context.uiText.display.copyWith(
+                                      fontSize: 28.0,
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxs),
+                                  ),
+                                  Text(
+                                    'We sent a 6-digit code to ${_emailController.text}',
+                                    textAlign: TextAlign.center,
+                                    style: context.uiText.body.copyWith(
+                                      color: colors.foregroundMuted,
+                                      fontSize: 13.5,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.lg),
+                                  ),
+                                  Center(
+                                    child: UiOtpField(
+                                      controller: _otpController,
+                                      length: 6,
+                                      autofocus: true,
+                                      enabled: !_isLoading,
+                                      error: _errorText != null,
+                                      onChanged: (_) {
+                                        if (_errorText != null) {
+                                          setState(() => _errorText = null);
+                                        }
+                                      },
+                                      onCompleted: (code) =>
+                                          _handleVerifyOtp(code),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.md),
+                                  ),
+                                  Wrap(
+                                    alignment: WrapAlignment.center,
+                                    runSpacing: context.sp(theme.spacing.xs),
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      Text(
+                                        _timerSeconds > 0
+                                            ? 'Resend code in ${_timerSeconds}s'
+                                            : "Didn't get a code?",
+                                        style: context.uiText.caption.copyWith(
+                                          color: colors.foregroundSubtle,
+                                        ),
+                                      ),
+                                      if (_timerSeconds == 0) ...[
+                                        SizedBox(
+                                          width: context.sp(theme.spacing.xs),
+                                        ),
+                                        GestureDetector(
+                                          onTap: _handleSendResetLink,
+                                          child: Text(
+                                            'Resend OTP',
+                                            style: context.uiText.caption
+                                                .copyWith(
+                                                  color: colors.primary,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.lg),
+                                  ),
+                                  UiButton(
+                                    label: _isLoading
+                                        ? 'Verifying…'
+                                        : 'Verify & Continue',
+                                    variant: UiVariant.primary,
+                                    intent: UiIntent.primary,
+                                    size: UiSize.lg,
+                                    onPressed: _isLoading
+                                        ? null
+                                        : () => _handleVerifyOtp(),
+                                  ),
+                                ],
+
+                                // Step 2: New Password Input
+                                if (_currentStep == 2) ...[
+                                  const AuthStepIcon(
+                                    icon: Icons.password_rounded,
+                                    intent: UiIntent.warning,
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.md),
+                                  ),
+                                  Text(
+                                    'Set New Password',
+                                    textAlign: TextAlign.center,
+                                    style: context.uiText.display.copyWith(
+                                      fontSize: 28.0,
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxs),
+                                  ),
+                                  Text(
+                                    'Must be at least 8 characters long.',
+                                    textAlign: TextAlign.center,
+                                    style: context.uiText.body.copyWith(
+                                      color: colors.foregroundMuted,
+                                      fontSize: 13.5,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.lg),
+                                  ),
+                                  UiField(
+                                    label: 'New Password',
+                                    required: true,
+                                    child: UiPasswordField(
+                                      controller: _newPasswordController,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.md),
+                                  ),
+                                  UiField(
+                                    label: 'Confirm New Password',
+                                    required: true,
+                                    child: UiPasswordField(
+                                      controller: _confirmPasswordController,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.lg),
+                                  ),
+                                  UiButton(
+                                    label: _isLoading
+                                        ? 'Resetting Password…'
+                                        : 'Update Password',
+                                    variant: UiVariant.primary,
+                                    intent: UiIntent.primary,
+                                    size: UiSize.lg,
+                                    onPressed: _isLoading
+                                        ? null
+                                        : _handleResetPassword,
+                                  ),
+                                ],
+
+                                // Step 3: Success Confirmation State
+                                if (_currentStep == 3) ...[
+                                  const AuthStepIcon(
+                                    icon: Icons.check_rounded,
+                                    intent: UiIntent.bullish,
+                                    large: true,
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.md),
+                                  ),
+                                  Text(
+                                    'Password Updated!',
+                                    textAlign: TextAlign.center,
+                                    style: context.uiText.display.copyWith(
+                                      fontSize: 28.0,
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxs),
+                                  ),
+                                  Text(
+                                    'Your account password has been successfully updated. You can now login with your new credentials.',
+                                    textAlign: TextAlign.center,
+                                    style: context.uiText.body.copyWith(
+                                      color: colors.foregroundMuted,
+                                      fontSize: 13.5,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xl),
+                                  ),
+                                  UiButton(
+                                    label: 'Sign In Now',
+                                    variant: UiVariant.primary,
+                                    intent: UiIntent.primary,
+                                    size: UiSize.lg,
+                                    onPressed: widget.onBackToLogin,
                                   ),
                                 ],
                               ],
                             ),
-                            SizedBox(height: context.sp(theme.spacing.lg)),
-                            UiButton(
-                              label: _isLoading
-                                  ? 'Verifying…'
-                                  : 'Verify & Continue',
-                              variant: UiVariant.primary,
-                              intent: UiIntent.primary,
-                              size: UiSize.lg,
-                              onPressed: _isLoading
-                                  ? null
-                                  : () => _handleVerifyOtp(),
-                            ),
-                          ],
-
-                          // Step 2: New Password Input
-                          if (_currentStep == 2) ...[
-                            const AuthStepIcon(
-                              icon: Icons.password_rounded,
-                              intent: UiIntent.warning,
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.md)),
-                            Text(
-                              'Set New Password',
-                              textAlign: TextAlign.center,
-                              style: context.uiText.display.copyWith(
-                                fontSize: 28.0,
-                                fontWeight: FontWeight.w400,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.xxs)),
-                            Text(
-                              'Must be at least 8 characters long.',
-                              textAlign: TextAlign.center,
-                              style: context.uiText.body.copyWith(
-                                color: colors.foregroundMuted,
-                                fontSize: 13.5,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.lg)),
-                            UiField(
-                              label: 'New Password',
-                              required: true,
-                              child: UiPasswordField(
-                                controller: _newPasswordController,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.md)),
-                            UiField(
-                              label: 'Confirm New Password',
-                              required: true,
-                              child: UiPasswordField(
-                                controller: _confirmPasswordController,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.lg)),
-                            UiButton(
-                              label: _isLoading
-                                  ? 'Resetting Password…'
-                                  : 'Update Password',
-                              variant: UiVariant.primary,
-                              intent: UiIntent.primary,
-                              size: UiSize.lg,
-                              onPressed: _isLoading
-                                  ? null
-                                  : _handleResetPassword,
-                            ),
-                          ],
-
-                          // Step 3: Success Confirmation State
-                          if (_currentStep == 3) ...[
-                            const AuthStepIcon(
-                              icon: Icons.check_rounded,
-                              intent: UiIntent.bullish,
-                              large: true,
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.md)),
-                            Text(
-                              'Password Updated!',
-                              textAlign: TextAlign.center,
-                              style: context.uiText.display.copyWith(
-                                fontSize: 28.0,
-                                fontWeight: FontWeight.w400,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.xxs)),
-                            Text(
-                              'Your account password has been successfully updated. You can now login with your new credentials.',
-                              textAlign: TextAlign.center,
-                              style: context.uiText.body.copyWith(
-                                color: colors.foregroundMuted,
-                                fontSize: 13.5,
-                              ),
-                            ),
-                            SizedBox(height: context.sp(theme.spacing.xl)),
-                            UiButton(
-                              label: 'Sign In Now',
-                              variant: UiVariant.primary,
-                              intent: UiIntent.primary,
-                              size: UiSize.lg,
-                              onPressed: widget.onBackToLogin,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.lg)),
-
-                  // Trust footer — reassurance is the right note to end a
-                  // security flow on, in place of any marketing panel.
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.verified_user_outlined,
-                        size: context.sz(14),
-                        color: colors.foregroundSubtle,
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.xs)),
-                      Flexible(
-                        child: Text(
-                          'Your data is encrypted end-to-end',
-                          overflow: TextOverflow.ellipsis,
-                          style: context.uiText.caption.copyWith(
-                            color: colors.foregroundSubtle,
-                            fontSize: 11.5,
                           ),
                         ),
-                      ),
-                    ],
+                        SizedBox(height: context.sp(theme.spacing.lg)),
+
+                        // Trust footer — reassurance is the right note to end a
+                        // security flow on, in place of any marketing panel.
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.verified_user_outlined,
+                              size: context.sz(14),
+                              color: colors.foregroundSubtle,
+                            ),
+                            SizedBox(width: context.sp(theme.spacing.xs)),
+                            Flexible(
+                              child: Text(
+                                'Manage your account and privacy settings in TradeX',
+                                overflow: TextOverflow.ellipsis,
+                                style: context.uiText.caption.copyWith(
+                                  color: colors.foregroundSubtle,
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-              ],
-            ),
-          ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
-  },
-),
-),
-);
   }
 }

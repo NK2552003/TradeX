@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/record_access.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -99,13 +100,15 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
         handle: 'rohit_macro',
         displayName: 'Rohit K.',
         userRole: UserRole.customer,
-        avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+        avatarUrl:
+            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
         verified: true,
         followers: 5210,
         following: 340,
         winRate: 68.9,
       ),
-      body: 'Great risk:reward framework. Do you filter out earnings dates or high-impact CPI releases before entering trades under this playbook?',
+      body:
+          'Great risk:reward framework. Do you filter out earnings dates or high-impact CPI releases before entering trades under this playbook?',
       createdAt: DateTime.now().subtract(const Duration(hours: 5)),
       likes: 6,
       reactions: const <String>['💡', '👍'],
@@ -120,13 +123,15 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
             handle: 'alex_vance',
             displayName: 'Alex Vance',
             userRole: UserRole.userAdmin,
-            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+            avatarUrl:
+                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
             verified: true,
             followers: 4890,
             following: 512,
             winRate: 71.2,
           ),
-          body: 'Yes, rule 3 stands aside within 30 minutes before and after Tier-1 economic prints.',
+          body:
+              'Yes, rule 3 stands aside within 30 minutes before and after Tier-1 economic prints.',
           createdAt: DateTime.now().subtract(const Duration(hours: 3)),
           likes: 3,
           reactions: const <String>['👍'],
@@ -149,7 +154,8 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
         handle: 'alex_vance',
         displayName: 'Alex Vance',
         userRole: UserRole.userAdmin,
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        avatarUrl:
+            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
         verified: true,
         followers: 4890,
         following: 512,
@@ -163,11 +169,16 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
 
     setState(() {
       if (parentCommentId == null) {
-        _strategyComments = <CommunityComment>[newComment, ..._strategyComments];
+        _strategyComments = <CommunityComment>[
+          newComment,
+          ..._strategyComments,
+        ];
       } else {
         CommunityComment? attach(CommunityComment c) {
           if (c.id == parentCommentId) {
-            return c.copyWith(replies: <CommunityComment>[...c.replies, newComment]);
+            return c.copyWith(
+              replies: <CommunityComment>[...c.replies, newComment],
+            );
           }
           if (c.replies.isNotEmpty) {
             return c.copyWith(
@@ -177,7 +188,9 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
           return null;
         }
 
-        _strategyComments = _strategyComments.map((c) => attach(c) ?? c).toList();
+        _strategyComments = _strategyComments
+            .map((c) => attach(c) ?? c)
+            .toList();
       }
     });
 
@@ -236,7 +249,9 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
         return null;
       }
 
-      _strategyComments = _strategyComments.map((c) => updateRec(c) ?? c).toList();
+      _strategyComments = _strategyComments
+          .map((c) => updateRec(c) ?? c)
+          .toList();
     });
   }
 
@@ -276,8 +291,12 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
 
   AppStrategy get _strategy => widget.strategy;
 
-  bool get _isPublicViewer =>
-      widget.isPublicContext || !widget.canEdit || _strategy.isPublic;
+  bool get _canEdit =>
+      widget.canEdit &&
+      !widget.isPublicContext &&
+      RecordAccess.owns(_strategy.userId);
+
+  bool get _isPublicViewer => widget.isPublicContext || !_canEdit;
 
   AppLinkBundle get _bundle =>
       _graph.bundleForStrategy(_strategy, onlyPublic: _isPublicViewer);
@@ -340,6 +359,14 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
     setState(() => _busy = true);
     try {
       await action();
+    } catch (error) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Change was not saved',
+          message: '$error',
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -495,7 +522,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
     child: _VersionDialog(
       version: version,
       current: null,
-      onRestore: version.isCurrent || !widget.canEdit
+      onRestore: version.isCurrent || !_canEdit
           ? null
           : () => _restoreVersion(version),
       onOpenLink: _handleOpenLink,
@@ -509,7 +536,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
         child: _VersionDialog(
           version: version,
           current: _strategy,
-          onRestore: version.isCurrent || !widget.canEdit
+          onRestore: version.isCurrent || !_canEdit
               ? null
               : () => _restoreVersion(version),
           onOpenLink: _handleOpenLink,
@@ -681,9 +708,9 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
               AppStrategyNoteHeader(
                 strategy: _strategy,
                 onBack: widget.onClose,
-                onStatusChanged: widget.canEdit && !_busy ? _setStatus : null,
+                onStatusChanged: _canEdit && !_busy ? _setStatus : null,
                 onToggleFavorite: _busy ? null : _toggleFavorite,
-                onToggleVisibility: widget.canEdit && !_busy
+                onToggleVisibility: _canEdit && !_busy
                     ? _toggleVisibility
                     : null,
                 actions: _headerActions(context),
@@ -727,7 +754,8 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
       repository: AiAssistantRepositoryScope.repository,
       initialPrompt: prompt,
       contextTitle: _strategy.name,
-      contextSubtitle: 'Win Rate: ${AppTokens.percent(_strategy.winRate)} · ${_strategy.trades} Trades',
+      contextSubtitle:
+          'Win Rate: ${AppTokens.percent(_strategy.winRate)} · ${_strategy.trades} Trades',
       contextIcon: Icons.account_tree_outlined,
       contextRef: AppLinkRef(
         id: _strategy.id,
@@ -789,7 +817,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
                 ),
         ),
       ],
-      if (widget.canEdit) ...<Widget>[
+      if (_canEdit) ...<Widget>[
         if (widget.onEditWriting != null)
           UiIconButton(
             icon: Icons.edit_note_rounded,
@@ -935,7 +963,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
                 'A playbook with no body cannot be checked against a trade. '
                 'Write the trigger, where the stop goes, and what would make '
                 'you stand aside.',
-            action: widget.canEdit
+            action: _canEdit
                 ? UiButton(
                     label: 'Write playbook in Notes',
                     leadingIcon: Icons.edit_outlined,
@@ -956,15 +984,15 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
           title: 'Playbook Discussion & Peer Critique',
           comments: _strategyComments,
           isPublic: _strategy.isPublic,
-          canToggleVisibility: widget.canEdit,
+          canToggleVisibility: _canEdit,
           onToggleVisibility: (v) => _toggleVisibility(),
           currentUser: const CommunityAuthor(
-
             id: 'usr_current',
             handle: 'alex_vance',
             displayName: 'Alex Vance',
             userRole: UserRole.userAdmin,
-            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+            avatarUrl:
+                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
             verified: true,
             followers: 4890,
             following: 512,
@@ -1028,7 +1056,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
                     message:
                         'File an entry under this playbook from the journal, or '
                         'link one here.',
-                    action: widget.canEdit
+                    action: _canEdit
                         ? UiButton(
                             label: 'Link trades',
                             leadingIcon: Icons.add_link_rounded,
@@ -1098,7 +1126,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
               'A win rate is only meaningful next to the rules that were in '
               'force while it was earned. Every revision keeps its full body, so '
               'a run of results can always be read against the plan behind it.',
-          action: widget.canEdit
+          action: _canEdit
               ? UiButton(
                   label: 'Save a revision',
                   leadingIcon: Icons.bookmark_add_outlined,
@@ -1113,7 +1141,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
           versions: _versions,
           onView: _viewVersion,
           onCompare: _compareVersion,
-          onRestore: widget.canEdit && !_busy ? _restoreVersion : null,
+          onRestore: _canEdit && !_busy ? _restoreVersion : null,
         ),
       ],
     );
@@ -1142,14 +1170,14 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
                 'usually applies to nothing.',
           },
           onOpen: _handleOpenLink,
-          onRemove: widget.canEdit && !_busy ? _removeLink : null,
-          onAddNote: widget.canEdit && !_busy
+          onRemove: _canEdit && !_busy ? _removeLink : null,
+          onAddNote: _canEdit && !_busy
               ? () => _pickLinks(AppLinkKind.note)
               : null,
-          onAddJournal: widget.canEdit && !_busy
+          onAddJournal: _canEdit && !_busy
               ? () => _pickLinks(AppLinkKind.journal)
               : null,
-          onAddTicker: widget.canEdit && !_busy
+          onAddTicker: _canEdit && !_busy
               ? () => _pickLinks(AppLinkKind.ticker)
               : null,
         ),

@@ -7,8 +7,7 @@ import 'package:tradex/features/auth/models/otp_purpose.dart';
 /// Real Supabase-backed implementation of [AuthOtpRepository].
 /// Handles email verification and password recovery OTPs using Supabase Auth.
 class SupabaseAuthOtpRepository implements AuthOtpRepository {
-  SupabaseAuthOtpRepository({SupabaseClient? client})
-      : _client = client;
+  SupabaseAuthOtpRepository({this._client});
 
   final SupabaseClient? _client;
   SupabaseClient? get client => _client ?? SupabaseConfig.client;

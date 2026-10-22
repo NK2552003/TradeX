@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/record_access.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -39,6 +40,7 @@ class StrategiesScreen extends StatefulWidget {
   const StrategiesScreen({
     super.key,
     this.onSubpageChanged,
+    this.onReturnToOrigin,
     this.onOpenRef,
     this.onOpenWriting,
     this.onAttachToPost,
@@ -60,11 +62,27 @@ class StrategiesScreen extends StatefulWidget {
   /// on the right playbook.
   final AppLinkOpenRequest? openRequest;
 
+  final VoidCallback? onReturnToOrigin;
+
   @override
   State<StrategiesScreen> createState() => StrategiesScreenState();
 }
 
 class StrategiesScreenState extends State<StrategiesScreen> {
+  /// The saved record currently displayed, for browser history and sharing.
+  AppLinkRef? get openedRef {
+    final record = _active;
+    if (_view == _StrategyView.list || record == null || record.id.isEmpty) {
+      return null;
+    }
+    return AppLinkRef(
+      kind: AppLinkKind.strategy,
+      id: record.id,
+      title: record.name,
+      isPublicContext: _isPublicContext,
+    );
+  }
+
   /// Public entry point so host workspaces (like Writing Desk) can trigger
   /// new playbook creation.
   void newPlaybook() => _newPlaybook();
@@ -108,6 +126,10 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   StreamSubscription<AppLinkGraph>? _graphSub;
 
   List<AppStrategy> _strategies = const <AppStrategy>[];
+  List<AppStrategy> _accessibleRecords = [];
+  AppStrategy? _linkedRecord;
+  String? _accessError;
+  int _accessRevision = 0;
   late AppLinkGraph _graph = _links.current;
   bool _loading = true;
 
@@ -146,7 +168,19 @@ class StrategiesScreenState extends State<StrategiesScreen> {
       (List<AppStrategy> items) {
         if (!mounted) return;
         setState(() {
-          _strategies = items;
+          _accessibleRecords = items;
+          if (_linkedRecord != null) {
+            final latest = items
+                .where((record) => record.id == _linkedRecord!.id)
+                .firstOrNull;
+            if (latest != null) _linkedRecord = latest;
+            if (_isPublicContext && (latest == null || !latest.isPublic)) {
+              _accessError = 'This record is no longer public.';
+            }
+          }
+          _strategies = items
+              .where((record) => RecordAccess.owns(record.userId))
+              .toList();
           _loading = false;
         });
       },
@@ -212,11 +246,12 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   }
 
   AppStrategy? get _active {
+    if (_linkedRecord?.id == _activeId) return _linkedRecord;
     final AppStrategy? draft = _draft;
     if (draft != null) return draft;
     final String? id = _activeId;
     if (id == null) return null;
-    for (final AppStrategy s in _strategies) {
+    for (final AppStrategy s in _accessibleRecords) {
       if (s.id == id) return s;
     }
     return null;
@@ -291,16 +326,50 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   /// the shell routed it here by mistake, and a missing id can only mean the
   /// playbook was deleted between the click and the switch, so both degrade to
   /// leaving the library alone.
-  void _apply(AppLinkOpenRequest request) {
-    if (request.kind != AppLinkKind.strategy &&
-        !request.id.startsWith('strat_') &&
-        !request.id.startsWith('strategy_')) {
-      return;
+  Future<void> _apply(AppLinkOpenRequest request) async {
+    if (request.kind != AppLinkKind.strategy) return;
+    final revision = ++_accessRevision;
+    try {
+      final record = await _repo.getById(request.id);
+      if (!mounted || revision != _accessRevision) return;
+      if (record == null ||
+          !RecordAccess.canRead(
+            record.userId,
+            record.isPublic,
+            publicContext: request.publicContext,
+          )) {
+        setState(
+          () =>
+              _accessError = 'This record is private, deleted, or unavailable.',
+        );
+        return;
+      }
+      if (request.editWriting &&
+          (request.publicContext || !RecordAccess.owns(record.userId))) {
+        setState(
+          () => _accessError =
+              'Only the owner can edit this record in their workspace.',
+        );
+        return;
+      }
+      setState(() {
+        _accessError = null;
+        _linkedRecord = record;
+        _isPublicContext =
+            request.publicContext || !RecordAccess.owns(record.userId);
+      });
+      if (request.editWriting) {
+        _edit(record);
+      } else {
+        _open(record.id);
+      }
+    } catch (error) {
+      if (mounted && revision == _accessRevision) {
+        setState(
+          () => _accessError = 'Could not open this record. Please retry.',
+        );
+      }
     }
-    final bool known = _strategies.any((AppStrategy s) => s.id == request.id);
-    if (!known && !_loading) return;
-    _isPublicContext = request.publicContext;
-    _open(request.id);
   }
 
   void _open(String id) => _openWithTab(id, StrategyDetailTab.playbook);
@@ -320,6 +389,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     StrategyEditorMode mode = StrategyEditorMode.write,
     bool detailsOnly = false,
   }) {
+    if (strategy.id.isNotEmpty && !RecordAccess.owns(strategy.userId)) return;
     setState(() {
       _editorMode = mode;
       _editorDetailsOnly = detailsOnly;
@@ -332,6 +402,14 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   }
 
   void _backToIndex() {
+    _accessError = null;
+    _isPublicContext = false;
+    _linkedRecord = null;
+    _accessRevision++;
+    if (widget.onReturnToOrigin != null) {
+      widget.onReturnToOrigin!();
+      return;
+    }
     if (!mounted) return;
     setState(() {
       _draft = null;
@@ -432,11 +510,10 @@ class StrategiesScreenState extends State<StrategiesScreen> {
       );
       return;
     }
-    final bool isPublic = ref.isPublicContext ||
-        _isPublicContext ||
-        (_strategies.where((s) => s.id == _activeId).firstOrNull?.isPublic ?? false);
-    final AppLinkRef forwarded =
-        isPublic && !ref.isPublicContext ? ref.copyWith(isPublicContext: true) : ref;
+    final bool isPublic = ref.isPublicContext || _isPublicContext;
+    final AppLinkRef forwarded = isPublic && !ref.isPublicContext
+        ? ref.copyWith(isPublicContext: true)
+        : ref;
     jump(forwarded);
   }
 
@@ -680,25 +757,27 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     final double adherenceRate = checklistItemsTotal > 0
         ? (checklistDoneTotal / checklistItemsTotal) * 100
         : (traded.isNotEmpty
-            ? (traded
-                    .map((AppStrategy s) =>
-                        s.winRate > 1 ? s.winRate : s.winRate * 100)
-                    .reduce((double a, double b) => a + b) /
-                traded.length)
-            : 100.0);
+              ? (traded
+                        .map(
+                          (AppStrategy s) =>
+                              s.winRate > 1 ? s.winRate : s.winRate * 100,
+                        )
+                        .reduce((double a, double b) => a + b) /
+                    traded.length)
+              : 100.0);
 
     final double avgTargetR = traded.isNotEmpty
         ? traded
-                .map((AppStrategy s) => s.avgR)
-                .reduce((double a, double b) => a + b) /
-            traded.length
+                  .map((AppStrategy s) => s.avgR)
+                  .reduce((double a, double b) => a + b) /
+              traded.length
         : 2.4;
 
     final DeskStatCardData kpi1 = DeskStatCardData(
       title: 'PLAYBOOK INVENTORY',
-      customMetric: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
+      customMetric: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        runSpacing: context.sp(theme.spacing.xxs),
         children: <Widget>[
           Text(
             '$activeCount Active',
@@ -774,22 +853,18 @@ class StrategiesScreenState extends State<StrategiesScreen> {
 
     final DeskStatCardData kpi2 = DeskStatCardData(
       title: 'BEST PERFORMING SETUP',
-      customMetric: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
+      customMetric: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Expanded(
-            child: Text(
-              topSetup?.name ?? 'None yet',
-              style: context.uiText.heading.copyWith(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: colors.foreground,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+          Text(
+            topSetup?.name ?? 'None yet',
+            style: context.uiText.heading.copyWith(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: colors.foreground,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           Text(
             topSetup != null
@@ -822,9 +897,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
             decoration: BoxDecoration(
               color: colors.success.withValues(alpha: 0.12),
               borderRadius: context.radius(theme.radii.sm),
-              border: Border.all(
-                color: colors.success.withValues(alpha: 0.25),
-              ),
+              border: Border.all(color: colors.success.withValues(alpha: 0.25)),
             ),
             child: Text(
               topSetup != null ? AppTokens.rr(topSetup.avgR) : '—',
@@ -841,9 +914,9 @@ class StrategiesScreenState extends State<StrategiesScreen> {
 
     final DeskStatCardData kpi3 = DeskStatCardData(
       title: 'DISCIPLINE / RULE ADHERENCE',
-      customMetric: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
+      customMetric: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        runSpacing: context.sp(theme.spacing.xxs),
         children: <Widget>[
           Text(
             '${adherenceRate.toStringAsFixed(1)}%',
@@ -894,9 +967,9 @@ class StrategiesScreenState extends State<StrategiesScreen> {
 
     final DeskStatCardData kpi4 = DeskStatCardData(
       title: 'ALLOCATED CAPITAL & TARGET R:R',
-      customMetric: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
+      customMetric: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        runSpacing: context.sp(theme.spacing.xxs),
         children: <Widget>[
           Text(
             '$totalTrades Trades',
@@ -966,9 +1039,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
       child: Container(
         height: context.sz(28),
         alignment: Alignment.center,
-        padding: EdgeInsets.symmetric(
-          horizontal: context.sp(theme.spacing.sm),
-        ),
+        padding: EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.sm)),
         decoration: BoxDecoration(
           color: isSelected ? colors.foreground : Colors.transparent,
           borderRadius: context.radius(theme.radii.sm),
@@ -1008,8 +1079,9 @@ class StrategiesScreenState extends State<StrategiesScreen> {
         .where((AppStrategy s) => s.status == AppStrategyStatus.retired)
         .length;
 
-    final Widget titleAndCount = Row(
-      mainAxisSize: MainAxisSize.min,
+    final Widget titleAndCount = Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      runSpacing: context.sp(theme.spacing.xs),
       children: <Widget>[
         Text('Playbooks', style: context.uiText.subheading),
         SizedBox(width: context.sp(theme.spacing.sm)),
@@ -1163,12 +1235,11 @@ class StrategiesScreenState extends State<StrategiesScreen> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    titleAndCount,
-                    viewToggle,
-                  ],
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: context.sp(theme.spacing.xs),
+                  children: <Widget>[titleAndCount, viewToggle],
                 ),
                 SizedBox(height: context.sp(theme.spacing.xs)),
                 SingleChildScrollView(
@@ -1213,10 +1284,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
       onTap: () => _open(strategy.id),
       onToggleFavorite: () => _toggleFavorite(strategy),
       onEdit: () => _edit(strategy),
-      onFileTrade: () => _openWithTab(
-        strategy.id,
-        StrategyDetailTab.links,
-      ),
+      onFileTrade: () => _openWithTab(strategy.id, StrategyDetailTab.links),
     );
   }
 
@@ -1294,7 +1362,12 @@ class StrategiesScreenState extends State<StrategiesScreen> {
               icon: Icons.science_outlined,
             ),
             SizedBox(height: context.sp(theme.spacing.sm)),
-            _buildPlaybookCardGrid(context, testing, columns: columns, gap: gap),
+            _buildPlaybookCardGrid(
+              context,
+              testing,
+              columns: columns,
+              gap: gap,
+            ),
             SizedBox(height: context.sp(theme.spacing.lg)),
           ],
           if (drafts.isNotEmpty) ...<Widget>[
@@ -1316,7 +1389,12 @@ class StrategiesScreenState extends State<StrategiesScreen> {
               icon: Icons.inventory_2_outlined,
             ),
             SizedBox(height: context.sp(theme.spacing.sm)),
-            _buildPlaybookCardGrid(context, retired, columns: columns, gap: gap),
+            _buildPlaybookCardGrid(
+              context,
+              retired,
+              columns: columns,
+              gap: gap,
+            ),
             SizedBox(height: context.sp(theme.spacing.lg)),
           ],
         ],
@@ -1378,6 +1456,13 @@ class StrategiesScreenState extends State<StrategiesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_accessError != null) {
+      return UiEmptyState(
+        title: 'Record unavailable',
+        message: _accessError,
+        action: UiButton(label: 'Back', onPressed: _backToIndex),
+      );
+    }
     final AppStrategy? active = _active;
 
     // The editor is a full-surface step on every width: it owns its own
@@ -1416,10 +1501,11 @@ class StrategiesScreenState extends State<StrategiesScreen> {
     key: ValueKey<String>('strategy_document_${strategy.id}'),
     strategy: strategy,
     initialTab: _initialDetailTab,
-    canEdit: !_isPublicContext,
-    isPublicContext: _isPublicContext || strategy.isPublic,
+    canEdit: !_isPublicContext && RecordAccess.owns(strategy.userId),
+    isPublicContext: _isPublicContext,
     onClose: _backToIndex,
-    onEdit: () => _edit(strategy, mode: StrategyEditorMode.write, detailsOnly: true),
+    onEdit: () =>
+        _edit(strategy, mode: StrategyEditorMode.write, detailsOnly: true),
     onEditWriting: () {
       if (widget.onOpenWriting != null) {
         widget.onOpenWriting!(
@@ -1470,8 +1556,9 @@ class StrategiesScreenState extends State<StrategiesScreen> {
               child: LayoutBuilder(
                 builder: (BuildContext context, BoxConstraints constraints) {
                   final double maxWidth = constraints.maxWidth;
-                  final int columns =
-                      maxWidth >= 1024 ? 3 : (maxWidth >= 640 ? 2 : 1);
+                  final int columns = maxWidth >= 1024
+                      ? 3
+                      : (maxWidth >= 640 ? 2 : 1);
                   final double gap = context.sp(theme.spacing.md);
 
                   return Padding(
@@ -1506,8 +1593,9 @@ class StrategiesScreenState extends State<StrategiesScreen> {
                           SizedBox(height: context.sp(theme.spacing.md)),
                           DeskPaginationBar(
                             currentPage: _currentPage,
-                            totalPages:
-                                (visible.length / _pageSize).ceil().clamp(1, 9999),
+                            totalPages: (visible.length / _pageSize)
+                                .ceil()
+                                .clamp(1, 9999),
                             totalItems: visible.length,
                             pageSize: _pageSize,
                             itemLabel: 'playbooks',
@@ -1517,7 +1605,8 @@ class StrategiesScreenState extends State<StrategiesScreen> {
                         ],
                         SizedBox(height: context.sp(theme.spacing.xl)),
                         const DeskStatusBarFooter(
-                          syncLabel: 'Connected to Zerodha Kite Broker API',
+                          syncLabel:
+                              'Workspace records · broker sync is not connected',
                           shortcutHints: <String>[
                             'Press P for new playbook',
                             '/ to search',
@@ -1525,8 +1614,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
                           ],
                         ),
                         SizedBox(
-                          height:
-                              context.uiPageBottomInset + context.sz(72),
+                          height: context.uiPageBottomInset + context.sz(72),
                         ),
                       ],
                     ),
@@ -1572,4 +1660,3 @@ class _NextAction {
   final VoidCallback onTap;
   final String? badge;
 }
-

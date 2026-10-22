@@ -1,0 +1,441 @@
+[
+  {
+    "key": "frontend-auth",
+    "title": "[Frontend][Authentication and onboarding] Wire OAuth and recovery completion; validate compact auth layouts",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Authentication and onboarding**. Local handoff: `customer_side/frontend_issues/features/auth.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Connect Google sign-in/sign-up controls to the real OAuth flow; show failures and configuration gaps.\n- [ ] Replace the password reset completion timer with a verified recovery-session password update; handle send, verify, resend, update failures and duplicate submits.\n- [ ] Restrict production role switching to authorized roles; validate that UI switching cannot grant admin privileges.\n- [ ] Reproduce onboarding landscape/scaled-text overflow and auth keyboard occlusion; keep fields and actions scrollable.\n- [ ] Remove unsupported client-side encryption claims.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high",
+      "component: form-inputs"
+    ],
+    "number": 21,
+    "url": "https://github.com/NK2552003/TradeX/issues/21",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-community",
+    "title": "[Frontend][Community] Complete post actions and refresh; protect attachment visibility and compact navigation",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Community**. Local handoff: `customer_side/frontend_issues/features/community.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Implement Quote, Mute, and Report actions or clearly disable unavailable actions.\n- [ ] Make pull-to-refresh await repository reload, including errors.\n- [ ] Verify embedded community navigation has one bottom dock and usable top-level/subtab selection.\n- [ ] Ensure compact action touch targets remain accessible.\n- [ ] Require explicit confirmation before making attached private notes, strategies, or trades public; cancel must preserve visibility.\n- [ ] Remove the fabricated advisor registration number; render only verified profile information.\n- [ ] Label simulated audio rooms as unavailable/beta unless actual transport is connected.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high",
+      "component: domain-blocks"
+    ],
+    "number": 22,
+    "url": "https://github.com/NK2552003/TradeX/issues/22",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-journal",
+    "title": "[Frontend][Trade journal] Fix compact trade views, owner link visibility, and calculator handoff",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Trade journal**. Local handoff: `customer_side/frontend_issues/features/journal.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Use readable trade cards on compact widths and horizontally scrollable tables when needed on larger widths.\n- [ ] Decouple public-record visibility from viewer permissions: owners in private workspace must retain access to their private linked records.\n- [ ] Accept initial trade drafts from calculator outputs without silently changing values; provide a Log Trade action from calculators.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high",
+      "component: domain-blocks"
+    ],
+    "number": 23,
+    "url": "https://github.com/NK2552003/TradeX/issues/23",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-notes",
+    "title": "[Frontend][Notes] Correct keyboard overlays, link privacy, HTML actions, and attachment export boundaries",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Notes**. Local handoff: `customer_side/frontend_issues/features/notes.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Prevent arbitrary local file reads during Markdown/PDF image resolution; enforce canonical app attachment boundaries, including traversal and symlinks.\n- [ ] Correct toolbar and slash palette keyboard inset ownership; test small heights and keyboard open/closed.\n- [ ] Measure large-note parsing and debounce expensive extraction without stale saved content.\n- [ ] Make safe HTML anchors actionable with approved URL schemes.\n- [ ] Preserve owners access to private linked records while filtering public viewers.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high",
+      "component: domain-blocks"
+    ],
+    "number": 24,
+    "url": "https://github.com/NK2552003/TradeX/issues/24",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-strategies",
+    "title": "[Frontend][Strategies] Protect publishing and owner links; validate editor menus and tablet split mode",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Strategies**. Local handoff: `customer_side/frontend_issues/features/strategies.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Validate the header More menu actually opens and actions work with the shared dropdown component.\n- [ ] Use write/read mode when local width cannot support split panes; test portrait tablets and resize after selecting Split.\n- [ ] Preserve owners private linked records in their own workspace.\n- [ ] Require an explicit visibility warning and confirmation before publishing a strategy.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high",
+      "component: domain-blocks"
+    ],
+    "number": 25,
+    "url": "https://github.com/NK2552003/TradeX/issues/25",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-market_data",
+    "title": "[Frontend][Market intelligence] Validate chart edge gestures, mover targets, and snapshot disclosures",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Market intelligence**. Local handoff: `customer_side/frontend_issues/features/market_data.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Reproduce chart horizontal pan versus operating-system edge-back behavior; preserve back gestures.\n- [ ] Validate mover ticker pills at 320/360 px and accessible touch targets without clipped change badges.\n- [ ] Display accurate snapshot timestamps/staleness and analytics/non-advisory context; do not claim an invented 15-minute delay.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p2-medium",
+      "component: charts"
+    ],
+    "number": 26,
+    "url": "https://github.com/NK2552003/TradeX/issues/26",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-watchlists",
+    "title": "[Frontend][Watchlists] Implement symbol picker and ticker navigation; distinguish prices from alert targets",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Watchlists**. Local handoff: `customer_side/frontend_issues/features/watchlists.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Replace Add Symbol toast with a searchable symbol/watchlist picker and working persistence.\n- [ ] Open the selected instrument/chart from ticker rows instead of storing unread selection state.\n- [ ] Never render alert thresholds or a fabricated fallback as current prices; use available quotes with provenance and explicit unavailable states.\n- [ ] Cover empty, loading, failed save, duplicate symbols, and successful add/remove flows.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high",
+      "component: domain-blocks"
+    ],
+    "number": 27,
+    "url": "https://github.com/NK2552003/TradeX/issues/27",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-ai_assistant",
+    "title": "[Frontend][AI assistant] Validate action menus and replace simulated response streaming",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **AI assistant**. Local handoff: `customer_side/frontend_issues/features/ai_assistant.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Validate chat header and insight dropdown triggers, keyboard activation, and action results.\n- [ ] Replace artificial typing of canned responses with authenticated service streaming when configured.\n- [ ] Handle cancellation, timeout, failure, unavailable service, and response completion honestly; avoid claiming model output for local demo responses.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high",
+      "component: feedback"
+    ],
+    "number": 28,
+    "url": "https://github.com/NK2552003/TradeX/issues/28",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-calculators",
+    "title": "[Frontend][Calculators] Guard invalid arithmetic, review tax regimes, and connect journal drafts",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Calculators**. Local handoff: `customer_side/frontend_issues/features/calculators.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Guard zero risk, invalid numeric input, NaN, and Infinity before rendering ratios/progress.\n- [ ] Verify statutory capital gains assumptions against authoritative sources and transaction dates; support labeled historical regimes where required. Audit reports old STCG/LTCG rates and exemptions.\n- [ ] Transfer position-size and risk/reward outputs into a journal draft with explicit user review.\n- [ ] Validate all calculator layouts and compact clear-button targets.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high",
+      "component: form-inputs"
+    ],
+    "number": 29,
+    "url": "https://github.com/NK2552003/TradeX/issues/29",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-settings",
+    "title": "[Frontend][Settings and billing] Complete verification, downloads, support, payment, and deletion feedback",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Settings and billing**. Local handoff: `customer_side/frontend_issues/features/settings.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Capture and actually verify email OTPs before showing updated email; connect account linking to real identity operations.\n- [ ] Replace discarded card/CVC fields and simulated card saving or plan activation with a configured payment flow, or disable unavailable payment actions.\n- [ ] Generate/download real invoice PDFs and ready export archives; handle missing URLs and failures.\n- [ ] Persist or deliver support tickets before clearing fields and showing success.\n- [ ] Copy referral links to clipboard on both layouts.\n- [ ] After accepted deletion/deactivation request, sign out and route through authentication with accurate status copy.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high",
+      "component: domain-blocks"
+    ],
+    "number": 30,
+    "url": "https://github.com/NK2552003/TradeX/issues/30",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-workspace",
+    "title": "[Frontend][Workspace] Validate carousel controls and retain search and filter state",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Workspace**. Local handoff: `customer_side/frontend_issues/features/workspace.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Reproduce Writing Desk carousel arrow overlap at 768–904 px; keep navigation controls outside card hit areas.\n- [ ] Retain search queries, date filters, and relevant scroll state after opening and closing note/trade/strategy editors.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p2-medium",
+      "component: navigation"
+    ],
+    "number": 31,
+    "url": "https://github.com/NK2552003/TradeX/issues/31",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-affiliate_program",
+    "title": "[Frontend][Affiliate program] Replace false phone verification, complete referral copying, and clarify payouts",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Affiliate program**. Local handoff: `customer_side/frontend_issues/features/affiliate_program.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Replace instant phone-verified flag with actual OTP send/verify states or mark verification unavailable.\n- [ ] Ensure mobile and desktop Copy Link actually use the clipboard and report errors.\n- [ ] Connect payout requests to supported backend operations or make availability explicit; do not imply a transfer occurred from a simulated modal.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high",
+      "component: form-inputs"
+    ],
+    "number": 32,
+    "url": "https://github.com/NK2552003/TradeX/issues/32",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-public_site",
+    "title": "[Frontend][Public site] Fix narrow pricing typography and footer links; remove unsupported security claims",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Public site**. Local handoff: `customer_side/frontend_issues/features/public_site.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Validate localized annual/monthly price labels at 320/360 px and large text; prevent wrapping/clipping.\n- [ ] Make footer social controls open verified project destinations, or remove/disable unconfigured destinations.\n- [ ] Remove unsupported AES-256/client-encryption and other security claims throughout public copy.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p2-medium",
+      "design-system"
+    ],
+    "number": 33,
+    "url": "https://github.com/NK2552003/TradeX/issues/33",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-linking",
+    "title": "[Frontend][Record linking] Refresh ticker search data and measure graph rebuild performance",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Record linking**. Local handoff: `customer_side/frontend_issues/features/linking.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Replace stale demo-only ticker universe with current repository/user symbols and explicit loading/error handling.\n- [ ] Measure graph rebuilds and note extraction at realistic portfolio sizes; coalesce/debounce expensive work and consider isolates only if measured.\n- [ ] Keep graph snapshots internally consistent and avoid losing the last edit when debouncing.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p2-medium",
+      "performance"
+    ],
+    "number": 34,
+    "url": "https://github.com/NK2552003/TradeX/issues/34",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-messages",
+    "title": "[Frontend][Direct messages] Correct security copy, composer insets, and authenticated empty states",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Direct messages**. Local handoff: `customer_side/frontend_issues/features/messages.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Remove unsupported end-to-end encryption claims and associated misleading lock affordances.\n- [ ] Verify composer safe areas and keyboard layout on gesture-navigation devices; retain already-correct SafeArea behavior.\n- [ ] Clear demo personas when authenticated fetch returns an empty thread list; preserve explicit error and empty states.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high",
+      "component: domain-blocks"
+    ],
+    "number": 35,
+    "url": "https://github.com/NK2552003/TradeX/issues/35",
+    "side": "frontend"
+  },
+  {
+    "key": "backend-auth",
+    "title": "[Backend][Authentication and onboarding] Harden signup authorization, OTP failures, and session persistence",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Authentication and onboarding**. Local handoff: `customer_side/backend_issues/features/auth.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Verify signup trigger role/tier defaults; never trust self-signup user metadata for admin authorization or enterprise entitlements.\n- [ ] Remove production mock OTP fallback on network/verification failures; fail closed without accepting arbitrary codes.\n- [ ] Review access/refresh token persistence and use supported secure platform storage; distinguish browser constraints.\n- [ ] Check deployed policies/configuration and add negative auth regression tests.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p0-critical"
+    ],
+    "number": 36,
+    "url": "https://github.com/NK2552003/TradeX/issues/36",
+    "side": "backend"
+  },
+  {
+    "key": "backend-community",
+    "title": "[Backend][Community] Enforce post ownership and block rules; align profile queries",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Community**. Local handoff: `customer_side/backend_issues/features/community.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Verify posts/comments read policies implement intended blocked-user visibility semantics.\n- [ ] Verify delete/update policies enforce server-side author ownership independently of client filters.\n- [ ] Reconcile profile selects and mapping with deployed schema; audit reports username/win_rate/verified column mismatches.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high"
+    ],
+    "number": 37,
+    "url": "https://github.com/NK2552003/TradeX/issues/37",
+    "side": "backend"
+  },
+  {
+    "key": "backend-journal",
+    "title": "[Backend][Trade journal] Align strategy joins and private attachment storage",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Trade journal**. Local handoff: `customer_side/backend_issues/features/journal.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Reconcile strategies(name) joins with actual title/name schema on reads and writes.\n- [ ] Align journal attachment upload keys with owner-folder storage policy.\n- [ ] Resolve private assets using authorized expiring access rather than unsigned public URLs; cover expiry, deletion, and other-user access.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high"
+    ],
+    "number": 38,
+    "url": "https://github.com/NK2552003/TradeX/issues/38",
+    "side": "backend"
+  },
+  {
+    "key": "backend-notes",
+    "title": "[Backend][Notes] Fix private attachment uploads and integrate authenticated AI refactoring",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Notes**. Local handoff: `customer_side/backend_issues/features/notes.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Align note upload keys with owner-scoped storage policy and correct attachment metadata.\n- [ ] Use authorized expiring URLs for private note attachments and handle expiry/cache invalidation.\n- [ ] Integrate the planned authenticated note refactoring service instead of silently returning local regex output as AI.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high"
+    ],
+    "number": 39,
+    "url": "https://github.com/NK2552003/TradeX/issues/39",
+    "side": "backend"
+  },
+  {
+    "key": "backend-strategies",
+    "title": "[Backend][Strategies] Authorize public versions and fix attachment paths and link update races",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Strategies**. Local handoff: `customer_side/backend_issues/features/strategies.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Verify public strategy versions are readable only when their parent is publicly visible, with owner access retained.\n- [ ] Correct strategy attachment keys and signed URL resolution.\n- [ ] Resolve manual linked-note-array writes racing with link graph triggers; choose one authoritative mutation path and test concurrent edits.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high"
+    ],
+    "number": 40,
+    "url": "https://github.com/NK2552003/TradeX/issues/40",
+    "side": "backend"
+  },
+  {
+    "key": "backend-market_data",
+    "title": "[Backend][Market intelligence] Replace frozen quote delivery and direct browser quote scraping",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Market intelligence**. Local handoff: `customer_side/backend_issues/features/market_data.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Define licensed/current quote delivery, timestamps, freshness, limits, caching, and failure behavior rather than presenting bundled snapshots as live.\n- [ ] Proxy browser quote requests through a supported backend; audit reports direct Yahoo requests failing CORS/rate limits.\n- [ ] Keep provider credentials server-side and validate authorized access and request limits.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high"
+    ],
+    "number": 41,
+    "url": "https://github.com/NK2552003/TradeX/issues/41",
+    "side": "backend"
+  },
+  {
+    "key": "backend-watchlists",
+    "title": "[Backend][Watchlists] Reconcile item schema and integrate quote data",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Watchlists**. Local handoff: `customer_side/backend_issues/features/watchlists.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Verify deployed watchlist_items schema before choosing a migration or client change: audit reports symbol versus ticker plus missing category/favorite/alert fields.\n- [ ] Join symbols to quotes with explicit freshness/unavailable values; alert targets must remain separate from prices.\n- [ ] Require authenticated ownership and test list/item create/read/update/delete.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high"
+    ],
+    "number": 42,
+    "url": "https://github.com/NK2552003/TradeX/issues/42",
+    "side": "backend"
+  },
+  {
+    "key": "backend-ai_assistant",
+    "title": "[Backend][AI assistant] Use valid note identifiers and authenticated streaming model service",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **AI assistant**. Local handoff: `customer_side/backend_issues/features/ai_assistant.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Verify generated note_ai_* IDs against UUID columns; generate valid IDs or let the database assign them.\n- [ ] Implement authenticated streaming model service with server-side provider credentials, authorization for portfolio context, limits, cancellation, and error handling.\n- [ ] Do not prescribe obsolete provider/model versions from the audit; select and document supported configuration.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high"
+    ],
+    "number": 43,
+    "url": "https://github.com/NK2552003/TradeX/issues/43",
+    "side": "backend"
+  },
+  {
+    "key": "backend-calculators",
+    "title": "[Backend][Calculators] Persist calculator history and version statutory tax assumptions",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Calculators**. Local handoff: `customer_side/backend_issues/features/calculators.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Connect calculator history persistence to the actual schema and enable appropriate owner-scoped access.\n- [ ] Store calculator version, input/output assumptions, and timestamps so historical calculations remain interpretable.\n- [ ] Validate statutory capital-gains rates/exemptions and effective dates against authoritative sources before updating formulas.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high"
+    ],
+    "number": 44,
+    "url": "https://github.com/NK2552003/TradeX/issues/44",
+    "side": "backend"
+  },
+  {
+    "key": "backend-settings",
+    "title": "[Backend][Settings and billing] Fix organization invites, account deletion, and avatar provisioning",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Settings and billing**. Local handoff: `customer_side/backend_issues/features/settings.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Verify organization invitations cannot upsert the inviter/owner as the invited member or demote the owner; use token/email-based invites.\n- [ ] Implement authorized account-deletion lifecycle, session revocation/sign-out, relational/storage cleanup, and truthful status semantics.\n- [ ] Provision/verify avatar storage and owner-write rules; avoid large base64 profile fallbacks on storage errors.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high"
+    ],
+    "number": 45,
+    "url": "https://github.com/NK2552003/TradeX/issues/45",
+    "side": "backend"
+  },
+  {
+    "key": "backend-workspace",
+    "title": "[Backend][Workspace] Batch linked post reads and enforce valid relational identifiers",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Workspace**. Local handoff: `customer_side/backend_issues/features/workspace.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Replace sequential per-edge post queries with batched authorized lookup while preserving ordering and missing-record behavior.\n- [ ] Do not insert synthetic post-* IDs into UUID relational fields; use real persisted post identifiers.\n- [ ] Test empty links, deleted posts, partial visibility, and realistic portfolio performance.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p2-medium",
+      "performance"
+    ],
+    "number": 46,
+    "url": "https://github.com/NK2552003/TradeX/issues/46",
+    "side": "backend"
+  },
+  {
+    "key": "backend-affiliate_program",
+    "title": "[Backend][Affiliate program] Protect application data and approvals; credit only verified conversions",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Affiliate program**. Local handoff: `customer_side/backend_issues/features/affiliate_program.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Verify RLS and grants protect applicant banking/tax/contact records from unauthenticated and other-user access.\n- [ ] Require authorized administrators for application approval RPCs; constrain commission updates.\n- [ ] Remove signup-only balance credits; credit only verified eligible conversions/payment events with idempotency and reversal behavior.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p0-critical"
+    ],
+    "number": 47,
+    "url": "https://github.com/NK2552003/TradeX/issues/47",
+    "side": "backend"
+  },
+  {
+    "key": "backend-public_site",
+    "title": "[Backend][Public site] Surface pricing fallback freshness and synchronize pricing catalogues",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Public site**. Local handoff: `customer_side/backend_issues/features/public_site.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Make pricing query failures observable and label/cache fallback freshness explicitly.\n- [ ] Keep public catalogue, checkout, billing cycle, currency, and subscription entitlements consistent.\n- [ ] Test updated pricing, timeout, schema failure, stale cache, and recovery without silent price changes.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p2-medium"
+    ],
+    "number": 48,
+    "url": "https://github.com/NK2552003/TradeX/issues/48",
+    "side": "backend"
+  },
+  {
+    "key": "backend-linking",
+    "title": "[Backend][Record linking] Correct UUID generation and require authenticated link ownership",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Record linking**. Local handoff: `customer_side/backend_issues/features/linking.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Verify etl_* synthetic identifiers against UUID columns and replace invalid payloads.\n- [ ] Require a valid authenticated owner; never sync demo_user as a profile foreign key.\n- [ ] Test link/unlink, duplicates, other-user records, and restored graph consistency.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high"
+    ],
+    "number": 49,
+    "url": "https://github.com/NK2552003/TradeX/issues/49",
+    "side": "backend"
+  },
+  {
+    "key": "backend-messages",
+    "title": "[Backend][Direct messages] Validate participant authorization for realtime delivery and message storage",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Direct messages**. Local handoff: `customer_side/backend_issues/features/messages.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Verify deployed Realtime/table policies prevent message access outside authorized participants; a global channel name alone does not prove leakage.\n- [ ] Scope delivery/subscriptions to authorized threads and test users A/B/C plus unauthenticated clients.\n- [ ] Align message storage and security claims; if E2EE is required, design key management and ciphertext storage explicitly.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p0-critical"
+    ],
+    "number": 50,
+    "url": "https://github.com/NK2552003/TradeX/issues/50",
+    "side": "backend"
+  },
+  {
+    "key": "frontend-layout_and_responsive",
+    "title": "[Frontend][Responsive layouts and shared components] Audit compact layouts, keyboard ownership, touch targets, and resize behavior",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Responsive layouts and shared components**. Local handoff: `customer_side/frontend_issues/layout_and_responsive.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Verify onboarding landscape/large-text scrolling, journal table readability, editor split thresholds, and pricing labels.\n- [ ] Assign keyboard inset ownership once across notes/journal/strategy toolbars and slash palettes.\n- [ ] Verify one embedded community bottom dock, message composer safe area, accessible action targets, and chart edge-back gestures.\n- [ ] Validate Writing Desk carousel arrow positions at intermediate widths; fix shared components where the defect originates.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high",
+      "design-system",
+      "component: foundation"
+    ],
+    "number": 51,
+    "url": "https://github.com/NK2552003/TradeX/issues/51",
+    "side": "frontend"
+  },
+  {
+    "key": "frontend-navigation_and_routes",
+    "title": "[Frontend][Navigation and deep links] Unify URL routing, platform links, back behavior, and community tab selection",
+    "body": "## Scope\n\nCustomer-side frontend audit follow-up for **Navigation and deep links**. Local handoff: `customer_side/frontend_issues/navigation_and_routes.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Make auth, shell destinations, feature subtabs, dialogs, and shared entity routes synchronize with browser URL/history.\n- [ ] Validate direct links, refresh, browser back/forward, mobile system back, unknown/inaccessible entities, and return after login.\n- [ ] Configure supported custom-scheme/app links with required platform/site association files.\n- [ ] Clear stale subpage callbacks and avoid destination-history loops; sidebar Feed selection must restore Feed after internal tab changes.\n- [ ] Coordinate with closed issue #20 and verify existing deep-link work before replacing architecture.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Use TraderHub shared components and context design tokens required by AGENTS.md.\n- [ ] Validate affected flows at 320, 390, 768, 1024, and 1440 px, including keyboard, touch, scaling, resize, and back navigation as applicable.\n- [ ] Cover loading, empty, error, success, and unavailable-service states without simulated success.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high",
+      "component: navigation"
+    ],
+    "number": 52,
+    "url": "https://github.com/NK2552003/TradeX/issues/52",
+    "side": "frontend"
+  },
+  {
+    "key": "backend-rls_and_security",
+    "title": "[Backend][Authorization and RLS] Verify and close reported role, subscription, application, and version access gaps",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Authorization and RLS**. Local handoff: `customer_side/backend_issues/rls_and_security.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Verify signup trigger ignores untrusted role/tier metadata.\n- [ ] Protect privileged profile columns and client subscription entitlements from self-upgrade.\n- [ ] Verify RLS/grants on affiliate applications and admin authorization for approval RPCs.\n- [ ] Authorize public strategy-version reads through visible parent records.\n- [ ] Use safe migration design, negative owner/other-user/anonymous tests, and deployment evidence; do not apply audit SQL blindly.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p0-critical"
+    ],
+    "number": 53,
+    "url": "https://github.com/NK2552003/TradeX/issues/53",
+    "side": "backend"
+  },
+  {
+    "key": "backend-storage_architecture",
+    "title": "[Backend][Attachment storage] Align object paths, signed access, avatar provisioning, and storage policies",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Attachment storage**. Local handoff: `customer_side/backend_issues/storage_architecture.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Verify note/journal/strategy/community object keys match owner-folder policies, generally user/entity/file.\n- [ ] Use authorized signed access for private buckets, with expiry and cache invalidation.\n- [ ] Verify avatar/community bucket provisioning, MIME/size limits, intended read access, and owner writes.\n- [ ] Test upload, read, replacement, deletion, public sharing, and cross-user denial without exposing private attachments.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high"
+    ],
+    "number": 54,
+    "url": "https://github.com/NK2552003/TradeX/issues/54",
+    "side": "backend"
+  },
+  {
+    "key": "backend-schema_and_migrations",
+    "title": "[Backend][Schema compatibility] Reconcile repository queries, UUID payloads, and migration contracts",
+    "body": "## Scope\n\nCustomer-side backend audit follow-up for **Schema compatibility**. Local handoff: `customer_side/backend_issues/schema_and_migrations.md`.\n\n## Triage status\n\nThese are reported audit findings, not confirmation of deployed behavior. Reproduce each against the current checkout and configured environment; record stale findings as already resolved. Absolute failure rates and production exposure claims in the source audit remain unverified.\n\n## Work items\n\n- [ ] Verify strategies title/name joins and watchlist symbol/ticker plus optional columns against deployed schema.\n- [ ] Correct invalid prefixed IDs and demo foreign keys across linking, AI-created notes, and workspace edges.\n- [ ] Connect calculator_history with owner policies and documented payloads.\n- [ ] Use non-destructive migrations, regenerate/verify contracts, and test real CRUD; coordinate feature fixes with closed backend issues #16 and #17.\n\n## Validation and completion\n\n- [ ] Record reproductions, affected code paths, and evidence for each confirmed defect.\n- [ ] Preserve unrelated work and coordinate shared fixes with related feature issues.\n- [ ] Verify deployed schema, policies, and service configuration before choosing migrations.\n- [ ] Test owner, another user, and unauthenticated access where relevant; document deployment dependencies.\n- [ ] Add focused regressions and report remaining validation limits.\n",
+    "labels": [
+      "bug",
+      "priority: p1-high"
+    ],
+    "number": 55,
+    "url": "https://github.com/NK2552003/TradeX/issues/55",
+    "side": "backend"
+  }
+]

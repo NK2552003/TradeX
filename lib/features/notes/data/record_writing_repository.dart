@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/record_access.dart';
 import 'dart:io';
 
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -35,6 +36,7 @@ class RecordWritingRepository {
     if (kind == AppLinkKind.journal) {
       final record = await journal.getById(id);
       if (record == null) throw StateError('This trade no longer exists.');
+      RecordAccess.requireOwner(record.userId);
       return RecordWritingDocument(
         source: AppLinkRef(kind: kind, id: id, title: record.displayTitle),
         note: tradeNote(record),
@@ -58,6 +60,7 @@ class RecordWritingRepository {
     if (kind == AppLinkKind.strategy) {
       final record = await strategies.getById(id);
       if (record == null) throw StateError('This strategy no longer exists.');
+      RecordAccess.requireOwner(record.userId);
       return RecordWritingDocument(
         source: AppLinkRef(kind: kind, id: id, title: record.name),
         note: strategyNote(record),

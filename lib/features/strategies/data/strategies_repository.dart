@@ -1,3 +1,6 @@
+import 'package:tradex/core/config/record_access.dart';
+import 'package:tradex/core/data/owned_record_writer.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -66,8 +69,7 @@ abstract class StrategiesRepository {
 class StrategiesRepositoryImpl implements StrategiesRepository {
   StrategiesRepositoryImpl._();
 
-  static final StrategiesRepositoryImpl instance =
-      StrategiesRepositoryImpl._();
+  static final StrategiesRepositoryImpl instance = StrategiesRepositoryImpl._();
 
   static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
   static final RegExp _uuidRegex = RegExp(
@@ -81,6 +83,7 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       StreamController<List<AppStrategy>>.broadcast();
 
   bool _initialized = false;
+  String? _cacheActor;
   bool _subscribedToRealtime = false;
   RealtimeChannel? _realtimeChannel;
 
@@ -99,9 +102,20 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
   bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
 
   Future<void> _init() async {
+    final actor = _resolveUserId();
+    if (_cacheActor != actor) {
+      _strategies.clear();
+      _versions.clear();
+      _initialized = false;
+      _cacheActor = actor;
+    }
     if (_initialized) return;
     _initialized = true;
 
+    if (!SupabaseConfig.isConfigured && !CustomerDataPolicy.allowDemo) {
+      _publish();
+      return;
+    }
     if (SupabaseConfig.isConfigured) {
       _initRealtime();
       await _fetchFromSupabase();
@@ -110,8 +124,9 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       final DemoDataSource demo = DemoDataSource.instance;
       _strategies.addAll(demo.strategies());
       for (final AppStrategy s in _strategies) {
-        _versions[s.id] =
-            List<AppStrategyVersion>.of(demo.strategyVersions(s.id));
+        _versions[s.id] = List<AppStrategyVersion>.of(
+          demo.strategyVersions(s.id),
+        );
       }
       _syncAllTickerLinks();
       _publish();
@@ -124,17 +139,18 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
     try {
       final client = SupabaseConfig.client!;
-      _realtimeChannel = client
-          .channel('public:strategies_channel')
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'strategies',
-            callback: (PostgresChangePayload payload) {
-              _handlePostgresChange(payload);
-            },
-          )
-        ..subscribe();
+      _realtimeChannel =
+          client
+              .channel('public:strategies_channel')
+              .onPostgresChanges(
+                event: PostgresChangeEvent.all,
+                schema: 'public',
+                table: 'strategies',
+                callback: (PostgresChangePayload payload) {
+                  _handlePostgresChange(payload);
+                },
+              )
+            ..subscribe();
     } catch (e) {
       debugPrint('[StrategiesRepository] Realtime subscription error: $e');
     }
@@ -259,15 +275,18 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         : const <String>[];
     final linkedTickers = row['linked_tickers'] != null
         ? List<String>.from(
-            (row['linked_tickers'] as List).map((e) => e.toString()))
+            (row['linked_tickers'] as List).map((e) => e.toString()),
+          )
         : const <String>[];
     final linkedNoteIds = row['linked_note_ids'] != null
         ? List<String>.from(
-            (row['linked_note_ids'] as List).map((e) => e.toString()))
+            (row['linked_note_ids'] as List).map((e) => e.toString()),
+          )
         : const <String>[];
     final linkedJournalIds = row['linked_journal_ids'] != null
         ? List<String>.from(
-            (row['linked_journal_ids'] as List).map((e) => e.toString()))
+            (row['linked_journal_ids'] as List).map((e) => e.toString()),
+          )
         : const <String>[];
 
     final DateTime? createdAt = row['created_at'] != null
@@ -277,7 +296,8 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         ? DateTime.tryParse(row['updated_at'].toString())
         : null;
 
-    final name = (row['title'] as String?) ??
+    final name =
+        (row['title'] as String?) ??
         (row['name'] as String?) ??
         'Untitled Strategy';
     final content = row['content'] as String? ?? '';
@@ -300,7 +320,8 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       createdAt: createdAt,
       updatedAt: updatedAt,
       versionCount: (row['version_count'] as num?)?.toInt() ?? 1,
-      trades: (row['trades'] as num?)?.toInt() ??
+      trades:
+          (row['trades'] as num?)?.toInt() ??
           (row['trades_count'] as num?)?.toInt() ??
           0,
       winRate: (row['win_rate'] as num?)?.toDouble() ?? 0.0,
@@ -366,8 +387,9 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
   List<AppStrategy> _snapshot() {
     final List<AppStrategy> copy = List<AppStrategy>.of(_strategies)
-      ..sort((AppStrategy a, AppStrategy b) =>
-          _editedAt(b).compareTo(_editedAt(a)));
+      ..sort(
+        (AppStrategy a, AppStrategy b) => _editedAt(b).compareTo(_editedAt(a)),
+      );
     return List<AppStrategy>.unmodifiable(copy);
   }
 
@@ -395,9 +417,9 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
   @override
   Stream<List<AppStrategy>> watchPublic() => watchAll().map(
-        (List<AppStrategy> items) =>
-            items.where((AppStrategy s) => s.isPublic).toList(growable: false),
-      );
+    (List<AppStrategy> items) =>
+        items.where((AppStrategy s) => s.isPublic).toList(growable: false),
+  );
 
   @override
   Future<List<AppStrategy>> fetchAll() async {
@@ -411,8 +433,10 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
   @override
   Future<AppStrategy?> getById(String id) async {
     await _init();
-    for (final AppStrategy s in _strategies) {
-      if (s.id == id) return s;
+    if (!SupabaseConfig.isConfigured) {
+      for (final AppStrategy s in _strategies) {
+        if (s.id == id) return s;
+      }
     }
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
@@ -424,6 +448,10 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
             .maybeSingle();
         if (res != null) {
           final strategy = _mapRowToStrategy(res);
+          if (!RecordAccess.canRead(strategy.userId, strategy.isPublic)) {
+            _strategies.removeWhere((item) => item.id == id);
+            return null;
+          }
           final at = _strategies.indexWhere((s) => s.id == strategy.id);
           if (at == -1) {
             _strategies.insert(0, strategy);
@@ -433,8 +461,10 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
           _publish();
           return strategy;
         }
+        _strategies.removeWhere((record) => record.id == id);
       } catch (e) {
         debugPrint('[StrategiesRepository] getById error: $e');
+        rethrow;
       }
     }
     return null;
@@ -442,6 +472,7 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
   @override
   Future<AppStrategy> create(AppStrategy draft) async {
+    RecordAccess.requireService();
     await _init();
     final DateTime now = DateTime.now();
 
@@ -450,15 +481,20 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       try {
         final client = SupabaseConfig.client!;
         final targetUserId = _resolveUserId();
-        final String assignedId =
-            _isUuid(draft.id) ? draft.id : const Uuid().v4();
+        final String assignedId = _isUuid(draft.id)
+            ? draft.id
+            : const Uuid().v4();
         final row = _mapStrategyToRow(
           draft.withDerivedCounts(),
           targetUserId,
           targetId: assignedId,
         );
 
-        final res = await client.from('strategies').insert(row).select().single();
+        final res = await client
+            .from('strategies')
+            .insert(row)
+            .select()
+            .single();
         saved = _mapRowToStrategy(res);
 
         // Seed version 1 in strategy_versions
@@ -475,15 +511,8 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
           });
         } catch (_) {}
       } catch (e) {
-        debugPrint(
-            '[StrategiesRepository] create error, falling back to local: $e');
-        saved = draft
-            .copyWith(
-              id: draft.id.isEmpty ? const Uuid().v4() : draft.id,
-              createdAt: now,
-              updatedAt: now,
-            )
-            .withDerivedCounts();
+        debugPrint('[StrategiesRepository] create error: $e');
+        rethrow;
       }
     } else {
       saved = draft
@@ -511,10 +540,14 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     AppStrategy strategy, {
     String? versionNote,
   }) async {
+    RecordAccess.requireService();
+    final owned = await getById(strategy.id);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     await _init();
 
     AppStrategy saved = strategy
-        .copyWith(updatedAt: DateTime.now())
+        .copyWith(userId: owned.userId, updatedAt: DateTime.now())
         .withDerivedCounts();
 
     if (SupabaseConfig.isConfigured && _isUuid(strategy.id)) {
@@ -529,17 +562,18 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
             .from('strategies')
             .update(row)
             .eq('id', strategy.id)
+            .eq('user_id', targetUserId)
             .select()
             .single();
 
         saved = _mapRowToStrategy(res);
       } catch (e) {
         debugPrint('[StrategiesRepository] update error: $e');
+        rethrow;
       }
     }
 
-    final int at =
-        _strategies.indexWhere((AppStrategy s) => s.id == saved.id);
+    final int at = _strategies.indexWhere((AppStrategy s) => s.id == saved.id);
     if (at == -1) {
       _strategies.insert(0, saved);
     } else {
@@ -558,14 +592,18 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
   @override
   Future<void> delete(String id) async {
+    RecordAccess.requireService();
+    final owned = await getById(id);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     await _init();
 
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
-        final client = SupabaseConfig.client!;
-        await client.from('strategies').delete().eq('id', id);
+        await OwnedRecordWriter().delete('strategies', id);
       } catch (e) {
         debugPrint('[StrategiesRepository] delete error: $e');
+        rethrow;
       }
     }
 
@@ -594,32 +632,52 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
   @override
   Future<AppStrategy> toggleFavorite(String id) async {
     final current = await getById(id);
-    final targetFavorite = !(current?.isFavorite ?? false);
+    RecordAccess.requireService();
+    if (current == null) {
+      throw StateError('This strategy is no longer available.');
+    }
+    RecordAccess.requireOwner(current.userId);
+    final targetFavorite = !current.isFavorite;
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
         final client = SupabaseConfig.client!;
         await client
             .from('strategies')
             .update({'is_favorite': targetFavorite})
-            .eq('id', id);
+            .eq('id', id)
+            .eq('user_id', _resolveUserId())
+            .select('id')
+            .single();
       } catch (e) {
         debugPrint('[StrategiesRepository] toggleFavorite error: $e');
+        rethrow;
       }
     }
-    return _mutate(id, (AppStrategy s) => s.copyWith(isFavorite: targetFavorite));
+    return _mutate(
+      id,
+      (AppStrategy s) => s.copyWith(isFavorite: targetFavorite),
+    );
   }
 
   @override
   Future<AppStrategy> setStatus(String id, AppStrategyStatus status) async {
+    RecordAccess.requireService();
+    final owned = await getById(id);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
         final client = SupabaseConfig.client!;
         await client
             .from('strategies')
             .update({'status': status.name})
-            .eq('id', id);
+            .eq('id', id)
+            .eq('user_id', _resolveUserId())
+            .select('id')
+            .single();
       } catch (e) {
         debugPrint('[StrategiesRepository] setStatus error: $e');
+        rethrow;
       }
     }
     return _mutate(id, (AppStrategy s) => s.copyWith(status: status));
@@ -627,17 +685,16 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
   @override
   Future<AppStrategy> setVisibility(String id, bool isPublic) async {
-    if (SupabaseConfig.isConfigured && _isUuid(id)) {
-      try {
-        final client = SupabaseConfig.client!;
-        await client
-            .from('strategies')
-            .update({'visibility': isPublic ? 'public' : 'private'})
-            .eq('id', id);
-      } catch (e) {
-        debugPrint('[StrategiesRepository] setVisibility error: $e');
-      }
+    RecordAccess.requireService();
+    final owned = await getById(id);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
+    if (SupabaseConfig.isConfigured) {
+      await OwnedRecordWriter().update('strategies', id, {
+        'visibility': isPublic ? 'public' : 'private',
+      });
     }
+
     return _mutate(id, (AppStrategy s) => s.copyWith(isPublic: isPublic));
   }
 
@@ -679,12 +736,17 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     String strategyId, {
     String? note,
   }) async {
+    RecordAccess.requireService();
+    final owned = await getById(strategyId);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     await _init();
     final AppStrategy? s = await getById(strategyId);
     if (s == null) throw StateError('Strategy not found: $strategyId');
 
     final currentVersions = await versions(strategyId);
-    final int nextVersion = currentVersions.fold<int>(
+    final int nextVersion =
+        currentVersions.fold<int>(
           0,
           (int max, AppStrategyVersion v) => v.version > max ? v.version : max,
         ) +
@@ -720,13 +782,18 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         await client
             .from('strategies')
             .update({'version_count': nextVersion})
-            .eq('id', strategyId);
+            .eq('id', strategyId)
+            .eq('user_id', _resolveUserId())
+            .select('id')
+            .single();
       } catch (e) {
         debugPrint('[StrategiesRepository] saveVersion error: $e');
+        rethrow;
       }
     }
 
-    final AppStrategyVersion cut = created ??
+    final AppStrategyVersion cut =
+        created ??
         AppStrategyVersion(
           id: '${s.id}_v$nextVersion',
           version: nextVersion,
@@ -740,8 +807,8 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
           wordCount: s.wordCount,
         );
 
-    final List<AppStrategyVersion> history =
-        _versions[strategyId] ??= <AppStrategyVersion>[];
+    final List<AppStrategyVersion> history = _versions[strategyId] ??=
+        <AppStrategyVersion>[];
     for (int i = 0; i < history.length; i++) {
       if (history[i].isCurrent) {
         history[i] = history[i].copyWith(isCurrent: false);
@@ -762,25 +829,28 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     int version, {
     required bool isCurrent,
     String? note,
-  }) =>
-      AppStrategyVersion(
-        id: '${s.id}_v$version',
-        version: version,
-        savedAt: DateTime.now(),
-        author: 'You',
-        note: note,
-        isCurrent: isCurrent,
-        strategyId: s.id,
-        content: s.content,
-        summary: s.summary,
-        wordCount: AppMarkdownStats.of(s.content).wordCount,
-      );
+  }) => AppStrategyVersion(
+    id: '${s.id}_v$version',
+    version: version,
+    savedAt: DateTime.now(),
+    author: 'You',
+    note: note,
+    isCurrent: isCurrent,
+    strategyId: s.id,
+    content: s.content,
+    summary: s.summary,
+    wordCount: AppMarkdownStats.of(s.content).wordCount,
+  );
 
   @override
   Future<AppStrategy> restoreVersion(
     String strategyId,
     String versionId,
   ) async {
+    RecordAccess.requireService();
+    final owned = await getById(strategyId);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     await _init();
     final List<AppStrategyVersion> history = await versions(strategyId);
     AppStrategyVersion? target;
@@ -802,13 +872,20 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     if (SupabaseConfig.isConfigured && _isUuid(strategyId)) {
       try {
         final client = SupabaseConfig.client!;
-        await client.from('strategies').update({
-          'content': body,
-          'word_count': restored.wordCount,
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', strategyId);
+        await client
+            .from('strategies')
+            .update({
+              'content': body,
+              'word_count': restored.wordCount,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', strategyId)
+            .eq('user_id', _resolveUserId())
+            .select('id')
+            .single();
       } catch (e) {
         debugPrint('[StrategiesRepository] restoreVersion error: $e');
+        rethrow;
       }
     }
 
@@ -818,6 +895,10 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
   @override
   Future<AppStrategy> linkNote(String strategyId, String noteId) async {
+    RecordAccess.requireService();
+    final owned = await getById(strategyId);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     if (SupabaseConfig.isConfigured && _isUuid(strategyId)) {
       try {
         final client = SupabaseConfig.client!;
@@ -827,22 +908,28 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
           await client
               .from('strategies')
               .update({'linked_note_ids': updated})
-              .eq('id', strategyId);
+              .eq('id', strategyId)
+              .eq('user_id', _resolveUserId())
+              .select('id')
+              .single();
         }
       } catch (e) {
         debugPrint('[StrategiesRepository] linkNote error: $e');
+        rethrow;
       }
     }
     return _mutate(strategyId, (AppStrategy s) {
       if (s.linkedNoteIds.contains(noteId)) return s;
-      return s.copyWith(
-        linkedNoteIds: <String>[...s.linkedNoteIds, noteId],
-      );
+      return s.copyWith(linkedNoteIds: <String>[...s.linkedNoteIds, noteId]);
     });
   }
 
   @override
   Future<AppStrategy> unlinkNote(String strategyId, String noteId) async {
+    RecordAccess.requireService();
+    final owned = await getById(strategyId);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     if (SupabaseConfig.isConfigured && _isUuid(strategyId)) {
       try {
         final client = SupabaseConfig.client!;
@@ -854,10 +941,14 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
           await client
               .from('strategies')
               .update({'linked_note_ids': updated})
-              .eq('id', strategyId);
+              .eq('id', strategyId)
+              .eq('user_id', _resolveUserId())
+              .select('id')
+              .single();
         }
       } catch (e) {
         debugPrint('[StrategiesRepository] unlinkNote error: $e');
+        rethrow;
       }
     }
     return _mutate(
@@ -872,20 +963,27 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
   @override
   Future<AppStrategy> linkJournal(String strategyId, String entryId) async {
+    RecordAccess.requireService();
+    final owned = await getById(strategyId);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     if (SupabaseConfig.isConfigured && _isUuid(strategyId)) {
       try {
         final client = SupabaseConfig.client!;
         final strategy = await getById(strategyId);
-        if (strategy != null &&
-            !strategy.linkedJournalIds.contains(entryId)) {
+        if (strategy != null && !strategy.linkedJournalIds.contains(entryId)) {
           final updated = <String>[...strategy.linkedJournalIds, entryId];
           await client
               .from('strategies')
               .update({'linked_journal_ids': updated})
-              .eq('id', strategyId);
+              .eq('id', strategyId)
+              .eq('user_id', _resolveUserId())
+              .select('id')
+              .single();
         }
       } catch (e) {
         debugPrint('[StrategiesRepository] linkJournal error: $e');
+        rethrow;
       }
     }
     return _mutate(strategyId, (AppStrategy s) {
@@ -898,6 +996,10 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
   @override
   Future<AppStrategy> unlinkJournal(String strategyId, String entryId) async {
+    RecordAccess.requireService();
+    final owned = await getById(strategyId);
+    if (owned == null) throw StateError('This record is no longer available.');
+    RecordAccess.requireOwner(owned.userId);
     if (SupabaseConfig.isConfigured && _isUuid(strategyId)) {
       try {
         final client = SupabaseConfig.client!;
@@ -909,10 +1011,14 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
           await client
               .from('strategies')
               .update({'linked_journal_ids': updated})
-              .eq('id', strategyId);
+              .eq('id', strategyId)
+              .eq('user_id', _resolveUserId())
+              .select('id')
+              .single();
         }
       } catch (e) {
         debugPrint('[StrategiesRepository] unlinkJournal error: $e');
+        rethrow;
       }
     }
     return _mutate(
@@ -927,12 +1033,23 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
   @override
   Future<String> uploadAttachment(String strategyId, File file) async {
+    RecordAccess.requireService();
+    if (SupabaseConfig.isConfigured) {
+      final owner = await getById(strategyId);
+      if (owner == null) {
+        throw StateError('Save this record before adding attachments.');
+      }
+      RecordAccess.requireOwner(owner.userId);
+    }
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
         final ext = file.path.contains('.') ? file.path.split('.').last : 'png';
-        final storagePath = '$strategyId/${const Uuid().v4()}.$ext';
-        await client.storage.from('strategy-attachments').upload(
+        final storagePath =
+            '${_resolveUserId()}/$strategyId/${const Uuid().v4()}.$ext';
+        await client.storage
+            .from('strategy-attachments')
+            .upload(
               storagePath,
               file,
               fileOptions: const FileOptions(upsert: true),
@@ -940,6 +1057,7 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         return storagePath;
       } catch (e) {
         debugPrint('[StrategiesRepository] uploadAttachment error: $e');
+        rethrow;
       }
     }
     return file.path;
@@ -947,20 +1065,18 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
   @override
   Future<String> resolveAttachmentUrl(String ref) async {
-    if (SupabaseConfig.isConfigured &&
-        !ref.startsWith('/') &&
-        !ref.contains(':\\') &&
-        !ref.startsWith('file:')) {
-      try {
-        final client = SupabaseConfig.client!;
-        final url =
-            client.storage.from('strategy-attachments').getPublicUrl(ref);
-        return url;
-      } catch (e) {
-        debugPrint('[StrategiesRepository] resolveAttachmentUrl error: $e');
-      }
+    if (!SupabaseConfig.isConfigured ||
+        ref.startsWith('https://') ||
+        ref.startsWith('http://') ||
+        ref.startsWith('/') ||
+        ref.contains(':\\') ||
+        ref.startsWith('file:') ||
+        ref.startsWith('data:')) {
+      return ref;
     }
-    return ref;
+    return SupabaseConfig.client!.storage
+        .from('strategy-attachments')
+        .createSignedUrl(ref, 600);
   }
 }
 
@@ -1017,9 +1133,9 @@ class StrategiesQuery {
 
     out.sort(switch (sort) {
       AppStrategySort.recentlyUpdated =>
-        (AppStrategy a, AppStrategy b) =>
-            StrategiesRepositoryImpl._editedAt(b)
-                .compareTo(StrategiesRepositoryImpl._editedAt(a)),
+        (AppStrategy a, AppStrategy b) => StrategiesRepositoryImpl._editedAt(
+          b,
+        ).compareTo(StrategiesRepositoryImpl._editedAt(a)),
       AppStrategySort.nameAscending =>
         (AppStrategy a, AppStrategy b) => a.name.compareTo(b.name),
       AppStrategySort.mostTraded =>

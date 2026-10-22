@@ -1,3 +1,4 @@
+import 'package:tradex/core/widgets/publication_confirmation.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -1219,7 +1220,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           value: _isPublic,
           label: 'Share publicly',
           description: 'Anyone with the link can read this note',
-          onChanged: (bool value) => setState(() => _isPublic = value),
+          onChanged: (bool value) async {
+            if (value && !await confirmRecordPublication(context, 'note')) {
+              return;
+            }
+            if (mounted) setState(() => _isPublic = value);
+          },
         ),
         if (_isPublic) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.sm)),
@@ -1305,7 +1311,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final UiTheme theme = context.ui;
     final double inset = MediaQuery.viewInsetsOf(context).bottom;
     final double safeBottom = MediaQuery.paddingOf(context).bottom;
-    final double baseBottom = inset > 0 ? inset : safeBottom;
+    // The host Scaffold already removes the keyboard from our constraints.
+    final double baseBottom = inset > 0 ? 0 : safeBottom;
     final double gutter = context.sp(theme.spacing.md);
     final bool editing = _mode != NoteEditorMode.read;
     // The mobile toolbar is docked at the bottom, so anything else that floats

@@ -36,7 +36,8 @@ class MessagesThreadView extends StatefulWidget {
   final void Function(MessageThread thread)? onOpenProfile;
 
   /// Long-press on a bubble; the root wires this to the message actions sheet.
-  final void Function(MessageThread thread, ChatMessage message)? onMessageActions;
+  final void Function(MessageThread thread, ChatMessage message)?
+  onMessageActions;
 
   @override
   State<MessagesThreadView> createState() => _MessagesThreadViewState();
@@ -108,7 +109,8 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
         title: kind.label,
         subtitle: 'Shared from your device',
         sizeLabel: kind == MessageAttachmentKind.voice ? '0:12' : null,
-        thumbnailUrl: (kind == MessageAttachmentKind.image ||
+        thumbnailUrl:
+            (kind == MessageAttachmentKind.image ||
                 kind == MessageAttachmentKind.chart)
             ? 'https://picsum.photos/seed/${DateTime.now().microsecondsSinceEpoch}/400/300'
             : null,
@@ -130,7 +132,9 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
   }
 
   void _reactToLast(String emoji) {
-    final List<ChatMessage> msgs = widget.repository.messagesFor(widget.threadId);
+    final List<ChatMessage> msgs = widget.repository.messagesFor(
+      widget.threadId,
+    );
     if (msgs.isEmpty) return;
     widget.repository.toggleReaction(widget.threadId, msgs.last.id, emoji);
   }
@@ -219,7 +223,9 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
             SizedBox(height: context.sp(theme.spacing.xxs)),
             Text(
               'They cannot see when you have read their messages until you accept.',
-              style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
+              style: context.uiText.caption.copyWith(
+                color: colors.foregroundMuted,
+              ),
             ),
             SizedBox(height: context.sp(theme.spacing.md)),
             Row(
@@ -268,7 +274,8 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
                     UiToastScope.maybeOf(context)?.show(
                       UiToastData(
                         title: 'Request Accepted',
-                        message: 'You can now exchange messages with @${thread.peer.handle}.',
+                        message:
+                            'You can now exchange messages with @${thread.peer.handle}.',
                         intent: UiIntent.success,
                       ),
                     );
@@ -291,7 +298,10 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
       decoration: BoxDecoration(
         color: colors.surface,
         border: Border(
-          bottom: BorderSide(color: colors.border, width: theme.borders.hairline),
+          bottom: BorderSide(
+            color: colors.border,
+            width: theme.borders.hairline,
+          ),
         ),
       ),
       child: SafeArea(
@@ -337,8 +347,11 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
                                     style: context.uiText.bodyStrong,
                                   ),
                                 ),
-                                if (thread.peer.verified && !thread.isGroup) ...<Widget>[
-                                  SizedBox(width: context.sp(theme.spacing.xxs)),
+                                if (thread.peer.verified &&
+                                    !thread.isGroup) ...<Widget>[
+                                  SizedBox(
+                                    width: context.sp(theme.spacing.xxs),
+                                  ),
                                   Icon(
                                     Icons.verified_rounded,
                                     size: context.sz(14),
@@ -370,7 +383,9 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
                 icon: _isSearching
                     ? Icons.search_off_rounded
                     : Icons.search_rounded,
-                tooltip: _isSearching ? 'Close search' : 'Search in conversation',
+                tooltip: _isSearching
+                    ? 'Close search'
+                    : 'Search in conversation',
                 size: UiSize.sm,
                 onPressed: () => setState(() {
                   _isSearching = !_isSearching;
@@ -397,16 +412,17 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
 
   Widget _searchBar(BuildContext context, MessageThread thread) {
     final UiTheme theme = context.ui;
-    final List<ChatMessage> allMsgs =
-        widget.repository.messagesFor(thread.id);
+    final List<ChatMessage> allMsgs = widget.repository.messagesFor(thread.id);
     final String q = _searchQuery.trim().toLowerCase();
     final int matches = q.isEmpty
         ? allMsgs.length
         : allMsgs
-            .where((ChatMessage m) =>
-                m.body.toLowerCase().contains(q) ||
-                (m.attachment?.title.toLowerCase().contains(q) ?? false))
-            .length;
+              .where(
+                (ChatMessage m) =>
+                    m.body.toLowerCase().contains(q) ||
+                    (m.attachment?.title.toLowerCase().contains(q) ?? false),
+              )
+              .length;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -416,8 +432,10 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
       decoration: BoxDecoration(
         color: theme.colors.surface,
         border: Border(
-          bottom:
-              BorderSide(color: theme.colors.border, width: theme.borders.hairline),
+          bottom: BorderSide(
+            color: theme.colors.border,
+            width: theme.borders.hairline,
+          ),
         ),
       ),
       child: Row(
@@ -522,16 +540,17 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
 
   Widget _messageList(BuildContext context, MessageThread thread) {
     final UiTheme theme = context.ui;
-    final List<ChatMessage> rawMsgs =
-        widget.repository.messagesFor(thread.id);
+    final List<ChatMessage> rawMsgs = widget.repository.messagesFor(thread.id);
     final String q = _searchQuery.trim().toLowerCase();
     final List<ChatMessage> msgs = q.isEmpty
         ? rawMsgs
         : rawMsgs
-            .where((ChatMessage m) =>
-                m.body.toLowerCase().contains(q) ||
-                (m.attachment?.title.toLowerCase().contains(q) ?? false))
-            .toList();
+              .where(
+                (ChatMessage m) =>
+                    m.body.toLowerCase().contains(q) ||
+                    (m.attachment?.title.toLowerCase().contains(q) ?? false),
+              )
+              .toList();
 
     if (q.isNotEmpty && msgs.isEmpty) {
       return Center(
@@ -546,15 +565,13 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
                 color: theme.colors.foregroundMuted,
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
-              Text(
-                'No messages found',
-                style: context.uiText.subheading,
-              ),
+              Text('No messages found', style: context.uiText.subheading),
               SizedBox(height: context.sp(theme.spacing.xxs)),
               Text(
                 'No results matching "$_searchQuery"',
-                style: context.uiText.caption
-                    .copyWith(color: theme.colors.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
+                ),
               ),
             ],
           ),
@@ -580,39 +597,41 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
         // Reverse index → chronological row.
         final _Row row = rows[rows.length - 1 - i];
         return switch (row) {
-          _ProfileHeroRow(:final MessageThread thread) =>
-            _ProfileHeroCard(
-              thread: thread,
-              onOpenProfile: widget.onOpenProfile,
+          _ProfileHeroRow(:final MessageThread thread) => _ProfileHeroCard(
+            thread: thread,
+            onOpenProfile: widget.onOpenProfile,
+          ),
+          _GreetingHintRow(:final String message) => Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.md),
+              horizontal: context.sp(theme.spacing.lg),
             ),
-          _GreetingHintRow(:final String message) =>
-            Padding(
-              padding: EdgeInsets.symmetric(
-                vertical: context.sp(theme.spacing.md),
-                horizontal: context.sp(theme.spacing.lg),
-              ),
-              child: Center(
-                child: Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: context.uiText.caption.copyWith(
-                    color: theme.colors.foregroundMuted,
-                  ),
+            child: Center(
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundMuted,
                 ),
               ),
             ),
+          ),
           _DividerRow(:final DateTime date) => ChatDateDivider(date: date),
           _TypingRow() => Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  top: context.sp(theme.spacing.xs),
-                  bottom: context.sp(theme.spacing.sm),
-                ),
-                child: const UiTypingIndicator(),
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: context.sp(theme.spacing.xs),
+                bottom: context.sp(theme.spacing.sm),
               ),
+              child: const UiTypingIndicator(),
             ),
-          _MessageRow(:final ChatMessage message, :final bool tail, :final String? sender) =>
+          ),
+          _MessageRow(
+            :final ChatMessage message,
+            :final bool tail,
+            :final String? sender,
+          ) =>
             MessageBubble(
               message: message,
               senderName: sender,
@@ -640,48 +659,53 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
                   ? null
                   : msgs.where((m) => m.id == message.replyToId).firstOrNull,
               onLongPress: () => _showMessageActions(context, thread, message),
-              onReactionTap: (String emoji) => widget.repository
-                  .toggleReaction(thread.id, message.id, emoji),
+              onReactionTap: (String emoji) => widget.repository.toggleReaction(
+                thread.id,
+                message.id,
+                emoji,
+              ),
             ),
         };
       },
     );
   }
 
-  List<_Row> _rows(
-    List<ChatMessage> msgs,
-    MessageThread thread,
-    bool typing,
-  ) {
+  List<_Row> _rows(List<ChatMessage> msgs, MessageThread thread, bool typing) {
     final List<_Row> rows = <_Row>[];
     rows.add(_ProfileHeroRow(thread: thread));
     if (msgs.isEmpty) {
       rows.add(
         _GreetingHintRow(
           title: 'Say hello',
-          message: 'Send a message or voice note to begin your conversation with ${thread.title}.',
+          message:
+              'Send a message or voice note to begin your conversation with ${thread.title}.',
         ),
       );
     }
     DateTime? lastDay;
     for (int i = 0; i < msgs.length; i++) {
       final ChatMessage m = msgs[i];
-      final DateTime day = DateTime(m.sentAt.year, m.sentAt.month, m.sentAt.day);
+      final DateTime day = DateTime(
+        m.sentAt.year,
+        m.sentAt.month,
+        m.sentAt.day,
+      );
       if (lastDay == null || day != lastDay) {
         rows.add(_DividerRow(day));
         lastDay = day;
       }
       // Tail = last message of a same-sender run (drives footer + spacing).
       final ChatMessage? next = i + 1 < msgs.length ? msgs[i + 1] : null;
-      final bool tail = next == null ||
+      final bool tail =
+          next == null ||
           next.fromMe != m.fromMe ||
           next.systemNotice != m.systemNotice;
       // Group sender label: first inbound of a run, groups only.
       final ChatMessage? prev = i > 0 ? msgs[i - 1] : null;
-      final bool runStart = prev == null ||
-          prev.fromMe != m.fromMe ||
-          prev.systemNotice;
-      final String? sender = (thread.isGroup && !m.fromMe && runStart && !m.systemNotice)
+      final bool runStart =
+          prev == null || prev.fromMe != m.fromMe || prev.systemNotice;
+      final String? sender =
+          (thread.isGroup && !m.fromMe && runStart && !m.systemNotice)
           ? thread.peer.displayName ?? thread.peer.handle
           : null;
       rows.add(_MessageRow(message: m, tail: tail, sender: sender));
@@ -689,6 +713,7 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
     if (typing) rows.add(const _TypingRow());
     return rows;
   }
+
   void _showMessageActions(
     BuildContext context,
     MessageThread thread,
@@ -709,21 +734,20 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
           message: msg,
           onForwarded: (String dstThreadId) {
             UiToastScope.maybeOf(context)?.show(
-              UiToastData(
-                title: 'Message forwarded',
-                intent: UiIntent.success,
-              ),
+              UiToastData(title: 'Message forwarded', intent: UiIntent.success),
             );
           },
         );
       },
       onNavigateToAi: () {
-        widget.onOpenRef?.call(const AppLinkRef(
-          id: 'ai_copilot',
-          kind: AppLinkKind.aiCopilot,
-          title: 'AI Copilot',
-          subtitle: 'Message Analysis',
-        ));
+        widget.onOpenRef?.call(
+          const AppLinkRef(
+            id: 'ai_copilot',
+            kind: AppLinkKind.aiCopilot,
+            title: 'AI Copilot',
+            subtitle: 'Message Analysis',
+          ),
+        );
       },
     );
   }
@@ -765,10 +789,7 @@ class _GreetingHintRow extends _Row {
 }
 
 class _ProfileHeroCard extends StatelessWidget {
-  const _ProfileHeroCard({
-    required this.thread,
-    this.onOpenProfile,
-  });
+  const _ProfileHeroCard({required this.thread, this.onOpenProfile});
 
   final MessageThread thread;
   final void Function(MessageThread thread)? onOpenProfile;
@@ -823,7 +844,9 @@ class _ProfileHeroCard extends StatelessWidget {
                   color: colors.foregroundMuted,
                 ),
               ),
-              if (!thread.isGroup && peer.bio != null && peer.bio!.trim().isNotEmpty) ...<Widget>[
+              if (!thread.isGroup &&
+                  peer.bio != null &&
+                  peer.bio!.trim().isNotEmpty) ...<Widget>[
                 SizedBox(height: context.sp(theme.spacing.xs)),
                 Text(
                   peer.bio!.trim(),
@@ -848,12 +871,14 @@ class _ProfileHeroCard extends StatelessWidget {
                     ),
                     if (peer.winRate != null)
                       UiBadge(
-                        label: '${(peer.winRate! * 100).toStringAsFixed(0)}% Win rate',
+                        label:
+                            '${(peer.winRate! * 100).toStringAsFixed(0)}% Win rate',
                         variant: UiBadgeVariant.soft,
                         intent: UiIntent.success,
                         size: UiSize.xs,
                       ),
-                    if (peer.tradingStyle != null && peer.tradingStyle!.isNotEmpty)
+                    if (peer.tradingStyle != null &&
+                        peer.tradingStyle!.isNotEmpty)
                       UiBadge(
                         label: peer.tradingStyle!,
                         variant: UiBadgeVariant.soft,
@@ -867,10 +892,7 @@ class _ProfileHeroCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    Text(
-                      '${peer.following}',
-                      style: context.uiText.bodyStrong,
-                    ),
+                    Text('${peer.following}', style: context.uiText.bodyStrong),
                     SizedBox(width: context.sp(theme.spacing.xxs)),
                     Text(
                       'Following',
@@ -879,10 +901,7 @@ class _ProfileHeroCard extends StatelessWidget {
                       ),
                     ),
                     SizedBox(width: context.sp(theme.spacing.md)),
-                    Text(
-                      '${peer.followers}',
-                      style: context.uiText.bodyStrong,
-                    ),
+                    Text('${peer.followers}', style: context.uiText.bodyStrong),
                     SizedBox(width: context.sp(theme.spacing.xxs)),
                     Text(
                       'Followers',
@@ -916,7 +935,7 @@ class _ProfileHeroCard extends StatelessWidget {
                   ),
                   SizedBox(width: context.sp(theme.spacing.xxs)),
                   Text(
-                    'Direct messages are end-to-end encrypted',
+                    'Direct messages are stored by TradeX. Do not share sensitive credentials.',
                     style: context.uiText.caption.copyWith(
                       color: colors.foregroundSubtle,
                       fontSize: context.fs(11),

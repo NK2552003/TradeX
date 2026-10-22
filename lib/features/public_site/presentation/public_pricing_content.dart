@@ -112,11 +112,16 @@ class PublicPricingContent extends StatelessWidget {
                           UiGap.v(theme.spacing.xs),
                           Text(plan.subtitle, style: context.uiText.body),
                           UiGap.v(theme.spacing.md),
-                          Text(
-                            plan.priceLabel(isAnnual: annual),
-                            style: context.uiText.numeric.copyWith(
-                              fontSize: context.fs(36),
-                              fontWeight: FontWeight.w700,
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              plan.priceLabel(isAnnual: annual),
+                              maxLines: 1,
+                              style: context.uiText.numeric.copyWith(
+                                fontSize: context.fs(36),
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                           Text(

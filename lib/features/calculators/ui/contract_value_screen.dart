@@ -89,20 +89,22 @@ class _ContractValueCalculatorScreenState
     final bool overdrawn = s.nakedMargin > _capital;
 
     final List<double> notionalCurve = <double>[
-      for (int i = 1; i <= 8; i++) calcContractValue(
-        lotSize: _lotSize,
-        price: _price,
-        lots: i.toDouble(),
-      ).total,
+      for (int i = 1; i <= 8; i++)
+        calcContractValue(
+          lotSize: _lotSize,
+          price: _price,
+          lots: i.toDouble(),
+        ).total,
     ];
     final List<double> marginCurve = <double>[
-      for (int i = 1; i <= 8; i++) calcSpanMargin(
-        symbol: _symbol,
-        spotPrice: _price,
-        lotSize: _lotSize,
-        lots: i,
-        isHedged: false,
-      ).nakedMargin,
+      for (int i = 1; i <= 8; i++)
+        calcSpanMargin(
+          symbol: _symbol,
+          spotPrice: _price,
+          lotSize: _lotSize,
+          lots: i,
+          isHedged: false,
+        ).nakedMargin,
     ];
     const List<double> moves = <double>[0.25, 0.5, 1, 2, 3];
 
@@ -113,7 +115,8 @@ class _ContractValueCalculatorScreenState
         label: 'Notional controlled',
         value: AppTokens.lakhCrore(r.total),
         intent: UiIntent.primary,
-        tag: '$_lots ${_lots == 1 ? 'lot' : 'lots'} · $_symbol · ${_isLive ? 'Live LTP' : 'Ref'}',
+        tag:
+            '$_lots ${_lots == 1 ? 'lot' : 'lots'} · $_symbol · ${_isLive ? 'Live LTP' : 'Ref'}',
         tagIntent: _isLive ? UiIntent.success : UiIntent.info,
         footnote:
             '${AppTokens.lakhCrore(s.nakedMargin)} of margin holds it — '
@@ -165,7 +168,10 @@ class _ContractValueCalculatorScreenState
           label: 'Contract',
           hint: 'the instrument being sized',
           children: <Widget>[
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runSpacing: context.sp(context.ui.spacing.xs),
               children: <Widget>[
                 UiBadge(
                   label: _isLive
@@ -175,7 +181,7 @@ class _ContractValueCalculatorScreenState
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
-                const Spacer(),
+
                 UiButton(
                   label: 'Sync LTP',
                   leadingIcon: Icons.refresh,
@@ -267,7 +273,8 @@ class _ContractValueCalculatorScreenState
                 value: AppTokens.price(s.nakedMargin),
                 trailing: AppTokens.price(marginPerLot),
                 intent: UiIntent.warning,
-                detail: '${AppTokens.percent(s.marginPct, decimals: 1)} of notional',
+                detail:
+                    '${AppTokens.percent(s.marginPct, decimals: 1)} of notional',
                 share: r.total <= 0
                     ? null
                     : (s.nakedMargin / r.total).clamp(0.0, 1.0),
@@ -283,9 +290,7 @@ class _ContractValueCalculatorScreenState
               UiKeyValueRow(
                 label: 'Intraday',
                 value: AppTokens.price(s.misMargin),
-                trailing: AppTokens.price(
-                  _lots <= 0 ? 0 : s.misMargin / _lots,
-                ),
+                trailing: AppTokens.price(_lots <= 0 ? 0 : s.misMargin / _lots),
                 intent: UiIntent.info,
                 detail: 'MIS — squared off before close',
               ),
@@ -327,10 +332,11 @@ class _ContractValueCalculatorScreenState
                 flex: 3,
                 cell: (BuildContext ctx, _Sym x) => Text(
                   x.name,
-                  style: (x.name == _symbol
-                          ? ctx.uiText.bodyStrong
-                          : ctx.uiText.body)
-                      .copyWith(color: ctx.uiColors.foreground),
+                  style:
+                      (x.name == _symbol
+                              ? ctx.uiText.bodyStrong
+                              : ctx.uiText.body)
+                          .copyWith(color: ctx.uiColors.foreground),
                 ),
               ),
               UiTableColumn<_Sym>(
@@ -362,9 +368,7 @@ class _ContractValueCalculatorScreenState
                 cell: (BuildContext ctx, _Sym x) => Text(
                   AppTokens.price(x.margin),
                   textAlign: TextAlign.right,
-                  style: ctx.uiText.body.copyWith(
-                    color: ctx.uiColors.warning,
-                  ),
+                  style: ctx.uiText.body.copyWith(color: ctx.uiColors.warning),
                 ),
               ),
               UiTableColumn<_Sym>(
@@ -415,7 +419,8 @@ class _ContractValueCalculatorScreenState
             items: <UiBarListItem>[
               for (final double m in moves)
                 UiBarListItem(
-                  label: '${m.toStringAsFixed(m == m.roundToDouble() ? 0 : 2)}% · '
+                  label:
+                      '${m.toStringAsFixed(m == m.roundToDouble() ? 0 : 2)}% · '
                       '${AppTokens.money(_price * m / 100, decimals: 0)} of price',
                   value: r.total * m / 100,
                 ),

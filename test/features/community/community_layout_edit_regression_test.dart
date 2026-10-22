@@ -154,7 +154,19 @@ void main() {
   });
   testWidgets('post thread has one setup presentation', (tester) async {
     viewport(tester, 1400);
-    final post = repo.forYouPosts.firstWhere((p) => p.tradeSetup != null);
+    final original = repo.forYouPosts.firstWhere((p) => p.tradeSetup != null);
+    final post = CommunityPost(
+      id: 'thread-layout-test',
+      author: const CommunityAuthor(
+        id: 'thread-author',
+        handle: 'thread_author',
+        displayName: 'Thread Author',
+        userRole: UserRole.customer,
+      ),
+      body: original.body,
+      tradeSetup: original.tradeSetup,
+      createdAt: original.createdAt,
+    );
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(

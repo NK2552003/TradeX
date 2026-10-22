@@ -79,16 +79,28 @@ class _PnlCalculatorScreenState extends State<PnlCalculatorScreen> {
     final bool eaten = r.grossPnl > 0 && r.netPnl <= 0;
 
     // Exits either side of the one taken, in even steps of the entry price.
-    const List<double> steps = <double>[-0.10, -0.05, -0.02, 0, 0.02, 0.05, 0.10];
+    const List<double> steps = <double>[
+      -0.10,
+      -0.05,
+      -0.02,
+      0,
+      0.02,
+      0.05,
+      0.10,
+    ];
     final List<double> curve = <double>[
       for (int i = -10; i <= 10; i++) _netAt(_entry * (1 + i / 100)),
     ];
-    final double lo = <double>[_entry, _exit, breakeven].reduce(
-      (double a, double b) => a < b ? a : b,
-    );
-    final double hi = <double>[_entry, _exit, breakeven].reduce(
-      (double a, double b) => a > b ? a : b,
-    );
+    final double lo = <double>[
+      _entry,
+      _exit,
+      breakeven,
+    ].reduce((double a, double b) => a < b ? a : b);
+    final double hi = <double>[
+      _entry,
+      _exit,
+      breakeven,
+    ].reduce((double a, double b) => a > b ? a : b);
     final double pad = (hi - lo) * 0.2 + 1;
 
     return AppCalculatorLayout(
@@ -192,8 +204,10 @@ class _PnlCalculatorScreenState extends State<PnlCalculatorScreen> {
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: context.sp(context.ui.spacing.xs),
+                  runSpacing: context.sp(context.ui.spacing.xs),
                   children: <Widget>[
                     UiButton(
                       label: 'Sync Exit',
@@ -325,9 +339,7 @@ class _PnlCalculatorScreenState extends State<PnlCalculatorScreen> {
               UiKeyValueRow(
                 label: 'Net P&L',
                 value: AppTokens.signedMoney(r.netPnl, decimals: 0),
-                trailing: AppTokens.money(
-                  _qty <= 0 ? 0 : r.netPnl / _qty,
-                ),
+                trailing: AppTokens.money(_qty <= 0 ? 0 : r.netPnl / _qty),
                 intent: AppTokens.plIntent(r.netPnl),
                 emphasis: true,
               ),
@@ -423,9 +435,7 @@ class _PnlCalculatorScreenState extends State<PnlCalculatorScreen> {
         if (!eaten && r.investment > 0 && netPct.abs() > 10)
           UiCallout(
             intent: win ? UiIntent.bullish : UiIntent.warning,
-            title: win
-                ? 'Large gain on capital'
-                : 'Large loss on capital',
+            title: win ? 'Large gain on capital' : 'Large loss on capital',
             message:
                 '${AppTokens.signedPercent(netPct, decimals: 1)} on '
                 '${AppTokens.lakhCrore(r.investment)} in one trade. Position '

@@ -49,7 +49,8 @@ class _BlackScholesCalculatorScreenState
   Future<void> _fetchLiveSpotAndRf(String sym) async {
     try {
       final MarketQuote q = await MarketDataService.instance.getQuote(sym);
-      final MacroBenchmarks b = await MarketDataService.instance.getMacroBenchmarks();
+      final MacroBenchmarks b = await MarketDataService.instance
+          .getMacroBenchmarks();
       if (!mounted) return;
       final int step = _symbolMeta[sym]?.$2 ?? 50;
       final double atm = (q.price / step).roundToDouble() * step;
@@ -77,7 +78,9 @@ class _BlackScholesCalculatorScreenState
   @override
   Widget build(BuildContext context) {
     final BlackScholesResult r = _at();
-    final double moneyness = _strike <= 0 ? 0 : (_spot - _strike) / _strike * 100;
+    final double moneyness = _strike <= 0
+        ? 0
+        : (_spot - _strike) / _strike * 100;
     final bool itm = r.intrinsic > 0;
     final double timeShare = r.price <= 0 ? 0 : r.timeValue / r.price * 100;
     final double thetaPerLot = r.theta * _lotSize;
@@ -98,12 +101,16 @@ class _BlackScholesCalculatorScreenState
     ];
     final double pad = _spot * 0.01 + 1;
     final double beAtExpiry = _isCall ? _strike + r.price : _strike - r.price;
-    final double meterLo = <double>[_spot, _strike, beAtExpiry].reduce(
-      (double a, double b) => a < b ? a : b,
-    );
-    final double meterHi = <double>[_spot, _strike, beAtExpiry].reduce(
-      (double a, double b) => a > b ? a : b,
-    );
+    final double meterLo = <double>[
+      _spot,
+      _strike,
+      beAtExpiry,
+    ].reduce((double a, double b) => a < b ? a : b);
+    final double meterHi = <double>[
+      _spot,
+      _strike,
+      beAtExpiry,
+    ].reduce((double a, double b) => a > b ? a : b);
 
     return AppCalculatorLayout(
       meta: calculatorMetaById('black_scholes'),
@@ -162,7 +169,10 @@ class _BlackScholesCalculatorScreenState
         AppCalcInputGroup(
           label: 'Contract',
           children: <Widget>[
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runSpacing: context.sp(context.ui.spacing.xs),
               children: <Widget>[
                 UiBadge(
                   label: _isLive
@@ -172,7 +182,7 @@ class _BlackScholesCalculatorScreenState
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
                 ),
-                const Spacer(),
+
                 UiButton(
                   label: 'Sync Live',
                   leadingIcon: Icons.refresh,
@@ -214,7 +224,8 @@ class _BlackScholesCalculatorScreenState
               value: _strike,
               prefix: '₹',
               decimals: 0,
-              helper: 'Moneyness '
+              helper:
+                  'Moneyness '
                   '${AppTokens.signedPercent(moneyness, decimals: 2)}.',
               onChanged: (double v) => setState(() => _strike = v),
             ),
@@ -253,7 +264,8 @@ class _BlackScholesCalculatorScreenState
               divisions: 55,
               intent: UiIntent.info,
               valueFormatter: (num v) => AppTokens.percent(v, decimals: 0),
-              helper: 'Vega says '
+              helper:
+                  'Vega says '
                   '${AppTokens.money(r.vega)} a point.',
               onChanged: (double v) => setState(() => _iv = v),
             ),
