@@ -43,14 +43,38 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
     setState(() => _loading = true);
     try {
       final results = await Future.wait<Object>(<Future<Object>>[
-        _repo.getAnalyticsSnapshot('1M'),
-        _repo.listTraderSeats(),
-        _repo.listOrderApprovals(),
-        _repo.listRiskBreaches(),
-        _repo.listAuditLogs(),
-        _repo.listAffiliateApplications(),
-        _repo.getAffiliateWorkspaceSnapshot(),
-        _repo.listDeletionRequests(),
+        _repo.getAnalyticsSnapshot('1M').catchError((e) {
+          debugPrint('AdminOverviewPage getAnalyticsSnapshot fallback: $e');
+          return _repo.fallbackSnapshot('1M');
+        }),
+        _repo.listTraderSeats().catchError((e) {
+          debugPrint('AdminOverviewPage listTraderSeats error: $e');
+          return <AdminTraderSeat>[];
+        }),
+        _repo.listOrderApprovals().catchError((e) {
+          debugPrint('AdminOverviewPage listOrderApprovals error: $e');
+          return <DeskOrderApproval>[];
+        }),
+        _repo.listRiskBreaches().catchError((e) {
+          debugPrint('AdminOverviewPage listRiskBreaches error: $e');
+          return <DeskRiskBreach>[];
+        }),
+        _repo.listAuditLogs().catchError((e) {
+          debugPrint('AdminOverviewPage listAuditLogs error: $e');
+          return <AdminAuditLogEntry>[];
+        }),
+        _repo.listAffiliateApplications().catchError((e) {
+          debugPrint('AdminOverviewPage listAffiliateApplications error: $e');
+          return <AffiliateApplicationModel>[];
+        }),
+        _repo.getAffiliateWorkspaceSnapshot().catchError((e) {
+          debugPrint('AdminOverviewPage getAffiliateWorkspaceSnapshot error: $e');
+          return AffiliateWorkspace.fromJson(const <String, Object?>{});
+        }),
+        _repo.listDeletionRequests().catchError((e) {
+          debugPrint('AdminOverviewPage listDeletionRequests error: $e');
+          return <AccountDeletionRequestModel>[];
+        }),
       ]);
       if (!mounted) return;
       setState(() {

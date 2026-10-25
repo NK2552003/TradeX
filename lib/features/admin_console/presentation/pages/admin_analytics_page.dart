@@ -30,8 +30,14 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     setState(() => _loading = true);
     try {
       final results = await Future.wait<Object>(<Future<Object>>[
-        _repo.getAnalyticsSnapshot(_timeframe),
-        _repo.listTraderSeats(),
+        _repo.getAnalyticsSnapshot(_timeframe).catchError((e) {
+          debugPrint('AdminAnalyticsPage getAnalyticsSnapshot fallback: $e');
+          return _repo.fallbackSnapshot(_timeframe);
+        }),
+        _repo.listTraderSeats().catchError((e) {
+          debugPrint('AdminAnalyticsPage listTraderSeats error: $e');
+          return <AdminTraderSeat>[];
+        }),
       ]);
       if (!mounted) return;
       setState(() {

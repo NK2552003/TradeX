@@ -44,11 +44,26 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
     setState(() => _loading = true);
     try {
       final results = await Future.wait<Object>(<Future<Object>>[
-        _repo.listTraderSeats(),
-        _repo.listConsumerAccounts(),
-        _repo.listAffiliateApplications(),
-        _repo.getAffiliateWorkspaceSnapshot(),
-        _repo.listDeletionRequests(),
+        _repo.listTraderSeats().catchError((e) {
+          debugPrint('AdminTeamSeatsPage listTraderSeats error: $e');
+          return <AdminTraderSeat>[];
+        }),
+        _repo.listConsumerAccounts().catchError((e) {
+          debugPrint('AdminTeamSeatsPage listConsumerAccounts error: $e');
+          return <AdminConsumerAccount>[];
+        }),
+        _repo.listAffiliateApplications().catchError((e) {
+          debugPrint('AdminTeamSeatsPage listAffiliateApplications error: $e');
+          return <AffiliateApplicationModel>[];
+        }),
+        _repo.getAffiliateWorkspaceSnapshot().catchError((e) {
+          debugPrint('AdminTeamSeatsPage getAffiliateWorkspaceSnapshot error: $e');
+          return AffiliateWorkspace.fromJson(const <String, Object?>{});
+        }),
+        _repo.listDeletionRequests().catchError((e) {
+          debugPrint('AdminTeamSeatsPage listDeletionRequests error: $e');
+          return <AccountDeletionRequestModel>[];
+        }),
       ]);
       if (!mounted) return;
       setState(() {

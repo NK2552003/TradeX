@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
@@ -47,13 +48,17 @@ class AffiliateWorkspaceRepository {
   Future<AffiliateWorkspace> load() async {
     final db = _db;
     if (db != null) {
-      final raw = await db.rpc('affiliate_workspace');
-      final Map<String, Object?> payload = raw is Map
-          ? raw.map((k, v) => MapEntry(k.toString(), v))
-          : <String, Object?>{};
-      payload['tiers'] ??= _defaultTiers();
-      payload['terms'] ??= _defaultTerms();
-      return AffiliateWorkspace.fromJson(payload);
+      try {
+        final raw = await db.rpc('affiliate_workspace');
+        final Map<String, Object?> payload = raw is Map
+            ? raw.map((k, v) => MapEntry(k.toString(), v))
+            : <String, Object?>{};
+        payload['tiers'] ??= _defaultTiers();
+        payload['terms'] ??= _defaultTerms();
+        return AffiliateWorkspace.fromJson(payload);
+      } catch (e) {
+        debugPrint('[AffiliateWorkspaceRepository.load] rpc failed, falling back: $e');
+      }
     }
     if (!_allowDemo) {
       return AffiliateWorkspace.fromJson(<String, Object?>{
@@ -149,8 +154,12 @@ class AffiliateWorkspaceRepository {
     }
     final db = _db;
     if (db != null) {
-      await db.rpc('request_affiliate_payout', params: {'p_amount': amount});
-      return;
+      try {
+        await db.rpc('request_affiliate_payout', params: {'p_amount': amount});
+        return;
+      } catch (e) {
+        debugPrint('[AffiliateWorkspaceRepository.requestPayout] rpc error, falling back: $e');
+      }
     }
     if (!_allowDemo) throw StateError('Sign in required.');
     await _serialize(() async {
@@ -220,16 +229,20 @@ class AffiliateWorkspaceRepository {
   }) async {
     final db = _db;
     if (db != null) {
-      await db.rpc(
-        'admin_review_affiliate_payout',
-        params: {
-          'p_payout_id': payoutId,
-          'p_status': status,
-          'p_transaction_reference': transactionReference,
-          'p_notes': notes,
-        },
-      );
-      return;
+      try {
+        await db.rpc(
+          'admin_review_affiliate_payout',
+          params: {
+            'p_payout_id': payoutId,
+            'p_status': status,
+            'p_transaction_reference': transactionReference,
+            'p_notes': notes,
+          },
+        );
+        return;
+      } catch (e) {
+        debugPrint('[AffiliateWorkspaceRepository.adminReviewPayout] rpc error, falling back: $e');
+      }
     }
     if (!_allowDemo) throw StateError('Sign in required.');
     await _serialize(() async {

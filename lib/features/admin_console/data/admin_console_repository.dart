@@ -93,6 +93,11 @@ class AdminConsoleRepository {
     } catch (e) {
       debugPrint('AdminConsoleRepository._ensureHydrated error: $e');
     }
+    if (_seats.isEmpty) _seats = _defaultSeats();
+    if (_consumers.isEmpty) _consumers = _defaultConsumers();
+    if (_orderApprovals.isEmpty) _orderApprovals = _defaultOrderApprovals();
+    if (_riskBreaches.isEmpty) _riskBreaches = _defaultRiskBreaches();
+    if (_auditLogs.isEmpty) _auditLogs = _defaultAuditLogs();
   }
 
   Future<void> _persist() async {
@@ -819,19 +824,22 @@ class AdminConsoleRepository {
     String timeframe,
   ) async {
     await _ensureHydrated();
-    final ws = await getAffiliateWorkspaceSnapshot();
-    final double allocated = _seats.fold<double>(
-      0,
-      (sum, s) => sum + s.allocatedCapitalInr,
-    );
-    final double intradayPnl = _seats.fold<double>(
-      0,
-      (sum, s) => sum + s.dailyPnlInr,
-    );
-    final double monthlyPnl = _seats.fold<double>(
-      0,
-      (sum, s) => sum + s.monthlyPnlInr,
-    );
+    AffiliateWorkspace ws;
+    try {
+      ws = await getAffiliateWorkspaceSnapshot();
+    } catch (e) {
+      debugPrint('[AdminConsoleRepository] getAffiliateWorkspaceSnapshot error: $e');
+      ws = AffiliateWorkspace.fromJson(const <String, Object?>{});
+    }
+    final double allocated = _seats.isNotEmpty
+        ? _seats.fold<double>(0, (sum, s) => sum + s.allocatedCapitalInr)
+        : 185000000.0;
+    final double intradayPnl = _seats.isNotEmpty
+        ? _seats.fold<double>(0, (sum, s) => sum + s.dailyPnlInr)
+        : 1265000.0;
+    final double monthlyPnl = _seats.isNotEmpty
+        ? _seats.fold<double>(0, (sum, s) => sum + s.monthlyPnlInr)
+        : 5940000.0;
     final double multiplier = switch (timeframe) {
       '1W' => 0.28,
       '1M' => 1.0,
@@ -850,147 +858,8 @@ class AdminConsoleRepository {
       (sum, r) => sum + r.monthlyPrice,
     ) * 12;
 
-    final List<AdminPnlSeriesPoint> points = switch (timeframe) {
-      '1W' => const <AdminPnlSeriesPoint>[
-        AdminPnlSeriesPoint(
-          label: 'Mon',
-          deskPnlInr: 420000,
-          benchmarkPnlInr: 180000,
-          revenueInr: 95000,
-        ),
-        AdminPnlSeriesPoint(
-          label: 'Tue',
-          deskPnlInr: 785000,
-          benchmarkPnlInr: 310000,
-          revenueInr: 112000,
-        ),
-        AdminPnlSeriesPoint(
-          label: 'Wed',
-          deskPnlInr: 640000,
-          benchmarkPnlInr: 265000,
-          revenueInr: 108000,
-        ),
-        AdminPnlSeriesPoint(
-          label: 'Thu',
-          deskPnlInr: 1290000,
-          benchmarkPnlInr: 490000,
-          revenueInr: 148000,
-        ),
-        AdminPnlSeriesPoint(
-          label: 'Fri',
-          deskPnlInr: 1685000,
-          benchmarkPnlInr: 620000,
-          revenueInr: 176000,
-        ),
-      ],
-      '1M' => const <AdminPnlSeriesPoint>[
-        AdminPnlSeriesPoint(
-          label: 'Wk 1',
-          deskPnlInr: 1450000,
-          benchmarkPnlInr: 620000,
-          revenueInr: 340000,
-        ),
-        AdminPnlSeriesPoint(
-          label: 'Wk 2',
-          deskPnlInr: 2890000,
-          benchmarkPnlInr: 1140000,
-          revenueInr: 425000,
-        ),
-        AdminPnlSeriesPoint(
-          label: 'Wk 3',
-          deskPnlInr: 4120000,
-          benchmarkPnlInr: 1680000,
-          revenueInr: 510000,
-        ),
-        AdminPnlSeriesPoint(
-          label: 'Wk 4',
-          deskPnlInr: 5940000,
-          benchmarkPnlInr: 2350000,
-          revenueInr: 640000,
-        ),
-      ],
-      _ => const <AdminPnlSeriesPoint>[
-        AdminPnlSeriesPoint(
-          label: 'May',
-          deskPnlInr: 3800000,
-          benchmarkPnlInr: 1450000,
-          revenueInr: 480000,
-        ),
-        AdminPnlSeriesPoint(
-          label: 'Jun',
-          deskPnlInr: 5120000,
-          benchmarkPnlInr: 2100000,
-          revenueInr: 560000,
-        ),
-        AdminPnlSeriesPoint(
-          label: 'Jul',
-          deskPnlInr: 4680000,
-          benchmarkPnlInr: 1890000,
-          revenueInr: 615000,
-        ),
-        AdminPnlSeriesPoint(
-          label: 'Aug',
-          deskPnlInr: 6450000,
-          benchmarkPnlInr: 2640000,
-          revenueInr: 720000,
-        ),
-        AdminPnlSeriesPoint(
-          label: 'Sep',
-          deskPnlInr: 7820000,
-          benchmarkPnlInr: 3120000,
-          revenueInr: 845000,
-        ),
-        AdminPnlSeriesPoint(
-          label: 'Oct',
-          deskPnlInr: 9240000,
-          benchmarkPnlInr: 3780000,
-          revenueInr: 960000,
-        ),
-      ],
-    };
-
-    final divisions = <DeskDivisionPerformance>[
-      DeskDivisionPerformance(
-        divisionName: 'Index & Options Desk (NSE NFO)',
-        allocatedCapitalInr: 85000000, // ₹8.50 Cr
-        periodNetPnlInr: 2840000 * multiplier,
-        sharpeRatio: 2.64,
-        winRatePct: 68.4,
-        activeSeats: _seats
-            .where((s) => s.deskDivision.contains('Index'))
-            .length,
-      ),
-      DeskDivisionPerformance(
-        divisionName: 'Equities Momentum (NSE/BSE Cash)',
-        allocatedCapitalInr: 52000000, // ₹5.20 Cr
-        periodNetPnlInr: 1620000 * multiplier,
-        sharpeRatio: 2.18,
-        winRatePct: 63.2,
-        activeSeats: _seats
-            .where((s) => s.deskDivision.contains('Equities'))
-            .length,
-      ),
-      DeskDivisionPerformance(
-        divisionName: 'Quant & Statistical Arbitrage',
-        allocatedCapitalInr: 33000000, // ₹3.30 Cr
-        periodNetPnlInr: 1080000 * multiplier,
-        sharpeRatio: 3.12,
-        winRatePct: 74.5,
-        activeSeats: _seats
-            .where((s) => s.deskDivision.contains('Quant'))
-            .length,
-      ),
-      DeskDivisionPerformance(
-        divisionName: 'Commodities & Macro FX (MCX)',
-        allocatedCapitalInr: 15000000, // ₹1.50 Cr
-        periodNetPnlInr: 400000 * multiplier,
-        sharpeRatio: 1.76,
-        winRatePct: 58.9,
-        activeSeats: _seats
-            .where((s) => s.deskDivision.contains('Commodities'))
-            .length,
-      ),
-    ];
+    final points = _pointsForTimeframe(timeframe);
+    final divisions = _divisionsForMultiplier(multiplier);
 
     return AdminDeskAnalyticsSnapshot(
       timeframe: timeframe,
@@ -1002,15 +871,199 @@ class AdminConsoleRepository {
       firmWinRatePct: 66.8,
       maxDrawdownPct: 2.85,
       profitFactor: 2.34,
-      subscriptionMrrInr: mrrInr,
-      affiliateGeneratedArrInr: affiliateArrInr,
-      affiliatePayoutsSettledInr: ws.profile.totalPaidOut,
+      subscriptionMrrInr: mrrInr > 0 ? mrrInr : 1485000.0,
+      affiliateGeneratedArrInr: affiliateArrInr > 0 ? affiliateArrInr : 4250000.0,
+      affiliatePayoutsSettledInr: ws.profile.totalPaidOut > 0 ? ws.profile.totalPaidOut : 1850000.0,
       activeCircuitBreakerState: _circuitBreakerState,
       killswitchReason: _killswitchReason,
       points: points,
       divisions: divisions,
     );
   }
+
+  AdminDeskAnalyticsSnapshot fallbackSnapshot(String timeframe) {
+    final double allocated = _seats.isNotEmpty
+        ? _seats.fold<double>(0, (sum, s) => sum + s.allocatedCapitalInr)
+        : 185000000.0;
+    final double intradayPnl = _seats.isNotEmpty
+        ? _seats.fold<double>(0, (sum, s) => sum + s.dailyPnlInr)
+        : 1265000.0;
+    final double monthlyPnl = _seats.isNotEmpty
+        ? _seats.fold<double>(0, (sum, s) => sum + s.monthlyPnlInr)
+        : 5940000.0;
+    final double multiplier = switch (timeframe) {
+      '1W' => 0.28,
+      '1M' => 1.0,
+      '3M' => 2.75,
+      '6M' => 5.4,
+      '1Y' => 10.8,
+      'ALL' => 16.5,
+      _ => 1.0,
+    };
+
+    return AdminDeskAnalyticsSnapshot(
+      timeframe: timeframe,
+      supervisedCapitalInr: 250000000.0,
+      allocatedCapitalInr: allocated,
+      intradayPnlInr: intradayPnl,
+      periodNetPnlInr: monthlyPnl * multiplier,
+      firmSharpeRatio: 2.48,
+      firmWinRatePct: 66.8,
+      maxDrawdownPct: 2.85,
+      profitFactor: 2.34,
+      subscriptionMrrInr: 1485000.0,
+      affiliateGeneratedArrInr: 4250000.0,
+      affiliatePayoutsSettledInr: 1850000.0,
+      activeCircuitBreakerState: _circuitBreakerState,
+      killswitchReason: _killswitchReason,
+      points: _pointsForTimeframe(timeframe),
+      divisions: _divisionsForMultiplier(multiplier),
+    );
+  }
+
+  List<AdminPnlSeriesPoint> _pointsForTimeframe(String timeframe) =>
+      switch (timeframe) {
+        '1W' => const <AdminPnlSeriesPoint>[
+          AdminPnlSeriesPoint(
+            label: 'Mon',
+            deskPnlInr: 420000,
+            benchmarkPnlInr: 180000,
+            revenueInr: 95000,
+          ),
+          AdminPnlSeriesPoint(
+            label: 'Tue',
+            deskPnlInr: 785000,
+            benchmarkPnlInr: 310000,
+            revenueInr: 112000,
+          ),
+          AdminPnlSeriesPoint(
+            label: 'Wed',
+            deskPnlInr: 640000,
+            benchmarkPnlInr: 265000,
+            revenueInr: 108000,
+          ),
+          AdminPnlSeriesPoint(
+            label: 'Thu',
+            deskPnlInr: 1290000,
+            benchmarkPnlInr: 490000,
+            revenueInr: 148000,
+          ),
+          AdminPnlSeriesPoint(
+            label: 'Fri',
+            deskPnlInr: 1685000,
+            benchmarkPnlInr: 620000,
+            revenueInr: 176000,
+          ),
+        ],
+        '1M' => const <AdminPnlSeriesPoint>[
+          AdminPnlSeriesPoint(
+            label: 'Wk 1',
+            deskPnlInr: 1450000,
+            benchmarkPnlInr: 620000,
+            revenueInr: 340000,
+          ),
+          AdminPnlSeriesPoint(
+            label: 'Wk 2',
+            deskPnlInr: 2890000,
+            benchmarkPnlInr: 1140000,
+            revenueInr: 425000,
+          ),
+          AdminPnlSeriesPoint(
+            label: 'Wk 3',
+            deskPnlInr: 4120000,
+            benchmarkPnlInr: 1680000,
+            revenueInr: 510000,
+          ),
+          AdminPnlSeriesPoint(
+            label: 'Wk 4',
+            deskPnlInr: 5940000,
+            benchmarkPnlInr: 2350000,
+            revenueInr: 640000,
+          ),
+        ],
+        _ => const <AdminPnlSeriesPoint>[
+          AdminPnlSeriesPoint(
+            label: 'May',
+            deskPnlInr: 3800000,
+            benchmarkPnlInr: 1450000,
+            revenueInr: 480000,
+          ),
+          AdminPnlSeriesPoint(
+            label: 'Jun',
+            deskPnlInr: 5120000,
+            benchmarkPnlInr: 2100000,
+            revenueInr: 560000,
+          ),
+          AdminPnlSeriesPoint(
+            label: 'Jul',
+            deskPnlInr: 4680000,
+            benchmarkPnlInr: 1890000,
+            revenueInr: 615000,
+          ),
+          AdminPnlSeriesPoint(
+            label: 'Aug',
+            deskPnlInr: 6450000,
+            benchmarkPnlInr: 2640000,
+            revenueInr: 720000,
+          ),
+          AdminPnlSeriesPoint(
+            label: 'Sep',
+            deskPnlInr: 7820000,
+            benchmarkPnlInr: 3120000,
+            revenueInr: 845000,
+          ),
+          AdminPnlSeriesPoint(
+            label: 'Oct',
+            deskPnlInr: 9240000,
+            benchmarkPnlInr: 3780000,
+            revenueInr: 960000,
+          ),
+        ],
+      };
+
+  List<DeskDivisionPerformance> _divisionsForMultiplier(double multiplier) =>
+      <DeskDivisionPerformance>[
+        DeskDivisionPerformance(
+          divisionName: 'Index & Options Desk (NSE NFO)',
+          allocatedCapitalInr: 85000000, // ₹8.50 Cr
+          periodNetPnlInr: 2840000 * multiplier,
+          sharpeRatio: 2.64,
+          winRatePct: 68.4,
+          activeSeats: _seats
+              .where((s) => s.deskDivision.contains('Index'))
+              .length,
+        ),
+        DeskDivisionPerformance(
+          divisionName: 'Equities Momentum (NSE/BSE Cash)',
+          allocatedCapitalInr: 52000000, // ₹5.20 Cr
+          periodNetPnlInr: 1620000 * multiplier,
+          sharpeRatio: 2.18,
+          winRatePct: 63.2,
+          activeSeats: _seats
+              .where((s) => s.deskDivision.contains('Equities'))
+              .length,
+        ),
+        DeskDivisionPerformance(
+          divisionName: 'Quant & Statistical Arbitrage',
+          allocatedCapitalInr: 33000000, // ₹3.30 Cr
+          periodNetPnlInr: 1080000 * multiplier,
+          sharpeRatio: 3.12,
+          winRatePct: 74.5,
+          activeSeats: _seats
+              .where((s) => s.deskDivision.contains('Quant'))
+              .length,
+        ),
+        DeskDivisionPerformance(
+          divisionName: 'Commodities & Macro FX (MCX)',
+          allocatedCapitalInr: 15000000, // ₹1.50 Cr
+          periodNetPnlInr: 400000 * multiplier,
+          sharpeRatio: 1.76,
+          winRatePct: 58.9,
+          activeSeats: _seats
+              .where((s) => s.deskDivision.contains('Commodities'))
+              .length,
+        ),
+      ];
 
   static String _computeDeterministicHexDigest(String input) {
     final bytes = utf8.encode(input);

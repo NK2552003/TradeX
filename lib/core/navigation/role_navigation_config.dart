@@ -463,9 +463,8 @@ class RoleNavigationConfig {
     upgradeSectionId: 'settings_affiliate',
     notificationTargets: <String, String>{
       'AI': 'ai_copilot',
-      'Community': 'community',
       'Billing': 'payouts',
-      'Notes': 'notes',
+      'Referrals': 'referrals',
     },
     mobilePrimaryItems: <AppNavItem>[
       AppNavItem(
@@ -480,20 +479,13 @@ class RoleNavigationConfig {
         icon: Icons.trending_up_rounded,
       ),
       AppNavItem(
-        id: 'community',
-        label: 'Community',
-        icon: Icons.forum_outlined,
-        selectedIcon: Icons.forum_rounded,
+        id: 'marketing',
+        label: 'Media Kit',
+        icon: Icons.campaign_outlined,
       ),
       _settingsDock,
     ],
     mobileMoreItems: <AppNavItem>[
-      AppNavItem(id: 'notes', label: 'Notes', icon: Icons.note_alt_outlined),
-      AppNavItem(
-        id: 'strategies',
-        label: 'Strategies',
-        icon: Icons.account_tree_outlined,
-      ),
       AppNavItem(
         id: 'marketing',
         label: 'Media Kit',
@@ -567,72 +559,22 @@ class RoleNavigationConfig {
             label: 'Payout History',
             icon: Icons.account_balance_wallet_outlined,
           ),
-          AppNavItem(
-            id: 'notes',
-            label: 'Notes',
-            icon: Icons.note_alt_outlined,
-            selectedIcon: Icons.note_alt_rounded,
-          ),
-          AppNavItem(
-            id: 'strategies',
-            label: 'Strategies',
-            icon: Icons.account_tree_outlined,
-            selectedIcon: Icons.account_tree_rounded,
-          ),
         ],
       ),
       AppNavSection(
-        title: 'Connect & Intelligence',
+        title: 'Operations',
         items: <AppNavItem>[
           AppNavItem(
-            id: 'community',
-            label: 'Community',
-            icon: Icons.forum_outlined,
-            selectedIcon: Icons.forum_rounded,
-            subItems: <AppNavItem>[
-              AppNavItem(
-                id: 'community_feed',
-                label: 'Feed',
-                icon: Icons.dynamic_feed_outlined,
-                selectedIcon: Icons.dynamic_feed_rounded,
-              ),
-              AppNavItem(
-                id: 'community_explore',
-                label: 'Explore',
-                icon: Icons.explore_outlined,
-                selectedIcon: Icons.explore_rounded,
-              ),
-              AppNavItem(
-                id: 'community_network',
-                label: 'Network',
-                icon: Icons.group_outlined,
-                selectedIcon: Icons.group_rounded,
-              ),
-              AppNavItem(
-                id: 'community_profile',
-                label: 'My Profile',
-                icon: Icons.person_outline_rounded,
-                selectedIcon: Icons.person_rounded,
-              ),
-              AppNavItem(
-                id: 'community_bookmarks',
-                label: 'Bookmarks',
-                icon: Icons.bookmark_border_rounded,
-                selectedIcon: Icons.bookmark_rounded,
-              ),
-            ],
+            id: 'ai_copilot',
+            label: 'AI Assistant',
+            icon: Icons.auto_awesome_outlined,
+            selectedIcon: Icons.auto_awesome_rounded,
           ),
           AppNavItem(
             id: 'messages',
             label: 'Messages',
             icon: Icons.chat_bubble_outline_rounded,
             selectedIcon: Icons.chat_bubble_rounded,
-          ),
-          AppNavItem(
-            id: 'ai_copilot',
-            label: 'AI Assistant',
-            icon: Icons.auto_awesome_outlined,
-            selectedIcon: Icons.auto_awesome_rounded,
           ),
         ],
       ),
@@ -697,7 +639,6 @@ class RoleNavigationConfig {
       'Risk': 'org_risk',
       'Alerts': 'org_audit',
       'Billing': 'settings_organization',
-      'Notes': 'notes',
     },
     mobilePrimaryItems: <AppNavItem>[
       AppNavItem(
@@ -721,16 +662,6 @@ class RoleNavigationConfig {
       _settingsDock,
     ],
     mobileMoreItems: <AppNavItem>[
-      AppNavItem(
-        id: 'notes',
-        label: 'Desk Notes',
-        icon: Icons.note_alt_outlined,
-      ),
-      AppNavItem(
-        id: 'strategies',
-        label: 'Strategies',
-        icon: Icons.account_tree_outlined,
-      ),
       AppNavItem(
         id: 'org_audit',
         label: 'Execution Audit',
@@ -826,18 +757,6 @@ class RoleNavigationConfig {
             label: 'Affiliate Applications',
             icon: Icons.fact_check_outlined,
             selectedIcon: Icons.fact_check_rounded,
-          ),
-          AppNavItem(
-            id: 'notes',
-            label: 'Desk Notes',
-            icon: Icons.note_alt_outlined,
-            selectedIcon: Icons.note_alt_rounded,
-          ),
-          AppNavItem(
-            id: 'strategies',
-            label: 'Strategies',
-            icon: Icons.account_tree_outlined,
-            selectedIcon: Icons.account_tree_rounded,
           ),
         ],
       ),

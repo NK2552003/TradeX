@@ -87,6 +87,8 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// top bar, so no role lists them and [RoleNavigationConfig.allows] would
   /// refuse them — which is exactly the bug this set exists to prevent.
   static const Map<String, String> _shellDestinations = <String, String>{
+    'workspace': 'Workspace',
+    'overview': 'Overview',
     'notifications': 'Notifications',
     'search': 'Search',
     'affiliate_application': 'Affiliate Application',
@@ -531,7 +533,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// [setState] because the only caller is [didUpdateWidget], where a rebuild is
   /// already on the way.
   void _resetToOverview() {
-    _selectedId = _navigation.allows('workspace') ? 'workspace' : 'overview';
+    _selectedId = _effectiveRole == UserRole.customer ? 'workspace' : 'overview';
     _showAffiliateApplication = false;
     _activeSubpageTitle = null;
     _activeSubpageIcon = null;
@@ -1191,43 +1193,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   };
 
   Widget _affiliatePage() => switch (_selectedId) {
-    'journal' => AppWritingDeskScope(
-      child: JournalScreen(
-        onReturnToOrigin: _linkedOrigins.isNotEmpty
-            ? _returnFromLinkedRecord
-            : null,
-        key: _journalKey,
-        onSubpageChanged: _onSubpageChanged,
-        onOpenRef: _openLinkRef,
-        onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
-        openRequest: _linkRequest,
-      ),
-    ),
-    'strategies' => AppWritingDeskScope(
-      child: StrategiesScreen(
-        onReturnToOrigin: _linkedOrigins.isNotEmpty
-            ? _returnFromLinkedRecord
-            : null,
-        key: _strategiesKey,
-        onSubpageChanged: _onSubpageChanged,
-        onOpenRef: _openLinkRef,
-        onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
-        openRequest: _linkRequest,
-      ),
-    ),
-    'notes' => AppWritingDeskScope(
-      child: NotesScreen(
-        onReturnToOrigin: _linkedOrigins.isNotEmpty
-            ? _returnFromLinkedRecord
-            : null,
-        key: _notesKey,
-        onSubpageChanged: _onSubpageChanged,
-        onOpenRef: _openLinkRef,
-        onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
-        openRequest: _linkRequest,
-      ),
-    ),
-    'overview' => AffiliateOverviewPage(
+    'workspace' || 'overview' => AffiliateOverviewPage(
       onNavigate: _go,
       onSwitchToTraderView: () => _switchRole(UserRole.customer),
       onOpenReferrals: _jump('referrals'),
@@ -1252,61 +1218,13 @@ class _AppScaffoldState extends State<AppScaffold> {
       onOpenReferrals: _jump('referrals'),
       onOpenSettings: _jump('settings_affiliate'),
     ),
-    'community' => _communityPage(initialTabIndex: 0),
-    'community_feed' => _communityPage(initialTabIndex: 0),
-    'community_explore' => _communityPage(initialTabIndex: 1),
-    'community_network' => _communityPage(initialTabIndex: 2),
-    'community_profile' => _communityPage(initialTabIndex: 3),
-    'community_bookmarks' => _communityPage(initialTabIndex: 4),
     'messages' => _messagesPage(),
     'ai_copilot' => _aiAssistantPage(),
     _ => _unknownPage(),
   };
 
   Widget _adminPage() => switch (_selectedId) {
-    'journal' => AppWritingDeskScope(
-      child: JournalScreen(
-        onReturnToOrigin: _linkedOrigins.isNotEmpty
-            ? _returnFromLinkedRecord
-            : null,
-        key: _journalKey,
-        onSubpageChanged: _onSubpageChanged,
-        onOpenRef: _openLinkRef,
-        onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
-        openRequest: _linkRequest,
-      ),
-    ),
-    'strategies' => AppWritingDeskScope(
-      child: StrategiesScreen(
-        onReturnToOrigin: _linkedOrigins.isNotEmpty
-            ? _returnFromLinkedRecord
-            : null,
-        key: _strategiesKey,
-        onSubpageChanged: _onSubpageChanged,
-        onOpenRef: _openLinkRef,
-        onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
-        openRequest: _linkRequest,
-      ),
-    ),
-    'notes' => AppWritingDeskScope(
-      child: NotesScreen(
-        onReturnToOrigin: _linkedOrigins.isNotEmpty
-            ? _returnFromLinkedRecord
-            : null,
-        key: _notesKey,
-        onSubpageChanged: _onSubpageChanged,
-        onOpenRef: _openLinkRef,
-        onOpenWriting: (ref) => _openLinkRef(ref, writing: true),
-        openRequest: _linkRequest,
-      ),
-    ),
-    'community' => _communityPage(initialTabIndex: 0),
-    'community_feed' => _communityPage(initialTabIndex: 0),
-    'community_explore' => _communityPage(initialTabIndex: 1),
-    'community_network' => _communityPage(initialTabIndex: 2),
-    'community_profile' => _communityPage(initialTabIndex: 3),
-    'community_bookmarks' => _communityPage(initialTabIndex: 4),
-    'overview' => AdminOverviewPage(onNavigate: _go),
+    'workspace' || 'overview' => AdminOverviewPage(onNavigate: _go),
     'org_team' => AdminTeamSeatsPage(onNavigate: _go),
     'org_risk' => const AdminRiskCompliancePage(),
     'org_audit' => const AdminAuditLogPage(),
