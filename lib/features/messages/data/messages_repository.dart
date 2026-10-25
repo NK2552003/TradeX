@@ -301,7 +301,13 @@ class MessagesRepository extends ChangeNotifier {
       _messages = loadedMessages;
       notifyListeners();
     } catch (e) {
-      debugPrint('[MessagesRepository] fetchFromSupabase error: $e');
+      debugPrint('[MessagesRepository] fetchFromSupabase notice (falling back to cached/seed threads): $e');
+      if (_threads.isEmpty && CustomerDataPolicy.allowDemo) {
+        _threads = MessagesSeed.threads();
+        _requests = MessagesSeed.requests();
+        _messages = MessagesSeed.messagesByThread();
+        notifyListeners();
+      }
     }
   }
 

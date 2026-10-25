@@ -143,7 +143,7 @@ class WorkspacePostService {
         final postRow = await client
             .from('community_posts')
             .select(
-              'title, body, likes_count, comments_count, reposts_count, created_at, profiles(display_name, handle)',
+              'title, body, likes_count, comments_count, reposts_count, created_at, profiles!community_posts_author_id_fkey(display_name, handle)',
             )
             .eq('id', postId)
             .maybeSingle();

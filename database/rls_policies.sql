@@ -633,28 +633,43 @@ ALTER TABLE chat_shared_refs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_reactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_user_presence ENABLE ROW LEVEL SECURITY;
 
+-- Helper to break RLS infinite recursion
+CREATE OR REPLACE FUNCTION public.user_is_chat_participant(p_thread_id uuid, p_user_id uuid DEFAULT auth.uid())
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.chat_participants
+    WHERE thread_id = p_thread_id AND user_id = p_user_id
+  );
+$$;
+
 DROP POLICY IF EXISTS chat_threads_select ON chat_threads;
 CREATE POLICY chat_threads_select ON chat_threads FOR SELECT
-    USING (EXISTS (SELECT 1 FROM chat_participants WHERE chat_participants.thread_id = chat_threads.id AND chat_participants.user_id = auth.uid()));
+    USING (created_by = auth.uid() OR public.user_is_chat_participant(id, auth.uid()));
 
 DROP POLICY IF EXISTS chat_threads_insert ON chat_threads;
 CREATE POLICY chat_threads_insert ON chat_threads FOR INSERT WITH CHECK (auth.uid() = created_by);
 
 DROP POLICY IF EXISTS chat_threads_update ON chat_threads;
 CREATE POLICY chat_threads_update ON chat_threads FOR UPDATE
-    USING (EXISTS (SELECT 1 FROM chat_participants WHERE chat_participants.thread_id = chat_threads.id AND chat_participants.user_id = auth.uid()));
+    USING (created_by = auth.uid() OR public.user_is_chat_participant(id, auth.uid()));
 
 DROP POLICY IF EXISTS chat_participants_select ON chat_participants;
 CREATE POLICY chat_participants_select ON chat_participants FOR SELECT
-    USING (EXISTS (SELECT 1 FROM chat_participants cp WHERE cp.thread_id = chat_participants.thread_id AND cp.user_id = auth.uid()));
+    USING (user_id = auth.uid() OR public.user_is_chat_participant(thread_id, auth.uid()));
 
 DROP POLICY IF EXISTS chat_participants_manage ON chat_participants;
 CREATE POLICY chat_participants_manage ON chat_participants FOR ALL
-    USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM chat_participants cp WHERE cp.thread_id = chat_participants.thread_id AND cp.user_id = auth.uid() AND cp.role = 'admin'));
+    USING (auth.uid() = user_id OR public.user_is_chat_participant(thread_id, auth.uid()))
+    WITH CHECK (auth.uid() = user_id OR public.user_is_chat_participant(thread_id, auth.uid()));
 
 DROP POLICY IF EXISTS chat_messages_select ON chat_messages;
 CREATE POLICY chat_messages_select ON chat_messages FOR SELECT
-    USING (EXISTS (SELECT 1 FROM chat_participants WHERE chat_participants.thread_id = chat_messages.thread_id AND chat_participants.user_id = auth.uid()));
+    USING (sender_id = auth.uid() OR public.user_is_chat_participant(thread_id, auth.uid()));
 
 DROP POLICY IF EXISTS chat_messages_insert ON chat_messages;
 CREATE POLICY chat_messages_insert ON chat_messages FOR INSERT

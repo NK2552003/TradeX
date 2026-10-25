@@ -33,6 +33,8 @@ class AdminConsoleRepository {
   String _circuitBreakerState = 'armed';
   String? _killswitchReason;
 
+  static final Set<String> _missingTablesNotice = <String>{};
+
   List<AdminTraderSeat> _seats = _defaultSeats();
   List<AdminConsumerAccount> _consumers = _defaultConsumers();
   List<DeskOrderApproval> _orderApprovals = _defaultOrderApprovals();
@@ -405,7 +407,10 @@ class AdminConsoleRepository {
               .toList();
         }
       } catch (e) {
-        debugPrint('AdminConsoleRepository.listOrderApprovals error: $e');
+        if (!_missingTablesNotice.contains('desk_order_approvals')) {
+          _missingTablesNotice.add('desk_order_approvals');
+          debugPrint('AdminConsoleRepository notice: desk_order_approvals table not found in Supabase (using resilient local fallback).');
+        }
       }
     }
     return List<DeskOrderApproval>.unmodifiable(_orderApprovals);
@@ -566,7 +571,10 @@ class AdminConsoleRepository {
               .toList();
         }
       } catch (e) {
-        debugPrint('AdminConsoleRepository.listRiskBreaches error: $e');
+        if (!_missingTablesNotice.contains('desk_risk_breaches')) {
+          _missingTablesNotice.add('desk_risk_breaches');
+          debugPrint('AdminConsoleRepository notice: desk_risk_breaches table not found in Supabase (using resilient local fallback).');
+        }
       }
     }
     return List<DeskRiskBreach>.unmodifiable(_riskBreaches);
@@ -737,7 +745,10 @@ class AdminConsoleRepository {
               .toList();
         }
       } catch (e) {
-        debugPrint('AdminConsoleRepository.listAuditLogs error: $e');
+        if (!_missingTablesNotice.contains('admin_audit_logs')) {
+          _missingTablesNotice.add('admin_audit_logs');
+          debugPrint('AdminConsoleRepository notice: admin_audit_logs table not found in Supabase (using resilient local fallback).');
+        }
       }
     }
     return List<AdminAuditLogEntry>.unmodifiable(_auditLogs);

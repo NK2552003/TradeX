@@ -45,6 +45,8 @@ class AffiliateWorkspaceRepository {
     return next;
   }
 
+  static bool _loggedRpcMissing = false;
+
   Future<AffiliateWorkspace> load() async {
     final db = _db;
     if (db != null) {
@@ -57,7 +59,10 @@ class AffiliateWorkspaceRepository {
         payload['terms'] ??= _defaultTerms();
         return AffiliateWorkspace.fromJson(payload);
       } catch (e) {
-        debugPrint('[AffiliateWorkspaceRepository.load] rpc failed, falling back: $e');
+        if (!_loggedRpcMissing) {
+          _loggedRpcMissing = true;
+          debugPrint('[AffiliateWorkspaceRepository.load] affiliate_workspace RPC not found on backend (PGRST202) — using resilient local INR workspace fallback.');
+        }
       }
     }
     if (!_allowDemo) {

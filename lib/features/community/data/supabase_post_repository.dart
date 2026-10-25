@@ -66,7 +66,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
         final res = await client
             .from('community_posts')
-            .select('*, profiles(username, display_name, avatar_url), community_post_attachments(*)')
+            .select('*, profiles!community_posts_author_id_fkey(handle, display_name, avatar_url), community_post_attachments(*)')
             .order('created_at', ascending: false);
 
         final filtered = (res as List)
@@ -75,7 +75,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
         return filtered.map((row) {
           final profile = row['profiles'] as Map<String, dynamic>?;
-          final handle = profile?['username'] as String? ?? 'trader';
+          final handle = (profile?['handle'] ?? profile?['username']) as String? ?? 'trader';
           final name = profile?['display_name'] as String? ?? handle;
 
           final tickersList = row['tickers'] as List?;
@@ -150,7 +150,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
         final res = await client
             .from('community_posts')
             .insert(row)
-            .select('*, profiles(username, display_name, avatar_url)')
+            .select('*, profiles!community_posts_author_id_fkey(handle, display_name, avatar_url)')
             .single();
 
         if (imageUrl != null && imageUrl.isNotEmpty) {
@@ -259,13 +259,13 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
         final client = SupabaseConfig.client!;
         final res = await client
             .from('community_comments')
-            .select('*, profiles(username, display_name, avatar_url)')
+            .select('*, profiles!community_comments_author_id_fkey(handle, display_name, avatar_url)')
             .eq('post_id', postId)
             .order('created_at', ascending: true);
 
         return (res as List).map((row) {
           final profile = row['profiles'] as Map<String, dynamic>?;
-          final handle = profile?['username'] as String? ?? 'trader';
+          final handle = (profile?['handle'] ?? profile?['username']) as String? ?? 'trader';
           final name = profile?['display_name'] as String? ?? handle;
 
           return AppComment(

@@ -214,6 +214,7 @@ class MarkdownEditorToolbar extends StatelessWidget {
               tooltip: 'Heading',
               icon: Icon(Icons.title, size: 20, color: colors.foregroundMuted),
               splashRadius: 20,
+              padding: EdgeInsets.zero,
               onSelected: (value) => _editor?.prefixCurrentLine(value),
               itemBuilder: (context) => const [
                 PopupMenuItem(value: '# ', child: Text('Heading 1')),

@@ -170,7 +170,7 @@ class CommunityRepository extends ChangeNotifier {
       final res = await client
           .from('community_posts')
           .select(
-            '*, profiles(id, username, display_name, avatar_url, bio, role, win_rate, trading_style, verified, followers_count, following_count, posts_count), community_post_trade_setups(*), community_post_attachments(*)',
+            '*, profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url, bio, role, experience_level, trading_style), community_post_trade_setups(*), community_post_attachments(*)',
           )
           .order('created_at', ascending: false);
 
@@ -183,9 +183,10 @@ class CommunityRepository extends ChangeNotifier {
 
         final author = CommunityAuthor(
           id: authorId,
-          handle: authorProfile?['username'] as String? ?? 'trader',
+          handle: (authorProfile?['handle'] ?? authorProfile?['username']) as String? ?? 'trader',
           displayName:
               authorProfile?['display_name'] as String? ??
+              authorProfile?['handle'] as String? ??
               authorProfile?['username'] as String? ??
               'Trader',
           userRole: _parseUserRole(authorProfile?['role'] as String?),
@@ -291,7 +292,7 @@ class CommunityRepository extends ChangeNotifier {
       try {
         final commentsRes = await client
             .from('community_comments')
-            .select('*, profiles(id, username, display_name, avatar_url, role)')
+            .select('*, profiles!community_comments_author_id_fkey(id, handle, display_name, avatar_url, role)')
             .order('created_at', ascending: true);
 
         final Map<String, List<CommunityComment>> newComments = {};
@@ -303,8 +304,8 @@ class CommunityRepository extends ChangeNotifier {
           final profile = row['profiles'] as Map<String, dynamic>?;
           final commentAuthor = CommunityAuthor(
             id: row['author_id']?.toString() ?? '',
-            handle: profile?['username'] as String? ?? 'trader',
-            displayName: profile?['display_name'] as String? ?? 'Trader',
+            handle: (profile?['handle'] ?? profile?['username']) as String? ?? 'trader',
+            displayName: profile?['display_name'] as String? ?? profile?['handle'] as String? ?? 'Trader',
             userRole: _parseUserRole(profile?['role'] as String?),
             avatarUrl: profile?['avatar_url'] as String?,
           );
@@ -1688,7 +1689,7 @@ class CommunityRepository extends ChangeNotifier {
       final res = await client
           .from('community_posts')
           .select(
-            '*, profiles(id, username, display_name, avatar_url, bio, role, win_rate, trading_style, verified, followers_count, following_count, posts_count), community_post_trade_setups(*), community_post_attachments(*)',
+            '*, profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url, bio, role, experience_level, trading_style), community_post_trade_setups(*), community_post_attachments(*)',
           )
           .eq('id', postId)
           .maybeSingle();
@@ -1702,9 +1703,10 @@ class CommunityRepository extends ChangeNotifier {
         }
         final author = CommunityAuthor(
           id: authorId,
-          handle: authorProfile?['username'] as String? ?? 'trader',
+          handle: (authorProfile?['handle'] ?? authorProfile?['username']) as String? ?? 'trader',
           displayName:
               authorProfile?['display_name'] as String? ??
+              authorProfile?['handle'] as String? ??
               authorProfile?['username'] as String? ??
               'Trader',
           userRole: _parseUserRole(authorProfile?['role'] as String?),

@@ -263,7 +263,7 @@ class NotesRepositoryImpl implements NotesRepository {
       final commentsRes = await client
           .from('trader_note_comments')
           .select(
-            'id, note_id, user_id, content, created_at, profiles(display_name, username)',
+            'id, note_id, user_id, content, created_at, profiles(display_name, handle)',
           )
           .order('created_at', ascending: true);
 
@@ -276,6 +276,7 @@ class NotesRepositoryImpl implements NotesRepository {
         final profiles = row['profiles'] as Map<String, dynamic>?;
         final author =
             profiles?['display_name'] as String? ??
+            profiles?['handle'] as String? ??
             profiles?['username'] as String? ??
             'Trader';
 
