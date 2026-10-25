@@ -24,6 +24,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
   bool _loading = true;
   AdminDeskAnalyticsSnapshot? _snapshot;
   List<AdminTraderSeat> _seats = const <AdminTraderSeat>[];
+  List<AdminConsumerAccount> _consumers = const <AdminConsumerAccount>[];
   List<DeskOrderApproval> _orders = const <DeskOrderApproval>[];
   List<DeskRiskBreach> _breaches = const <DeskRiskBreach>[];
   List<AdminAuditLogEntry> _audits = const <AdminAuditLogEntry>[];
@@ -75,6 +76,10 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
           debugPrint('AdminOverviewPage listDeletionRequests error: $e');
           return <AccountDeletionRequestModel>[];
         }),
+        _repo.listConsumerAccounts().catchError((e) {
+          debugPrint('AdminOverviewPage listConsumerAccounts error: $e');
+          return <AdminConsumerAccount>[];
+        }),
       ]);
       if (!mounted) return;
       setState(() {
@@ -86,6 +91,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
         _applications = results[5] as List<AffiliateApplicationModel>;
         _affiliateWorkspace = results[6] as AffiliateWorkspace;
         _deletions = results[7] as List<AccountDeletionRequestModel>;
+        _consumers = results[8] as List<AdminConsumerAccount>;
       });
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -268,7 +274,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                 label: 'Allocated Desk Capital',
                 value: formatInrCompact(snap.allocatedCapitalInr),
                 caption:
-                    'of ${formatInrCompact(snap.supervisedCapitalInr)} firm pool',
+                    '${_consumers.length} registered consumer traders · ${formatInrCompact(snap.supervisedCapitalInr)} pool',
                 delta: 8.4,
                 icon: Icons.account_balance_outlined,
                 sparkline: const <double>[15.0, 16.2, 16.8, 17.5, 18.0, 18.5],
@@ -277,7 +283,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                 label: 'Intraday Desk Net P&L',
                 value: formatInrCompact(snap.intradayPnlInr, signed: true),
                 caption:
-                    '30D Net: ${formatInrCompact(snap.periodNetPnlInr, signed: true)}',
+                    'MRR: ${formatInrAmount(snap.subscriptionMrrInr)}/mo (${_consumers.where((c) => c.subscriptionTier != "Basic").length} Paid Subscribers)',
                 delta: 14.2,
                 icon: Icons.trending_up_rounded,
                 sparkline: const <double>[4.2, 6.8, 5.9, 9.4, 11.1, 12.65],
@@ -753,7 +759,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
           AppSettingCard(
             title: 'Traders, Seats & Consumer Directory',
             description:
-                '${_seats.length} institutional seats · INR capital provisioning & consumer plan overrides.',
+                '${_consumers.length} registered consumer traders · Overrides for Basic (₹0), Pro (₹2,499) and Enterprise (₹7,999) tiers.',
             icon: Icons.badge_outlined,
             control: UiButton(
               label: 'Manage Seats',

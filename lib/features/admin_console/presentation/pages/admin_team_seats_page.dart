@@ -23,7 +23,7 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
   final AdminConsoleRepository _repo = AdminConsoleRepository.instance;
 
   bool _loading = true;
-  String _activeTab = 'seats'; // seats | consumers | affiliates | deletions
+  String _activeTab = 'consumers'; // consumers | seats | affiliates | deletions
   String _searchQuery = '';
 
   List<AdminTraderSeat> _seats = const <AdminTraderSeat>[];
@@ -456,12 +456,12 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                 expand: context.uiRes.isMobile,
                 options: <UiToggleOption<String>>[
                   UiToggleOption(
-                    value: 'seats',
-                    label: 'Desk Seats (${_seats.length})',
-                  ),
-                  UiToggleOption(
                     value: 'consumers',
                     label: 'Consumers (${_consumers.length})',
+                  ),
+                  UiToggleOption(
+                    value: 'seats',
+                    label: 'Desk Seats (${_seats.length})',
                   ),
                   UiToggleOption(
                     value: 'affiliates',

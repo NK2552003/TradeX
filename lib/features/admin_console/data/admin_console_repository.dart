@@ -348,6 +348,100 @@ class AdminConsoleRepository {
 
   Future<List<AdminConsumerAccount>> listConsumerAccounts() async {
     await _ensureHydrated();
+    if (SupabaseConfig.isConfigured && SupabaseConfig.client != null) {
+      try {
+        final client = SupabaseConfig.client!;
+        final rows = await client
+            .from('profiles')
+            .select('id,handle,display_name,email,subscription_tier,status,role,created_at')
+            .order('created_at', ascending: false);
+
+        if (rows.isNotEmpty) {
+          // Also fetch counts of trader_notes, journal_entries, strategies per user
+          final notesRows = await client
+              .from('trader_notes')
+              .select('user_id')
+              .catchError((_) => <dynamic>[]);
+          final journalsRows = await client
+              .from('journal_entries')
+              .select('user_id')
+              .catchError((_) => <dynamic>[]);
+          final strategiesRows = await client
+              .from('strategies')
+              .select('user_id')
+              .catchError((_) => <dynamic>[]);
+
+          final Map<String, int> noteCounts = <String, int>{};
+          final Map<String, int> journalCounts = <String, int>{};
+          final Map<String, int> strategyCounts = <String, int>{};
+
+          for (final dynamic r in notesRows) {
+            if (r is Map) {
+              final String uid = r['user_id']?.toString() ?? '';
+              noteCounts[uid] = (noteCounts[uid] ?? 0) + 1;
+            }
+          }
+          for (final dynamic r in journalsRows) {
+            if (r is Map) {
+              final String uid = r['user_id']?.toString() ?? '';
+              journalCounts[uid] = (journalCounts[uid] ?? 0) + 1;
+            }
+          }
+          for (final dynamic r in strategiesRows) {
+            if (r is Map) {
+              final String uid = r['user_id']?.toString() ?? '';
+              strategyCounts[uid] = (strategyCounts[uid] ?? 0) + 1;
+            }
+          }
+
+          final List<AdminConsumerAccount> liveAccounts = rows
+              .whereType<Map<String, dynamic>>()
+              .map((Map<String, dynamic> r) {
+                final String uid = r['id']?.toString() ?? '';
+                final String tierRaw =
+                    (r['subscription_tier']?.toString() ?? 'free').toLowerCase();
+                final String tier = switch (tierRaw) {
+                  'enterprise' => 'Enterprise',
+                  'pro' => 'Pro',
+                  _ => 'Basic',
+                };
+                final double mrr = switch (tier) {
+                  'Enterprise' => 7999.0,
+                  'Pro' => 2499.0,
+                  _ => 0.0,
+                };
+                return AdminConsumerAccount(
+                  userId: uid,
+                  handle: (r['handle']?.toString() ?? 'trader')
+                      .replaceAll('@', ''),
+                  displayName: r['display_name']?.toString() ?? 'Trader',
+                  email: r['email']?.toString() ?? 'trader@tradex.ai',
+                  subscriptionTier: tier,
+                  monthlySubscriptionInr: mrr,
+                  journalsCount: journalCounts[uid] ?? 0,
+                  strategiesCount: strategyCounts[uid] ?? 0,
+                  notesCount: noteCounts[uid] ?? 0,
+                  aiQueriesUsed: 12,
+                  referredBySlug: null,
+                  isPublicProfile: true,
+                  status: r['status']?.toString() ?? 'active',
+                  joinedAt:
+                      DateTime.tryParse(r['created_at']?.toString() ?? '') ??
+                      DateTime.now(),
+                );
+              })
+              .toList();
+
+          _consumers = liveAccounts;
+          await _persist();
+          return List<AdminConsumerAccount>.unmodifiable(_consumers);
+        }
+      } catch (e) {
+        debugPrint(
+          'AdminConsoleRepository.listConsumerAccounts remote error, falling back: $e',
+        );
+      }
+    }
     return List<AdminConsumerAccount>.unmodifiable(_consumers);
   }
 
@@ -375,6 +469,28 @@ class AdminConsoleRepository {
       isPublicProfile: isPublicProfile,
     );
     _consumers[idx] = updated;
+
+    // Remote update on Supabase profiles table
+    if (SupabaseConfig.isConfigured && SupabaseConfig.client != null) {
+      try {
+        final client = SupabaseConfig.client!;
+        final Map<String, dynamic> updateFields = <String, dynamic>{};
+        if (subscriptionTier != null) {
+          updateFields['subscription_tier'] = subscriptionTier.toLowerCase();
+        }
+        if (status != null) {
+          updateFields['status'] = status;
+        }
+        if (updateFields.isNotEmpty) {
+          await client.from('profiles').update(updateFields).eq('id', userId);
+        }
+      } catch (e) {
+        debugPrint(
+          'AdminConsoleRepository.updateConsumerAccount remote error: $e',
+        );
+      }
+    }
+
     await recordAuditLog(
       category: 'seat_governance',
       action: 'CONSUMER_ACCOUNT_UPDATED',
@@ -1200,81 +1316,81 @@ class AdminConsoleRepository {
     final now = DateTime.now();
     return <AdminConsumerAccount>[
       AdminConsumerAccount(
-        userId: 'usr_con_01',
-        handle: 'vikram_options',
-        displayName: 'Vikram Singhania',
-        email: 'vikram.s@finmail.in',
+        userId: 'f040d8c1-c063-45f4-b963-beb1a7f9fc9f',
+        handle: 'admin',
+        displayName: 'TradeX System Admin',
+        email: 'admin@tradex.ai',
         subscriptionTier: 'Enterprise',
         monthlySubscriptionInr: 7999.0,
-        journalsCount: 142,
-        strategiesCount: 9,
-        notesCount: 68,
+        journalsCount: 7,
+        strategiesCount: 4,
+        notesCount: 4,
         aiQueriesUsed: 412,
-        referredBySlug: 'aarav-trades',
+        referredBySlug: null,
         isPublicProfile: true,
         status: 'active',
         joinedAt: now.subtract(const Duration(days: 84)),
       ),
       AdminConsumerAccount(
-        userId: 'usr_con_02',
-        handle: 'neha_swing',
-        displayName: 'Neha Kulkarni',
-        email: 'neha.kulkarni@trader.in',
+        userId: '002c19b4-2af7-4f29-9351-e283736677c4',
+        handle: 'nk2552003',
+        displayName: 'Nitish Kumar',
+        email: 'nk2552003@gmail.com',
         subscriptionTier: 'Pro',
         monthlySubscriptionInr: 2499.0,
-        journalsCount: 89,
-        strategiesCount: 5,
-        notesCount: 34,
+        journalsCount: 14,
+        strategiesCount: 3,
+        notesCount: 8,
         aiQueriesUsed: 185,
-        referredBySlug: 'aarav-trades',
+        referredBySlug: 'admin',
         isPublicProfile: true,
         status: 'active',
         joinedAt: now.subtract(const Duration(days: 62)),
       ),
       AdminConsumerAccount(
-        userId: 'usr_con_03',
-        handle: 'Siddharth_nse',
-        displayName: 'Siddharth Iyer',
-        email: 'siddharth.iyer@quant.in',
-        subscriptionTier: 'Enterprise',
-        monthlySubscriptionInr: 7999.0,
-        journalsCount: 215,
-        strategiesCount: 12,
-        notesCount: 94,
-        aiQueriesUsed: 590,
-        referredBySlug: 'meera-quant',
+        userId: '2e1af43d-fdaf-48ef-8180-c2ba3fb011f1',
+        handle: 'nk255200',
+        displayName: 'Siddharth Kumar',
+        email: 'sid.kr.222003@gmail.com',
+        subscriptionTier: 'Pro',
+        monthlySubscriptionInr: 2499.0,
+        journalsCount: 22,
+        strategiesCount: 5,
+        notesCount: 11,
+        aiQueriesUsed: 230,
+        referredBySlug: 'nk2552003',
         isPublicProfile: true,
         status: 'active',
         joinedAt: now.subtract(const Duration(days: 51)),
       ),
       AdminConsumerAccount(
-        userId: 'usr_con_04',
-        handle: 'kabir_scalper',
-        displayName: 'Kabir Verma',
-        email: 'kabir.v@scalpdesk.in',
-        subscriptionTier: 'Pro',
-        monthlySubscriptionInr: 2499.0,
-        journalsCount: 44,
-        strategiesCount: 3,
-        notesCount: 18,
-        aiQueriesUsed: 94,
-        referredBySlug: null,
-        isPublicProfile: false,
+        userId: '774f6fa9-91d3-4e08-b2ed-df027077b7e5',
+        handle: 'nk25520033',
+        displayName: 'Nitish Academic',
+        email: 'nitish.202204098@tulas.edu.in',
+        subscriptionTier: 'Enterprise',
+        monthlySubscriptionInr: 7999.0,
+        journalsCount: 35,
+        strategiesCount: 6,
+        notesCount: 19,
+        aiQueriesUsed: 310,
+        referredBySlug: 'nk2552003',
+        isPublicProfile: true,
         status: 'active',
         joinedAt: now.subtract(const Duration(days: 29)),
       ),
       AdminConsumerAccount(
-        userId: 'usr_con_05',
-        handle: 'ananya_macro',
-        displayName: 'Ananya Chatterjee',
-        email: 'ananya.c@macroindia.in',
+        userId: 'b7c0f61e-bb12-4fe5-a49f-d35fb27999d9',
+        handle: 'jhiad',
+        displayName: 'Jhiad Trader',
+        email: 'jhiad@gmail.com',
         subscriptionTier: 'Basic',
         monthlySubscriptionInr: 0.0,
-        journalsCount: 16,
-        strategiesCount: 2,
-        notesCount: 11,
-        aiQueriesUsed: 22,
-        referredBySlug: 'aarav-trades',
+        journalsCount: 4,
+        strategiesCount: 1,
+        notesCount: 2,
+        aiQueriesUsed: 15,
+        referredBySlug: null,
         isPublicProfile: true,
         status: 'active',
         joinedAt: now.subtract(const Duration(days: 14)),

@@ -50,18 +50,125 @@ class AffiliateWorkspaceRepository {
   Future<AffiliateWorkspace> load() async {
     final db = _db;
     if (db != null) {
-      try {
-        final raw = await db.rpc('affiliate_workspace');
-        final Map<String, Object?> payload = raw is Map
-            ? raw.map((k, v) => MapEntry(k.toString(), v))
-            : <String, Object?>{};
-        payload['tiers'] ??= _defaultTiers();
-        payload['terms'] ??= _defaultTerms();
-        return AffiliateWorkspace.fromJson(payload);
-      } catch (e) {
-        if (!_loggedRpcMissing) {
-          _loggedRpcMissing = true;
-          debugPrint('[AffiliateWorkspaceRepository.load] affiliate_workspace RPC not found on backend (PGRST202) — using resilient local INR workspace fallback.');
+      final user = db.auth.currentUser;
+      if (user != null) {
+        try {
+          try {
+            final raw = await db.rpc('affiliate_workspace');
+            if (raw is Map) {
+              final Map<String, Object?> payload =
+                  raw.map((k, v) => MapEntry(k.toString(), v));
+              payload['tiers'] ??= _defaultTiers();
+              payload['terms'] ??= _defaultTerms();
+              return AffiliateWorkspace.fromJson(payload);
+            }
+          } catch (_) {
+            // Fall through to assemble from live tables
+          }
+
+          // Assemble directly from existing tables
+          final profileRes = await db
+              .from('profiles')
+              .select('*')
+              .eq('id', user.id)
+              .maybeSingle();
+
+          final affProfRes = await db
+              .from('affiliate_profiles')
+              .select('*')
+              .eq('id', user.id)
+              .maybeSingle();
+
+          final referralsRes = await db
+              .from('affiliate_referrals')
+              .select('*')
+              .eq('affiliate_id', user.id);
+
+          final payoutsRes = await db
+              .from('affiliate_payouts')
+              .select('*')
+              .eq('affiliate_id', user.id)
+              .order('created_at', ascending: false);
+
+          final userRefCode = profileRes?['referral_code']?.toString() ??
+              'REF-${user.id.substring(0, 8).toUpperCase()}';
+          final handle = (profileRes?['handle']?.toString() ??
+                  user.email?.split('@').first ??
+                  'trader')
+              .replaceAll('@', '');
+          final displayName =
+              profileRes?['display_name']?.toString() ?? handle;
+
+          final double earnings =
+              (affProfRes?['total_earnings'] as num?)?.toDouble() ?? 0.0;
+          final double unpaid =
+              (affProfRes?['unpaid_balance'] as num?)?.toDouble() ?? 0.0;
+          final double paid =
+              (affProfRes?['paid_earnings'] as num?)?.toDouble() ?? 0.0;
+          final String tier = affProfRes?['tier']?.toString() ?? 'gold';
+          final double commissionRate =
+              (affProfRes?['commission_rate'] as num?)?.toDouble() ?? 0.25;
+
+          final Map<String, Object?> liveProfile = <String, Object?>{
+            'id': user.id,
+            'affiliate_code': userRefCode,
+            'custom_slug': handle,
+            'display_name': displayName,
+            'tier': tier,
+            'commission_rate': commissionRate,
+            'tds_rate': 0.05,
+            'currency': 'INR',
+            'total_referrals': (referralsRes as List?)?.length ?? 0,
+            'active_referrals': (referralsRes as List?)
+                    ?.where((dynamic r) => r is Map && r['status'] == 'converted')
+                    .length ??
+                0,
+            'total_earnings': earnings,
+            'unpaid_balance': unpaid,
+            'paid_earnings': paid,
+            'payout_method': affProfRes?['payout_method'] ?? 'upi',
+            'payout_details': affProfRes?['payout_details'] ??
+                <String, Object?>{
+                  'upi_id': '$handle@okhdfcbank',
+                  'payout_account': '$handle@okhdfcbank',
+                },
+            'minimum_payout_threshold': 1000.0,
+            'auto_payout_enabled': true,
+            'status': 'active',
+          };
+
+          final List<Map<String, Object?>> liveReferrals =
+              (referralsRes as List? ?? const <dynamic>[])
+                  .map((dynamic r) => r is Map
+                      ? r.map((dynamic k, dynamic v) =>
+                          MapEntry(k.toString(), v))
+                      : <String, Object?>{})
+                  .toList();
+
+          final List<Map<String, Object?>> livePayouts =
+              (payoutsRes as List? ?? const <dynamic>[])
+                  .map((dynamic p) => p is Map
+                      ? p.map((dynamic k, dynamic v) =>
+                          MapEntry(k.toString(), v))
+                      : <String, Object?>{})
+                  .toList();
+
+          return AffiliateWorkspace.fromJson(<String, Object?>{
+            'profile': liveProfile,
+            'campaigns': const <Map<String, Object?>>[],
+            'referrals': liveReferrals,
+            'payouts': livePayouts,
+            'assets': _defaultAssets(userRefCode, handle),
+            'tiers': _defaultTiers(),
+            'terms': _defaultTerms(),
+          });
+        } catch (e) {
+          if (!_loggedRpcMissing) {
+            _loggedRpcMissing = true;
+            debugPrint(
+              '[AffiliateWorkspaceRepository.load] Remote assembly fallback: $e',
+            );
+          }
         }
       }
     }
@@ -73,6 +180,32 @@ class AffiliateWorkspaceRepository {
     }
     return AffiliateWorkspace.fromJson(await _loadDemoMap(), isPreview: true);
   }
+
+  static List<Map<String, Object?>> _defaultAssets(String code, String slug) => [
+    {
+      'id': 'ast-1',
+      'title': 'TradeX Journal & Community Promotion Card',
+      'category': 'banner_social',
+      'headline': 'Level Up Your Trading with TradeX Journal',
+      'body':
+          'Track your trades, analyze win rates, and share setups with India\'s elite trading community.',
+      'call_to_action': 'Start Free on TradeX',
+      'landing_path': '/r/$code',
+      'tags': ['Social', 'Banner', 'Instagram', 'Twitter'],
+      'published': true,
+    },
+    {
+      'id': 'ast-2',
+      'title': 'Direct Creator Referral Link',
+      'category': 'link_custom',
+      'headline': 'Exclusive 20% Discount Link',
+      'body': 'Get instant access to TradeX Pro analytics and AI Copilot.',
+      'call_to_action': 'Claim Partner Access',
+      'landing_path': '/r/$slug',
+      'tags': ['Link', 'CustomSlug', 'FastOnboarding'],
+      'published': true,
+    },
+  ];
 
   Future<void> createCampaign(String name, String channel, String slug) async {
     final cleanName = name.trim();
@@ -163,7 +296,23 @@ class AffiliateWorkspaceRepository {
         await db.rpc('request_affiliate_payout', params: {'p_amount': amount});
         return;
       } catch (e) {
-        debugPrint('[AffiliateWorkspaceRepository.requestPayout] rpc error, falling back: $e');
+        debugPrint('[AffiliateWorkspaceRepository.requestPayout] rpc error, trying direct insert: $e');
+        try {
+          final user = db.auth.currentUser;
+          if (user != null) {
+            await db.from('affiliate_payouts').insert({
+              'affiliate_id': user.id,
+              'amount': amount,
+              'currency': 'INR',
+              'status': 'pending',
+              'payout_method': 'upi',
+              'notes': 'Requested from TradeX Partner Portal',
+            });
+            return;
+          }
+        } catch (insertErr) {
+          debugPrint('[AffiliateWorkspaceRepository.requestPayout] direct insert error: $insertErr');
+        }
       }
     }
     if (!_allowDemo) throw StateError('Sign in required.');
