@@ -64,9 +64,11 @@ class CustomerRoute {
     }
     if (segments.length == 1) {
       final destination = segments.first;
-      final known = UserRole.values.any(
-        (role) => RoleNavigationConfig.forRole(role).allows(destination),
-      );
+      final known =
+          destination == 'affiliate_application' ||
+          UserRole.values.any(
+            (role) => RoleNavigationConfig.forRole(role).allows(destination),
+          );
       if (known) return CustomerRoute(destination: destination);
     }
     return const CustomerRoute(valid: false);

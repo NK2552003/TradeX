@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -305,8 +306,9 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   }
 
   void _handleTagTap(String tag) {
-    if (tag.startsWith(r'$')) {
-      final String symbol = tag.substring(1).trim().toUpperCase();
+    final String trimmed = tag.trim();
+    if (trimmed.startsWith(r'$')) {
+      final String symbol = trimmed.substring(1).trim().toUpperCase();
       if (symbol.isNotEmpty && widget.onOpenRef != null) {
         widget.onOpenRef!(
           AppLinkRef(kind: AppLinkKind.ticker, id: symbol, title: symbol),
@@ -314,7 +316,51 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         return;
       }
     }
-    _openHashtagPage(tag);
+    if (trimmed.startsWith('tradex://') ||
+        trimmed.startsWith('http://') ||
+        trimmed.startsWith('https://')) {
+      final AppLinkRef? target = AppDeepLink.tryParseUrl(trimmed);
+      if (target != null) {
+        if (target.kind == AppLinkKind.communityPost) {
+          final CommunityPost? post = _repo.loadPostById(target.id);
+          if (post != null) {
+            _openPostDetail(post);
+            return;
+          }
+        }
+        if (widget.onOpenRef != null) {
+          widget.onOpenRef!(target.copyWith(isPublicContext: true));
+          return;
+        }
+      }
+      Clipboard.setData(ClipboardData(text: trimmed));
+      UiToast.info(
+        context,
+        title: 'Link Copied',
+        message: trimmed,
+      );
+      return;
+    }
+    if (trimmed.startsWith('@')) {
+      final String cleanHandle =
+          trimmed.substring(1).trim().toLowerCase();
+      for (final CommunityAuthor a in _repo.suggestedTraders) {
+        if (a.handle.toLowerCase() == cleanHandle) {
+          _openAuthorProfile(a);
+          return;
+        }
+      }
+      if (_currentAuthor.handle.toLowerCase() == cleanHandle) {
+        _openAuthorProfile(_currentAuthor);
+        return;
+      }
+      final List<CommunityPost> matchingPosts = _repo.postsForAuthor(cleanHandle);
+      if (matchingPosts.isNotEmpty) {
+        _openAuthorProfile(matchingPosts.first.author);
+        return;
+      }
+    }
+    _openHashtagPage(trimmed);
   }
 
   void _openPostDetail(CommunityPost post) {

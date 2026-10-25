@@ -65,6 +65,8 @@ class AppNoteCard extends StatelessWidget {
     this.density = AppNoteDensity.comfortable,
     this.selected = false,
     this.highlight = '',
+    this.extraBadges = const <Widget>[],
+    this.footerEngagement,
   });
 
   final AppNote note;
@@ -75,6 +77,8 @@ class AppNoteCard extends StatelessWidget {
 
   /// The active search term, so the matched words can be tinted in the preview.
   final String highlight;
+  final List<Widget> extraBadges;
+  final Widget? footerEngagement;
 
   static const int _maxTickerBadges = 3;
 
@@ -155,6 +159,7 @@ class AppNoteCard extends StatelessWidget {
             size: UiSize.xs,
             tooltip: tickers.skip(_maxTickerBadges).join(' · '),
           ),
+        ...extraBadges,
       ],
       tags: () {
         if (!showTags) return const <Widget>[];
@@ -187,7 +192,8 @@ class AppNoteCard extends StatelessWidget {
       }(),
       footerMetadata: _buildNoteMetadata(context, note),
       footerEngagement:
-          note.isPublic ? _buildNoteEngagement(context, note) : null,
+          footerEngagement ??
+          (note.isPublic ? _buildNoteEngagement(context, note) : null),
     );
   }
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_image_viewer_page.dart';
@@ -587,7 +589,23 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
           SizedBox(height: context.sp(theme.spacing.sm)),
           CommunityLinkPreviewTile(
             preview: post.linkPreview!,
-            onTap: widget.onTap,
+            onTap: () {
+              final String rawUrl =
+                  post.linkPreview!.domain.startsWith('http')
+                  ? post.linkPreview!.domain
+                  : 'https://${post.linkPreview!.domain}';
+              final AppLinkRef? deepTarget = AppDeepLink.tryParseUrl(rawUrl);
+              if (deepTarget != null && widget.onOpenRef != null) {
+                widget.onOpenRef!(deepTarget.copyWith(isPublicContext: true));
+                return;
+              }
+              Clipboard.setData(ClipboardData(text: rawUrl));
+              UiToast.info(
+                context,
+                title: post.linkPreview!.title,
+                message: 'External link copied: $rawUrl',
+              );
+            },
           ),
         ],
 
@@ -665,6 +683,18 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                 return CommunityQuoteCard(
                   post: original,
                   onAuthorTap: widget.onAuthorTap,
+                  onOpenRef: widget.onOpenRef,
+                  onTagTap: widget.onTagTap,
+                  onTap: widget.onOpenRef != null
+                      ? () => widget.onOpenRef!(
+                          AppLinkRef(
+                            kind: AppLinkKind.communityPost,
+                            id: original.id,
+                            title: 'Post by @${original.author.handle}',
+                            isPublicContext: true,
+                          ),
+                        )
+                      : widget.onTap,
                 );
               },
             )

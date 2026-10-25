@@ -310,20 +310,30 @@ class _UiAccordionTile extends StatelessWidget {
                     ),
                     if (item.badge != null) ...<Widget>[
                       SizedBox(width: ctx.sp(theme.spacing.sm)),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: ctx.sp(theme.spacing.xs),
-                        ),
-                        decoration: BoxDecoration(
-                          color: (accent ?? c.foregroundMuted).withValues(
-                            alpha: 0.14,
+                      Flexible(
+                        flex: 0,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: ctx.sz(96),
                           ),
-                          borderRadius: ctx.radius(theme.radii.pill),
-                        ),
-                        child: Text(
-                          item.badge!,
-                          style: ctx.uiText.caption.copyWith(
-                            color: accent ?? c.foregroundMuted,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: ctx.sp(theme.spacing.xs),
+                            ),
+                            decoration: BoxDecoration(
+                              color: (accent ?? c.foregroundMuted).withValues(
+                                alpha: 0.14,
+                              ),
+                              borderRadius: ctx.radius(theme.radii.pill),
+                            ),
+                            child: Text(
+                              item.badge!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: ctx.uiText.caption.copyWith(
+                                color: accent ?? c.foregroundMuted,
+                              ),
+                            ),
                           ),
                         ),
                       ),

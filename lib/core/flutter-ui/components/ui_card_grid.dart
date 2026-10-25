@@ -11,6 +11,7 @@ class UiCardGrid extends StatelessWidget {
     this.tabletColumns = 2,
     this.desktopColumns = 3,
     this.largeColumns = 4,
+    this.minTileWidth,
     this.childAspectRatio,
     this.mainAxisExtent,
     this.adaptiveSingleColumn = true,
@@ -23,6 +24,7 @@ class UiCardGrid extends StatelessWidget {
   final int tabletColumns;
   final int desktopColumns;
   final int largeColumns;
+  final double? minTileWidth;
   final double? childAspectRatio;
   final double? mainAxisExtent;
   final bool adaptiveSingleColumn;
@@ -91,7 +93,8 @@ class UiCardGrid extends StatelessWidget {
           );
         }
 
-        if (intrinsicHeight) {
+        if (intrinsicHeight ||
+            (childAspectRatio == null && mainAxisExtent == null)) {
           final width = (constraints.maxWidth - gap * (cols - 1)) / cols;
           return Wrap(
             spacing: gap,

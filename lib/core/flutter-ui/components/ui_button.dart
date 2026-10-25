@@ -67,6 +67,8 @@ class UiButton extends StatelessWidget {
     this.splitAction,
     this.splitIcon = Icons.expand_more,
     this.hideLabelOnMobile = false,
+    this.disabled = false,
+    this.enabled = true,
   }) : leadingIcon = icon ?? leadingIcon;
 
   /// Icon-only shorthand that keeps an accessible label.
@@ -142,8 +144,14 @@ class UiButton extends StatelessWidget {
 
   /// Collapses to icon-only on phones to save horizontal space.
   final bool hideLabelOnMobile;
+  final bool disabled;
+  final bool enabled;
 
-  bool get _enabled => (onPressed != null || onLongPress != null) && !loading;
+  bool get _enabled =>
+      (onPressed != null || onLongPress != null) &&
+      !loading &&
+      !disabled &&
+      enabled;
 
   @override
   Widget build(BuildContext context) {

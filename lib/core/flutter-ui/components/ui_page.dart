@@ -153,23 +153,27 @@ class UiHeader extends StatelessWidget {
           spacing: context.sp(theme.spacing.xs),
           runSpacing: context.sp(theme.spacing.xs),
           alignment: WrapAlignment.end,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: actions,
         );
-        if (constraints.maxWidth < context.sz(520)) {
+        if (actions.isNotEmpty && constraints.maxWidth < context.sz(720)) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               identity,
-              SizedBox(height: context.sp(theme.spacing.md)),
-              actionRow,
+              SizedBox(height: context.sp(theme.spacing.sm)),
+              Align(alignment: Alignment.centerLeft, child: actionRow),
             ],
           );
         }
         return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Expanded(child: identity),
-            SizedBox(width: context.sp(theme.spacing.md)),
-            actionRow,
+            if (actions.isNotEmpty) ...<Widget>[
+              SizedBox(width: context.sp(theme.spacing.md)),
+              Flexible(child: actionRow),
+            ],
           ],
         );
       },

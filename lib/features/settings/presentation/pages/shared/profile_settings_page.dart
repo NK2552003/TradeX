@@ -9,6 +9,7 @@ import 'package:tradex/features/auth/models/user_profile_model.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
+import 'package:tradex/features/settings/data/repositories/affiliate_settings_repository.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
@@ -143,7 +144,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   final List<String> _payoutMethods = const <String>[
     'UPI Instant Transfer',
     'Bank Wire Transfer (NEFT/RTGS)',
-    'Stripe Direct Deposit',
+    'Bank IMPS Instant Settlement (INR)',
   ];
 
   final List<String> _deskDivisions = const <String>[
@@ -265,6 +266,28 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     setState(() => _loading = true);
     try {
       final p = await _repo.getProfile();
+      if (widget.userRole == UserRole.affiliate) {
+        try {
+          final aff = await AffiliateSettingsRepositoryImpl()
+              .getAffiliateSettings();
+          _accountHolderController.text = aff.accountHolderName.isNotEmpty
+              ? aff.accountHolderName
+              : p.displayName;
+          _bankNameController.text = aff.bankName;
+          _accountNumberController.text = aff.accountNumber;
+          _ifscController.text = aff.ifscCode;
+          _panController.text = aff.panNumber;
+          _upiController.text = aff.upiVpa;
+          _autoPayoutEnabled = aff.autoPayout;
+          if (aff.payoutMethod == 'upi') {
+            _selectedPayoutMethod = 'UPI Instant Transfer';
+          } else if (aff.payoutMethod == 'bank_imps') {
+            _selectedPayoutMethod = 'Bank IMPS Instant Settlement (INR)';
+          } else {
+            _selectedPayoutMethod = 'Bank Wire Transfer (NEFT/RTGS)';
+          }
+        } catch (_) {}
+      }
       if (mounted) {
         setState(() {
           _applyProfile(p);
@@ -309,6 +332,30 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         tradingStyle: _selectedStyle,
         publicStatsEnabled: _publicStatsEnabled,
       );
+      if (widget.userRole == UserRole.affiliate) {
+        try {
+          final String method =
+              _selectedPayoutMethod.startsWith('UPI')
+              ? 'upi'
+              : _selectedPayoutMethod.contains('IMPS')
+              ? 'bank_imps'
+              : 'bank_neft';
+          await AffiliateSettingsRepositoryImpl().updatePayoutSettings(
+            payoutMethod: method,
+            payoutAccount: method == 'upi'
+                ? _upiController.text.trim()
+                : '${_bankNameController.text.trim()} • ${_accountNumberController.text.trim()}',
+            minimumThreshold: 1000.0,
+            autoPayout: _autoPayoutEnabled,
+            accountHolderName: _accountHolderController.text.trim(),
+            bankName: _bankNameController.text.trim(),
+            accountNumber: _accountNumberController.text.trim(),
+            ifscCode: _ifscController.text.trim().toUpperCase(),
+            upiVpa: _upiController.text.trim(),
+            panNumber: _panController.text.trim().toUpperCase(),
+          );
+        } catch (_) {}
+      }
       if (mounted) {
         setState(() {
           _profile = updated;

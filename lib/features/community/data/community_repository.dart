@@ -1,6 +1,8 @@
 import 'package:tradex/core/config/record_access.dart';
 import 'package:tradex/core/data/owned_record_writer.dart';
 import 'community_post_writer.dart';
+import 'workspace_attachment_service.dart';
+import 'package:tradex/features/workspace/data/workspace_post_service.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:async';
 import 'dart:io';
@@ -1140,6 +1142,26 @@ class CommunityRepository extends ChangeNotifier {
         SupabaseConfig.client!,
         SupabaseConfig.client!.auth.currentUser?.id ?? '',
       ).create(post);
+    } else if (attachment != null) {
+      try {
+        await WorkspaceAttachmentService().setVisibility(
+          attachment.source,
+          true,
+        );
+      } catch (_) {}
+    }
+
+    if (attachment != null) {
+      WorkspacePostService.instance.linkRecord(
+        kind: attachment.source.kind,
+        recordId: attachment.source.id,
+        postId: post.id,
+        postTitle: body.trim().isNotEmpty
+            ? body.trim()
+            : attachment.source.title,
+        authorName: author.displayName,
+        authorHandle: '@${author.handle.replaceFirst('@', '')}',
+      );
     }
 
     _forYouPosts = <CommunityPost>[post, ..._forYouPosts];
@@ -1632,10 +1654,25 @@ class CommunityRepository extends ChangeNotifier {
       ..._followingPosts,
       ..._bookmarkedPosts,
     ];
+    final String mappedId = switch (postId) {
+      'post-101' => 'post_q1',
+      'post-102' => 'post_a2',
+      'post-103' => 'post_a1',
+      'post-104' => 'post_nitish_1',
+      'post-105' => 'post_a3',
+      'post_1' => 'post_nitish_1',
+      'post_2' => 'post_a1',
+      'post_3' => 'post_a2',
+      'post_4' => 'post_a3',
+      'post_5' => 'post_p1',
+      'post_6' => 'post_m1',
+      _ => postId,
+    };
     try {
       return all.firstWhere(
         (p) =>
-            p.id == postId && (p.isPublic || p.author.id == currentAuthor.id),
+            (p.id == postId || p.id == mappedId) &&
+            (p.isPublic || p.author.id == currentAuthor.id),
       );
     } catch (_) {
       return null;
@@ -2656,13 +2693,13 @@ class CommunityRepository extends ChangeNotifier {
   void _seedPosts() {
     final now = DateTime.now();
     final AppWritingPostAttachment? noteAttachment = _attachableRecords
-        .where((a) => a.kind == AppLinkKind.note)
+        .where((a) => a.kind == AppLinkKind.note && a.isPublic)
         .firstOrNull;
     final AppWritingPostAttachment? journalAttachment = _attachableRecords
-        .where((a) => a.kind == AppLinkKind.journal)
+        .where((a) => a.kind == AppLinkKind.journal && a.isPublic)
         .firstOrNull;
     final AppWritingPostAttachment? strategyAttachment = _attachableRecords
-        .where((a) => a.kind == AppLinkKind.strategy)
+        .where((a) => a.kind == AppLinkKind.strategy && a.isPublic)
         .firstOrNull;
 
     final postPoll = CommunityPost(

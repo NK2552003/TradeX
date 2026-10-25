@@ -11,19 +11,23 @@ import 'ui_data_panel.dart';
 class UiKeyValueRow {
   const UiKeyValueRow({
     required this.label,
-    required this.value,
+    required Object value,
     this.detail,
     this.trailing,
     this.intent = UiIntent.neutral,
     this.emphasis = false,
     this.share,
     this.icon,
-  });
+  }) : rawValue = value;
 
   final String label;
+  final Object rawValue;
 
   /// Primary figure. Rendered with tabular numerals and right-aligned.
-  final String value;
+  String get value => switch (rawValue) {
+    final Text t => t.data ?? '',
+    final Object o => o.toString(),
+  };
 
   /// Secondary line under [label] — the assumption behind the number.
   final String? detail;

@@ -73,6 +73,7 @@ class AffiliateApplicationModel {
   final String bankName;
   final String accountNumber;
   final String ifsc;
+  String get ifscCode => ifsc;
   final String accountType;
   final String pan;
   final String? upiId;

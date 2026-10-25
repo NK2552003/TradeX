@@ -1,0 +1,80 @@
+// Isolated PostgreSQL contract harness; auth schema/functions emulate Supabase claims.
+// npm install --prefix /tmp/tradex-sql @electric-sql/pglite
+// PGLITE_MODULE=/tmp/tradex-sql/node_modules/@electric-sql/pglite/dist/index.js node scripts/verify_affiliate_sql.mjs
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
+const db = new PGlite();
+const read = p => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
+const migration = read('database/migrations/026_affiliate_workspace.sql');
+assert.equal(read('database/schema.sql').split('-- Affiliate workspace (migration 026)\n')[1], migration);
+await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;
+CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY, email text, raw_user_meta_data jsonb DEFAULT '{}');
+CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+GRANT USAGE ON SCHEMA auth,public TO anon,authenticated,service_role; GRANT EXECUTE ON FUNCTION auth.uid() TO anon,authenticated,service_role;`);
+// citext is irrelevant to these affiliate contracts; use text in the fixture only.
+await db.exec(read('database/migrations/002_core_auth_profiles.sql').replaceAll('CITEXT','text'));
+await db.exec(read('database/migrations/003_affiliates_and_auth_triggers.sql'));
+const policies = read('database/rls_policies.sql');
+await db.exec(policies.slice(policies.indexOf('CREATE OR REPLACE FUNCTION is_user_admin()'), policies.indexOf('-- subscriptions')));
+await db.exec(migration);
+const a='10000000-0000-0000-0000-000000000001', b='10000000-0000-0000-0000-000000000002', c='10000000-0000-0000-0000-000000000003';
+await db.exec(`INSERT INTO auth.users(id,email,raw_user_meta_data) VALUES ('${a}','a@example.com','{"handle":"partner-a","role":"user_admin"}'),('${b}','b@example.com','{"handle":"partner-b"}');
+INSERT INTO public.affiliate_profiles(id,affiliate_code,unpaid_balance,total_earnings,payout_method,payout_details) VALUES ('${a}','PARTNER-A',640,640,'paypal','{"payout_account":"a@example.com"}'),('${b}','PARTNER-B',800,800,'paypal','{"payout_account":"b@example.com"}');`);
+assert.equal((await db.query(`SELECT role FROM profiles WHERE id='${a}'`)).rows[0].role,'customer', 'signup must ignore user-supplied roles');
+await db.exec(`INSERT INTO auth.users(id,email,raw_user_meta_data) VALUES ('${c}','c@example.com','{"handle":"member-c","referred_by_code":"PARTNER-A"}');`);
+assert.equal((await db.query(`SELECT status FROM affiliate_referrals WHERE referred_user_id='${c}'`)).rows[0].status,'pending');
+assert.equal(Number((await db.query(`SELECT unpaid_balance FROM affiliate_profiles WHERE id='${a}'`)).rows[0].unpaid_balance),640,'signup does not award unqualified commission');
+async function asUser(id) { await db.exec(`RESET ROLE; SELECT set_config('request.jwt.claim.sub','${id}',false); SET ROLE authenticated;`); }
+async function denied(sql) { let failed=false; try { await db.exec(sql); } catch { failed=true; } assert(failed, `Expected denial: ${sql}`); }
+await asUser(a);
+const workspace=(await db.query('SELECT affiliate_workspace() AS result')).rows[0].result;
+assert.equal(workspace.profile.id,a);
+assert.equal(workspace.referrals.length,1);
+assert(!('referred_user_id' in workspace.referrals[0]),'workspace excludes member identity');
+await denied(`UPDATE affiliate_profiles SET unpaid_balance=9999 WHERE id='${a}'`);
+await denied(`INSERT INTO affiliate_campaigns(affiliate_id,name,slug,channel) VALUES ('${b}','Steal','steal-link','website')`);
+await db.exec(`INSERT INTO affiliate_campaigns(affiliate_id,name,slug,channel) VALUES ('${a}','Launch','launch-link','website')`);
+await denied(`UPDATE affiliate_campaigns SET clicks=999`);
+await db.exec('RESET ROLE; GRANT SELECT,UPDATE ON profiles TO authenticated;');
+const campaignId=(await db.query('SELECT id FROM affiliate_campaigns')).rows[0].id;
+await db.exec(`SET ROLE service_role; SELECT record_affiliate_click('${campaignId}',repeat('a',64)); SELECT record_affiliate_click('${campaignId}',repeat('a',64)); RESET ROLE;`);
+assert.equal(Number((await db.query('SELECT clicks FROM affiliate_campaigns')).rows[0].clicks),1,'repeated visitor event counts once');
+
+await asUser(a);
+await denied(`UPDATE profiles SET role='user_admin' WHERE id='${a}'`);
+await denied(`SELECT approve_affiliate_application(gen_random_uuid(),null)`);
+await denied(`SELECT record_affiliate_conversion(gen_random_uuid(),500)`);
+await denied('SELECT request_affiliate_payout(100.001)');
+const payout=(await db.query('SELECT request_affiliate_payout(200) AS id')).rows[0].id;
+assert.equal(Number((await db.query('SELECT unpaid_balance FROM affiliate_profiles')).rows[0].unpaid_balance),440);
+await denied('SELECT request_affiliate_payout(200)');
+await denied(`UPDATE affiliate_payouts SET status='paid' WHERE id='${payout}'`);
+await db.exec(`RESET ROLE; SET ROLE service_role; UPDATE affiliate_payouts SET status='failed' WHERE id='${payout}'; RESET ROLE;`);
+assert.equal(Number((await db.query(`SELECT unpaid_balance FROM affiliate_profiles WHERE id='${a}'`)).rows[0].unpaid_balance),640);
+await denied(`UPDATE affiliate_payouts SET status='paid',transaction_reference='double' WHERE id='${payout}'`);
+await asUser(a);
+const paid=(await db.query('SELECT request_affiliate_payout(100) AS id')).rows[0].id;
+await db.exec(`RESET ROLE; SET ROLE service_role; UPDATE affiliate_payouts SET status='paid',transaction_reference='settled-1' WHERE id='${paid}'; RESET ROLE;`);
+assert.equal(Number((await db.query(`SELECT paid_earnings FROM affiliate_profiles WHERE id='${a}'`)).rows[0].paid_earnings),100);
+await db.exec(`SET ROLE service_role; SELECT record_affiliate_conversion((SELECT id FROM affiliate_referrals WHERE referred_user_id='${c}'),40); SELECT record_affiliate_conversion((SELECT id FROM affiliate_referrals WHERE referred_user_id='${c}'),40); RESET ROLE;`);
+assert.equal(Number((await db.query(`SELECT unpaid_balance FROM affiliate_profiles WHERE id='${a}'`)).rows[0].unpaid_balance),580,'conversion awards exactly once');
+await db.exec(`UPDATE profiles SET role='user_admin' WHERE id='${b}';`);
+await asUser(c);
+const app=(await db.query(`INSERT INTO affiliate_applications(user_id,full_name,email,status) VALUES ('${c}','Applicant','c@example.com','pending') RETURNING id`)).rows[0].id;
+await denied(`SELECT review_affiliate_application('${app}',true,null)`);
+await asUser(b);
+await db.exec(`SELECT review_affiliate_application('${app}',true,'Approved after review')`);
+await db.exec('RESET ROLE;');
+assert.equal((await db.query(`SELECT role FROM profiles WHERE id='${c}'`)).rows[0].role,'affiliate');
+assert.equal((await db.query(`SELECT status FROM affiliate_profiles WHERE id='${c}'`)).rows[0].status,'active');
+await db.exec(`UPDATE profiles SET role='customer' WHERE id='${b}'`);
+await asUser(b);
+assert.equal((await db.query('SELECT * FROM affiliate_referrals')).rows.length,0,'partner B cannot see partner A referrals');
+assert.equal((await db.query('SELECT * FROM affiliate_payouts')).rows.length,0,'partner B cannot see partner A payments');
+await db.exec('RESET ROLE; SET ROLE anon;');
+await denied('SELECT affiliate_workspace()');
+await denied('SELECT request_affiliate_payout(100)');
+await denied('SELECT * FROM affiliate_profiles');
+await db.close();
+console.log('Affiliate SQL contracts passed: schema parity, signup safety, ownership, restricted writes, amount precision, reservation, refund, immutable settlement, idempotent qualification, anonymous access.');

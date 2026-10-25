@@ -14,6 +14,7 @@ class UiEmptyState extends StatelessWidget {
     this.action,
     this.actionLabel,
     this.onActionPressed,
+    this.compact = false,
   });
 
   final String title;
@@ -22,6 +23,7 @@ class UiEmptyState extends StatelessWidget {
   final Widget? action;
   final String? actionLabel;
   final VoidCallback? onActionPressed;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {

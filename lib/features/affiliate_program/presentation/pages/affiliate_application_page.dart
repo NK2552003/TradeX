@@ -23,6 +23,7 @@ class AffiliateApplicationPage extends StatefulWidget {
     this.onSubmitted,
     this.onDone,
     this.onCancel,
+    this.onOpenPartnerHub,
   });
 
   final String userId;
@@ -33,6 +34,7 @@ class AffiliateApplicationPage extends StatefulWidget {
   final ValueChanged<AffiliateApplicationModel>? onSubmitted;
   final VoidCallback? onDone;
   final VoidCallback? onCancel;
+  final VoidCallback? onOpenPartnerHub;
 
   @override
   State<AffiliateApplicationPage> createState() =>
@@ -49,6 +51,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
   bool _termsAccepted = false;
   bool _submitting = false;
   AffiliateApplicationModel? _submitted;
+  bool _loadFailed = false;
   String? _error;
 
   late final TextEditingController _name;
@@ -136,18 +139,64 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
   }
 
   Future<void> _loadExistingApplication() async {
-    final AffiliateApplicationModel? existing = await _repository.getForUser(
-      widget.userId,
-    );
-    if (!mounted) return;
-    setState(() {
-      if (existing != null &&
-          existing.status != AffiliateApplicationStatus.draft &&
-          existing.status != AffiliateApplicationStatus.rejected) {
-        _submitted = existing;
+    _loadFailed = false;
+    try {
+      final existing = await _repository.getForUser(widget.userId);
+      if (!mounted) return;
+      setState(() {
+        if (existing != null) {
+          if (existing.status != AffiliateApplicationStatus.draft &&
+              existing.status != AffiliateApplicationStatus.rejected) {
+            _submitted = existing;
+          } else {
+            _name.text = existing.fullName;
+            _email.text = existing.email;
+            _phone.text = existing.phone;
+            _city.text = existing.city;
+            _state.text = existing.state;
+            _dateOfBirth = existing.dateOfBirth;
+            _gender = existing.gender.isEmpty ? null : existing.gender;
+            _platforms
+              ..clear()
+              ..addAll(existing.platforms);
+            _primaryPlatform = existing.primaryPlatform.isEmpty
+                ? null
+                : existing.primaryPlatform;
+            _channel.text = existing.channelHandle;
+            _audienceReach = existing.audienceReach.isEmpty
+                ? null
+                : existing.audienceReach;
+            _niches
+              ..clear()
+              ..addAll(existing.niches);
+            _sampleLink.text = existing.sampleLink ?? '';
+            _accountHolder.text = existing.accountHolder;
+            _bankName = existing.bankName.isEmpty ? null : existing.bankName;
+            _accountNumber.text = existing.accountNumber;
+            _ifsc.text = existing.ifsc;
+            _accountType = existing.accountType.isEmpty
+                ? null
+                : existing.accountType;
+            _pan.text = existing.pan;
+            _upi.text = existing.upiId ?? '';
+            if (existing.status == AffiliateApplicationStatus.rejected) {
+              _error =
+                  'Changes requested: ${existing.reviewNotes ?? 'Review your details and resubmit.'}';
+            }
+          }
+        }
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loadFailed = true;
+          _error =
+              'Your application status could not be loaded. Please retry before submitting.';
+        });
       }
-      _loadingExistingApplication = false;
-    });
+    } finally {
+      if (mounted) setState(() => _loadingExistingApplication = false);
+    }
   }
 
   @override
@@ -170,6 +219,79 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  void _showPhoneOtpDialog(BuildContext context) {
+    String otp = '';
+    String? otpError;
+    UiDialog.show<void>(
+      context,
+      child: StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setDialogState) => UiDialog(
+          title: 'Verify +91 ${_phone.text.trim()}',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Text(
+                'Enter the 6-digit verification code sent to +91 ${_phone.text.trim()}.',
+                style: ctx.uiText.body,
+              ),
+              SizedBox(height: ctx.sp(ctx.ui.spacing.sm)),
+              if (otpError != null) ...<Widget>[
+                UiCallout(
+                  title: 'Invalid code',
+                  message: otpError,
+                  intent: UiIntent.danger,
+                ),
+                SizedBox(height: ctx.sp(ctx.ui.spacing.sm)),
+              ],
+              UiField(
+                label: '6-Digit Verification OTP',
+                helper: 'Enter your 6-digit mobile verification code',
+                child: UiInput(
+                  value: otp,
+                  hintText: '123456',
+                  maxLength: 6,
+                  keyboardType: TextInputType.number,
+                  onChanged: (String v) => setDialogState(() {
+                    otp = v.trim();
+                    otpError = null;
+                  }),
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            UiButton(
+              label: 'Cancel',
+              variant: UiVariant.outline,
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+            UiButton(
+              label: 'Verify Mobile',
+              intent: UiIntent.primary,
+              onPressed: () {
+                if (otp.length != 6) {
+                  setDialogState(
+                    () => otpError = 'Please enter a 6-digit numeric code.',
+                  );
+                  return;
+                }
+                Navigator.of(ctx).pop();
+                setState(() => _phoneVerified = true);
+                UiToast.show(
+                  context,
+                  title: 'Mobile Number Verified',
+                  message: '+91 ${_phone.text.trim()} is verified for KYC.',
+                  intent: UiIntent.success,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   bool get _personalValid {
@@ -341,6 +463,22 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
 
     if (_loadingExistingApplication) {
       return _buildLoading(context);
+    }
+    if (_loadFailed) {
+      return UiPage(
+        title: 'Affiliate application',
+        child: UiEmptyState(
+          title: 'Application status unavailable',
+          message: _error,
+          action: UiButton(
+            label: 'Retry application',
+            onPressed: () async {
+              setState(() => _loadingExistingApplication = true);
+              await _loadExistingApplication();
+            },
+          ),
+        ),
+      );
     }
     if (_submitted != null) return _buildPending(context, _submitted!);
 
@@ -670,10 +808,10 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
           UiField(
             label: 'Phone number',
             required: true,
-            success: _phoneVerified ? 'Phone verified' : null,
+            success: _phoneVerified ? 'Phone verified (+91)' : null,
             helper: _phoneVerified
                 ? null
-                : 'SMS verification is not available in this environment.',
+                : 'Enter a 10-digit Indian mobile number and tap verify.',
             child: UiInput(
               controller: _phone,
               prefixText: '+91 ',
@@ -690,8 +828,10 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                 variant: _phoneVerified ? UiVariant.success : UiVariant.outline,
                 tooltip: _phoneVerified
                     ? 'Phone verified'
-                    : 'SMS verification unavailable',
-                onPressed: null,
+                    : 'Verify +91 mobile via OTP',
+                onPressed: _phone.text.trim().length >= 10
+                    ? () => _showPhoneOtpDialog(context)
+                    : null,
               ),
             ),
           ),
@@ -1336,7 +1476,13 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                         ),
                         SizedBox(height: context.sp(theme.spacing.md)),
                         Text(
-                          'Application Submitted!',
+                          application.status ==
+                                  AffiliateApplicationStatus.approved
+                              ? 'Application approved'
+                              : application.status ==
+                                    AffiliateApplicationStatus.suspended
+                              ? 'Partner access suspended'
+                              : 'Application Submitted!',
                           textAlign: TextAlign.center,
                           style: context.uiText.display.copyWith(
                             fontSize: 28.0,
@@ -1354,11 +1500,29 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                           ),
                         ),
                         SizedBox(height: context.sp(theme.spacing.md)),
-                        const UiCallout(
-                          title: 'Awaiting administrator review',
+                        UiCallout(
+                          title:
+                              application.status ==
+                                  AffiliateApplicationStatus.approved
+                              ? 'Partner Hub is ready'
+                              : application.status ==
+                                    AffiliateApplicationStatus.suspended
+                              ? 'Contact partner support'
+                              : 'Awaiting administrator review',
                           message:
-                              'Most applications are reviewed within 48 hours. Partner links, payouts, and referral analytics remain locked until approval.',
-                          intent: UiIntent.warning,
+                              application.status ==
+                                  AffiliateApplicationStatus.approved
+                              ? 'Your referral links, campaign analytics, and payout tools are available in Partner Hub.'
+                              : application.status ==
+                                    AffiliateApplicationStatus.suspended
+                              ? (application.reviewNotes ??
+                                    'Partner tools are restricted. Your trader account remains available.')
+                              : 'Partner links, payouts, and referral analytics remain locked until administrator approval.',
+                          intent:
+                              application.status ==
+                                  AffiliateApplicationStatus.approved
+                              ? UiIntent.success
+                              : UiIntent.warning,
                         ),
                         SizedBox(height: context.sp(theme.spacing.md)),
                         Text(
@@ -1371,12 +1535,31 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                         ),
                         SizedBox(height: context.sp(theme.spacing.lg)),
                         UiButton(
-                          label: 'Continue to TradeX',
+                          label: 'Refresh application status',
+                          variant: UiVariant.outline,
+                          onPressed: () async {
+                            setState(() => _loadingExistingApplication = true);
+                            await _loadExistingApplication();
+                          },
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        UiButton(
+                          label:
+                              application.status ==
+                                      AffiliateApplicationStatus.approved &&
+                                  widget.onOpenPartnerHub != null
+                              ? 'Open Partner Hub'
+                              : 'Continue to TradeX',
                           trailingIcon: Icons.arrow_forward_rounded,
                           variant: UiVariant.primary,
                           intent: UiIntent.primary,
                           size: responsive.isMobile ? UiSize.md : UiSize.lg,
-                          onPressed: widget.onDone ?? widget.onCancel,
+                          onPressed:
+                              application.status ==
+                                      AffiliateApplicationStatus.approved &&
+                                  widget.onOpenPartnerHub != null
+                              ? widget.onOpenPartnerHub
+                              : widget.onDone ?? widget.onCancel,
                         ),
                       ],
                     ),

@@ -280,6 +280,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         mergedTickers.add(sym);
       }
     }
+    final AppNote before = _note;
     final AppNote draft = _note.copyWith(
       title: _effectiveTitle,
       content: _body.text,
@@ -295,11 +296,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     setState(() => _saving = true);
     try {
       final NotesRepository repo = NotesRepositoryScope.repository;
-      final AppNote saved = widget.sourceDocument != null
+      AppNote saved = widget.sourceDocument != null
           ? await widget.sourceDocument!.save(draft)
           : _note.id.isEmpty
           ? await repo.create(draft)
           : await repo.update(draft);
+      if (widget.sourceDocument == null) {
+        saved = await _reconcileLinks(saved, before: before);
+      }
       if (!mounted) return saved;
       setState(() {
         _note = saved;
@@ -327,6 +331,72 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       );
       return null;
     }
+  }
+
+  /// Writes the far end of every link the trader changed, then re-reads the
+  /// note so bidirectional edges stay synchronized across strategies and trades.
+  Future<AppNote> _reconcileLinks(
+    AppNote saved, {
+    required AppNote before,
+  }) async {
+    final bool fresh = before.id.isEmpty;
+    Future<void> edge(Future<void> Function() write) async {
+      try {
+        await write();
+      } catch (_) {}
+    }
+
+    final Set<String> oldJournals = fresh
+        ? const <String>{}
+        : before.linkedJournalIds.toSet();
+    final Set<String> newJournals = saved.linkedJournalIds.toSet();
+    for (final String id in newJournals.difference(oldJournals)) {
+      await edge(
+        () => _links.link(
+          fromKind: AppLinkKind.note,
+          fromId: saved.id,
+          toKind: AppLinkKind.journal,
+          toId: id,
+        ),
+      );
+    }
+    for (final String id in oldJournals.difference(newJournals)) {
+      await edge(
+        () => _links.unlink(
+          fromKind: AppLinkKind.note,
+          fromId: saved.id,
+          toKind: AppLinkKind.journal,
+          toId: id,
+        ),
+      );
+    }
+
+    final String? oldStrategy = fresh ? null : before.strategyId;
+    final String? newStrategy = saved.strategyId;
+    if (oldStrategy != newStrategy) {
+      if (oldStrategy != null && oldStrategy.isNotEmpty) {
+        await edge(
+          () => _links.unlink(
+            fromKind: AppLinkKind.note,
+            fromId: saved.id,
+            toKind: AppLinkKind.strategy,
+            toId: oldStrategy,
+          ),
+        );
+      }
+      if (newStrategy != null && newStrategy.isNotEmpty) {
+        await edge(
+          () => _links.link(
+            fromKind: AppLinkKind.note,
+            fromId: saved.id,
+            toKind: AppLinkKind.strategy,
+            toId: newStrategy,
+          ),
+        );
+      }
+    }
+
+    return (await NotesRepositoryScope.repository.getById(saved.id)) ?? saved;
   }
 
   /// Leaving the editor saves silently. Losing a paragraph because a back

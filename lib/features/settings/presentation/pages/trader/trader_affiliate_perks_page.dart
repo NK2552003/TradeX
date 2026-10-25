@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 
 /// Page shown to active traders highlighting the benefits of the Affiliate Partner Program.
 class TraderAffiliatePerksPage extends StatefulWidget {
-  const TraderAffiliatePerksPage({super.key, this.onUpgradeToAffiliate});
+  const TraderAffiliatePerksPage({
+    super.key,
+    this.onUpgradeToAffiliate,
+    this.applicationStatus,
+    this.onOpenPartnerHub,
+    this.onRefreshStatus,
+  });
+  final AffiliateApplicationStatus? applicationStatus;
+  final VoidCallback? onOpenPartnerHub, onRefreshStatus;
 
   final VoidCallback? onUpgradeToAffiliate;
 
@@ -15,7 +25,17 @@ class TraderAffiliatePerksPage extends StatefulWidget {
 
 class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
   double _referredTraders = 25;
-  final String _referralLink = 'https://tradex.ai/r/nitish_alpha';
+  String get _actionLabel => switch (widget.applicationStatus) {
+    AffiliateApplicationStatus.approved => 'Open Partner Hub',
+    AffiliateApplicationStatus.pending => 'View application status',
+    AffiliateApplicationStatus.rejected => 'Revise application',
+    AffiliateApplicationStatus.suspended => 'View account status',
+    _ => 'Apply for Affiliate',
+  };
+  VoidCallback? get _action =>
+      widget.applicationStatus == AffiliateApplicationStatus.approved
+      ? widget.onOpenPartnerHub
+      : widget.onUpgradeToAffiliate;
 
   static const double _proPlanPrice = 2499.0;
   static const double _revSharePercent = 0.30;
@@ -23,16 +43,6 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
   double get _monthlyEarnings =>
       _referredTraders * _proPlanPrice * _revSharePercent;
   double get _annualEarnings => _monthlyEarnings * 12;
-
-  void _copyReferralLink() {
-    Clipboard.setData(ClipboardData(text: _referralLink));
-    UiToast.show(
-      context,
-      title: 'Referral Link Copied',
-      message: 'Share $_referralLink with your fellow traders!',
-      intent: UiIntent.success,
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +181,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       ),
                       SizedBox(height: context.sp(theme.spacing.md)),
                       Text(
-                        'As a TradeX trader, you are eligible to earn a recurring 30% lifetime commission on every trader who subscribes through your referral link. Refer fellow traders, students, or your community members and build a passive income stream alongside your trading.',
+                        'Apply to introduce your audience to TradeX. After approval, your Partner Hub provides your own referral links, campaign reporting, and payouts. Qualifying commissions follow your partner account terms.',
                         style: context.uiText.body.copyWith(
                           color: colors.foregroundMuted,
                           height: 1.5,
@@ -183,14 +193,14 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                         runSpacing: context.sp(theme.spacing.xs),
                         children: [
                           UiButton(
-                            label: 'Apply for Affiliate',
+                            label: _actionLabel,
                             leadingIcon: Icons.assignment_outlined,
                             variant: UiVariant.primary,
                             intent: UiIntent.warning,
                             size: UiSize.sm,
                             onPressed: () {
-                              if (widget.onUpgradeToAffiliate != null) {
-                                widget.onUpgradeToAffiliate!();
+                              if (_action != null) {
+                                _action!();
                               } else {
                                 UiToast.show(
                                   context,
@@ -202,14 +212,6 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                               }
                             },
                           ),
-                          UiButton(
-                            label: 'Copy Referral Link',
-                            leadingIcon: Icons.link_rounded,
-                            variant: UiVariant.outline,
-                            intent: UiIntent.neutral,
-                            size: UiSize.sm,
-                            onPressed: _copyReferralLink,
-                          ),
                         ],
                       ),
                     ],
@@ -219,80 +221,31 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
 
               SizedBox(height: context.sp(theme.spacing.xl)),
 
-              // Your Personal Referral Link Box
-              UiCard(
-                child: Padding(
-                  padding: EdgeInsets.all(
-                    context.sp(
-                      responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Your Personal Referral Link',
-                        style: context.uiText.bodyStrong,
+              UiCallout(
+                title: switch (widget.applicationStatus) {
+                  AffiliateApplicationStatus.approved =>
+                    'Your partner access is approved',
+                  AffiliateApplicationStatus.pending =>
+                    'Your application is in review',
+                  AffiliateApplicationStatus.rejected =>
+                    'Your application needs changes',
+                  AffiliateApplicationStatus.suspended =>
+                    'Partner access is suspended',
+                  _ => 'Referral links unlock after approval',
+                },
+                message:
+                    widget.applicationStatus ==
+                        AffiliateApplicationStatus.approved
+                    ? 'Open Partner Hub to copy the link issued to your account and review your results.'
+                    : 'Your trader account remains available. Review your application status here; referral links are issued only after approval.',
+                action: widget.onRefreshStatus == null
+                    ? null
+                    : UiButton(
+                        label: 'Refresh status',
+                        variant: UiVariant.outline,
+                        onPressed: widget.onRefreshStatus,
                       ),
-                      SizedBox(height: context.sp(theme.spacing.xxs)),
-                      Text(
-                        'Share this link in your discord, trading groups, or social channels:',
-                        style: context.uiText.caption.copyWith(
-                          color: colors.foregroundMuted,
-                        ),
-                      ),
-                      SizedBox(height: context.sp(theme.spacing.md)),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          if (constraints.maxWidth >= 480) {
-                            return Row(
-                              children: [
-                                Expanded(
-                                  child: UiInput(
-                                    value: _referralLink,
-                                    enabled: false,
-                                    leadingIcon: Icons.link_rounded,
-                                    onChanged: (_) {},
-                                  ),
-                                ),
-                                SizedBox(width: context.sp(theme.spacing.md)),
-                                UiButton(
-                                  label: 'Copy Link',
-                                  leadingIcon: Icons.copy_rounded,
-                                  variant: UiVariant.primary,
-                                  intent: UiIntent.warning,
-                                  onPressed: _copyReferralLink,
-                                ),
-                              ],
-                            );
-                          } else {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                UiInput(
-                                  value: _referralLink,
-                                  enabled: false,
-                                  leadingIcon: Icons.link_rounded,
-                                  onChanged: (_) {},
-                                ),
-                                SizedBox(height: context.sp(theme.spacing.sm)),
-                                UiButton(
-                                  label: 'Copy Link',
-                                  leadingIcon: Icons.copy_rounded,
-                                  variant: UiVariant.primary,
-                                  intent: UiIntent.warning,
-                                  onPressed: _copyReferralLink,
-                                ),
-                              ],
-                            );
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
               ),
-
               SizedBox(height: context.sp(theme.spacing.xl)),
 
               // 4 Key Benefits Grid
@@ -307,10 +260,10 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       theme,
                       colors,
                       icon: Icons.all_inclusive_rounded,
-                      title: '30% Lifetime RevShare',
+                      title: 'Up to 35% INR RevShare',
                       description:
-                          'Earn 30% of every subscription payment every month as long as the referred trader stays active.',
-                      badge: 'RECURRING',
+                          'Earn 15% to 35% in ₹ INR of every Pro (₹2,499/mo) or Enterprise (₹7,999/mo) subscription every month.',
+                      badge: 'INR RECURRING',
                     ),
                     _buildBenefitCard(
                       context,
@@ -319,7 +272,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       icon: Icons.card_membership_rounded,
                       title: 'Free TradeX Pro Tier',
                       description:
-                          'Refer just 3 active traders to automatically waive your own TradeX Pro monthly subscription fees.',
+                          'Refer active traders to automatically unlock complimentary TradeX Pro & Enterprise desk access.',
                       badge: 'FREE PRO',
                     ),
                     _buildBenefitCard(
@@ -327,19 +280,19 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       theme,
                       colors,
                       icon: Icons.account_balance_wallet_outlined,
-                      title: 'Automated Payouts',
+                      title: 'NPCI UPI & Bank NEFT (₹)',
                       description:
-                          'Receive monthly earnings directly via PayPal, Stripe Connect, or direct ACH bank wire transfer.',
-                      badge: 'MONTHLY',
+                          'Receive INR settlements directly via NPCI UPI VPA, Bank NEFT, IMPS, or RTGS from ₹1,000 minimum threshold.',
+                      badge: 'INR PAYOUTS',
                     ),
                     _buildBenefitCard(
                       context,
                       theme,
                       colors,
                       icon: Icons.palette_outlined,
-                      title: 'Creator Media Kit',
+                      title: 'SEBI/ASCI Compliant Kit',
                       description:
-                          'Get high-res TradeX badges, banners, OBS stream overlays, and custom discount promo codes.',
+                          'Get high-res TradeX badges, UTM campaign links, Form 16A TDS statements, and compliant disclosures.',
                       badge: 'ASSETS',
                     ),
                   ];
@@ -510,18 +463,18 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
               // Action Callout Banner
               UiCallout(
                 intent: UiIntent.warning,
-                title: 'Ready to apply for the TradeX Partner Program?',
+                title: 'Your TradeX Partner Program',
                 message:
                     'Complete the four-step identity, audience, payout, and review application. Your trader account stays active while an administrator reviews it.',
                 action: UiButton(
-                  label: 'Start Application',
+                  label: _actionLabel,
                   leadingIcon: Icons.assignment_outlined,
                   variant: UiVariant.primary,
                   intent: UiIntent.warning,
                   size: UiSize.sm,
                   onPressed: () {
-                    if (widget.onUpgradeToAffiliate != null) {
-                      widget.onUpgradeToAffiliate!();
+                    if (_action != null) {
+                      _action!();
                     } else {
                       UiToast.show(
                         context,

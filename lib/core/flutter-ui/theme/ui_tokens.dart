@@ -301,6 +301,8 @@ class UiTypography {
   final TextStyle caption;
   final TextStyle numeric;
 
+  TextStyle get mono => numeric;
+
   factory UiTypography.standard({
     String? fontFamily = 'NotoSans',
     String? monoFontFamily = 'NotoSansMono',

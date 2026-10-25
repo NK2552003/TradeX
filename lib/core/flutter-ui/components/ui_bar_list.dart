@@ -7,6 +7,7 @@ class UiBarListItem {
   const UiBarListItem({
     required this.label,
     required this.value,
+    this.displayValue,
     this.percentage,
     this.icon,
     this.onTap,
@@ -15,6 +16,7 @@ class UiBarListItem {
 
   final String label;
   final num value;
+  final String? displayValue;
   final double? percentage;
   final IconData? icon;
   final VoidCallback? onTap;

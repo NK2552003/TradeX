@@ -3,16 +3,25 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
 import 'package:tradex/features/settings/models/privacy_settings_model.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/blocked_users_page.dart';
+import 'package:tradex/features/settings/presentation/pages/shared/delete_account_page.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class PrivacySettingsPage extends StatefulWidget {
-  const PrivacySettingsPage({super.key, this.repository});
+  const PrivacySettingsPage({
+    super.key,
+    this.userRole = UserRole.customer,
+    this.repository,
+    this.onAccountDeleted,
+  });
 
+  final UserRole userRole;
   final PrivacyRepository? repository;
+  final VoidCallback? onAccountDeleted;
 
   @override
   State<PrivacySettingsPage> createState() => _PrivacySettingsPageState();
@@ -303,6 +312,27 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                         : 'Generates a ZIP containing journal CSVs, playbook JSONs, and backtest logs.',
                     icon: Icons.cloud_download_outlined,
                     control: _buildDataExportControl(),
+                  ),
+                  SettingsNavRow(
+                    title: 'Delete Account & Conditional Data Purge',
+                    subtitle:
+                        'Permanently delete your account and select whether data is purged immediately or after a 30-day window',
+                    icon: Icons.delete_forever_outlined,
+                    isDestructive: true,
+                    onTap: () {
+                      openSettingsSubpage(
+                        context,
+                        title: 'Delete Account & Data Purge',
+                        subtitle:
+                            'Configure post-deletion data purge condition and close account',
+                        icon: Icons.delete_forever_outlined,
+                        page: DeleteAccountPage(
+                          userRole: widget.userRole,
+                          privacyRepository: _repo,
+                          onAccountDeleted: widget.onAccountDeleted,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

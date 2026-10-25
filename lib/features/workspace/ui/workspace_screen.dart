@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 // Required unified primitive import for every writing workspace surface.
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
@@ -250,13 +251,36 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
 
   // ─── Entry Creation Handlers ─────────────────────────────────────────
 
+  void _openLinkedPost(AppLinkKind kind, String recordId) {
+    final AppPostLinkInfo? link = _postService.getPrimaryLink(kind, recordId);
+    if (link == null) return;
+    if (widget.onOpenRef != null) {
+      widget.onOpenRef!(
+        AppLinkRef(
+          kind: AppLinkKind.communityPost,
+          id: link.postId,
+          title: link.postTitle,
+          isPublicContext: true,
+        ),
+      );
+      return;
+    }
+    widget.onOpenFeature('community');
+  }
+
   Future<void> _handleNewNote() async {
+    final bool canCreate = await CustomerLimitations.checkCanCreateNote(
+      context,
+      currentNoteCount: _allNotes.length,
+    );
+    if (!canCreate || !mounted) return;
     final AppNoteTemplate? template = await showNoteTemplateGallery(context);
     if (template == null || !mounted) return;
     final AppNote draft = template.toDraft();
     setState(() {
       _activeEditor = NoteEditorScreen(
         note: draft,
+        onOpenLink: widget.onOpenRef,
         onClose: (AppNote? saved) {
           _closeEditor();
           if (saved != null && widget.onOpenRef != null) {
@@ -281,6 +305,11 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
   }
 
   Future<void> _handleNewTrade() async {
+    final bool canCreate = await CustomerLimitations.checkCanCreateTrade(
+      context,
+      currentTradeCount: _entries.length,
+    );
+    if (!canCreate || !mounted) return;
     final AppJournalTemplate? template = await showJournalTemplateGallery(
       context,
     );
@@ -289,6 +318,7 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
     setState(() {
       _activeEditor = JournalEditorScreen(
         entry: draft,
+        onOpenLink: widget.onOpenRef,
         onClose: (AppTrade? saved) {
           _closeEditor();
           if (saved != null && widget.onOpenRef != null) {
@@ -311,6 +341,11 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
   }
 
   Future<void> _handleNewPlaybook() async {
+    final bool canCreate = await CustomerLimitations.checkCanCreateStrategy(
+      context,
+      currentLiveStrategyCount: _livePlaybooks.length,
+    );
+    if (!canCreate || !mounted) return;
     final AppStrategyTemplate? template = await showStrategyTemplateGallery(
       context,
     );
@@ -319,6 +354,7 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
     setState(() {
       _activeEditor = StrategyEditorScreen(
         strategy: draft,
+        onOpenLink: widget.onOpenRef,
         onClose: (AppStrategy? saved) {
           _closeEditor();
           if (saved != null && widget.onOpenRef != null) {
@@ -346,6 +382,7 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
     setState(() {
       _activeEditor = StrategyEditorScreen(
         strategy: strategy,
+        onOpenLink: widget.onOpenRef,
         onClose: (AppStrategy? saved) {
           _closeEditor();
         },
@@ -604,6 +641,12 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
                 title: 'Writing Desk',
                 description:
                     'Your notes, trade journal, and playbooks in one connected place.',
+              ),
+              SizedBox(height: gutter),
+              CustomerLimitationsBanner(
+                noteCount: _allNotes.length,
+                tradeCount: _entries.length,
+                liveStrategyCount: _livePlaybooks.length,
               ),
               SizedBox(height: sectionGap),
 
@@ -896,6 +939,36 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
                 note: note,
                 density: AppNoteDensity.comfortable,
                 onTap: () => _openNote(note),
+                extraBadges: _postService.isLinked(AppLinkKind.note, note.id)
+                    ? <Widget>[
+                        UiBadge(
+                          label: 'Post',
+                          icon: Icons.share_rounded,
+                          size: UiSize.xs,
+                          intent: UiIntent.primary,
+                          onTap: () => _openLinkedPost(AppLinkKind.note, note.id),
+                        ),
+                      ]
+                    : const <Widget>[],
+                footerEngagement:
+                    _postService.isLinked(AppLinkKind.note, note.id)
+                    ? Builder(
+                        builder: (BuildContext ctx) {
+                          final AppPostLinkInfo? link =
+                              _postService.getPrimaryLink(
+                                AppLinkKind.note,
+                                note.id,
+                              );
+                          return AppDeskEngagementRow(
+                            isLinked: true,
+                            likes: link?.likesCount ?? 0,
+                            comments: link?.commentsCount ?? 0,
+                            onTap: () =>
+                                _openLinkedPost(AppLinkKind.note, note.id),
+                          );
+                        },
+                      )
+                    : null,
               ),
           ],
         ),
@@ -971,11 +1044,12 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
             showExcerpt: true,
             onTap: () => _openTrade(trade),
             trailing: _postService.isLinked(AppLinkKind.journal, trade.id)
-                ? const UiBadge(
+                ? UiBadge(
                     label: 'Post',
                     icon: Icons.share_rounded,
                     size: UiSize.xs,
                     intent: UiIntent.primary,
+                    onTap: () => _openLinkedPost(AppLinkKind.journal, trade.id),
                   )
                 : null,
             footerEngagement:
@@ -990,6 +1064,8 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
                         isLinked: true,
                         likes: link?.likesCount ?? 0,
                         comments: link?.commentsCount ?? 0,
+                        onTap: () =>
+                            _openLinkedPost(AppLinkKind.journal, trade.id),
                       );
                     },
                   )
@@ -1085,6 +1161,10 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
                         isLinked: true,
                         likes: link?.likesCount ?? 0,
                         comments: link?.commentsCount ?? 0,
+                        onTap: () => _openLinkedPost(
+                          AppLinkKind.strategy,
+                          strategy.id,
+                        ),
                       );
                     },
                   )

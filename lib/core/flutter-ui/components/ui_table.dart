@@ -7,17 +7,29 @@ import 'ui_skeleton.dart';
 
 class UiTableColumn<T> {
   const UiTableColumn({
-    required this.header,
-    required this.cell,
+    String? header,
+    this.label,
+    this.id,
+    Widget Function(BuildContext context, T row)? cell,
+    this.cellBuilder,
+    this.valueGetter,
     this.numeric = false,
     this.flex = 1,
     this.width,
     this.hideBelow = UiTableVisibility.always,
-    this.compare,
-  });
+    int Function(T a, T b)? compare,
+    this.sortValue,
+    this.sortable,
+  }) : rawHeader = header,
+       rawCell = cell,
+       rawCompare = compare;
 
-  final String header;
-  final Widget Function(BuildContext context, T row) cell;
+  final String? rawHeader;
+  final String? label;
+  final String? id;
+  final Widget Function(BuildContext context, T row)? rawCell;
+  final Widget Function(BuildContext context, T row)? cellBuilder;
+  final String Function(T row)? valueGetter;
   final bool numeric;
   final int flex;
   final double? width;
@@ -26,7 +38,25 @@ class UiTableColumn<T> {
   final UiTableVisibility hideBelow;
 
   /// Provide a comparator to make the column sortable by tapping its header.
-  final int Function(T a, T b)? compare;
+  final int Function(T a, T b)? rawCompare;
+  final Comparable<Object?> Function(T row)? sortValue;
+  final bool? sortable;
+
+  String get header => rawHeader ?? label ?? id ?? '';
+
+  Widget Function(BuildContext context, T row) get cell =>
+      rawCell ??
+      cellBuilder ??
+      (BuildContext context, T row) => Text(
+            valueGetter != null ? valueGetter!(row) : '',
+            style: context.uiText.body,
+          );
+
+  int Function(T a, T b)? get compare =>
+      rawCompare ??
+      (sortValue != null
+          ? (T a, T b) => sortValue!(a).compareTo(sortValue!(b))
+          : null);
 }
 
 enum UiTableVisibility { always, tabletUp, desktopUp }
@@ -42,12 +72,14 @@ class UiTable<T> extends StatefulWidget {
     super.key,
     required this.columns,
     required this.rows,
+    this.rowKey,
     this.onRowTap,
     this.stackOnMobile = false,
     this.emptyLabel = 'No data',
     this.pageSize,
     this.onSort,
     this.sortColumn,
+    this.sortColumnId,
     this.sortAscending,
     this.footer,
     this.loading = false,
@@ -64,6 +96,7 @@ class UiTable<T> extends StatefulWidget {
 
   final List<UiTableColumn<T>> columns;
   final List<T> rows;
+  final Object Function(T row)? rowKey;
   final void Function(T row)? onRowTap;
   final bool stackOnMobile;
   final String emptyLabel;
@@ -76,6 +109,7 @@ class UiTable<T> extends StatefulWidget {
 
   /// Controlled sort state. When provided, rows are assumed pre-sorted.
   final int? sortColumn;
+  final String? sortColumnId;
   final bool? sortAscending;
 
   /// Optional footer row (totals, summaries).

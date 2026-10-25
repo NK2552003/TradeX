@@ -4,7 +4,16 @@ import '../theme/ui_theme.dart';
 import 'ui_common.dart';
 
 /// Surface treatments for [UiCard].
-enum UiCardVariant { surface, outlined, ghost, elevated, gradient, glass }
+enum UiCardVariant {
+  surface,
+  outlined,
+  ghost,
+  elevated,
+  gradient,
+  glass,
+  accent,
+  subtle,
+}
 
 /// Surface container used for every panel in the app (feed post, watchlist,
 /// KPI tile, chart wrapper).
@@ -331,6 +340,16 @@ class _UiCardState extends State<UiCard> {
           background: c.surface.withValues(alpha: active ? 0.85 : 0.65),
           borderColor: c.borderStrong.withValues(alpha: 0.6),
           shadow: theme.shadows.sm,
+        );
+      case UiCardVariant.accent:
+        return _CardSkin(
+          background: Color.alphaBlend(tint.withValues(alpha: 0.08), c.surface),
+          borderColor: tint.withValues(alpha: 0.45),
+        );
+      case UiCardVariant.subtle:
+        return _CardSkin(
+          background: c.surfaceMuted,
+          borderColor: c.border,
         );
       case UiCardVariant.surface:
         return _CardSkin(

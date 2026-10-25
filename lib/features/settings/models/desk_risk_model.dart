@@ -9,7 +9,14 @@ class DeskRiskModel {
     required this.requireManagerApprovalAboveAmount,
     required this.auditLoggingEnabled,
     required this.allowedAssetClasses,
-  });
+    this.maxLeverage = 10.0,
+    this.maxDailyLossPercent = 3.0,
+    double? maxTotalDrawdownPercent,
+    this.requireStopLoss = true,
+    this.autoLiquidateOnBreach = true,
+    this.allowOptions = true,
+    this.allowCrypto = false,
+  }) : customTotalDrawdownPercent = maxTotalDrawdownPercent;
 
   final double maxFirmDrawdownPercent;
   final double maxPositionPerTrader;
@@ -20,6 +27,15 @@ class DeskRiskModel {
   final double requireManagerApprovalAboveAmount;
   final bool auditLoggingEnabled;
   final List<String> allowedAssetClasses;
+  final double maxLeverage;
+  final double maxDailyLossPercent;
+  final double? customTotalDrawdownPercent;
+  double get maxTotalDrawdownPercent =>
+      customTotalDrawdownPercent ?? maxFirmDrawdownPercent;
+  final bool requireStopLoss;
+  final bool autoLiquidateOnBreach;
+  final bool allowOptions;
+  final bool allowCrypto;
 
   /// Ranges a desk admin can move each limit between. They live on the model so
   /// the controls that set a limit and the backend that validates it are working
@@ -57,10 +73,20 @@ class DeskRiskModel {
     double? requireManagerApprovalAboveAmount,
     bool? auditLoggingEnabled,
     List<String>? allowedAssetClasses,
+    double? maxLeverage,
+    double? maxDailyLossPercent,
+    double? maxTotalDrawdownPercent,
+    bool? requireStopLoss,
+    bool? autoLiquidateOnBreach,
+    bool? allowOptions,
+    bool? allowCrypto,
   }) {
+    final double effectiveFirmDd =
+        maxTotalDrawdownPercent ??
+        maxFirmDrawdownPercent ??
+        this.maxFirmDrawdownPercent;
     return DeskRiskModel(
-      maxFirmDrawdownPercent:
-          maxFirmDrawdownPercent ?? this.maxFirmDrawdownPercent,
+      maxFirmDrawdownPercent: effectiveFirmDd,
       maxPositionPerTrader: maxPositionPerTrader ?? this.maxPositionPerTrader,
       enforcePreTradeChecklistAllTraders:
           enforcePreTradeChecklistAllTraders ??
@@ -70,6 +96,15 @@ class DeskRiskModel {
           this.requireManagerApprovalAboveAmount,
       auditLoggingEnabled: auditLoggingEnabled ?? this.auditLoggingEnabled,
       allowedAssetClasses: allowedAssetClasses ?? this.allowedAssetClasses,
+      maxLeverage: maxLeverage ?? this.maxLeverage,
+      maxDailyLossPercent: maxDailyLossPercent ?? this.maxDailyLossPercent,
+      maxTotalDrawdownPercent:
+          maxTotalDrawdownPercent ?? this.maxTotalDrawdownPercent,
+      requireStopLoss: requireStopLoss ?? this.requireStopLoss,
+      autoLiquidateOnBreach:
+          autoLiquidateOnBreach ?? this.autoLiquidateOnBreach,
+      allowOptions: allowOptions ?? this.allowOptions,
+      allowCrypto: allowCrypto ?? this.allowCrypto,
     );
   }
 

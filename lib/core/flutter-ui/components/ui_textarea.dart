@@ -27,6 +27,7 @@ class UiTextarea extends StatefulWidget {
     this.density = UiDensity.comfortable,
     this.size = UiSize.md,
     int? maxLines,
+    int? minLines,
     int rows = 4,
     int maxRows = 8,
     this.maxLength,
@@ -37,7 +38,7 @@ class UiTextarea extends StatefulWidget {
     this.required = false,
     this.toolbar,
     this.footer,
-  })  : rows = maxLines ?? rows,
+  })  : rows = maxLines ?? minLines ?? rows,
         maxRows = maxLines ?? maxRows;
 
   final TextEditingController? controller;

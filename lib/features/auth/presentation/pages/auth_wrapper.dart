@@ -214,6 +214,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 token: client.auth.currentSession?.accessToken,
               );
 
+              final workspaceRole = await AuthSessionStorage.workspaceRoleFor(
+                profile,
+              );
               final lastDest = await AuthSessionStorage.getLastDestination();
               if (lastDest != null && lastDest.isNotEmpty) {
                 _initialAppDestination = lastDest;
@@ -226,7 +229,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                   userId: profile!.id,
                   email: profile.email,
                   displayName: profile.displayName,
-                  role: profile.role,
+                  role: workspaceRole,
                   profile: profile,
                   affiliateProfile: affProfile,
                 );
@@ -254,6 +257,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
             affiliateProfile: affProfile,
           );
 
+          final workspaceRole = await AuthSessionStorage.workspaceRoleFor(
+            storedProfile,
+          );
           final lastDest = await AuthSessionStorage.getLastDestination();
           if (lastDest != null && lastDest.isNotEmpty) {
             _initialAppDestination = lastDest;
@@ -267,7 +273,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 userId: storedProfile.id,
                 email: storedProfile.email,
                 displayName: storedProfile.displayName,
-                role: storedProfile.role,
+                role: workspaceRole,
                 profile: storedProfile,
                 affiliateProfile: affProfile,
               );
@@ -315,6 +321,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   void _navigateToStage(AuthStage stage, {UserRole? role, String? email}) {
     final activeService = SupabaseAuthBackendService.instance;
+    if (stage == AuthStage.authenticated && role != null) {
+      AuthSessionStorage.saveWorkspaceRole(
+        activeService.currentUserProfile?.id ?? _sessionState.userId,
+        role,
+      );
+    }
     setState(() {
       _sessionState = _sessionState.copyWith(
         stage: stage,
@@ -338,6 +350,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   void _handleSwitchRole(UserRole newRole) {
+    final profile = SupabaseAuthBackendService.instance.currentUserProfile;
+    final id = profile?.id ?? _sessionState.userId;
+    AuthSessionStorage.saveWorkspaceRole(id, newRole);
     setState(() {
       _sessionState = _sessionState.copyWith(role: newRole);
     });

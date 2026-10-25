@@ -7,6 +7,8 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
+import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_seed_data.dart';
 import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
@@ -286,6 +288,16 @@ class AiAssistantRepository extends ChangeNotifier {
     _generationError = null;
     final String text = rawText.trim();
     if (text.isEmpty) return;
+
+    final quota = CustomerLimitations.currentQuota;
+    if (AppSession.instance.aiQueriesUsed.value >=
+        quota.maxAiQueriesPerMonth) {
+      _generationError =
+          'Monthly AI Copilot quota reached (${quota.maxAiQueriesPerMonth} queries on ${quota.planName} · ${quota.priceLabel}). Upgrade to TradeX Pro (₹2,499/mo) for 500 AI queries.';
+      _notify();
+      return;
+    }
+    AppSession.instance.recordAiQuery();
 
     final AiThread thread = activeThread;
     final DateTime now = DateTime.now();

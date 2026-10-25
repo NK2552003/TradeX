@@ -1,3 +1,4 @@
+import 'package:tradex/features/affiliate_program/data/affiliate_attribution.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -92,6 +93,10 @@ class SupabaseAuthBackendService implements AuthRepository {
       );
     }
 
+    final attribution = await AffiliateAttribution.load();
+    final effectiveReferral = (referralCode?.trim().isNotEmpty ?? false)
+        ? referralCode!.trim()
+        : attribution?['code'] as String?;
     final client = SupabaseConfig.client!;
 
     try {
@@ -105,7 +110,8 @@ class SupabaseAuthBackendService implements AuthRepository {
           'affiliate_application_requested': role == UserRole.affiliate,
           'display_name': cleanHandle.replaceAll('@', ''),
           'admin_key': role == UserRole.userAdmin ? adminKey?.trim() : null,
-          'referred_by_code': referralCode?.trim(),
+          'referred_by_code': effectiveReferral,
+          'utm_campaign': attribution?['campaign'],
         },
       );
 
@@ -115,6 +121,8 @@ class SupabaseAuthBackendService implements AuthRepository {
           'Registration failed. Please check network connection and try again.',
         );
       }
+
+      await AffiliateAttribution.clear();
 
       // 6. Fetch automatically populated user profile from 'profiles' table
       final profileData = await client

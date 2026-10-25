@@ -251,12 +251,14 @@ class AppDeskEngagementRow extends StatelessWidget {
     this.likes = 0,
     this.comments = 0,
     this.isLinked = false,
+    this.onTap,
   });
 
   final int views;
   final int likes;
   final int comments;
   final bool isLinked;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -265,7 +267,7 @@ class AppDeskEngagementRow extends StatelessWidget {
       color: theme.colors.foregroundSubtle,
     );
 
-    return Row(
+    final Widget row = Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         if (isLinked) ...<Widget>[
@@ -302,6 +304,12 @@ class AppDeskEngagementRow extends StatelessWidget {
         SizedBox(width: context.sp(theme.spacing.xxs)),
         Text('$comments', style: style),
       ],
+    );
+    if (onTap == null) return row;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: row,
     );
   }
 }

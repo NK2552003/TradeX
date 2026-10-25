@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/data/app_session.dart';
 // Required unified primitive import for navigation UI configuration.
 // ignore: unused_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
@@ -53,7 +54,16 @@ class RoleNavigationConfig {
     return flatten(sections.expand((AppNavSection section) => section.items));
   }
 
+  static const Set<String> roleSwitchActionIds = <String>{
+    'switch_role_customer',
+    'switch_role_affiliate',
+    'switch_role_admin',
+    'toggle_profile_mode',
+  };
+
   bool allows(String destinationId) =>
+      userMenuItems.any((AppNavItem item) => item.id == destinationId) ||
+      mobileMoreItems.any((AppNavItem item) => item.id == destinationId) ||
       destinations.any((AppNavItem item) => item.id == destinationId);
 
   /// Sidebar label of a destination, or null when this role cannot reach it.
@@ -73,7 +83,70 @@ class RoleNavigationConfig {
       if (labelFor(entry.value) != null) entry.key: labelFor(entry.value)!,
   };
 
-  static RoleNavigationConfig forRole(UserRole role) {
+  /// Builds role-switching navigation items strictly for the roles the
+  /// signed-in user is eligible for (`profileMode.allowedRoles`).
+  ///
+  /// - `UserProfileMode.traderOnly`: returns `[]` (no role switcher shown)
+  /// - `UserProfileMode.traderAffiliate`: returns ONLY Trader & Affiliate buttons
+  /// - `UserProfileMode.traderAdmin`: returns ONLY Trader & Admin buttons
+  /// - `UserProfileMode.traderAffiliateAdmin`: returns Trader, Affiliate & Admin buttons
+  static List<AppNavItem> buildRoleSwitchItems({
+    required UserRole activeRole,
+    required UserProfileMode profileMode,
+    bool includeProfileModeToggle = false,
+  }) {
+    final List<UserRole> allowed = profileMode.allowedRoles;
+    if (allowed.length <= 1) return const <AppNavItem>[];
+    return <AppNavItem>[
+      if (allowed.contains(UserRole.customer))
+        AppNavItem(
+          id: 'switch_role_customer',
+          label: activeRole == UserRole.customer
+              ? 'Trader (Active)'
+              : 'Switch to Trader',
+          icon: Icons.candlestick_chart_outlined,
+          selectedIcon: Icons.candlestick_chart_rounded,
+        ),
+      if (allowed.contains(UserRole.affiliate))
+        AppNavItem(
+          id: 'switch_role_affiliate',
+          label: activeRole == UserRole.affiliate
+              ? 'Affiliate (Active)'
+              : 'Switch to Affiliate',
+          icon: Icons.handshake_outlined,
+          selectedIcon: Icons.handshake_rounded,
+        ),
+      if (allowed.contains(UserRole.userAdmin))
+        AppNavItem(
+          id: 'switch_role_admin',
+          label: activeRole == UserRole.userAdmin
+              ? 'Admin (Active)'
+              : 'Switch to Admin',
+          icon: Icons.admin_panel_settings_outlined,
+          selectedIcon: Icons.admin_panel_settings_rounded,
+        ),
+      if (includeProfileModeToggle)
+        AppNavItem(
+          id: 'toggle_profile_mode',
+          label: 'Profile: ${profileMode.shortLabel}',
+          icon: Icons.switch_account_outlined,
+          selectedIcon: Icons.switch_account_rounded,
+        ),
+    ];
+  }
+
+  static RoleNavigationConfig forRole(
+    UserRole role, {
+    UserProfileMode? profileMode,
+    bool includeProfileModeToggle = false,
+  }) {
+    final UserProfileMode effectiveMode =
+        profileMode ?? AppSession.instance.profileMode.value;
+    final List<AppNavItem> switchItems = buildRoleSwitchItems(
+      activeRole: role,
+      profileMode: effectiveMode,
+      includeProfileModeToggle: includeProfileModeToggle,
+    );
     final base = switch (role) {
       UserRole.customer => _trader,
       UserRole.affiliate => _affiliate,
@@ -89,8 +162,15 @@ class RoleNavigationConfig {
         base.sections.last,
       ],
       mobilePrimaryItems: base.mobilePrimaryItems,
-      mobileMoreItems: [...base.mobileMoreItems, _marketItem],
-      userMenuItems: base.userMenuItems,
+      mobileMoreItems: [
+        ...base.mobileMoreItems,
+        _marketItem,
+        ...switchItems,
+      ],
+      userMenuItems: [
+        ...base.userMenuItems,
+        ...switchItems,
+      ],
       notificationTargets: base.notificationTargets,
       upgradeSectionId: base.upgradeSectionId,
     );

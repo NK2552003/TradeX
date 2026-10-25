@@ -528,7 +528,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
             emptyPlaceholder: 'This note has no body yet.',
             onOpenRef: _handleOpenLink,
           ),
-          if (_bundle.isNotEmpty) ...<Widget>[
+          if (_bundle.isNotEmpty || _canEdit) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.xl)),
             _linkedRecords(context),
           ],
@@ -759,6 +759,13 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
             icon: Icons.auto_graph_rounded,
             intent: UiIntent.primary,
             variant: UiBadgeVariant.outline,
+            onTap:
+                widget.onOpenLink == null ||
+                    (_note.strategyId?.trim().isEmpty ?? true)
+                ? null
+                : () => _handleOpenLink(
+                    _graph.refFor(AppLinkKind.strategy, _note.strategyId!),
+                  ),
           ),
         for (final String ticker in _note.linkedTickers)
           UiBadge(
@@ -791,6 +798,85 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
         : UiIntent.primary,
   );
 
+  Future<void> _pickLinks(AppLinkKind targetKind) async {
+    if (_note.id.isEmpty) return;
+    final Set<String> current = switch (targetKind) {
+      AppLinkKind.strategy => <String>{
+        if (_note.strategyId != null && _note.strategyId!.isNotEmpty)
+          _note.strategyId!,
+      },
+      AppLinkKind.journal => _note.linkedJournalIds.toSet(),
+      AppLinkKind.ticker => _note.linkedTickers.toSet(),
+      _ => const <String>{},
+    };
+    final List<String>? chosen = await showAppLinkPicker(
+      context,
+      kind: targetKind,
+      options: _graph.options(
+        targetKind,
+        exclude: <String>[_note.id, ...current],
+      ),
+      multiSelect: targetKind != AppLinkKind.strategy,
+    );
+    if (chosen == null || chosen.isEmpty || !mounted) return;
+    try {
+      if (targetKind == AppLinkKind.strategy) {
+        for (final String oldId in current) {
+          await _links.unlink(
+            fromKind: AppLinkKind.note,
+            fromId: _note.id,
+            toKind: AppLinkKind.strategy,
+            toId: oldId,
+          );
+        }
+      }
+      for (final String added in chosen) {
+        await _links.link(
+          fromKind: AppLinkKind.note,
+          fromId: _note.id,
+          toKind: targetKind,
+          toId: added,
+        );
+      }
+      final AppNote? refreshed = await _repo.getById(_note.id);
+      if (refreshed != null && mounted) {
+        setState(() => _activeNote = refreshed);
+      }
+    } catch (error) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Link was not updated',
+          message: '$error',
+        );
+      }
+    }
+  }
+
+  Future<void> _removeLink(AppLinkRef target) async {
+    if (_note.id.isEmpty) return;
+    try {
+      await _links.unlink(
+        fromKind: AppLinkKind.note,
+        fromId: _note.id,
+        toKind: target.kind,
+        toId: target.id,
+      );
+      final AppNote? refreshed = await _repo.getById(_note.id);
+      if (refreshed != null && mounted) {
+        setState(() => _activeNote = refreshed);
+      }
+    } catch (error) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Link was not removed',
+          message: '$error',
+        );
+      }
+    }
+  }
+
   /// What this note connects to: the trades it was written about, the playbook
   /// it belongs to, the other notes it cites and the instruments it names.
   ///
@@ -810,8 +896,14 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           subtitle: 'What this note was written about',
           card: false,
           dense: true,
-          showEmptyKinds: false,
+          showEmptyKinds: _canEdit,
           onOpen: _handleOpenLink,
+          onRemove: _canEdit ? _removeLink : null,
+          onAddJournal: _canEdit ? () => _pickLinks(AppLinkKind.journal) : null,
+          onAddStrategy: _canEdit
+              ? () => _pickLinks(AppLinkKind.strategy)
+              : null,
+          onAddTicker: _canEdit ? () => _pickLinks(AppLinkKind.ticker) : null,
         ),
       ],
     );

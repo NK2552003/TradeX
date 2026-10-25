@@ -648,7 +648,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     final String prompt =
         'Audit this trade execution for ${_entry.ticker} (${_entry.side.name.toUpperCase()}):\n\n'
         'Entry: ${_entry.entry}, Exit: ${_entry.exit ?? 'Open'}, Stop: ${_entry.stopLoss ?? 'None'}, Target: ${_entry.target ?? 'None'}\n'
-        'PnL: \$${_entry.pnl.toStringAsFixed(2)} (${_entry.pnlPercent.toStringAsFixed(2)}%), Outcome: ${_entry.outcome.name.toUpperCase()}\n'
+        'PnL: ${AppTokens.signedMoney(_entry.pnl)} (${_entry.pnlPercent.toStringAsFixed(2)}%), Outcome: ${_entry.outcome.name.toUpperCase()}\n'
         'Strategy: ${_entry.strategy ?? 'Discretionary'}\n\n'
         'Trader Notes:\n${_entry.content.isNotEmpty ? _entry.content : (_entry.notes ?? '')}\n\n'
         'Evaluate execution discipline, risk management, and recommend actionable adjustments for future setups.';
@@ -659,7 +659,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
       initialPrompt: prompt,
       contextTitle: '${_entry.ticker} (${_entry.side.name.toUpperCase()})',
       contextSubtitle:
-          'PnL: \$${_entry.pnl.toStringAsFixed(2)} · ${_entry.outcome.name.toUpperCase()}',
+          'PnL: ${AppTokens.signedMoney(_entry.pnl)} · ${_entry.outcome.name.toUpperCase()}',
       contextIcon: Icons.menu_book_outlined,
       contextRef: AppLinkRef(
         id: _entry.id,

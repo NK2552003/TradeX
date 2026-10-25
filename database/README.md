@@ -44,6 +44,7 @@ fresh project and an upgraded project stop agreeing.
 | `023_public_site_and_market_assets.sql` | published landing/pricing JSON contracts, full stock details, read policies |
 | `024_market_screener_snapshots.sql` | complete screener payloads linked to ranked categories, authenticated read policy |
 | `025_entity_ticker_links.sql` | `entity_ticker_links`, persistent relational ticker reference table across Notes, Journal, Strategies, Community, and Messages with daily sync stability and stored RPCs |
+| `026_affiliate_workspace.sql` | partner campaigns/assets, read RPC, payout reservation/settlement, attribution, secured application reviews; see [affiliate handoff](../backend_handoff/16-Affiliate_Workspace/README.md) |
 
 Two steps in that list are not additive and are worth reading before you run
 them: 010 rewrites `strategies.content` from JSONB to TEXT (a playbook is

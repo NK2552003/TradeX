@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 
 /// One chat bubble.
@@ -198,21 +200,22 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  static final RegExp _tickerRegex =
-      RegExp(r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)');
+  static final RegExp _inlineTokenRegex = RegExp(
+    r'(tradex://[^\s\)]+|https?://[^\s\)]+|(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$))',
+  );
 
   Widget _buildMessageBodyText(BuildContext context, Color fg, bool me) {
     final TextStyle baseStyle =
         context.uiText.body.copyWith(color: fg, height: 1.35);
     final String text = message.body;
 
-    final Iterable<Match> matches = _tickerRegex.allMatches(text);
+    final Iterable<Match> matches = _inlineTokenRegex.allMatches(text);
     if (matches.isEmpty) {
       return Text(text, style: baseStyle);
     }
 
     final UiColors colors = context.uiColors;
-    final Color tickerColor = me ? colors.onPrimary : colors.primary;
+    final Color linkColor = me ? colors.onPrimary : colors.primary;
     final List<InlineSpan> spans = <InlineSpan>[];
     int lastIndex = 0;
 
@@ -225,29 +228,42 @@ class MessageBubble extends StatelessWidget {
           ),
         );
       }
-      final String rawTicker = match.group(0)!;
-      final String symbol = match.group(1)!.toUpperCase();
+      final String rawToken = match.group(0)!;
+      final String? tickerSymbol = match.group(2);
       spans.add(
         TextSpan(
-          text: rawTicker,
+          text: rawToken,
           style: baseStyle.copyWith(
-            color: tickerColor,
+            color: linkColor,
             fontWeight: FontWeight.bold,
             decoration: TextDecoration.underline,
-            decorationColor: tickerColor.withValues(alpha: 0.5),
+            decorationColor: linkColor.withValues(alpha: 0.5),
           ),
-          recognizer: onOpenRef == null
-              ? null
-              : (TapGestureRecognizer()
-                ..onTap = () {
-                  onOpenRef!(
-                    AppLinkRef(
-                      kind: AppLinkKind.ticker,
-                      id: symbol,
-                      title: symbol,
-                    ),
-                  );
-                }),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () {
+              if (tickerSymbol != null && tickerSymbol.isNotEmpty) {
+                final String sym = tickerSymbol.toUpperCase();
+                onOpenRef?.call(
+                  AppLinkRef(
+                    kind: AppLinkKind.ticker,
+                    id: sym,
+                    title: sym,
+                  ),
+                );
+                return;
+              }
+              final AppLinkRef? deepTarget = AppDeepLink.tryParseUrl(rawToken);
+              if (deepTarget != null && onOpenRef != null) {
+                onOpenRef!(deepTarget.copyWith(isPublicContext: true));
+                return;
+              }
+              Clipboard.setData(ClipboardData(text: rawToken));
+              UiToast.info(
+                context,
+                title: 'Link Copied',
+                message: rawToken,
+              );
+            },
         ),
       );
       lastIndex = match.end;

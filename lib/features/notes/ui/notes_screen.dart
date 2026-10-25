@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/record_access.dart';
 import 'dart:async';
 
@@ -235,6 +236,7 @@ class NotesScreenState extends State<NotesScreen> {
         request.id.startsWith('trade_') ||
         request.id.startsWith('entry_') ||
         request.id.startsWith('trn_') ||
+        request.id.startsWith('trd_') ||
         request.id.startsWith('journal_')) {
       _appliedRequest = request;
       widget.onOpenRef?.call(
@@ -249,6 +251,7 @@ class NotesScreenState extends State<NotesScreen> {
     }
     if (request.kind == AppLinkKind.strategy ||
         request.id.startsWith('strat_') ||
+        request.id.startsWith('stg_') ||
         request.id.startsWith('strategy_')) {
       _appliedRequest = request;
       widget.onOpenRef?.call(
@@ -499,6 +502,11 @@ class NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _newNote() async {
+    final bool canCreate = await CustomerLimitations.checkCanCreateNote(
+      context,
+      currentNoteCount: _notes.length,
+    );
+    if (!canCreate || !mounted) return;
     final AppNoteTemplate? template = await showNoteTemplateGallery(context);
     if (template == null || !mounted) return;
     setState(() {

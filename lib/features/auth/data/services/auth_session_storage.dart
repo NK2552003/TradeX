@@ -97,7 +97,9 @@ class AuthSessionStorage {
       final map = jsonDecode(jsonStr) as Map<String, dynamic>;
       return AffiliateProfileModel.fromJson(map);
     } catch (e) {
-      debugPrint('[AuthSessionStorage] Failed to read stored affiliate profile: $e');
+      debugPrint(
+        '[AuthSessionStorage] Failed to read stored affiliate profile: $e',
+      );
       return null;
     }
   }
@@ -148,6 +150,22 @@ class AuthSessionStorage {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyLastDestination, destination);
     } catch (_) {}
+  }
+
+  static Future<void> saveWorkspaceRole(String userId, UserRole role) async {
+    if (userId.isEmpty || role == UserRole.userAdmin) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_workspace_role_$userId', role.id);
+  }
+
+  static Future<UserRole> workspaceRoleFor(UserProfileModel profile) async {
+    // A preference never grants partner/admin access to a customer account.
+    if (profile.role != UserRole.affiliate) return profile.role;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_workspace_role_${profile.id}') ==
+            UserRole.customer.id
+        ? UserRole.customer
+        : UserRole.affiliate;
   }
 
   /// Retrieves the last active destination.

@@ -14,11 +14,15 @@ class UiMetricCard extends StatelessWidget {
     this.delta,
     this.change,
     this.isPositive,
-    this.subtitle,
+    String? subtitle,
+    String? caption,
     this.icon,
     this.chart,
+    this.sparkline,
+    this.intent,
     this.onTap,
-  }) : label = title ?? label ?? '';
+  }) : label = title ?? label ?? '',
+       subtitle = subtitle ?? caption;
 
   final String label;
   final String value;
@@ -28,6 +32,8 @@ class UiMetricCard extends StatelessWidget {
   final String? subtitle;
   final IconData? icon;
   final Widget? chart;
+  final List<double>? sparkline;
+  final UiIntent? intent;
   final VoidCallback? onTap;
 
   @override

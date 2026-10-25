@@ -1,6 +1,5 @@
-import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:flutter/foundation.dart';
-import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/features/affiliate_program/data/affiliate_workspace_repository.dart';
+import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
 import 'package:tradex/features/settings/models/affiliate_settings_model.dart';
 
 abstract class AffiliateSettingsRepository {
@@ -11,101 +10,79 @@ abstract class AffiliateSettingsRepository {
     required String payoutAccount,
     required double minimumThreshold,
     required bool autoPayout,
+    String? accountHolder,
+    String? accountHolderName,
+    String? bankName,
+    String? accountNumber,
+    String? ifscCode,
+    String? upiId,
+    String? upiVpa,
+    String? panNumber,
+    String? gstin,
+    bool? gstRegistered,
   });
-  Future<String> generateMarketingKitDownloadUrl();
 }
 
 class AffiliateSettingsRepositoryImpl implements AffiliateSettingsRepository {
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+  AffiliateSettingsRepositoryImpl({AffiliateWorkspaceRepository? workspace})
+    : _workspace = workspace ?? AffiliateWorkspaceRepository();
 
-  AffiliateSettingsModel _settings = CustomerDataPolicy.allowDemo
-      ? AffiliateSettingsModel.mock()
-      : const AffiliateSettingsModel(
-          referralCode: '',
-          customSlug: '',
-          commissionRate: 0,
-          tierName: 'Not enrolled',
-          payoutMethod: 'upi',
-          payoutAccount: '',
-          minimumPayoutThreshold: 0,
-          autoPayoutEnabled: false,
-          totalReferrals: 0,
-          totalEarnings: 0,
-          pendingPayout: 0,
-        );
+  final AffiliateWorkspaceRepository _workspace;
 
   @override
   Future<AffiliateSettingsModel> getAffiliateSettings() async {
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+    final w = await _workspace.load();
+    final p = w.profile;
+    final tier = p.text('tier', 'standard');
+    final AffiliateRecord? tierRec = w.currentTierRecord;
+    final String tierDisplayName = tierRec != null
+        ? tierRec.text('display_name')
+        : '${tier[0].toUpperCase()}${tier.substring(1)} Partner';
 
-        final res = await client
-            .from('affiliate_profiles')
-            .select()
-            .eq('id', targetUserId)
-            .maybeSingle();
-
-        if (res != null) {
-          final payoutDetails =
-              res['payout_details'] as Map<String, dynamic>? ?? {};
-          _settings = AffiliateSettingsModel(
-            referralCode:
-                res['affiliate_code'] as String? ?? 'TRADEX-ALPHA-2026',
-            customSlug: res['custom_slug'] as String? ?? 'nitish_alpha',
-            commissionRate:
-                (res['commission_rate'] as num?)?.toDouble() ?? 0.30,
-            tierName:
-                'Tier 2 · ${(res['tier'] as String? ?? 'gold').toUpperCase()} Partner',
-            payoutMethod: res['payout_method'] as String? ?? 'upi',
-            payoutAccount:
-                payoutDetails['payout_vpa'] as String? ??
-                payoutDetails['payout_account'] as String? ??
-                'nitish@okhdfcbank',
-            minimumPayoutThreshold:
-                (res['minimum_payout_threshold'] as num?)?.toDouble() ?? 2500.0,
-            autoPayoutEnabled: res['auto_payout_enabled'] as bool? ?? true,
-            totalReferrals: (res['total_referrals'] as num?)?.toInt() ?? 48,
-            totalEarnings:
-                (res['total_earnings'] as num?)?.toDouble() ?? 84500.0,
-            pendingPayout:
-                (res['unpaid_balance'] as num?)?.toDouble() ?? 14200.0,
-          );
-          return _settings;
-        }
-      } catch (e) {
-        debugPrint(
-          '[AffiliateSettingsRepository] getAffiliateSettings error: $e',
-        );
-      }
-    }
-    return _settings;
+    return AffiliateSettingsModel(
+      currency: w.currency,
+      referralCode: p.text('affiliate_code'),
+      customSlug: p.text('custom_slug', p.text('affiliate_code')),
+      commissionRate: p.number('commission_rate') == 0
+          ? 0.25
+          : p.number('commission_rate'),
+      tierName: tierDisplayName,
+      payoutMethod: p.text('payout_method', 'upi'),
+      payoutAccount: w.rawPayoutDestination.isNotEmpty
+          ? w.rawPayoutDestination
+          : w.payoutAccount,
+      minimumPayoutThreshold: p.number('minimum_payout_threshold') < 1000
+          ? 1000
+          : p.number('minimum_payout_threshold'),
+      autoPayoutEnabled: p.flag('auto_payout_enabled'),
+      totalReferrals: p.count('total_referrals'),
+      totalEarnings: p.number('total_earnings'),
+      pendingPayout: p.number('unpaid_balance'),
+      accountHolder: w.accountHolder,
+      bankName: w.bankName,
+      accountNumber: w.accountNumber,
+      ifscCode: w.ifscCode,
+      upiId: w.upiId,
+      panNumber: w.panNumber,
+      gstin: w.gstin,
+      gstRegistered: w.gstRegistered,
+      tdsRate: w.tdsRate,
+      termsVersionAccepted: p.text('terms_version_accepted', '2026.1-INR'),
+      tiers: w.tiers,
+      terms: w.terms,
+    );
   }
 
   @override
   Future<AffiliateSettingsModel> updateCustomSlug(String customSlug) async {
-    _settings = _settings.copyWith(customSlug: customSlug);
-
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
-
-        await client
-            .from('affiliate_profiles')
-            .update({
-              'custom_slug': customSlug,
-              'updated_at': DateTime.now().toIso8601String(),
-            })
-            .eq('id', targetUserId);
-      } catch (e) {
-        debugPrint('[AffiliateSettingsRepository] updateCustomSlug error: $e');
-      }
+    final clean = customSlug.trim().toLowerCase();
+    if (!affiliateSlugPattern.hasMatch(clean)) {
+      throw ArgumentError(
+        'Use 3–40 lowercase letters, numbers, hyphens or underscores.',
+      );
     }
-    return _settings;
+    await _workspace.updateProfile({'custom_slug': clean});
+    return getAffiliateSettings();
   }
 
   @override
@@ -114,45 +91,83 @@ class AffiliateSettingsRepositoryImpl implements AffiliateSettingsRepository {
     required String payoutAccount,
     required double minimumThreshold,
     required bool autoPayout,
+    String? accountHolder,
+    String? accountHolderName,
+    String? bankName,
+    String? accountNumber,
+    String? ifscCode,
+    String? upiId,
+    String? upiVpa,
+    String? panNumber,
+    String? gstin,
+    bool? gstRegistered,
   }) async {
-    _settings = _settings.copyWith(
-      payoutMethod: payoutMethod,
-      payoutAccount: payoutAccount,
-      minimumPayoutThreshold: minimumThreshold,
-      autoPayoutEnabled: autoPayout,
-    );
-
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
-
-        await client
-            .from('affiliate_profiles')
-            .update({
-              'payout_method': payoutMethod,
-              'minimum_payout_threshold': minimumThreshold,
-              'auto_payout_enabled': autoPayout,
-              'payout_details': {
-                'payout_vpa': payoutAccount,
-                'payout_account': payoutAccount,
-              },
-              'updated_at': DateTime.now().toIso8601String(),
-            })
-            .eq('id', targetUserId);
-      } catch (e) {
-        debugPrint(
-          '[AffiliateSettingsRepository] updatePayoutSettings error: $e',
-        );
-      }
+    final String? effectiveHolder = accountHolder ?? accountHolderName;
+    final String? effectiveUpi = upiId ?? upiVpa;
+    const methods = {
+      'upi',
+      'bank_neft',
+      'bank_imps',
+      'bank_rtgs',
+      'bank_transfer',
+      'bank_wire',
+      'razorpay',
+    };
+    final account = payoutAccount.trim();
+    if (!methods.contains(payoutMethod) ||
+        account.isEmpty ||
+        !minimumThreshold.isFinite ||
+        minimumThreshold < 1000) {
+      throw ArgumentError(
+        'Enter a valid Indian payout destination (UPI VPA or Bank Account) and a minimum threshold of at least ₹1,000 INR.',
+      );
     }
-    return _settings;
-  }
 
-  @override
-  Future<String> generateMarketingKitDownloadUrl() async {
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    return 'https://assets.tradex.ai/marketing/tradex_creator_kit_2026.zip';
+    final String cleanPan = (panNumber ?? '').trim().toUpperCase();
+    if (cleanPan.isNotEmpty && !affiliatePanPattern.hasMatch(cleanPan)) {
+      throw ArgumentError(
+        'Enter a valid 10-character Indian PAN (e.g. ABCDE1234F).',
+      );
+    }
+
+    final String cleanIfsc = (ifscCode ?? '').trim().toUpperCase();
+    if (cleanIfsc.isNotEmpty && !affiliateIfscPattern.hasMatch(cleanIfsc)) {
+      throw ArgumentError(
+        'Enter a valid 11-character Indian Bank IFSC code (e.g. HDFC0000240).',
+      );
+    }
+
+    final String cleanGstin = (gstin ?? '').trim().toUpperCase();
+    if (cleanGstin.isNotEmpty && !affiliateGstinPattern.hasMatch(cleanGstin)) {
+      throw ArgumentError(
+        'Enter a valid 15-character Indian GSTIN (e.g. 27ABCDE1234F1Z5).',
+      );
+    }
+
+    final Map<String, Object?> detailsPatch = <String, Object?>{
+      'payout_account': account,
+      if (effectiveUpi != null) 'upi_id': effectiveUpi.trim(),
+      if (payoutMethod == 'upi' &&
+          (effectiveUpi == null || effectiveUpi.trim().isEmpty))
+        'upi_id': account,
+      if (effectiveHolder != null) 'account_holder': effectiveHolder.trim(),
+      if (bankName != null) 'bank_name': bankName.trim(),
+      if (accountNumber != null) 'account_number': accountNumber.trim(),
+      if (cleanIfsc.isNotEmpty) 'ifsc': cleanIfsc,
+      if (cleanPan.isNotEmpty) 'pan': cleanPan,
+      if (cleanGstin.isNotEmpty) 'gstin': cleanGstin,
+    };
+
+    await _workspace.updateProfile({
+      'currency': 'INR',
+      'payout_method': payoutMethod,
+      'payout_details': detailsPatch,
+      'minimum_payout_threshold': minimumThreshold,
+      'auto_payout_enabled': autoPayout,
+      if (cleanPan.isNotEmpty) 'pan_number': cleanPan,
+      if (cleanGstin.isNotEmpty) 'gstin': cleanGstin,
+      'gst_registered': ?gstRegistered,
+    });
+    return getAffiliateSettings();
   }
 }

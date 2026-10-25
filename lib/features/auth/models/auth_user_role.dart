@@ -38,6 +38,7 @@ enum UserRole {
   });
 
   final String id;
+  String get dbValue => id;
   final String label;
   final String shortTitle;
   final String subtitle;
