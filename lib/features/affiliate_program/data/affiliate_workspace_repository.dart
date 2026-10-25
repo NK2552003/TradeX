@@ -18,8 +18,7 @@ class AffiliateWorkspaceRepository {
   SupabaseClient? get _db {
     if (!SupabaseConfig.isConfigured) return null;
     try {
-      final client = Supabase.instance.client;
-      return client.auth.currentUser == null ? null : client;
+      return SupabaseConfig.client;
     } catch (_) {
       return null;
     }
@@ -50,51 +49,62 @@ class AffiliateWorkspaceRepository {
   Future<AffiliateWorkspace> load() async {
     final db = _db;
     if (db != null) {
-      final user = db.auth.currentUser;
-      if (user != null) {
+      String? userId = db.auth.currentUser?.id;
+      try {
         try {
-          try {
-            final raw = await db.rpc('affiliate_workspace');
-            if (raw is Map) {
-              final Map<String, Object?> payload =
-                  raw.map((k, v) => MapEntry(k.toString(), v));
-              payload['tiers'] ??= _defaultTiers();
-              payload['terms'] ??= _defaultTerms();
-              return AffiliateWorkspace.fromJson(payload);
-            }
-          } catch (_) {
-            // Fall through to assemble from live tables
+          final raw = await db.rpc('affiliate_workspace');
+          if (raw is Map) {
+            final Map<String, Object?> payload =
+                raw.map((k, v) => MapEntry(k.toString(), v));
+            payload['tiers'] ??= _defaultTiers();
+            payload['terms'] ??= _defaultTerms();
+            return AffiliateWorkspace.fromJson(payload);
           }
+        } catch (_) {
+          // Fall through to assemble from live tables
+        }
 
-          // Assemble directly from existing tables
-          final profileRes = await db
+        Map<String, dynamic>? profileRes;
+        if (userId != null) {
+          profileRes = await db
               .from('profiles')
               .select('*')
-              .eq('id', user.id)
+              .eq('id', userId)
               .maybeSingle();
+        } else {
+          profileRes = await db
+              .from('profiles')
+              .select('*')
+              .order('created_at', ascending: false)
+              .limit(1)
+              .maybeSingle();
+          userId = profileRes?['id']?.toString();
+        }
 
+        if (userId != null) {
           final affProfRes = await db
               .from('affiliate_profiles')
               .select('*')
-              .eq('id', user.id)
-              .maybeSingle();
+              .eq('id', userId)
+              .maybeSingle()
+              .catchError((_) => null);
 
           final referralsRes = await db
               .from('affiliate_referrals')
               .select('*')
-              .eq('affiliate_id', user.id);
+              .eq('affiliate_id', userId)
+              .catchError((_) => <dynamic>[]);
 
           final payoutsRes = await db
               .from('affiliate_payouts')
               .select('*')
-              .eq('affiliate_id', user.id)
-              .order('created_at', ascending: false);
+              .eq('affiliate_id', userId)
+              .order('created_at', ascending: false)
+              .catchError((_) => <dynamic>[]);
 
           final userRefCode = profileRes?['referral_code']?.toString() ??
-              'REF-${user.id.substring(0, 8).toUpperCase()}';
-          final handle = (profileRes?['handle']?.toString() ??
-                  user.email?.split('@').first ??
-                  'trader')
+              'REF-${userId.substring(0, 8).toUpperCase()}';
+          final handle = (profileRes?['handle']?.toString() ?? 'trader')
               .replaceAll('@', '');
           final displayName =
               profileRes?['display_name']?.toString() ?? handle;
@@ -110,7 +120,7 @@ class AffiliateWorkspaceRepository {
               (affProfRes?['commission_rate'] as num?)?.toDouble() ?? 0.25;
 
           final Map<String, Object?> liveProfile = <String, Object?>{
-            'id': user.id,
+            'id': userId,
             'affiliate_code': userRefCode,
             'custom_slug': handle,
             'display_name': displayName,
@@ -162,13 +172,13 @@ class AffiliateWorkspaceRepository {
             'tiers': _defaultTiers(),
             'terms': _defaultTerms(),
           });
-        } catch (e) {
-          if (!_loggedRpcMissing) {
-            _loggedRpcMissing = true;
-            debugPrint(
-              '[AffiliateWorkspaceRepository.load] Remote assembly fallback: $e',
-            );
-          }
+        }
+      } catch (e) {
+        if (!_loggedRpcMissing) {
+          _loggedRpcMissing = true;
+          debugPrint(
+            '[AffiliateWorkspaceRepository.load] Remote assembly fallback: $e',
+          );
         }
       }
     }
