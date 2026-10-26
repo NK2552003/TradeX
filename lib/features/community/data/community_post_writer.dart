@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/data/owned_record_writer.dart';
 import 'package:tradex/features/community/models/community_models.dart';
@@ -20,34 +21,35 @@ class CommunityPostWriter {
         'Restricted replies require server enforcement. Your draft has been kept.',
       );
     }
-    if (post.poll?.allowMultiple == true) {
-      throw StateError(
-        'Multiple-choice voting requires server support. Your draft has been kept.',
-      );
-    }
     var inserted = false;
     try {
-      await client
-          .from('community_posts')
-          .insert({
-            'id': post.id,
-            'author_id': actorId,
-            'body': post.quoted == null
-                ? post.body
-                : '${post.body}\n\nQuoted post: /community?post=${Uri.encodeQueryComponent(post.quoted!.id)}',
-            'title': post.tickers.isEmpty ? 'Post' : post.tickers.first,
-            'kind': post.poll != null
-                ? 'poll'
-                : post.tradeSetup != null
-                ? 'signal'
-                : 'standard',
-            'tickers': post.tickers,
-            'tags': post.tags,
-            'is_public': false,
-            'visibility': 'private',
-          })
-          .select('id')
-          .single();
+      final row = {
+        'id': post.id,
+        'author_id': actorId,
+        'body': post.quoted == null
+            ? post.body
+            : '${post.body}\n\nQuoted post: /community?post=${Uri.encodeQueryComponent(post.quoted!.id)}',
+        'title': post.tickers.isEmpty ? 'Post' : post.tickers.first,
+        'kind': post.poll != null
+            ? 'poll'
+            : post.tradeSetup != null
+            ? 'signal'
+            : 'standard',
+        'tickers': post.tickers,
+        'tags': post.tags,
+        'is_public': false,
+        'visibility': 'private',
+      };
+
+      try {
+        await client
+            .from('community_posts')
+            .insert({...row, 'moderation_status': 'pending'})
+            .select('id')
+            .single();
+      } catch (_) {
+        await client.from('community_posts').insert(row).select('id').single();
+      }
       inserted = true;
       await writeChildren(post);
       await OwnedRecordWriter(
@@ -97,6 +99,25 @@ class CommunityPostWriter {
         'stop_loss': double.tryParse(setup.stopLoss ?? ''),
         'target1': double.tryParse(setup.target ?? ''),
       }, onConflict: 'post_id');
+      if (setup.candles.isNotEmpty) {
+        await client.from('community_post_attachments').insert({
+          'post_id': post.id,
+          'kind': 'chart_candles',
+          'ref_id': setup.ticker,
+          'title': 'Candlestick Chart Data',
+          'url': jsonEncode([
+            for (final c in setup.candles)
+              {
+                'time': c.time.toIso8601String(),
+                'open': c.open,
+                'high': c.high,
+                'low': c.low,
+                'close': c.close,
+                'volume': c.volume,
+              },
+          ]),
+        });
+      }
     }
     for (final url in post.effectiveImageUrls) {
       await client.from('community_post_attachments').insert({

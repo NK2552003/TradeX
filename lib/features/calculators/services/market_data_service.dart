@@ -76,9 +76,16 @@ class MarketQuote {
   }
 
   static MarketQuote fallback(String symbol) {
-    final (String name, double price, double high, double low, double prevClose, double h52, double l52) =
-        kDefaultBook[symbol] ??
-            ('Stock', 1000.0, 1020.0, 990.0, 1000.0, 1200.0, 800.0);
+    final (
+      String name,
+      double price,
+      double high,
+      double low,
+      double prevClose,
+      double h52,
+      double l52,
+    ) = kDefaultBook[symbol] ??
+        ('Stock', 1000.0, 1020.0, 990.0, 1000.0, 1200.0, 800.0);
 
     return MarketQuote(
       symbol: symbol,
@@ -97,17 +104,85 @@ class MarketQuote {
     );
   }
 
-  static const Map<String, (String, double, double, double, double, double, double)> kDefaultBook =
+  static const Map<
+    String,
+    (String, double, double, double, double, double, double)
+  >
+  kDefaultBook =
       <String, (String, double, double, double, double, double, double)>{
-    'NIFTY': ('NIFTY 50', 23901.60, 23949.85, 23895.85, 23873.45, 26373.20, 22182.55),
-    'BANKNIFTY': ('NIFTY BANK', 57382.60, 57545.50, 57324.55, 57380.60, 61764.85, 49954.85),
-    'FINNIFTY': ('NIFTY FINANCIAL', 23400.00, 23550.00, 23320.00, 23380.00, 25200.00, 20800.00),
-    'SENSEX': ('BSE SENSEX', 76614.72, 76746.80, 76586.83, 76152.86, 86159.02, 71545.81),
-    'RELIANCE': ('Reliance Industries', 1313.80, 1322.00, 1304.10, 1302.50, 1611.80, 1249.80),
-    'TCS': ('Tata Consultancy Services', 4120.00, 4150.00, 4095.00, 4110.00, 4580.00, 3700.00),
-    'HDFCBANK': ('HDFC Bank', 1642.50, 1655.00, 1636.00, 1640.00, 1794.00, 1363.00),
-    'INFY': ('Infosys', 1850.00, 1865.00, 1838.00, 1845.00, 1990.00, 1358.00),
-  };
+        'NIFTY': (
+          'NIFTY 50',
+          23901.60,
+          23949.85,
+          23895.85,
+          23873.45,
+          26373.20,
+          22182.55,
+        ),
+        'BANKNIFTY': (
+          'NIFTY BANK',
+          57382.60,
+          57545.50,
+          57324.55,
+          57380.60,
+          61764.85,
+          49954.85,
+        ),
+        'FINNIFTY': (
+          'NIFTY FINANCIAL',
+          23400.00,
+          23550.00,
+          23320.00,
+          23380.00,
+          25200.00,
+          20800.00,
+        ),
+        'SENSEX': (
+          'BSE SENSEX',
+          76614.72,
+          76746.80,
+          76586.83,
+          76152.86,
+          86159.02,
+          71545.81,
+        ),
+        'RELIANCE': (
+          'Reliance Industries',
+          1313.80,
+          1322.00,
+          1304.10,
+          1302.50,
+          1611.80,
+          1249.80,
+        ),
+        'TCS': (
+          'Tata Consultancy Services',
+          4120.00,
+          4150.00,
+          4095.00,
+          4110.00,
+          4580.00,
+          3700.00,
+        ),
+        'HDFCBANK': (
+          'HDFC Bank',
+          1642.50,
+          1655.00,
+          1636.00,
+          1640.00,
+          1794.00,
+          1363.00,
+        ),
+        'INFY': (
+          'Infosys',
+          1850.00,
+          1865.00,
+          1838.00,
+          1845.00,
+          1990.00,
+          1358.00,
+        ),
+      };
 }
 
 /// Official macro-economic benchmarks for investment and loan calculators.
@@ -192,7 +267,10 @@ class MarketDataService {
   };
 
   /// Fetch a real-time market quote for [symbol].
-  Future<MarketQuote> getQuote(String symbol, {bool forceRefresh = false}) async {
+  Future<MarketQuote> getQuote(
+    String symbol, {
+    bool forceRefresh = false,
+  }) async {
     final String key = symbol.toUpperCase().replaceAll('/', '');
     final String ticker = _tickerMapping[key] ?? '$key.NS';
 
@@ -221,17 +299,17 @@ class MarketDataService {
       final Uri uri = Uri.https(
         'query1.finance.yahoo.com',
         '/v8/finance/chart/$ticker',
-        <String, String>{
-          'interval': '1d',
-          'range': '1d',
-        },
+        <String, String>{'interval': '1d', 'range': '1d'},
       );
 
       final http.Response response = await _client
-          .get(uri, headers: const <String, String>{
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 TradeX/1.0',
-          })
+          .get(
+            uri,
+            headers: const <String, String>{
+              'Accept': 'application/json',
+              'User-Agent': 'Mozilla/5.0 hejournal.in/1.0',
+            },
+          )
           .timeout(_requestTimeout);
 
       if (response.statusCode == 200) {
@@ -242,7 +320,8 @@ class MarketDataService {
           final dynamic indicators = result['indicators']?['quote']?[0];
 
           if (meta is Map) {
-            final double price = (meta['regularMarketPrice'] as num?)?.toDouble() ??
+            final double price =
+                (meta['regularMarketPrice'] as num?)?.toDouble() ??
                 (meta['chartPreviousClose'] as num?)?.toDouble() ??
                 0.0;
             final double prevClose =
@@ -273,10 +352,13 @@ class MarketDataService {
             }
 
             final String longName =
-                (meta['longName'] as String?) ?? (meta['shortName'] as String?) ?? key;
+                (meta['longName'] as String?) ??
+                (meta['shortName'] as String?) ??
+                key;
 
-            final double pct =
-                prevClose == 0 ? 0 : (price - prevClose) / prevClose * 100;
+            final double pct = prevClose == 0
+                ? 0
+                : (price - prevClose) / prevClose * 100;
 
             final MarketQuote quote = MarketQuote(
               symbol: key,
@@ -313,14 +395,21 @@ class MarketDataService {
     bool forceRefresh = false,
   }) async {
     final Map<String, MarketQuote> results = <String, MarketQuote>{};
-    await Future.wait(symbols.map((String s) async {
-      results[s.toUpperCase()] = await getQuote(s, forceRefresh: forceRefresh);
-    }));
+    await Future.wait(
+      symbols.map((String s) async {
+        results[s.toUpperCase()] = await getQuote(
+          s,
+          forceRefresh: forceRefresh,
+        );
+      }),
+    );
     return results;
   }
 
   /// Fetch official macro benchmarks (World Bank CPI inflation, bond yield, RBI rates).
-  Future<MacroBenchmarks> getMacroBenchmarks({bool forceRefresh = false}) async {
+  Future<MacroBenchmarks> getMacroBenchmarks({
+    bool forceRefresh = false,
+  }) async {
     if (!forceRefresh && _macroBenchmarks.isLive) {
       return _macroBenchmarks;
     }
@@ -336,7 +425,10 @@ class MarketDataService {
       );
 
       final http.Response response = await _client
-          .get(uri, headers: const <String, String>{'Accept': 'application/json'})
+          .get(
+            uri,
+            headers: const <String, String>{'Accept': 'application/json'},
+          )
           .timeout(_requestTimeout);
 
       if (response.statusCode == 200) {

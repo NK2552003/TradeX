@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
 
-/// TraderHub brand mark: an upward arc rising out of three candlesticks.
+/// hejournal.in brand mark: an upward arc rising out of three candlesticks.
 /// Painted in pure Dart so it scales, themes and animates with no asset.
 class AppLogoMark extends StatelessWidget {
   const AppLogoMark({

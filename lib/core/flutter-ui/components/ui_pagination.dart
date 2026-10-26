@@ -15,7 +15,11 @@ class UiPagination extends StatelessWidget {
     ValueChanged<int>? onPageChanged,
     ValueChanged<int>? onChanged,
     this.totalLabel,
-  }) : page = page ?? (currentPage != null ? (currentPage > 0 ? currentPage - 1 : currentPage) : 0),
+  }) : page =
+           page ??
+           (currentPage != null
+               ? (currentPage > 0 ? currentPage - 1 : currentPage)
+               : 0),
        pageCount = pageCount ?? totalPages ?? 1,
        _onPageChanged = onPageChanged ?? onChanged;
 

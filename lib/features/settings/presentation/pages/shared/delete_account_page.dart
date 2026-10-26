@@ -335,9 +335,8 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                         UiDivider(),
                         UiCheckbox(
                           value: _purgeCommunityMessages,
-                          onChanged: (v) => setState(
-                            () => _purgeCommunityMessages = v,
-                          ),
+                          onChanged: (v) =>
+                              setState(() => _purgeCommunityMessages = v),
                           label:
                               'Purge Community Posts, Comments, Likes & Direct Messages',
                           description:
@@ -358,9 +357,8 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                           UiDivider(),
                           UiCheckbox(
                             value: _purgeAffiliateCampaigns,
-                            onChanged: (v) => setState(
-                              () => _purgeAffiliateCampaigns = v,
-                            ),
+                            onChanged: (v) =>
+                                setState(() => _purgeAffiliateCampaigns = v),
                             label:
                                 'Purge Affiliate Referral Campaigns, Custom Slugs & Attribution Links',
                             description:
@@ -387,7 +385,9 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                         : 'Download a copy of your trades, notes, strategies, and INR tax statements before deletion.',
                     icon: Icons.folder_zip_outlined,
                     control: UiButton(
-                      label: _archiveReady ? 'Archive Ready' : 'Prepare Archive',
+                      label: _archiveReady
+                          ? 'Archive Ready'
+                          : 'Prepare Archive',
                       leadingIcon: _archiveReady
                           ? Icons.check_circle_outline_rounded
                           : Icons.download_rounded,
@@ -416,7 +416,8 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                         ),
                         SizedBox(height: context.sp(theme.spacing.md)),
                         UiField(
-                          label: 'Additional Feedback or Compliance Notes (Optional)',
+                          label:
+                              'Additional Feedback or Compliance Notes (Optional)',
                           child: UiTextarea(
                             value: _feedbackController.text,
                             hintText:
@@ -429,9 +430,8 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                         SizedBox(height: context.sp(theme.spacing.md)),
                         UiCheckbox(
                           value: _acknowledgedCondition,
-                          onChanged: (v) => setState(
-                            () => _acknowledgedCondition = v,
-                          ),
+                          onChanged: (v) =>
+                              setState(() => _acknowledgedCondition = v),
                           label:
                               'I understand that my account will be deleted and my selected data domains will be purged once my chosen condition is met.',
                         ),

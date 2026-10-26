@@ -24,10 +24,7 @@ class DashboardBlocks extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        PortfolioSummaryCard(
-          onDeposit: onDeposit,
-          onWithdraw: onWithdraw,
-        ),
+        PortfolioSummaryCard(onDeposit: onDeposit, onWithdraw: onWithdraw),
         SizedBox(height: context.sp(theme.spacing.md)),
         UiCardGrid(
           mobileColumns: 1,
@@ -40,13 +37,9 @@ class DashboardBlocks extends StatelessWidget {
           ],
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
-        PositionCard(
-          onClose: onClosePosition,
-        ),
+        PositionCard(onClose: onClosePosition),
         SizedBox(height: context.sp(theme.spacing.md)),
-        WatchlistCard(
-          onSelectSymbol: onSelectSymbol,
-        ),
+        WatchlistCard(onSelectSymbol: onSelectSymbol),
       ],
     );
   }
@@ -54,11 +47,7 @@ class DashboardBlocks extends StatelessWidget {
 
 /// 87. JournalBlocks — Trading journal screen block with calendar heatmap, entry filters, and execution stats.
 class JournalBlocks extends StatefulWidget {
-  const JournalBlocks({
-    super.key,
-    this.onFilterChanged,
-    this.onNewEntry,
-  });
+  const JournalBlocks({super.key, this.onFilterChanged, this.onNewEntry});
 
   final ValueChanged<String>? onFilterChanged;
   final VoidCallback? onNewEntry;
@@ -110,7 +99,12 @@ class _JournalBlocksState extends State<JournalBlocks> {
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
         UiTabs(
-          tabs: const <String>['All Trades', 'Winning Trades', 'Losses', 'Reviews'],
+          tabs: const <String>[
+            'All Trades',
+            'Winning Trades',
+            'Losses',
+            'Reviews',
+          ],
           selectedIndex: _selectedTab,
           onChanged: (int idx) => setState(() => _selectedTab = idx),
         ),
@@ -119,7 +113,8 @@ class _JournalBlocksState extends State<JournalBlocks> {
           ticker: 'NVDA',
           strategy: 'Earnings Momentum',
           date: 'Yesterday, 15:30',
-          notes: 'High volume pre-market breakout above pivot. Position exited at 2R target.',
+          notes:
+              'High volume pre-market breakout above pivot. Position exited at 2R target.',
           pnl: 1450.0,
           tags: ['breakout', 'tech', 'momentum'],
         ),
@@ -128,7 +123,8 @@ class _JournalBlocksState extends State<JournalBlocks> {
           ticker: 'TSLA',
           strategy: 'Mean Reversion',
           date: 'Sep 6, 2026',
-          notes: 'Oversold RSI condition triggered entry near key support zone.',
+          notes:
+              'Oversold RSI condition triggered entry near key support zone.',
           pnl: 620.0,
           tags: ['support', 'ev', 'reversion'],
         ),
@@ -141,7 +137,8 @@ class _JournalBlocksState extends State<JournalBlocks> {
 class MarketBlocks extends StatelessWidget {
   const MarketBlocks({
     super.key,
-    this.tickerText = 'LIVE: NVDA +4.2% | AAPL +1.1% | BTC \$67,420 | ETH \$3,510 | TSLA +5.1%',
+    this.tickerText =
+        'LIVE: NVDA +4.2% | AAPL +1.1% | BTC \$67,420 | ETH \$3,510 | TSLA +5.1%',
     this.onSelectGainer,
   });
 
@@ -176,25 +173,33 @@ class MarketBlocks extends StatelessWidget {
                 label: 'NVDA (+4.2%)',
                 value: 94.5,
                 percentage: 0.94,
-                onTap: onSelectGainer != null ? () => onSelectGainer!('NVDA') : null,
+                onTap: onSelectGainer != null
+                    ? () => onSelectGainer!('NVDA')
+                    : null,
               ),
               UiBarListItem(
                 label: 'TSLA (+5.1%)',
                 value: 82.0,
                 percentage: 0.82,
-                onTap: onSelectGainer != null ? () => onSelectGainer!('TSLA') : null,
+                onTap: onSelectGainer != null
+                    ? () => onSelectGainer!('TSLA')
+                    : null,
               ),
               UiBarListItem(
                 label: 'AMD (+3.1%)',
                 value: 65.4,
                 percentage: 0.65,
-                onTap: onSelectGainer != null ? () => onSelectGainer!('AMD') : null,
+                onTap: onSelectGainer != null
+                    ? () => onSelectGainer!('AMD')
+                    : null,
               ),
               UiBarListItem(
                 label: 'MSFT (+1.8%)',
                 value: 48.2,
                 percentage: 0.48,
-                onTap: onSelectGainer != null ? () => onSelectGainer!('MSFT') : null,
+                onTap: onSelectGainer != null
+                    ? () => onSelectGainer!('MSFT')
+                    : null,
               ),
             ],
           ),
@@ -275,9 +280,21 @@ class _ChartBlocksState extends State<ChartBlocks> {
                 spacing: context.sp(theme.spacing.sm),
                 runSpacing: context.sp(theme.spacing.xs),
                 children: const <Widget>[
-                  UiBadge(label: 'RSI: 64.2 (Bullish)', intent: UiIntent.success, variant: UiBadgeVariant.soft),
-                  UiBadge(label: 'EMA 20/50: Golden Cross', intent: UiIntent.primary, variant: UiBadgeVariant.soft),
-                  UiBadge(label: 'Volume: +24% vs Avg', intent: UiIntent.neutral, variant: UiBadgeVariant.outline),
+                  UiBadge(
+                    label: 'RSI: 64.2 (Bullish)',
+                    intent: UiIntent.success,
+                    variant: UiBadgeVariant.soft,
+                  ),
+                  UiBadge(
+                    label: 'EMA 20/50: Golden Cross',
+                    intent: UiIntent.primary,
+                    variant: UiBadgeVariant.soft,
+                  ),
+                  UiBadge(
+                    label: 'Volume: +24% vs Avg',
+                    intent: UiIntent.neutral,
+                    variant: UiBadgeVariant.outline,
+                  ),
                 ],
               ),
             ],
@@ -336,7 +353,8 @@ class _AccountBlocksState extends State<AccountBlocks> {
         SizedBox(height: context.sp(theme.spacing.md)),
         UiCard(
           title: 'Broker API Integrations',
-          subtitle: 'Active Read/Execute API Keys for Automated Strategy Routing',
+          subtitle:
+              'Active Read/Execute API Keys for Automated Strategy Routing',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -348,13 +366,19 @@ class _AccountBlocksState extends State<AccountBlocks> {
                       style: context.uiText.bodyStrong,
                     ),
                   ),
-                  const UiBadge(label: 'CONNECTED', intent: UiIntent.success, size: UiSize.xs),
+                  const UiBadge(
+                    label: 'CONNECTED',
+                    intent: UiIntent.success,
+                    size: UiSize.xs,
+                  ),
                 ],
               ),
               SizedBox(height: context.sp(theme.spacing.xs)),
               Text(
                 'Key ID: ************89F2',
-                style: context.uiText.caption.copyWith(color: theme.colors.foregroundSubtle),
+                style: context.uiText.caption.copyWith(
+                  color: theme.colors.foregroundSubtle,
+                ),
               ),
             ],
           ),
@@ -378,9 +402,21 @@ class CommunityBlocks extends StatelessWidget {
           title: 'Trader Leaderboard (Top 30D Returns)',
           child: UiBarList(
             items: const <UiBarListItem>[
-              UiBarListItem(label: '1. @MarcusQuant (+84.2%)', value: 84.2, percentage: 0.84),
-              UiBarListItem(label: '2. @ElenaTrades (+67.1%)', value: 67.1, percentage: 0.67),
-              UiBarListItem(label: '3. @SigmaVol (+52.8%)', value: 52.8, percentage: 0.52),
+              UiBarListItem(
+                label: '1. @MarcusQuant (+84.2%)',
+                value: 84.2,
+                percentage: 0.84,
+              ),
+              UiBarListItem(
+                label: '2. @ElenaTrades (+67.1%)',
+                value: 67.1,
+                percentage: 0.67,
+              ),
+              UiBarListItem(
+                label: '3. @SigmaVol (+52.8%)',
+                value: 52.8,
+                percentage: 0.52,
+              ),
             ],
           ),
         ),
@@ -389,7 +425,8 @@ class CommunityBlocks extends StatelessWidget {
           authorName: 'Marcus Vance',
           authorTier: 'MASTER TRADER',
           timeAgo: '45m ago',
-          content: 'Just closed 50% of the long position on NVDA. Taking risk off ahead of FOMC. Retaining trailing stop on remaining contracts.',
+          content:
+              'Just closed 50% of the long position on NVDA. Taking risk off ahead of FOMC. Retaining trailing stop on remaining contracts.',
           likes: 58,
           comments: 14,
         ),
@@ -398,7 +435,8 @@ class CommunityBlocks extends StatelessWidget {
           authorName: 'Sarah Jenkins',
           authorTier: 'PRO',
           timeAgo: '3h ago',
-          content: 'Bitcoin holding strong at \$67K pivot zone. Key resistance remains at \$68,500. Eyeing momentum breakout.',
+          content:
+              'Bitcoin holding strong at \$67K pivot zone. Key resistance remains at \$68,500. Eyeing momentum breakout.',
           likes: 31,
           comments: 8,
         ),
@@ -409,11 +447,7 @@ class CommunityBlocks extends StatelessWidget {
 
 /// 92. SearchBlocks — Universal search modal block with instant symbol lookup and command palette.
 class SearchBlocks extends StatefulWidget {
-  const SearchBlocks({
-    super.key,
-    this.onSelectSymbol,
-    this.onSelectAction,
-  });
+  const SearchBlocks({super.key, this.onSelectSymbol, this.onSelectAction});
 
   final ValueChanged<String>? onSelectSymbol;
   final ValueChanged<String>? onSelectAction;
@@ -453,7 +487,13 @@ class _SearchBlocksState extends State<SearchBlocks> {
             spacing: context.sp(theme.spacing.xs),
             runSpacing: context.sp(theme.spacing.xs),
             children: <Widget>[
-              for (final String s in <String>['NVDA', 'BTC/USDT', 'AAPL', 'TSLA', 'ETH/USDT'])
+              for (final String s in <String>[
+                'NVDA',
+                'BTC/USDT',
+                'AAPL',
+                'TSLA',
+                'ETH/USDT',
+              ])
                 UiButton(
                   label: s,
                   size: UiSize.xs,
@@ -516,12 +556,7 @@ class _SearchBlocksState extends State<SearchBlocks> {
               color: theme.colors.primary,
             ),
             SizedBox(width: ctx.sp(theme.spacing.sm)),
-            Expanded(
-              child: Text(
-                label,
-                style: ctx.uiText.bodyStrong,
-              ),
-            ),
+            Expanded(child: Text(label, style: ctx.uiText.bodyStrong)),
             Icon(
               Icons.chevron_right_rounded,
               size: ctx.sz(theme.sizes.iconSm),
@@ -536,10 +571,7 @@ class _SearchBlocksState extends State<SearchBlocks> {
 
 /// 93. AiBlocks — AI trading assistant block with conversational interface and pattern detection.
 class AiBlocks extends StatelessWidget {
-  const AiBlocks({
-    super.key,
-    this.onApplySignal,
-  });
+  const AiBlocks({super.key, this.onApplySignal});
 
   final VoidCallback? onApplySignal;
 
@@ -553,13 +585,15 @@ class AiBlocks extends StatelessWidget {
           symbol: 'NVDA',
           confidence: 94,
           headline: 'High Probability Volume Breakout',
-          rationale: 'Deep neural network detects 4 concurrent bullish indicators: RSI divergence, OBV expansion, 50-day moving average rebound, and pre-earnings accumulation.',
+          rationale:
+              'Deep neural network detects 4 concurrent bullish indicators: RSI divergence, OBV expansion, 50-day moving average rebound, and pre-earnings accumulation.',
           onExecute: onApplySignal,
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
         UiCard(
           title: 'AI Trading Assistant',
-          subtitle: 'Active market monitoring agent connected to live L2 order flow',
+          subtitle:
+              'Active market monitoring agent connected to live L2 order flow',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -576,7 +610,9 @@ class AiBlocks extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Scanning 4,800 tickers for volatility squeeze patterns...',
-                        style: context.uiText.caption.copyWith(color: theme.colors.foregroundMuted),
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ),
                       ),
                     ),
                   ],
@@ -585,7 +621,8 @@ class AiBlocks extends StatelessWidget {
               SizedBox(height: context.sp(theme.spacing.md)),
               UiCallout(
                 title: 'Risk Advisory Note',
-                message: 'Upcoming CPI release in 18 hours. Volatility index (VIX) is up 4.2%. Maintain strict stops.',
+                message:
+                    'Upcoming CPI release in 18 hours. Volatility index (VIX) is up 4.2%. Maintain strict stops.',
                 intent: UiIntent.warning,
               ),
             ],
@@ -608,7 +645,8 @@ class EnterpriseBlocks extends StatelessWidget {
       children: <Widget>[
         UiCallout(
           title: 'Portfolio Margin Level: 42%',
-          message: 'Account operating safely within prime broker initial margin constraints (Max threshold: 75%).',
+          message:
+              'Account operating safely within prime broker initial margin constraints (Max threshold: 75%).',
           intent: UiIntent.success,
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
@@ -617,15 +655,30 @@ class EnterpriseBlocks extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text('Firm Value at Risk (VaR 99% 1D): \$14,200 (1.14% of Net Asset Value)'),
+              Text(
+                'Firm Value at Risk (VaR 99% 1D): \$14,200 (1.14% of Net Asset Value)',
+              ),
               SizedBox(height: context.sp(theme.spacing.sm)),
               const UiRangeMeter(
                 min: 0,
                 max: 50000,
                 markers: <UiRangeMarker>[
-                  UiRangeMarker(value: 14200, label: 'Current VaR', intent: UiIntent.primary, strong: true),
-                  UiRangeMarker(value: 35000, label: 'Warning Cap', intent: UiIntent.warning),
-                  UiRangeMarker(value: 45000, label: 'Hard Limit', intent: UiIntent.danger),
+                  UiRangeMarker(
+                    value: 14200,
+                    label: 'Current VaR',
+                    intent: UiIntent.primary,
+                    strong: true,
+                  ),
+                  UiRangeMarker(
+                    value: 35000,
+                    label: 'Warning Cap',
+                    intent: UiIntent.warning,
+                  ),
+                  UiRangeMarker(
+                    value: 45000,
+                    label: 'Hard Limit',
+                    intent: UiIntent.danger,
+                  ),
                 ],
               ),
             ],
@@ -639,9 +692,21 @@ class EnterpriseBlocks extends StatelessWidget {
             UiTableColumn(header: 'COMPLIANCE STATUS', cell: _statusCell),
           ],
           rows: const <Map<String, String>>[
-            {'id': 'AUD-901', 'event': 'Pre-trade margin verification', 'status': 'PASSED'},
-            {'id': 'AUD-902', 'event': 'Wash-sale detection rule 14B', 'status': 'COMPLIANT'},
-            {'id': 'AUD-903', 'event': 'Regulatory order routing check', 'status': 'VERIFIED'},
+            {
+              'id': 'AUD-901',
+              'event': 'Pre-trade margin verification',
+              'status': 'PASSED',
+            },
+            {
+              'id': 'AUD-902',
+              'event': 'Wash-sale detection rule 14B',
+              'status': 'COMPLIANT',
+            },
+            {
+              'id': 'AUD-903',
+              'event': 'Regulatory order routing check',
+              'status': 'VERIFIED',
+            },
           ],
         ),
       ],
@@ -655,5 +720,9 @@ class EnterpriseBlocks extends StatelessWidget {
       Text(row['event'] ?? '', style: ctx.uiText.bodyStrong);
 
   static Widget _statusCell(BuildContext ctx, Map<String, String> row) =>
-      UiBadge(label: row['status'] ?? '', intent: UiIntent.success, size: UiSize.xs);
+      UiBadge(
+        label: row['status'] ?? '',
+        intent: UiIntent.success,
+        size: UiSize.xs,
+      );
 }

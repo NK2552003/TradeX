@@ -358,21 +358,26 @@ class AppSettingCard extends StatelessWidget {
     required this.control,
     this.description,
     this.icon,
+    this.forceStack = false,
   });
 
   final String title;
   final Widget control;
   final String? description;
   final IconData? icon;
+  final bool forceStack;
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool stack = constraints.maxWidth < context.sz(520);
+        final bool stack = constraints.maxWidth < context.sz(560);
         final bool mobile = context.uiRes.isMobile;
-        final bool trailingSwitch = mobile && control is UiSwitch;
+        final bool isSwitch = control is UiSwitch;
+        final bool isToggleGroup = control is UiToggleGroup;
+        final bool shouldStack =
+            !isSwitch && (forceStack || isToggleGroup || stack);
         final Widget copy = Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
@@ -389,9 +394,7 @@ class AppSettingCard extends StatelessWidget {
                   color: theme.colors.primary,
                 ),
               ),
-              SizedBox(
-                width: context.sp(theme.spacing.md),
-              ),
+              SizedBox(width: context.sp(theme.spacing.md)),
             ],
             Expanded(
               child: Column(
@@ -435,15 +438,16 @@ class AppSettingCard extends StatelessWidget {
                   vertical: context.sp(theme.spacing.sm + 2),
                 )
               : EdgeInsets.all(context.sp(theme.spacing.md)),
-          child: trailingSwitch
+          child: isSwitch
               ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
                     Expanded(child: copy),
                     SizedBox(width: context.sp(theme.spacing.sm)),
                     control,
                   ],
                 )
-              : stack
+              : shouldStack
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
@@ -453,20 +457,15 @@ class AppSettingCard extends StatelessWidget {
                         mobile ? theme.spacing.sm : theme.spacing.md,
                       ),
                     ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: control,
-                    ),
+                    SizedBox(width: double.infinity, child: control),
                   ],
                 )
               : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
                     Expanded(child: copy),
                     SizedBox(width: context.sp(theme.spacing.md)),
-                    ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: context.sz(320)),
-                      child: control,
-                    ),
+                    control,
                   ],
                 ),
         );

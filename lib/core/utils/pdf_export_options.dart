@@ -78,7 +78,10 @@ class _PdfExportOptionsSheetState extends State<_PdfExportOptionsSheet> {
             SegmentedButton<PdfPaperSize>(
               segments: const [
                 ButtonSegment(value: PdfPaperSize.a4, label: Text('A4')),
-                ButtonSegment(value: PdfPaperSize.letter, label: Text('Letter')),
+                ButtonSegment(
+                  value: PdfPaperSize.letter,
+                  label: Text('Letter'),
+                ),
               ],
               selected: {_options.paperSize},
               onSelectionChanged: (value) => setState(
@@ -113,7 +116,9 @@ class _PdfExportOptionsSheetState extends State<_PdfExportOptionsSheet> {
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               title: const Text('Render flowcharts and charts'),
-              subtitle: const Text('Otherwise their source is printed as code.'),
+              subtitle: const Text(
+                'Otherwise their source is printed as code.',
+              ),
               value: _options.includeDiagrams,
               onChanged: (value) => setState(
                 () => _options = _options.copyWith(includeDiagrams: value),
@@ -136,7 +141,8 @@ class _PdfExportOptionsSheetState extends State<_PdfExportOptionsSheet> {
                 ],
                 selected: {_options.diagramQuality},
                 onSelectionChanged: (value) => setState(
-                  () => _options = _options.copyWith(diagramQuality: value.first),
+                  () =>
+                      _options = _options.copyWith(diagramQuality: value.first),
                 ),
               ),
             ],

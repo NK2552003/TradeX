@@ -108,9 +108,9 @@ class UiAreaChartCard extends StatefulWidget {
     this.gradientColors,
     this.showDots = false,
     this.thresholds = const <UiChartThreshold>[],
-  })  : metricValue = value ?? metricValue,
-        timeframes = timeframeOptions ?? timeframes,
-        glow = lineGlow ?? glow;
+  }) : metricValue = value ?? metricValue,
+       timeframes = timeframeOptions ?? timeframes,
+       glow = lineGlow ?? glow;
 
   final List<UiChartPoint> data;
   final List<UiChartSeries> series;

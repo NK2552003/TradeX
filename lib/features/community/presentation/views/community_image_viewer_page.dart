@@ -25,17 +25,19 @@ class CommunityImageViewerPage extends StatefulWidget {
     Navigator.of(context).push(
       PageRouteBuilder<void>(
         opaque: false,
-        pageBuilder: (context, animation, secondaryAnimation) => CommunityImageViewerPage(
-          imageUrls: imageUrls,
-          initialIndex: initialIndex,
-          tag: tag,
-        ),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            CommunityImageViewerPage(
+              imageUrls: imageUrls,
+              initialIndex: initialIndex,
+              tag: tag,
+            ),
       ),
     );
   }
 
   @override
-  State<CommunityImageViewerPage> createState() => _CommunityImageViewerPageState();
+  State<CommunityImageViewerPage> createState() =>
+      _CommunityImageViewerPageState();
 }
 
 class _CommunityImageViewerPageState extends State<CommunityImageViewerPage> {
@@ -111,11 +113,17 @@ class _CommunityImageViewerPageState extends State<CommunityImageViewerPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.broken_image, size: context.sz(48), color: Colors.white54),
+                      Icon(
+                        Icons.broken_image,
+                        size: context.sz(48),
+                        color: Colors.white54,
+                      ),
                       SizedBox(height: context.sp(12)),
                       Text(
                         'Unable to load image',
-                        style: context.uiText.body.copyWith(color: Colors.white70),
+                        style: context.uiText.body.copyWith(
+                          color: Colors.white70,
+                        ),
                       ),
                     ],
                   ),

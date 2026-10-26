@@ -94,6 +94,109 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
     }
   }
 
+  Future<void> _updateMessagePermission(String val) async {
+    final old = _settings;
+    setState(() => _settings = _settings.copyWith(messagePermission: val));
+    try {
+      await _repo.setMessagePermission(val);
+      if (mounted) {
+        final label = val == 'invited'
+            ? 'Only Invited Traders'
+            : val == 'followers'
+            ? 'Followers Only'
+            : 'Everyone';
+        UiToast.show(
+          context,
+          title: 'Messaging Privacy Updated',
+          message: 'Direct messaging restricted to: $label.',
+          intent: UiIntent.info,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _settings = old);
+        UiToast.show(
+          context,
+          title: 'Update Failed',
+          message: 'Could not update direct messaging permissions.',
+          intent: UiIntent.danger,
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleAllowMessageRequests(bool val) async {
+    final old = _settings;
+    setState(() => _settings = _settings.copyWith(allowMessageRequests: val));
+    try {
+      await _repo.setAllowMessageRequests(val);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _settings = old);
+        UiToast.show(
+          context,
+          title: 'Update Failed',
+          message: 'Could not update message requests preference.',
+          intent: UiIntent.danger,
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleShowReadReceipts(bool val) async {
+    final old = _settings;
+    setState(() => _settings = _settings.copyWith(showReadReceipts: val));
+    try {
+      await _repo.setShowReadReceipts(val);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _settings = old);
+        UiToast.show(
+          context,
+          title: 'Update Failed',
+          message: 'Could not update read receipts preference.',
+          intent: UiIntent.danger,
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleShowActivityStatus(bool val) async {
+    final old = _settings;
+    setState(() => _settings = _settings.copyWith(showActivityStatus: val));
+    try {
+      await _repo.setShowActivityStatus(val);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _settings = old);
+        UiToast.show(
+          context,
+          title: 'Update Failed',
+          message: 'Could not update online activity status preference.',
+          intent: UiIntent.danger,
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleFilterSpamRequests(bool val) async {
+    final old = _settings;
+    setState(() => _settings = _settings.copyWith(filterSpamRequests: val));
+    try {
+      await _repo.setFilterSpamRequests(val);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _settings = old);
+        UiToast.show(
+          context,
+          title: 'Update Failed',
+          message: 'Could not update spam filtering preference.',
+          intent: UiIntent.danger,
+        );
+      }
+    }
+  }
+
   Future<void> _handleRequestExport() async {
     setState(() => _requestingExport = true);
     try {
@@ -268,6 +371,87 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                     control: UiSwitch(
                       value: _settings.publicStatsEnabled,
                       onChanged: _togglePublicStats,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: context.sp(theme.spacing.lg)),
+
+              // Direct Messages & Chat Privacy (Instagram-like message controls)
+              AppSettingsSectionBlock(
+                title: 'Direct Messages & Chat Privacy',
+                description:
+                    'Instagram-style message controls: decide who can send you direct messages, manage message requests, read receipts, and online status.',
+                children: [
+                  AppSettingCard(
+                    title: 'Who Can Send You Messages',
+                    description: _settings.messagePermission == 'invited'
+                        ? 'Private mode: Only invited traders or accounts you follow can message you.'
+                        : _settings.messagePermission == 'followers'
+                        ? 'Followers only: Traders who don\'t follow you must submit a message request.'
+                        : 'Public mode: Anyone in the trading network can send you direct messages.',
+                    icon: Icons.chat_bubble_outline_rounded,
+                    control: UiToggleGroup<String>(
+                      expand: true,
+                      value: _settings.messagePermission,
+                      options: const <UiToggleOption<String>>[
+                        UiToggleOption<String>(
+                          label: 'Everyone',
+                          value: 'everyone',
+                          icon: Icons.public_rounded,
+                        ),
+                        UiToggleOption<String>(
+                          label: 'Followers Only',
+                          value: 'followers',
+                          icon: Icons.people_outline_rounded,
+                        ),
+                        UiToggleOption<String>(
+                          label: 'Only Invited',
+                          value: 'invited',
+                          icon: Icons.lock_outline_rounded,
+                        ),
+                      ],
+                      onChanged: _updateMessagePermission,
+                    ),
+                  ),
+                  AppSettingCard(
+                    title: 'Allow Message Requests',
+                    description:
+                        'When enabled, traders you do not follow can send message requests for your approval.',
+                    icon: Icons.mark_email_unread_outlined,
+                    control: UiSwitch(
+                      value: _settings.allowMessageRequests,
+                      onChanged: _toggleAllowMessageRequests,
+                    ),
+                  ),
+                  AppSettingCard(
+                    title: 'Show Read Receipts (Seen Status)',
+                    description:
+                        'Allow other traders to see when you have viewed their incoming messages.',
+                    icon: Icons.done_all_rounded,
+                    control: UiSwitch(
+                      value: _settings.showReadReceipts,
+                      onChanged: _toggleShowReadReceipts,
+                    ),
+                  ),
+                  AppSettingCard(
+                    title: 'Show Active / Online Status',
+                    description:
+                        'Let accounts you message see when you are currently online and active on hejournal.in.',
+                    icon: Icons.circle,
+                    control: UiSwitch(
+                      value: _settings.showActivityStatus,
+                      onChanged: _toggleShowActivityStatus,
+                    ),
+                  ),
+                  AppSettingCard(
+                    title: 'Spam & Low-Quality Message Filter',
+                    description:
+                        'Automatically filter out suspicious promotional spam, unverified pump bots, and scam messages.',
+                    icon: Icons.filter_alt_outlined,
+                    control: UiSwitch(
+                      value: _settings.filterSpamRequests,
+                      onChanged: _toggleFilterSpamRequests,
                     ),
                   ),
                 ],

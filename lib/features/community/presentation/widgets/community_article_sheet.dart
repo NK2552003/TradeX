@@ -5,6 +5,7 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
 import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 MarketArticle communityMarketArticle(CommunityNewsItem article) =>
     MarketArticle.fromJson({
@@ -33,18 +34,33 @@ class CommunityArticleSheet extends StatelessWidget {
     required CommunityNewsItem article,
     ValueChanged<CommunityNewsItem>? onShareToPost,
     MarketSnapshot? snapshot,
-  }) => Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      builder: (_) => Scaffold(
-        appBar: AppBar(title: const Text('Market News')),
-        body: CommunityArticleSheet(
-          article: article,
-          onShareToPost: onShareToPost,
-          snapshot: snapshot,
+  }) {
+    final reader = CommunityArticleSheet(
+      article: article,
+      onShareToPost: onShareToPost,
+      snapshot: snapshot,
+    );
+    if (Navigator.of(context, rootNavigator: true).context.uiRes.isDesktop) {
+      return showSettingsSideSheet<void>(
+        context,
+        title: 'Market News',
+        subtitle: article.source,
+        desktopWidthRatio: 0.48,
+        minDesktopWidth: 540,
+        maxWidth: 760,
+        child: reader,
+      );
+    }
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Market News')),
+          body: reader,
         ),
       ),
-    ),
-  );
+    );
+  }
+
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
     padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),

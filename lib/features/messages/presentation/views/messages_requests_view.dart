@@ -112,8 +112,7 @@ class _MessagesRequestsViewState extends State<MessagesRequestsView> {
       );
     }
 
-    final int verifiedCount =
-        allRequests.where((t) => t.peer.verified).length;
+    final int verifiedCount = allRequests.where((t) => t.peer.verified).length;
     final List<MessageThread> requests = allRequests.where((t) {
       if (_tab == _RequestTab.verified && !t.peer.verified) return false;
       if (_query.trim().isNotEmpty) {
@@ -177,7 +176,8 @@ class _MessagesRequestsViewState extends State<MessagesRequestsView> {
           intent: UiIntent.info,
           icon: Icons.privacy_tip_outlined,
           title: 'These people want to message you',
-          message: 'They cannot see whether you have read their request until '
+          message:
+              'They cannot see whether you have read their request until '
               'you accept it. Tap any request to preview the conversation.',
         ),
         SizedBox(height: context.sp(theme.spacing.sm)),
@@ -198,18 +198,20 @@ class _MessagesRequestsViewState extends State<MessagesRequestsView> {
             ),
           )
         else
-          ...requests.map((MessageThread t) => _RequestRow(
-                thread: t,
-                onOpen: widget.onOpenThread == null
-                    ? null
-                    : () => widget.onOpenThread!(t),
-                onAccept: () => _accept(t),
-                onDecline: () => _decline(t),
-                onBlock: () => _block(t),
-                onOpenProfile: widget.onOpenProfile == null
-                    ? null
-                    : () => widget.onOpenProfile!(t.peer),
-              )),
+          ...requests.map(
+            (MessageThread t) => _RequestRow(
+              thread: t,
+              onOpen: widget.onOpenThread == null
+                  ? null
+                  : () => widget.onOpenThread!(t),
+              onAccept: () => _accept(t),
+              onDecline: () => _decline(t),
+              onBlock: () => _block(t),
+              onOpenProfile: widget.onOpenProfile == null
+                  ? null
+                  : () => widget.onOpenProfile!(t.peer),
+            ),
+          ),
       ],
     );
   }
@@ -337,7 +339,9 @@ class _RequestRow extends StatelessWidget {
                   width: double.infinity,
                   padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
                   decoration: BoxDecoration(
-                    color: state.hovered ? colors.surfaceHover : colors.surfaceMuted,
+                    color: state.hovered
+                        ? colors.surfaceHover
+                        : colors.surfaceMuted,
                     borderRadius: context.radius(theme.radii.md),
                   ),
                   child: Column(
@@ -351,7 +355,9 @@ class _RequestRow extends StatelessWidget {
                         SizedBox(height: context.sp(theme.spacing.xxs)),
                         Text(
                           'Tap to inspect conversation',
-                          style: context.uiText.caption.copyWith(color: colors.primary),
+                          style: context.uiText.caption.copyWith(
+                            color: colors.primary,
+                          ),
                         ),
                       ],
                     ],
@@ -362,28 +368,37 @@ class _RequestRow extends StatelessWidget {
             SizedBox(height: context.sp(theme.spacing.sm)),
             Row(
               children: <Widget>[
-                UiIconButton(
-                  icon: Icons.block_rounded,
-                  size: UiSize.sm,
-                  variant: UiVariant.ghost,
-                  intent: UiIntent.danger,
-                  tooltip: 'Block @${thread.peer.handle}',
-                  onPressed: onBlock,
+                Expanded(
+                  flex: 1,
+                  child: UiButton(
+                    label: 'Block',
+                    icon: Icons.block_rounded,
+                    size: UiSize.sm,
+                    variant: UiVariant.ghost,
+                    intent: UiIntent.danger,
+                    onPressed: onBlock,
+                  ),
                 ),
                 SizedBox(width: context.sp(theme.spacing.xs)),
                 Expanded(
+                  flex: 1,
                   child: UiButton(
-                    label: 'Decline',
+                    label: 'Delete',
+                    icon: Icons.delete_outline_rounded,
+                    size: UiSize.sm,
                     variant: UiVariant.soft,
                     intent: UiIntent.neutral,
                     onPressed: onDecline,
                   ),
                 ),
-                SizedBox(width: context.sp(theme.spacing.sm)),
+                SizedBox(width: context.sp(theme.spacing.xs)),
                 Expanded(
+                  flex: 1,
                   child: UiButton(
                     label: 'Accept',
                     icon: Icons.check_rounded,
+                    size: UiSize.sm,
+                    variant: UiVariant.solid,
                     intent: UiIntent.primary,
                     onPressed: onAccept,
                   ),

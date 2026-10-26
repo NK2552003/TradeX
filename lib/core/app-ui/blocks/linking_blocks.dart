@@ -51,9 +51,11 @@ class AppLinkChip extends StatelessWidget {
     maxWidth: context.sz(220),
     tooltip: ref.missing
         ? '${ref.kind.label} ${ref.id} could not be found'
-        : <String?>[ref.kind.label, ref.subtitle, ref.meta]
-              .whereType<String>()
-              .join(' · '),
+        : <String?>[
+            ref.kind.label,
+            ref.subtitle,
+            ref.meta,
+          ].whereType<String>().join(' · '),
     onTap: onTap,
     onRemove: onRemove,
   );
@@ -109,7 +111,9 @@ class AppLinkRefTile extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.symmetric(
               horizontal: pad,
-              vertical: context.sp(dense ? theme.spacing.xxs : theme.spacing.xs),
+              vertical: context.sp(
+                dense ? theme.spacing.xxs : theme.spacing.xs,
+              ),
             ),
             child: Row(
               children: <Widget>[
@@ -122,9 +126,7 @@ class AppLinkRefTile extends StatelessWidget {
                     borderRadius: context.radius(theme.radii.sm),
                   ),
                   child: Icon(
-                    broken
-                        ? Icons.link_off_rounded
-                        : ref.icon ?? ref.kind.icon,
+                    broken ? Icons.link_off_rounded : ref.icon ?? ref.kind.icon,
                     size: context.sz(dense ? 14 : 16),
                     color: accent,
                   ),
@@ -250,9 +252,7 @@ class AppLinkSection extends StatelessWidget {
             AppLinkRefTile(
               ref: ref,
               dense: dense,
-              onTap: onOpen == null || ref.missing
-                  ? null
-                  : () => onOpen!(ref),
+              onTap: onOpen == null || ref.missing ? null : () => onOpen!(ref),
               onRemove: onRemove == null ? null : () => onRemove!(ref),
             ),
         if (hidden > 0)
@@ -388,11 +388,7 @@ class AppLinkedRecordsPanel extends StatelessWidget {
     final UiTheme theme = context.ui;
     final List<Widget> sections = <Widget>[];
 
-    void add(
-      AppLinkKind kind,
-      List<AppLinkRef> refs,
-      VoidCallback? onAdd,
-    ) {
+    void add(AppLinkKind kind, List<AppLinkRef> refs, VoidCallback? onAdd) {
       if (hideKinds.contains(kind)) return;
       if (refs.isEmpty && !showEmptyKinds) return;
       if (sections.isNotEmpty) {
@@ -678,8 +674,9 @@ class _AppLinkPickerState extends State<_AppLinkPicker> {
                 label: 'Link',
                 leadingIcon: Icons.add_link_rounded,
                 size: UiSize.sm,
-                onPressed: () =>
-                    Navigator.of(context).pop(_selected.toList(growable: false)),
+                onPressed: () => Navigator.of(
+                  context,
+                ).pop(_selected.toList(growable: false)),
               ),
             ],
           ),
@@ -688,7 +685,6 @@ class _AppLinkPickerState extends State<_AppLinkPicker> {
     );
   }
 }
-
 
 // ── Health strip ─────────────────────────────────────────────────────────────
 
@@ -769,7 +765,8 @@ class AppLinkGraphStrip extends StatelessWidget {
           UiCallout(
             intent: UiIntent.warning,
             icon: Icons.link_off_rounded,
-            title: '${orphans.length} record'
+            title:
+                '${orphans.length} record'
                 '${orphans.length == 1 ? '' : 's'} with nothing attached',
             message:
                 'A trade with no plan and no note is the one that gets '

@@ -128,8 +128,7 @@ class AdminTraderSeat {
       displayName: json['display_name']?.toString() ?? 'Trader',
       email: json['email']?.toString() ?? 'trader@tradex.in',
       role: json['role']?.toString() ?? 'trader',
-      deskDivision:
-          json['desk_division']?.toString() ?? 'Index & Options Desk',
+      deskDivision: json['desk_division']?.toString() ?? 'Index & Options Desk',
       allocatedCapitalInr:
           (json['allocated_capital_inr'] as num?)?.toDouble() ?? 2500000.0,
       usedMarginInr: (json['used_margin_inr'] as num?)?.toDouble() ?? 0.0,
@@ -141,8 +140,7 @@ class AdminTraderSeat {
           (json['current_drawdown_pct'] as num?)?.toDouble() ?? 1.2,
       maxDrawdownLimitPct:
           (json['max_drawdown_limit_pct'] as num?)?.toDouble() ?? 5.0,
-      openPositionsCount:
-          (json['open_positions_count'] as num?)?.toInt() ?? 0,
+      openPositionsCount: (json['open_positions_count'] as num?)?.toInt() ?? 0,
       status: json['status']?.toString() ?? 'active',
       joinedAt:
           DateTime.tryParse(json['joined_at']?.toString() ?? '') ??
@@ -354,15 +352,13 @@ class DeskOrderApproval {
       traderUserId: json['trader_user_id']?.toString() ?? '',
       traderHandle: json['trader_handle']?.toString() ?? 'trader',
       traderName: json['trader_name']?.toString() ?? 'Trader',
-      deskDivision:
-          json['desk_division']?.toString() ?? 'Index & Options Desk',
+      deskDivision: json['desk_division']?.toString() ?? 'Index & Options Desk',
       symbol: json['symbol']?.toString() ?? 'NIFTY',
       exchange: json['exchange']?.toString() ?? 'NFO',
       side: json['side']?.toString() ?? 'BUY',
       quantity: (json['quantity'] as num?)?.toInt() ?? 100,
       orderPriceInr: (json['order_price_inr'] as num?)?.toDouble() ?? 0.0,
-      notionalValueInr:
-          (json['notional_value_inr'] as num?)?.toDouble() ?? 0.0,
+      notionalValueInr: (json['notional_value_inr'] as num?)?.toDouble() ?? 0.0,
       leverageX: (json['leverage_x'] as num?)?.toDouble() ?? 1.0,
       stopLossInr: (json['stop_loss_inr'] as num?)?.toDouble() ?? 0.0,
       targetPriceInr: (json['target_price_inr'] as num?)?.toDouble() ?? 0.0,
@@ -413,10 +409,7 @@ class DeskRiskBreach {
   final String? resolutionNotes;
   final DateTime createdAt;
 
-  DeskRiskBreach copyWith({
-    String? status,
-    String? resolutionNotes,
-  }) {
+  DeskRiskBreach copyWith({String? status, String? resolutionNotes}) {
     return DeskRiskBreach(
       id: id,
       traderUserId: traderUserId,
@@ -458,8 +451,7 @@ class DeskRiskBreach {
       traderUserId: json['trader_user_id']?.toString() ?? '',
       traderHandle: json['trader_handle']?.toString() ?? 'trader',
       traderName: json['trader_name']?.toString() ?? 'Trader',
-      deskDivision:
-          json['desk_division']?.toString() ?? 'Index & Options Desk',
+      deskDivision: json['desk_division']?.toString() ?? 'Index & Options Desk',
       breachType: json['breach_type']?.toString() ?? 'Daily Loss Limit',
       severity: json['severity']?.toString() ?? 'warning',
       symbol: json['symbol']?.toString() ?? 'BANKNIFTY',

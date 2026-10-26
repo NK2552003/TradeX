@@ -97,8 +97,7 @@ extension AiCreateTargetX on AiCreateTarget {
       'Log a trade idea with entry, stop, targets and R:R.',
     AiCreateTarget.strategy =>
       'Turn a repeatable setup into a rules-based playbook.',
-    AiCreateTarget.post =>
-      'Share a setup or take with the community feed.',
+    AiCreateTarget.post => 'Share a setup or take with the community feed.',
     AiCreateTarget.chartAnalysis =>
       'Run pattern detection and extract a trade plan from a chart.',
   };
@@ -159,8 +158,7 @@ extension AiTradeDirectionX on AiTradeDirection {
   AppSide get side =>
       this == AiTradeDirection.long ? AppSide.long : AppSide.short;
 
-  UiIntent get intent =>
-      isLong ? UiIntent.bullish : UiIntent.bearish;
+  UiIntent get intent => isLong ? UiIntent.bullish : UiIntent.bearish;
 
   IconData get icon =>
       isLong ? Icons.trending_up_rounded : Icons.trending_down_rounded;
@@ -261,11 +259,7 @@ class AiCapability {
 /// A "create from this" chip rendered under the latest assistant answer.
 @immutable
 class AiSuggestedAction {
-  const AiSuggestedAction({
-    required this.target,
-    this.label,
-    this.setupId,
-  });
+  const AiSuggestedAction({required this.target, this.label, this.setupId});
 
   final AiCreateTarget target;
 

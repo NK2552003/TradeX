@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 
-/// User roles in TraderHub TradeX platform.
+/// User roles in hejournal.in platform.
 enum UserRole {
   customer(
     id: 'customer',

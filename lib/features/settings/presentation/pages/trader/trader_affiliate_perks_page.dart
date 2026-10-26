@@ -120,7 +120,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                                 ),
                                 SizedBox(height: context.sp(theme.spacing.sm)),
                                 Text(
-                                  'TradeX Partner & Affiliate Program',
+                                  'hejournal.in Partner & Affiliate Program',
                                   style: context.uiText.heading,
                                 ),
                                 SizedBox(height: context.sp(theme.spacing.xxs)),
@@ -157,7 +157,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'TradeX Partner & Affiliate Program',
+                                      'hejournal.in Partner & Affiliate Program',
                                       style: context.uiText.heading,
                                     ),
                                     Text(
@@ -181,7 +181,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       ),
                       SizedBox(height: context.sp(theme.spacing.md)),
                       Text(
-                        'Apply to introduce your audience to TradeX. After approval, your Partner Hub provides your own referral links, campaign reporting, and payouts. Qualifying commissions follow your partner account terms.',
+                        'Apply to introduce your audience to hejournal.in. After approval, your Partner Hub provides your own referral links, campaign reporting, and payouts. Qualifying commissions follow your partner account terms.',
                         style: context.uiText.body.copyWith(
                           color: colors.foregroundMuted,
                           height: 1.5,
@@ -270,9 +270,9 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       theme,
                       colors,
                       icon: Icons.card_membership_rounded,
-                      title: 'Free TradeX Pro Tier',
+                      title: 'Free hejournal.in Pro Tier',
                       description:
-                          'Refer active traders to automatically unlock complimentary TradeX Pro & Enterprise desk access.',
+                          'Refer active traders to automatically unlock complimentary hejournal.in Pro & Enterprise desk access.',
                       badge: 'FREE PRO',
                     ),
                     _buildBenefitCard(
@@ -292,7 +292,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       icon: Icons.palette_outlined,
                       title: 'SEBI/ASCI Compliant Kit',
                       description:
-                          'Get high-res TradeX badges, UTM campaign links, Form 16A TDS statements, and compliant disclosures.',
+                          'Get high-res hejournal.in badges, UTM campaign links, Form 16A TDS statements, and compliant disclosures.',
                       badge: 'ASSETS',
                     ),
                   ];
@@ -463,7 +463,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
               // Action Callout Banner
               UiCallout(
                 intent: UiIntent.warning,
-                title: 'Your TradeX Partner Program',
+                title: 'Your hejournal.in Partner Program',
                 message:
                     'Complete the four-step identity, audience, payout, and review application. Your trader account stays active while an administrator reviews it.',
                 action: UiButton(

@@ -22,10 +22,8 @@ class CommunityPollAnalyticsDialog extends StatelessWidget {
   }) {
     return showDialog<void>(
       context: context,
-      builder: (_) => CommunityPollAnalyticsDialog(
-        poll: poll,
-        onAuthorTap: onAuthorTap,
-      ),
+      builder: (_) =>
+          CommunityPollAnalyticsDialog(poll: poll, onAuthorTap: onAuthorTap),
     );
   }
 
@@ -133,7 +131,8 @@ class CommunityPollAnalyticsDialog extends StatelessWidget {
             SizedBox(height: context.sp(theme.spacing.md)),
 
             // Author Profile Card Link
-            if (poll.authorDisplayName != null || poll.authorId != null) ...<Widget>[
+            if (poll.authorDisplayName != null ||
+                poll.authorId != null) ...<Widget>[
               const UiDivider(),
               SizedBox(height: context.sp(theme.spacing.sm)),
               Row(
@@ -264,7 +263,9 @@ class CommunityPollAnalyticsDialog extends StatelessWidget {
         final double ratio = e.value / sum;
         final double pct = ratio * 100.0;
         return Padding(
-          padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xxs)),
+          padding: EdgeInsets.symmetric(
+            vertical: context.sp(theme.spacing.xxs),
+          ),
           child: Row(
             children: <Widget>[
               SizedBox(

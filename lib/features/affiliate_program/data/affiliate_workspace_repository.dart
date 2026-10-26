@@ -54,8 +54,9 @@ class AffiliateWorkspaceRepository {
         try {
           final raw = await db.rpc('affiliate_workspace');
           if (raw is Map) {
-            final Map<String, Object?> payload =
-                raw.map((k, v) => MapEntry(k.toString(), v));
+            final Map<String, Object?> payload = raw.map(
+              (k, v) => MapEntry(k.toString(), v),
+            );
             payload['tiers'] ??= _defaultTiers();
             payload['terms'] ??= _defaultTerms();
             return AffiliateWorkspace.fromJson(payload);
@@ -102,12 +103,12 @@ class AffiliateWorkspaceRepository {
               .order('created_at', ascending: false)
               .catchError((_) => <dynamic>[]);
 
-          final userRefCode = profileRes?['referral_code']?.toString() ??
+          final userRefCode =
+              profileRes?['referral_code']?.toString() ??
               'REF-${userId.substring(0, 8).toUpperCase()}';
           final handle = (profileRes?['handle']?.toString() ?? 'trader')
               .replaceAll('@', '');
-          final displayName =
-              profileRes?['display_name']?.toString() ?? handle;
+          final displayName = profileRes?['display_name']?.toString() ?? handle;
 
           final double earnings =
               (affProfRes?['total_earnings'] as num?)?.toDouble() ?? 0.0;
@@ -129,15 +130,19 @@ class AffiliateWorkspaceRepository {
             'tds_rate': 0.05,
             'currency': 'INR',
             'total_referrals': (referralsRes as List?)?.length ?? 0,
-            'active_referrals': (referralsRes as List?)
-                    ?.where((dynamic r) => r is Map && r['status'] == 'converted')
+            'active_referrals':
+                (referralsRes as List?)
+                    ?.where(
+                      (dynamic r) => r is Map && r['status'] == 'converted',
+                    )
                     .length ??
                 0,
             'total_earnings': earnings,
             'unpaid_balance': unpaid,
             'paid_earnings': paid,
             'payout_method': affProfRes?['payout_method'] ?? 'upi',
-            'payout_details': affProfRes?['payout_details'] ??
+            'payout_details':
+                affProfRes?['payout_details'] ??
                 <String, Object?>{
                   'upi_id': '$handle@okhdfcbank',
                   'payout_account': '$handle@okhdfcbank',
@@ -149,18 +154,24 @@ class AffiliateWorkspaceRepository {
 
           final List<Map<String, Object?>> liveReferrals =
               (referralsRes as List? ?? const <dynamic>[])
-                  .map((dynamic r) => r is Map
-                      ? r.map((dynamic k, dynamic v) =>
-                          MapEntry(k.toString(), v))
-                      : <String, Object?>{})
+                  .map(
+                    (dynamic r) => r is Map
+                        ? r.map(
+                            (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+                          )
+                        : <String, Object?>{},
+                  )
                   .toList();
 
           final List<Map<String, Object?>> livePayouts =
               (payoutsRes as List? ?? const <dynamic>[])
-                  .map((dynamic p) => p is Map
-                      ? p.map((dynamic k, dynamic v) =>
-                          MapEntry(k.toString(), v))
-                      : <String, Object?>{})
+                  .map(
+                    (dynamic p) => p is Map
+                        ? p.map(
+                            (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+                          )
+                        : <String, Object?>{},
+                  )
                   .toList();
 
           return AffiliateWorkspace.fromJson(<String, Object?>{
@@ -191,15 +202,18 @@ class AffiliateWorkspaceRepository {
     return AffiliateWorkspace.fromJson(await _loadDemoMap(), isPreview: true);
   }
 
-  static List<Map<String, Object?>> _defaultAssets(String code, String slug) => [
+  static List<Map<String, Object?>> _defaultAssets(
+    String code,
+    String slug,
+  ) => [
     {
       'id': 'ast-1',
-      'title': 'TradeX Journal & Community Promotion Card',
+      'title': 'hejournal.in Journal & Community Promotion Card',
       'category': 'banner_social',
-      'headline': 'Level Up Your Trading with TradeX Journal',
+      'headline': 'Level Up Your Trading with hejournal.in Journal',
       'body':
           'Track your trades, analyze win rates, and share setups with India\'s elite trading community.',
-      'call_to_action': 'Start Free on TradeX',
+      'call_to_action': 'Start Free on hejournal.in',
       'landing_path': '/r/$code',
       'tags': ['Social', 'Banner', 'Instagram', 'Twitter'],
       'published': true,
@@ -209,7 +223,8 @@ class AffiliateWorkspaceRepository {
       'title': 'Direct Creator Referral Link',
       'category': 'link_custom',
       'headline': 'Exclusive 20% Discount Link',
-      'body': 'Get instant access to TradeX Pro analytics and AI Copilot.',
+      'body':
+          'Get instant access to hejournal.in Pro analytics and AI Copilot.',
       'call_to_action': 'Claim Partner Access',
       'landing_path': '/r/$slug',
       'tags': ['Link', 'CustomSlug', 'FastOnboarding'],
@@ -242,7 +257,8 @@ class AffiliateWorkspaceRepository {
     if (!_allowDemo) throw StateError('Sign in required.');
     await _serialize(() async {
       final map = await _loadDemoMap();
-      final campaigns = (map['campaigns']! as List).cast<Map<String, Object?>>();
+      final campaigns = (map['campaigns']! as List)
+          .cast<Map<String, Object?>>();
       if (campaigns.any((c) => c['slug'] == cleanSlug)) {
         throw StateError('That campaign slug is already in use.');
       }
@@ -274,7 +290,8 @@ class AffiliateWorkspaceRepository {
     if (!_allowDemo) throw StateError('Sign in required.');
     await _serialize(() async {
       final map = await _loadDemoMap();
-      for (final row in (map['campaigns']! as List).cast<Map<String, Object?>>()) {
+      for (final row
+          in (map['campaigns']! as List).cast<Map<String, Object?>>()) {
         if (row['id'] == id) row['status'] = status;
       }
       await _saveDemoMap(map);
@@ -290,7 +307,8 @@ class AffiliateWorkspaceRepository {
     if (!_allowDemo) throw StateError('Sign in required.');
     await _serialize(() async {
       final map = await _loadDemoMap();
-      final campaigns = (map['campaigns']! as List).cast<Map<String, Object?>>();
+      final campaigns = (map['campaigns']! as List)
+          .cast<Map<String, Object?>>();
       campaigns.removeWhere((c) => c['id'] == id);
       await _saveDemoMap(map);
     });
@@ -306,7 +324,9 @@ class AffiliateWorkspaceRepository {
         await db.rpc('request_affiliate_payout', params: {'p_amount': amount});
         return;
       } catch (e) {
-        debugPrint('[AffiliateWorkspaceRepository.requestPayout] rpc error, trying direct insert: $e');
+        debugPrint(
+          '[AffiliateWorkspaceRepository.requestPayout] rpc error, trying direct insert: $e',
+        );
         try {
           final user = db.auth.currentUser;
           if (user != null) {
@@ -316,12 +336,14 @@ class AffiliateWorkspaceRepository {
               'currency': 'INR',
               'status': 'pending',
               'payout_method': 'upi',
-              'notes': 'Requested from TradeX Partner Portal',
+              'notes': 'Requested from hejournal.in Partner Portal',
             });
             return;
           }
         } catch (insertErr) {
-          debugPrint('[AffiliateWorkspaceRepository.requestPayout] direct insert error: $insertErr');
+          debugPrint(
+            '[AffiliateWorkspaceRepository.requestPayout] direct insert error: $insertErr',
+          );
         }
       }
     }
@@ -344,7 +366,9 @@ class AffiliateWorkspaceRepository {
           details['account_number']?.toString().trim() ??
           '';
       if (account.isEmpty) {
-        throw StateError('Save an Indian UPI or Bank payout destination first.');
+        throw StateError(
+          'Save an Indian UPI or Bank payout destination first.',
+        );
       }
       if (payouts.any(
         (p) => p['status'] == 'pending' || p['status'] == 'processing',
@@ -405,7 +429,9 @@ class AffiliateWorkspaceRepository {
         );
         return;
       } catch (e) {
-        debugPrint('[AffiliateWorkspaceRepository.adminReviewPayout] rpc error, falling back: $e');
+        debugPrint(
+          '[AffiliateWorkspaceRepository.adminReviewPayout] rpc error, falling back: $e',
+        );
       }
     }
     if (!_allowDemo) throw StateError('Sign in required.');
@@ -594,7 +620,7 @@ class AffiliateWorkspaceRepository {
       'settlement_cycle': 'Bi-weekly IMPS / UPI (Min ₹1,000)',
       'perks': [
         '20% recurring INR revenue share on all referred traders',
-        'Complimentary TradeX Pro workspace (₹2,499/mo value)',
+        'Complimentary hejournal.in Pro workspace (₹2,499/mo value)',
         'Verified Partner badge on Community posts & strategies',
         'Co-branded referral landing page with creator avatar',
       ],
@@ -654,13 +680,12 @@ class AffiliateWorkspaceRepository {
       'id': 'term-2',
       'clause_code': 'TDS-GST-02',
       'version': '2026.1-INR',
-      'title':
-          'Indian Tax Deduction at Source (TDS u/s 194H) & GST Compliance',
+      'title': 'Indian Tax Deduction at Source (TDS u/s 194H) & GST Compliance',
       'category': 'payouts_tax',
       'summary':
           '5% statutory TDS applies under Section 194H of the Income Tax Act; GST-registered partners may submit GSTIN.',
       'body':
-          'In accordance with Section 194H of the Indian Income Tax Act, 1961, TradeX deducts 5% TDS on gross affiliate commission payouts where applicable and issues quarterly Form 16A certificates against your verified 10-character PAN. Partners with a valid 15-character GSTIN may enable GST invoicing in Affiliate Settings.',
+          'In accordance with Section 194H of the Indian Income Tax Act, 1961, hejournal.in deducts 5% TDS on gross affiliate commission payouts where applicable and issues quarterly Form 16A certificates against your verified 10-character PAN. Partners with a valid 15-character GSTIN may enable GST invoicing in Affiliate Settings.',
       'mandatory': true,
       'sort_order': 2,
     },
@@ -668,7 +693,8 @@ class AffiliateWorkspaceRepository {
       'id': 'term-3',
       'clause_code': 'ATTRIBUTION-COOKIE-03',
       'version': '2026.1-INR',
-      'title': '30-Day First-Party Referral Attribution & Qualifying Conversions',
+      'title':
+          '30-Day First-Party Referral Attribution & Qualifying Conversions',
       'category': 'attribution',
       'summary':
           '30-day attribution window on /r/:slug links with UTM campaign tracking and billing webhook qualification.',
@@ -686,7 +712,7 @@ class AffiliateWorkspaceRepository {
       'summary':
           'Mandatory affiliate disclosure and prohibition on guaranteed return claims or unregistered investment advice.',
       'body':
-          'Partners must clearly disclose that their link is a commercial referral link in accordance with ASCI Guidelines for Influencer Advertising in Digital Media and SEBI circulars. Partners must never promise guaranteed trading profits, assured returns, or represent TradeX software tools as SEBI-registered portfolio management or advisory tips.',
+          'Partners must clearly disclose that their link is a commercial referral link in accordance with ASCI Guidelines for Influencer Advertising in Digital Media and SEBI circulars. Partners must never promise guaranteed trading profits, assured returns, or represent hejournal.in software tools as SEBI-registered portfolio management or advisory tips.',
       'mandatory': true,
       'sort_order': 4,
     },
@@ -697,9 +723,9 @@ class AffiliateWorkspaceRepository {
       'title': 'Prohibition of Self-Referrals, Brand Bidding & Coupon Spoofing',
       'category': 'conduct',
       'summary':
-          'Self-referrals, paid search bidding on TradeX brand keywords, and misleading coupon pages are strictly prohibited.',
+          'Self-referrals, paid search bidding on hejournal.in brand keywords, and misleading coupon pages are strictly prohibited.',
       'body':
-          'Accounts found referring their own trading seats, running Google/Meta paid ads targeting "TradeX" brand terms without written authorization, or injecting unauthorized tracking scripts will have pending commissions forfeited and partner access suspended by the Institutional Desk Administrator.',
+          'Accounts found referring their own trading seats, running Google/Meta paid ads targeting "hejournal.in" brand terms without written authorization, or injecting unauthorized tracking scripts will have pending commissions forfeited and partner access suspended by the Institutional Desk Administrator.',
       'mandatory': true,
       'sort_order': 5,
     },
@@ -840,10 +866,11 @@ class AffiliateWorkspaceRepository {
     'assets': [
       {
         'id': 'ast-1',
-        'title': 'Introduce Your Indian Trading Workspace (SEBI/ASCI Compliant)',
+        'title':
+            'Introduce Your Indian Trading Workspace (SEBI/ASCI Compliant)',
         'format': 'Social caption',
         'body':
-            'Plan NSE/BSE setups, log execution discipline, and review R-multiples in ₹ INR with TradeX. Explore my workspace: {link}\n\nDisclosure: Referral partner link — I may earn a commission on qualifying subscriptions. Educational software only; not SEBI-registered investment advice.',
+            'Plan NSE/BSE setups, log execution discipline, and review R-multiples in ₹ INR with hejournal.in. Explore my workspace: {link}\n\nDisclosure: Referral partner link — I may earn a commission on qualifying subscriptions. Educational software only; not SEBI-registered investment advice.',
         'published': true,
       },
       {
@@ -851,7 +878,7 @@ class AffiliateWorkspaceRepository {
         'title': 'Weekend NIFTY & BankNIFTY Review Newsletter',
         'format': 'Newsletter',
         'body':
-            'Bring your F&O journal, strategy playbooks, and pre-market notes into one unified Indian desk. Start here: {link}\n\nAffiliate disclosure: I may receive a referral commission from TradeX. Securities market investments are subject to market risks.',
+            'Bring your F&O journal, strategy playbooks, and pre-market notes into one unified Indian desk. Start here: {link}\n\nAffiliate disclosure: I may receive a referral commission from hejournal.in. Securities market investments are subject to market risks.',
         'published': true,
       },
       {
@@ -859,7 +886,7 @@ class AffiliateWorkspaceRepository {
         'title': 'YouTube Description & Pin Comment Starter',
         'format': 'Video',
         'body':
-            'Tools used in today’s market breakdown: {link}\n\nPartner disclosure: This is a TradeX partner link. I may earn a commission at no extra cost to you. Trading in equities and derivatives involves substantial risk.',
+            'Tools used in today’s market breakdown: {link}\n\nPartner disclosure: This is a hejournal.in partner link. I may earn a commission at no extra cost to you. Trading in equities and derivatives involves substantial risk.',
         'published': true,
       },
     ],

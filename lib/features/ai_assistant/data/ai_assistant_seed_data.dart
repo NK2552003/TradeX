@@ -42,7 +42,8 @@ abstract final class AiSeedData {
       description:
           'Codify a repeatable edge into an entry / exit / risk playbook.',
       icon: Icons.account_tree_outlined,
-      promptSeed: 'Help me build a swing strategy around opening-range breakouts.',
+      promptSeed:
+          'Help me build a swing strategy around opening-range breakouts.',
       target: AiCreateTarget.strategy,
     ),
     const AiCapability(
@@ -118,68 +119,68 @@ abstract final class AiSeedData {
   // -------------------------------------------------------------------------
 
   /// Ordered category → prompts. Insertion order is preserved for display.
-  static Map<String, List<AppAiPrompt>> promptLibrary() =>
-      <String, List<AppAiPrompt>>{
-        'Analysis': const <AppAiPrompt>[
-          AppAiPrompt(
-            label: 'Break down a ticker',
-            prompt:
-                'Break down RELIANCE: trend, key levels, and the cleanest trade.',
-            icon: Icons.query_stats_outlined,
-          ),
-          AppAiPrompt(
-            label: 'Spot the pattern',
-            prompt: 'What chart pattern is BANKNIFTY forming and how do I play it?',
-            icon: Icons.show_chart_rounded,
-          ),
-          AppAiPrompt(
-            label: 'Support & resistance',
-            prompt: 'Map the key support and resistance levels on NIFTY50.',
-            icon: Icons.horizontal_rule_rounded,
-          ),
-        ],
-        'Strategy': const <AppAiPrompt>[
-          AppAiPrompt(
-            label: 'Design an edge',
-            prompt: 'Help me design a mean-reversion strategy for index futures.',
-            icon: Icons.account_tree_outlined,
-          ),
-          AppAiPrompt(
-            label: 'Define exit rules',
-            prompt: 'What exit rules keep me from giving back winners?',
-            icon: Icons.logout_rounded,
-          ),
-          AppAiPrompt(
-            label: 'Backtest checklist',
-            prompt: 'Give me a checklist to validate a strategy before I trade it.',
-            icon: Icons.fact_check_outlined,
-          ),
-        ],
-        'Risk': const <AppAiPrompt>[
-          AppAiPrompt(
-            label: 'Position sizing',
-            prompt: 'How do I size positions so one loss never hurts?',
-            icon: Icons.balance_outlined,
-          ),
-          AppAiPrompt(
-            label: 'Set a stop',
-            prompt: 'Where should my stop go on a TATAMOTORS long from here?',
-            icon: Icons.gpp_maybe_outlined,
-          ),
-        ],
-        'Journaling': const <AppAiPrompt>[
-          AppAiPrompt(
-            label: 'Review the week',
-            prompt: 'Review my trades this week and surface one thing to fix.',
-            icon: Icons.event_note_outlined,
-          ),
-          AppAiPrompt(
-            label: 'Trade post-mortem',
-            prompt: 'Walk me through a post-mortem for my last losing trade.',
-            icon: Icons.psychology_alt_outlined,
-          ),
-        ],
-      };
+  static Map<String, List<AppAiPrompt>>
+  promptLibrary() => <String, List<AppAiPrompt>>{
+    'Analysis': const <AppAiPrompt>[
+      AppAiPrompt(
+        label: 'Break down a ticker',
+        prompt:
+            'Break down RELIANCE: trend, key levels, and the cleanest trade.',
+        icon: Icons.query_stats_outlined,
+      ),
+      AppAiPrompt(
+        label: 'Spot the pattern',
+        prompt: 'What chart pattern is BANKNIFTY forming and how do I play it?',
+        icon: Icons.show_chart_rounded,
+      ),
+      AppAiPrompt(
+        label: 'Support & resistance',
+        prompt: 'Map the key support and resistance levels on NIFTY50.',
+        icon: Icons.horizontal_rule_rounded,
+      ),
+    ],
+    'Strategy': const <AppAiPrompt>[
+      AppAiPrompt(
+        label: 'Design an edge',
+        prompt: 'Help me design a mean-reversion strategy for index futures.',
+        icon: Icons.account_tree_outlined,
+      ),
+      AppAiPrompt(
+        label: 'Define exit rules',
+        prompt: 'What exit rules keep me from giving back winners?',
+        icon: Icons.logout_rounded,
+      ),
+      AppAiPrompt(
+        label: 'Backtest checklist',
+        prompt: 'Give me a checklist to validate a strategy before I trade it.',
+        icon: Icons.fact_check_outlined,
+      ),
+    ],
+    'Risk': const <AppAiPrompt>[
+      AppAiPrompt(
+        label: 'Position sizing',
+        prompt: 'How do I size positions so one loss never hurts?',
+        icon: Icons.balance_outlined,
+      ),
+      AppAiPrompt(
+        label: 'Set a stop',
+        prompt: 'Where should my stop go on a TATAMOTORS long from here?',
+        icon: Icons.gpp_maybe_outlined,
+      ),
+    ],
+    'Journaling': const <AppAiPrompt>[
+      AppAiPrompt(
+        label: 'Review the week',
+        prompt: 'Review my trades this week and surface one thing to fix.',
+        icon: Icons.event_note_outlined,
+      ),
+      AppAiPrompt(
+        label: 'Trade post-mortem',
+        prompt: 'Walk me through a post-mortem for my last losing trade.',
+        icon: Icons.psychology_alt_outlined,
+      ),
+    ],
+  };
 
   // -------------------------------------------------------------------------
   // Chart setups — detectable patterns with full trade plans
@@ -370,25 +371,27 @@ abstract final class AiSeedData {
         return symbol == 'NIFTY' ? 'NIFTY50' : symbol;
       }
     }
-    final RegExpMatch? caps =
-        RegExp(r'\b[A-Z]{3,}\b').firstMatch(text);
+    final RegExpMatch? caps = RegExp(r'\b[A-Z]{3,}\b').firstMatch(text);
     return caps?.group(0) ?? 'NIFTY50';
   }
 
   /// Builds a persona-flavoured reply for [userText]. The repository prepends
   /// the persona opener / appends the emphasis; this returns the core body plus
   /// the sources and the "create from this" actions to surface underneath.
-  static ({
-    String body,
-    List<String> sources,
-    List<AiSuggestedAction> actions,
-  }) replyFor(String userText, AiPersona persona) {
+  static ({String body, List<String> sources, List<AiSuggestedAction> actions})
+  replyFor(String userText, AiPersona persona) {
     final String lower = userText.toLowerCase();
     final String symbol = symbolFrom(userText);
 
     bool has(List<String> keys) => keys.any(lower.contains);
 
-    if (has(<String>['size', 'sizing', 'position size', 'risk %', 'how much'])) {
+    if (has(<String>[
+      'size',
+      'sizing',
+      'position size',
+      'risk %',
+      'how much',
+    ])) {
       return (
         body:
             'Position sizing is the one lever that keeps a bad run survivable. '
@@ -407,7 +410,14 @@ abstract final class AiSeedData {
       );
     }
 
-    if (has(<String>['strategy', 'playbook', 'rules', 'edge', 'backtest', 'system'])) {
+    if (has(<String>[
+      'strategy',
+      'playbook',
+      'rules',
+      'edge',
+      'backtest',
+      'system',
+    ])) {
       return (
         body:
             'Here is a skeleton you can trade tomorrow — tighten each rule to '
@@ -428,7 +438,16 @@ abstract final class AiSeedData {
       );
     }
 
-    if (has(<String>['market', 'today', 'movers', 'gainers', 'losers', 'breadth', 'outlook', 'summary'])) {
+    if (has(<String>[
+      'market',
+      'today',
+      'movers',
+      'gainers',
+      'losers',
+      'breadth',
+      'outlook',
+      'summary',
+    ])) {
       return (
         body:
             'Market read:\n\n'
@@ -440,15 +459,30 @@ abstract final class AiSeedData {
             'index upside.\n\n'
             'Net: buyable dips while $symbol holds structure; stand aside if '
             'breadth flips negative intraday.',
-        sources: const <String>['Index breadth', 'Sector heatmap', 'Advance/decline'],
+        sources: const <String>[
+          'Index breadth',
+          'Sector heatmap',
+          'Advance/decline',
+        ],
         actions: const <AiSuggestedAction>[
-          AiSuggestedAction(target: AiCreateTarget.post, label: 'Share this read'),
+          AiSuggestedAction(
+            target: AiCreateTarget.post,
+            label: 'Share this read',
+          ),
           AiSuggestedAction(target: AiCreateTarget.note, label: 'Save as note'),
         ],
       );
     }
 
-    if (has(<String>['journal', 'review', 'mistake', 'post-mortem', 'post mortem', 'last trade', 'my trades'])) {
+    if (has(<String>[
+      'journal',
+      'review',
+      'mistake',
+      'post-mortem',
+      'post mortem',
+      'last trade',
+      'my trades',
+    ])) {
       return (
         body:
             'Looking across your recent trades, one pattern stands out: your '
@@ -462,7 +496,10 @@ abstract final class AiSeedData {
         sources: const <String>['Journal history', 'Trade stats'],
         actions: const <AiSuggestedAction>[
           AiSuggestedAction(target: AiCreateTarget.note, label: 'Save review'),
-          AiSuggestedAction(target: AiCreateTarget.journal, label: 'Log a trade'),
+          AiSuggestedAction(
+            target: AiCreateTarget.journal,
+            label: 'Log a trade',
+          ),
         ],
       );
     }
@@ -492,7 +529,10 @@ abstract final class AiSeedData {
         sources: <String>['$symbol daily', 'Catalyst calendar'],
         actions: const <AiSuggestedAction>[
           AiSuggestedAction(target: AiCreateTarget.note),
-          AiSuggestedAction(target: AiCreateTarget.chartAnalysis, label: 'Analyze chart'),
+          AiSuggestedAction(
+            target: AiCreateTarget.chartAnalysis,
+            label: 'Analyze chart',
+          ),
         ],
       );
     }
@@ -511,7 +551,10 @@ abstract final class AiSeedData {
           'entry?',
       sources: <String>['$symbol chart', 'Momentum', 'Volume'],
       actions: const <AiSuggestedAction>[
-        AiSuggestedAction(target: AiCreateTarget.chartAnalysis, label: 'Analyze chart'),
+        AiSuggestedAction(
+          target: AiCreateTarget.chartAnalysis,
+          label: 'Analyze chart',
+        ),
         AiSuggestedAction(target: AiCreateTarget.note, label: 'Save as note'),
         AiSuggestedAction(target: AiCreateTarget.journal, label: 'Log trade'),
       ],
@@ -534,7 +577,7 @@ abstract final class AiSeedData {
         '- Target 2: ${AppTokens.price(setup.target2)}\n'
         '- Risk/Reward: ${setup.rrRatio.toStringAsFixed(2)}R\n\n'
         '## Rationale\n${setup.rationale}\n\n'
-        '_Generated by the TradeX AI copilot._';
+        '_Generated by the hejournal.in AI copilot._';
   }
 
   /// Markdown body for a strategy playbook generated from [setup].

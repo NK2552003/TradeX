@@ -600,7 +600,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'TradeX Intelligence v1.0',
+                'hejournal.in Intelligence v1.0',
                 style: context.uiText.caption.copyWith(
                   fontWeight: FontWeight.w500,
                   fontSize: 12.0,
@@ -854,7 +854,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: context.sz(640)),
           child: Text(
-            'Choose the workspace that matches what you do. Trade with more discipline, or grow the TradeX community as an affiliate.',
+            'Choose the workspace that matches what you do. Trade with more discipline, or grow the hejournal.in community as an affiliate.',
             textAlign: TextAlign.center,
             style: context.uiText.body.copyWith(
               color: colors.foregroundMuted,
@@ -913,7 +913,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   badgeIntent: UiIntent.success,
                   title: 'Affiliate',
                   subtitle:
-                      'For partners who introduce serious traders to TradeX and want transparent referrals, commissions, and campaign reporting.',
+                      'For partners who introduce serious traders to hejournal.in and want transparent referrals, commissions, and campaign reporting.',
                   features: const <String>[
                     'Share Trackable Links Across Your Audience and Community',
                     'Earn Up to 30% Recurring Commission on Referred Traders',
@@ -1203,7 +1203,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: context.sz(620)),
           child: Text(
-            'Everything you need to know about TradeX, quantitative journaling, Indian broker connections, security, and AI capabilities.',
+            'Everything you need to know about hejournal.in, quantitative journaling, Indian broker connections, security, and AI capabilities.',
             textAlign: TextAlign.center,
             style: context.uiText.body.copyWith(
               color: colors.foregroundMuted,
@@ -1368,7 +1368,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: context.sz(620)),
           child: Text(
-            'Start free with standard quantitative journaling or unlock real-time Indian market scanners, AI vision copilot, and prop desk risk guardrails.',
+            'Compare the limits available today. Paid tiers are previews while verified checkout is being connected.',
             textAlign: TextAlign.center,
             style: context.uiText.body.copyWith(
               color: colors.foregroundMuted,
@@ -1640,11 +1640,13 @@ class _GetStartedPageState extends State<GetStartedPage> {
           ),
           SizedBox(height: context.sp(theme.spacing.lg)),
           UiButton(
-            label: isFeatured ? 'Get Started Pro' : 'Choose ${plan.name}',
+            label: plan.ctaLabel,
             variant: isFeatured ? UiVariant.primary : UiVariant.outline,
             intent: isFeatured ? UiIntent.primary : UiIntent.neutral,
             size: UiSize.md,
-            onPressed: () => widget.onGetStarted(UserRole.customer),
+            onPressed: plan.isPurchasable
+                ? () => widget.onGetStarted(UserRole.customer)
+                : null,
           ),
           SizedBox(height: context.sp(theme.spacing.lg)),
           const UiDivider(),
@@ -1652,7 +1654,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              for (final String f in plan.featuresSummary.take(6))
+              for (final String f in plan.featuresSummary)
                 Padding(
                   padding: EdgeInsets.symmetric(
                     vertical: context.sp(theme.spacing.xxs),

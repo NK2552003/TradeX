@@ -1425,18 +1425,17 @@ class AppLinkRef {
     IconData? icon,
     bool? missing,
     bool? isPublicContext,
-  }) =>
-      AppLinkRef(
-        kind: kind ?? this.kind,
-        id: id ?? this.id,
-        title: title ?? this.title,
-        subtitle: subtitle ?? this.subtitle,
-        meta: meta ?? this.meta,
-        intent: intent ?? this.intent,
-        icon: icon ?? this.icon,
-        missing: missing ?? this.missing,
-        isPublicContext: isPublicContext ?? this.isPublicContext,
-      );
+  }) => AppLinkRef(
+    kind: kind ?? this.kind,
+    id: id ?? this.id,
+    title: title ?? this.title,
+    subtitle: subtitle ?? this.subtitle,
+    meta: meta ?? this.meta,
+    intent: intent ?? this.intent,
+    icon: icon ?? this.icon,
+    missing: missing ?? this.missing,
+    isPublicContext: isPublicContext ?? this.isPublicContext,
+  );
 
   UiIntent get effectiveIntent =>
       missing ? UiIntent.neutral : (intent ?? kind.intent);

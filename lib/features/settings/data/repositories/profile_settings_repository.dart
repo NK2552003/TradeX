@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/user_profile_model.dart';
@@ -114,8 +114,7 @@ class AccountDeletionRequestModel {
           json['data_purge_condition']?.toString() ?? 'immediate_purge',
       purgeJournalsNotesStrategies:
           json['purge_journals_notes_strategies'] as bool? ?? true,
-      purgeCommunityMessages:
-          json['purge_community_messages'] as bool? ?? true,
+      purgeCommunityMessages: json['purge_community_messages'] as bool? ?? true,
       purgeAiWorkspace: json['purge_ai_workspace'] as bool? ?? true,
       purgeAffiliateCampaigns:
           json['purge_affiliate_campaigns'] as bool? ?? true,
@@ -208,13 +207,15 @@ abstract class ProfileSettingsRepository {
 }
 
 class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
   static const String _deletionQueueKey = 'tradex_account_deletion_requests_v1';
 
   static final ProfileSettingsRepositoryImpl instance =
       ProfileSettingsRepositoryImpl._();
   ProfileSettingsRepositoryImpl._() {
-    if (!CustomerDataPolicy.allowDemo) {
+    final existing = SupabaseAuthBackendService.instance.currentUserProfile;
+    if (existing != null) {
+      _profile = existing;
+    } else {
       _profile = UserProfileModel(
         id: '',
         handle: '',
@@ -227,24 +228,11 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
   factory ProfileSettingsRepositoryImpl() => instance;
 
   UserProfileModel _profile = UserProfileModel(
-    id: _demoUserId,
-    handle: 'demo_trader',
-    email: 'demo@tradex.ai',
-    displayName: 'Nitish Kumar',
+    id: '',
+    handle: '',
+    email: '',
+    displayName: 'Your account',
     role: UserRole.customer,
-    bio:
-        'Quantitative momentum trader focused on NSE Equities and Index Options breakouts.',
-    avatarUrl: null,
-    experienceLevel: 'Advanced (3-5 years)',
-    tradingStyle: 'Swing Trading',
-    location: 'Mumbai, IN',
-    website: 'tradex.io/@nitish_trader',
-    avgHoldDuration: '45 mins',
-    primaryMarket: 'Equities & Index Options',
-    topStrategy: 'ORB Breakout',
-    riskMantra: 'Focus on risk management over FOMO',
-    publicJournals: true,
-    createdAt: DateTime.now().subtract(const Duration(days: 180)),
   );
 
   @override
@@ -257,7 +245,11 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId =
+            user?.id ??
+            SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+            '';
+        if (targetUserId.isEmpty) return _profile;
 
         final res = await client
             .from('profiles')
@@ -316,7 +308,11 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId =
+            user?.id ??
+            SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+            '';
+        if (targetUserId.isEmpty) return _profile;
 
         final updateData = <String, dynamic>{
           'display_name': _profile.displayName,
@@ -364,7 +360,11 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     if (SupabaseConfig.isConfigured) {
       final client = SupabaseConfig.client!;
       final user = client.auth.currentUser;
-      final targetUserId = user?.id ?? _demoUserId;
+      final targetUserId =
+          user?.id ??
+          SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+          '';
+      if (targetUserId.isEmpty) return finalAvatarUrl;
 
       try {
         final ext = contentType.contains('jpeg') || contentType.contains('jpg')
@@ -417,7 +417,11 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId =
+            user?.id ??
+            SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+            '';
+        if (targetUserId.isEmpty) return;
         await client
             .from('profiles')
             .update({'avatar_url': null})
@@ -608,9 +612,13 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     final DateTime now = DateTime.now();
     final AccountDeletionRequestModel req = AccountDeletionRequestModel(
       id: 'del-${now.millisecondsSinceEpoch}',
-      userId: _profile.id.isNotEmpty ? _profile.id : _demoUserId,
+      userId: _profile.id.isNotEmpty
+          ? _profile.id
+          : (SupabaseConfig.client?.auth.currentUser?.id ?? ''),
       userHandle: _profile.handle.isNotEmpty ? _profile.handle : 'trader',
-      userEmail: _profile.email.isNotEmpty ? _profile.email : 'trader@tradex.io',
+      userEmail: _profile.email.isNotEmpty
+          ? _profile.email
+          : 'trader@hejournal.in',
       userRole: userRole,
       reason: reason ?? 'User requested account deletion',
       feedback: feedback,

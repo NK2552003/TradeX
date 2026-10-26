@@ -165,21 +165,7 @@ class _MarketInstrumentViewState extends State<MarketInstrumentView> {
         );
       }
       if (!snapshot.hasData) {
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const UiSkeleton(height: 200, width: 400),
-              UiGap.v(context.ui.spacing.md),
-              Text(
-                'Loading instrument dossier...',
-                style: context.uiText.caption.copyWith(
-                  color: context.ui.colors.foregroundMuted,
-                ),
-              ),
-            ],
-          ),
-        );
+        return UiSkeleton.market(tab: 3);
       }
       final detail = snapshot.data!;
       final summary = detail['summary'] as Map? ?? {};

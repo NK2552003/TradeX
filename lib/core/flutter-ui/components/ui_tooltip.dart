@@ -16,8 +16,9 @@ class UiTooltip extends StatelessWidget {
 
     return Tooltip(
       message: message,
-      triggerMode:
-          mobile ? TooltipTriggerMode.longPress : TooltipTriggerMode.tap,
+      triggerMode: mobile
+          ? TooltipTriggerMode.longPress
+          : TooltipTriggerMode.tap,
       waitDuration: mobile ? Duration.zero : theme.motion.normal,
       textStyle: context.uiText.caption.copyWith(color: theme.colors.surface),
       decoration: BoxDecoration(

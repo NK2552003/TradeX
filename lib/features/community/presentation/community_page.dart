@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/features/community/data/supabase_post_repository.dart';
 
 class CommunityPage extends StatefulWidget {
@@ -19,18 +22,88 @@ class _CommunityPageState extends State<CommunityPage> {
   bool _loading = true;
   List<AppPost> _posts = [];
   String _postDraft = '';
+  List<AppTrader> _suggestedTraders = [];
+  List<MapEntry<AppTrader, double>> _leaderboardEntries = [];
 
-  final AppTrader _me = const AppTrader(
-    id: 'usr_me',
-    handle: 'nitish_trader',
-    displayName: 'Nitish Kumar',
-  );
+  AppTrader get _me {
+    final profile = SupabaseAuthBackendService.instance.currentUserProfile;
+    if (profile != null) {
+      final handle = profile.handle.isNotEmpty ? profile.handle : '@trader';
+      final name = profile.displayName.isNotEmpty
+          ? profile.displayName
+          : handle;
+      return AppTrader(
+        id: profile.id,
+        handle: handle,
+        displayName: name,
+        avatarUrl: profile.avatarUrl,
+      );
+    }
+    final user = SupabaseConfig.client?.auth.currentUser;
+    if (user != null) {
+      return AppTrader(
+        id: user.id,
+        handle: '@${user.email?.split('@').first ?? 'trader'}',
+        displayName: user.userMetadata?['display_name'] as String? ?? 'Trader',
+      );
+    }
+    return const AppTrader(
+      id: 'usr_me',
+      handle: 'trader',
+      displayName: 'Trader',
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     _repo = widget.repository ?? SupabasePostRepositoryImpl();
     _loadFeed();
+    _loadSidebarTraders();
+  }
+
+  Future<void> _loadSidebarTraders() async {
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final res = await client
+            .from('profiles')
+            .select('id, handle, display_name, avatar_url, role')
+            .limit(10);
+        final traders = (res as List).map((row) {
+          final m = row as Map<String, dynamic>;
+          final handle = (m['handle'] ?? m['username']) as String? ?? 'trader';
+          final name = m['display_name'] as String? ?? handle;
+          return AppTrader(
+            id: m['id']?.toString() ?? '',
+            handle: handle,
+            displayName: name,
+            avatarUrl: m['avatar_url'] as String?,
+          );
+        }).toList();
+
+        if (mounted && traders.isNotEmpty) {
+          setState(() {
+            _suggestedTraders = traders;
+            _leaderboardEntries = [
+              for (int i = 0; i < traders.length; i++)
+                MapEntry(traders[i], 0.0),
+            ];
+          });
+          return;
+        }
+      } catch (e) {
+        debugPrint('[CommunityPage] _loadSidebarTraders error: $e');
+      }
+    }
+    if (CustomerDataPolicy.allowDemo) {
+      if (mounted) {
+        setState(() {
+          _suggestedTraders = DemoDataSource.instance.traders();
+          _leaderboardEntries = DemoDataSource.instance.leaderboard('week');
+        });
+      }
+    }
   }
 
   Future<void> _loadFeed() async {
@@ -58,13 +131,17 @@ class _CommunityPageState extends State<CommunityPage> {
       final post = await _repo.createPost(content: text);
       if (mounted) {
         setState(() {
-          _posts = [post, ..._posts];
+          if (!SupabaseConfig.isConfigured) _posts = [post, ..._posts];
         });
         UiToast.show(
           context,
-          title: 'Post Published',
-          message: 'Your post is now visible on the trader feed.',
-          intent: UiIntent.success,
+          title: SupabaseConfig.isConfigured
+              ? 'Post sent for review'
+              : 'Post Published',
+          message: SupabaseConfig.isConfigured
+              ? 'An admin must approve it before it appears in the community.'
+              : 'Your post is now visible on the trader feed.',
+          intent: UiIntent.info,
         );
       }
     } catch (e) {
@@ -302,6 +379,18 @@ class _CommunityPageState extends State<CommunityPage> {
                                   final text = commentText.trim();
                                   setModalState(() => commentText = '');
                                   await _repo.commentPost(post.id, text);
+                                  if (SupabaseConfig.isConfigured) {
+                                    if (mounted) {
+                                      UiToast.show(
+                                        context,
+                                        title: 'Reply sent for review',
+                                        message:
+                                            'It appears after admin approval.',
+                                        intent: UiIntent.info,
+                                      );
+                                    }
+                                    return;
+                                  }
                                   final newComment = AppComment(
                                     id: 'c_${DateTime.now().millisecondsSinceEpoch}',
                                     author: _me,
@@ -396,14 +485,15 @@ class _CommunityPageState extends State<CommunityPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    AppLeaderboardBlock(
-                      entries: DemoDataSource.instance.leaderboard('week'),
-                      period: 'Week',
-                    ),
-                    UiGap.v(context.sp(theme.spacing.lg)),
-                    AppSuggestedTradersBlock(
-                      traders: DemoDataSource.instance.traders(),
-                    ),
+                    if (_leaderboardEntries.isNotEmpty) ...[
+                      AppLeaderboardBlock(
+                        entries: _leaderboardEntries,
+                        period: 'Week',
+                      ),
+                      UiGap.v(context.sp(theme.spacing.lg)),
+                    ],
+                    if (_suggestedTraders.isNotEmpty)
+                      AppSuggestedTradersBlock(traders: _suggestedTraders),
                   ],
                 ),
               ),

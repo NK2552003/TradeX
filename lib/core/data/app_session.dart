@@ -110,8 +110,9 @@ class AppSession {
   bool hasCustomProfileModeOverride = false;
 
   /// Active workspace role for the session.
-  final ValueNotifier<UserRole> activeRole =
-      ValueNotifier<UserRole>(UserRole.customer);
+  final ValueNotifier<UserRole> activeRole = ValueNotifier<UserRole>(
+    UserRole.customer,
+  );
 
   /// AI Copilot queries consumed in the current billing period.
   final ValueNotifier<int> aiQueriesUsed = ValueNotifier<int>(8);

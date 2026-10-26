@@ -152,17 +152,21 @@ class PublicPricingContent extends StatelessWidget {
                           if (columns > 1) const Spacer(),
                           UiGap.v(theme.spacing.sm),
                           UiButton(
-                            label: busyPlan == plan.id
-                                ? catalogue.text('processing')
-                                : plan.isCurrent
+                            label: plan.isCurrent
                                 ? catalogue.text('current')
+                                : !plan.isPurchasable
+                                ? plan.ctaLabel
+                                : busyPlan == plan.id
+                                ? catalogue.text('processing')
                                 : plan.ctaLabel,
                             loading: busyPlan == plan.id,
                             expand: true,
                             variant: plan.highlighted
                                 ? UiVariant.solid
                                 : UiVariant.outline,
-                            onPressed: busyPlan == null
+                            onPressed:
+                                busyPlan == null &&
+                                    (plan.isPurchasable || plan.isCurrent)
                                 ? () => onSelect(plan)
                                 : null,
                           ),

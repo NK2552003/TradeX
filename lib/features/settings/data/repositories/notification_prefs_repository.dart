@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/features/settings/models/notification_prefs_model.dart';
 
 abstract class NotificationPrefsRepository {
@@ -10,16 +11,20 @@ abstract class NotificationPrefsRepository {
 }
 
 class NotificationPrefsRepositoryImpl implements NotificationPrefsRepository {
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
   NotificationPrefsModel _prefs = NotificationPrefsModel.defaultPrefs();
+
+  String get _targetUserId =>
+      SupabaseConfig.client?.auth.currentUser?.id ??
+      SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+      '';
 
   @override
   Future<NotificationPrefsModel> getPreferences() async {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _targetUserId;
+        if (targetUserId.isEmpty) return _prefs;
 
         final data = await client
             .from('trader_preferences')
@@ -28,7 +33,8 @@ class NotificationPrefsRepositoryImpl implements NotificationPrefsRepository {
             .maybeSingle();
 
         if (data != null && data['notification_settings'] != null) {
-          final settingsMap = data['notification_settings'] as Map<String, dynamic>;
+          final settingsMap =
+              data['notification_settings'] as Map<String, dynamic>;
           if (settingsMap.isNotEmpty) {
             _prefs = NotificationPrefsModel.fromJson(settingsMap);
             return _prefs;
@@ -49,8 +55,8 @@ class NotificationPrefsRepositoryImpl implements NotificationPrefsRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _targetUserId;
+        if (targetUserId.isEmpty) return _prefs;
 
         await client.from('trader_preferences').upsert({
           'user_id': targetUserId,
@@ -58,7 +64,9 @@ class NotificationPrefsRepositoryImpl implements NotificationPrefsRepository {
           'updated_at': DateTime.now().toIso8601String(),
         });
       } catch (e) {
-        debugPrint('NotificationPrefsRepositoryImpl.updatePreferences error: $e');
+        debugPrint(
+          'NotificationPrefsRepositoryImpl.updatePreferences error: $e',
+        );
       }
     }
     return _prefs;

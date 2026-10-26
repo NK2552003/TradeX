@@ -65,7 +65,10 @@ class MessageActionsSheet extends StatelessWidget {
         decoration: BoxDecoration(
           color: colors.background,
           borderRadius: context.radius(theme.radii.xl),
-          border: Border.all(color: colors.border, width: theme.borders.hairline),
+          border: Border.all(
+            color: colors.border,
+            width: theme.borders.hairline,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -188,8 +191,9 @@ class MessageActionsSheet extends StatelessWidget {
   }
 
   void _showEditDialog(BuildContext context) {
-    final TextEditingController controller =
-        TextEditingController(text: message.body);
+    final TextEditingController controller = TextEditingController(
+      text: message.body,
+    );
     showDialog<void>(
       context: context,
       builder: (BuildContext ctx) => UiDialog(
@@ -244,7 +248,9 @@ class MessageActionsSheet extends StatelessWidget {
       repository: AiAssistantRepositoryScope.repository,
       initialPrompt: prompt,
       contextTitle: 'Chat Message',
-      contextSubtitle: content.length > 50 ? '${content.substring(0, 50)}...' : content,
+      contextSubtitle: content.length > 50
+          ? '${content.substring(0, 50)}...'
+          : content,
       contextIcon: Icons.chat_bubble_outline_rounded,
       onOpenFullScreen: onNavigateToAi,
     );
@@ -283,8 +289,9 @@ class MessageActionsSheet extends StatelessWidget {
   }) {
     final UiTheme theme = context.ui;
     final UiColors colors = theme.colors;
-    final Color fg =
-        intent == UiIntent.danger ? colors.destructive : colors.foreground;
+    final Color fg = intent == UiIntent.danger
+        ? colors.destructive
+        : colors.foreground;
     return UiInteractive(
       onTap: onTap,
       builder: (BuildContext context, UiInteractiveState state) {

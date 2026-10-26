@@ -329,6 +329,12 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   /// leaving the library alone.
   Future<void> _apply(AppLinkOpenRequest request) async {
     if (request.kind != AppLinkKind.strategy) return;
+    if (request.id.isEmpty) {
+      if (request.editWriting) {
+        _newPlaybook();
+      }
+      return;
+    }
     final revision = ++_accessRevision;
     try {
       final record = await _repo.getById(request.id);

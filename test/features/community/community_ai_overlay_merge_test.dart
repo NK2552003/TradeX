@@ -62,7 +62,7 @@ void main() {
 
         // Verify it opened the canonical AiAssistantOverlaySheet
         expect(find.byType(AiAssistantOverlaySheet), findsOneWidget);
-        expect(find.text('TradeX AI Copilot'), findsOneWidget);
+        expect(find.textContaining('AI Copilot'), findsOneWidget);
         expect(find.text('Institutional Market Intelligence'), findsOneWidget);
 
         // Verify Community Market Intelligence context bar
@@ -125,7 +125,7 @@ void main() {
 
         // Verify AiAssistantOverlaySheet opened with preset context
         expect(find.byType(AiAssistantOverlaySheet), findsOneWidget);
-        expect(find.text('TradeX AI Copilot'), findsOneWidget);
+        expect(find.textContaining('AI Copilot'), findsOneWidget);
         expect(
           find.textContaining('${preset.symbol} (${preset.pattern})'),
           findsOneWidget,

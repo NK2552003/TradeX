@@ -25,7 +25,7 @@ class UiDonutChart extends StatelessWidget {
     this.thickness,
     this.center,
     this.centerLabel,
-    this.showLegend = true,
+    this.showLegend = false,
     this.valueFormatter,
   });
 

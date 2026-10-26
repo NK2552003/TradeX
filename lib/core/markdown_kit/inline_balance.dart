@@ -34,7 +34,18 @@ import 'package:tradex/core/markdown_kit/ticker_syntax.dart';
 /// inline span to close out on. Any unexpected failure here answers
 /// `true`: the flush paragraph is invisible, so over-applying it is always
 /// safer than missing a crash.
-bool markdownLeaksInlineStack(String source, {Set<String> blockBuilderTags = const <String>{'pre'}, Set<String> builderTags = const <String>{'pre', 'math_inline', 'math_block', 'mark', 'html_node', 'ticker'}}) {
+bool markdownLeaksInlineStack(
+  String source, {
+  Set<String> blockBuilderTags = const <String>{'pre'},
+  Set<String> builderTags = const <String>{
+    'pre',
+    'math_inline',
+    'math_block',
+    'mark',
+    'html_node',
+    'ticker',
+  },
+}) {
   try {
     final md.Document document = md.Document(
       extensionSet: md.ExtensionSet.gitHubFlavored,
@@ -47,8 +58,9 @@ bool markdownLeaksInlineStack(String source, {Set<String> blockBuilderTags = con
       ],
       encodeHtml: false,
     );
-    final List<md.Node> nodes =
-        document.parseLines(const LineSplitter().convert(source));
+    final List<md.Node> nodes = document.parseLines(
+      const LineSplitter().convert(source),
+    );
     final _InlineStackProbe probe = _InlineStackProbe(
       blockTags: <String>{..._kBlockTags, ...blockBuilderTags},
       builderTags: builderTags,
@@ -60,8 +72,24 @@ bool markdownLeaksInlineStack(String source, {Set<String> blockBuilderTags = con
 }
 
 const Set<String> _kBlockTags = <String>{
-  'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'pre',
-  'ol', 'ul', 'hr', 'table', 'thead', 'tbody', 'tr', 'section',
+  'p',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'li',
+  'blockquote',
+  'pre',
+  'ol',
+  'ul',
+  'hr',
+  'table',
+  'thead',
+  'tbody',
+  'tr',
+  'section',
 };
 
 class _Inline {

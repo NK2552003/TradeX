@@ -38,8 +38,8 @@ class UiTextarea extends StatefulWidget {
     this.required = false,
     this.toolbar,
     this.footer,
-  })  : rows = maxLines ?? minLines ?? rows,
-        maxRows = maxLines ?? maxRows;
+  }) : rows = maxLines ?? minLines ?? rows,
+       maxRows = maxLines ?? maxRows;
 
   final TextEditingController? controller;
   final String? hintText;

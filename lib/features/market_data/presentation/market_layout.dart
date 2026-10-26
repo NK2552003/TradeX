@@ -48,18 +48,15 @@ class MarketTwoPanel extends StatelessWidget {
 
       Widget buildScrollable(Widget child) {
         return box.hasBoundedHeight
-            ? Scrollbar(
-                child: SingleChildScrollView(
-                  primary: false,
-                  child: pane(child),
-                ),
-              )
+            ? SingleChildScrollView(primary: false, child: pane(child))
             : pane(child);
       }
 
       final panels = Row(
         key: const ValueKey('market-side-by-side-panels'),
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: box.hasBoundedHeight
+            ? CrossAxisAlignment.stretch
+            : CrossAxisAlignment.start,
         children: [
           Expanded(
             flex: equal ? 1 : (box.maxWidth >= 1100 ? 7 : 3),

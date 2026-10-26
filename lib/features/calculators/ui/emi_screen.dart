@@ -35,8 +35,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
 
   Future<void> _fetchLiveBenchmarks() async {
     try {
-      final MacroBenchmarks b =
-          await MarketDataService.instance.getMacroBenchmarks();
+      final MacroBenchmarks b = await MarketDataService.instance
+          .getMacroBenchmarks();
       if (!mounted) return;
       setState(() {
         _rate = b.homeLoanBenchmarkRate;
@@ -146,7 +146,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
           label: 'First instalment',
           value: AppTokens.price(firstInterest),
           intent: UiIntent.bearish,
-          hint: 'is interest — '
+          hint:
+              'is interest — '
               '${AppTokens.price(firstPrincipal)} cuts the loan',
         ),
         UiStat(
@@ -211,7 +212,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
               divisions: 48,
               intent: _rate > 12 ? UiIntent.warning : UiIntent.primary,
               valueFormatter: (num v) => AppTokens.percent(v, decimals: 2),
-              helper: 'A quarter point here moves the instalment by about '
+              helper:
+                  'A quarter point here moves the instalment by about '
                   '${AppTokens.price((calcEmi(principal: _principal, annualRatePct: _rate + 0.25, years: _years).emi - r.emi).abs())}.',
               onChanged: (double v) => setState(() => _rate = v),
             ),
@@ -222,7 +224,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
               max: 30,
               divisions: 29,
               valueFormatter: (num v) => '${v.round()} yr',
-              helper: 'Longer tenure, smaller instalment, more interest — '
+              helper:
+                  'Longer tenure, smaller instalment, more interest — '
                   '${AppTokens.lakhCrore(r.totalInterest)} at this length.',
               onChanged: (double v) => setState(() => _years = v),
             ),
@@ -253,7 +256,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
               decimals: 0,
               presets: const <double>[75000, 150000, 300000, 500000],
               presetLabel: (double v) => AppTokens.compactMoney(v),
-              helper: 'The instalment takes '
+              helper:
+                  'The instalment takes '
                   '${AppTokens.percent(emiToIncome, decimals: 1)} of it. Lenders '
                   'stop around 50% across all loans.',
               onChanged: (double v) => setState(() => _income = v),
@@ -293,7 +297,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                 trailing: AppTokens.lakhCrore(r.totalInterest),
                 intent: UiIntent.primary,
                 emphasis: true,
-                detail: '${AppTokens.percent(r.interestSharePct, decimals: 1)} '
+                detail:
+                    '${AppTokens.percent(r.interestSharePct, decimals: 1)} '
                     'of everything repaid was interest',
               ),
             ],
@@ -337,7 +342,9 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
         ),
         AppCalcPanel(
           label: 'The balance falling',
-          hint: _extra > 0 ? 'minimum against paying extra' : 'outstanding loan',
+          hint: _extra > 0
+              ? 'minimum against paying extra'
+              : 'outstanding loan',
           wide: true,
           child: AppCalcTrendChart(
             labels: <String>[
@@ -467,7 +474,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
         if (_extra > 0 && monthsSaved > 0)
           UiCallout(
             intent: UiIntent.bullish,
-            title: 'Closes ${(monthsSaved / 12).toStringAsFixed(1)} years early',
+            title:
+                'Closes ${(monthsSaved / 12).toStringAsFixed(1)} years early',
             message:
                 '${AppTokens.price(_extra)} more each month ends the loan in '
                 '${(paidMonths / 12).toStringAsFixed(1)} years instead of $yrs '
@@ -479,7 +487,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
         if (stretched)
           UiCallout(
             intent: UiIntent.warning,
-            title: 'The instalment takes '
+            title:
+                'The instalment takes '
                 '${AppTokens.percent(emiToIncome, decimals: 0)} of income',
             message:
                 'Above 40% leaves little room for a rate rise. A floating loan '

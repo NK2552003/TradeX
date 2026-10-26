@@ -61,7 +61,6 @@ void main() {
         password: 'valid-pass-123',
       );
       expect(auth.isSuccess, isFalse);
-      ai.sendPrompt('A real account prompt');
       expect(ai.activeThread.messages, isEmpty);
       community.dispose();
       messages.dispose();

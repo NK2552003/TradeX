@@ -62,7 +62,8 @@ class CurrencyRatesSnapshot {
 /// - 30-minute in-memory caching for live rates; permanent caching for historical dates.
 /// - Instant offline fallback so UI and tests never block or fail.
 class CurrencyRateService {
-  CurrencyRateService({http.Client? client}) : _client = client ?? http.Client();
+  CurrencyRateService({http.Client? client})
+    : _client = client ?? http.Client();
 
   /// Singleton instance used across the app.
   static final CurrencyRateService instance = CurrencyRateService();
@@ -70,10 +71,12 @@ class CurrencyRateService {
   final http.Client _client;
 
   /// In-memory cache keyed by "base_date" (e.g. "USD_latest" or "USD_2026-01-05").
-  final Map<String, CurrencyRatesSnapshot> _cache = <String, CurrencyRatesSnapshot>{};
+  final Map<String, CurrencyRatesSnapshot> _cache =
+      <String, CurrencyRatesSnapshot>{};
 
   /// Most recent rates known to the service (seeded with fallback, updated on every live fetch).
-  CurrencyRatesSnapshot _latestLiveRates = CurrencyRatesSnapshot.initialFallback();
+  CurrencyRatesSnapshot _latestLiveRates =
+      CurrencyRatesSnapshot.initialFallback();
 
   /// Current latest rates snapshot.
   CurrencyRatesSnapshot get latestKnownRates => _latestLiveRates;
@@ -103,7 +106,8 @@ class CurrencyRateService {
         // Historical rates are immutable
         return cached;
       }
-      final bool isFresh = DateTime.now().difference(cached.fetchedAt) < liveCacheTtl;
+      final bool isFresh =
+          DateTime.now().difference(cached.fetchedAt) < liveCacheTtl;
       if (isFresh) {
         return cached;
       }
@@ -124,7 +128,10 @@ class CurrencyRateService {
 
     try {
       final http.Response response = await _client
-          .get(uri, headers: const <String, String>{'Accept': 'application/json'})
+          .get(
+            uri,
+            headers: const <String, String>{'Accept': 'application/json'},
+          )
           .timeout(requestTimeout);
 
       if (response.statusCode == 200) {
@@ -133,7 +140,9 @@ class CurrencyRateService {
           final Map<String, double> rates = <String, double>{
             base.toUpperCase(): 1.0,
           };
-          String quoteDate = date == null ? _formatDate(DateTime.now()) : _formatDate(date);
+          String quoteDate = date == null
+              ? _formatDate(DateTime.now())
+              : _formatDate(date);
 
           for (final dynamic item in decoded) {
             if (item is Map) {

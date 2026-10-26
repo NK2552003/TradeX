@@ -278,8 +278,9 @@ class MarkdownPdfExporter {
         final Uint8List? bytes = await OffscreenWidgetCapture.capture(
           context,
           width: options.diagramQuality == PdfDiagramQuality.high ? 1000 : 760,
-          pixelRatio:
-              options.diagramQuality == PdfDiagramQuality.high ? 4 : 2.5,
+          pixelRatio: options.diagramQuality == PdfDiagramQuality.high
+              ? 4
+              : 2.5,
           settle: options.diagramQuality == PdfDiagramQuality.high
               ? const Duration(milliseconds: 1200)
               : const Duration(milliseconds: 800),
@@ -288,7 +289,6 @@ class MarkdownPdfExporter {
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: block.language == 'mermaid'
-
                   // A printed page is white, so diagrams always use a fixed
                   // light palette regardless of the current app theme.
                   ? FlowchartView(
@@ -448,11 +448,11 @@ class _PdfMarkdownBuilder {
   static const double _blockGap = 10;
 
   pw.TextStyle get _body => pw.TextStyle(
-        font: fonts.regular,
-        fontSize: _bodySize,
-        color: _PdfPalette.text,
-        lineSpacing: 3.4,
-      );
+    font: fonts.regular,
+    fontSize: _bodySize,
+    color: _PdfPalette.text,
+    lineSpacing: 3.4,
+  );
 
   pw.TextStyle _heading(int level) {
     const Map<int, double> sizes = <int, double>{
@@ -604,20 +604,17 @@ class _PdfMarkdownBuilder {
     final List<pw.InlineSpan> spans = _inline(children, _body);
     if (spans.isEmpty && imgs.isEmpty) return null;
 
-    final pw.Widget text = pw.RichText(
-      text: pw.TextSpan(children: spans),
-    );
+    final pw.Widget text = pw.RichText(text: pw.TextSpan(children: spans));
     if (imgs.isEmpty) return text;
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: <pw.Widget>[
         text,
-        for (final md.Element img in imgs)
-          ...<pw.Widget>[
-            pw.SizedBox(height: 6),
-            _image(img.attributes['src'] ?? '') ?? pw.SizedBox(),
-          ],
+        for (final md.Element img in imgs) ...<pw.Widget>[
+          pw.SizedBox(height: 6),
+          _image(img.attributes['src'] ?? '') ?? pw.SizedBox(),
+        ],
       ],
     );
   }
@@ -679,10 +676,7 @@ class _PdfMarkdownBuilder {
                   maxWidth: _contentWidth - 18,
                   maxHeight: _contentHeight - 60,
                 ),
-                child: pw.Image(
-                  pw.MemoryImage(figure),
-                  fit: pw.BoxFit.contain,
-                ),
+                child: pw.Image(pw.MemoryImage(figure), fit: pw.BoxFit.contain),
               ),
             ),
             pw.SizedBox(height: 4),
@@ -696,7 +690,6 @@ class _PdfMarkdownBuilder {
             ),
           ],
         );
-
       }
       // Couldn't render the diagram — fall through and print its source
       // rather than losing the content entirely.
@@ -749,7 +742,9 @@ class _PdfMarkdownBuilder {
 
     for (final md.Element item in items) {
       final _ListItem parsed = _listItem(item);
-      final String marker = ordered ? '${index++}.' : (depth.isEven ? '•' : '-');
+      final String marker = ordered
+          ? '${index++}.'
+          : (depth.isEven ? '•' : '-');
 
       rows.add(
         pw.Padding(
@@ -788,9 +783,7 @@ class _PdfMarkdownBuilder {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: <pw.Widget>[
                     if (parsed.inline.isNotEmpty)
-                      pw.RichText(
-                        text: pw.TextSpan(children: parsed.inline),
-                      ),
+                      pw.RichText(text: pw.TextSpan(children: parsed.inline)),
                     for (final md.Element child in parsed.blocks)
                       if (child.tag == 'ul' || child.tag == 'ol')
                         _list(
@@ -825,8 +818,11 @@ class _PdfMarkdownBuilder {
 
     for (final md.Node child in children) {
       if (child is md.Element) {
-        if (child.tag == 'ul' || child.tag == 'ol' || child.tag == 'pre' ||
-            child.tag == 'blockquote' || child.tag == 'table') {
+        if (child.tag == 'ul' ||
+            child.tag == 'ol' ||
+            child.tag == 'pre' ||
+            child.tag == 'blockquote' ||
+            child.tag == 'table') {
           blocks.add(child);
           continue;
         }
@@ -883,9 +879,9 @@ class _PdfMarkdownBuilder {
       if (section is! md.Element) continue;
       if (section.tag == 'thead' || section.tag == 'tbody') {
         rows.addAll(
-          (section.children ?? const <md.Node>[])
-              .whereType<md.Element>()
-              .where((md.Element e) => e.tag == 'tr'),
+          (section.children ?? const <md.Node>[]).whereType<md.Element>().where(
+            (md.Element e) => e.tag == 'tr',
+          ),
         );
       } else if (section.tag == 'tr') {
         rows.add(section);
@@ -896,8 +892,9 @@ class _PdfMarkdownBuilder {
     final List<List<md.Element?>> grid = <List<md.Element?>>[];
     int columns = 0;
     for (final md.Element row in rows) {
-      final List<md.Element> cells =
-          (row.children ?? const <md.Node>[]).whereType<md.Element>().toList();
+      final List<md.Element> cells = (row.children ?? const <md.Node>[])
+          .whereType<md.Element>()
+          .toList();
       if (cells.length > columns) columns = cells.length;
       grid.add(cells);
     }
@@ -1030,10 +1027,10 @@ class _PdfMarkdownBuilder {
     );
   }
 
-
-  static bool _isHeaderRow(md.Element row) => (row.children ?? const <md.Node>[])
-      .whereType<md.Element>()
-      .any((md.Element c) => c.tag == 'th');
+  static bool _isHeaderRow(md.Element row) =>
+      (row.children ?? const <md.Node>[]).whereType<md.Element>().any(
+        (md.Element c) => c.tag == 'th',
+      );
 
   static pw.TextAlign _cellAlign(md.Element? cell) {
     if (cell == null) return pw.TextAlign.left;

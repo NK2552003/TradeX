@@ -82,7 +82,8 @@ class _AiChartAnalysisDialogState extends State<AiChartAnalysisDialog> {
       id: widget.setup.id,
       kind: AppLinkKind.ticker,
       title: '${widget.setup.symbol} ${widget.setup.direction.label} Setup',
-      subtitle: '${widget.setup.pattern} · Target \$${widget.setup.target1.toStringAsFixed(2)}',
+      subtitle:
+          '${widget.setup.pattern} · Target \$${widget.setup.target1.toStringAsFixed(2)}',
       meta: '${widget.setup.confidence}% CONF',
       intent: widget.setup.direction.intent,
     );
@@ -105,77 +106,88 @@ class _AiChartAnalysisDialogState extends State<AiChartAnalysisDialog> {
   @override
   Widget build(BuildContext context) {
     final setup = widget.setup;
-    
+
     return AiDensityScope(
       child: UiDialog(
         title: '${setup.symbol} - ${setup.timeframe}',
-        actions: _stage >= 4 ? [
-          Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: UiButton(
-                      label: 'Save as note',
-                      variant: UiVariant.outline,
-                      onPressed: () => _openCreateSheet(AiCreateTarget.note),
+        actions: _stage >= 4
+            ? [
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: UiButton(
+                            label: 'Save as note',
+                            variant: UiVariant.outline,
+                            onPressed: () =>
+                                _openCreateSheet(AiCreateTarget.note),
+                          ),
+                        ),
+                        SizedBox(width: context.sp(context.ui.spacing.sm)),
+                        Expanded(
+                          child: UiButton(
+                            label: 'Log trade',
+                            variant: UiVariant.outline,
+                            onPressed: () =>
+                                _openCreateSheet(AiCreateTarget.journal),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  SizedBox(width: context.sp(context.ui.spacing.sm)),
-                  Expanded(
-                    child: UiButton(
-                      label: 'Log trade',
-                      variant: UiVariant.outline,
-                      onPressed: () => _openCreateSheet(AiCreateTarget.journal),
+                    SizedBox(height: context.sp(context.ui.spacing.sm)),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: UiButton(
+                            label: 'Create playbook',
+                            variant: UiVariant.outline,
+                            onPressed: () =>
+                                _openCreateSheet(AiCreateTarget.strategy),
+                          ),
+                        ),
+                        SizedBox(width: context.sp(context.ui.spacing.sm)),
+                        Expanded(
+                          child: UiButton(
+                            label: 'Share to feed',
+                            variant: UiVariant.outline,
+                            onPressed: () =>
+                                _openCreateSheet(AiCreateTarget.post),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: context.sp(context.ui.spacing.sm)),
-              Row(
-                children: [
-                  Expanded(
-                    child: UiButton(
-                      label: 'Create playbook',
-                      variant: UiVariant.outline,
-                      onPressed: () => _openCreateSheet(AiCreateTarget.strategy),
+                    SizedBox(height: context.sp(context.ui.spacing.sm)),
+                    UiButton(
+                      label: 'Send setup in DM',
+                      icon: Icons.send_rounded,
+                      variant: UiVariant.solid,
+                      intent: UiIntent.primary,
+                      onPressed: _shareToDm,
                     ),
-                  ),
-                  SizedBox(width: context.sp(context.ui.spacing.sm)),
-                  Expanded(
-                    child: UiButton(
-                      label: 'Share to feed',
-                      variant: UiVariant.outline,
-                      onPressed: () => _openCreateSheet(AiCreateTarget.post),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: context.sp(context.ui.spacing.sm)),
-              UiButton(
-                label: 'Send setup in DM',
-                icon: Icons.send_rounded,
-                variant: UiVariant.solid,
-                intent: UiIntent.primary,
-                onPressed: _shareToDm,
-              ),
-            ],
-          )
-        ] : [],
+                  ],
+                ),
+              ]
+            : [],
         content: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (_stage < 2)
               Padding(
-                padding: EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.xl)),
+                padding: EdgeInsets.symmetric(
+                  vertical: context.sp(context.ui.spacing.xl),
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Center(child: UiTypingIndicator()),
                     SizedBox(height: context.sp(context.ui.spacing.md)),
                     Center(
-                      child: Text('Analyzing chart patterns...', style: context.uiText.body),
+                      child: Text(
+                        'Analyzing chart patterns...',
+                        style: context.uiText.body,
+                      ),
                     ),
                   ],
                 ),
@@ -186,10 +198,15 @@ class _AiChartAnalysisDialogState extends State<AiChartAnalysisDialog> {
                 opacity: 1.0,
                 duration: const Duration(milliseconds: 300),
                 child: Padding(
-                  padding: EdgeInsets.only(bottom: context.sp(context.ui.spacing.md)),
+                  padding: EdgeInsets.only(
+                    bottom: context.sp(context.ui.spacing.md),
+                  ),
                   child: Row(
                     children: [
-                      Text('Pattern: ${setup.pattern}', style: context.uiText.title),
+                      Text(
+                        'Pattern: ${setup.pattern}',
+                        style: context.uiText.title,
+                      ),
                       const Spacer(),
                       UiBadge(label: 'Confidence: ${setup.confidence}%'),
                     ],
@@ -209,11 +226,22 @@ class _AiChartAnalysisDialogState extends State<AiChartAnalysisDialog> {
                     children: [
                       Row(
                         children: [
-                          Icon(setup.direction.icon, color: setup.direction.intent.color(context)),
+                          Icon(
+                            setup.direction.icon,
+                            color: setup.direction.intent.color(context),
+                          ),
                           SizedBox(width: context.sp(context.ui.spacing.sm)),
-                          Text(setup.direction.label, style: context.uiText.title.copyWith(color: setup.direction.intent.color(context))),
+                          Text(
+                            setup.direction.label,
+                            style: context.uiText.title.copyWith(
+                              color: setup.direction.intent.color(context),
+                            ),
+                          ),
                           const Spacer(),
-                          Text('R:R ${setup.rrRatio.toStringAsFixed(1)}', style: context.uiText.label),
+                          Text(
+                            'R:R ${setup.rrRatio.toStringAsFixed(1)}',
+                            style: context.uiText.label,
+                          ),
                         ],
                       ),
                       SizedBox(height: context.sp(context.ui.spacing.md)),
@@ -224,19 +252,24 @@ class _AiChartAnalysisDialogState extends State<AiChartAnalysisDialog> {
                       SizedBox(height: context.sp(context.ui.spacing.md)),
                       Text('Confidence', style: context.uiText.label),
                       SizedBox(height: context.sp(context.ui.spacing.xs)),
-                      UiProgressBar(value: setup.confidence / 100.0, intent: setup.direction.intent),
+                      UiProgressBar(
+                        value: setup.confidence / 100.0,
+                        intent: setup.direction.intent,
+                      ),
                     ],
                   ),
                 ),
               ),
-              
+
             // Stage 4: Rationale
             if (_stage >= 4)
               AnimatedOpacity(
                 opacity: 1.0,
                 duration: const Duration(milliseconds: 300),
                 child: Padding(
-                  padding: EdgeInsets.only(top: context.sp(context.ui.spacing.lg)),
+                  padding: EdgeInsets.only(
+                    top: context.sp(context.ui.spacing.lg),
+                  ),
                   child: UiCallout(
                     title: 'Rationale',
                     message: setup.rationale,

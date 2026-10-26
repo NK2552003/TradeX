@@ -171,7 +171,7 @@ class AppDeskSectionHeader extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A single horizontal row of date chips that scrolls to keep [selected]
-/// centred, ported from the QuietNote home surface into TradeX tokens.
+/// centred, ported from the QuietNote home surface into hejournal.in tokens.
 ///
 /// Days carrying activity can be flagged via [markers] (compared by calendar
 /// day) so the reader can see where their notes and trades live before tapping.

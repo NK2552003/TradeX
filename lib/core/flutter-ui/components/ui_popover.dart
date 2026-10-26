@@ -18,6 +18,7 @@ class UiPopover extends StatelessWidget {
 
   final Widget trigger;
   final dynamic content;
+
   /// Panel width in logical points (scaled internally).
   final double? width;
 

@@ -10,10 +10,11 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 /// (e.g. `$$x+y$$`, `$x$`) are not mistakenly parsed as financial tickers.
 class TickerInlineSyntax extends md.InlineSyntax {
   TickerInlineSyntax()
-      : super(r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)');
+    : super(r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)');
 
-  static final RegExp regex =
-      RegExp(r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)');
+  static final RegExp regex = RegExp(
+    r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)',
+  );
 
   @override
   RegExp get pattern => regex;
@@ -37,7 +38,8 @@ class TickerElementBuilder extends MarkdownElementBuilder {
 
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
-    final String rawSymbol = element.attributes['symbol'] ?? element.textContent;
+    final String rawSymbol =
+        element.attributes['symbol'] ?? element.textContent;
     final String symbol = rawSymbol.toUpperCase();
 
     return Builder(
@@ -47,11 +49,9 @@ class TickerElementBuilder extends MarkdownElementBuilder {
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
             onTap: () {
-              onOpenRef?.call(AppLinkRef(
-                kind: AppLinkKind.ticker,
-                id: symbol,
-                title: symbol,
-              ));
+              onOpenRef?.call(
+                AppLinkRef(kind: AppLinkKind.ticker, id: symbol, title: symbol),
+              );
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),

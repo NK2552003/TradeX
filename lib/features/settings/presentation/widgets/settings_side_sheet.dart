@@ -11,6 +11,7 @@ Future<T?> showSettingsSideSheet<T>(
   String? subtitle,
   required Widget child,
   Widget? action,
+  bool showHeader = true,
   double desktopWidthRatio = 0.52,
   double? maxWidth,
   double? minDesktopWidth,
@@ -115,67 +116,70 @@ Future<T?> showSettingsSideSheet<T>(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             // Side Sheet Top Header
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: ctx.sp(theme.spacing.lg),
-                                vertical: ctx.sp(theme.spacing.md),
-                              ),
-                              decoration: BoxDecoration(
-                                color: colors.surface,
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: colors.border,
-                                    width: theme.borders.hairline,
-                                  ),
+                            if (showHeader)
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: ctx.sp(theme.spacing.lg),
+                                  vertical: ctx.sp(theme.spacing.md),
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          title,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: ctx.uiText.heading.copyWith(
-                                            fontSize: 16.5,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        if (subtitle != null) ...[
-                                          SizedBox(
-                                            height: ctx.sp(theme.spacing.xxs),
-                                          ),
-                                          Text(
-                                            subtitle,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: ctx.uiText.caption.copyWith(
-                                              color: colors.foregroundMuted,
-                                              fontSize: 12.0,
-                                            ),
-                                          ),
-                                        ],
-                                      ],
+                                decoration: BoxDecoration(
+                                  color: colors.surface,
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: colors.border,
+                                      width: theme.borders.hairline,
                                     ),
                                   ),
-                                  if (action != null) ...[
-                                    action,
-                                    SizedBox(width: ctx.sp(theme.spacing.xs)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: ctx.uiText.heading.copyWith(
+                                              fontSize: 16.5,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          if (subtitle != null) ...[
+                                            SizedBox(
+                                              height: ctx.sp(theme.spacing.xxs),
+                                            ),
+                                            Text(
+                                              subtitle,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: ctx.uiText.caption
+                                                  .copyWith(
+                                                    color:
+                                                        colors.foregroundMuted,
+                                                    fontSize: 12.0,
+                                                  ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    if (action != null) ...[
+                                      action,
+                                      SizedBox(width: ctx.sp(theme.spacing.xs)),
+                                    ],
+                                    UiIconButton(
+                                      icon: Icons.close_rounded,
+                                      size: UiSize.sm,
+                                      tooltip: 'Close panel',
+                                      onPressed: () => Navigator.of(ctx).pop(),
+                                    ),
                                   ],
-                                  UiIconButton(
-                                    icon: Icons.close_rounded,
-                                    size: UiSize.sm,
-                                    tooltip: 'Close panel',
-                                    onPressed: () => Navigator.of(ctx).pop(),
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
 
                             // Side Sheet Body Content
                             Expanded(child: child),

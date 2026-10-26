@@ -26,7 +26,8 @@ class CommunityNotificationsView extends StatefulWidget {
 
 class _CommunityNotificationsViewState
     extends State<CommunityNotificationsView> {
-  int _selectedFilter = 0; // 0: All, 1: Likes, 2: Replies, 3: Reposts, 4: Signals
+  int _selectedFilter =
+      0; // 0: All, 1: Likes, 2: Replies, 3: Reposts, 4: Signals
 
   @override
   void initState() {
@@ -48,10 +49,18 @@ class _CommunityNotificationsViewState
     final allNotifications = widget.repository.notifications;
 
     final filtered = allNotifications.where((n) {
-      if (_selectedFilter == 1) return n.type == CommunityNotificationType.like;
-      if (_selectedFilter == 2) return n.type == CommunityNotificationType.reply;
-      if (_selectedFilter == 3) return n.type == CommunityNotificationType.repost;
-      if (_selectedFilter == 4) return n.type == CommunityNotificationType.signal;
+      if (_selectedFilter == 1) {
+        return n.type == CommunityNotificationType.like;
+      }
+      if (_selectedFilter == 2) {
+        return n.type == CommunityNotificationType.reply;
+      }
+      if (_selectedFilter == 3) {
+        return n.type == CommunityNotificationType.repost;
+      }
+      if (_selectedFilter == 4) {
+        return n.type == CommunityNotificationType.signal;
+      }
       return true;
     }).toList();
 
@@ -97,7 +106,9 @@ class _CommunityNotificationsViewState
 
         // Filter chips
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: context.sp(theme.spacing.md)),
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(theme.spacing.md),
+          ),
           child: UiTabs(
             tabs: const ['All', 'Likes', 'Replies', 'Reposts', 'Signals'],
             selectedIndex: _selectedFilter,
@@ -118,7 +129,6 @@ class _CommunityNotificationsViewState
     );
   }
 }
-
 
 class _NotificationsList extends StatelessWidget {
   const _NotificationsList({
@@ -161,7 +171,7 @@ class _NotificationsList extends StatelessWidget {
             onTap: () {
               if (item.postSnippet != null && repository.feedPosts.isNotEmpty) {
                 final post = repository.feedPosts.firstWhere(
-                  (p) => p.author.handle == item.actor.handle,
+                  (p) => p.author.handle == (item.actor?.handle ?? ''),
                   orElse: () => repository.feedPosts.first,
                 );
                 Navigator.of(context).push(
@@ -173,8 +183,8 @@ class _NotificationsList extends StatelessWidget {
                     ),
                   ),
                 );
-              } else {
-                onAuthorTap?.call(item.actor);
+              } else if (item.actor != null) {
+                onAuthorTap?.call(item.actor!);
               }
             },
           ),
@@ -183,4 +193,3 @@ class _NotificationsList extends StatelessWidget {
     );
   }
 }
-

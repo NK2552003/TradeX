@@ -74,11 +74,12 @@ class UiStatStrip extends StatelessWidget {
         final double available = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : ctx.sz(minCellWidth) * stats.length;
-        final int totalSpan =
-            stats.fold(0, (int acc, UiStat s) => acc + (s.colSpan ?? 1));
+        final int totalSpan = stats.fold(
+          0,
+          (int acc, UiStat s) => acc + (s.colSpan ?? 1),
+        );
         final int maxSpan = totalSpan > stats.length ? totalSpan : stats.length;
-        final int cols = (columns ??
-                (available / ctx.sz(minCellWidth)).floor())
+        final int cols = (columns ?? (available / ctx.sz(minCellWidth)).floor())
             .clamp(1, maxSpan);
         final List<List<_UiStatItem>> rowGroups = _computeRows(stats, cols);
 
@@ -157,8 +158,7 @@ class UiStatStrip extends StatelessWidget {
       final int autoSpan = (cols % count == 0) ? (cols ~/ count) : 1;
 
       rows.add(<_UiStatItem>[
-        for (final UiStat s in slice)
-          _UiStatItem(stat: s, span: autoSpan),
+        for (final UiStat s in slice) _UiStatItem(stat: s, span: autoSpan),
       ]);
     }
     return rows;
@@ -166,7 +166,10 @@ class UiStatStrip extends StatelessWidget {
 
   static List<_UiStatItem> _autoFillRowGap(List<_UiStatItem> row, int cols) {
     if (row.isEmpty) return row;
-    final int usedSpan = row.fold(0, (int acc, _UiStatItem it) => acc + it.span);
+    final int usedSpan = row.fold(
+      0,
+      (int acc, _UiStatItem it) => acc + it.span,
+    );
     if (usedSpan >= cols) return row;
 
     if (cols % row.length == 0) {
@@ -232,9 +235,7 @@ class UiStatStrip extends StatelessWidget {
             SizedBox(height: context.sp(theme.spacing.xxs)),
             Text(
               stat.hint!,
-              style: context.uiText.caption.copyWith(
-                color: c.foregroundSubtle,
-              ),
+              style: context.uiText.caption.copyWith(color: c.foregroundSubtle),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),

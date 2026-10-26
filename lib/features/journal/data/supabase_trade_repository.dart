@@ -21,15 +21,15 @@ abstract class SupabaseTradeRepository {
 
 class SupabaseTradeRepositoryImpl implements SupabaseTradeRepository {
   SupabaseTradeRepositoryImpl._([JournalRepository? journalRepo])
-      : _journalRepo = journalRepo;
+    : _journalRepo = journalRepo;
 
   static final SupabaseTradeRepositoryImpl instance =
       SupabaseTradeRepositoryImpl._();
 
   factory SupabaseTradeRepositoryImpl({JournalRepository? journalRepo}) =>
       journalRepo != null
-          ? SupabaseTradeRepositoryImpl._(journalRepo)
-          : instance;
+      ? SupabaseTradeRepositoryImpl._(journalRepo)
+      : instance;
 
   final JournalRepository? _journalRepo;
 
@@ -92,12 +92,15 @@ class SupabaseTradeRepositoryImpl implements SupabaseTradeRepository {
     final closed = trades.where((t) => !t.isOpen).toList();
     final wins = closed.where((t) => t.outcome == AppOutcome.win).length;
     final double netPnl = closed.fold(0.0, (sum, t) => sum + t.pnl);
-    final double winRate =
-        closed.isNotEmpty ? (wins / closed.length) * 100 : 0.0;
-    final rs =
-        closed.where((t) => t.rMultiple != null).map((t) => t.rMultiple!);
-    final double avgRr =
-        rs.isNotEmpty ? rs.reduce((a, b) => a + b) / rs.length : 0.0;
+    final double winRate = closed.isNotEmpty
+        ? (wins / closed.length) * 100
+        : 0.0;
+    final rs = closed
+        .where((t) => t.rMultiple != null)
+        .map((t) => t.rMultiple!);
+    final double avgRr = rs.isNotEmpty
+        ? rs.reduce((a, b) => a + b) / rs.length
+        : 0.0;
     final double bestPnl = trades.isNotEmpty
         ? trades.map((t) => t.pnl).reduce((a, b) => a > b ? a : b)
         : 0.0;

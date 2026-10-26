@@ -116,7 +116,9 @@ class CommunityShareSheet extends StatelessWidget {
               repository: AiAssistantRepositoryScope.repository,
               initialPrompt: prompt,
               contextTitle: 'Post by @${post.author.handle}',
-              contextSubtitle: post.body.length > 50 ? '${post.body.substring(0, 50)}...' : post.body,
+              contextSubtitle: post.body.length > 50
+                  ? '${post.body.substring(0, 50)}...'
+                  : post.body,
               contextIcon: Icons.public_rounded,
               contextRef: AppLinkRef(
                 id: post.id,
@@ -133,10 +135,10 @@ class CommunityShareSheet extends StatelessWidget {
           context,
           icon: Icons.link_rounded,
           title: 'Copy Link to Post',
-          subtitle: 'https://tradex.io/post/${post.id}',
+          subtitle: 'https://hejournal.in/post/${post.id}',
           onTap: () {
             Clipboard.setData(
-              ClipboardData(text: 'https://tradex.io/post/${post.id}'),
+              ClipboardData(text: 'https://hejournal.in/post/${post.id}'),
             );
             Navigator.of(context).pop();
             UiToast.show(
@@ -257,5 +259,5 @@ class CommunityShareSheet extends StatelessWidget {
   }
 
   static String _shareText(CommunityPost post) =>
-      '${post.body}\n\nShared from TradeX • @${post.author.handle}';
+      '${post.body}\n\nShared from hejournal.in • @${post.author.handle}';
 }

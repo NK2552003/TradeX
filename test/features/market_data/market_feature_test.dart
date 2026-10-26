@@ -84,64 +84,54 @@ void main() {
       lessThan(snapshot.instruments.length),
     );
   });
-  testWidgets('news search filters stories and video likes persist', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({});
-    viewport(tester, 1440);
-    final repo = AssetMarketRepository(bundle: FileAssets());
-    final data = (await tester.runAsync(() => repo.snapshot()))!;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: MarketRootScreen(
-            repository: repo,
-            destination: 'market_news',
-            searchQuery: 'no-result-market-query-987654',
+  testWidgets(
+    'news search filters stories and unfunctional like button is removed',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      viewport(tester, 1440);
+      final repo = AssetMarketRepository(bundle: FileAssets());
+      final data = (await tester.runAsync(() => repo.snapshot()))!;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MarketRootScreen(
+              repository: repo,
+              destination: 'market_news',
+              searchQuery: 'no-result-market-query-987654',
+            ),
           ),
         ),
-      ),
-    );
-    await settleAssets(tester);
-    expect(find.text('No articles available'), findsOneWidget);
-    final video = data.videos.first;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: MarketRootScreen(
-            key: const ValueKey('video-market'),
-            repository: repo,
-            destination: 'market_news',
+      );
+      await settleAssets(tester);
+      expect(find.text('No articles available'), findsOneWidget);
+      final video = data.videos.first;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MarketRootScreen(
+              key: const ValueKey('video-market'),
+              repository: repo,
+              destination: 'market_news',
+            ),
           ),
         ),
-      ),
-    );
-    await settleAssets(tester);
-    final videoCard = find
-        .ancestor(
-          of: find.text(video.title).first,
-          matching: find.byType(MarketNewsCard),
-        )
-        .first;
-    await tester.ensureVisible(videoCard);
-    await tester.tap(
-      find.descendant(of: videoCard, matching: find.text('Like')),
-    );
-    await tester.pump();
-    expect(
-      find.descendant(of: videoCard, matching: find.text('Liked')),
-      findsOneWidget,
-    );
-    await tester.runAsync(
-      () async => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
-    final prefs = await SharedPreferences.getInstance();
-    expect(
-      prefs.getStringList('market_intelligence_likes:guest'),
-      contains(video.link),
-    );
-    expect(tester.takeException(), isNull);
-  });
+      );
+      await settleAssets(tester);
+      final videoCard = find
+          .ancestor(
+            of: find.text(video.title).first,
+            matching: find.byType(MarketNewsCard),
+          )
+          .first;
+      await tester.ensureVisible(videoCard);
+      // Like button removed as it remains unfunctional
+      expect(
+        find.descendant(of: videoCard, matching: find.text('Like')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('full company dossier charts use exported fields', (
     tester,
   ) async {
@@ -272,7 +262,7 @@ void main() {
       ),
     );
     await settleAssets(tester);
-    expect(find.text('Market Pulse'), findsOneWidget);
+    expect(find.text('World Indices'), findsOneWidget);
     expect(find.text('${data.manifest['detail_count']}'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Coverage').first);

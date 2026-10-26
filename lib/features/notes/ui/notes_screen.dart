@@ -24,8 +24,8 @@ enum _NotesCollection { mine, public }
 
 /// The notes destination, for every role.
 ///
-/// Fully responsive writing desk notebook matching TraderHub design standards.
-/// Uses pre-built TraderHub components, dynamic real-time data from repositories,
+/// Fully responsive writing desk notebook matching hejournal.in design standards.
+/// Uses pre-built hejournal.in components, dynamic real-time data from repositories,
 /// interactive category tabs, ticker and playbook filters, and spotlight guide keys.
 class NotesScreen extends StatefulWidget {
   const NotesScreen({
@@ -266,6 +266,12 @@ class NotesScreenState extends State<NotesScreen> {
     }
     if (request.kind != AppLinkKind.note) return;
     _appliedRequest = request;
+    if (request.id.isEmpty) {
+      if (request.editWriting) {
+        _newNote();
+      }
+      return;
+    }
     final revision = ++_accessRevision;
     try {
       final note = await _repo.getById(request.id);
@@ -504,7 +510,7 @@ class NotesScreenState extends State<NotesScreen> {
   Future<void> _newNote() async {
     final bool canCreate = await CustomerLimitations.checkCanCreateNote(
       context,
-      currentNoteCount: _notes.length,
+      currentNoteCount: _notes.where((n) => RecordAccess.owns(n.userId)).length,
     );
     if (!canCreate || !mounted) return;
     final AppNoteTemplate? template = await showNoteTemplateGallery(context);

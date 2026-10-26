@@ -142,6 +142,32 @@ class CommunityTradeSetup {
   final List<UiCandle> candles;
 
   bool get isBullish => side.toUpperCase() == 'LONG';
+
+  CommunityTradeSetup copyWith({
+    String? ticker,
+    String? side,
+    String? entry,
+    String? exit,
+    String? stopLoss,
+    String? target,
+    String? rMultiple,
+    String? pnl,
+    bool? isWin,
+    List<UiCandle>? candles,
+  }) {
+    return CommunityTradeSetup(
+      ticker: ticker ?? this.ticker,
+      side: side ?? this.side,
+      entry: entry ?? this.entry,
+      exit: exit ?? this.exit,
+      stopLoss: stopLoss ?? this.stopLoss,
+      target: target ?? this.target,
+      rMultiple: rMultiple ?? this.rMultiple,
+      pnl: pnl ?? this.pnl,
+      isWin: isWin ?? this.isWin,
+      candles: candles ?? this.candles,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -429,6 +455,8 @@ class CommunityPost {
     this.reposts = 0,
     this.views = 0,
     this.liked = false,
+    this.userReaction,
+    this.reactions = const <String>[],
     this.reposted = false,
     this.bookmarked = false,
     this.quoted,
@@ -465,6 +493,8 @@ class CommunityPost {
   final int reposts;
   final int views;
   final bool liked;
+  final String? userReaction;
+  final List<String> reactions;
   final bool reposted;
   final bool bookmarked;
 
@@ -505,6 +535,8 @@ class CommunityPost {
     return const <String>[];
   }
 
+  static const Object _postSentinel = Object();
+
   CommunityPost copyWith({
     String? body,
     int? likes,
@@ -512,6 +544,8 @@ class CommunityPost {
     int? reposts,
     int? views,
     bool? liked,
+    Object? userReaction = _postSentinel,
+    List<String>? reactions,
     bool? reposted,
     bool? bookmarked,
     bool? isPinned,
@@ -551,6 +585,10 @@ class CommunityPost {
     reposts: reposts ?? this.reposts,
     views: views ?? this.views,
     liked: liked ?? this.liked,
+    userReaction: identical(userReaction, _postSentinel)
+        ? this.userReaction
+        : userReaction as String?,
+    reactions: reactions ?? this.reactions,
     reposted: reposted ?? this.reposted,
     bookmarked: bookmarked ?? this.bookmarked,
     quoted: quoted,
@@ -714,25 +752,72 @@ enum CommunityNotificationType {
   follow,
   mention,
   signal,
+  system,
+  security,
+  tradeExecution,
+  marginAlert,
+  message,
 }
 
 @immutable
 class CommunityNotificationItem {
   const CommunityNotificationItem({
     required this.id,
-    required this.actor,
+    this.actor,
     required this.type,
     required this.createdAt,
+    this.title,
+    this.body,
     this.postSnippet,
+    this.postId,
+    this.postImageUrl,
+    this.data = const <String, dynamic>{},
     this.read = false,
+    this.isFollowingBack = false,
   });
 
   final String id;
-  final CommunityAuthor actor;
+  final CommunityAuthor? actor;
   final CommunityNotificationType type;
   final DateTime createdAt;
+  final String? title;
+  final String? body;
   final String? postSnippet;
+  final String? postId;
+  final String? postImageUrl;
+  final Map<String, dynamic> data;
   final bool read;
+  final bool isFollowingBack;
+
+  CommunityNotificationItem copyWith({
+    String? id,
+    CommunityAuthor? actor,
+    CommunityNotificationType? type,
+    DateTime? createdAt,
+    String? title,
+    String? body,
+    String? postSnippet,
+    String? postId,
+    String? postImageUrl,
+    Map<String, dynamic>? data,
+    bool? read,
+    bool? isFollowingBack,
+  }) {
+    return CommunityNotificationItem(
+      id: id ?? this.id,
+      actor: actor ?? this.actor,
+      type: type ?? this.type,
+      createdAt: createdAt ?? this.createdAt,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      postSnippet: postSnippet ?? this.postSnippet,
+      postId: postId ?? this.postId,
+      postImageUrl: postImageUrl ?? this.postImageUrl,
+      data: data ?? this.data,
+      read: read ?? this.read,
+      isFollowingBack: isFollowingBack ?? this.isFollowingBack,
+    );
+  }
 
   IconData get icon => switch (type) {
     CommunityNotificationType.like => Icons.favorite_rounded,
@@ -742,6 +827,12 @@ class CommunityNotificationItem {
     CommunityNotificationType.follow => Icons.person_add_rounded,
     CommunityNotificationType.mention => Icons.alternate_email_rounded,
     CommunityNotificationType.signal => Icons.auto_graph_rounded,
+    CommunityNotificationType.system => Icons.info_outline_rounded,
+    CommunityNotificationType.security => Icons.phone_android_rounded,
+    CommunityNotificationType.tradeExecution =>
+      Icons.check_circle_outline_rounded,
+    CommunityNotificationType.marginAlert => Icons.shield_outlined,
+    CommunityNotificationType.message => Icons.mark_chat_unread_rounded,
   };
 
   String get label => switch (type) {
@@ -752,6 +843,11 @@ class CommunityNotificationItem {
     CommunityNotificationType.follow => 'followed you',
     CommunityNotificationType.mention => 'mentioned you',
     CommunityNotificationType.signal => 'published a new signal',
+    CommunityNotificationType.system => 'hejournal.in System Alert',
+    CommunityNotificationType.security => 'Security Alert',
+    CommunityNotificationType.tradeExecution => 'Trade Execution',
+    CommunityNotificationType.marginAlert => 'Margin Alert',
+    CommunityNotificationType.message => 'sent you a direct message',
   };
 }
 
@@ -1215,4 +1311,31 @@ class LiveRoomQuestion {
       createdAt: createdAt ?? this.createdAt,
     );
   }
+}
+
+/// Category of social activity performed by a user in the community.
+enum CommunityActivityType { like, comment, repost, post, pollVote }
+
+/// An Instagram-style user activity record (likes, comments, reposts, trades shared).
+@immutable
+class CommunityActivityItem {
+  const CommunityActivityItem({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.timestamp,
+    this.subtitle,
+    this.targetPostId,
+    this.post,
+    this.metadata,
+  });
+
+  final String id;
+  final CommunityActivityType type;
+  final String title;
+  final String? subtitle;
+  final String? targetPostId;
+  final CommunityPost? post;
+  final DateTime timestamp;
+  final Map<String, dynamic>? metadata;
 }

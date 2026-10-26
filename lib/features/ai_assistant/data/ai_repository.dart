@@ -12,8 +12,6 @@ abstract class AiRepository {
 class AiRepositoryImpl implements AiRepository {
   AiRepositoryImpl();
 
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
-
   List<AppAiInsight> _fallbackInsights() {
     if (!CustomerDataPolicy.allowDemo) return [];
     return <AppAiInsight>[
@@ -90,13 +88,14 @@ class AiRepositoryImpl implements AiRepository {
       try {
         final client = SupabaseConfig.client!;
         final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
-
-        await client.from('ai_insight_requests').insert({
-          'user_id': targetUserId,
-          'kind': kind,
-          'ticker': ticker?.toUpperCase(),
-        });
+        final targetUserId = user?.id ?? '';
+        if (targetUserId.isNotEmpty) {
+          await client.from('ai_insight_requests').insert({
+            'user_id': targetUserId,
+            'kind': kind,
+            'ticker': ticker?.toUpperCase(),
+          });
+        }
       } catch (e) {
         debugPrint('AiRepositoryImpl.requestInsight insert error: $e');
       }

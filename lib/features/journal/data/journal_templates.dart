@@ -227,8 +227,6 @@ class JournalTemplates {
     scaleOut,
   ];
 
-  static AppJournalTemplate byId(String id) => all.firstWhere(
-    (AppJournalTemplate t) => t.id == id,
-    orElse: () => blank,
-  );
+  static AppJournalTemplate byId(String id) =>
+      all.firstWhere((AppJournalTemplate t) => t.id == id, orElse: () => blank);
 }

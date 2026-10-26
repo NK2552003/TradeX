@@ -35,8 +35,8 @@ class _CagrCalculatorScreenState extends State<CagrCalculatorScreen> {
 
   Future<void> _fetchLiveBenchmarks() async {
     try {
-      final MacroBenchmarks b =
-          await MarketDataService.instance.getMacroBenchmarks();
+      final MacroBenchmarks b = await MarketDataService.instance
+          .getMacroBenchmarks();
       if (!mounted) return;
       setState(() {
         _benchmark = b.nifty10YCagr;
@@ -273,7 +273,8 @@ class _CagrCalculatorScreenState extends State<CagrCalculatorScreen> {
                 trailing: AppTokens.lakhCrore(bench.futureValue),
                 intent: AppTokens.plIntent(vsBench),
                 emphasis: true,
-                detail: '${AppTokens.signedMoney(vsBench, decimals: 0)} against '
+                detail:
+                    '${AppTokens.signedMoney(vsBench, decimals: 0)} against '
                     'the benchmark',
               ),
             ],
@@ -450,7 +451,8 @@ class _CagrCalculatorScreenState extends State<CagrCalculatorScreen> {
         if (!lost && r.cagrPct > 25)
           UiCallout(
             intent: UiIntent.info,
-            title: '${AppTokens.percent(r.cagrPct, decimals: 1)} is well above '
+            title:
+                '${AppTokens.percent(r.cagrPct, decimals: 1)} is well above '
                 'market returns',
             message:
                 'Sustained rates at this level are rare over full cycles. '

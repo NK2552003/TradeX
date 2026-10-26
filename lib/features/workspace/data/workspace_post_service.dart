@@ -88,14 +88,12 @@ class WorkspacePostService {
   List<AppPostLinkInfo> get allLinks =>
       List<AppPostLinkInfo>.unmodifiable(_links);
 
-  static const String _fallbackUserId = '00000000-0000-0000-0000-000000000001';
-
   String _resolveUserId() {
     if (SupabaseConfig.isConfigured) {
       final uid = SupabaseConfig.client?.auth.currentUser?.id;
       if (uid != null && uid.isNotEmpty) return uid;
     }
-    return _fallbackUserId;
+    return '';
   }
 
   Future<void> _initSupabase() async {

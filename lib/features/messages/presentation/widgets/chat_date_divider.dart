@@ -40,8 +40,18 @@ class ChatDateDivider extends StatelessWidget {
   }
 
   static const List<String> _months = <String>[
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   String _label(DateTime date, DateTime now) {
@@ -52,8 +62,13 @@ class ChatDateDivider extends StatelessWidget {
     if (diff == 1) return 'Yesterday';
     if (diff < 7) {
       const List<String> days = <String>[
-        'Monday', 'Tuesday', 'Wednesday', 'Thursday',
-        'Friday', 'Saturday', 'Sunday',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
       ];
       return days[d.weekday - 1];
     }

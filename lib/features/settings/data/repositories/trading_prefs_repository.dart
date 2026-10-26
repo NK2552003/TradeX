@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/features/settings/models/trading_prefs_model.dart';
 
 abstract class TradingPrefsRepository {
@@ -16,7 +17,10 @@ abstract class TradingPrefsRepository {
 }
 
 class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+  String get _targetUserId =>
+      SupabaseConfig.client?.auth.currentUser?.id ??
+      SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+      '';
 
   TradingPrefsModel _prefs = TradingPrefsModel.defaultPrefs();
 
@@ -57,8 +61,7 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _targetUserId;
 
         final res = await client
             .from('trader_preferences')
@@ -84,8 +87,7 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _targetUserId;
 
         final payload = prefs.toJson()..['user_id'] = targetUserId;
         final res = await client
@@ -107,8 +109,7 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _targetUserId;
 
         final res = await client
             .from('trader_checklists')
@@ -117,20 +118,16 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
             .order('sort_order', ascending: true);
 
         if ((res as List).isNotEmpty) {
-          _checklist = (res as List)
-              .map(
-                (item) {
-                  final map = item as Map<String, dynamic>;
-                  return AppChecklistItem(
-                    id: map['id'] as String,
-                    label: map['label'] as String? ?? '',
-                    description: map['description'] as String?,
-                    done: map['done'] as bool? ?? false,
-                    icon: Icons.check_box_outlined,
-                  );
-                },
-              )
-              .toList();
+          _checklist = (res as List).map((item) {
+            final map = item as Map<String, dynamic>;
+            return AppChecklistItem(
+              id: map['id'] as String,
+              label: map['label'] as String? ?? '',
+              description: map['description'] as String?,
+              done: map['done'] as bool? ?? false,
+              icon: Icons.check_box_outlined,
+            );
+          }).toList();
           return List<AppChecklistItem>.from(_checklist);
         }
       } catch (e) {
@@ -149,13 +146,13 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _targetUserId;
 
         for (int i = 0; i < items.length; i++) {
           final item = items[i];
           await client.from('trader_checklists').upsert({
-            if (!item.id.startsWith('chk_') && !item.id.startsWith('bbb')) 'id': item.id,
+            if (!item.id.startsWith('chk_') && !item.id.startsWith('bbb'))
+              'id': item.id,
             'user_id': targetUserId,
             'label': item.label,
             'description': item.description,
@@ -187,8 +184,7 @@ class TradingPrefsRepositoryImpl implements TradingPrefsRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _targetUserId;
 
         final res = await client
             .from('trader_checklists')

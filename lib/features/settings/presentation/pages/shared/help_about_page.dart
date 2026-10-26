@@ -40,7 +40,7 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
     showDialog(
       context: context,
       builder: (ctx) => UiDialog(
-        title: "What's New in TradeX",
+        title: "What's New in hejournal.in",
         content: SizedBox(
           width: 540,
           child: SingleChildScrollView(
@@ -432,7 +432,7 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
                   AppSettingCard(
                     title: 'Terms of Service',
                     description:
-                        'Review TradeX trading agreement and platform terms.',
+                        'Review hejournal.in trading agreement and platform terms.',
                     icon: Icons.gavel_rounded,
                     control: UiButton(
                       label: 'Read Terms',
@@ -440,14 +440,14 @@ class _HelpAboutPageState extends State<HelpAboutPage> {
                       size: UiSize.sm,
                       onPressed: () => _showLegalDialog(
                         'Terms of Service',
-                        'TradeX is a financial analytics, journaling, and market simulation platform. All charts and signals are for educational and analysis purposes only and do not constitute registered investment advice.',
+                        'hejournal.in is a financial analytics, journaling, and market simulation platform. All charts and signals are for educational and analysis purposes only and do not constitute registered investment advice.',
                       ),
                     ),
                   ),
                   AppSettingCard(
                     title: 'Privacy Policy',
                     description:
-                        'Learn how TradeX encrypts and secures your financial trade logs.',
+                        'Learn how hejournal.in encrypts and secures your financial trade logs.',
                     icon: Icons.privacy_tip_outlined,
                     control: UiButton(
                       label: 'Read Policy',

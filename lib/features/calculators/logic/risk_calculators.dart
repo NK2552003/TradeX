@@ -48,9 +48,7 @@ DrawdownResult calcDrawdown({
 
   final double w = (winRatePct / 100).clamp(0.0, 1.0);
   final double edge = (w * (1 + avgRMultiple) - 1).clamp(-1.0, 1.0);
-  final double units = riskPerTradePct <= 0
-      ? 0
-      : drawdownPct / riskPerTradePct;
+  final double units = riskPerTradePct <= 0 ? 0 : drawdownPct / riskPerTradePct;
   double ruin;
   if (edge <= 0) {
     ruin = 100;

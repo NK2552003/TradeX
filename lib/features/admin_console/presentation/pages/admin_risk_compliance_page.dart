@@ -283,7 +283,8 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          if (_policy.maxDailyLossPercent > _policy.maxTotalDrawdownPercent) ...<Widget>[
+          if (_policy.maxDailyLossPercent >
+              _policy.maxTotalDrawdownPercent) ...<Widget>[
             UiCallout(
               title: 'Configuration Warning',
               message:

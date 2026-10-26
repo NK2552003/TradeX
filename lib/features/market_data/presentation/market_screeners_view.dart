@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import '../data/asset_market_repository.dart';
 import '../models/market_snapshot.dart';
 import 'market_instrument_view.dart';
 import 'market_layout.dart';
@@ -12,15 +13,46 @@ class MarketScreenersView extends StatefulWidget {
     super.key,
     required this.snapshot,
     required this.onInstrument,
+    this.repository,
   });
   final MarketSnapshot snapshot;
   final ValueChanged<MarketInstrument> onInstrument;
+  final AssetMarketRepository? repository;
   @override
   State<MarketScreenersView> createState() => _MarketScreenersViewState();
 }
 
 class _MarketScreenersViewState extends State<MarketScreenersView> {
   String _category = 'most_active';
+  bool _loadingScreener = false;
+
+  Future<void> _selectCategory(String value) async {
+    setState(() {
+      _category = value;
+    });
+    if ((widget.snapshot.screeners[value]?.isEmpty ?? true) &&
+        widget.repository != null) {
+      setState(() => _loadingScreener = true);
+      try {
+        final loaded = await widget.repository!.loadScreener(
+          value,
+          quotes: {for (final q in widget.snapshot.instruments) q.symbol: q.raw},
+          fundamentals: {
+            for (final q in widget.snapshot.instruments) q.symbol: q.raw,
+          },
+        );
+        if (mounted) {
+          setState(() {
+            widget.snapshot.screeners[value] = loaded;
+            _loadingScreener = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _loadingScreener = false);
+      }
+    }
+  }
+
   String _group(String key) {
     if (key.startsWith('Indices')) return 'Global indices';
     if (key.contains('sector')) return 'Sectors';
@@ -54,7 +86,7 @@ class _MarketScreenersViewState extends State<MarketScreenersView> {
     final selected = screens.containsKey(_category)
         ? _category
         : screens.keys.first;
-    final quotes = screens[selected]!;
+    final quotes = screens[selected] ?? <MarketInstrument>[];
     final payload = widget.snapshot.screenerPayloads[selected];
     final total = payload is Map ? payload['total'] : null;
     final groups = <String, List<String>>{};
@@ -75,7 +107,7 @@ class _MarketScreenersViewState extends State<MarketScreenersView> {
               for (final key in screens.keys)
                 UiOption(label: marketFieldLabel(key), value: key),
             ],
-            onChanged: (value) => setState(() => _category = value),
+            onChanged: (value) => _selectCategory(value),
           ),
           UiGap.v(context.ui.spacing.md),
           const UiDivider(),
@@ -107,7 +139,7 @@ class _MarketScreenersViewState extends State<MarketScreenersView> {
                           intent: key == selected
                               ? UiIntent.primary
                               : UiIntent.neutral,
-                          onPressed: () => setState(() => _category = key),
+                          onPressed: () => _selectCategory(key),
                           trailing: UiBadge(
                             label: '${screens[key]?.length ?? 0}',
                             variant: UiBadgeVariant.outline,
@@ -182,15 +214,23 @@ class _MarketScreenersViewState extends State<MarketScreenersView> {
           UiGap.v(context.ui.spacing.md),
 
           // Results Table
-          UiTable<MarketInstrument>(
-            key: ValueKey(selected),
-            rows: quotes,
-            pageSize: 30,
-            stackOnMobile: true,
-            density: UiDensity.comfortable,
-            emptyLabel: 'No matching instruments',
-            onRowTap: widget.onInstrument,
-            expandableWhen: (_) => true,
+          if (_loadingScreener)
+            Padding(
+              padding: EdgeInsets.symmetric(
+                vertical: context.sp(context.ui.spacing.md),
+              ),
+              child: UiSkeleton.table(rows: 6, columns: 6),
+            )
+          else
+            UiTable<MarketInstrument>(
+              key: ValueKey(selected),
+              rows: quotes,
+              pageSize: 30,
+              stackOnMobile: true,
+              density: UiDensity.comfortable,
+              emptyLabel: 'No matching instruments',
+              onRowTap: widget.onInstrument,
+              expandableWhen: (_) => true,
             expandedBuilder: (c, q) => Padding(
               padding: EdgeInsets.all(c.sp(c.ui.spacing.md)),
               child: Column(

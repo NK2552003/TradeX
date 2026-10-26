@@ -86,7 +86,8 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
         ? results.where((MessageThread t) => !t.pinned).toList()
         : results;
 
-    final bool showRequestsBanner = _filter == ThreadFilter.all &&
+    final bool showRequestsBanner =
+        _filter == ThreadFilter.all &&
         _query.trim().isEmpty &&
         repo.requestCount > 0 &&
         widget.onOpenRequests != null;
@@ -94,9 +95,9 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
     // Default-view-only accents: who is live right now, and how much is unread.
     final List<MessageThread> live = showPinned
         ? results
-            .where((MessageThread t) => !t.isGroup && t.presence.isLive)
-            .take(12)
-            .toList()
+              .where((MessageThread t) => !t.isGroup && t.presence.isLive)
+              .take(12)
+              .toList()
         : const <MessageThread>[];
     int unreadTotal = 0;
     int unreadChats = 0;
@@ -254,7 +255,8 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
               onClear: () => setState(() => _query = ''),
             ),
           ),
-          if (widget.showHeaderActions && widget.onNewMessage != null) ...<Widget>[
+          if (widget.showHeaderActions &&
+              widget.onNewMessage != null) ...<Widget>[
             SizedBox(width: context.sp(theme.spacing.xs)),
             UiIconButton(
               icon: Icons.edit_square,
@@ -426,11 +428,13 @@ class _MessagesInboxViewState extends State<MessagesInboxView> {
       message: searching
           ? 'No conversations match "${_query.trim()}".'
           : 'Start a conversation with a trader you follow.',
-      action: searching || widget.onNewMessage == null
+      action: widget.onNewMessage == null
           ? null
           : UiButton(
-              label: 'New message',
-              icon: Icons.edit_square,
+              label: searching ? 'Search live traders' : 'New message',
+              icon: searching
+                  ? Icons.person_search_outlined
+                  : Icons.edit_square,
               onPressed: widget.onNewMessage,
             ),
     );
@@ -468,7 +472,11 @@ class _FooterLink extends StatelessWidget {
           ),
           child: Row(
             children: <Widget>[
-              Icon(icon, size: context.sz(theme.sizes.iconSm), color: colors.foregroundMuted),
+              Icon(
+                icon,
+                size: context.sz(theme.sizes.iconSm),
+                color: colors.foregroundMuted,
+              ),
               SizedBox(width: context.sp(theme.spacing.sm)),
               Expanded(
                 child: Text(

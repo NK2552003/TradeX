@@ -51,8 +51,9 @@ class UiPasswordField extends StatefulWidget {
 }
 
 class _UiPasswordFieldState extends State<UiPasswordField> {
-  late final TextEditingController _internalController =
-      TextEditingController(text: widget.value ?? '');
+  late final TextEditingController _internalController = TextEditingController(
+    text: widget.value ?? '',
+  );
   TextEditingController get _controller =>
       widget.controller ?? _internalController;
   late String _value = widget.value ?? _controller.text;

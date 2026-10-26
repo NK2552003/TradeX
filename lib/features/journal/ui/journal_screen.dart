@@ -400,6 +400,12 @@ class JournalScreenState extends State<JournalScreen> {
 
   Future<void> _apply(AppLinkOpenRequest request) async {
     if (request.kind != AppLinkKind.journal) return;
+    if (request.id.isEmpty) {
+      if (request.editWriting) {
+        _newEntry();
+      }
+      return;
+    }
     final revision = ++_accessRevision;
     try {
       final record = await _repo.getById(request.id);
@@ -507,7 +513,9 @@ class JournalScreenState extends State<JournalScreen> {
   Future<void> _newEntry() async {
     final bool canCreate = await CustomerLimitations.checkCanCreateTrade(
       context,
-      currentTradeCount: _entries.length,
+      currentTradeCount: _entries
+          .where((e) => RecordAccess.owns(e.userId))
+          .length,
     );
     if (!canCreate || !mounted) return;
     final AppJournalTemplate? template = await showJournalTemplateGallery(

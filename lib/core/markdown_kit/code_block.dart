@@ -36,8 +36,9 @@ class RichCodeBlockBuilder extends MarkdownElementBuilder {
 
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
-    final md.Element? code =
-        element.children?.whereType<md.Element>().firstOrNull;
+    final md.Element? code = element.children
+        ?.whereType<md.Element>()
+        .firstOrNull;
     if (code == null || code.tag != 'code') return null;
 
     final String cls = code.attributes['class'] ?? '';
@@ -148,7 +149,10 @@ class _FencedBlockChrome extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.surface,
                     borderRadius: BorderRadius.circular(context.uiRadii.pill),
@@ -300,8 +304,9 @@ class _CodeBlockState extends State<_CodeBlock> {
       // background is stripped so the surrounding themed chrome (which
       // follows the app's live theme/accent) shows through instead of a
       // hardcoded editor-theme background that could clash with it.
-      final Map<String, TextStyle> base =
-          widget.dark ? atomOneDarkTheme : atomOneLightTheme;
+      final Map<String, TextStyle> base = widget.dark
+          ? atomOneDarkTheme
+          : atomOneLightTheme;
       final Map<String, TextStyle> transparent = <String, TextStyle>{
         for (final entry in base.entries) entry.key: entry.value,
         'root': (base['root'] ?? const TextStyle()).copyWith(
@@ -363,7 +368,8 @@ class _MermaidBlockState extends State<_MermaidBlock> {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
-        builder: (_) => _MermaidFullscreenView(source: widget.source, dark: widget.dark),
+        builder: (_) =>
+            _MermaidFullscreenView(source: widget.source, dark: widget.dark),
       ),
     );
   }
@@ -477,7 +483,8 @@ class _MermaidFullscreenViewState extends State<_MermaidFullscreenView> {
 
   void _fitToScreen() {
     if (_didAutoFit || _userInteracted || !mounted) return;
-    final RenderBox? box = _boundaryKey.currentContext?.findRenderObject() as RenderBox?;
+    final RenderBox? box =
+        _boundaryKey.currentContext?.findRenderObject() as RenderBox?;
     final Size? viewport = _viewportSize;
     if (box == null || viewport == null || !box.hasSize) return;
     final Size content = box.size;
@@ -589,7 +596,9 @@ class _MermaidFullscreenViewState extends State<_MermaidFullscreenView> {
 
   @override
   Widget build(BuildContext context) {
-    final Color bg = widget.dark ? const Color(0xFF121212) : const Color(0xFFFAF9F6);
+    final Color bg = widget.dark
+        ? const Color(0xFF121212)
+        : const Color(0xFFFAF9F6);
     final Color fg = widget.dark ? Colors.white : Colors.black87;
     return Scaffold(
       backgroundColor: bg,
@@ -608,7 +617,11 @@ class _MermaidFullscreenViewState extends State<_MermaidFullscreenView> {
                   Expanded(
                     child: Text(
                       'Flowchart',
-                      style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 16),
+                      style: TextStyle(
+                        color: fg,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -622,7 +635,10 @@ class _MermaidFullscreenViewState extends State<_MermaidFullscreenView> {
                           child: SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: fg,
+                            ),
                           ),
                         )
                       : IconButton(
@@ -636,13 +652,18 @@ class _MermaidFullscreenViewState extends State<_MermaidFullscreenView> {
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  _viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
+                  _viewportSize = Size(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  );
                   // Keep nudging _fitToScreen every build; it no-ops itself
                   // once it has committed a fit (or the person has taken
                   // over with a pinch/pan) — see _fitToScreen for the
                   // two-frame settle check that avoids fitting to a
                   // not-yet-final mermaid layout.
-                  WidgetsBinding.instance.addPostFrameCallback((_) => _fitToScreen());
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => _fitToScreen(),
+                  );
                   return _buildViewer(bg);
                 },
               ),
@@ -651,7 +672,10 @@ class _MermaidFullscreenViewState extends State<_MermaidFullscreenView> {
               padding: const EdgeInsets.only(bottom: 10, top: 4),
               child: Text(
                 'Pinch or scroll to zoom · drag to pan',
-                style: TextStyle(color: fg.withValues(alpha: 0.55), fontSize: 12),
+                style: TextStyle(
+                  color: fg.withValues(alpha: 0.55),
+                  fontSize: 12,
+                ),
               ),
             ),
           ],

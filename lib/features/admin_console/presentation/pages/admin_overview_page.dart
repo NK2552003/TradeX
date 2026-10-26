@@ -232,12 +232,16 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
 
     // Pending list minus any resolved in-memory during this session
     final List<DeskOrderApproval> pendingOrders = _orders
-        .where((o) => o.status == 'pending' && !_resolvedOrders.containsKey(o.id))
+        .where(
+          (o) => o.status == 'pending' && !_resolvedOrders.containsKey(o.id),
+        )
         .toList();
     final List<DeskRiskBreach> openBreaches = _breaches
-        .where((b) =>
-            (b.status == 'open' || b.status == 'acknowledged') &&
-            !_resolvedBreaches.containsKey(b.id))
+        .where(
+          (b) =>
+              (b.status == 'open' || b.status == 'acknowledged') &&
+              !_resolvedBreaches.containsKey(b.id),
+        )
         .toList();
 
     final int pendingAffiliates = _applications
@@ -312,7 +316,9 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                                       letterSpacing: -0.5,
                                     ),
                                   ),
-                                  SizedBox(height: context.sp(theme.spacing.xxs)),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxs),
+                                  ),
                                   Text(
                                     'Live INR capital, pre-trade risk checks, partner payouts and data-deletion requests.',
                                     style: context.uiText.caption.copyWith(
@@ -383,7 +389,10 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                           ),
                           DeskLedgerItem(
                             label: 'Intraday Desk Net P&L',
-                            value: formatInrCompact(snap.intradayPnlInr, signed: true),
+                            value: formatInrCompact(
+                              snap.intradayPnlInr,
+                              signed: true,
+                            ),
                             valueColor: snap.intradayPnlInr >= 0
                                 ? c.bullish
                                 : c.bearish,
@@ -538,7 +547,9 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
 
     final int count = pendingOrders.length;
     final String countLabel = count > 0 ? '$count waiting' : 'All clear';
-    final UiIntent countIntent = count > 0 ? UiIntent.warning : UiIntent.success;
+    final UiIntent countIntent = count > 0
+        ? UiIntent.warning
+        : UiIntent.success;
 
     return Container(
       decoration: BoxDecoration(
@@ -563,11 +574,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                   ),
                 ),
               ),
-              UiBadge(
-                label: countLabel,
-                intent: countIntent,
-                size: UiSize.xs,
-              ),
+              UiBadge(label: countLabel, intent: countIntent, size: UiSize.xs),
             ],
           ),
           SizedBox(height: context.sp(theme.spacing.xxs)),
@@ -581,17 +588,23 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
           SizedBox(height: context.sp(theme.spacing.md)),
           if (_orders.isEmpty)
             Padding(
-              padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+              padding: EdgeInsets.symmetric(
+                vertical: context.sp(theme.spacing.md),
+              ),
               child: Text(
                 'No orders waiting.',
-                style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: c.foregroundMuted,
+                ),
               ),
             )
           else
             ..._orders.map((DeskOrderApproval order) {
-              final bool isResolved = _resolvedOrders.containsKey(order.id) ||
+              final bool isResolved =
+                  _resolvedOrders.containsKey(order.id) ||
                   order.status != 'pending';
-              final String? resolvedMsg = _resolvedOrders[order.id] ??
+              final String? resolvedMsg =
+                  _resolvedOrders[order.id] ??
                   (order.status == 'approved'
                       ? 'Order approved'
                       : (order.status == 'rejected' ? 'Order rejected' : null));
@@ -599,10 +612,15 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
               return Container(
                 decoration: BoxDecoration(
                   border: Border(
-                    top: BorderSide(color: c.border, width: theme.borders.hairline),
+                    top: BorderSide(
+                      color: c.border,
+                      width: theme.borders.hairline,
+                    ),
                   ),
                 ),
-                padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+                padding: EdgeInsets.symmetric(
+                  vertical: context.sp(theme.spacing.md),
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
@@ -727,11 +745,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                   ),
                 ),
               ),
-              UiBadge(
-                label: countLabel,
-                intent: countIntent,
-                size: UiSize.xs,
-              ),
+              UiBadge(label: countLabel, intent: countIntent, size: UiSize.xs),
             ],
           ),
           SizedBox(height: context.sp(theme.spacing.xxs)),
@@ -745,29 +759,42 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
           SizedBox(height: context.sp(theme.spacing.md)),
           if (_breaches.isEmpty)
             Padding(
-              padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+              padding: EdgeInsets.symmetric(
+                vertical: context.sp(theme.spacing.md),
+              ),
               child: Text(
                 'No active risk alerts.',
-                style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: c.foregroundMuted,
+                ),
               ),
             )
           else
             ..._breaches.map((DeskRiskBreach breach) {
-              final bool isResolved = _resolvedBreaches.containsKey(breach.id) ||
+              final bool isResolved =
+                  _resolvedBreaches.containsKey(breach.id) ||
                   breach.status == 'resolved' ||
                   breach.status == 'trader_frozen';
-              final String? resolvedMsg = _resolvedBreaches[breach.id] ??
+              final String? resolvedMsg =
+                  _resolvedBreaches[breach.id] ??
                   (breach.status == 'trader_frozen'
                       ? 'Seat frozen'
-                      : (breach.status == 'resolved' ? 'Marked resolved' : null));
+                      : (breach.status == 'resolved'
+                            ? 'Marked resolved'
+                            : null));
 
               return Container(
                 decoration: BoxDecoration(
                   border: Border(
-                    top: BorderSide(color: c.border, width: theme.borders.hairline),
+                    top: BorderSide(
+                      color: c.border,
+                      width: theme.borders.hairline,
+                    ),
                   ),
                 ),
-                padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+                padding: EdgeInsets.symmetric(
+                  vertical: context.sp(theme.spacing.md),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
@@ -914,7 +941,9 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                   SizedBox(width: context.sp(theme.spacing.xs)),
                   Text(
                     'Desk net P&L',
-                    style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                    style: context.uiText.caption.copyWith(
+                      color: c.foregroundMuted,
+                    ),
                   ),
                 ],
               ),
@@ -932,7 +961,9 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                   SizedBox(width: context.sp(theme.spacing.xs)),
                   Text(
                     'NIFTY benchmark',
-                    style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                    style: context.uiText.caption.copyWith(
+                      color: c.foregroundMuted,
+                    ),
                   ),
                 ],
               ),
@@ -956,10 +987,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                 color: c.foreground,
                 lineGlow: false,
               ),
-              UiChartSeries(
-                name: 'NIFTY Benchmark',
-                color: c.primary,
-              ),
+              UiChartSeries(name: 'NIFTY Benchmark', color: c.primary),
             ],
           ),
         ],
@@ -1142,7 +1170,9 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
 
           // Row 1: Traders and seats
           Container(
-            padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.md),
+            ),
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(color: c.border, width: theme.borders.hairline),
@@ -1184,7 +1214,9 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
 
           // Row 2: Affiliate applications and payouts
           Container(
-            padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.md),
+            ),
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(color: c.border, width: theme.borders.hairline),
@@ -1219,8 +1251,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                   size: UiSize.sm,
                   variant: UiVariant.solid,
                   intent: UiIntent.success,
-                  onPressed: () =>
-                      widget.onNavigate?.call('affiliate_reviews'),
+                  onPressed: () => widget.onNavigate?.call('affiliate_reviews'),
                 ),
               ],
             ),
@@ -1228,7 +1259,9 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
 
           // Row 3: Account deletions
           Container(
-            padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.md),
+            ),
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(color: c.border, width: theme.borders.hairline),
@@ -1331,12 +1364,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                   bottom: context.sp(theme.spacing.md),
                 ),
                 decoration: BoxDecoration(
-                  border: Border(
-                    left: BorderSide(
-                      color: c.border,
-                      width: 2,
-                    ),
-                  ),
+                  border: Border(left: BorderSide(color: c.border, width: 2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

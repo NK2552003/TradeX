@@ -65,7 +65,6 @@ class OffscreenWidgetCapture {
                   ),
                 ),
               ),
-
             ),
           ),
         ),
@@ -82,16 +81,17 @@ class OffscreenWidgetCapture {
       await Future<void>.delayed(settle);
       await WidgetsBinding.instance.endOfFrame;
 
-      final RenderObject? renderObject =
-          boundaryKey.currentContext?.findRenderObject();
+      final RenderObject? renderObject = boundaryKey.currentContext
+          ?.findRenderObject();
       if (renderObject is! RenderRepaintBoundary) return null;
       if (renderObject.debugNeedsPaint) {
         await WidgetsBinding.instance.endOfFrame;
       }
 
       final ui.Image image = await renderObject.toImage(pixelRatio: pixelRatio);
-      final ByteData? bytes =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+      final ByteData? bytes = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       image.dispose();
       return bytes?.buffer.asUint8List();
     } catch (_) {

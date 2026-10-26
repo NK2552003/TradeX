@@ -215,7 +215,7 @@ class _AiChatViewState extends State<AiChatView> {
                           ShareToConversationDialog.show(
                             context,
                             initialText:
-                                '🤖 TradeX AI Copilot (${_repository.activeThread.title}):\n\n${last.body}',
+                                '🤖 hejournal.in AI Copilot (${_repository.activeThread.title}):\n\n${last.body}',
                           );
                         }
                       },
@@ -452,7 +452,7 @@ class _AiChatViewState extends State<AiChatView> {
             onShare: (msg) {
               ShareToConversationDialog.show(
                 context,
-                initialText: '🤖 TradeX AI Copilot:\n\n${msg.body}',
+                initialText: '🤖 hejournal.in AI Copilot:\n\n${msg.body}',
               );
             },
             onOpenRef: widget.onOpenRef,
@@ -501,7 +501,7 @@ class _AiChatViewState extends State<AiChatView> {
                           ShareToConversationDialog.show(
                             context,
                             initialText:
-                                '🤖 TradeX AI Copilot (${_repository.activeThread.title}):\n\n${last.body}',
+                                '🤖 hejournal.in AI Copilot (${_repository.activeThread.title}):\n\n${last.body}',
                           );
                         },
                       ),

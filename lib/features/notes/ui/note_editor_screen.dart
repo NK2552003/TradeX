@@ -724,7 +724,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         UiToast.warning(
           context,
           title: 'Dictation is not available',
-          message: 'Check the microphone permission for TradeX.',
+          message: 'Check the microphone permission for hejournal.in.',
         );
       }
       return;
@@ -810,7 +810,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           // The metadata rail and split preview need real working room. Tablets use
           // the same scrollable composition as phones instead of squeezing three
           // independently scrolling regions into one short viewport.
-          final bool wide = constraints.maxWidth >= context.sz(980) &&
+          final bool wide =
+              constraints.maxWidth >= context.sz(980) &&
               constraints.maxHeight >= context.sz(600);
 
           return PopScope(
@@ -1006,11 +1007,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       children: <Widget>[
         _titleField(context),
         SizedBox(height: context.sp(theme.spacing.sm)),
-        _detailsPanel(
-          context,
-          twoColumn: true,
-          maxHeight: accordionMaxHeight,
-        ),
+        _detailsPanel(context, twoColumn: true, maxHeight: accordionMaxHeight),
         if (_mode != NoteEditorMode.read) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.sm)),
           MarkdownFormatRibbon(

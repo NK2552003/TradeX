@@ -118,33 +118,33 @@ class UiNavShell extends StatelessWidget {
         Expanded(child: body),
         if (items.isNotEmpty)
           Container(
-          decoration: BoxDecoration(
-            color: theme.colors.surface,
-            border: Border(
-              top: BorderSide(
-                color: theme.colors.border,
-                width: theme.borders.hairline,
+            decoration: BoxDecoration(
+              color: theme.colors.surface,
+              border: Border(
+                top: BorderSide(
+                  color: theme.colors.border,
+                  width: theme.borders.hairline,
+                ),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                children: <Widget>[
+                  for (int i = 0; i < items.length; i++)
+                    Expanded(
+                      child: _UiNavEntry(
+                        item: items[i],
+                        selected: i == selectedIndex,
+                        showLabel: true,
+                        vertical: true,
+                        onTap: () => onChanged?.call(i),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
-          child: SafeArea(
-            top: false,
-            child: Row(
-              children: <Widget>[
-                for (int i = 0; i < items.length; i++)
-                  Expanded(
-                    child: _UiNavEntry(
-                      item: items[i],
-                      selected: i == selectedIndex,
-                      showLabel: true,
-                      vertical: true,
-                      onTap: () => onChanged?.call(i),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
       ],
     );
   }

@@ -1,4 +1,5 @@
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'real_note_ai_refactor.dart';
 
 /// Rewrites a selected passage of a note.
 ///
@@ -110,11 +111,10 @@ class NoteAiScope {
 
   static NoteAiRefactor? _override;
 
-  static NoteAiRefactor get service => _override ?? const NoteAiRefactorDemo();
+  static NoteAiRefactor get service => _override ?? const RealNoteAiRefactor();
 
-  /// True while the demo stand-in is answering, so the UI can say so honestly
-  /// instead of implying a model ran.
-  static bool get isDemo => _override == null;
+  static bool get isDemo =>
+      _override != null && _override is NoteAiRefactorDemo;
 
   static void override(NoteAiRefactor? replacement) => _override = replacement;
 }

@@ -34,7 +34,10 @@ class AiPersonaChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: state.hovered ? colors.surfaceHover : colors.surfaceMuted,
             borderRadius: context.radius(theme.radii.pill),
-            border: Border.all(color: colors.border, width: theme.borders.hairline),
+            border: Border.all(
+              color: colors.border,
+              width: theme.borders.hairline,
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

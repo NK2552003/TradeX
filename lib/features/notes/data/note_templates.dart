@@ -179,8 +179,6 @@ class NoteTemplates {
     ),
   ];
 
-  static AppNoteTemplate byId(String id) => all.firstWhere(
-    (AppNoteTemplate t) => t.id == id,
-    orElse: () => blank,
-  );
+  static AppNoteTemplate byId(String id) =>
+      all.firstWhere((AppNoteTemplate t) => t.id == id, orElse: () => blank);
 }

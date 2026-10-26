@@ -81,7 +81,9 @@ class CommunityPostInsightsSheet extends StatelessWidget {
             SizedBox(width: context.sp(theme.spacing.xs)),
             Text(
               'Post Analytics & Insights',
-              style: context.uiText.heading.copyWith(fontWeight: FontWeight.w700),
+              style: context.uiText.heading.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const Spacer(),
             UiIconButton(
@@ -260,7 +262,11 @@ class CommunityPostInsightsSheet extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(icon, size: context.sz(16), color: theme.colors.foregroundMuted),
+              Icon(
+                icon,
+                size: context.sz(16),
+                color: theme.colors.foregroundMuted,
+              ),
               SizedBox(width: context.sp(theme.spacing.xxs)),
               Expanded(
                 child: Text(
@@ -312,7 +318,9 @@ class CommunityPostInsightsSheet extends StatelessWidget {
         SizedBox(height: context.sp(theme.spacing.xxs)),
         Text(
           '$count',
-          style: context.uiText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
+          style: context.uiText.bodyStrong.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
         Text(
           label,

@@ -57,10 +57,13 @@ class CommunityMentionAutocomplete extends StatelessWidget {
 
     // 1. @ Mentions
     if (isMention) {
-      final matches = traders.where((t) {
-        return t.handle.toLowerCase().contains(cleanQuery) ||
-            t.displayName.toLowerCase().contains(cleanQuery);
-      }).take(4).toList();
+      final matches = traders
+          .where((t) {
+            return t.handle.toLowerCase().contains(cleanQuery) ||
+                t.displayName.toLowerCase().contains(cleanQuery);
+          })
+          .take(4)
+          .toList();
 
       if (matches.isEmpty) return const SizedBox.shrink();
 
@@ -110,9 +113,12 @@ class CommunityMentionAutocomplete extends StatelessWidget {
 
     // 2. # Hashtags
     if (isHashtag) {
-      final tagMatches = popularTags.where((t) {
-        return t.toLowerCase().contains(cleanQuery);
-      }).take(4).toList();
+      final tagMatches = popularTags
+          .where((t) {
+            return t.toLowerCase().contains(cleanQuery);
+          })
+          .take(4)
+          .toList();
 
       if (tagMatches.isEmpty) return const SizedBox.shrink();
 
@@ -155,9 +161,12 @@ class CommunityMentionAutocomplete extends StatelessWidget {
     }
 
     // 3. $ Cashtags
-    final tickerMatches = popularTickers.where((t) {
-      return t.toLowerCase().contains(cleanQuery);
-    }).take(4).toList();
+    final tickerMatches = popularTickers
+        .where((t) {
+          return t.toLowerCase().contains(cleanQuery);
+        })
+        .take(4)
+        .toList();
 
     if (tickerMatches.isEmpty) return const SizedBox.shrink();
 

@@ -44,7 +44,7 @@ class CalculatorsScreen extends StatefulWidget {
   });
 
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
-      onSubpageChanged;
+  onSubpageChanged;
   final String? initialCalculatorId;
   final bool initiallyOpened;
 
@@ -96,7 +96,8 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
     if (widget.initialCalculatorId != null &&
         widget.initialCalculatorId != oldWidget.initialCalculatorId) {
       _openTool(widget.initialCalculatorId!);
-    } else if (oldWidget.onSubpageChanged != widget.onSubpageChanged && _opened) {
+    } else if (oldWidget.onSubpageChanged != widget.onSubpageChanged &&
+        _opened) {
       final AppCalculatorMeta meta = calculatorMetaById(_activeId);
       widget.onSubpageChanged?.call(meta.name, meta.icon, _closeTool);
     }
@@ -123,8 +124,7 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
   }
 
   Map<AppCalculatorCategory, int> get _counts {
-    final Map<AppCalculatorCategory, int> out =
-        <AppCalculatorCategory, int>{};
+    final Map<AppCalculatorCategory, int> out = <AppCalculatorCategory, int>{};
     for (final AppCalculatorMeta m in kAllCalculators) {
       out[m.category] = (out[m.category] ?? 0) + 1;
     }
@@ -160,10 +160,7 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
               Positioned.fill(
                 child: AppCalculatorWorkspaceScope(
                   embeddedHeader: widget.onSubpageChanged != null,
-                  child: _tool(
-                    context,
-                    onBack: _closeTool,
-                  ),
+                  child: _tool(context, onBack: _closeTool),
                 ),
               ),
               Positioned(
@@ -235,10 +232,7 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
         },
         child: AppCalculatorWorkspaceScope(
           embeddedHeader: widget.onSubpageChanged != null,
-          child: _tool(
-            context,
-            onBack: _closeTool,
-          ),
+          child: _tool(context, onBack: _closeTool),
         ),
       );
     }
@@ -263,9 +257,7 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
                 Expanded(
                   child: Text(
                     'Tools',
-                    style: context.uiText.heading.copyWith(
-                      color: c.foreground,
-                    ),
+                    style: context.uiText.heading.copyWith(color: c.foreground),
                   ),
                 ),
                 Text(
@@ -293,7 +285,8 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
                 primary: false,
                 child: Padding(
                   padding: EdgeInsets.only(
-                    bottom: context.sp(theme.spacing.md) +
+                    bottom:
+                        context.sp(theme.spacing.md) +
                         context.uiPageBottomInset,
                   ),
                   child: AppCalculatorToolIndex(
@@ -462,9 +455,7 @@ class _ToolsSideSheetContentState extends State<_ToolsSideSheetContent> {
               controller: _scroll,
               primary: false,
               child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: context.sp(theme.spacing.md),
-                ),
+                padding: EdgeInsets.only(bottom: context.sp(theme.spacing.md)),
                 child: AppCalculatorToolIndex(
                   tools: visible,
                   selectedId: widget.activeId,
@@ -479,4 +470,3 @@ class _ToolsSideSheetContentState extends State<_ToolsSideSheetContent> {
     );
   }
 }
-

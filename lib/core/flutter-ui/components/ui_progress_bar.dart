@@ -50,7 +50,9 @@ class UiProgressBar extends StatelessWidget {
                   Flexible(
                     child: Text(
                       valueFormatter?.call(t * 100) ??
-                          '${(t * 100).toStringAsFixed(0)}%',
+                          (t > 0 && t * 100 < 1
+                              ? '${(t * 100).toStringAsFixed(2)}%'
+                              : '${(t * 100).toStringAsFixed(0)}%'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.end,

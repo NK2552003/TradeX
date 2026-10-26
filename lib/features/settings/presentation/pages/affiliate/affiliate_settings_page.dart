@@ -593,7 +593,7 @@ class _AffiliateSettingsPageState extends State<AffiliateSettingsPage> {
                   title:
                       'Partner Agreement & Regulatory Terms (${s.termsVersionAccepted})',
                   description:
-                      'Binding INR settlement, Section 194H TDS, and SEBI/ASCI disclosure rules for TradeX affiliates.',
+                      'Binding INR settlement, Section 194H TDS, and SEBI/ASCI disclosure rules for hejournal.in affiliates.',
                   children: [
                     UiAccordion(
                       items: [

@@ -125,7 +125,8 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
       context,
       repository: _repo,
       target: target,
-      setup: setup ??
+      setup:
+          setup ??
           AiChartSetup(
             id: 'setup_${DateTime.now().millisecondsSinceEpoch}',
             title:
@@ -238,7 +239,8 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
 
   List<String> get _contextualChips {
     final String? title = widget.contextTitle?.toLowerCase();
-    if (title != null && (title.contains('trade') || title.contains('journal'))) {
+    if (title != null &&
+        (title.contains('trade') || title.contains('journal'))) {
       return <String>[
         'Evaluate execution discipline & R:R',
         'Suggest Stop Loss & Take Profit adjustments',
@@ -246,7 +248,8 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
         'How could this trade be managed better?',
       ];
     }
-    if (title != null && (title.contains('strategy') || title.contains('playbook'))) {
+    if (title != null &&
+        (title.contains('strategy') || title.contains('playbook'))) {
       return <String>[
         'Stress-test this playbook in high volatility',
         'Calculate optimal position sizing formula',
@@ -296,10 +299,7 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(context.radius(theme.radii.xl).topLeft.x),
         ),
-        border: Border.all(
-          color: colors.border,
-          width: theme.borders.hairline,
-        ),
+        border: Border.all(color: colors.border, width: theme.borders.hairline),
         boxShadow: <BoxShadow>[
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.35),
@@ -378,7 +378,7 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Text(
-                  'TradeX AI Copilot',
+                  'hejournal.in AI Copilot',
                   style: context.uiText.heading.copyWith(
                     fontWeight: FontWeight.w700,
                     fontSize: context.fs(15),

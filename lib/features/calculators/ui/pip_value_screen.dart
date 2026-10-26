@@ -37,7 +37,8 @@ class _PipValueCalculatorScreenState extends State<PipValueCalculatorScreen> {
 
   Future<void> _fetchRates() async {
     try {
-      final CurrencyRatesSnapshot snap = await CurrencyRateService.instance.getRates();
+      final CurrencyRatesSnapshot snap = await CurrencyRateService.instance
+          .getRates();
       if (mounted) {
         setState(() {
           _snapshot = snap;
@@ -109,7 +110,8 @@ class _PipValueCalculatorScreenState extends State<PipValueCalculatorScreen> {
         label: 'One pip is worth',
         value: AppTokens.price(r.valueInInr),
         intent: overRisk ? UiIntent.warning : UiIntent.primary,
-        tag: '$base/$quote · ${AppTokens.count(units)} units · ${_snapshot.isLive ? 'Live FX' : _snapshot.date}',
+        tag:
+            '$base/$quote · ${AppTokens.count(units)} units · ${_snapshot.isLive ? 'Live FX' : _snapshot.date}',
         tagIntent: _snapshot.isLive ? UiIntent.success : UiIntent.info,
         footnote:
             'A pip is ${r.pipSize} on this pair, so one point moves '
@@ -128,14 +130,16 @@ class _PipValueCalculatorScreenState extends State<PipValueCalculatorScreen> {
         UiStat(
           label: 'Position size',
           value: AppTokens.count(units),
-          hint: '${_lots.toStringAsFixed(2)} × '
+          hint:
+              '${_lots.toStringAsFixed(2)} × '
               '${_lotName(_lotSize)}',
         ),
         UiStat(
           label: 'Stop costs',
           value: AppTokens.price(stopCost),
           intent: overRisk ? UiIntent.bearish : UiIntent.bullish,
-          hint: '${_stopPips.round()} pips against '
+          hint:
+              '${_stopPips.round()} pips against '
               '${AppTokens.price(riskBudget)}',
         ),
         UiStat(
@@ -201,7 +205,8 @@ class _PipValueCalculatorScreenState extends State<PipValueCalculatorScreen> {
               max: 10,
               divisions: 99,
               valueFormatter: (num v) => v.toStringAsFixed(2),
-              helper: '${AppTokens.count(units)} units — one pip is '
+              helper:
+                  '${AppTokens.count(units)} units — one pip is '
                   '${AppTokens.price(r.valueInInr)}.',
               onChanged: (double v) => setState(() => _lots = v),
             ),
@@ -281,13 +286,19 @@ class _PipValueCalculatorScreenState extends State<PipValueCalculatorScreen> {
                       ? UiIntent.primary
                       : UiIntent.neutral,
                   emphasis: (s - units).abs() < 1,
-                  detail: '${AppTokens.count(s)} units · '
+                  detail:
+                      '${AppTokens.count(s)} units · '
                       '${_stopPips.round()}-pip stop costs '
                       '${AppTokens.price(_stopPips * calcPipValue(pair: _pair, lotSize: s, usdInr: usdInr, rates: _snapshot.rates).valueInInr)}',
                   share: riskBudget <= 0
                       ? null
                       : (_stopPips *
-                                calcPipValue(pair: _pair, lotSize: s, usdInr: usdInr, rates: _snapshot.rates).valueInInr /
+                                calcPipValue(
+                                  pair: _pair,
+                                  lotSize: s,
+                                  usdInr: usdInr,
+                                  rates: _snapshot.rates,
+                                ).valueInInr /
                                 riskBudget)
                             .clamp(0.0, 1.0),
                 ),
@@ -314,10 +325,12 @@ class _PipValueCalculatorScreenState extends State<PipValueCalculatorScreen> {
                       rates: _snapshot.rates,
                     ).valueInInr,
                   ),
-                  trailing: '${calcPipValue(pair: p, lotSize: units, usdInr: usdInr, rates: _snapshot.rates).pipSize}',
+                  trailing:
+                      '${calcPipValue(pair: p, lotSize: units, usdInr: usdInr, rates: _snapshot.rates).pipSize}',
                   intent: p == _pair ? UiIntent.primary : UiIntent.neutral,
                   emphasis: p == _pair,
-                  detail: '${_stopPips.round()} pips = '
+                  detail:
+                      '${_stopPips.round()} pips = '
                       '${AppTokens.price(_stopPips * calcPipValue(pair: p, lotSize: units, usdInr: usdInr, rates: _snapshot.rates).valueInInr)}',
                 ),
             ],
@@ -328,9 +341,7 @@ class _PipValueCalculatorScreenState extends State<PipValueCalculatorScreen> {
           hint: 'against the risk budget',
           wide: true,
           child: AppCalcTrendChart(
-            labels: <String>[
-              for (final double p in pipLadder) '${p.round()}',
-            ],
+            labels: <String>[for (final double p in pipLadder) '${p.round()}'],
             valueFormatter: (num v) => AppTokens.compactMoney(v),
             series: <AppCalcSeries>[
               AppCalcSeries(

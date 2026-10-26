@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/features/settings/models/desk_risk_model.dart';
 
 abstract class DeskRiskRepository {
@@ -8,16 +9,20 @@ abstract class DeskRiskRepository {
 }
 
 class DeskRiskRepositoryImpl implements DeskRiskRepository {
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
   DeskRiskModel _config = DeskRiskModel.defaultConfig();
+
+  String _resolveUserId() =>
+      SupabaseConfig.client?.auth.currentUser?.id ??
+      SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+      '';
 
   @override
   Future<DeskRiskModel> getDeskRiskConfig() async {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isEmpty) return _config;
 
         final data = await client
             .from('desk_risk_policies')
@@ -42,8 +47,8 @@ class DeskRiskRepositoryImpl implements DeskRiskRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isEmpty) return _config;
 
         final jsonMap = updated.toJson();
         jsonMap['admin_id'] = targetUserId;

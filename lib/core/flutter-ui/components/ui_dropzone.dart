@@ -23,7 +23,11 @@ class UiDropzone extends StatelessWidget {
     this.progress,
     this.error,
     this.height,
-  }) : onPick = onPick ?? (onFilesDropped != null ? () => onFilesDropped(const <String>[]) : null);
+  }) : onPick =
+           onPick ??
+           (onFilesDropped != null
+               ? () => onFilesDropped(const <String>[])
+               : null);
 
   final VoidCallback? onPick;
   final ValueChanged<List<String>>? onFilesDropped;
@@ -53,78 +57,75 @@ class UiDropzone extends StatelessWidget {
       children: <Widget>[
         UiInteractive(
           onTap: uploading ? null : onPick,
-          builder: (BuildContext ctx, UiInteractiveState s) =>
-              AnimatedContainer(
-                duration: theme.motion.fast,
-                // A floor rather than a fixed height, and scaled here so the
-                // caller can pass a plain logical number: at a large text scale
-                // the icon and two lines of copy grow past 150pt, and a hard
-                // height clipped the hint line right when it mattered most.
-                constraints: BoxConstraints(
-                  minHeight: ctx.sz(height ?? 150),
-                ),
-                padding: EdgeInsets.symmetric(
-                  horizontal: ctx.sp(theme.spacing.md),
-                  vertical: ctx.sp(theme.spacing.md),
-                ),
-                decoration: BoxDecoration(
-                  color: s.hovered
-                      ? theme.colors.surfaceHover
-                      : theme.colors.surfaceMuted,
-                  borderRadius: ctx.radius(theme.radii.xl),
-                  border: Border.all(
-                    color: s.hovered ? theme.colors.primary : borderColor,
-                    width: theme.borders.thick,
-                  ),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Icon(
-                        uploading ? Icons.cloud_upload_outlined : icon,
-                        size: ctx.sz(theme.sizes.iconLg * 1.6),
-                        color: theme.colors.foregroundMuted,
-                      ),
-                      SizedBox(height: ctx.sp(theme.spacing.sm)),
-                      // Both lines are caller-supplied, and the second doubles as
-                      // the error slot ("File is larger than the 10 MB limit"),
-                      // so they wrap and then truncate instead of overrunning.
-                      Text(
-                        uploading ? 'Uploading…' : title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: ctx.uiText.bodyStrong,
-                      ),
-                      SizedBox(height: ctx.sp(theme.spacing.xxs)),
-                      Text(
-                        error ?? message,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: ctx.uiText.caption.copyWith(
-                          color: error != null
-                              ? theme.colors.destructive
-                              : theme.colors.foregroundMuted,
-                        ),
-                      ),
-                      if (uploading) ...<Widget>[
-                        SizedBox(height: ctx.sp(theme.spacing.sm)),
-                        SizedBox(
-                          width: ctx.sz(160),
-                          child: LinearProgressIndicator(
-                            value: progress,
-                            minHeight: ctx.sz(4),
-                            backgroundColor: theme.colors.surface,
-                            color: theme.colors.primary,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+          builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
+            duration: theme.motion.fast,
+            // A floor rather than a fixed height, and scaled here so the
+            // caller can pass a plain logical number: at a large text scale
+            // the icon and two lines of copy grow past 150pt, and a hard
+            // height clipped the hint line right when it mattered most.
+            constraints: BoxConstraints(minHeight: ctx.sz(height ?? 150)),
+            padding: EdgeInsets.symmetric(
+              horizontal: ctx.sp(theme.spacing.md),
+              vertical: ctx.sp(theme.spacing.md),
+            ),
+            decoration: BoxDecoration(
+              color: s.hovered
+                  ? theme.colors.surfaceHover
+                  : theme.colors.surfaceMuted,
+              borderRadius: ctx.radius(theme.radii.xl),
+              border: Border.all(
+                color: s.hovered ? theme.colors.primary : borderColor,
+                width: theme.borders.thick,
               ),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    uploading ? Icons.cloud_upload_outlined : icon,
+                    size: ctx.sz(theme.sizes.iconLg * 1.6),
+                    color: theme.colors.foregroundMuted,
+                  ),
+                  SizedBox(height: ctx.sp(theme.spacing.sm)),
+                  // Both lines are caller-supplied, and the second doubles as
+                  // the error slot ("File is larger than the 10 MB limit"),
+                  // so they wrap and then truncate instead of overrunning.
+                  Text(
+                    uploading ? 'Uploading…' : title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: ctx.uiText.bodyStrong,
+                  ),
+                  SizedBox(height: ctx.sp(theme.spacing.xxs)),
+                  Text(
+                    error ?? message,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: ctx.uiText.caption.copyWith(
+                      color: error != null
+                          ? theme.colors.destructive
+                          : theme.colors.foregroundMuted,
+                    ),
+                  ),
+                  if (uploading) ...<Widget>[
+                    SizedBox(height: ctx.sp(theme.spacing.sm)),
+                    SizedBox(
+                      width: ctx.sz(160),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: ctx.sz(4),
+                        backgroundColor: theme.colors.surface,
+                        color: theme.colors.primary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ),
         if (previewUrls.isNotEmpty) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.sm)),

@@ -391,7 +391,8 @@ class DeskStatusBar extends StatelessWidget {
     final UiColors c = theme.colors;
 
     final Color statusColor = isHalted ? c.destructive : c.bullish;
-    final String label = statusText ??
+    final String label =
+        statusText ??
         (isHalted ? 'Desk execution halted' : 'Desk execution active');
 
     return Container(
@@ -495,9 +496,10 @@ class _PulsingDotState extends State<_PulsingDot>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
-    _anim = Tween<double>(begin: 0.35, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _anim = Tween<double>(
+      begin: 0.35,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -513,10 +515,7 @@ class _PulsingDotState extends State<_PulsingDot>
       child: Container(
         width: 8,
         height: 8,
-        decoration: BoxDecoration(
-          color: widget.color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
       ),
     );
   }
@@ -547,10 +546,7 @@ class DeskLedgerItem {
 
 /// 4-column responsive ledger with thin border dividers.
 class DeskLedgerBlock extends StatelessWidget {
-  const DeskLedgerBlock({
-    super.key,
-    required this.items,
-  });
+  const DeskLedgerBlock({super.key, required this.items});
 
   final List<DeskLedgerItem> items;
 
@@ -566,14 +562,19 @@ class DeskLedgerBlock extends StatelessWidget {
 
         final List<List<DeskLedgerItem>> rows = <List<DeskLedgerItem>>[];
         for (int i = 0; i < items.length; i += columns) {
-          final int end = (i + columns <= items.length) ? i + columns : items.length;
+          final int end = (i + columns <= items.length)
+              ? i + columns
+              : items.length;
           rows.add(items.sublist(i, end));
         }
 
         return Container(
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: c.border, width: theme.borders.hairline),
+              bottom: BorderSide(
+                color: c.border,
+                width: theme.borders.hairline,
+              ),
             ),
           ),
           child: Column(
@@ -590,7 +591,11 @@ class DeskLedgerBlock extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      for (int col = 0; col < rows[r].length; col++) ...<Widget>[
+                      for (
+                        int col = 0;
+                        col < rows[r].length;
+                        col++
+                      ) ...<Widget>[
                         if (col > 0)
                           VerticalDivider(
                             width: 1,
@@ -621,7 +626,9 @@ class DeskLedgerBlock extends StatelessWidget {
                                     if (rows[r][col].badgeText != null)
                                       UiBadge(
                                         label: rows[r][col].badgeText!,
-                                        intent: rows[r][col].badgeIntent ?? UiIntent.neutral,
+                                        intent:
+                                            rows[r][col].badgeIntent ??
+                                            UiIntent.neutral,
                                         size: UiSize.xs,
                                       ),
                                   ],
@@ -630,7 +637,8 @@ class DeskLedgerBlock extends StatelessWidget {
                                 Text(
                                   rows[r][col].value,
                                   style: ctx.uiText.heading.copyWith(
-                                    color: rows[r][col].valueColor ?? c.foreground,
+                                    color:
+                                        rows[r][col].valueColor ?? c.foreground,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 28,
                                     fontFeatures: const <FontFeature>[
@@ -719,7 +727,9 @@ class DeskOverlaySheet extends StatelessWidget {
           alignment: mobile ? Alignment.bottomCenter : Alignment.centerRight,
           child: SizedBox(
             width: mobile ? double.infinity : ctx.sz(width),
-            height: mobile ? MediaQuery.sizeOf(ctx).height * 0.94 : double.infinity,
+            height: mobile
+                ? MediaQuery.sizeOf(ctx).height * 0.94
+                : double.infinity,
             child: Material(
               type: MaterialType.transparency,
               child: UiCard(
@@ -736,9 +746,7 @@ class DeskOverlaySheet extends StatelessWidget {
                   title: title,
                   description: subtitle,
                   actions: actions,
-                  child: SingleChildScrollView(
-                    child: child,
-                  ),
+                  child: SingleChildScrollView(child: child),
                 ),
               ),
             ),

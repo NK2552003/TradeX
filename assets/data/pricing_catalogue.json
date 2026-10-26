@@ -4,239 +4,158 @@
       "id": "tier_free",
       "tier": "free",
       "name": "Free",
-      "subtitle": "For individuals exploring quantitative markets & charting",
+      "subtitle": "Available now: research, journals, community and AI usage within limits",
       "monthly_amount": 0.0,
       "annual_monthly_amount": 0.0,
       "currency_symbol": "₹",
       "features_summary": [
-        "Up to 100 quantitative journal logs",
-        "Standard NSE / BSE candlestick charting",
-        "Basic technical indicators (RSI, MACD, EMA)",
-        "Community social feed & strategy sharing",
-        "1 Custom Watchlist (up to 20 instruments)",
-        "20 AI copilot queries / month",
-        "Standard end-of-day market data feed",
-        "Community forum & public knowledgebase"
+        "Up to 25 research notes",
+        "Up to 100 logged trades (total)",
+        "Up to 3 active playbooks",
+        "Up to 20 AI prompts per month",
+        "Charts, market browsing and community features where available"
       ],
-      "badge_label": null,
+      "badge_label": "AVAILABLE",
       "highlighted": false,
       "is_current": false,
-      "cta_label": "Continue with Free"
+      "cta_label": "Continue with Free",
+      "limits": {
+        "notes": 25,
+        "trades": 100,
+        "live_playbooks": 3,
+        "ai_queries_per_month": 20
+      },
+      "is_purchasable": true
     },
     {
       "id": "tier_pro",
       "tier": "premium",
       "name": "Pro",
-      "subtitle": "For active traders & quants scaling their market edge",
+      "subtitle": "Planned paid tier; checkout and activation are not yet available",
       "monthly_amount": 2499.0,
       "annual_monthly_amount": 1999.0,
       "currency_symbol": "₹",
       "features_summary": [
-        "Unlimited quantitative journal entries",
-        "Auto-screenshot chart capture & auto-fill",
-        "AI Trade Assistant & Chart Vision recognition",
-        "Real-time Level 2 multi-timeframe scanner",
-        "Equity curve analytics & Sharpe drawdown",
-        "Unlimited watchlists with real-time alerts",
-        "Strategy backtester & version history logs",
-        "500 AI copilot queries / month",
-        "Priority email & dedicated trader support"
+        "Up to 500 research notes",
+        "Up to 5,000 logged trades (total)",
+        "Up to 25 active playbooks",
+        "Up to 500 AI prompts per month",
+        "Charts, market browsing and community features where available",
+        "Paid activation pending verified checkout"
       ],
-      "badge_label": "MOST POPULAR",
+      "badge_label": "PLANNED · CHECKOUT UNAVAILABLE",
       "highlighted": true,
       "is_current": false,
-      "cta_label": "Choose Pro"
+      "cta_label": "Checkout unavailable",
+      "limits": {
+        "notes": 500,
+        "trades": 5000,
+        "live_playbooks": 25,
+        "ai_queries_per_month": 500
+      },
+      "is_purchasable": false
     },
     {
       "id": "tier_enterprise",
       "tier": "enterprise",
-      "name": "Enterprise",
-      "subtitle": "For prop trading desks, funds & institutional teams",
+      "name": "Business",
+      "subtitle": "Business workspace preview for teams; activation requires verified billing and admin setup",
       "monthly_amount": 7999.0,
       "annual_monthly_amount": 6499.0,
       "currency_symbol": "₹",
       "features_summary": [
-        "Everything in Pro, plus:",
-        "10 Desk seats with granular role controls",
-        "Desk-wide daily loss guardrails & hard stops",
-        "Low-latency dedicated VPS gateway & bridges",
-        "REST & FIX Webhook API for automated orders",
-        "Custom AI model fine-tuning on playbooks",
-        "5,000 AI copilot requests / month",
-        "Institutional audit trail & CSV/PDF export",
-        "Dedicated account manager & 99.9% uptime SLA"
+        "Up to 10,000 research notes",
+        "Up to 50,000 logged trades (total)",
+        "Up to 250 active playbooks",
+        "Up to 5,000 AI prompts per month",
+        "Charts, market browsing and community features where available",
+        "Business activation pending verified desktop checkout"
       ],
-      "badge_label": null,
+      "badge_label": "PLANNED · CHECKOUT UNAVAILABLE",
       "highlighted": false,
       "is_current": false,
-      "cta_label": "Choose Enterprise"
+      "cta_label": "Checkout unavailable",
+      "limits": {
+        "notes": 10000,
+        "trades": 50000,
+        "live_playbooks": 250,
+        "ai_queries_per_month": 5000
+      },
+      "is_purchasable": false
     }
   ],
   "categories": [
     {
-      "id": "cat_trading",
-      "name": "Core Trading & Analysis",
+      "id": "cat_limits",
+      "name": "Enforced workspace limits",
       "rows": [
         {
-          "id": "feat_data_feed",
-          "title": "Indian Market Data Feed (NSE / BSE / MCX)",
-          "tooltip": "Live tick-by-tick real-time quotes and depth.",
-          "free_value": "15m Delayed",
-          "pro_value": "Real-time Tick",
-          "enterprise_value": "Ultra-low Latency VPS",
+          "id": "feat_notes",
+          "title": "Research notes",
+          "tooltip": "Maximum saved research notes. New-note actions check this limit.",
+          "free_value": "25 total",
+          "pro_value": "500 total",
+          "enterprise_value": "10,000 total",
           "is_boolean": false
         },
         {
-          "id": "feat_chart_layouts",
-          "title": "Multi-Timeframe Chart Layouts",
-          "tooltip": "Simultaneous synchronized chart panels per workspace.",
-          "free_value": "1 Chart",
-          "pro_value": "Up to 8 Charts",
-          "enterprise_value": "Unlimited Multi-Monitor",
+          "id": "feat_trades",
+          "title": "Logged trades",
+          "tooltip": "Maximum saved journal trades. New-trade actions check this limit.",
+          "free_value": "100 total",
+          "pro_value": "5,000 total",
+          "enterprise_value": "50,000 total",
           "is_boolean": false
         },
         {
-          "id": "feat_indicators",
-          "title": "Technical Indicators & Pine Scripts",
-          "tooltip": "Access to custom indicators, overlays, and quant tools.",
-          "free_value": "15 Basic",
-          "pro_value": "100+ Indicators & Custom Scripts",
-          "enterprise_value": "Full Quant Library & Pine Engine",
+          "id": "feat_playbooks",
+          "title": "Active playbooks",
+          "tooltip": "Maximum active strategy playbooks. Creation actions check this limit.",
+          "free_value": "3 active",
+          "pro_value": "25 active",
+          "enterprise_value": "250 active",
           "is_boolean": false
         },
         {
-          "id": "feat_scanners",
-          "title": "Live Market Screener & Scanner",
-          "tooltip": "Screening for breakouts, momentum, and volume surges.",
-          "free_value": "Top 20 Gainers/Losers",
-          "pro_value": "Live Multi-Filter Scanner",
-          "enterprise_value": "Continuous Algorithmic Scanner",
+          "id": "feat_ai",
+          "title": "AI prompts",
+          "tooltip": "Client prompt counter resets monthly; server-side metering and billing still require production verification.",
+          "free_value": "20 / month",
+          "pro_value": "500 / month",
+          "enterprise_value": "5,000 / month",
           "is_boolean": false
         }
       ]
     },
     {
-      "id": "cat_journaling",
-      "name": "Quantitative Journaling & Backtesting",
+      "id": "cat_access",
+      "name": "Current availability",
       "rows": [
         {
-          "id": "feat_journal_logs",
-          "title": "Monthly Journal Entries",
-          "tooltip": "Maximum trade executions logged per month.",
-          "free_value": "100 entries / mo",
-          "pro_value": "Unlimited",
-          "enterprise_value": "Unlimited Multi-Trader",
+          "id": "feat_charts",
+          "title": "Charts and market browsing",
+          "tooltip": "Available data depends on the configured provider and its coverage; real-time depth is not guaranteed.",
+          "free_value": "Available",
+          "pro_value": "Available",
+          "enterprise_value": "Available",
           "is_boolean": false
         },
         {
-          "id": "feat_screenshot_sync",
-          "title": "Chart Screenshot Auto-Capture",
-          "tooltip": "Automatically binds broker execution charts to journals.",
-          "free_value": false,
-          "pro_value": true,
-          "enterprise_value": true,
-          "is_boolean": true
-        },
-        {
-          "id": "feat_analytics",
-          "title": "Equity Curve & Risk Statistics (Sharpe, Drawdown)",
-          "tooltip": "Calculates performance metrics, win rates, and R-multiples.",
-          "free_value": "Basic PnL",
-          "pro_value": "Full Quant Analytics",
-          "enterprise_value": "Desk Exposure & VaR Analytics",
+          "id": "feat_community",
+          "title": "Community and direct messages",
+          "tooltip": "Available to signed-in users, subject to moderation and account permissions.",
+          "free_value": "Available",
+          "pro_value": "Available",
+          "enterprise_value": "Available",
           "is_boolean": false
         },
         {
-          "id": "feat_backtest",
-          "title": "Strategy Backtester & Version History",
-          "tooltip": "Simulate playbooks across historical price datasets.",
-          "free_value": "1 Playbook",
-          "pro_value": "Unlimited Backtests",
-          "enterprise_value": "Walk-Forward Optimization Engine",
-          "is_boolean": false
-        },
-        {
-          "id": "feat_export",
-          "title": "Tax & Compliance CSV / PDF Export",
-          "tooltip": "Download audit-ready trade execution and PnL sheets.",
-          "free_value": false,
-          "pro_value": true,
-          "enterprise_value": true,
-          "is_boolean": true
-        }
-      ]
-    },
-    {
-      "id": "cat_ai",
-      "name": "AI Copilot & Market Intelligence",
-      "rows": [
-        {
-          "id": "feat_ai_queries",
-          "title": "Monthly AI Copilot Queries",
-          "tooltip": "AI chart pattern, sentiment, and setup analysis queries.",
-          "free_value": "20 queries / mo",
-          "pro_value": "500 queries / mo",
-          "enterprise_value": "5,000 queries / mo",
-          "is_boolean": false
-        },
-        {
-          "id": "feat_vision_pattern",
-          "title": "Chart Vision Pattern Recognition",
-          "tooltip": "Detects flags, double tops, orderblocks, and fair value gaps.",
-          "free_value": false,
-          "pro_value": true,
-          "enterprise_value": true,
-          "is_boolean": true
-        },
-        {
-          "id": "feat_sentiment",
-          "title": "Real-Time Macro News Sentiment Engine",
-          "tooltip": "Instant sentiment score for RBI decisions, earnings, and news.",
-          "free_value": "Headline Feed",
-          "pro_value": "Real-time Sentiment Scoring",
-          "enterprise_value": "High-Frequency Sentiment API",
-          "is_boolean": false
-        }
-      ]
-    },
-    {
-      "id": "cat_desk",
-      "name": "Desk Governance, Risk & Support",
-      "rows": [
-        {
-          "id": "feat_seats",
-          "title": "Team Seats & Organization Roster",
-          "tooltip": "Included seats with role-based permission hierarchy.",
-          "free_value": "1 Trader",
-          "pro_value": "1 Trader",
-          "enterprise_value": "10 Seats Included (Add more)",
-          "is_boolean": false
-        },
-        {
-          "id": "feat_risk_guards",
-          "title": "Prop Desk Hard Risk Stops & Daily Loss Caps",
-          "tooltip": "Automated circuit breaker halts trading on limit breach.",
-          "free_value": false,
-          "pro_value": "Alerts Only",
-          "enterprise_value": "Automated Broker Hard Stop",
-          "is_boolean": false
-        },
-        {
-          "id": "feat_api_access",
-          "title": "REST, WebSocket & FIX Webhooks",
-          "tooltip": "Automated programmatic execution and data extraction.",
-          "free_value": false,
-          "pro_value": "Read-only API",
-          "enterprise_value": "Full Read & Write Webhooks",
-          "is_boolean": false
-        },
-        {
-          "id": "feat_support",
-          "title": "Customer & Technical Support SLA",
-          "tooltip": "Direct access to market specialists and quant team.",
-          "free_value": "Community Forum",
-          "pro_value": "Priority Chat & Email",
-          "enterprise_value": "Dedicated Account Manager (99.9% SLA)",
+          "id": "feat_checkout",
+          "title": "Paid checkout and activation",
+          "tooltip": "A verified store checkout and server-confirmed entitlements have not been connected.",
+          "free_value": "Not needed",
+          "pro_value": "Not yet available",
+          "enterprise_value": "Not yet available",
           "is_boolean": false
         }
       ]
@@ -244,49 +163,37 @@
   ],
   "faqs": [
     {
-      "id": "faq_1",
+      "id": "faq_billing",
       "category": "billing",
-      "question": "Can I change or cancel my plan at any time?",
-      "answer": "Yes. You can upgrade, downgrade, or cancel your subscription at any time directly from Account Settings. If you cancel, you will maintain full access through the end of your prepaid billing period."
+      "question": "Can I buy Pro or Business now?",
+      "answer": "Not yet. Paid checkout and verified activation are unavailable. The displayed paid tiers describe planned limits; no payment is collected in this app."
     },
     {
-      "id": "faq_2",
-      "category": "billing",
-      "question": "Are prices in Indian Rupees (INR) and do they include GST?",
-      "answer": "All prices are listed in Indian Rupees (INR ₹). At checkout, standard 18% Indian GST is itemized transparently with tax invoices provided for business input tax credit (ITC)."
-    },
-    {
-      "id": "faq_3",
-      "category": "billing",
-      "question": "What payment methods do you accept?",
-      "answer": "We accept UPI (Google Pay, PhonePe, Paytm), all major Indian Credit and Debit Cards (Visa, Mastercard, RuPay), Net Banking across 50+ Indian banks, and international cards via Stripe/Razorpay."
-    },
-    {
-      "id": "faq_4",
+      "id": "faq_limits",
       "category": "features",
-      "question": "How does the AI Trading Copilot work?",
-      "answer": "TradeX AI evaluates chart images, technical indicator states, and market structure using neural vision models. It highlights high-probability risk-to-reward invalidation levels and detects complex pattern formations."
+      "question": "Which limits are checked today?",
+      "answer": "The app checks total saved notes, total logged trades, active playbooks, and its monthly AI prompt counter at the relevant creation actions. Some other features are available but do not yet have tier-specific enforcement."
     },
     {
-      "id": "faq_5",
+      "id": "faq_data",
       "category": "features",
-      "question": "Can I connect my existing Indian broker account?",
-      "answer": "Yes. TradeX supports direct auto-sync integration with major Indian brokers including Zerodha Kite, Upstox, Angel One, Dhan, and Groww for automated journal logging and order execution."
+      "question": "Is market data real-time?",
+      "answer": "Coverage and delay depend on the connected data provider. hejournal.in does not currently promise tick-by-tick depth or exchange-grade low latency."
     },
     {
-      "id": "faq_6",
-      "category": "enterprise",
-      "question": "What is included in the Enterprise plan for prop desks?",
-      "answer": "Enterprise provides multi-seat manager dashboards, desk-wide daily loss limits, low-latency dedicated VPS connectivity, audit logs, and custom webhook API access for automated algorithmic systems."
+      "id": "faq_tax",
+      "category": "billing",
+      "question": "Are paid prices final, including taxes?",
+      "answer": "The paid tiers are previews. Final billing, applicable tax, refund, and cancellation terms will be shown before paid checkout is enabled."
     }
   ],
   "annual_discount_percent": 20,
   "annual_months_billed": 12,
-  "footer_disclaimer": "Prices in INR (₹). Standard 18% GST itemized transparently at checkout. Cancel anytime.",
+  "footer_disclaimer": "Prices are indicative INR plan previews. Paid checkout is unavailable. Market data coverage varies by provider.",
   "copy": {
     "badge": "Plans for every workspace",
     "title": "Choose Your Trading Plan",
-    "description": "Compare tools, data limits, and support for your trading workspace.",
+    "description": "Current workspace limits and feature availability. Paid plans are previews until verified checkout is enabled.",
     "monthly": "Monthly",
     "annual": "Billed annually",
     "current": "Current Plan",
@@ -298,7 +205,7 @@
     "back": "Back",
     "error": "Unable to load pricing",
     "billing_suffix": "/month",
-    "annual_savings": "saved with annual billing",
+    "annual_savings": "shown for planned annual billing",
     "feature": "Feature"
   }
 }

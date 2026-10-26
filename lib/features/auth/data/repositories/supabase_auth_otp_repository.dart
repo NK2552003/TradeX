@@ -21,22 +21,23 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
   }) async {
     final activeClient = client;
     if (activeClient == null || !SupabaseConfig.isConfigured) {
-      debugPrint('[SupabaseAuthOtpRepository] Supabase not configured. Using fallback.');
+      debugPrint(
+        '[SupabaseAuthOtpRepository] Supabase not configured. Using fallback.',
+      );
       return _fallback.sendOtp(identifier: identifier, purpose: purpose);
     }
 
     try {
       final cleanEmail = identifier.trim().toLowerCase();
       if (purpose == OtpPurpose.signupVerification) {
-        await activeClient.auth.resend(
-          type: OtpType.signup,
-          email: cleanEmail,
-        );
+        await activeClient.auth.resend(type: OtpType.signup, email: cleanEmail);
       } else if (purpose == OtpPurpose.passwordReset) {
         await activeClient.auth.resetPasswordForEmail(cleanEmail);
       }
     } on AuthException catch (e) {
-      debugPrint('[SupabaseAuthOtpRepository] sendOtp AuthException: ${e.message}');
+      debugPrint(
+        '[SupabaseAuthOtpRepository] sendOtp AuthException: ${e.message}',
+      );
       rethrow;
     } catch (e) {
       debugPrint('[SupabaseAuthOtpRepository] sendOtp error: $e');
@@ -52,7 +53,9 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
   }) async {
     final activeClient = client;
     if (activeClient == null || !SupabaseConfig.isConfigured) {
-      debugPrint('[SupabaseAuthOtpRepository] Supabase not configured. Using fallback.');
+      debugPrint(
+        '[SupabaseAuthOtpRepository] Supabase not configured. Using fallback.',
+      );
       return _fallback.verifyOtp(
         identifier: identifier,
         purpose: purpose,
@@ -82,14 +85,14 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
 
       return const OtpVerifyResult(
         success: false,
-        errorMessage: 'Invalid or expired verification code. Please check and try again.',
+        errorMessage:
+            'Invalid or expired verification code. Please check and try again.',
       );
     } on AuthException catch (e) {
-      debugPrint('[SupabaseAuthOtpRepository] verifyOtp AuthException: ${e.message}');
-      return OtpVerifyResult(
-        success: false,
-        errorMessage: e.message,
+      debugPrint(
+        '[SupabaseAuthOtpRepository] verifyOtp AuthException: ${e.message}',
       );
+      return OtpVerifyResult(success: false, errorMessage: e.message);
     } catch (e) {
       debugPrint('[SupabaseAuthOtpRepository] verifyOtp error: $e');
       // If code is 6 digits during testing, fallback gracefully

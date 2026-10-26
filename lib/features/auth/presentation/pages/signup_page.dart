@@ -223,7 +223,7 @@ class _SignupPageState extends State<SignupPage> {
                                                       ),
                                                     ),
                                                     Text(
-                                                      'TradeX',
+                                                      'hejournal.in',
                                                       style: context
                                                           .uiText
                                                           .bodyStrong
@@ -683,7 +683,7 @@ class _SignupPageState extends State<SignupPage> {
       builder: (context) => UiDialog(
         title: title,
         content: Text(
-          'TraderHub TradeX terms, customer privacy protection, and financial regulatory rules.',
+          'hejournal.in terms, customer privacy protection, and financial regulatory rules.',
           style: context.uiText.body,
         ),
         actions: [

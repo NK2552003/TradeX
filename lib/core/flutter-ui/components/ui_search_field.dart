@@ -132,57 +132,62 @@ class _UiSearchFieldState extends State<UiSearchField> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                for (final UiSearchSuggestion s in widget.suggestions)
-                  UiInteractive(
-                    onTap: () => widget.onSuggestionTap?.call(s),
-                    builder: (BuildContext ctx, UiInteractiveState st) =>
-                        Container(
-                          color: st.hovered
-                              ? theme.colors.surfaceHover
-                              : Colors.transparent,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: ctx.sp(theme.spacing.md),
-                            vertical: ctx.sp(theme.spacing.sm),
-                          ),
-                          child: Row(
-                            children: <Widget>[
-                              Icon(
-                                s.icon ?? Icons.search,
-                                size: ctx.sz(theme.sizes.iconMd),
-                                color: theme.colors.foregroundMuted,
+                    for (final UiSearchSuggestion s in widget.suggestions)
+                      UiInteractive(
+                        onTap: () => widget.onSuggestionTap?.call(s),
+                        builder: (BuildContext ctx, UiInteractiveState st) =>
+                            Container(
+                              color: st.hovered
+                                  ? theme.colors.surfaceHover
+                                  : Colors.transparent,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: ctx.sp(theme.spacing.md),
+                                vertical: ctx.sp(theme.spacing.sm),
                               ),
-                              SizedBox(width: ctx.sp(theme.spacing.sm)),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: <Widget>[
-                                    Text(s.label, style: ctx.uiText.bodyStrong),
-                                    if (s.subtitle != null)
-                                      Text(
-                                        s.subtitle!,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: ctx.uiText.caption.copyWith(
-                                          color: theme.colors.foregroundMuted,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              if (s.trailing != null)
-                                Text(
-                                  s.trailing!,
-                                  style: ctx.uiText.numeric.copyWith(
-                                    fontSize: ctx.uiText.caption.fontSize,
+                              child: Row(
+                                children: <Widget>[
+                                  Icon(
+                                    s.icon ?? Icons.search,
+                                    size: ctx.sz(theme.sizes.iconMd),
                                     color: theme.colors.foregroundMuted,
                                   ),
-                                ),
-                            ],
-                          ),
-                        ),
-                  ),
-              ],
+                                  SizedBox(width: ctx.sp(theme.spacing.sm)),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: <Widget>[
+                                        Text(
+                                          s.label,
+                                          style: ctx.uiText.bodyStrong,
+                                        ),
+                                        if (s.subtitle != null)
+                                          Text(
+                                            s.subtitle!,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: ctx.uiText.caption.copyWith(
+                                              color:
+                                                  theme.colors.foregroundMuted,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (s.trailing != null)
+                                    Text(
+                                      s.trailing!,
+                                      style: ctx.uiText.numeric.copyWith(
+                                        fontSize: ctx.uiText.caption.fontSize,
+                                        color: theme.colors.foregroundMuted,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                      ),
+                  ],
                 ),
               ),
             ),

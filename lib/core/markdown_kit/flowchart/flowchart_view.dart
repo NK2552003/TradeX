@@ -41,15 +41,15 @@ class FlowchartPalette {
   }
 
   factory FlowchartPalette.printFriendly() => const FlowchartPalette(
-        background: Colors.white,
-        nodeFill: Color(0xFFF6F5F3),
-        nodeBorder: Color(0xFF33322F),
-        nodeText: Color(0xFF1A1A1A),
-        decisionFill: Color(0xFFEDEAE3),
-        edgeColor: Color(0xFF5B5A56),
-        edgeLabelBackground: Colors.white,
-        edgeLabelText: Color(0xFF5B5A56),
-      );
+    background: Colors.white,
+    nodeFill: Color(0xFFF6F5F3),
+    nodeBorder: Color(0xFF33322F),
+    nodeText: Color(0xFF1A1A1A),
+    decisionFill: Color(0xFFEDEAE3),
+    edgeColor: Color(0xFF5B5A56),
+    edgeLabelBackground: Colors.white,
+    edgeLabelText: Color(0xFF5B5A56),
+  );
 
   final Color background;
   final Color nodeFill;
@@ -120,7 +120,11 @@ class _EmptyDiagram extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.account_tree_outlined, size: 16, color: palette.edgeLabelText),
+          Icon(
+            Icons.account_tree_outlined,
+            size: 16,
+            color: palette.edgeLabelText,
+          ),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
@@ -151,7 +155,11 @@ class _PortPair {
 /// One edge's claim on a face of a node, waiting to be spread evenly along
 /// that face once every edge touching it has been collected.
 class _PortSlot {
-  _PortSlot({required this.edgeIndex, required this.isStart, required this.sortKey});
+  _PortSlot({
+    required this.edgeIndex,
+    required this.isStart,
+    required this.sortKey,
+  });
   final int edgeIndex;
   final bool isStart;
   final double sortKey;
@@ -212,9 +220,11 @@ class _FlowchartPainter extends CustomPainter {
   /// to make several edges leaving/entering the same node stack exactly on
   /// top of each other.
   Map<int, _PortPair> _computePorts() {
-    final bool horizontal = graph.direction == FlowDirection.leftToRight ||
+    final bool horizontal =
+        graph.direction == FlowDirection.leftToRight ||
         graph.direction == FlowDirection.rightToLeft;
-    final bool reversed = graph.direction == FlowDirection.bottomToTop ||
+    final bool reversed =
+        graph.direction == FlowDirection.bottomToTop ||
         graph.direction == FlowDirection.rightToLeft;
 
     final Map<String, List<_PortSlot>> buckets = <String, List<_PortSlot>>{};
@@ -257,12 +267,15 @@ class _FlowchartPainter extends CustomPainter {
     buckets.forEach((String bucketKey, List<_PortSlot> slots) {
       final int hashIdx = bucketKey.lastIndexOf('#');
       final String nodeId = bucketKey.substring(0, hashIdx);
-      final _Face face = _Face.values[int.parse(bucketKey.substring(hashIdx + 1))];
+      final _Face face =
+          _Face.values[int.parse(bucketKey.substring(hashIdx + 1))];
       final FlowNode? node = graph.nodes[nodeId];
       if (node == null) return;
       final Rect rect = Rect.fromLTWH(node.x, node.y, node.width, node.height);
 
-      slots.sort((_PortSlot s1, _PortSlot s2) => s1.sortKey.compareTo(s2.sortKey));
+      slots.sort(
+        (_PortSlot s1, _PortSlot s2) => s1.sortKey.compareTo(s2.sortKey),
+      );
       final int n = slots.length;
       for (int i = 0; i < n; i++) {
         final double t = (i + 1) / (n + 1);
@@ -348,15 +361,19 @@ class _FlowchartPainter extends CustomPainter {
         }
         break;
       case FlowNodeShape.rounded:
-        final RRect r =
-            RRect.fromRectAndRadius(rect, Radius.circular(rect.height / 2.6));
+        final RRect r = RRect.fromRectAndRadius(
+          rect,
+          Radius.circular(rect.height / 2.6),
+        );
         canvas.drawRRect(r.shift(const Offset(0, 1.5)), shadow);
         canvas.drawRRect(r, fill);
         canvas.drawRRect(r, border);
         break;
       case FlowNodeShape.stadium:
-        final RRect r =
-            RRect.fromRectAndRadius(rect, Radius.circular(rect.height / 2));
+        final RRect r = RRect.fromRectAndRadius(
+          rect,
+          Radius.circular(rect.height / 2),
+        );
         canvas.drawRRect(r.shift(const Offset(0, 1.5)), shadow);
         canvas.drawRRect(r, fill);
         canvas.drawRRect(r, border);
@@ -396,10 +413,18 @@ class _FlowchartPainter extends CustomPainter {
       case FlowNodeShape.cylinder:
         final double capH = rect.height * 0.18;
         canvas.drawRect(
-          Rect.fromLTRB(rect.left, rect.top + capH / 2, rect.right, rect.bottom - capH / 2),
+          Rect.fromLTRB(
+            rect.left,
+            rect.top + capH / 2,
+            rect.right,
+            rect.bottom - capH / 2,
+          ),
           fill,
         );
-        canvas.drawOval(Rect.fromLTWH(rect.left, rect.top, rect.width, capH), fill);
+        canvas.drawOval(
+          Rect.fromLTWH(rect.left, rect.top, rect.width, capH),
+          fill,
+        );
         canvas.drawOval(
           Rect.fromLTWH(rect.left, rect.bottom - capH, rect.width, capH),
           fill,
@@ -414,9 +439,16 @@ class _FlowchartPainter extends CustomPainter {
           )
           ..moveTo(rect.right, rect.bottom - capH / 2)
           ..lineTo(rect.right, rect.top + capH / 2)
-          ..addArc(Rect.fromLTWH(rect.left, rect.top, rect.width, capH), 0, math.pi);
+          ..addArc(
+            Rect.fromLTWH(rect.left, rect.top, rect.width, capH),
+            0,
+            math.pi,
+          );
         canvas.drawPath(outline, border);
-        canvas.drawOval(Rect.fromLTWH(rect.left, rect.top, rect.width, capH), border);
+        canvas.drawOval(
+          Rect.fromLTWH(rect.left, rect.top, rect.width, capH),
+          border,
+        );
         break;
       case FlowNodeShape.flag:
         final Path path = Path()
@@ -463,7 +495,12 @@ class _FlowchartPainter extends CustomPainter {
   /// routed as a right-angle "L" (via [_orthogonalize]) rather than a
   /// diagonal line, so edges leave/enter nodes straight-on and only ever
   /// bend at 90°.
-  void _paintRoutedEdge(Canvas canvas, FlowEdge edge, Offset start, Offset end) {
+  void _paintRoutedEdge(
+    Canvas canvas,
+    FlowEdge edge,
+    Offset start,
+    Offset end,
+  ) {
     final List<Offset> points = _orthogonalize(<Offset>[
       start,
       for (final FlowPoint p in edge.waypoints) Offset(p.x, p.y),
@@ -486,7 +523,12 @@ class _FlowchartPainter extends CustomPainter {
     }
 
     if (edge.arrowEnd) {
-      _drawArrowHead(canvas, end, end - points[points.length - 2], linePaint.color);
+      _drawArrowHead(
+        canvas,
+        end,
+        end - points[points.length - 2],
+        linePaint.color,
+      );
     }
     if (edge.arrowStart) {
       _drawArrowHead(canvas, start, start - points[1], linePaint.color);
@@ -507,8 +549,14 @@ class _FlowchartPainter extends CustomPainter {
     final double loopSize = math.max(22, rect.height * 0.5);
     final Offset exit = Offset(rect.right, rect.top + rect.height * 0.32);
     final Offset enter = Offset(rect.right, rect.top + rect.height * 0.68);
-    final Offset bulge1 = Offset(rect.right + loopSize, exit.dy - loopSize * 0.35);
-    final Offset bulge2 = Offset(rect.right + loopSize, enter.dy + loopSize * 0.35);
+    final Offset bulge1 = Offset(
+      rect.right + loopSize,
+      exit.dy - loopSize * 0.35,
+    );
+    final Offset bulge2 = Offset(
+      rect.right + loopSize,
+      enter.dy + loopSize * 0.35,
+    );
 
     final Paint linePaint = Paint()
       ..color = palette.edgeColor
@@ -550,7 +598,8 @@ class _FlowchartPainter extends CustomPainter {
   /// straight segment.
   List<Offset> _orthogonalize(List<Offset> points) {
     if (points.length < 2) return points;
-    final bool horizontal = graph.direction == FlowDirection.leftToRight ||
+    final bool horizontal =
+        graph.direction == FlowDirection.leftToRight ||
         graph.direction == FlowDirection.rightToLeft;
 
     final List<Offset> out = <Offset>[points.first];
@@ -655,7 +704,10 @@ class _FlowchartPainter extends CustomPainter {
       double distance = 0;
       bool draw = true;
       while (distance < metric.length) {
-        final double next = math.min(distance + (draw ? dashLength : gapLength), metric.length);
+        final double next = math.min(
+          distance + (draw ? dashLength : gapLength),
+          metric.length,
+        );
         if (draw) {
           canvas.drawPath(metric.extractPath(distance, next), paint);
         }
@@ -693,7 +745,10 @@ class _FlowchartPainter extends CustomPainter {
     }
     _labelRects.add(chip);
 
-    final RRect chipRRect = RRect.fromRectAndRadius(chip, const Radius.circular(5));
+    final RRect chipRRect = RRect.fromRectAndRadius(
+      chip,
+      const Radius.circular(5),
+    );
     final Paint bg = Paint()..color = palette.edgeLabelBackground;
     final Paint chipBorder = Paint()
       ..color = palette.edgeColor.withValues(alpha: 0.18)

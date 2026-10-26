@@ -778,7 +778,7 @@ class DemoDataSource {
       ),
       _NotificationSeed(
         'Invoice paid',
-        'TradeX ${AppTokens.tierLabel(AppTier.premium)} renewed for ${AppTokens.price(premiumPrice)}.',
+        'hejournal.in ${AppTokens.tierLabel(AppTier.premium)} renewed for ${AppTokens.price(premiumPrice)}.',
         'Billing',
         Icons.credit_card_outlined,
         true,
@@ -1253,13 +1253,13 @@ class DemoDataSource {
   // ---------------------------------------------------------------------------
 
   static const List<_MemberSeed> _memberSeeds = <_MemberSeed>[
-    _MemberSeed('Nitish Kumar', 'nitish@tradex.ai', AppTeamRole.owner),
-    _MemberSeed('Ananya Sharma', 'ananya@tradex.ai', AppTeamRole.admin),
-    _MemberSeed('Rahul Menon', 'rahul@tradex.ai', AppTeamRole.analyst),
-    _MemberSeed('Priya Desai', 'priya@tradex.ai', AppTeamRole.analyst),
-    _MemberSeed('Karan Bhatia', 'karan@tradex.ai', AppTeamRole.member),
-    _MemberSeed('Tanvi Rao', 'tanvi@tradex.ai', AppTeamRole.member),
-    _MemberSeed('Farhan Qureshi', 'farhan@tradex.ai', AppTeamRole.viewer),
+    _MemberSeed('Nitish Kumar', 'nitish@hejournal.in', AppTeamRole.owner),
+    _MemberSeed('Ananya Sharma', 'ananya@hejournal.in', AppTeamRole.admin),
+    _MemberSeed('Rahul Menon', 'rahul@hejournal.in', AppTeamRole.analyst),
+    _MemberSeed('Priya Desai', 'priya@hejournal.in', AppTeamRole.analyst),
+    _MemberSeed('Karan Bhatia', 'karan@hejournal.in', AppTeamRole.member),
+    _MemberSeed('Tanvi Rao', 'tanvi@hejournal.in', AppTeamRole.member),
+    _MemberSeed('Farhan Qureshi', 'farhan@hejournal.in', AppTeamRole.viewer),
   ];
 
   /// Desk roster for the organisation team surface.

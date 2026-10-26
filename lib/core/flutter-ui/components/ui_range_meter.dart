@@ -87,10 +87,12 @@ class UiRangeMeter extends StatelessWidget {
     final c = theme.colors;
     final UiValueFormatter fmt = valueFormatter ?? uiCompactNumber;
     final double track = context.sz(trackThickness ?? 10);
-    final List<UiRangeMarker> above =
-        markers.where((UiRangeMarker m) => !m.below).toList();
-    final List<UiRangeMarker> below =
-        markers.where((UiRangeMarker m) => m.below).toList();
+    final List<UiRangeMarker> above = markers
+        .where((UiRangeMarker m) => !m.below)
+        .toList();
+    final List<UiRangeMarker> below = markers
+        .where((UiRangeMarker m) => m.below)
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -123,8 +125,7 @@ class UiRangeMeter extends StatelessWidget {
                       left: w * _f(z.start < z.end ? z.start : z.end),
                       width: w <= 0
                           ? 0.0
-                          : (w * (_f(z.end) - _f(z.start)).abs())
-                              .clamp(0.0, w),
+                          : (w * (_f(z.end) - _f(z.start)).abs()).clamp(0.0, w),
                       top: (track * 1.9 - track) / 2,
                       height: track,
                       child: DecoratedBox(
@@ -159,15 +160,9 @@ class UiRangeMeter extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.xxs)),
           Row(
             children: <Widget>[
-              Text(
-                minLabel ?? fmt(min),
-                style: uiOverline(context),
-              ),
+              Text(minLabel ?? fmt(min), style: uiOverline(context)),
               const Spacer(),
-              Text(
-                maxLabel ?? fmt(max),
-                style: uiOverline(context),
-              ),
+              Text(maxLabel ?? fmt(max), style: uiOverline(context)),
             ],
           ),
         ],
@@ -183,10 +178,7 @@ class UiRangeMeter extends StatelessWidget {
     return Stack(
       children: <Widget>[
         // Reserves the lane's height even where no label lands.
-        Opacity(
-          opacity: 0,
-          child: Text('X', style: uiOverline(context)),
-        ),
+        Opacity(opacity: 0, child: Text('X', style: uiOverline(context))),
         for (final UiRangeMarker m in lane)
           Align(
             alignment: Alignment(_f(m.value) * 2 - 1, 0),

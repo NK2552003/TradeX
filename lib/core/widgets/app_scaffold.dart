@@ -2,6 +2,7 @@ import 'package:tradex/features/market_data/presentation/market_root_screen.dart
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/data/session_trader.dart';
 // Required unified primitive import for application layouts.
@@ -12,6 +13,7 @@ import 'package:tradex/core/navigation/role_navigation_config.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_analytics_page.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_audit_log_page.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_overview_page.dart';
+import 'package:tradex/features/admin_console/presentation/pages/admin_publishing_page.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_risk_compliance_page.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_team_seats_page.dart';
 import 'package:tradex/features/affiliate_program/affiliate_program.dart';
@@ -34,6 +36,9 @@ import 'package:tradex/features/community/community.dart';
 import 'package:tradex/features/messages/messages.dart';
 import 'package:tradex/features/ai_assistant/ai_assistant.dart';
 import 'package:tradex/core/widgets/app_global_notifications_page.dart';
+import 'package:tradex/core/widgets/app_notifications_overlay.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
+import 'package:tradex/features/settings/presentation/pages/shared/trader_profile_preview_page.dart';
 
 /// The signed-in application shell: chrome, navigation and the active page.
 ///
@@ -185,11 +190,13 @@ class _AppScaffoldState extends State<AppScaffold> {
     // single-owner: upgrading in billing unlocks DMs and copilot credits in the
     // same frame instead of leaving each surface with its own stale copy.
     _session.changeTier(widget.subscriptionTier);
+    CustomerTierQuota.refreshPublishedCatalogue().catchError((Object _) {});
     // Painted from the cached profile on the first frame so the avatar, handle
     // and sidebar footer are never blank, then refreshed from the repository.
     _linkRequest = widget.initialOpenRequest;
     _identity = appTraderFromProfile(_profiles.cachedProfile);
     _communityRepo.addListener(_onCommunityRepoChanged);
+    _communityRepo.onLiveNotificationReceived = _handleLiveNotification;
     _unread = _communityRepo.unreadNotifications;
 
     // Share the local repository instances with the global scope singletons so
@@ -211,6 +218,89 @@ class _AppScaffoldState extends State<AppScaffold> {
     if (mounted) {
       setState(() => _unread = _communityRepo.unreadNotifications);
     }
+  }
+
+  void _openNotificationsOverlay() {
+    AppNotificationsOverlay.show(
+      context,
+      repository: _communityRepo,
+      currentUser: _chromeIdentity,
+      onOpenRef: _openLinkRef,
+      onOpenAuthor: _openAuthorProfile,
+    );
+  }
+
+  void _handleLiveNotification(CommunityNotificationItem item) {
+    if (!mounted) return;
+    UiToast.show(
+      context,
+      title: item.title ?? item.label,
+      message: item.body ?? item.postSnippet,
+      icon: item.icon,
+      intent: item.type == CommunityNotificationType.security
+          ? UiIntent.warning
+          : (item.type == CommunityNotificationType.tradeExecution
+                ? UiIntent.success
+                : UiIntent.info),
+      actionLabel: 'View',
+      onAction: _openNotificationsOverlay,
+    );
+  }
+
+  void _openAuthorProfile(CommunityAuthor author) {
+    final profile = TraderProfilePreviewPage(
+      repository: _communityRepo,
+      displayName: author.displayName,
+      handle: author.handle,
+      userRole: author.userRole,
+      forceTraderView: true,
+      avatarUrl: author.avatarUrl,
+      bio: author.bio,
+      author: author,
+      location: author.location,
+      website: author.website,
+      avgHoldDuration: author.avgHoldDuration,
+      primaryMarket: author.primaryMarket,
+      topStrategy: author.tradingStyle,
+      riskMantra: author.riskMantra,
+      isCurrentUser: author.id.isNotEmpty && author.id == _chromeIdentity.id,
+      onOpenRef: _openLinkRef,
+    );
+    if (context.uiRes.isDesktop) {
+      showSettingsSideSheet<void>(
+        context,
+        title: author.displayName,
+        desktopWidthRatio: 0.48,
+        minDesktopWidth: 540,
+        maxWidth: 760,
+        child: LayoutBuilder(
+          builder: (panelContext, constraints) => MediaQuery(
+            data: MediaQuery.of(
+              panelContext,
+            ).copyWith(size: Size(constraints.maxWidth, constraints.maxHeight)),
+            child: profile,
+          ),
+        ),
+      );
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext ctx) {
+        final theme = ctx.ui;
+        return ClipRRect(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(ctx.sp(theme.radii.xl)),
+          ),
+          child: SizedBox(
+            height: MediaQuery.sizeOf(ctx).height * 0.88,
+            child: profile,
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -455,32 +545,6 @@ class _AppScaffoldState extends State<AppScaffold> {
     ),
   );
 
-  String get _communitySearchHint => switch (_selectedId) {
-    'community_explore' => 'Search topics, signals, cashtags (#BTC, \$AAPL)...',
-    'community_network' => 'Search traders by name, @handle or style...',
-    _ => 'Search community posts, traders, topics...',
-  };
-
-  void _updateCommunityQuery(String value) =>
-      setState(() => _communityQuery = value);
-
-  Future<void> _showCommunitySearch() => UiDrawer.show<void>(
-    context,
-    title: _communitySearchHint,
-    child: StatefulBuilder(
-      builder: (BuildContext drawerContext, StateSetter updateDrawer) =>
-          UiInput.search(
-            value: _communityQuery,
-            hintText: _communitySearchHint,
-            autofocus: true,
-            onChanged: (String value) {
-              _updateCommunityQuery(value);
-              updateDrawer(() {});
-            },
-          ),
-    ),
-  );
-
   bool get _isMessagesFeature => _selectedId == 'messages';
 
   void _updateMessagesQuery(String value) {
@@ -521,7 +585,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       default:
         UiToast.show(
           context,
-          title: 'TradeX Guide',
+          title: 'hejournal.in Guide',
           message:
               'Welcome to ${AppConstants.appName}. Use ⌘K to quickly search and jump across tools.',
           intent: UiIntent.info,
@@ -533,7 +597,9 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// [setState] because the only caller is [didUpdateWidget], where a rebuild is
   /// already on the way.
   void _resetToOverview() {
-    _selectedId = _effectiveRole == UserRole.customer ? 'workspace' : 'overview';
+    _selectedId = _effectiveRole == UserRole.customer
+        ? 'workspace'
+        : 'overview';
     _showAffiliateApplication = false;
     _activeSubpageTitle = null;
     _activeSubpageIcon = null;
@@ -811,6 +877,14 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// same-kind links locally; ticker links arrive at the matching Markets detail.
   void _openLinkRef(AppLinkRef ref, {bool writing = false}) {
     final AppLinkKind resolvedKind = _resolveRefKind(ref);
+    final bool isPublic =
+        ref.isPublicContext ||
+        _selectedId == 'community' ||
+        _selectedId == 'community_feed';
+
+    // When user clicks a public record from Community Explore, route directly
+    // to the full detail view (Journal, Strategy, Notes main feature).
+
     final String destination = writing
         ? (resolvedKind == AppLinkKind.journal
               ? 'journal'
@@ -832,10 +906,6 @@ class _AppScaffoldState extends State<AppScaffold> {
                         AppLinkKind.note => 'notes',
                       }));
     if (!_canReach(destination)) return;
-    final bool isPublic =
-        ref.isPublicContext ||
-        _selectedId == 'community' ||
-        _selectedId == 'community_feed';
     _linkedOrigins.add((destination: _selectedId, request: _linkRequest));
     setState(() {
       if (_selectedId != destination) _rememberDestination(destination);
@@ -895,16 +965,10 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   Widget _affiliateApplicationPage() => AffiliateApplicationPage(
     key: const ValueKey<String>('affiliate_application_page'),
-    userId: widget.userId.isNotEmpty
-        ? widget.userId
-        : (_chromeIdentity.id.isNotEmpty
-              ? _chromeIdentity.id
-              : 'usr_preview_trader'),
+    userId: widget.userId.isNotEmpty ? widget.userId : _chromeIdentity.id,
     email: widget.userEmail.isNotEmpty
         ? widget.userEmail
-        : (_chromeIdentity.handle.isNotEmpty
-              ? _chromeIdentity.handle
-              : 'trader@tradex.ai'),
+        : _chromeIdentity.handle,
     displayName: widget.userDisplayName.isNotEmpty
         ? widget.userDisplayName
         : ((_chromeIdentity.displayName?.isNotEmpty ?? false)
@@ -977,10 +1041,14 @@ class _AppScaffoldState extends State<AppScaffold> {
       'ai_copilot' => UiSkeleton.ai(),
       'notifications' => UiSkeleton.notifications(),
       'search' => UiSkeleton.search(),
-      'referrals' || 'payouts' || 'marketing' || 'org_analytics' =>
-        UiSkeleton.dashboard(),
-      'org_team' || 'org_risk' || 'org_audit' || 'affiliate_reviews' =>
-        UiSkeleton.page(),
+      'referrals' ||
+      'payouts' ||
+      'marketing' ||
+      'org_analytics' => UiSkeleton.dashboard(),
+      'org_team' ||
+      'org_risk' ||
+      'org_audit' ||
+      'affiliate_reviews' => UiSkeleton.page(),
       _ => UiSkeleton.page(),
     };
   }
@@ -1065,6 +1133,8 @@ class _AppScaffoldState extends State<AppScaffold> {
         winRate: trader.winRate,
         tradingStyle: trader.tradingStyle ?? cached.tradingStyle,
         primaryMarket: trader.primaryMarket ?? cached.primaryMarket,
+        avgHoldDuration: trader.avgHoldDuration ?? cached.avgHoldDuration,
+        riskMantra: trader.riskMantra ?? cached.riskMantra,
         location: trader.location ?? cached.location,
         website: trader.website ?? cached.website,
         joinedDate: joined,
@@ -1230,6 +1300,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     'org_audit' => const AdminAuditLogPage(),
     'org_analytics' => const AdminAnalyticsPage(),
     'affiliate_reviews' => const AffiliateApprovalsPage(),
+    'org_publishing' => const AdminPublishingPage(),
     'messages' => _messagesPage(),
     'ai_copilot' => _aiAssistantPage(),
     _ => _unknownPage(),
@@ -1355,9 +1426,7 @@ class _AppScaffoldState extends State<AppScaffold> {
               variant: isCustomer ? UiVariant.soft : UiVariant.outline,
               intent: UiIntent.primary,
               size: UiSize.xs,
-              onPressed: isCustomer
-                  ? null
-                  : () => _go('switch_role_customer'),
+              onPressed: isCustomer ? null : () => _go('switch_role_customer'),
             ),
             SizedBox(height: context.sp(context.ui.spacing.xxs)),
           ],
@@ -1573,7 +1642,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                         ),
                         UiToggleOption<AppTier>(
                           value: AppTier.enterprise,
-                          label: 'Enterprise (₹7,999)',
+                          label: 'Business (₹7,999)',
                         ),
                       ],
                       value: activeTier,
@@ -1646,14 +1715,14 @@ class _AppScaffoldState extends State<AppScaffold> {
                 : _isWritingFeature
                 ? _showWorkspaceSearch
                 : (_isCommunityFeature
-                      ? _showCommunitySearch
+                      ? null
                       : () => _go('search')),
             searchQuery: _isMarketFeature
                 ? _marketQuery
                 : _isWritingFeature
                 ? _workspaceQuery
                 : (_isCommunityFeature
-                      ? _communityQuery
+                      ? null
                       : (_isMessagesFeature
                             ? _messagesQuery
                             : (_isAiFeature ? _aiQuery : null))),
@@ -1662,7 +1731,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                 : _isWritingFeature
                 ? _writingSearchHint
                 : (_isCommunityFeature
-                      ? _communitySearchHint
+                      ? null
                       : (_isMessagesFeature
                             ? 'Search conversations, traders...'
                             : (_isAiFeature
@@ -1673,7 +1742,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                 : _isWritingFeature
                 ? _updateWorkspaceQuery
                 : (_isCommunityFeature
-                      ? _updateCommunityQuery
+                      ? null
                       : (_isMessagesFeature
                             ? _updateMessagesQuery
                             : (_isAiFeature ? _updateAiQuery : null))),
@@ -1681,22 +1750,22 @@ class _AppScaffoldState extends State<AppScaffold> {
             headerActions: <Widget>[_buildHeaderRoleSwitcherAction()],
             onSettings: () => _go('settings'),
             onAi: () => _go('ai_copilot'),
-            onNotifications: () => _go('notifications'),
+            onNotifications: _openNotificationsOverlay,
             onLogout: widget.onLogout,
             trader: _chromeIdentity,
             tier: tier,
             workspaceName: _effectiveRole == UserRole.customer
                 ? switch (tier) {
-                    AppTier.free => 'TradeX Basic',
-                    AppTier.premium => 'TradeX Pro',
-                    AppTier.enterprise => 'TradeX Enterprise',
+                    AppTier.free => 'hejournal.in Basic',
+                    AppTier.premium => 'hejournal.in Pro',
+                    AppTier.enterprise => 'hejournal.in Business',
                   }
                 : navigation.workspaceName,
             tierLabel: _effectiveRole == UserRole.customer
                 ? switch (tier) {
                     AppTier.free => 'Basic Plan',
                     AppTier.premium => 'Pro Plan',
-                    AppTier.enterprise => 'Enterprise Plan',
+                    AppTier.enterprise => 'Business Plan',
                   }
                 : navigation.workspaceLabel,
             unreadNotifications: _unread,

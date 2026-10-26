@@ -20,8 +20,7 @@ class InflationCalculatorScreen extends StatefulWidget {
       _InflationCalculatorScreenState();
 }
 
-class _InflationCalculatorScreenState
-    extends State<InflationCalculatorScreen> {
+class _InflationCalculatorScreenState extends State<InflationCalculatorScreen> {
   double _amount = 100000;
   double _inflation = 3.65;
   double _years = 20;
@@ -36,8 +35,8 @@ class _InflationCalculatorScreenState
 
   Future<void> _fetchLiveCpi() async {
     try {
-      final MacroBenchmarks b =
-          await MarketDataService.instance.getMacroBenchmarks();
+      final MacroBenchmarks b = await MarketDataService.instance
+          .getMacroBenchmarks();
       if (!mounted) return;
       setState(() {
         _inflation = b.cpiInflationRate;
@@ -211,7 +210,8 @@ class _InflationCalculatorScreenState
               divisions: 48,
               intent: UiIntent.warning,
               valueFormatter: (num v) => AppTokens.percent(v, decimals: 1),
-              helper: 'Prices rise '
+              helper:
+                  'Prices rise '
                   '${costMultiple.toStringAsFixed(2)}× over $yrs years at this '
                   'rate.',
               onChanged: (double v) => setState(() => _inflation = v),
@@ -283,7 +283,8 @@ class _InflationCalculatorScreenState
                 trailing: AppTokens.lakhCrore(r.presentValue),
                 intent: AppTokens.plIntent(gap),
                 emphasis: true,
-                detail: '${AppTokens.percent(r.erosionPct, decimals: 1)} of the '
+                detail:
+                    '${AppTokens.percent(r.erosionPct, decimals: 1)} of the '
                     'value eroded · savings '
                     '${AppTokens.signedMoney(gap, decimals: 0)} against the cost',
               ),
@@ -311,7 +312,8 @@ class _InflationCalculatorScreenState
                   ),
                   trailing: AppTokens.price(item.$2),
                   intent: UiIntent.warning,
-                  detail: '+'
+                  detail:
+                      '+'
                       '${AppTokens.price(calcInflation(amount: item.$2, inflationPct: _inflation, years: _years).futureCost - item.$2)}'
                       ' over $yrs years',
                 ),
@@ -372,7 +374,8 @@ class _InflationCalculatorScreenState
             items: <UiBarListItem>[
               for (final double x in const <double>[3, 4, 5, 6, 8, 10])
                 UiBarListItem(
-                  label: '${AppTokens.percent(x, decimals: 0)} · '
+                  label:
+                      '${AppTokens.percent(x, decimals: 0)} · '
                       '${(_amount <= 0 ? 0 : calcInflation(amount: _amount, inflationPct: x, years: _years).futureCost / _amount).toStringAsFixed(1)}×',
                   value: calcInflation(
                     amount: _amount,
@@ -448,7 +451,8 @@ class _InflationCalculatorScreenState
         if (!keepsUp)
           UiCallout(
             intent: UiIntent.danger,
-            title: 'The savings fall '
+            title:
+                'The savings fall '
                 '${AppTokens.lakhCrore(gap.abs())} short',
             message:
                 '${AppTokens.percent(_return, decimals: 1)} on the money against '
@@ -460,7 +464,8 @@ class _InflationCalculatorScreenState
         if (keepsUp && realRate > 0)
           UiCallout(
             intent: UiIntent.bullish,
-            title: '${AppTokens.signedPercent(realRate, decimals: 1)} a year '
+            title:
+                '${AppTokens.signedPercent(realRate, decimals: 1)} a year '
                 'of real growth',
             message:
                 'The money outpaces prices by that margin, so '

@@ -1,7 +1,7 @@
 /// The relationship layer between trader notes, journal entries and strategy
 /// playbooks.
 ///
-/// TradeX stores every edge on **both** ends: a note lists the journal entries
+/// hejournal.in stores every edge on **both** ends: a note lists the journal entries
 /// it discusses, and those entries list the note back. That is redundant on
 /// purpose. A single-sided edge is one failed write away from disappearing, and
 /// a trader who cannot get from a losing trade back to the plan that produced it
@@ -32,12 +32,8 @@ class AppDeepLink {
 
   static const String scheme = 'tradex';
   static const Set<String> _webHosts = <String>{
-    'tradex.app',
-    'www.tradex.app',
-    'tradex.io',
-    'www.tradex.io',
-    'tradex.ai',
-    'www.tradex.ai',
+    'hejournal.in',
+    'www.hejournal.in',
   };
 
   /// The canonical URL for one record.
@@ -83,7 +79,7 @@ class AppDeepLink {
   }
 
   /// The record a URL points at, or null if this is not a `tradex://` or
-  /// shared TradeX web link (`https://tradex.app/p/...`, `https://tradex.io/post/...`)
+  /// shared hejournal.in web link (`https://hejournal.in/p/...`, `https://hejournal.in/post/...`)
   /// the app understands.
   static ({AppLinkKind kind, String id})? target(Uri uri) {
     if (uri.scheme == scheme) {
@@ -110,11 +106,7 @@ class AppDeepLink {
     if (uri == null) return null;
     final ({AppLinkKind kind, String id})? parsed = target(uri);
     if (parsed == null) return null;
-    return AppLinkRef(
-      kind: parsed.kind,
-      id: parsed.id,
-      title: parsed.id,
-    );
+    return AppLinkRef(kind: parsed.kind, id: parsed.id, title: parsed.id);
   }
 
   /// Markdown for a link a human will read. The label is what the reader sees,

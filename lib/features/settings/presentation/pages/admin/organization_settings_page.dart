@@ -21,7 +21,7 @@ class OrganizationSettingsPage extends StatefulWidget {
 class _OrganizationSettingsPageState extends State<OrganizationSettingsPage> {
   late final OrganizationSettingsRepository _repo;
   OrgBranding _branding = const OrgBranding(
-    displayName: 'TradeX Institutional Alpha',
+    displayName: 'hejournal.in Institutional Alpha',
   );
   bool _loading = true;
   bool _saving = false;

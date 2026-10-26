@@ -1,14 +1,15 @@
 import 'package:tradex/core/config/record_access.dart';
 import 'package:tradex/core/data/owned_record_writer.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 import 'package:uuid/uuid.dart';
 
@@ -22,6 +23,8 @@ abstract class StrategiesRepository {
   Stream<List<AppStrategy>> watchPublic();
 
   Future<List<AppStrategy>> fetchAll();
+
+  Future<List<AppStrategy>> fetchPublicStrategies();
 
   Future<AppStrategy?> getById(String id);
 
@@ -71,7 +74,6 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
   static final StrategiesRepositoryImpl instance = StrategiesRepositoryImpl._();
 
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
   static final RegExp _uuidRegex = RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   );
@@ -96,7 +98,13 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         return user.id;
       }
     }
-    return _demoUserId;
+    final stored =
+        SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+        AuthBackendService.instance.currentUserProfile?.id;
+    if (stored != null && stored.isNotEmpty) {
+      return stored;
+    }
+    return '';
   }
 
   bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
@@ -112,23 +120,10 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     if (_initialized) return;
     _initialized = true;
 
-    if (!SupabaseConfig.isConfigured && !CustomerDataPolicy.allowDemo) {
-      _publish();
-      return;
-    }
     if (SupabaseConfig.isConfigured) {
       _initRealtime();
       await _fetchFromSupabase();
     } else {
-      // Offline fallback for unit tests without network
-      final DemoDataSource demo = DemoDataSource.instance;
-      _strategies.addAll(demo.strategies());
-      for (final AppStrategy s in _strategies) {
-        _versions[s.id] = List<AppStrategyVersion>.of(
-          demo.strategyVersions(s.id),
-        );
-      }
-      _syncAllTickerLinks();
       _publish();
     }
   }
@@ -165,8 +160,7 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         final newRecord = payload.newRecord;
         if (newRecord.isNotEmpty) {
           final recordUserId = newRecord['user_id']?.toString();
-          final isPublic = newRecord['visibility'] == 'public';
-          if (recordUserId == currentUserId || isPublic) {
+          if (recordUserId == currentUserId) {
             final strategy = _mapRowToStrategy(newRecord);
             _strategies.removeWhere((s) => s.id == strategy.id);
             _strategies.insert(0, strategy);
@@ -178,18 +172,20 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         final newRecord = payload.newRecord;
         if (newRecord.isNotEmpty) {
           final strategy = _mapRowToStrategy(newRecord);
-          final at = _strategies.indexWhere((s) => s.id == strategy.id);
-          if (at != -1) {
-            _strategies[at] = strategy;
-          } else {
-            final recordUserId = newRecord['user_id']?.toString();
-            final isPublic = newRecord['visibility'] == 'public';
-            if (recordUserId == currentUserId || isPublic) {
+          final recordUserId = newRecord['user_id']?.toString();
+          if (recordUserId == currentUserId) {
+            final at = _strategies.indexWhere((s) => s.id == strategy.id);
+            if (at != -1) {
+              _strategies[at] = strategy;
+            } else {
               _strategies.insert(0, strategy);
             }
+            _recordTickerLinks(strategy);
+            _publish();
+          } else {
+            _strategies.removeWhere((s) => s.id == strategy.id);
+            _publish();
           }
-          _recordTickerLinks(strategy);
-          _publish();
         }
       } else if (eventType == PostgresChangeEvent.delete) {
         final oldRecord = payload.oldRecord;
@@ -216,11 +212,16 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     try {
       final client = SupabaseConfig.client!;
       final targetUserId = _resolveUserId();
+      if (targetUserId.isEmpty) {
+        _strategies.clear();
+        _publish();
+        return;
+      }
 
       final res = await client
           .from('strategies')
           .select()
-          .or('user_id.eq.$targetUserId,visibility.eq.public')
+          .eq('user_id', targetUserId)
           .order('updated_at', ascending: false);
 
       final List<AppStrategy> list = (res as List)
@@ -230,6 +231,61 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       _strategies
         ..clear()
         ..addAll(list);
+
+      // Fetch real trade performance metrics from journal_entries
+      try {
+        final tradesRes = await client
+            .from('journal_entries')
+            .select('strategy_id, outcome, pnl, r_multiple')
+            .not('strategy_id', 'is', null);
+
+        final Map<String, List<Map<String, dynamic>>> tradesByStrategy = {};
+        for (final t in tradesRes as List) {
+          final row = t as Map<String, dynamic>;
+          final sId = row['strategy_id']?.toString();
+          if (sId != null && sId.isNotEmpty) {
+            (tradesByStrategy[sId] ??= []).add(row);
+          }
+        }
+
+        for (int i = 0; i < _strategies.length; i++) {
+          final s = _strategies[i];
+          final sTrades = tradesByStrategy[s.id] ?? const [];
+          if (sTrades.isNotEmpty) {
+            int wins = 0;
+            double netPnl = 0.0;
+            double totalR = 0.0;
+            int rCount = 0;
+
+            for (final st in sTrades) {
+              final outcome = st['outcome']?.toString().toLowerCase();
+              if (outcome == 'win') wins++;
+              final pnl = (st['pnl'] as num?)?.toDouble() ?? 0.0;
+              netPnl += pnl;
+              final r = (st['r_multiple'] as num?)?.toDouble();
+              if (r != null) {
+                totalR += r;
+                rCount++;
+              }
+            }
+
+            final double winRate = (wins / sTrades.length) * 100.0;
+            final double avgR = rCount > 0 ? (totalR / rCount) : 0.0;
+
+            _strategies[i] = s.copyWith(
+              trades: sTrades.length,
+              winRate: double.parse(winRate.toStringAsFixed(1)),
+              avgR: double.parse(avgR.toStringAsFixed(2)),
+              netPnl: netPnl,
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint(
+          '[StrategiesRepository] Error calculating strategy metrics: $e',
+        );
+      }
+
       _syncAllTickerLinks();
       _publish();
     } catch (e) {
@@ -257,8 +313,35 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     }
   }
 
+  static String _parseString(dynamic value, {String fallback = ''}) {
+    if (value == null) return fallback;
+    if (value is String) return value;
+    if (value is Map) {
+      if (value['text'] != null) return value['text'].toString();
+      if (value['markdown'] != null) return value['markdown'].toString();
+      if (value['raw'] != null) return value['raw'].toString();
+      return jsonEncode(value);
+    }
+    return value.toString();
+  }
+
+  static String? _parseNullableString(dynamic value) {
+    if (value == null) return null;
+    if (value is String) return value;
+    if (value is Map) {
+      if (value['text'] != null) return value['text'].toString();
+      if (value['markdown'] != null) return value['markdown'].toString();
+      if (value['raw'] != null) return value['raw'].toString();
+      return jsonEncode(value);
+    }
+    return value.toString();
+  }
+
   AppStrategy _mapRowToStrategy(Map<String, dynamic> row) {
-    final statusStr = (row['status'] as String? ?? 'draft').toLowerCase();
+    final statusStr = _parseString(
+      row['status'],
+      fallback: 'draft',
+    ).toLowerCase();
     final status = switch (statusStr) {
       'testing' => AppStrategyStatus.testing,
       'live' => AppStrategyStatus.live,
@@ -266,7 +349,7 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       _ => AppStrategyStatus.draft,
     };
 
-    final visibility = row['visibility'] as String? ?? 'private';
+    final visibility = _parseString(row['visibility'], fallback: 'private');
     final isPublic = visibility == 'public';
     final isFavorite = row['is_favorite'] as bool? ?? false;
 
@@ -296,12 +379,13 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         ? DateTime.tryParse(row['updated_at'].toString())
         : null;
 
-    final name =
-        (row['title'] as String?) ??
-        (row['name'] as String?) ??
-        'Untitled Strategy';
-    final content = row['content'] as String? ?? '';
-    final summary = row['summary'] as String? ?? row['ai_summary'] as String?;
+    final name = _parseString(
+      row['title'] ?? row['name'],
+      fallback: 'Untitled Strategy',
+    );
+    final content = _parseString(row['content']);
+    final summary = _parseNullableString(row['summary'] ?? row['ai_summary']);
+    final category = _parseNullableString(row['category']);
 
     return AppStrategy(
       id: row['id']?.toString() ?? '',
@@ -309,7 +393,7 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       name: name,
       summary: summary,
       content: content,
-      category: row['category'] as String?,
+      category: category,
       status: status,
       isPublic: isPublic,
       isFavorite: isFavorite,
@@ -375,12 +459,12 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       savedAt: row['created_at'] != null
           ? DateTime.tryParse(row['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
-      author: row['author_id']?.toString() ?? 'You',
-      note: row['note'] as String?,
+      author: _parseString(row['author_id'], fallback: 'You'),
+      note: _parseNullableString(row['note']),
       isCurrent: row['is_current'] as bool? ?? false,
       strategyId: row['strategy_id']?.toString() ?? '',
-      content: row['content']?.toString() ?? '',
-      summary: row['summary'] as String?,
+      content: _parseString(row['content']),
+      summary: _parseNullableString(row['summary']),
       wordCount: (row['word_count'] as num?)?.toInt() ?? 0,
     );
   }
@@ -431,12 +515,32 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
   }
 
   @override
+  Future<List<AppStrategy>> fetchPublicStrategies() async {
+    if (!SupabaseConfig.isConfigured) {
+      return _strategies.where((s) => s.isPublic).toList();
+    }
+    try {
+      final client = SupabaseConfig.client!;
+      final res = await client
+          .from('strategies')
+          .select()
+          .eq('visibility', 'public')
+          .order('updated_at', ascending: false)
+          .limit(50);
+      return (res as List)
+          .map((row) => _mapRowToStrategy(row as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('[StrategiesRepository] fetchPublicStrategies error: $e');
+      return _strategies.where((s) => s.isPublic).toList();
+    }
+  }
+
+  @override
   Future<AppStrategy?> getById(String id) async {
     await _init();
-    if (!SupabaseConfig.isConfigured) {
-      for (final AppStrategy s in _strategies) {
-        if (s.id == id) return s;
-      }
+    for (final AppStrategy s in _strategies) {
+      if (s.id == id) return s;
     }
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
@@ -449,22 +553,23 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         if (res != null) {
           final strategy = _mapRowToStrategy(res);
           if (!RecordAccess.canRead(strategy.userId, strategy.isPublic)) {
-            _strategies.removeWhere((item) => item.id == id);
             return null;
           }
-          final at = _strategies.indexWhere((s) => s.id == strategy.id);
-          if (at == -1) {
-            _strategies.insert(0, strategy);
-          } else {
-            _strategies[at] = strategy;
+          final currentUserId = _resolveUserId();
+          if (strategy.userId == currentUserId) {
+            final at = _strategies.indexWhere((s) => s.id == strategy.id);
+            if (at == -1) {
+              _strategies.insert(0, strategy);
+            } else {
+              _strategies[at] = strategy;
+            }
+            _recordTickerLinks(strategy);
+            _publish();
           }
-          _publish();
           return strategy;
         }
-        _strategies.removeWhere((record) => record.id == id);
       } catch (e) {
         debugPrint('[StrategiesRepository] getById error: $e');
-        rethrow;
       }
     }
     return null;
@@ -477,13 +582,12 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     final DateTime now = DateTime.now();
 
     AppStrategy saved = draft;
+    final targetUserId = _resolveUserId();
+    final String assignedId = _isUuid(draft.id) ? draft.id : const Uuid().v4();
+
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final targetUserId = _resolveUserId();
-        final String assignedId = _isUuid(draft.id)
-            ? draft.id
-            : const Uuid().v4();
         final row = _mapStrategyToRow(
           draft.withDerivedCounts(),
           targetUserId,
@@ -511,13 +615,23 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
           });
         } catch (_) {}
       } catch (e) {
-        debugPrint('[StrategiesRepository] create error: $e');
-        rethrow;
+        debugPrint(
+          '[StrategiesRepository] create error (cloud sync fallback): $e',
+        );
+        saved = draft
+            .copyWith(
+              id: assignedId,
+              userId: targetUserId,
+              createdAt: now,
+              updatedAt: now,
+            )
+            .withDerivedCounts();
       }
     } else {
       saved = draft
           .copyWith(
-            id: draft.id.isEmpty ? const Uuid().v4() : draft.id,
+            id: assignedId,
+            userId: targetUserId,
             createdAt: now,
             updatedAt: now,
           )
@@ -568,8 +682,9 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
 
         saved = _mapRowToStrategy(res);
       } catch (e) {
-        debugPrint('[StrategiesRepository] update error: $e');
-        rethrow;
+        debugPrint(
+          '[StrategiesRepository] update error (cloud sync fallback): $e',
+        );
       }
     }
 
@@ -1056,8 +1171,8 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
             );
         return storagePath;
       } catch (e) {
-        debugPrint('[StrategiesRepository] uploadAttachment error: $e');
-        rethrow;
+        debugPrint('[StrategiesRepository] uploadAttachment cloud error: $e');
+        return file.path;
       }
     }
     return file.path;
@@ -1074,9 +1189,22 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         ref.startsWith('data:')) {
       return ref;
     }
-    return SupabaseConfig.client!.storage
-        .from('strategy-attachments')
-        .createSignedUrl(ref, 600);
+    try {
+      return await SupabaseConfig.client!.storage
+          .from('strategy-attachments')
+          .createSignedUrl(ref, 3600);
+    } catch (e) {
+      debugPrint(
+        '[StrategiesRepository] createSignedUrl error: $e, trying public url',
+      );
+      try {
+        final publicUrl = SupabaseConfig.client!.storage
+            .from('strategy-attachments')
+            .getPublicUrl(ref);
+        if (publicUrl.isNotEmpty) return publicUrl;
+      } catch (_) {}
+      return ref;
+    }
   }
 }
 

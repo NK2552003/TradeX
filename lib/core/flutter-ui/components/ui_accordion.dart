@@ -313,9 +313,7 @@ class _UiAccordionTile extends StatelessWidget {
                       Flexible(
                         flex: 0,
                         child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: ctx.sz(96),
-                          ),
+                          constraints: BoxConstraints(maxWidth: ctx.sz(96)),
                           child: Container(
                             padding: EdgeInsets.symmetric(
                               horizontal: ctx.sp(theme.spacing.xs),

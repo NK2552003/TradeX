@@ -51,11 +51,9 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     final totalPnlVal = (_stats?['total_pnl'] as num?)?.toDouble() ?? 0.0;
-    final winRateVal =
-        (_stats?['win_rate_percent'] as num?)?.toDouble() ?? 0.0;
+    final winRateVal = (_stats?['win_rate_percent'] as num?)?.toDouble() ?? 0.0;
     final avgRrVal = (_stats?['avg_rr'] as num?)?.toDouble() ?? 0.0;
-    final bestTradeVal =
-        (_stats?['best_trade_pnl'] as num?)?.toDouble() ?? 0.0;
+    final bestTradeVal = (_stats?['best_trade_pnl'] as num?)?.toDouble() ?? 0.0;
 
     return AppPageBlock(
       title: 'Executive Dashboard',

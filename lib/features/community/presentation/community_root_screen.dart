@@ -132,6 +132,13 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
 
   /// Active drill-in sub-page (post thread, profile, network page).
   Widget? _activeSubpage;
+  final List<_CommunitySubpageEntry> _subpageStack = [];
+  String? _activePostId;
+  int? _lastHandledRequestSeq;
+  int _desktopPanelDepth = 0;
+
+  final ScrollController _desktopSidebarController = ScrollController();
+  final ScrollController _tabletSidebarController = ScrollController();
 
   // -------------------------------------------------------------------------
   // Lifecycle
@@ -165,21 +172,34 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     _repo.updateCurrentAuthor(_currentAuthor);
     if (widget.initialTabIndex != oldWidget.initialTabIndex) {
       final int idx = widget.initialTabIndex.clamp(0, _hubTabs.length - 1);
+      _subpageStack.clear();
       _activeSubpage = null;
+      _activePostId = null;
       if (_tabController.index != idx) {
         _tabController.animateTo(idx);
       }
       _mobileNavIndex = idx.clamp(0, _mobileNavTabs.length - 1);
     }
     if (widget.openRequest != null &&
-        widget.openRequest != oldWidget.openRequest) {
+        widget.openRequest != oldWidget.openRequest &&
+        widget.openRequest!.seq != _lastHandledRequestSeq &&
+        widget.openRequest!.id != _activePostId) {
       _applyRequest(widget.openRequest!);
     }
   }
 
   void _applyRequest(AppLinkOpenRequest request) {
+    _lastHandledRequestSeq = request.seq;
+    if (_activePostId == request.id &&
+        _activeSubpage is CommunityPostDetailView) {
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
+      if (_activePostId == request.id &&
+          _activeSubpage is CommunityPostDetailView) {
+        return;
+      }
       CommunityPost? post = _repo.loadPostById(request.id);
       post ??= await _repo.fetchPostById(request.id);
       if (post != null && mounted) {
@@ -195,6 +215,9 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
     }
     if (mounted) {
       setState(() {
+        _subpageStack.clear();
+        _activeSubpage = null;
+        _activePostId = null;
         _mobileNavIndex = _tabController.index.clamp(
           0,
           _mobileNavTabs.length - 1,
@@ -205,12 +228,6 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
 
   void _onRepoChanged() {
     if (mounted) {
-      if (widget.openRequest != null && _activeSubpage == null) {
-        final post = _repo.loadPostById(widget.openRequest!.id);
-        if (post != null) {
-          _openPostDetail(post);
-        }
-      }
       setState(() {});
     }
   }
@@ -219,6 +236,8 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   void dispose() {
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
+    _desktopSidebarController.dispose();
+    _tabletSidebarController.dispose();
     _repo.removeListener(_onRepoChanged);
     if (_ownsRepo) {
       _repo.dispose();
@@ -295,14 +314,57 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // Navigation helpers
   // -------------------------------------------------------------------------
 
-  void _openSubpage({required Widget page, required String title}) {
+  void _openSubpage({
+    required Widget page,
+    required String title,
+    bool forceInline = false,
+  }) {
+    if (context.uiRes.isDesktop && !forceInline && _activeSubpage == null) {
+      _desktopPanelDepth++;
+      unawaited(
+        showSettingsSideSheet<void>(
+          context,
+          title: title,
+          desktopWidthRatio: 0.48,
+          minDesktopWidth: 540,
+          maxWidth: 760,
+          child: LayoutBuilder(
+            builder: (panelContext, constraints) => MediaQuery(
+              data: MediaQuery.of(panelContext).copyWith(
+                size: Size(constraints.maxWidth, constraints.maxHeight),
+              ),
+              child: page,
+            ),
+          ),
+        ).whenComplete(() => _desktopPanelDepth--),
+      );
+      return;
+    }
+    _subpageStack.add(_CommunitySubpageEntry(page: page, title: title));
     setState(() => _activeSubpage = page);
     widget.onSubpageChanged?.call(title, null, _closeSubpage);
   }
 
   void _closeSubpage() {
-    setState(() => _activeSubpage = null);
-    widget.onSubpageChanged?.call(null, null, null);
+    if (_desktopPanelDepth > 0) {
+      Navigator.of(context, rootNavigator: true).maybePop();
+      return;
+    }
+    if (_subpageStack.isNotEmpty) {
+      _subpageStack.removeLast();
+    }
+    if (_subpageStack.isNotEmpty) {
+      final prev = _subpageStack.last;
+      _activePostId = prev.page is CommunityPostDetailView
+          ? (prev.page as CommunityPostDetailView).post.id
+          : null;
+      setState(() => _activeSubpage = prev.page);
+      widget.onSubpageChanged?.call(prev.title, null, _closeSubpage);
+    } else {
+      _activePostId = null;
+      setState(() => _activeSubpage = null);
+      widget.onSubpageChanged?.call(null, null, null);
+    }
   }
 
   void _handleTagTap(String tag) {
@@ -334,16 +396,11 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         }
       }
       Clipboard.setData(ClipboardData(text: trimmed));
-      UiToast.info(
-        context,
-        title: 'Link Copied',
-        message: trimmed,
-      );
+      UiToast.info(context, title: 'Link Copied', message: trimmed);
       return;
     }
     if (trimmed.startsWith('@')) {
-      final String cleanHandle =
-          trimmed.substring(1).trim().toLowerCase();
+      final String cleanHandle = trimmed.substring(1).trim().toLowerCase();
       for (final CommunityAuthor a in _repo.suggestedTraders) {
         if (a.handle.toLowerCase() == cleanHandle) {
           _openAuthorProfile(a);
@@ -354,7 +411,9 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         _openAuthorProfile(_currentAuthor);
         return;
       }
-      final List<CommunityPost> matchingPosts = _repo.postsForAuthor(cleanHandle);
+      final List<CommunityPost> matchingPosts = _repo.postsForAuthor(
+        cleanHandle,
+      );
       if (matchingPosts.isNotEmpty) {
         _openAuthorProfile(matchingPosts.first.author);
         return;
@@ -372,6 +431,19 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       );
       return;
     }
+    if (_activePostId == post.id && _activeSubpage is CommunityPostDetailView) {
+      return;
+    }
+    _activePostId = post.id;
+    if (widget.openRequest != null && widget.openRequest!.id == post.id) {
+      _lastHandledRequestSeq = widget.openRequest!.seq;
+    }
+
+    // Dismiss any active desktop side sheet so the full desktop view is displayed cleanly
+    if (_desktopPanelDepth > 0) {
+      Navigator.of(context, rootNavigator: true).maybePop();
+    }
+
     widget.onOpenRecord?.call(
       AppLinkRef(
         kind: AppLinkKind.communityPost,
@@ -387,19 +459,27 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         repository: _repo,
         currentUser: _currentAuthor,
         onAuthorTap: _openAuthorProfile,
+        onStartDirectMessage: widget.onStartDirectMessage,
         onBack: _closeSubpage,
         showHeader: !widget.embedInScaffold,
         onOpenRef: widget.onOpenRef,
         onTagTap: _handleTagTap,
+        onPostTap: _openPostDetail,
       ),
+      forceInline: true,
     );
   }
 
   bool _isMe(CommunityAuthor author) {
-    return author.id == _currentAuthor.id ||
-        author.handle.toLowerCase() == _currentAuthor.handle.toLowerCase() ||
-        author.id == _repo.currentAuthor.id ||
-        author.handle.toLowerCase() == _repo.currentAuthor.handle.toLowerCase();
+    final ownIds = <String>{_currentAuthor.id, _repo.currentAuthor.id}
+      ..remove('');
+    if (author.id.isNotEmpty && ownIds.contains(author.id)) return true;
+    final handle = author.handle.toLowerCase().replaceFirst('@', '').trim();
+    if (handle.isEmpty) return false;
+    return <String>{_currentAuthor.handle, _repo.currentAuthor.handle}
+        .map((value) => value.toLowerCase().replaceFirst('@', '').trim())
+        .where((value) => value.isNotEmpty)
+        .contains(handle);
   }
 
   void _openAuthorProfile(CommunityAuthor author) {
@@ -414,6 +494,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         onBack: _closeSubpage,
         onPostTap: _openPostDetail,
         onOpenRef: widget.onOpenRef,
+        onDirectMessage: widget.onStartDirectMessage,
       ),
     );
   }
@@ -424,6 +505,17 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       page: CommunityFollowView(
         repository: _repo,
         onAuthorTap: _openAuthorProfile,
+      ),
+    );
+  }
+
+  void _openNewsPage() {
+    _openSubpage(
+      title: 'Market Wire',
+      page: CommunityMarketWirePage(
+        category: 'Market Wire',
+        items: _repo.news,
+        snapshot: _repo.marketSnapshot,
       ),
     );
   }
@@ -486,7 +578,28 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
   // Mobile compose
   // -------------------------------------------------------------------------
 
-  void _showMobileComposer() {
+  void _showComposer({ComposerMode initialMode = ComposerMode.post}) {
+    if (context.uiRes.isMobile) {
+      _showMobileComposer(initialMode: initialMode);
+    } else {
+      showSettingsSideSheet<void>(
+        context,
+        title: 'Create Post',
+        subtitle: 'Share your thesis, trade setup, or questions with traders',
+        desktopWidthRatio: 0.52,
+        maxWidth: 720,
+        minDesktopWidth: 540,
+        child: CommunityComposerCard(
+          author: _currentAuthor,
+          repository: _repo,
+          initialMode: initialMode,
+          onPostCreated: () => Navigator.of(context).pop(),
+        ),
+      );
+    }
+  }
+
+  void _showMobileComposer({ComposerMode initialMode = ComposerMode.post}) {
     final UiTheme theme = context.ui;
     showModalBottomSheet<void>(
       context: context,
@@ -500,6 +613,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
             child: CommunityComposerCard(
               author: _currentAuthor,
               repository: _repo,
+              initialMode: initialMode,
               isDrawerTile: true,
               onPostCreated: () => Navigator.of(ctx).pop(),
             ),
@@ -569,7 +683,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
                 bottom: floatingBottom,
                 child: CommunityAiFloatingBar(
                   repository: _repo,
-                  onCompose: _showMobileComposer,
+                  onCompose: _showComposer,
                   showCompose: isMobile && onFeedTab,
                 ),
               ),
@@ -591,7 +705,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
       currentUser: _currentAuthor,
       onPostTap: _openPostDetail,
       onAuthorTap: _openAuthorProfile,
-      onCompose: _showMobileComposer,
+      onCompose: _showComposer,
       onOpenRef: widget.onOpenRef,
       onTagTap: _handleTagTap,
       searchQuery: widget.searchQuery,
@@ -776,12 +890,16 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
                       ),
                     ),
                     child: Scrollbar(
+                      controller: _tabletSidebarController,
                       child: SingleChildScrollView(
+                        controller: _tabletSidebarController,
                         padding: EdgeInsets.all(context.sp(theme.spacing.md)),
                         child: CommunitySidebar(
                           repository: _repo,
                           onFollow: (author) => _repo.toggleFollow(author.id),
+                          onAuthorTap: _openAuthorProfile,
                           onShowMore: _openNetworkPage,
+                          onNewsShowMore: _openNewsPage,
                           onExplore: () => _tabController.animateTo(1),
                           onPostTap: _openPostDetail,
                           onSearchTap: _openSearchPage,
@@ -839,12 +957,16 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
           SizedBox(
             width: context.sz(340),
             child: Scrollbar(
+              controller: _desktopSidebarController,
               child: SingleChildScrollView(
+                controller: _desktopSidebarController,
                 padding: EdgeInsets.all(context.sp(theme.spacing.md)),
                 child: CommunitySidebar(
                   repository: _repo,
                   onFollow: (author) => _repo.toggleFollow(author.id),
+                  onAuthorTap: _openAuthorProfile,
                   onShowMore: _openNetworkPage,
+                  onNewsShowMore: _openNewsPage,
                   onExplore: () => _tabController.animateTo(1),
                   onPostTap: _openPostDetail,
                   onSearchTap: _openSearchPage,
@@ -882,7 +1004,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
             UiIconButton(
               icon: Icons.search_rounded,
               size: UiSize.xs,
-              tooltip: 'Search TradeX',
+              tooltip: 'Search hejournal.in',
               onPressed: _openSearchPage,
             ),
             UiIconButton(
@@ -910,4 +1032,10 @@ class _CommunityTab {
   const _CommunityTab({required this.label, required this.icon});
   final String label;
   final IconData icon;
+}
+
+class _CommunitySubpageEntry {
+  const _CommunitySubpageEntry({required this.page, required this.title});
+  final Widget page;
+  final String title;
 }

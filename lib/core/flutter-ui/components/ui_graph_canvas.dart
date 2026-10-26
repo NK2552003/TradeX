@@ -60,6 +60,7 @@ class UiGraphCanvas extends StatefulWidget {
   final List<UiGraphEdge> edges;
   final String? selectedId;
   final ValueChanged<UiGraphNode?>? onSelect;
+
   /// Canvas height in logical points (scaled internally).
   final double? height;
   final int iterations;

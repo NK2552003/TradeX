@@ -532,7 +532,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                       'Revise affiliate application',
                     AffiliateApplicationStatus.suspended =>
                       'Affiliate access status',
-                    _ => 'Become a TradeX Affiliate',
+                    _ => 'Become a hejournal.in Affiliate',
                   },
                   subtitle:
                       'Complete the partner application and keep all trader tools',
@@ -554,7 +554,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                         });
                       },
                     ),
-                    'TradeX Affiliate Program',
+                    'hejournal.in Affiliate Program',
                     Icons.handshake_outlined,
                   ),
                 ),

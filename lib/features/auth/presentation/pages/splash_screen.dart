@@ -76,7 +76,7 @@ class _SplashScreenState extends State<SplashScreen>
                       AppLogoMark(size: 40, progress: _markProgress.value),
                       SizedBox(height: context.sp(theme.spacing.lg)),
                       Text(
-                        'TradeX',
+                        'hejournal.in',
                         style: context.uiText.display.copyWith(
                           fontSize: 32,
                           color: colors.foreground,

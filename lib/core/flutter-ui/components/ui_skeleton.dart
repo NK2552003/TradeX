@@ -89,12 +89,14 @@ class UiSkeleton extends StatefulWidget {
     int count = 3,
     double height = 38,
     double spacing = 8,
+    double? width,
   }) {
     return Builder(
       key: key,
       builder: (BuildContext context) {
         final theme = context.ui;
         return Container(
+          width: width != null ? context.sz(width) : null,
           height: context.sz(height),
           padding: EdgeInsets.all(context.sp(theme.spacing.xxs)),
           decoration: BoxDecoration(
@@ -105,18 +107,31 @@ class UiSkeleton extends StatefulWidget {
               width: theme.borders.hairline,
             ),
           ),
-          child: Row(
-            children: <Widget>[
-              for (int i = 0; i < count; i++) ...<Widget>[
-                if (i > 0) SizedBox(width: spacing),
-                Expanded(
-                  child: UiSkeleton(
-                    height: height - 8,
-                    borderRadius: context.radius(theme.radii.sm),
-                  ),
-                ),
-              ],
-            ],
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final isBounded = constraints.maxWidth.isFinite;
+              return Row(
+                mainAxisSize: isBounded ? MainAxisSize.max : MainAxisSize.min,
+                children: <Widget>[
+                  for (int i = 0; i < count; i++) ...<Widget>[
+                    if (i > 0) SizedBox(width: spacing),
+                    if (isBounded)
+                      Expanded(
+                        child: UiSkeleton(
+                          height: height - 8,
+                          borderRadius: context.radius(theme.radii.sm),
+                        ),
+                      )
+                    else
+                      UiSkeleton(
+                        width: context.sz(60),
+                        height: height - 8,
+                        borderRadius: context.radius(theme.radii.sm),
+                      ),
+                  ],
+                ],
+              );
+            },
           ),
         );
       },
@@ -877,13 +892,269 @@ class UiSkeleton extends StatefulWidget {
     );
   }
 
-  /// Community feed skeleton.
-  static Widget community({Key? key}) {
-    return Builder(
+  /// Community feed skeleton with matching responsive two-column layout on desktop.
+  static Widget community({Key? key, int tab = 0}) {
+    return LayoutBuilder(
       key: key,
-      builder: (BuildContext context) {
+      builder: (BuildContext context, BoxConstraints constraints) {
         final theme = context.ui;
         final double pad = context.sp(theme.spacing.md);
+        final bool isDesktop = constraints.maxWidth >= 768;
+
+        Widget buildFeedColumn() {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // Composer Trigger Pill Card Skeleton (No profile icon per design spec)
+              UiSkeleton.card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    UiSkeleton(
+                      height: 40,
+                      borderRadius: context.radius(theme.radii.pill),
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.xs)),
+                    Row(
+                      children: <Widget>[
+                        UiSkeleton.badge(width: 76, height: 22),
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        UiSkeleton.badge(width: 82, height: 22),
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        UiSkeleton.badge(width: 86, height: 22),
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        UiSkeleton.badge(width: 78, height: 22),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+
+              // Post Card 1 (with image/chart placeholder)
+              UiSkeleton.card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        UiSkeleton.avatar(size: 36),
+                        SizedBox(width: context.sp(theme.spacing.sm)),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            UiSkeleton(width: context.sz(120), height: 13),
+                            SizedBox(height: context.sp(theme.spacing.xxs)),
+                            UiSkeleton(width: context.sz(80), height: 10),
+                          ],
+                        ),
+                        const Spacer(),
+                        UiSkeleton.badge(width: 48, height: 18),
+                      ],
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    UiSkeleton.text(lines: 2, spacing: 6),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    UiSkeleton(
+                      height: 120,
+                      borderRadius: context.radius(theme.radii.sm),
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        UiSkeleton.badge(width: 44, height: 14),
+                        UiSkeleton.badge(width: 44, height: 14),
+                        UiSkeleton.badge(width: 44, height: 14),
+                        UiSkeleton.badge(width: 36, height: 14),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+
+              // Post Card 2 (with trade setup pill tags)
+              UiSkeleton.card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        UiSkeleton.avatar(size: 36),
+                        SizedBox(width: context.sp(theme.spacing.sm)),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            UiSkeleton(width: context.sz(140), height: 13),
+                            SizedBox(height: context.sp(theme.spacing.xxs)),
+                            UiSkeleton(width: context.sz(90), height: 10),
+                          ],
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    UiSkeleton.text(lines: 3, spacing: 6),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    Row(
+                      children: <Widget>[
+                        UiSkeleton.badge(width: 54, height: 22),
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        UiSkeleton.badge(width: 72, height: 22),
+                        SizedBox(width: context.sp(theme.spacing.xs)),
+                        UiSkeleton.badge(width: 68, height: 22),
+                      ],
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        UiSkeleton.badge(width: 44, height: 14),
+                        UiSkeleton.badge(width: 44, height: 14),
+                        UiSkeleton.badge(width: 44, height: 14),
+                        UiSkeleton.badge(width: 36, height: 14),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+
+              // Post Card 3 (quick discussion)
+              UiSkeleton.card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        UiSkeleton.avatar(size: 36),
+                        SizedBox(width: context.sp(theme.spacing.sm)),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            UiSkeleton(width: context.sz(110), height: 13),
+                            SizedBox(height: context.sp(theme.spacing.xxs)),
+                            UiSkeleton(width: context.sz(75), height: 10),
+                          ],
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    UiSkeleton.text(lines: 2, spacing: 6),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        UiSkeleton.badge(width: 44, height: 14),
+                        UiSkeleton.badge(width: 44, height: 14),
+                        UiSkeleton.badge(width: 44, height: 14),
+                        UiSkeleton.badge(width: 36, height: 14),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+
+        Widget buildSidebar() {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // Search input pill
+              UiSkeleton(
+                height: 40,
+                borderRadius: context.radius(theme.radii.pill),
+              ),
+              SizedBox(height: context.sp(theme.spacing.md)),
+
+              // Trending Topics
+              UiSkeleton.card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    UiSkeleton(width: context.sz(120), height: 14),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    for (int i = 0; i < 4; i++) ...<Widget>[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          UiSkeleton(width: context.sz(90), height: 12),
+                          UiSkeleton(width: context.sz(40), height: 10),
+                        ],
+                      ),
+                      if (i < 3) SizedBox(height: context.sp(theme.spacing.sm)),
+                    ],
+                  ],
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.md)),
+
+              // Who to Follow
+              UiSkeleton.card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    UiSkeleton(width: context.sz(110), height: 14),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    for (int i = 0; i < 3; i++) ...<Widget>[
+                      Row(
+                        children: <Widget>[
+                          UiSkeleton.avatar(size: 32),
+                          SizedBox(width: context.sp(theme.spacing.xs)),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                UiSkeleton(width: context.sz(85), height: 12),
+                                SizedBox(height: context.sp(theme.spacing.xxs)),
+                                UiSkeleton(width: context.sz(55), height: 10),
+                              ],
+                            ),
+                          ),
+                          UiSkeleton.badge(width: 56, height: 26),
+                        ],
+                      ),
+                      if (i < 2) SizedBox(height: context.sp(theme.spacing.sm)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+
+        if (isDesktop) {
+          return SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              pad,
+              pad,
+              pad,
+              pad + context.uiDockInset,
+            ),
+            physics: const NeverScrollableScrollPhysics(),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: context.sz(700)),
+                      child: buildFeedColumn(),
+                    ),
+                  ),
+                ),
+                SizedBox(width: context.sp(theme.spacing.lg)),
+                SizedBox(
+                  width: context.sz(320),
+                  child: buildSidebar(),
+                ),
+              ],
+            ),
+          );
+        }
 
         return SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
@@ -893,60 +1164,7 @@ class UiSkeleton extends StatefulWidget {
             pad + context.uiDockInset,
           ),
           physics: const NeverScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              // Composer Bar
-              UiSkeleton.card(
-                child: Row(
-                  children: <Widget>[
-                    UiSkeleton.avatar(size: 36),
-                    SizedBox(width: context.sp(theme.spacing.sm)),
-                    Expanded(
-                      child: UiSkeleton(
-                        height: 36,
-                        borderRadius: context.radius(theme.radii.md),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: context.sp(theme.spacing.md)),
-
-              // Community Posts
-              for (int i = 0; i < 3; i++) ...<Widget>[
-                UiSkeleton.card(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          UiSkeleton.avatar(size: 34),
-                          SizedBox(width: context.sp(theme.spacing.sm)),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              UiSkeleton(width: context.sz(110), height: 13),
-                              SizedBox(height: context.sp(theme.spacing.xxs)),
-                              UiSkeleton(width: context.sz(70), height: 10),
-                            ],
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: context.sp(theme.spacing.sm)),
-                      UiSkeleton.text(lines: 3, spacing: 6),
-                      SizedBox(height: context.sp(theme.spacing.sm)),
-                      UiSkeleton(
-                        height: 110,
-                        borderRadius: context.radius(theme.radii.sm),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: context.sp(theme.spacing.sm)),
-              ],
-            ],
-          ),
+          child: buildFeedColumn(),
         );
       },
     );
@@ -1545,6 +1763,505 @@ class UiSkeleton extends StatefulWidget {
               for (int i = 0; i < 4; i++) ...<Widget>[
                 UiSkeleton.listItem(showTrailing: true),
                 SizedBox(height: context.sp(theme.spacing.xs)),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Market Intelligence page skeleton reflecting layout across tabs:
+  /// tab 0: Overview (World Indices table, Sector Heatmap grid, Leaders)
+  /// tab 1: News (Featured hero article, category subgrid, news feed, right rail)
+  /// tab 2: Movers (Gainers & Losers comparative tables)
+  /// tab 3: Instruments (Candle/area chart, metrics, company dossier)
+  /// tab 4: Screeners (Screener tabs, data table)
+  /// tab 5: Coverage (Coverage progress bars, directory table)
+  static Widget market({Key? key, int tab = 0}) {
+    return LayoutBuilder(
+      key: key,
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final theme = context.ui;
+        final double pad = context.sp(theme.spacing.md);
+        final bool isDesktop = constraints.maxWidth >= 680;
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            pad,
+            context.sp(theme.spacing.sm),
+            pad,
+            pad + context.uiDockInset,
+          ),
+          physics: const NeverScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // Header Card skeleton (shown only on tab 0 overview)
+              if (tab == 0) ...<Widget>[
+                UiSkeleton.card(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(theme.spacing.md),
+                    vertical: context.sp(theme.spacing.sm),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      UiSkeleton(width: context.sz(20), height: 20),
+                      SizedBox(width: context.sp(theme.spacing.sm)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            Row(
+                              children: <Widget>[
+                                UiSkeleton(width: context.sz(140), height: 16),
+                                SizedBox(width: context.sp(theme.spacing.xs)),
+                                UiSkeleton.badge(width: 60, height: 18),
+                              ],
+                            ),
+                            SizedBox(height: context.sp(theme.spacing.xxs)),
+                            UiSkeleton(width: context.sz(220), height: 11),
+                          ],
+                        ),
+                      ),
+                      UiSkeleton(width: context.sz(18), height: 18, circle: true),
+                    ],
+                  ),
+                ),
+                SizedBox(height: context.sp(theme.spacing.sm)),
+              ],
+
+              // Market Tab navigation bar skeleton
+              UiSkeleton.tabs(count: 6, height: 38),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+
+              // Ticker Ribbon Strip skeleton
+              Container(
+                height: context.sz(60),
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.sp(theme.spacing.sm),
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colors.surfaceMuted,
+                  borderRadius: context.radius(theme.radii.sm),
+                  border: Border.all(
+                    color: theme.colors.border,
+                    width: theme.borders.hairline,
+                  ),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    UiSkeleton.badge(width: 70, height: 24),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Container(
+                      width: 1,
+                      height: context.sz(24),
+                      color: theme.colors.border,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            for (int i = 0; i < (isDesktop ? 4 : 2); i++) ...<Widget>[
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: <Widget>[
+                                      UiSkeleton(width: context.sz(46), height: 9),
+                                      const SizedBox(height: 2),
+                                      UiSkeleton(width: context.sz(54), height: 11),
+                                      const SizedBox(height: 2),
+                                      UiSkeleton(width: context.sz(60), height: 9),
+                                    ],
+                                  ),
+                                  SizedBox(width: context.sp(theme.spacing.xs)),
+                                  UiSkeleton(width: context.sz(32), height: 18),
+                                  SizedBox(width: context.sp(theme.spacing.sm)),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: context.sp(theme.spacing.md)),
+
+              // Tab-specific layout body skeletons
+              if (tab == 0) ...<Widget>[
+                // Overview: 2 Panels
+                if (isDesktop)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      // Primary: Indices & Heatmap
+                      Expanded(
+                        flex: 6,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            UiSkeleton.card(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: <Widget>[
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: <Widget>[
+                                      UiSkeleton(width: context.sz(140), height: 18),
+                                      UiSkeleton.badge(width: 64, height: 20),
+                                    ],
+                                  ),
+                                  SizedBox(height: context.sp(theme.spacing.md)),
+                                  for (int i = 0; i < 5; i++) ...<Widget>[
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 6),
+                                      child: Row(
+                                        children: <Widget>[
+                                          UiSkeleton(width: context.sz(90), height: 14),
+                                          const Spacer(),
+                                          UiSkeleton(width: context.sz(60), height: 14),
+                                          SizedBox(width: context.sp(theme.spacing.md)),
+                                          UiSkeleton(width: context.sz(50), height: 14),
+                                          SizedBox(width: context.sp(theme.spacing.md)),
+                                          UiSkeleton(width: context.sz(40), height: 18),
+                                        ],
+                                      ),
+                                    ),
+                                    if (i < 4) const Divider(height: 1),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: context.sp(theme.spacing.md)),
+                            UiSkeleton.card(
+                              height: 220,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: <Widget>[
+                                  UiSkeleton(width: context.sz(160), height: 18),
+                                  SizedBox(height: context.sp(theme.spacing.sm)),
+                                  Expanded(
+                                    child: Row(
+                                      children: <Widget>[
+                                        const Expanded(
+                                          flex: 3,
+                                          child: UiSkeleton(height: double.infinity),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          flex: 2,
+                                          child: Column(
+                                            children: const <Widget>[
+                                              Expanded(child: UiSkeleton(width: double.infinity)),
+                                              SizedBox(height: 4),
+                                              Expanded(child: UiSkeleton(width: double.infinity)),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Expanded(
+                                          flex: 2,
+                                          child: UiSkeleton(height: double.infinity),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.md)),
+                      // Secondary: Mover Cards & Distribution
+                      Expanded(
+                        flex: 4,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            UiSkeleton.card(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: <Widget>[
+                                  UiSkeleton(width: context.sz(120), height: 16),
+                                  SizedBox(height: context.sp(theme.spacing.sm)),
+                                  for (int i = 0; i < 4; i++) ...<Widget>[
+                                    UiSkeleton.listItem(showTrailing: true),
+                                    if (i < 3) SizedBox(height: context.sp(theme.spacing.xs)),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: context.sp(theme.spacing.md)),
+                            UiSkeleton.chart(height: 180),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      UiSkeleton.card(height: 240),
+                      SizedBox(height: context.sp(theme.spacing.md)),
+                      UiSkeleton.card(height: 200),
+                    ],
+                  ),
+              ] else if (tab == 1) ...<Widget>[
+                // News: 2 Panels
+                if (isDesktop)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Expanded(
+                        flex: 6,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            UiSkeleton.card(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: <Widget>[
+                                  const AspectRatio(
+                                    aspectRatio: 16 / 9,
+                                    child: UiSkeleton(width: double.infinity),
+                                  ),
+                                  SizedBox(height: context.sp(theme.spacing.sm)),
+                                  UiSkeleton.heading(width: context.sz(280)),
+                                  SizedBox(height: context.sp(theme.spacing.xs)),
+                                  UiSkeleton.text(lines: 2),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: context.sp(theme.spacing.md)),
+                            for (int i = 0; i < 3; i++) ...<Widget>[
+                              UiSkeleton.card(
+                                height: 90,
+                                child: Row(
+                                  children: <Widget>[
+                                    UiSkeleton(width: context.sz(100), height: 70),
+                                    SizedBox(width: context.sp(theme.spacing.sm)),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: <Widget>[
+                                          UiSkeleton.text(lines: 2),
+                                          const SizedBox(height: 6),
+                                          UiSkeleton(width: context.sz(80), height: 11),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: context.sp(theme.spacing.xs)),
+                            ],
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.md)),
+                      Expanded(
+                        flex: 4,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            UiSkeleton.card(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: <Widget>[
+                                  UiSkeleton(width: context.sz(120), height: 16),
+                                  SizedBox(height: context.sp(theme.spacing.sm)),
+                                  for (int i = 0; i < 4; i++) ...<Widget>[
+                                    UiSkeleton.listItem(),
+                                    if (i < 3) SizedBox(height: context.sp(theme.spacing.xs)),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: context.sp(theme.spacing.md)),
+                            UiSkeleton.card(height: 180),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      UiSkeleton.card(height: 240),
+                      SizedBox(height: context.sp(theme.spacing.md)),
+                      UiSkeleton.card(height: 180),
+                    ],
+                  ),
+              ] else if (tab == 2) ...<Widget>[
+                // Movers: Gainers & Losers
+                if (isDesktop)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Expanded(
+                        child: UiSkeleton.card(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiSkeleton(width: context.sz(120), height: 18),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              for (int i = 0; i < 6; i++) ...<Widget>[
+                                UiSkeleton.listItem(showTrailing: true),
+                                if (i < 5) const Divider(height: 1),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.md)),
+                      Expanded(
+                        child: UiSkeleton.card(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiSkeleton(width: context.sz(120), height: 18),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              for (int i = 0; i < 6; i++) ...<Widget>[
+                                UiSkeleton.listItem(showTrailing: true),
+                                if (i < 5) const Divider(height: 1),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      UiSkeleton.card(height: 260),
+                      SizedBox(height: context.sp(theme.spacing.md)),
+                      UiSkeleton.card(height: 260),
+                    ],
+                  ),
+              ] else if (tab == 3) ...<Widget>[
+                // Instruments: Chart + Dossier
+                if (isDesktop)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Expanded(
+                        flex: 6,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            UiSkeleton.card(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: <Widget>[
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: <Widget>[
+                                      Flexible(
+                                        child: UiSkeleton(
+                                          width: context.sz(160),
+                                          height: 24,
+                                        ),
+                                      ),
+                                      SizedBox(width: context.sp(theme.spacing.xs)),
+                                      UiSkeleton.badge(width: 70, height: 22),
+                                    ],
+                                  ),
+                                  SizedBox(height: context.sp(theme.spacing.md)),
+                                  UiSkeleton.chart(height: 240),
+                                  SizedBox(height: context.sp(theme.spacing.sm)),
+                                  UiSkeleton.tabs(count: 5, height: 32),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: context.sp(theme.spacing.md)),
+                      Expanded(
+                        flex: 4,
+                        child: UiSkeleton.card(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              UiSkeleton(width: context.sz(130), height: 18),
+                              SizedBox(height: context.sp(theme.spacing.sm)),
+                              for (int i = 0; i < 6; i++) ...<Widget>[
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 6),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: <Widget>[
+                                      Flexible(
+                                        child: UiSkeleton(
+                                          width: context.sz(80),
+                                          height: 13,
+                                        ),
+                                      ),
+                                      SizedBox(width: context.sp(theme.spacing.xs)),
+                                      UiSkeleton(
+                                        width: context.sz(44),
+                                        height: 13,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (i < 5) const Divider(height: 1),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      UiSkeleton.card(height: 280),
+                      SizedBox(height: context.sp(theme.spacing.md)),
+                      UiSkeleton.card(height: 200),
+                    ],
+                  ),
+              ] else ...<Widget>[
+                // Screeners & Coverage: Tables
+                UiSkeleton.card(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      if (isDesktop)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            Expanded(
+                              child: UiSkeleton.tabs(count: 4, height: 32),
+                            ),
+                            SizedBox(width: context.sp(theme.spacing.sm)),
+                            UiSkeleton.button(width: context.sz(80), height: 32),
+                          ],
+                        )
+                      else
+                        UiSkeleton.tabs(count: 3, height: 32),
+                      SizedBox(height: context.sp(theme.spacing.md)),
+                      UiSkeleton.table(rows: 7, columns: isDesktop ? 6 : 3),
+                    ],
+                  ),
+                ),
               ],
             ],
           ),

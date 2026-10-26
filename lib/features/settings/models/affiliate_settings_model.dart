@@ -35,7 +35,8 @@ class AffiliateSettingsModel {
   final String customSlug;
   final double commissionRate;
   final String tierName;
-  final String payoutMethod; // 'upi' | 'bank_neft' | 'bank_imps' | 'bank_rtgs' | 'bank_transfer' | 'razorpay'
+  final String
+  payoutMethod; // 'upi' | 'bank_neft' | 'bank_imps' | 'bank_rtgs' | 'bank_transfer' | 'razorpay'
   final String payoutAccount;
   final double minimumPayoutThreshold; // ₹1,000.00 INR minimum
   final bool autoPayoutEnabled;

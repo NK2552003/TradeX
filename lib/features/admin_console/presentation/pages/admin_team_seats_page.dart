@@ -189,14 +189,8 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                 value: role,
                 options: const <UiOption<String>>[
                   UiOption(value: 'trader', label: 'Proprietary Trader'),
-                  UiOption(
-                    value: 'risk_manager',
-                    label: 'Desk Risk Manager',
-                  ),
-                  UiOption(
-                    value: 'analyst',
-                    label: 'Quant / Research Analyst',
-                  ),
+                  UiOption(value: 'risk_manager', label: 'Desk Risk Manager'),
+                  UiOption(value: 'analyst', label: 'Quant / Research Analyst'),
                   UiOption(value: 'admin', label: 'Desk Administrator'),
                 ],
                 onChanged: (String? v) {
@@ -286,7 +280,9 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
     drawdownCtrl.dispose();
   }
 
-  Future<void> _openConsumerDetailsOverlay(AdminConsumerAccount consumer) async {
+  Future<void> _openConsumerDetailsOverlay(
+    AdminConsumerAccount consumer,
+  ) async {
     final theme = context.ui;
     final c = theme.colors;
 
@@ -310,7 +306,10 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
           Container(
             padding: EdgeInsets.all(context.sp(theme.spacing.md)),
             decoration: BoxDecoration(
-              border: Border.all(color: c.border, width: theme.borders.hairline),
+              border: Border.all(
+                color: c.border,
+                width: theme.borders.hairline,
+              ),
               borderRadius: context.radius(theme.radii.md),
               color: c.surface,
             ),
@@ -322,7 +321,9 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                   children: <Widget>[
                     Text(
                       'Subscription Plan',
-                      style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                      style: context.uiText.caption.copyWith(
+                        color: c.foregroundMuted,
+                      ),
                     ),
                     UiBadge(
                       label: consumer.subscriptionTier.toUpperCase(),
@@ -406,7 +407,8 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                             Navigator.of(context).pop();
                             UiToast.show(
                               context,
-                              title: '${consumer.displayName} now has Enterprise',
+                              title:
+                                  '${consumer.displayName} now has Enterprise',
                               intent: UiIntent.success,
                             );
                           }
@@ -469,7 +471,9 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                 ? UiIntent.danger
                 : UiIntent.success,
             onPressed: () async {
-              final newStatus = consumer.status == 'active' ? 'suspended' : 'active';
+              final newStatus = consumer.status == 'active'
+                  ? 'suspended'
+                  : 'active';
               await _repo.updateConsumerAccount(
                 userId: consumer.userId,
                 status: newStatus,
@@ -554,7 +558,10 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                 options: const <UiOption<String>>[
                   UiOption(value: 'active', label: 'Active (Trading Enabled)'),
                   UiOption(value: 'frozen', label: 'Frozen (Close-Only Mode)'),
-                  UiOption(value: 'suspended', label: 'Suspended (Access Locked)'),
+                  UiOption(
+                    value: 'suspended',
+                    label: 'Suspended (Access Locked)',
+                  ),
                 ],
                 onChanged: (String? v) {
                   if (v != null) setModalState(() => status = v);
@@ -656,7 +663,10 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
           Container(
             padding: EdgeInsets.all(context.sp(theme.spacing.md)),
             decoration: BoxDecoration(
-              border: Border.all(color: c.border, width: theme.borders.hairline),
+              border: Border.all(
+                color: c.border,
+                width: theme.borders.hairline,
+              ),
               borderRadius: context.radius(theme.radii.md),
               color: c.surface,
             ),
@@ -667,21 +677,30 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                 SizedBox(height: context.sp(theme.spacing.xxs)),
                 Text(
                   '${app.city}, ${app.state} · ${app.audienceReach}',
-                  style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                  style: context.uiText.caption.copyWith(
+                    color: c.foregroundMuted,
+                  ),
                 ),
                 SizedBox(height: context.sp(theme.spacing.sm)),
-                Text('Indian Bank Payout Rail (INR)', style: context.uiText.bodyStrong),
+                Text(
+                  'Indian Bank Payout Rail (INR)',
+                  style: context.uiText.bodyStrong,
+                ),
                 SizedBox(height: context.sp(theme.spacing.xxs)),
                 Text(
                   '${app.bankName} · ${app.maskedAccountNumber}\nIFSC: ${app.ifscCode}',
-                  style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                  style: context.uiText.caption.copyWith(
+                    color: c.foregroundMuted,
+                  ),
                 ),
                 SizedBox(height: context.sp(theme.spacing.sm)),
                 Text('Compliance & KYC', style: context.uiText.bodyStrong),
                 SizedBox(height: context.sp(theme.spacing.xxs)),
                 Text(
                   'PAN verified. SEBI / ASCI compliance declared.',
-                  style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                  style: context.uiText.caption.copyWith(
+                    color: c.foregroundMuted,
+                  ),
                 ),
               ],
             ),
@@ -714,25 +733,35 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
           Container(
             padding: EdgeInsets.all(context.sp(theme.spacing.md)),
             decoration: BoxDecoration(
-              border: Border.all(color: c.border, width: theme.borders.hairline),
+              border: Border.all(
+                color: c.border,
+                width: theme.borders.hairline,
+              ),
               borderRadius: context.radius(theme.radii.md),
               color: c.surface,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('Selected Condition: ${req.conditionLabel}', style: context.uiText.bodyStrong),
+                Text(
+                  'Selected Condition: ${req.conditionLabel}',
+                  style: context.uiText.bodyStrong,
+                ),
                 SizedBox(height: context.sp(theme.spacing.xxs)),
                 Text(
                   'Reason: ${req.reason}${(req.feedback ?? "").isNotEmpty ? " — \"${req.feedback}\"" : ""}',
-                  style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                  style: context.uiText.caption.copyWith(
+                    color: c.foregroundMuted,
+                  ),
                 ),
                 SizedBox(height: context.sp(theme.spacing.sm)),
                 Text('Scheduled Purge Date', style: context.uiText.bodyStrong),
                 SizedBox(height: context.sp(theme.spacing.xxs)),
                 Text(
                   AppTokens.shortDate(req.scheduledPurgeAt),
-                  style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                  style: context.uiText.caption.copyWith(
+                    color: c.foregroundMuted,
+                  ),
                 ),
               ],
             ),
@@ -751,7 +780,11 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                 await _load();
                 if (mounted) {
                   Navigator.of(context).pop();
-                  UiToast.show(context, title: 'Account Deletion Cancelled', intent: UiIntent.success);
+                  UiToast.show(
+                    context,
+                    title: 'Account Deletion Cancelled',
+                    intent: UiIntent.success,
+                  );
                 }
               },
             ),
@@ -769,7 +802,11 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                 await _load();
                 if (mounted) {
                   Navigator.of(context).pop();
-                  UiToast.show(context, title: 'Conditional Data Purge Executed', intent: UiIntent.warning);
+                  UiToast.show(
+                    context,
+                    title: 'Conditional Data Purge Executed',
+                    intent: UiIntent.warning,
+                  );
                 }
               },
             ),
@@ -885,7 +922,8 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                       DeskLedgerItem(
                         label: 'Active desk seats',
                         value: '${_seats.length} seats',
-                        subtext: 'Deployed ${formatInrCompact(totalCapitalInr)}',
+                        subtext:
+                            'Deployed ${formatInrCompact(totalCapitalInr)}',
                       ),
                       DeskLedgerItem(
                         label: 'Consumer accounts',
@@ -970,12 +1008,15 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
           item.email.toLowerCase().contains(q);
     }).toList();
 
-    final int enterpriseCount =
-        _consumers.where((u) => u.subscriptionTier == 'Enterprise').length;
-    final int proCount =
-        _consumers.where((u) => u.subscriptionTier == 'Pro').length;
-    final int basicCount =
-        _consumers.where((u) => u.subscriptionTier == 'Basic').length;
+    final int enterpriseCount = _consumers
+        .where((u) => u.subscriptionTier == 'Enterprise')
+        .length;
+    final int proCount = _consumers
+        .where((u) => u.subscriptionTier == 'Pro')
+        .length;
+    final int basicCount = _consumers
+        .where((u) => u.subscriptionTier == 'Basic')
+        .length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1044,7 +1085,9 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                 children: <Widget>[
                   Text(
                     u.displayName,
-                    style: ctx.uiText.bodyStrong.copyWith(fontWeight: FontWeight.w600),
+                    style: ctx.uiText.bodyStrong.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
@@ -1070,8 +1113,8 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                     intent: u.subscriptionTier == 'Enterprise'
                         ? UiIntent.primary
                         : (u.subscriptionTier == 'Pro'
-                            ? UiIntent.info
-                            : UiIntent.neutral),
+                              ? UiIntent.info
+                              : UiIntent.neutral),
                     size: UiSize.xs,
                   ),
                   SizedBox(height: 2),
@@ -1104,11 +1147,14 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
             UiTableColumn<AdminConsumerAccount>(
               id: 'status',
               label: 'Status',
-              cellBuilder: (BuildContext ctx, AdminConsumerAccount u) => UiBadge(
-                label: u.status == 'active' ? 'Active' : 'Suspended',
-                intent: u.status == 'active' ? UiIntent.success : UiIntent.warning,
-                size: UiSize.xs,
-              ),
+              cellBuilder: (BuildContext ctx, AdminConsumerAccount u) =>
+                  UiBadge(
+                    label: u.status == 'active' ? 'Active' : 'Suspended',
+                    intent: u.status == 'active'
+                        ? UiIntent.success
+                        : UiIntent.warning,
+                    size: UiSize.xs,
+                  ),
             ),
             UiTableColumn<AdminConsumerAccount>(
               id: 'actions',
@@ -1147,7 +1193,9 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                       variant: UiVariant.ghost,
                       intent: isActive ? UiIntent.danger : UiIntent.success,
                       onPressed: () async {
-                        final String newStatus = isActive ? 'suspended' : 'active';
+                        final String newStatus = isActive
+                            ? 'suspended'
+                            : 'active';
                         await _repo.updateConsumerAccount(
                           userId: u.userId,
                           status: newStatus,
@@ -1159,7 +1207,9 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                             title: isActive
                                 ? '${u.displayName} suspended'
                                 : '${u.displayName} activated',
-                            intent: isActive ? UiIntent.warning : UiIntent.success,
+                            intent: isActive
+                                ? UiIntent.warning
+                                : UiIntent.success,
                           );
                         }
                       },
@@ -1221,7 +1271,9 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                       children: <Widget>[
                         Text(
                           s.displayName,
-                          style: ctx.uiText.bodyStrong.copyWith(fontWeight: FontWeight.w600),
+                          style: ctx.uiText.bodyStrong.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
@@ -1253,7 +1305,9 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                 children: <Widget>[
                   Text(
                     formatInrCompact(s.allocatedCapitalInr),
-                    style: ctx.uiText.mono.copyWith(fontWeight: FontWeight.w700),
+                    style: ctx.uiText.mono.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   Text(
                     '${s.marginUtilizationPct.toStringAsFixed(0)}% margin used',
@@ -1285,7 +1339,9 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
               cellBuilder: (BuildContext ctx, AdminTraderSeat s) => UiBadge(
                 label:
                     '${s.currentDrawdownPct.toStringAsFixed(1)}% / ${s.maxDrawdownLimitPct.toStringAsFixed(1)}%',
-                intent: s.isDrawdownNearLimit ? UiIntent.danger : UiIntent.neutral,
+                intent: s.isDrawdownNearLimit
+                    ? UiIntent.danger
+                    : UiIntent.neutral,
                 size: UiSize.xs,
               ),
             ),
@@ -1354,7 +1410,10 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
           Container(
             padding: EdgeInsets.all(context.sp(theme.spacing.md)),
             decoration: BoxDecoration(
-              border: Border.all(color: c.border, width: theme.borders.hairline),
+              border: Border.all(
+                color: c.border,
+                width: theme.borders.hairline,
+              ),
               borderRadius: context.radius(theme.radii.md),
               color: c.surface,
             ),
@@ -1366,12 +1425,16 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                     children: <Widget>[
                       Text(
                         'Active Partner Ledger · ${ws.profile.displayName} (/r/${ws.profile.referralSlug})',
-                        style: context.uiText.bodyStrong.copyWith(fontWeight: FontWeight.w600),
+                        style: context.uiText.bodyStrong.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       SizedBox(height: context.sp(theme.spacing.xxs)),
                       Text(
                         'Tier: ${ws.profile.tier.toUpperCase()} (${(ws.profile.commissionRate * 100).toStringAsFixed(0)}% Commission) · Unpaid: ${formatInrAmount(ws.profile.unpaidBalance)} · Paid Out: ${formatInrAmount(ws.profile.totalPaidOut)}',
-                        style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                        style: context.uiText.caption.copyWith(
+                          color: c.foregroundMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -1465,15 +1528,17 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                 children: <Widget>[
                   Text(
                     '${req.userDisplayName} (${req.userEmail})',
-                    style: context.uiText.bodyStrong.copyWith(fontWeight: FontWeight.w600),
+                    style: context.uiText.bodyStrong.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   UiBadge(
                     label: req.status.toUpperCase(),
                     intent: req.status == 'data_purged'
                         ? UiIntent.danger
                         : (req.status == 'cancelled'
-                            ? UiIntent.success
-                            : UiIntent.warning),
+                              ? UiIntent.success
+                              : UiIntent.warning),
                     size: UiSize.xs,
                   ),
                 ],
@@ -1481,7 +1546,9 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
               SizedBox(height: context.sp(theme.spacing.xxs)),
               Text(
                 'Condition: ${req.conditionLabel} · Scheduled: ${AppTokens.shortDate(req.scheduledPurgeAt)}',
-                style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                style: context.uiText.caption.copyWith(
+                  color: c.foregroundMuted,
+                ),
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
               Align(

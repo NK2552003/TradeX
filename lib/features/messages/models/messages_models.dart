@@ -36,7 +36,8 @@ enum MessagePresence {
     };
   }
 
-  bool get isLive => this == MessagePresence.online || this == MessagePresence.busy;
+  bool get isLive =>
+      this == MessagePresence.online || this == MessagePresence.busy;
 }
 
 /// Delivery state of an outgoing message, mirrored from a real transport.
@@ -276,14 +277,14 @@ class MessageThread {
   final bool lastFromMe;
   final MessageStatus lastStatus;
 
-  String get title =>
-      isGroup ? (groupTitle ?? 'Group') : (peer.displayName ?? '@${peer.handle}');
+  String get title => isGroup
+      ? (groupTitle ?? 'Group')
+      : (peer.displayName ?? '@${peer.handle}');
 
   String? get avatarUrl => isGroup ? groupAvatarUrl : peer.avatarUrl;
 
-  String get subtitle => isGroup
-      ? '${participants.length} members'
-      : '@${peer.handle}';
+  String get subtitle =>
+      isGroup ? '${participants.length} members' : '@${peer.handle}';
 
   bool get hasUnread => unread > 0;
 

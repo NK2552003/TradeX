@@ -492,37 +492,42 @@ class _AppShellState extends State<AppShell> {
               ? (activeMoreItem.selectedIcon ?? activeMoreItem.icon)
               : Icons.close_rounded,
           columns: 3,
-          items: <AppNavItem>[
-            if (_isCommunityRoute) ...<AppNavItem>[
-              for (final AppNavItem item
-                  in (widget.mobilePrimaryItems ?? const <AppNavItem>[]))
-                if (item.id != 'community' && !item.id.startsWith('community_'))
-                  item,
-              const AppNavItem(
-                id: 'community_bookmarks',
-                label: 'Bookmarks',
-                icon: Icons.bookmark_outline_rounded,
-              ),
-            ],
-            ...widget.mobileMoreItems,
-          ]
-              .fold<List<AppNavItem>>(<AppNavItem>[], (
-                List<AppNavItem> acc,
-                AppNavItem item,
-              ) {
-                if (acc.every((AppNavItem existing) => existing.id != item.id)) {
-                  acc.add(item);
-                }
-                return acc;
-              })
-              .map(
-                (AppNavItem item) => QuickGridItem(
-                  icon: item.selectedIcon ?? item.icon,
-                  label: item.label,
-                  onTap: () => widget.onSelect(item.id),
-                ),
-              )
-              .toList(),
+          items:
+              <AppNavItem>[
+                    if (_isCommunityRoute) ...<AppNavItem>[
+                      for (final AppNavItem item
+                          in (widget.mobilePrimaryItems ??
+                              const <AppNavItem>[]))
+                        if (item.id != 'community' &&
+                            !item.id.startsWith('community_'))
+                          item,
+                      const AppNavItem(
+                        id: 'community_bookmarks',
+                        label: 'Bookmarks',
+                        icon: Icons.bookmark_outline_rounded,
+                      ),
+                    ],
+                    ...widget.mobileMoreItems,
+                  ]
+                  .fold<List<AppNavItem>>(<AppNavItem>[], (
+                    List<AppNavItem> acc,
+                    AppNavItem item,
+                  ) {
+                    if (acc.every(
+                      (AppNavItem existing) => existing.id != item.id,
+                    )) {
+                      acc.add(item);
+                    }
+                    return acc;
+                  })
+                  .map(
+                    (AppNavItem item) => QuickGridItem(
+                      icon: item.selectedIcon ?? item.icon,
+                      label: item.label,
+                      onTap: () => widget.onSelect(item.id),
+                    ),
+                  )
+                  .toList(),
         ),
         centerActionActive: moreRouteSelected,
         swipeEnabled: false,
@@ -1049,8 +1054,8 @@ class AppSidebar extends StatelessWidget {
                   (trader?.tier == AppTier.enterprise
                       ? 'Institutional Desk'
                       : (trader?.tier == AppTier.premium
-                            ? 'TradeX Pro Terminal'
-                            : 'TradeX Desk')),
+                            ? 'hejournal.in Pro Terminal'
+                            : 'hejournal.in Desk')),
               tierLabel:
                   tierLabel ??
                   (trader?.tier == AppTier.enterprise

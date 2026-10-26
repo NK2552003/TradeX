@@ -109,11 +109,13 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
       await widget.onAddComment(text, parentCommentId: parentId);
       _replyCtrl.clear();
       setState(() => _activeReplyingCommentId = null);
+      final parentHandle =
+          parentAuthor.handle.replaceFirst(RegExp(r'^@'), '').trim();
       if (mounted) {
         UiToast.show(
           context,
           title: 'Reply Published',
-          message: 'Replied to @${parentAuthor.handle}.',
+          message: 'Replied to @$parentHandle.',
           intent: UiIntent.success,
         );
       }
@@ -123,9 +125,11 @@ class _UniversalCommentsSectionState extends State<UniversalCommentsSection> {
   }
 
   void _startReply(CommunityComment comment) {
+    final commentHandle =
+        comment.author.handle.replaceFirst(RegExp(r'^@'), '').trim();
     setState(() {
       _activeReplyingCommentId = comment.id;
-      _replyCtrl.text = '@${comment.author.handle} ';
+      _replyCtrl.text = '@$commentHandle ';
       _replyCtrl.selection = TextSelection.collapsed(
         offset: _replyCtrl.text.length,
       );
@@ -1079,8 +1083,9 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
   String _getTraderHeadline(CommunityAuthor author) {
     if (author.bio != null && author.bio!.isNotEmpty) return author.bio!;
     if (author.userRole == UserRole.userAdmin) {
-      return 'TraderHub Official Desk · Lead Market Strategist';
+      return 'hejournal.in Official Desk · Lead Market Strategist';
     }
-    return '@${author.handle} · Quantitative Trader · TradeX Community';
+    final cleanHandle = author.handle.replaceFirst(RegExp(r'^@'), '').trim();
+    return '@$cleanHandle · Quantitative Trader · hejournal.in Community';
   }
 }

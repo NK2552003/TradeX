@@ -32,8 +32,10 @@ class AppGlobalNotificationsPage extends StatefulWidget {
 
 class _AppGlobalNotificationsPageState
     extends State<AppGlobalNotificationsPage> {
-  int _selectedTab = 0; // 0: All, 1: Community, 2: Trading & Orders, 3: System & Security
-  int _communityFilter = 0; // 0: All, 1: Likes, 2: Replies, 3: Reposts, 4: Signals
+  int _selectedTab =
+      0; // 0: All, 1: Community, 2: Trading & Orders, 3: System & Security
+  int _communityFilter =
+      0; // 0: All, 1: Likes, 2: Replies, 3: Reposts, 4: Signals
 
   Widget? _activeSubpage;
 
@@ -82,7 +84,8 @@ class _AppGlobalNotificationsPageState
       _SystemAlertItem(
         id: 'sys_3',
         title: 'Price Alert: NVDA crossed \$124.50 Resistance',
-        message: 'Bullish breakout detected with above-average relative volume.',
+        message:
+            'Bullish breakout detected with above-average relative volume.',
         time: now.subtract(const Duration(hours: 3)),
         category: _AlertCategory.trading,
         icon: Icons.trending_up_rounded,
@@ -123,16 +126,15 @@ class _AppGlobalNotificationsPageState
   }
 
   CommunityAuthor get _currentAuthor => CommunityAuthor(
-        id: widget.currentUser.id,
-        handle: widget.currentUser.handle,
-        displayName: widget.currentUser.displayName ?? widget.currentUser.handle,
-        userRole: UserRole.customer,
-        avatarUrl: widget.currentUser.avatarUrl,
-        tier: widget.currentUser.tier,
-      );
+    id: widget.currentUser.id,
+    handle: widget.currentUser.handle,
+    displayName: widget.currentUser.displayName ?? widget.currentUser.handle,
+    userRole: UserRole.customer,
+    avatarUrl: widget.currentUser.avatarUrl,
+    tier: widget.currentUser.tier,
+  );
 
-  int get _unreadSystemCount =>
-      _systemAlerts.where((a) => !a.read).length;
+  int get _unreadSystemCount => _systemAlerts.where((a) => !a.read).length;
 
   int get _totalUnreadCount =>
       widget.repository.unreadNotifications + _unreadSystemCount;
@@ -170,6 +172,7 @@ class _AppGlobalNotificationsPageState
         onBack: _closeSubpage,
         onAuthorTap: _openAuthorProfile,
         onOpenRef: widget.onOpenRef,
+        showHeader: false,
       ),
       'Post Discussion',
       Icons.article_rounded,
@@ -210,9 +213,7 @@ class _AppGlobalNotificationsPageState
             children: <Widget>[
               _buildHeader(context),
               _buildPrimaryTabs(context),
-              Expanded(
-                child: _buildSelectedTabContent(context),
-              ),
+              Expanded(child: _buildSelectedTabContent(context)),
             ],
           ),
         ),
@@ -369,10 +370,18 @@ class _AppGlobalNotificationsPageState
     final all = widget.repository.notifications;
 
     final filtered = all.where((n) {
-      if (_communityFilter == 1) return n.type == CommunityNotificationType.like;
-      if (_communityFilter == 2) return n.type == CommunityNotificationType.reply;
-      if (_communityFilter == 3) return n.type == CommunityNotificationType.repost;
-      if (_communityFilter == 4) return n.type == CommunityNotificationType.signal;
+      if (_communityFilter == 1) {
+        return n.type == CommunityNotificationType.like;
+      }
+      if (_communityFilter == 2) {
+        return n.type == CommunityNotificationType.reply;
+      }
+      if (_communityFilter == 3) {
+        return n.type == CommunityNotificationType.repost;
+      }
+      if (_communityFilter == 4) {
+        return n.type == CommunityNotificationType.signal;
+      }
       return true;
     }).toList();
 
@@ -398,7 +407,8 @@ class _AppGlobalNotificationsPageState
                     'Signals',
                   ],
                   selectedIndex: _communityFilter,
-                  onChanged: (int idx) => setState(() => _communityFilter = idx),
+                  onChanged: (int idx) =>
+                      setState(() => _communityFilter = idx),
                 ),
               ),
               if (widget.repository.unreadNotifications > 0) ...<Widget>[
@@ -442,12 +452,13 @@ class _AppGlobalNotificationsPageState
                           if (item.postSnippet != null &&
                               widget.repository.feedPosts.isNotEmpty) {
                             final post = widget.repository.feedPosts.firstWhere(
-                              (p) => p.author.handle == item.actor.handle,
+                              (p) =>
+                                  p.author.handle == (item.actor?.handle ?? ''),
                               orElse: () => widget.repository.feedPosts.first,
                             );
                             _openPostDetail(post);
-                          } else {
-                            _openAuthorProfile(item.actor);
+                          } else if (item.actor != null) {
+                            _openAuthorProfile(item.actor!);
                           }
                         },
                       ),
@@ -476,7 +487,8 @@ class _AppGlobalNotificationsPageState
           child: UiEmptyState(
             icon: Icons.candlestick_chart_outlined,
             title: 'No trading alerts',
-            message: 'Executed orders, stops, and price triggers will appear here.',
+            message:
+                'Executed orders, stops, and price triggers will appear here.',
           ),
         ),
       );
@@ -527,7 +539,8 @@ class _AppGlobalNotificationsPageState
           child: UiEmptyState(
             icon: Icons.shield_outlined,
             title: 'No security notices',
-            message: 'Login events, session security, and system updates appear here.',
+            message:
+                'Login events, session security, and system updates appear here.',
           ),
         ),
       );
@@ -573,8 +586,7 @@ class _AppGlobalNotificationsPageState
     final combined = <_UnifiedNotificationEntry>[
       for (final c in communityNotifications)
         _UnifiedNotificationEntry.community(c),
-      for (final s in _systemAlerts)
-        _UnifiedNotificationEntry.system(s),
+      for (final s in _systemAlerts) _UnifiedNotificationEntry.system(s),
     ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     if (combined.isEmpty) {
@@ -606,12 +618,12 @@ class _AppGlobalNotificationsPageState
                 if (c.postSnippet != null &&
                     widget.repository.feedPosts.isNotEmpty) {
                   final post = widget.repository.feedPosts.firstWhere(
-                    (p) => p.author.handle == c.actor.handle,
+                    (p) => p.author.handle == (c.actor?.handle ?? ''),
                     orElse: () => widget.repository.feedPosts.first,
                   );
                   _openPostDetail(post);
-                } else {
-                  _openAuthorProfile(c.actor);
+                } else if (c.actor != null) {
+                  _openAuthorProfile(c.actor!);
                 }
               },
             ),
@@ -649,14 +661,14 @@ class _AppGlobalNotificationsPageState
 
 class _UnifiedNotificationEntry {
   _UnifiedNotificationEntry.community(this.communityItem)
-      : systemAlert = null,
-        createdAt = communityItem!.createdAt,
-        isCommunity = true;
+    : systemAlert = null,
+      createdAt = communityItem!.createdAt,
+      isCommunity = true;
 
   _UnifiedNotificationEntry.system(this.systemAlert)
-      : communityItem = null,
-        createdAt = systemAlert!.time,
-        isCommunity = false;
+    : communityItem = null,
+      createdAt = systemAlert!.time,
+      isCommunity = false;
 
   final CommunityNotificationItem? communityItem;
   final _SystemAlertItem? systemAlert;
@@ -692,15 +704,15 @@ class _SystemAlertItem {
   final bool read;
 
   _SystemAlertItem copyWith({bool? read}) => _SystemAlertItem(
-        id: id,
-        title: title,
-        message: message,
-        time: time,
-        category: category,
-        icon: icon,
-        intent: intent,
-        read: read ?? this.read,
-      );
+    id: id,
+    title: title,
+    message: message,
+    time: time,
+    category: category,
+    icon: icon,
+    intent: intent,
+    read: read ?? this.read,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -752,9 +764,7 @@ class _AlertCard extends StatelessWidget {
             child: Icon(
               item.icon,
               size: context.sz(20),
-              color: item.read
-                  ? badgeColor.withValues(alpha: 0.7)
-                  : badgeColor,
+              color: item.read ? badgeColor.withValues(alpha: 0.7) : badgeColor,
             ),
           ),
           SizedBox(width: context.sp(theme.spacing.md)),

@@ -1,4 +1,5 @@
 import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/data/demo_data_source.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -7,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 import 'package:tradex/features/linking/link_graph_service.dart';
 import 'package:tradex/features/messages/data/messages_seed_data.dart';
@@ -43,8 +45,6 @@ class MessagesRepository extends ChangeNotifier {
   final Map<String, String> _pinnedMessages = <String, String>{};
   RealtimeChannel? _realtimeChannel;
 
-  static const String _fallbackUserId = '00000000-0000-0000-0000-000000000001';
-
   static bool _isUuid(String id) {
     final uuidRegex = RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -57,7 +57,9 @@ class MessagesRepository extends ChangeNotifier {
       final uid = SupabaseConfig.client?.auth.currentUser?.id;
       if (uid != null && uid.isNotEmpty) return uid;
     }
-    return _fallbackUserId;
+    final stored = SupabaseAuthBackendService.instance.currentUserProfile?.id;
+    if (stored != null && stored.isNotEmpty) return stored;
+    return '';
   }
 
   Future<void> _initSupabase() async {
@@ -301,13 +303,115 @@ class MessagesRepository extends ChangeNotifier {
       _messages = loadedMessages;
       notifyListeners();
     } catch (e) {
-      debugPrint('[MessagesRepository] fetchFromSupabase notice (falling back to cached/seed threads): $e');
+      debugPrint(
+        '[MessagesRepository] fetchFromSupabase notice: $e. Falling back to conversations table.',
+      );
+      await _fetchFromConversationsTable(client, currentUserId);
       if (_threads.isEmpty && CustomerDataPolicy.allowDemo) {
         _threads = MessagesSeed.threads();
         _requests = MessagesSeed.requests();
         _messages = MessagesSeed.messagesByThread();
         notifyListeners();
       }
+    }
+  }
+
+  Future<void> _fetchFromConversationsTable(
+    SupabaseClient client,
+    String currentUserId,
+  ) async {
+    try {
+      final res = await client
+          .from('conversations')
+          .select('''
+            id,
+            last_message_at,
+            created_at,
+            user_a_id,
+            user_b_id,
+            user_a:profiles!conversations_user_a_id_fkey(id, handle, display_name, avatar_url),
+            user_b:profiles!conversations_user_b_id_fkey(id, handle, display_name, avatar_url)
+          ''')
+          .or('user_a_id.eq.$currentUserId,user_b_id.eq.$currentUserId')
+          .order('last_message_at', ascending: false);
+
+      final List<MessageThread> loadedThreads = [];
+      final Map<String, List<ChatMessage>> loadedMessages = {};
+
+      for (final trow in res as List) {
+        final tmap = trow as Map<String, dynamic>;
+        final convId = tmap['id']?.toString() ?? '';
+        final userAId = tmap['user_a_id']?.toString() ?? '';
+        final peerMap =
+            (userAId == currentUserId ? tmap['user_b'] : tmap['user_a'])
+                as Map<String, dynamic>? ??
+            {};
+
+        final peerId = peerMap['id']?.toString() ?? 'usr_peer';
+        final peerHandle = peerMap['handle'] as String? ?? 'trader';
+        final peerName = peerMap['display_name'] as String? ?? peerHandle;
+        final peerAvatar = peerMap['avatar_url'] as String?;
+
+        final peerTrader = AppTrader(
+          id: peerId,
+          handle: peerHandle,
+          displayName: peerName,
+          avatarUrl: peerAvatar,
+        );
+
+        final msgsRes = await client
+            .from('messages')
+            .select('id, content, sender_id, created_at')
+            .eq('conversation_id', convId)
+            .order('created_at', ascending: true);
+
+        final List<ChatMessage> threadMsgs = [];
+        String lastPreview = '';
+        DateTime lastAt =
+            DateTime.tryParse(tmap['last_message_at']?.toString() ?? '') ??
+            DateTime.now();
+
+        for (final mrow in msgsRes as List) {
+          final m = mrow as Map<String, dynamic>;
+          final mId = m['id']?.toString() ?? '';
+          final content = m['content'] as String? ?? '';
+          final senderId = m['sender_id']?.toString() ?? '';
+          final sentAt =
+              DateTime.tryParse(m['created_at']?.toString() ?? '') ??
+              DateTime.now();
+          lastPreview = content;
+          lastAt = sentAt;
+
+          threadMsgs.add(
+            ChatMessage(
+              id: mId,
+              threadId: convId,
+              body: content,
+              fromMe: senderId == currentUserId,
+              sentAt: sentAt,
+            ),
+          );
+        }
+
+        loadedMessages[convId] = threadMsgs;
+        loadedThreads.add(
+          MessageThread(
+            id: convId,
+            peer: peerTrader,
+            participants: [peerTrader],
+            lastMessagePreview: lastPreview,
+            lastMessageAt: lastAt,
+          ),
+        );
+      }
+
+      if (loadedThreads.isNotEmpty) {
+        _threads = loadedThreads;
+        _messages = loadedMessages;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[MessagesRepository] fallback conversations error: $e');
     }
   }
 
@@ -597,9 +701,10 @@ class MessagesRepository extends ChangeNotifier {
 
     if (SupabaseConfig.isConfigured) {
       unawaited(() async {
+        final client = SupabaseConfig.client;
+        final currentUserId = _resolveUserId();
+        if (client == null) return;
         try {
-          final client = SupabaseConfig.client!;
-          final currentUserId = _resolveUserId();
           await client.from('chat_messages').insert({
             'id': message.id,
             'thread_id': _isUuid(threadId) ? threadId : null,
@@ -632,7 +737,25 @@ class MessagesRepository extends ChangeNotifier {
           }
           _setStatus(threadId, message.id, MessageStatus.sent);
         } catch (e) {
-          debugPrint('[MessagesRepository] sendMessage Supabase error: $e');
+          debugPrint(
+            '[MessagesRepository] sendMessage Supabase error: $e. Trying fallback messages table.',
+          );
+          try {
+            await client.from('messages').insert({
+              'id': message.id,
+              'conversation_id': _isUuid(threadId) ? threadId : null,
+              'sender_id': currentUserId,
+              'content': message.body,
+              'created_at': message.sentAt.toIso8601String(),
+            });
+            await client
+                .from('conversations')
+                .update({'last_message_at': message.sentAt.toIso8601String()})
+                .eq('id', threadId);
+            _setStatus(threadId, message.id, MessageStatus.sent);
+          } catch (e2) {
+            debugPrint('[MessagesRepository] messages fallback error: $e2');
+          }
         }
       }());
     } else {
@@ -839,10 +962,35 @@ class MessagesRepository extends ChangeNotifier {
     );
   }
 
+  final Set<String> _restrictedTraders = <String>{};
+
+  /// Returns whether [peer] only accepts messages from invited accounts.
+  bool isMessagingRestricted(AppTrader peer) {
+    if (_restrictedTraders.contains(peer.id.toLowerCase()) ||
+        _restrictedTraders.contains(peer.handle.toLowerCase())) {
+      return true;
+    }
+    if (peer.handle.toLowerCase().contains('private') ||
+        peer.handle.toLowerCase().contains('invited_only')) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Sets whether direct messages to [traderIdOrHandle] are restricted to invited users only.
+  void setTraderMessagingRestricted(String traderIdOrHandle, bool restricted) {
+    if (restricted) {
+      _restrictedTraders.add(traderIdOrHandle.toLowerCase());
+    } else {
+      _restrictedTraders.remove(traderIdOrHandle.toLowerCase());
+    }
+    notifyListeners();
+  }
+
   /// Starts (or reopens) a direct thread with [peer] and returns its id.
   ///
   /// @backend POST /threads { participantId }.
-  String startConversation(AppTrader peer) {
+  String startConversation(AppTrader peer, {bool isRequest = false}) {
     final int existing = _threads.indexWhere(
       (MessageThread t) => !t.isGroup && t.peer.id == peer.id,
     );
@@ -853,19 +1001,34 @@ class MessagesRepository extends ChangeNotifier {
       }
       return _threads[existing].id;
     }
+
+    final int existingReq = _requests.indexWhere(
+      (MessageThread t) => !t.isGroup && t.peer.id == peer.id,
+    );
+    if (existingReq != -1) {
+      return _requests[existingReq].id;
+    }
+
     final String id = SupabaseConfig.isConfigured
         ? const Uuid().v4()
         : 'thread_new_${DateTime.now().millisecondsSinceEpoch}';
-    _threads.insert(
-      0,
-      MessageThread(
-        id: id,
-        peer: peer,
-        presence: MessagePresence.online,
-        lastMessagePreview: 'Say hi to ${peer.displayName ?? peer.handle} 👋',
-        lastMessageAt: DateTime.now(),
-      ),
+
+    final thread = MessageThread(
+      id: id,
+      peer: peer,
+      presence: MessagePresence.online,
+      lastMessagePreview: isRequest
+          ? '${peer.displayName ?? peer.handle} sent you a message request'
+          : 'Say hi to ${peer.displayName ?? peer.handle} 👋',
+      lastMessageAt: DateTime.now(),
+      isRequest: isRequest,
     );
+
+    if (isRequest) {
+      _requests.insert(0, thread);
+    } else {
+      _threads.insert(0, thread);
+    }
     _messages[id] = <ChatMessage>[];
     notifyListeners();
 
@@ -879,7 +1042,10 @@ class MessagesRepository extends ChangeNotifier {
             'type': 'direct',
             'title': peer.displayName ?? peer.handle,
             'created_by': currentUserId,
-            'last_message_preview': 'Conversation started',
+            'last_message_preview': isRequest
+                ? 'Message request'
+                : 'Conversation started',
+            'is_request': isRequest,
           });
           await client.from('chat_participants').insert([
             {'thread_id': id, 'user_id': currentUserId, 'role': 'admin'},
@@ -1266,6 +1432,79 @@ class MessagesRepository extends ChangeNotifier {
     if (_threads[idx].draft == draft) return;
     _threads[idx] = _threads[idx].copyWith(draft: draft);
     // No notify: drafts must not rebuild the whole inbox on every keystroke.
+  }
+
+  static final RegExp _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
+  /// Searches live traders from Supabase profiles table, excluding the current user.
+  /// Supports auto-detection by user id (UUID), handle (@handle), display name, or email.
+  Future<List<AppTrader>> searchLiveTraders(String query) async {
+    final cleanQuery = query.trim().replaceAll('@', '');
+    if (!SupabaseConfig.isConfigured) {
+      if (CustomerDataPolicy.allowDemo) {
+        return DemoDataSource.instance.traders().where((t) {
+          if (cleanQuery.isEmpty) return true;
+          return (t.displayName ?? '').toLowerCase().contains(
+                cleanQuery.toLowerCase(),
+              ) ||
+              t.handle.toLowerCase().contains(cleanQuery.toLowerCase()) ||
+              t.id.toLowerCase() == cleanQuery.toLowerCase();
+        }).toList();
+      }
+      return const <AppTrader>[];
+    }
+
+    try {
+      final client = SupabaseConfig.client!;
+      final currentUserId =
+          client.auth.currentUser?.id ?? client.auth.currentSession?.user.id;
+
+      var builder = client
+          .from('profiles')
+          .select('id, handle, display_name, avatar_url, bio, role, email');
+
+      if (cleanQuery.isNotEmpty) {
+        if (_uuidRegex.hasMatch(cleanQuery)) {
+          builder = builder.or(
+            'id.eq.$cleanQuery,display_name.ilike.%$cleanQuery%,handle.ilike.%$cleanQuery%,email.ilike.%$cleanQuery%',
+          );
+        } else {
+          builder = builder.or(
+            'display_name.ilike.%$cleanQuery%,handle.ilike.%$cleanQuery%,email.ilike.%$cleanQuery%',
+          );
+        }
+      }
+
+      final res = await builder.limit(40);
+      final List<AppTrader> traders = [];
+      for (final item in res as List) {
+        final row = item as Map<String, dynamic>;
+        final id = row['id']?.toString() ?? '';
+        if (id.isNotEmpty && id == currentUserId) continue;
+        final rawHandle =
+            (row['handle'] ?? row['username']) as String? ?? 'trader';
+        final handle = rawHandle.startsWith('@')
+            ? rawHandle.substring(1)
+            : rawHandle;
+        final displayName = row['display_name'] as String? ?? handle;
+        traders.add(
+          AppTrader(
+            id: id,
+            handle: handle,
+            displayName: displayName,
+            avatarUrl: row['avatar_url'] as String?,
+            bio: row['bio'] as String?,
+            verified: row['verified'] as bool? ?? false,
+          ),
+        );
+      }
+      return traders;
+    } catch (e) {
+      debugPrint('[MessagesRepository] searchLiveTraders error: $e');
+      return const <AppTrader>[];
+    }
   }
 
   // ---------------------------------------------------------------------------

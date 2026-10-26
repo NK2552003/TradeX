@@ -23,8 +23,10 @@ class CommunitySidebar extends StatefulWidget {
     super.key,
     required this.repository,
     this.onFollow,
+    this.onAuthorTap,
     this.onShowMore,
     this.onExplore,
+    this.onNewsShowMore,
     this.onPostTap,
     this.onSearchTap,
     this.onSearchSubmitted,
@@ -33,8 +35,10 @@ class CommunitySidebar extends StatefulWidget {
 
   final CommunityRepository repository;
   final ValueChanged<CommunityAuthor>? onFollow;
+  final ValueChanged<CommunityAuthor>? onAuthorTap;
   final VoidCallback? onShowMore;
   final VoidCallback? onExplore;
+  final VoidCallback? onNewsShowMore;
   final ValueChanged<CommunityPost>? onPostTap;
   final VoidCallback? onSearchTap;
   final ValueChanged<String>? onSearchSubmitted;
@@ -93,7 +97,7 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
           (_) => CommunityNewsWidget(
             items: widget.repository.news,
             snapshot: widget.repository.marketSnapshot,
-            onShowMore: widget.onExplore,
+            onShowMore: widget.onNewsShowMore,
           ),
           300,
         ),
@@ -107,8 +111,13 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
         if (widget.showWhoToFollow)
           deferred(
             (_) => CommunityWhoToFollowCard(
-              traders: widget.repository.suggestedTraders,
+              traders: widget.repository.suggestedTraders
+                  .where(
+                    (author) => author.id != widget.repository.currentAuthor.id,
+                  )
+                  .toList(),
               onFollow: (author) => widget.onFollow?.call(author),
+              onAuthorTap: widget.onAuthorTap,
               onShowMore: widget.onShowMore,
             ),
             300,
@@ -326,7 +335,7 @@ class CommunityPremiumCard extends StatelessWidget {
             onPressed: () {
               UiToast.show(
                 context,
-                title: 'TradeX Pro',
+                title: 'hejournal.in Pro',
                 message: 'Opening subscription tier upgrades...',
                 intent: UiIntent.primary,
               );
@@ -427,7 +436,20 @@ class CommunityNewsWidget extends StatelessWidget {
             fontSize: context.fs(13),
           ),
         ),
-        SizedBox(height: context.sp(theme.spacing.xxs)),
+        if (item.summary != null && item.summary!.trim().isNotEmpty) ...<Widget>[
+          SizedBox(height: context.sp(theme.spacing.xxs)),
+          Text(
+            item.summary!.trim(),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+              fontSize: context.fs(12),
+              height: 1.35,
+            ),
+          ),
+        ],
+        SizedBox(height: context.sp(theme.spacing.xs)),
         Row(
           children: <Widget>[
             Flexible(
@@ -573,11 +595,13 @@ class CommunityWhoToFollowCard extends StatelessWidget {
     super.key,
     required this.traders,
     required this.onFollow,
+    this.onAuthorTap,
     this.onShowMore,
   });
 
   final List<CommunityAuthor> traders;
   final ValueChanged<CommunityAuthor> onFollow;
+  final ValueChanged<CommunityAuthor>? onAuthorTap;
   final VoidCallback? onShowMore;
 
   @override
@@ -600,6 +624,7 @@ class CommunityWhoToFollowCard extends StatelessWidget {
               ),
             CommunityTraderRow(
               trader: traders[i],
+              onTap: () => onAuthorTap?.call(traders[i]),
               onFollow: () => onFollow(traders[i]),
             ),
           ],
@@ -710,7 +735,7 @@ class CommunityDisclaimerCard extends StatelessWidget {
           ),
           SizedBox(height: context.sp(theme.spacing.xs)),
           Text(
-            'TradeX Community posts, charts, trade setups, and comments are strictly for educational purposes and do not constitute financial advice or investment recommendations under SEBI/SEC regulations.',
+            'hejournal.in Community posts, charts, trade setups, and comments are strictly for educational purposes and do not constitute financial advice or investment recommendations under SEBI/SEC regulations.',
             style: context.uiText.caption.copyWith(
               color: theme.colors.foregroundSubtle,
               fontSize: context.fs(11),
@@ -766,7 +791,7 @@ class CommunityFooterLinks extends StatelessWidget {
       'Accessibility',
       'Ads Info',
       'More…',
-      '© 2026 TradeX Corp.',
+      '© 2026 hejournal.in Corp.',
     ];
 
     return Wrap(

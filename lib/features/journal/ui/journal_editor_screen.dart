@@ -433,8 +433,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
         return null;
       }
       if (eval.exceedsPositionCap) {
-        final risk =
-            await AdminConsoleRepository.instance.getDeskRiskConfig();
+        final risk = await AdminConsoleRepository.instance.getDeskRiskConfig();
         await AdminConsoleRepository.instance.recordRiskBreach(
           symbol: draft.ticker,
           breachType: 'Position Size Cap Breach',
@@ -469,8 +468,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
             context,
             title: eval.title ?? 'Queued for Desk Approval',
             message:
-                eval.message ??
-                'Order sent to Admin Pre-Trade Approval Queue.',
+                eval.message ?? 'Order sent to Admin Pre-Trade Approval Queue.',
           );
         }
       }
@@ -989,7 +987,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
         UiToast.warning(
           context,
           title: 'Dictation is not available',
-          message: 'Check the microphone permission for TradeX.',
+          message: 'Check the microphone permission for hejournal.in.',
         );
       }
       return;
@@ -1666,7 +1664,8 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
           : 'Only you can read this entry',
       enabled: !reading,
       onChanged: (bool value) async {
-        if (value && !await confirmRecordPublication(context, 'trade journal')) {
+        if (value &&
+            !await confirmRecordPublication(context, 'trade journal')) {
           return;
         }
         if (mounted) setState(() => _isPublic = value);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
@@ -93,7 +94,21 @@ void main() {
   group('Repository Visibility Tests', () {
     test('NotesRepository setVisibility updates note isPublic flag', () async {
       final repo = NotesRepositoryImpl.instance;
-      final notes = await repo.fetchAll();
+      var notes = await repo.fetchAll();
+      if (notes.isEmpty) {
+        final now = DateTime.now();
+        await repo.create(
+          AppNote(
+            id: '',
+            title: 'Test Thesis Note',
+            content: 'Visibility test body content',
+            createdAt: now,
+            updatedAt: now,
+            isPublic: true,
+          ),
+        );
+        notes = await repo.fetchAll();
+      }
       expect(notes.isNotEmpty, isTrue);
 
       final initial = notes.first;
@@ -108,7 +123,21 @@ void main() {
       'NotesRepository addComment allows commenting on private note',
       () async {
         final repo = NotesRepositoryImpl.instance;
-        final notes = await repo.fetchAll();
+        var notes = await repo.fetchAll();
+        if (notes.isEmpty) {
+          final now = DateTime.now();
+          await repo.create(
+            AppNote(
+              id: '',
+              title: 'Test Thesis Note',
+              content: 'Visibility test body content',
+              createdAt: now,
+              updatedAt: now,
+              isPublic: true,
+            ),
+          );
+          notes = await repo.fetchAll();
+        }
         final initial = notes.first;
 
         // Set to private

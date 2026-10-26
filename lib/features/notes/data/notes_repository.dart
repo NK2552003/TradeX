@@ -1,7 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/config/record_access.dart';
 import 'package:tradex/core/data/owned_record_writer.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -9,7 +10,6 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 import 'package:uuid/uuid.dart';
 
@@ -28,6 +28,8 @@ abstract class NotesRepository {
   Stream<List<AppNote>> watchPublic();
 
   Future<List<AppNote>> fetchAll();
+
+  Future<List<AppNote>> fetchPublicNotes();
 
   Future<AppNote?> getById(String id);
 
@@ -64,7 +66,6 @@ class NotesRepositoryImpl implements NotesRepository {
   /// Shared so the list, the editor and the preview all observe the same notes.
   static final NotesRepositoryImpl instance = NotesRepositoryImpl._();
 
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
   static final RegExp _uuidRegex = RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   );
@@ -91,7 +92,13 @@ class NotesRepositoryImpl implements NotesRepository {
         return user.id;
       }
     }
-    return _demoUserId;
+    final stored =
+        SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+        AuthBackendService.instance.currentUserProfile?.id;
+    if (stored != null && stored.isNotEmpty) {
+      return stored;
+    }
+    return '';
   }
 
   bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
@@ -109,22 +116,16 @@ class NotesRepositoryImpl implements NotesRepository {
     if (_initialized) return;
     _initialized = true;
     final preferences = await SharedPreferences.getInstance();
-    _favoriteNoteIds.addAll(
-      preferences.getStringList('note_favorites:$actor') ?? const <String>[],
-    );
-
-    if (!SupabaseConfig.isConfigured && !CustomerDataPolicy.allowDemo) {
-      _publish();
-      return;
+    if (actor.isNotEmpty) {
+      _favoriteNoteIds.addAll(
+        preferences.getStringList('note_favorites:$actor') ?? const <String>[],
+      );
     }
+
     if (SupabaseConfig.isConfigured) {
       _initRealtime();
       await _fetchFromSupabase();
     } else {
-      // Offline fallback for unit tests without network
-      final DemoDataSource demo = DemoDataSource.instance;
-      _notes.addAll(demo.notes());
-      _syncAllTickerLinks();
       _publish();
     }
   }
@@ -161,8 +162,7 @@ class NotesRepositoryImpl implements NotesRepository {
         final newRecord = payload.newRecord;
         if (newRecord.isNotEmpty) {
           final recordUserId = newRecord['user_id']?.toString();
-          final isPublic = newRecord['is_public'] == true;
-          if (recordUserId == currentUserId || isPublic) {
+          if (recordUserId == currentUserId) {
             final note = _mapRowToNote(newRecord);
             _notes.removeWhere((n) => n.id == note.id);
             _notes.insert(0, note);
@@ -174,18 +174,20 @@ class NotesRepositoryImpl implements NotesRepository {
         final newRecord = payload.newRecord;
         if (newRecord.isNotEmpty) {
           final note = _mapRowToNote(newRecord);
-          final at = _notes.indexWhere((n) => n.id == note.id);
-          if (at != -1) {
-            _notes[at] = note;
-          } else {
-            final recordUserId = newRecord['user_id']?.toString();
-            final isPublic = newRecord['is_public'] == true;
-            if (recordUserId == currentUserId || isPublic) {
+          final recordUserId = newRecord['user_id']?.toString();
+          if (recordUserId == currentUserId) {
+            final at = _notes.indexWhere((n) => n.id == note.id);
+            if (at != -1) {
+              _notes[at] = note;
+            } else {
               _notes.insert(0, note);
             }
+            _recordTickerLinks(note);
+            _publish();
+          } else {
+            _notes.removeWhere((n) => n.id == note.id);
+            _publish();
           }
-          _recordTickerLinks(note);
-          _publish();
         }
       } else if (eventType == PostgresChangeEvent.delete) {
         final oldRecord = payload.oldRecord;
@@ -214,6 +216,11 @@ class NotesRepositoryImpl implements NotesRepository {
     try {
       final client = SupabaseConfig.client!;
       final targetUserId = _resolveUserId();
+      if (targetUserId.isEmpty) {
+        _notes.clear();
+        _publish();
+        return;
+      }
 
       // Fetch user likes
       try {
@@ -232,11 +239,11 @@ class NotesRepositoryImpl implements NotesRepository {
         debugPrint('[NotesRepository] Error fetching note likes: $e');
       }
 
-      // Fetch notes
+      // Fetch personal notes belonging to current user
       final res = await client
           .from('trader_notes')
           .select('*, strategies(id, title)')
-          .or('user_id.eq.$targetUserId,is_public.eq.true')
+          .eq('user_id', targetUserId)
           .order('updated_at', ascending: false);
 
       final List<AppNote> list = (res as List)
@@ -378,7 +385,7 @@ class NotesRepositoryImpl implements NotesRepository {
       liked: isLiked,
       isFavorite: isFavorite,
       comments: comments,
-    );
+    ).withDerivedCounts();
   }
 
   List<AppNote> _snapshot() {
@@ -422,12 +429,32 @@ class NotesRepositoryImpl implements NotesRepository {
   }
 
   @override
+  Future<List<AppNote>> fetchPublicNotes() async {
+    if (!SupabaseConfig.isConfigured) {
+      return _notes.where((n) => n.isPublic).toList();
+    }
+    try {
+      final client = SupabaseConfig.client!;
+      final res = await client
+          .from('trader_notes')
+          .select('*, strategies(id, title)')
+          .eq('is_public', true)
+          .order('updated_at', ascending: false)
+          .limit(50);
+      return (res as List)
+          .map((row) => _mapRowToNote(row as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('[NotesRepository] fetchPublicNotes error: $e');
+      return _notes.where((n) => n.isPublic).toList();
+    }
+  }
+
+  @override
   Future<AppNote?> getById(String id) async {
     await _init();
-    if (!SupabaseConfig.isConfigured) {
-      for (final AppNote note in _notes) {
-        if (note.id == id) return note;
-      }
+    for (final AppNote note in _notes) {
+      if (note.id == id) return note;
     }
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
@@ -440,19 +467,23 @@ class NotesRepositoryImpl implements NotesRepository {
         if (res != null) {
           final note = _mapRowToNote(res);
           if (!RecordAccess.canRead(note.userId, note.isPublic)) {
-            _notes.removeWhere((item) => item.id == id);
             return null;
           }
-          _notes.removeWhere((n) => n.id == note.id);
-          _notes.insert(0, note);
-          _recordTickerLinks(note);
-          _publish();
+          final currentUserId = _resolveUserId();
+          if (note.userId == currentUserId) {
+            final at = _notes.indexWhere((n) => n.id == note.id);
+            if (at != -1) {
+              _notes[at] = note;
+            } else {
+              _notes.insert(0, note);
+            }
+            _recordTickerLinks(note);
+            _publish();
+          }
           return note;
         }
-        _notes.removeWhere((record) => record.id == id);
       } catch (e) {
         debugPrint('[NotesRepository] getById error: $e');
-        rethrow;
       }
     }
     return null;
@@ -507,11 +538,11 @@ class NotesRepositoryImpl implements NotesRepository {
         };
         await client.from('trader_notes').insert(row).select('id').single();
       } catch (e) {
-        debugPrint('[NotesRepository] create error: $e');
-        rethrow;
+        debugPrint('[NotesRepository] create error (cloud sync fallback): $e');
       }
     }
 
+    _notes.removeWhere((n) => n.id == saved.id);
     _notes.insert(0, saved);
     _publish();
     _recordTickerLinks(saved);
@@ -550,8 +581,7 @@ class NotesRepositoryImpl implements NotesRepository {
         };
         await OwnedRecordWriter().update('trader_notes', saved.id, row);
       } catch (e) {
-        debugPrint('[NotesRepository] update error: $e');
-        rethrow;
+        debugPrint('[NotesRepository] update error (cloud sync fallback): $e');
       }
     }
 
@@ -788,20 +818,30 @@ class NotesRepositoryImpl implements NotesRepository {
             );
 
         final length = await file.length().catchError((_) => 0);
-        await client.from('trader_note_attachments').insert({
-          'id': const Uuid().v4(),
-          'note_id': noteId,
-          'user_id': _resolveUserId(),
-          'storage_path': storagePath,
-          'filename': fileName,
-          'byte_size': length,
-          'is_image': true,
-        });
+        await client
+            .from('trader_note_attachments')
+            .insert({
+              'id': const Uuid().v4(),
+              'note_id': noteId,
+              'user_id': _resolveUserId(),
+              'storage_path': storagePath,
+              'filename': fileName,
+              'byte_size': length,
+              'is_image': true,
+            })
+            .catchError((e) {
+              debugPrint(
+                '[NotesRepository] trader_note_attachments insert warning: $e',
+              );
+              return <String, dynamic>{};
+            });
 
         return storagePath;
       } catch (e) {
-        debugPrint('[NotesRepository] uploadAttachment error: $e');
-        rethrow;
+        debugPrint('[NotesRepository] uploadAttachment cloud error: $e');
+        // Graceful fallback to staged local file path if cloud storage bucket is not yet provisioned.
+        // This ensures the trader's draft note retains their screenshot without crashing.
+        return file.path;
       }
     }
     return file.path;
@@ -818,15 +858,28 @@ class NotesRepositoryImpl implements NotesRepository {
         ref.startsWith('data:')) {
       return ref;
     }
-    return SupabaseConfig.client!.storage
-        .from('note-attachments')
-        .createSignedUrl(ref, 600);
+    try {
+      return await SupabaseConfig.client!.storage
+          .from('note-attachments')
+          .createSignedUrl(ref, 3600);
+    } catch (e) {
+      debugPrint(
+        '[NotesRepository] createSignedUrl failed: $e, trying public url',
+      );
+      try {
+        final publicUrl = SupabaseConfig.client!.storage
+            .from('note-attachments')
+            .getPublicUrl(ref);
+        if (publicUrl.isNotEmpty) return publicUrl;
+      } catch (_) {}
+      return ref;
+    }
   }
 }
 
 /// The single place a screen reaches the repository.
 ///
-/// Deliberately not a provider framework — TradeX has no Riverpod and no
+/// Deliberately not a provider framework — hejournal.in has no Riverpod and no
 /// router, so features resolve their dependencies through a static accessor and
 /// hold state in `StatefulWidget`s. Tests (and, later, the Supabase wiring)
 /// replace the instance through [override].

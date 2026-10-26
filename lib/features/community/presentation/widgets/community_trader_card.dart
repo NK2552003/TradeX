@@ -103,18 +103,24 @@ class CommunityTraderCard extends StatelessWidget {
                                   ),
                                 ),
                                 if (trader.verified) ...<Widget>[
-                                  SizedBox(width: context.sp(theme.spacing.xxs)),
+                                  SizedBox(
+                                    width: context.sp(theme.spacing.xxs),
+                                  ),
                                   Icon(
                                     Icons.verified_rounded,
                                     color: verifiedColor,
                                     size: context.sz(15),
                                   ),
                                 ],
-                                if (trader.userRole != UserRole.customer) ...<Widget>[
-                                  SizedBox(width: context.sp(theme.spacing.xxs)),
+                                if (trader.userRole !=
+                                    UserRole.customer) ...<Widget>[
+                                  SizedBox(
+                                    width: context.sp(theme.spacing.xxs),
+                                  ),
                                   UiBadge(
                                     label: trader.roleBadgeText,
-                                    intent: trader.userRole == UserRole.userAdmin
+                                    intent:
+                                        trader.userRole == UserRole.userAdmin
                                         ? UiIntent.danger
                                         : UiIntent.warning,
                                     variant: UiBadgeVariant.solid,
@@ -151,7 +157,7 @@ class CommunityTraderCard extends StatelessWidget {
                     ],
                   ),
 
-                  if (trader.bio != null) ...<Widget>[
+                  if (trader.bio?.trim().isNotEmpty ?? false) ...<Widget>[
                     SizedBox(height: context.sp(theme.spacing.xs)),
                     Text(
                       trader.bio!,
@@ -171,7 +177,9 @@ class CommunityTraderCard extends StatelessWidget {
               // Bottom follower stats
               Padding(
                 padding: EdgeInsets.only(top: context.sp(theme.spacing.xxs)),
-                child: Row(
+                child: Wrap(
+                  spacing: context.sp(theme.spacing.md),
+                  runSpacing: context.sp(theme.spacing.xxs),
                   children: <Widget>[
                     Text(
                       '${uiCompactNumber(trader.followers)} Followers',
@@ -180,7 +188,6 @@ class CommunityTraderCard extends StatelessWidget {
                         color: theme.colors.foreground,
                       ),
                     ),
-                    SizedBox(width: context.sp(theme.spacing.md)),
                     Text(
                       '${uiCompactNumber(trader.following)} Following',
                       style: context.uiText.caption.copyWith(
@@ -188,9 +195,9 @@ class CommunityTraderCard extends StatelessWidget {
                       ),
                     ),
                     if (showWinRate && trader.winRate != null) ...<Widget>[
-                      const Spacer(),
                       UiBadge(
-                        label: '${trader.winRate!.toStringAsFixed(0)}% Win Rate',
+                        label:
+                            '${trader.winRate!.toStringAsFixed(0)}% Win Rate',
                         intent: UiIntent.success,
                         variant: UiBadgeVariant.soft,
                         size: UiSize.xs,

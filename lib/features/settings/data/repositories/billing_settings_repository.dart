@@ -4,6 +4,9 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:tradex/features/auth/data/repositories/subscription_pricing_repository.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:tradex/features/auth/models/pricing_models.dart';
 import 'package:tradex/features/settings/models/billing_models.dart';
 
 abstract class BillingSettingsRepository {
@@ -38,10 +41,14 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     : _source = source ?? DemoDataSource.instance,
       _session = session ?? AppSession.instance;
 
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
-
   final DemoDataSource _source;
   final AppSession _session;
+  PricingCatalogueResponse? _pricingCatalogue;
+
+  String _resolveUserId() =>
+      SupabaseConfig.client?.auth.currentUser?.id ??
+      SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+      '';
 
   AppTier get _tier => _session.tier.value;
 
@@ -70,8 +77,13 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     renewedAt: _session.renewedAt,
     expiresAt: _session.expiresAt,
     usage: CustomerDataPolicy.allowDemo ? _source.accountUsage(_tier) : {},
-    monthlyAmount: _source.planPrice(_tier),
-    annualMonthsBilled: _source.annualMonthsBilled,
+    monthlyAmount:
+        _pricingCatalogue?.plans
+            .where((plan) => plan.tier == _tier)
+            .firstOrNull
+            ?.monthlyAmount ??
+        0,
+    annualMonthsBilled: _pricingCatalogue?.annualMonthsBilled ?? 12,
     cancelAtPeriodEnd: _session.cancelAtPeriodEnd,
     discountCode: _session.discountCode,
     discountPercent: _session.discountPercent,
@@ -79,11 +91,13 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
   @override
   Future<SubscriptionSummary> getSubscription() async {
+    _pricingCatalogue = await SubscriptionPricingRepositoryImpl()
+        .getPricingCatalogue();
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isEmpty) return _summary();
 
         final data = await client
             .from('subscriptions')
@@ -110,8 +124,24 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
   @override
   Future<List<AppPlan>> getAvailablePlans({bool annual = false}) async {
-    await Future<void>.delayed(const Duration(milliseconds: 150));
-    return _source.plans(current: _tier, annual: annual);
+    final catalogue = await SubscriptionPricingRepositoryImpl()
+        .getPricingCatalogue(annual: annual);
+    _pricingCatalogue = catalogue;
+    return catalogue.plans.map((plan) {
+      final amount = annual
+          ? plan.annualMonthlyAmount * 12
+          : plan.monthlyAmount;
+      return AppPlan(
+        tier: plan.tier,
+        amount: amount,
+        priceLabel: plan.priceLabel(isAnnual: annual),
+        period: annual ? '/yr' : '/mo',
+        description: plan.subtitle,
+        features: plan.featuresSummary,
+        highlighted: plan.highlighted,
+        current: plan.tier == _tier,
+      );
+    }).toList();
   }
 
   @override
@@ -119,64 +149,14 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     String tierId,
     String billingCycle,
   ) async {
-    final AppTier tier = AppTier.values.firstWhere(
-      (AppTier value) => value.name == tierId,
-      orElse: () => _tier,
+    throw StateError(
+      'Direct checkout is unavailable until server-side payment verification is connected.',
     );
-    _session.startPeriod(tier, billingCycle);
-    if (tier == AppTier.free) {
-      _session.discountCode = null;
-      _session.discountPercent = 0;
-    }
-
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
-
-        await client.from('subscriptions').upsert({
-          'user_id': targetUserId,
-          'tier': tier.name,
-          'status': 'active',
-          'billing_cycle': billingCycle,
-          'renewed_at': DateTime.now().toIso8601String(),
-          'expires_at': DateTime.now()
-              .add(Duration(days: billingCycle == 'annual' ? 365 : 30))
-              .toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        });
-      } catch (e) {
-        debugPrint('BillingSettingsRepositoryImpl.startCheckout error: $e');
-      }
-    }
-
-    return const CheckoutSession();
   }
 
   @override
   Future<SubscriptionSummary> setCancelAtPeriodEnd(bool cancel) async {
-    _session.cancelAtPeriodEnd = cancel;
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
-
-        await client
-            .from('subscriptions')
-            .update({
-              'status': cancel ? 'canceled' : 'active',
-              'updated_at': DateTime.now().toIso8601String(),
-            })
-            .eq('user_id', targetUserId);
-      } catch (e) {
-        debugPrint(
-          'BillingSettingsRepositoryImpl.setCancelAtPeriodEnd error: $e',
-        );
-      }
-    }
-    return _summary();
+    throw StateError('Manage renewal through the store Customer Center.');
   }
 
   @override
@@ -232,8 +212,9 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
   @override
   Future<CheckoutSession> startPaymentMethodUpdate() async {
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-    return const CheckoutSession(clientSecret: 'seti_mock_secret_987654321');
+    throw StateError(
+      'Payment method updates require a verified billing provider.',
+    );
   }
 
   @override
@@ -241,8 +222,8 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isEmpty) return _invoices();
 
         final res = await client
             .from('invoices')
@@ -276,7 +257,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
                     DateTime.now(),
                 pdfUrl:
                     item['pdf_url'] as String? ??
-                    'https://tradex.ai/invoices/${item['invoice_ref']}.pdf',
+                    'https://hejournal.in/invoices/${item['invoice_ref']}.pdf',
                 issuer: _issuer,
                 taxPercent: _taxPercent,
                 paymentMethodLabel: card == null
@@ -324,7 +305,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
           currency: 'INR',
           status: 'paid',
           issuedAt: summary.renewedAt.subtract(Duration(days: i * stride)),
-          pdfUrl: 'https://tradex.ai/invoices/${_invoiceRef(i, stride)}.pdf',
+          pdfUrl: 'https://hejournal.in/invoices/${_invoiceRef(i, stride)}.pdf',
           issuer: _issuer,
           taxPercent: _taxPercent,
           paymentMethodLabel: card == null
@@ -352,13 +333,13 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
   /// here rather than in the receipt layout so the document cannot claim a
   /// company or a tax rate the charge was not made under.
   static const InvoiceIssuer _issuer = InvoiceIssuer(
-    name: 'TradeX Technologies Pvt Ltd',
+    name: 'hejournal.in',
     addressLines: <String>[
       '4th Floor, Prestige Trade Tower',
       '46 Palace Road, Bengaluru 560001',
       'Karnataka, India',
     ],
-    supportEmail: 'billing@tradex.ai',
+    supportEmail: 'billing@hejournal.in',
     taxId: '29AABCT1332L1ZT',
     taxLabel: 'GST',
   );
@@ -375,25 +356,6 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
 
   @override
   Future<void> cancelSubscription({String? reason}) async {
-    _session.cancelAtPeriodEnd = true;
-    if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
-
-        await client
-            .from('subscriptions')
-            .update({
-              'status': 'canceled',
-              'updated_at': DateTime.now().toIso8601String(),
-            })
-            .eq('user_id', targetUserId);
-      } catch (e) {
-        debugPrint(
-          'BillingSettingsRepositoryImpl.cancelSubscription error: $e',
-        );
-      }
-    }
+    throw StateError('Manage cancellation through the store Customer Center.');
   }
 }

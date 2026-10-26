@@ -1,13 +1,18 @@
-import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/features/settings/models/privacy_settings_model.dart';
 
 abstract class PrivacyRepository {
   Future<PrivacySettingsModel> getPrivacySettings();
   Future<void> setPublicJournalsDefault(bool enabled);
   Future<void> setPublicStatsEnabled(bool enabled);
+  Future<void> setMessagePermission(String permission);
+  Future<void> setAllowMessageRequests(bool enabled);
+  Future<void> setShowReadReceipts(bool enabled);
+  Future<void> setShowActivityStatus(bool enabled);
+  Future<void> setFilterSpamRequests(bool enabled);
   Future<List<AppTrader>> getBlockedUsers();
   Future<void> unblockUser(String userId);
   Future<DataExportRequest> requestDataExport();
@@ -16,9 +21,13 @@ abstract class PrivacyRepository {
 
 class PrivacyRepositoryImpl implements PrivacyRepository {
   PrivacyRepositoryImpl() {
-    if (!CustomerDataPolicy.allowDemo) _blockedUsers.clear();
+    _blockedUsers.clear();
   }
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+
+  String _resolveUserId() =>
+      SupabaseConfig.client?.auth.currentUser?.id ??
+      SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+      '';
 
   PrivacySettingsModel _settings = const PrivacySettingsModel(
     publicJournals: true,
@@ -52,19 +61,38 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isEmpty) return _settings;
 
         final res = await client
             .from('profiles')
-            .select('public_journals, public_stats')
+            .select('public_journals, public_stats, notification_settings')
             .eq('id', targetUserId)
             .maybeSingle();
 
         if (res != null) {
+          final notif =
+              res['notification_settings'] as Map<String, dynamic>? ?? {};
+          final msgPriv =
+              notif['message_privacy'] as Map<String, dynamic>? ?? {};
           _settings = PrivacySettingsModel(
             publicJournals: res['public_journals'] as bool? ?? true,
             publicStatsEnabled: res['public_stats'] as bool? ?? false,
+            messagePermission:
+                msgPriv['message_permission'] as String? ??
+                _settings.messagePermission,
+            allowMessageRequests:
+                msgPriv['allow_message_requests'] as bool? ??
+                _settings.allowMessageRequests,
+            showReadReceipts:
+                msgPriv['show_read_receipts'] as bool? ??
+                _settings.showReadReceipts,
+            showActivityStatus:
+                msgPriv['show_activity_status'] as bool? ??
+                _settings.showActivityStatus,
+            filterSpamRequests:
+                msgPriv['filter_spam_requests'] as bool? ??
+                _settings.filterSpamRequests,
           );
           return _settings;
         }
@@ -75,14 +103,81 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
     return _settings;
   }
 
+  Future<void> _persistMessagePrivacy() async {
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isEmpty) return;
+
+        final res = await client
+            .from('profiles')
+            .select('notification_settings')
+            .eq('id', targetUserId)
+            .maybeSingle();
+
+        final notif = Map<String, dynamic>.from(
+          res?['notification_settings'] as Map<String, dynamic>? ?? {},
+        );
+        notif['message_privacy'] = {
+          'message_permission': _settings.messagePermission,
+          'allow_message_requests': _settings.allowMessageRequests,
+          'show_read_receipts': _settings.showReadReceipts,
+          'show_activity_status': _settings.showActivityStatus,
+          'filter_spam_requests': _settings.filterSpamRequests,
+        };
+
+        await client
+            .from('profiles')
+            .update({
+              'notification_settings': notif,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', targetUserId);
+      } catch (e) {
+        debugPrint('PrivacyRepositoryImpl._persistMessagePrivacy error: $e');
+      }
+    }
+  }
+
+  @override
+  Future<void> setMessagePermission(String permission) async {
+    _settings = _settings.copyWith(messagePermission: permission);
+    await _persistMessagePrivacy();
+  }
+
+  @override
+  Future<void> setAllowMessageRequests(bool enabled) async {
+    _settings = _settings.copyWith(allowMessageRequests: enabled);
+    await _persistMessagePrivacy();
+  }
+
+  @override
+  Future<void> setShowReadReceipts(bool enabled) async {
+    _settings = _settings.copyWith(showReadReceipts: enabled);
+    await _persistMessagePrivacy();
+  }
+
+  @override
+  Future<void> setShowActivityStatus(bool enabled) async {
+    _settings = _settings.copyWith(showActivityStatus: enabled);
+    await _persistMessagePrivacy();
+  }
+
+  @override
+  Future<void> setFilterSpamRequests(bool enabled) async {
+    _settings = _settings.copyWith(filterSpamRequests: enabled);
+    await _persistMessagePrivacy();
+  }
+
   @override
   Future<void> setPublicJournalsDefault(bool enabled) async {
     _settings = _settings.copyWith(publicJournals: enabled);
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isEmpty) return;
 
         await client
             .from('profiles')
@@ -103,8 +198,8 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isEmpty) return;
 
         await client
             .from('profiles')
@@ -124,8 +219,8 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isEmpty) return _blockedUsers;
 
         final res = await client
             .from('blocks')
@@ -172,8 +267,8 @@ class PrivacyRepositoryImpl implements PrivacyRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isEmpty) return;
 
         await client
             .from('blocks')

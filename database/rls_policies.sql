@@ -714,14 +714,17 @@ ALTER TABLE community_poll_options ENABLE ROW LEVEL SECURITY;
 ALTER TABLE community_poll_votes ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS community_posts_read ON community_posts;
-CREATE POLICY community_posts_read ON community_posts FOR SELECT TO authenticated, anon USING (true);
+CREATE POLICY community_posts_read ON community_posts FOR SELECT TO authenticated, anon
+    USING ((moderation_status = 'approved' AND is_public = true) OR author_id = auth.uid() OR is_user_admin());
 
 DROP POLICY IF EXISTS community_posts_manage ON community_posts;
 CREATE POLICY community_posts_manage ON community_posts FOR ALL
     USING (auth.uid() = author_id) WITH CHECK (auth.uid() = author_id);
 
 DROP POLICY IF EXISTS community_setups_read ON community_post_trade_setups;
-CREATE POLICY community_setups_read ON community_post_trade_setups FOR SELECT TO authenticated, anon USING (true);
+CREATE POLICY community_setups_read ON community_post_trade_setups FOR SELECT TO authenticated, anon
+    USING (EXISTS (SELECT 1 FROM community_posts p WHERE p.id = post_id
+      AND ((p.moderation_status = 'approved' AND p.is_public = true) OR p.author_id = auth.uid() OR is_user_admin())));
 
 DROP POLICY IF EXISTS community_setups_manage ON community_post_trade_setups;
 CREATE POLICY community_setups_manage ON community_post_trade_setups FOR ALL
@@ -729,7 +732,9 @@ CREATE POLICY community_setups_manage ON community_post_trade_setups FOR ALL
     WITH CHECK (EXISTS (SELECT 1 FROM community_posts WHERE id = post_id AND author_id = auth.uid()));
 
 DROP POLICY IF EXISTS community_attachments_read ON community_post_attachments;
-CREATE POLICY community_attachments_read ON community_post_attachments FOR SELECT TO authenticated, anon USING (true);
+CREATE POLICY community_attachments_read ON community_post_attachments FOR SELECT TO authenticated, anon
+    USING (EXISTS (SELECT 1 FROM community_posts p WHERE p.id = post_id
+      AND ((p.moderation_status = 'approved' AND p.is_public = true) OR p.author_id = auth.uid() OR is_user_admin())));
 
 DROP POLICY IF EXISTS community_attachments_manage ON community_post_attachments;
 CREATE POLICY community_attachments_manage ON community_post_attachments FOR ALL
@@ -737,7 +742,9 @@ CREATE POLICY community_attachments_manage ON community_post_attachments FOR ALL
     WITH CHECK (EXISTS (SELECT 1 FROM community_posts WHERE id = post_id AND author_id = auth.uid()));
 
 DROP POLICY IF EXISTS community_comments_read ON community_comments;
-CREATE POLICY community_comments_read ON community_comments FOR SELECT TO authenticated, anon USING (true);
+CREATE POLICY community_comments_read ON community_comments FOR SELECT TO authenticated, anon
+    USING ((moderation_status = 'approved' AND EXISTS (SELECT 1 FROM community_posts p WHERE p.id = post_id
+      AND p.moderation_status = 'approved' AND p.is_public = true)) OR author_id = auth.uid() OR is_user_admin());
 
 DROP POLICY IF EXISTS community_comments_insert ON community_comments;
 CREATE POLICY community_comments_insert ON community_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
@@ -763,10 +770,13 @@ CREATE POLICY community_follows_manage ON community_follows FOR ALL
     USING (auth.uid() = follower_id) WITH CHECK (auth.uid() = follower_id);
 
 DROP POLICY IF EXISTS community_polls_read ON community_polls;
-CREATE POLICY community_polls_read ON community_polls FOR SELECT TO authenticated, anon USING (true);
+CREATE POLICY community_polls_read ON community_polls FOR SELECT TO authenticated, anon
+    USING (EXISTS (SELECT 1 FROM community_posts p WHERE p.id = post_id
+      AND ((p.moderation_status = 'approved' AND p.is_public = true) OR p.author_id = auth.uid() OR is_user_admin())));
 
 DROP POLICY IF EXISTS community_poll_options_read ON community_poll_options;
-CREATE POLICY community_poll_options_read ON community_poll_options FOR SELECT TO authenticated, anon USING (true);
+CREATE POLICY community_poll_options_read ON community_poll_options FOR SELECT TO authenticated, anon
+    USING (EXISTS (SELECT 1 FROM community_polls poll WHERE poll.id = poll_id));
 
 DROP POLICY IF EXISTS community_poll_votes_manage ON community_poll_votes;
 CREATE POLICY community_poll_votes_manage ON community_poll_votes FOR ALL
@@ -828,5 +838,30 @@ DROP POLICY IF EXISTS unified_comment_likes_manage ON unified_comment_likes;
 CREATE POLICY unified_comment_likes_manage ON unified_comment_likes FOR ALL TO authenticated
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
+
+-- -----------------------------------------------------------------------------
+-- community_comment_likes
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.community_comment_likes (
+    comment_id UUID NOT NULL REFERENCES public.community_comments(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    reaction TEXT NOT NULL DEFAULT '👍',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (comment_id, user_id)
+);
+
+ALTER TABLE public.community_comment_likes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read comment likes" ON public.community_comment_likes;
+CREATE POLICY "Public read comment likes"
+    ON public.community_comment_likes FOR SELECT
+    USING (true);
+
+DROP POLICY IF EXISTS "Users manage own comment likes" ON public.community_comment_likes;
+CREATE POLICY "Users manage own comment likes"
+    ON public.community_comment_likes FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
 
 

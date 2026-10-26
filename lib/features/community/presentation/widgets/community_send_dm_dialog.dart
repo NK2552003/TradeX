@@ -215,7 +215,9 @@ class _CommunitySendDmDialogState extends State<CommunitySendDmDialog> {
         UiButton(
           label: 'Send',
           variant: UiVariant.primary,
-          onPressed: _selectedRecipient == null
+          onPressed:
+              _selectedRecipient == null ||
+                  (widget.post == null && _message.trim().isEmpty)
               ? null
               : () {
                   widget.repository.sendDirectMessage(

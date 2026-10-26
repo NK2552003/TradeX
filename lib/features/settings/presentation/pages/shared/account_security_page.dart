@@ -27,7 +27,7 @@ class AccountSecurityPage extends StatefulWidget {
 class _AccountSecurityPageState extends State<AccountSecurityPage> {
   late final ProfileSettingsRepository _repo;
   bool _loading = true;
-  String _currentEmail = 'nitish@tradex.ai';
+  String _currentEmail = 'nitish@hejournal.in';
   List<ConnectedAccount> _connectedAccounts = [];
 
   // Controllers for password change

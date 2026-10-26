@@ -37,8 +37,8 @@ class _PpfCalculatorScreenState extends State<PpfCalculatorScreen> {
 
   Future<void> _fetchLivePpfRate() async {
     try {
-      final MacroBenchmarks b =
-          await MarketDataService.instance.getMacroBenchmarks();
+      final MacroBenchmarks b = await MarketDataService.instance
+          .getMacroBenchmarks();
       if (!mounted) return;
       setState(() {
         _rate = b.ppfRate;
@@ -73,7 +73,9 @@ class _PpfCalculatorScreenState extends State<PpfCalculatorScreen> {
       years: yrs + 10,
     );
     final double edge = r.futureValue - taxed.futureValue;
-    final double preTaxEquivalent = _slab >= 100 ? _rate : _rate / (1 - _slab / 100);
+    final double preTaxEquivalent = _slab >= 100
+        ? _rate
+        : _rate / (1 - _slab / 100);
     final double deductionPerYear =
         (_yearly > _annualCap ? _annualCap : _yearly) * _slab / 100;
     final double deductionTotal = deductionPerYear * yrs;
@@ -227,7 +229,8 @@ class _PpfCalculatorScreenState extends State<PpfCalculatorScreen> {
               label: 'Tax slab',
               value: _slab,
               onChanged: (double v) => setState(() => _slab = v),
-              helper: 'Sets what the exemption and the 80C deduction are worth.',
+              helper:
+                  'Sets what the exemption and the 80C deduction are worth.',
               options: const <UiToggleOption<double>>[
                 UiToggleOption<double>(value: 0, label: 'Nil'),
                 UiToggleOption<double>(value: 5, label: '5%'),
@@ -255,7 +258,8 @@ class _PpfCalculatorScreenState extends State<PpfCalculatorScreen> {
                   value: AppTokens.lakhCrore(balances[y - 1]),
                   trailing: AppTokens.price(interestByYear[y - 1]),
                   intent: UiIntent.neutral,
-                  detail: '${AppTokens.lakhCrore(deposited[y - 1])} paid in · '
+                  detail:
+                      '${AppTokens.lakhCrore(deposited[y - 1])} paid in · '
                       '${AppTokens.lakhCrore(balances[y - 1] - deposited[y - 1])} '
                       'earned',
                   share: r.futureValue <= 0
@@ -297,7 +301,8 @@ class _PpfCalculatorScreenState extends State<PpfCalculatorScreen> {
                 value: AppTokens.lakhCrore(taxed.futureValue),
                 trailing: AppTokens.percent(postTaxRate, decimals: 2),
                 intent: UiIntent.bearish,
-                detail: 'Same ${AppTokens.percent(_rate, decimals: 2)} gross, '
+                detail:
+                    'Same ${AppTokens.percent(_rate, decimals: 2)} gross, '
                     'slab taken each year',
               ),
               UiKeyValueRow(
@@ -305,20 +310,23 @@ class _PpfCalculatorScreenState extends State<PpfCalculatorScreen> {
                 value: AppTokens.signedMoney(edge, decimals: 0),
                 trailing: AppTokens.percent(preTaxEquivalent, decimals: 2),
                 intent: AppTokens.plIntent(edge),
-                detail: 'A taxable product must pay '
+                detail:
+                    'A taxable product must pay '
                     '${AppTokens.percent(preTaxEquivalent, decimals: 2)} to match',
               ),
               UiKeyValueRow(
                 label: 'Extend 5 years',
                 value: AppTokens.lakhCrore(ext5.futureValue),
-                trailing: '+${AppTokens.compactMoney(ext5.futureValue - r.futureValue)}',
+                trailing:
+                    '+${AppTokens.compactMoney(ext5.futureValue - r.futureValue)}',
                 intent: UiIntent.info,
                 detail: 'One block, deposits continuing',
               ),
               UiKeyValueRow(
                 label: 'Extend 10 years',
                 value: AppTokens.lakhCrore(ext10.futureValue),
-                trailing: '+${AppTokens.compactMoney(ext10.futureValue - r.futureValue)}',
+                trailing:
+                    '+${AppTokens.compactMoney(ext10.futureValue - r.futureValue)}',
                 intent: UiIntent.info,
                 detail: 'Two blocks, deposits continuing',
               ),
@@ -449,7 +457,8 @@ class _PpfCalculatorScreenState extends State<PpfCalculatorScreen> {
         if (_slab >= 30)
           UiCallout(
             intent: UiIntent.bullish,
-            title: 'Worth '
+            title:
+                'Worth '
                 '${AppTokens.percent(preTaxEquivalent, decimals: 2)} pre-tax',
             message:
                 'At the 30% bracket a tax-free '

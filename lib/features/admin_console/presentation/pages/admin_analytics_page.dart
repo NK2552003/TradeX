@@ -68,21 +68,41 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
             message:
                 'Status: ${seat.status.toUpperCase()} · Trader Tier: Proprietary Institutional\n'
                 'Allocated Firm Capital: ${formatInrAmount(seat.allocatedCapitalInr)}',
-            intent: seat.status == 'active' ? UiIntent.success : UiIntent.warning,
+            intent: seat.status == 'active'
+                ? UiIntent.success
+                : UiIntent.warning,
           ),
           const SizedBox(height: 16),
           UiCard(
             title: 'Risk-Adjusted Performance Matrix',
             child: Column(
               children: <Widget>[
-                _drawerStatRow('30-Day Net P&L (₹)', formatInrAmount(seat.monthlyPnlInr),
-                    color: seat.monthlyPnlInr >= 0 ? Colors.green : Colors.red),
-                _drawerStatRow('Intraday P&L (₹)', formatInrAmount(seat.dailyPnlInr),
-                    color: seat.dailyPnlInr >= 0 ? Colors.green : Colors.red),
-                _drawerStatRow('Sharpe Ratio', seat.sharpeRatio.toStringAsFixed(2)),
-                _drawerStatRow('Win Rate %', '${seat.winRatePct.toStringAsFixed(1)}%'),
-                _drawerStatRow('Current Drawdown', '${seat.currentDrawdownPct.toStringAsFixed(2)}%'),
-                _drawerStatRow('Hard Drawdown Cap', '${seat.maxDrawdownLimitPct.toStringAsFixed(2)}%'),
+                _drawerStatRow(
+                  '30-Day Net P&L (₹)',
+                  formatInrAmount(seat.monthlyPnlInr),
+                  color: seat.monthlyPnlInr >= 0 ? Colors.green : Colors.red,
+                ),
+                _drawerStatRow(
+                  'Intraday P&L (₹)',
+                  formatInrAmount(seat.dailyPnlInr),
+                  color: seat.dailyPnlInr >= 0 ? Colors.green : Colors.red,
+                ),
+                _drawerStatRow(
+                  'Sharpe Ratio',
+                  seat.sharpeRatio.toStringAsFixed(2),
+                ),
+                _drawerStatRow(
+                  'Win Rate %',
+                  '${seat.winRatePct.toStringAsFixed(1)}%',
+                ),
+                _drawerStatRow(
+                  'Current Drawdown',
+                  '${seat.currentDrawdownPct.toStringAsFixed(2)}%',
+                ),
+                _drawerStatRow(
+                  'Hard Drawdown Cap',
+                  '${seat.maxDrawdownLimitPct.toStringAsFixed(2)}%',
+                ),
               ],
             ),
           ),
@@ -100,8 +120,12 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     UiBadge(
-                      label: seat.isDrawdownNearLimit ? 'NEAR LIMIT' : 'HEALTHY',
-                      intent: seat.isDrawdownNearLimit ? UiIntent.danger : UiIntent.success,
+                      label: seat.isDrawdownNearLimit
+                          ? 'NEAR LIMIT'
+                          : 'HEALTHY',
+                      intent: seat.isDrawdownNearLimit
+                          ? UiIntent.danger
+                          : UiIntent.success,
                       size: UiSize.xs,
                     ),
                   ],
@@ -110,7 +134,8 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
-                    value: (seat.currentDrawdownPct / seat.maxDrawdownLimitPct).clamp(0.0, 1.0),
+                    value: (seat.currentDrawdownPct / seat.maxDrawdownLimitPct)
+                        .clamp(0.0, 1.0),
                     minHeight: 8,
                   ),
                 ),
@@ -122,9 +147,18 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
             title: 'Desk Permissions & Segments',
             child: Column(
               children: <Widget>[
-                _drawerStatRow('Permitted Segments', 'NSE Cash, NFO Futures & Options'),
-                _drawerStatRow('Mandatory Stop-Loss', 'Enforced via Bracket / GTT'),
-                _drawerStatRow('Max Intraday Leverage', '10x intraday SPAN margin'),
+                _drawerStatRow(
+                  'Permitted Segments',
+                  'NSE Cash, NFO Futures & Options',
+                ),
+                _drawerStatRow(
+                  'Mandatory Stop-Loss',
+                  'Enforced via Bracket / GTT',
+                ),
+                _drawerStatRow(
+                  'Max Intraday Leverage',
+                  '10x intraday SPAN margin',
+                ),
               ],
             ),
           ),

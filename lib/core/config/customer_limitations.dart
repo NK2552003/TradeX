@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/app_session.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
 import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
+import 'package:tradex/features/public_site/data/public_site_repository.dart';
 import 'package:tradex/features/settings/models/desk_risk_model.dart';
 
 /// Subscription tier entitlements and quota limits on the customer (trader) side.
@@ -33,13 +36,67 @@ class CustomerTierQuota {
   final bool allowPdfExport;
   final bool allowAdvancedBacktest;
 
-  String get priceLabel =>
-      monthlyPriceInr == 0 ? '₹0 / mo' : '${formatInrAmount(monthlyPriceInr)} / mo';
+  String get priceLabel => monthlyPriceInr == 0
+      ? '₹0 / mo'
+      : '${formatInrAmount(monthlyPriceInr)} / mo';
 
-  static CustomerTierQuota forTier(AppTier tier) => switch (tier) {
+  static final Map<AppTier, CustomerTierQuota> _published = {};
+
+  static bool get hasPublishedQuotas => _published.isNotEmpty;
+
+  static void installPublishedCatalogue(Map<String, dynamic> catalogue) {
+    final plans = catalogue['plans'];
+    if (plans is! List) throw const FormatException('Missing pricing plans.');
+    final next = <AppTier, CustomerTierQuota>{};
+    for (final raw in plans) {
+      final plan = Map<String, dynamic>.from(raw as Map);
+      final tier = AppTier.values.firstWhere(
+        (value) => value.name == plan['tier'],
+        orElse: () => throw const FormatException('Unknown subscription tier.'),
+      );
+      final limits = Map<String, dynamic>.from(plan['limits'] as Map);
+      final base = _baselineForTier(tier);
+      int requiredLimit(String key) {
+        final value = limits[key];
+        if (value is! int || value < 0) {
+          throw FormatException('Invalid $key limit for ${tier.name}.');
+        }
+        return value;
+      }
+
+      next[tier] = CustomerTierQuota(
+        tier: tier,
+        planName: plan['name']?.toString() ?? base.planName,
+        monthlyPriceInr: (plan['monthly_amount'] as num).round(),
+        maxNotes: requiredLimit('notes'),
+        maxTrades: requiredLimit('trades'),
+        maxLiveStrategies: requiredLimit('live_playbooks'),
+        maxWatchlists: base.maxWatchlists,
+        maxAiQueriesPerMonth: requiredLimit('ai_queries_per_month'),
+        allowPdfExport: base.allowPdfExport,
+        allowAdvancedBacktest: base.allowAdvancedBacktest,
+      );
+    }
+    if (next.length != AppTier.values.length) {
+      throw const FormatException('Pricing catalogue must define every tier.');
+    }
+    _published
+      ..clear()
+      ..addAll(next);
+  }
+
+  static Future<void> refreshPublishedCatalogue() async {
+    final catalogue = await publicSiteRepository().pricing();
+    installPublishedCatalogue(catalogue);
+  }
+
+  static CustomerTierQuota forTier(AppTier tier) =>
+      _published[tier] ?? _baselineForTier(tier);
+
+  static CustomerTierQuota _baselineForTier(AppTier tier) => switch (tier) {
     AppTier.free => const CustomerTierQuota(
       tier: AppTier.free,
-      planName: 'TradeX Basic',
+      planName: 'hejournal.in Basic',
       monthlyPriceInr: 0,
       maxNotes: 25,
       maxTrades: 100,
@@ -51,7 +108,7 @@ class CustomerTierQuota {
     ),
     AppTier.premium => const CustomerTierQuota(
       tier: AppTier.premium,
-      planName: 'TradeX Pro',
+      planName: 'hejournal.in Pro',
       monthlyPriceInr: 2499,
       maxNotes: 500,
       maxTrades: 5000,
@@ -63,7 +120,7 @@ class CustomerTierQuota {
     ),
     AppTier.enterprise => const CustomerTierQuota(
       tier: AppTier.enterprise,
-      planName: 'TradeX Enterprise',
+      planName: 'hejournal.in Enterprise',
       monthlyPriceInr: 7999,
       maxNotes: 10000,
       maxTrades: 50000,
@@ -112,13 +169,14 @@ class CustomerLimitations {
     BuildContext context, {
     required int currentNoteCount,
   }) async {
+    if (!await _refreshForAction(context) || !context.mounted) return false;
     final CustomerTierQuota quota = currentQuota;
     if (currentNoteCount < quota.maxNotes) return true;
     await showPlanUpgradeDialog(
       context,
       featureTitle: 'Note Limit Reached (${quota.maxNotes} Notes)',
       reason:
-          'Your ${quota.planName} (${quota.priceLabel}) plan includes up to ${quota.maxNotes} research notes. Upgrade to TradeX Pro (₹2,499/mo) for 500 notes and PDF exports.',
+          'Your ${quota.planName} plan includes up to ${quota.maxNotes} research notes. Paid upgrades are unavailable until verified checkout is connected.',
     );
     return false;
   }
@@ -129,8 +187,9 @@ class CustomerLimitations {
     BuildContext context, {
     required int currentTradeCount,
   }) async {
-    final String breakerState =
-        await AdminConsoleRepository.instance.getCircuitBreakerState();
+    if (!await _refreshForAction(context)) return false;
+    final String breakerState = await AdminConsoleRepository.instance
+        .getCircuitBreakerState();
     if (!context.mounted) return false;
     if (breakerState == 'halted') {
       final String reason =
@@ -150,7 +209,7 @@ class CustomerLimitations {
       context,
       featureTitle: 'Journal Quota Reached (${quota.maxTrades} Trades)',
       reason:
-          'Your ${quota.planName} (${quota.priceLabel}) plan supports up to ${quota.maxTrades} logged trades. Upgrade to TradeX Pro (₹2,499/mo) for 5,000 trades and full analytics.',
+          'Your ${quota.planName} plan supports up to ${quota.maxTrades} logged trades. Paid upgrades are unavailable until verified checkout is connected.',
     );
     return false;
   }
@@ -160,6 +219,7 @@ class CustomerLimitations {
     BuildContext context, {
     required int currentLiveStrategyCount,
   }) async {
+    if (!await _refreshForAction(context) || !context.mounted) return false;
     final CustomerTierQuota quota = currentQuota;
     if (currentLiveStrategyCount < quota.maxLiveStrategies) return true;
     await showPlanUpgradeDialog(
@@ -167,7 +227,7 @@ class CustomerLimitations {
       featureTitle:
           'Active Playbook Limit Reached (${quota.maxLiveStrategies} Live)',
       reason:
-          'Your ${quota.planName} (${quota.priceLabel}) plan allows up to ${quota.maxLiveStrategies} live playbooks. Upgrade to TradeX Pro (₹2,499/mo) for 25 live playbooks.',
+          'Your ${quota.planName} plan allows up to ${quota.maxLiveStrategies} live playbooks. Paid upgrades are unavailable until verified checkout is connected.',
     );
     return false;
   }
@@ -179,8 +239,8 @@ class CustomerLimitations {
     required double quantity,
     required double? stopLoss,
   }) async {
-    final String breakerState =
-        await AdminConsoleRepository.instance.getCircuitBreakerState();
+    final String breakerState = await AdminConsoleRepository.instance
+        .getCircuitBreakerState();
     if (breakerState == 'halted') {
       final String reason =
           AdminConsoleRepository.instance.killswitchReason ??
@@ -194,10 +254,13 @@ class CustomerLimitations {
       );
     }
 
-    final DeskRiskModel risk =
-        await AdminConsoleRepository.instance.getDeskRiskConfig();
+    final DeskRiskModel risk = await AdminConsoleRepository.instance
+        .getDeskRiskConfig();
     final double notionalInr =
-        (entryPrice.isFinite && quantity.isFinite && entryPrice > 0 && quantity > 0)
+        (entryPrice.isFinite &&
+            quantity.isFinite &&
+            entryPrice > 0 &&
+            quantity > 0)
         ? entryPrice * quantity
         : 0;
 
@@ -219,7 +282,8 @@ class CustomerLimitations {
       return CustomerLimitEvaluation(
         allowed: false,
         exceedsPositionCap: true,
-        title: 'Exceeds Max Position Cap (${formatInrAmount(effectiveMaxPosition)})',
+        title:
+            'Exceeds Max Position Cap (${formatInrAmount(effectiveMaxPosition)})',
         message:
             'Order notional ${formatInrAmount(notionalInr)} on ${symbol.toUpperCase()} exceeds the per-trader desk cap of ${formatInrAmount(effectiveMaxPosition)}${breakerState == 'tripped' ? ' (50% Circuit Breaker Caution cap)' : ''}.',
       );
@@ -237,6 +301,25 @@ class CustomerLimitations {
     }
 
     return const CustomerLimitEvaluation(allowed: true);
+  }
+
+  static Future<bool> _refreshForAction(BuildContext context) async {
+    if (CustomerDataPolicy.allowDemo && !SupabaseConfig.isConfigured) {
+      return true;
+    }
+    try {
+      await CustomerTierQuota.refreshPublishedCatalogue();
+      return true;
+    } catch (_) {
+      if (context.mounted) {
+        UiToast.error(
+          context,
+          title: 'Plan limits unavailable',
+          message: 'Retry when the published catalogue is available.',
+        );
+      }
+      return false;
+    }
   }
 
   /// Displays an INR upgrade modal allowing the user to compare and switch plans.
@@ -263,7 +346,9 @@ class CustomerLimitations {
                 for (final AppTier tier in AppTier.values) ...<Widget>[
                   Builder(
                     builder: (BuildContext context) {
-                      final CustomerTierQuota q = CustomerTierQuota.forTier(tier);
+                      final CustomerTierQuota q = CustomerTierQuota.forTier(
+                        tier,
+                      );
                       final bool selected = tier == activeTier;
                       return Padding(
                         padding: EdgeInsets.only(
@@ -274,17 +359,7 @@ class CustomerLimitations {
                               ? UiCardVariant.elevated
                               : UiCardVariant.outlined,
                           padding: EdgeInsets.all(ctx.sp(theme.spacing.sm)),
-                          onTap: () {
-                            session.changeTier(tier);
-                            setModalState(() {});
-                            Navigator.of(ctx).pop();
-                            UiToast.success(
-                              context,
-                              title: 'Plan Updated to ${q.planName}',
-                              message:
-                                  'Active tier: ${q.planName} (${q.priceLabel}). Limits updated immediately.',
-                            );
-                          },
+                          onTap: null,
                           child: Row(
                             children: <Widget>[
                               Expanded(
@@ -297,7 +372,9 @@ class CustomerLimitations {
                                           q.planName,
                                           style: ctx.uiText.bodyStrong,
                                         ),
-                                        SizedBox(width: ctx.sp(theme.spacing.xs)),
+                                        SizedBox(
+                                          width: ctx.sp(theme.spacing.xs),
+                                        ),
                                         UiBadge(
                                           label: q.priceLabel,
                                           intent: tier == AppTier.free
@@ -320,7 +397,7 @@ class CustomerLimitations {
                                 ),
                               ),
                               UiBadge(
-                                label: selected ? 'Current' : 'Select',
+                                label: selected ? 'Current' : 'Preview',
                                 intent: selected
                                     ? UiIntent.success
                                     : UiIntent.primary,
@@ -383,10 +460,10 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
   }
 
   Future<void> _loadDeskState() async {
-    final String state =
-        await AdminConsoleRepository.instance.getCircuitBreakerState();
-    final DeskRiskModel risk =
-        await AdminConsoleRepository.instance.getDeskRiskConfig();
+    final String state = await AdminConsoleRepository.instance
+        .getCircuitBreakerState();
+    final DeskRiskModel risk = await AdminConsoleRepository.instance
+        .getDeskRiskConfig();
     if (!mounted) return;
     setState(() {
       _breakerState = state;
@@ -453,7 +530,8 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                             size: UiSize.xs,
                           ),
                           UiBadge(
-                            label: 'Notes ${widget.noteCount}/${quota.maxNotes}',
+                            label:
+                                'Notes ${widget.noteCount}/${quota.maxNotes}',
                             intent: widget.noteCount >= quota.maxNotes
                                 ? UiIntent.danger
                                 : UiIntent.info,
@@ -461,7 +539,8 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                             size: UiSize.xs,
                           ),
                           UiBadge(
-                            label: 'Trades ${widget.tradeCount}/${quota.maxTrades}',
+                            label:
+                                'Trades ${widget.tradeCount}/${quota.maxTrades}',
                             intent: widget.tradeCount >= quota.maxTrades
                                 ? UiIntent.danger
                                 : UiIntent.info,
@@ -517,9 +596,10 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                               onPressed: () =>
                                   CustomerLimitations.showPlanUpgradeDialog(
                                     context,
-                                    featureTitle: 'Customer Plan & Limits (INR)',
+                                    featureTitle:
+                                        'Customer Plan & Limits (INR)',
                                     reason:
-                                        'Manage your TradeX subscription tier and workspace quotas in Indian Rupees (₹).',
+                                        'Manage your hejournal.in subscription tier and workspace quotas in Indian Rupees (₹).',
                                   ),
                             ),
                         ],
@@ -567,10 +647,10 @@ class _CustomerTradeRiskBannerState extends State<CustomerTradeRiskBanner> {
   }
 
   Future<void> _load() async {
-    final DeskRiskModel r =
-        await AdminConsoleRepository.instance.getDeskRiskConfig();
-    final String state =
-        await AdminConsoleRepository.instance.getCircuitBreakerState();
+    final DeskRiskModel r = await AdminConsoleRepository.instance
+        .getDeskRiskConfig();
+    final String state = await AdminConsoleRepository.instance
+        .getCircuitBreakerState();
     if (!mounted) return;
     setState(() {
       _risk = r;

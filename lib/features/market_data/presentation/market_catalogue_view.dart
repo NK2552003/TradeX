@@ -351,9 +351,6 @@ class MarketMoversView extends StatelessWidget {
         ),
         UiGap.v(context.ui.spacing.md),
 
-        MarketChangeDistribution(instruments: snapshot.instruments),
-        UiGap.v(context.ui.spacing.md),
-
         // Gainers and Losers side by side
         Expanded(
           child: MarketTwoPanel(

@@ -8,10 +8,7 @@ import 'package:tradex/features/community/presentation/widgets/community_live_ro
 
 /// Modal dialog allowing verified traders to host or schedule a Live Audio Space.
 class CommunityHostLiveSpaceDialog extends StatefulWidget {
-  const CommunityHostLiveSpaceDialog({
-    super.key,
-    required this.repository,
-  });
+  const CommunityHostLiveSpaceDialog({super.key, required this.repository});
 
   final CommunityRepository repository;
 
@@ -108,7 +105,9 @@ class _CommunityHostLiveSpaceDialogState
       category: _category,
       pinnedSetup: setup,
       startNow: _startNow,
-      scheduledFor: _startNow ? null : DateTime.now().add(const Duration(hours: 2)),
+      scheduledFor: _startNow
+          ? null
+          : DateTime.now().add(const Duration(hours: 2)),
       tags: _tags,
     );
 
@@ -165,7 +164,8 @@ class _CommunityHostLiveSpaceDialogState
               label: 'Agenda / Topic',
               child: UiInput(
                 controller: _topicController,
-                hintText: 'e.g. Discussing VWAP reclaim and trailing stop strategies',
+                hintText:
+                    'e.g. Discussing VWAP reclaim and trailing stop strategies',
               ),
             ),
             SizedBox(height: context.sp(theme.spacing.sm)),
@@ -206,7 +206,8 @@ class _CommunityHostLiveSpaceDialogState
                   UiSwitch(
                     label: 'Pin High-Conviction Setup on Stage',
                     value: _attachPinnedSetup,
-                    onChanged: (val) => setState(() => _attachPinnedSetup = val),
+                    onChanged: (val) =>
+                        setState(() => _attachPinnedSetup = val),
                   ),
                   if (_attachPinnedSetup) ...<Widget>[
                     SizedBox(height: context.sp(theme.spacing.sm)),
@@ -230,7 +231,10 @@ class _CommunityHostLiveSpaceDialogState
                               value: _tradeSide,
                               options: const <UiOption<String>>[
                                 UiOption<String>(value: 'LONG', label: 'LONG'),
-                                UiOption<String>(value: 'SHORT', label: 'SHORT'),
+                                UiOption<String>(
+                                  value: 'SHORT',
+                                  label: 'SHORT',
+                                ),
                               ],
                               onChanged: (s) => setState(() => _tradeSide = s),
                             ),
@@ -277,7 +281,8 @@ class _CommunityHostLiveSpaceDialogState
                       label: 'Setup Note',
                       child: UiInput(
                         controller: _noteController,
-                        hintText: 'Breakout above 15-min swing high with OI volume spike',
+                        hintText:
+                            'Breakout above 15-min swing high with OI volume spike',
                       ),
                     ),
                   ],

@@ -88,7 +88,9 @@ class MarkdownSlashPalette extends StatelessWidget {
                         Padding(
                           padding: EdgeInsets.fromLTRB(
                             context.sp(theme.spacing.sm),
-                            context.sp(index == 0 ? theme.spacing.xxs : theme.spacing.sm),
+                            context.sp(
+                              index == 0 ? theme.spacing.xxs : theme.spacing.sm,
+                            ),
                             context.sp(theme.spacing.sm),
                             context.sp(theme.spacing.xxs),
                           ),

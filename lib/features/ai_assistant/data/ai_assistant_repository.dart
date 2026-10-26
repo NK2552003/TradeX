@@ -1,6 +1,8 @@
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:uuid/uuid.dart';
 import 'ai_chat_transport.dart';
+import 'gemini_ai_chat_transport.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:async';
 import 'dart:math';
@@ -36,8 +38,11 @@ class AiAssistantRepository extends ChangeNotifier {
     AiChatTransport? transport,
     String? Function()? actorId,
   }) : _identity =
-           actorId ?? (() => SupabaseConfig.client?.auth.currentUser?.id),
-       _transport = transport ?? HttpAiChatTransport(),
+           actorId ??
+           (() =>
+               SupabaseConfig.client?.auth.currentUser?.id ??
+               SupabaseAuthBackendService.instance.currentUserProfile?.id),
+       _transport = transport ?? GeminiAiChatTransport(),
        _community = communityRepository,
        _threads =
            seedThreads ??
@@ -54,6 +59,9 @@ class AiAssistantRepository extends ChangeNotifier {
     _insights = CustomerDataPolicy.allowDemo
         ? List<AppAiInsight>.from(AiSeedData.insights())
         : [];
+    if (SupabaseConfig.isConfigured) {
+      unawaited(_initSupabaseData());
+    }
   }
 
   /// Injected so AI-created community posts land in the real feed. When null,
@@ -79,7 +87,188 @@ class AiAssistantRepository extends ChangeNotifier {
     _activeThreadId = _threads.first.id;
     _actions.clear();
     _insights.clear();
+    if (SupabaseConfig.isConfigured) {
+      unawaited(_initSupabaseData());
+    }
     scheduleMicrotask(_notify);
+  }
+
+  Future<void> _initSupabaseData() async {
+    if (!SupabaseConfig.isConfigured) return;
+    try {
+      final client = SupabaseConfig.client!;
+      final userId = _identity();
+      if (userId == null || userId.isEmpty) return;
+
+      final threadsRes = await client
+          .from('ai_threads')
+          .select('*, ai_messages(*)')
+          .eq('user_id', userId)
+          .order('updated_at', ascending: false);
+
+      final List<AiThread> loaded = [];
+      for (final row in threadsRes as List) {
+        final t = row as Map<String, dynamic>;
+        final tId = t['id']?.toString() ?? '';
+        final title = t['title'] as String? ?? 'Conversation';
+        final personaStr = t['persona'] as String? ?? 'swing';
+        final persona = AiPersona.values.firstWhere(
+          (p) => p.name.toLowerCase() == personaStr.toLowerCase(),
+          orElse: () => AiPersona.swing,
+        );
+        final pinned = t['pinned'] as bool? ?? false;
+        final updatedAt =
+            DateTime.tryParse(t['updated_at']?.toString() ?? '') ??
+            DateTime.now();
+
+        final msgsList = t['ai_messages'] as List? ?? [];
+        final List<AppAiMessage> messages = [];
+        for (final mRow in msgsList) {
+          final m = mRow as Map<String, dynamic>;
+          final roleStr = m['role'] as String? ?? 'assistant';
+          final role = roleStr == 'user'
+              ? AppAiRole.user
+              : (roleStr == 'system' ? AppAiRole.system : AppAiRole.assistant);
+          final body = m['body'] as String? ?? '';
+          final sentAt =
+              DateTime.tryParse(m['created_at']?.toString() ?? '') ??
+              DateTime.now();
+          messages.add(
+            AppAiMessage(
+              id: m['id']?.toString() ?? '',
+              role: role,
+              body: body,
+              sentAt: sentAt,
+              pending: m['pending'] as bool? ?? false,
+              error: m['error'] as String?,
+            ),
+          );
+        }
+        messages.sort(
+          (a, b) =>
+              (a.sentAt ?? DateTime(0)).compareTo(b.sentAt ?? DateTime(0)),
+        );
+        loaded.add(
+          AiThread(
+            id: tId,
+            title: title,
+            persona: persona,
+            messages: messages,
+            updatedAt: updatedAt,
+            pinned: pinned,
+          ),
+        );
+      }
+
+      if (loaded.isNotEmpty) {
+        _threads.clear();
+        _threads.addAll(loaded);
+        _activeThreadId = _threads.first.id;
+      }
+
+      try {
+        final insRes = await client
+            .from('ai_insights')
+            .select('*')
+            .order('generated_at', ascending: false)
+            .limit(20);
+        final List<AppAiInsight> insLoaded = [];
+        for (final r in insRes as List) {
+          final row = r as Map<String, dynamic>;
+          final indicators = row['indicators'] as Map<String, dynamic>? ?? {};
+          final confidence =
+              (indicators['confidence'] as num?)?.toDouble() ??
+              (row['confidence'] as num?)?.toDouble() ??
+              0.85;
+          final sentiment =
+              (indicators['sentiment_score'] as num?)?.toDouble() ??
+              (row['sentiment_score'] as num?)?.toDouble() ??
+              0.0;
+          final ticker = row['ticker'] as String? ?? 'NIFTY';
+          insLoaded.add(
+            AppAiInsight(
+              id: row['id']?.toString() ?? '',
+              title: row['title'] as String? ?? '$ticker Signal',
+              body: row['summary'] as String? ?? row['body'] as String? ?? '',
+              confidence: confidence,
+              sentimentScore: sentiment,
+              tickers:
+                  (row['tickers'] as List?)
+                      ?.map((e) => e.toString())
+                      .toList() ??
+                  [ticker],
+              createdAt:
+                  DateTime.tryParse(
+                    row['generated_at']?.toString() ??
+                        row['created_at']?.toString() ??
+                        '',
+                  ) ??
+                  DateTime.now(),
+            ),
+          );
+        }
+        if (insLoaded.isNotEmpty) {
+          _insights.clear();
+          _insights.addAll(insLoaded);
+        }
+      } catch (_) {}
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[AiAssistantRepository] _initSupabaseData error: $e');
+    }
+  }
+
+  Future<void> _persistUserTurn(
+    String threadId,
+    String text,
+    AiPersona persona,
+  ) async {
+    if (!SupabaseConfig.isConfigured) return;
+    try {
+      final client = SupabaseConfig.client!;
+      final userId = _identity();
+      if (userId == null || userId.isEmpty) return;
+
+      await client.from('ai_threads').upsert({
+        'id': threadId,
+        'user_id': userId,
+        'title': _titleFrom(text),
+        'persona': persona.name,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+
+      await client.from('ai_messages').insert({
+        'id': const Uuid().v4(),
+        'thread_id': threadId,
+        'role': 'user',
+        'body': text,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('[AiAssistantRepository] _persistUserTurn error: $e');
+    }
+  }
+
+  Future<void> _persistAssistantTurn(String threadId, String body) async {
+    if (!SupabaseConfig.isConfigured) return;
+    try {
+      final client = SupabaseConfig.client!;
+      await client.from('ai_messages').insert({
+        'id': const Uuid().v4(),
+        'thread_id': threadId,
+        'role': 'assistant',
+        'body': body,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      await client
+          .from('ai_threads')
+          .update({'updated_at': DateTime.now().toIso8601String()})
+          .eq('id', threadId);
+    } catch (e) {
+      debugPrint('[AiAssistantRepository] _persistAssistantTurn error: $e');
+    }
   }
 
   String? _generationError;
@@ -289,11 +478,16 @@ class AiAssistantRepository extends ChangeNotifier {
     final String text = rawText.trim();
     if (text.isEmpty) return;
 
+    if (SupabaseConfig.isConfigured && !CustomerTierQuota.hasPublishedQuotas) {
+      _generationError = 'Plan limits are unavailable. Please retry shortly.';
+      _notify();
+      return;
+    }
+
     final quota = CustomerLimitations.currentQuota;
-    if (AppSession.instance.aiQueriesUsed.value >=
-        quota.maxAiQueriesPerMonth) {
+    if (AppSession.instance.aiQueriesUsed.value >= quota.maxAiQueriesPerMonth) {
       _generationError =
-          'Monthly AI Copilot quota reached (${quota.maxAiQueriesPerMonth} queries on ${quota.planName} · ${quota.priceLabel}). Upgrade to TradeX Pro (₹2,499/mo) for 500 AI queries.';
+          'Monthly AI Copilot quota reached (${quota.maxAiQueriesPerMonth} queries on ${quota.planName}). Paid upgrades are not available yet.';
       _notify();
       return;
     }
@@ -330,6 +524,10 @@ class AiAssistantRepository extends ChangeNotifier {
     );
     _generating = true;
     _notify();
+
+    if (SupabaseConfig.isConfigured) {
+      unawaited(_persistUserTurn(thread.id, text, effective));
+    }
 
     _scheduleReply(thread.id, pendingId, text, effective);
   }
@@ -480,6 +678,13 @@ class AiAssistantRepository extends ChangeNotifier {
     );
     _actions[pendingId] = const [];
     _notify();
+
+    if (!pending &&
+        error == null &&
+        SupabaseConfig.isConfigured &&
+        body.trim().isNotEmpty) {
+      unawaited(_persistAssistantTurn(threadId, body));
+    }
   }
 
   void _scheduleReply(
@@ -842,7 +1047,7 @@ class AiAssistantRepository extends ChangeNotifier {
     final String body = source.isNotEmpty
         ? source
         : '# $symbol Analysis\n\n'
-              'Comprehensive technical and macro breakdown for **$symbol** generated by the TradeX AI Copilot.\n\n'
+              'Comprehensive technical and macro breakdown for **$symbol** generated by the hejournal.in AI Copilot.\n\n'
               '## Key Observations\n'
               '- Momentum structure remains aligned with higher timeframe trends.\n'
               '- Invalidation and liquidity pools have been mapped.\n'

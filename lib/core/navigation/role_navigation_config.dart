@@ -162,15 +162,8 @@ class RoleNavigationConfig {
         base.sections.last,
       ],
       mobilePrimaryItems: base.mobilePrimaryItems,
-      mobileMoreItems: [
-        ...base.mobileMoreItems,
-        _marketItem,
-        ...switchItems,
-      ],
-      userMenuItems: [
-        ...base.userMenuItems,
-        ...switchItems,
-      ],
+      mobileMoreItems: [...base.mobileMoreItems, _marketItem, ...switchItems],
+      userMenuItems: [...base.userMenuItems, ...switchItems],
       notificationTargets: base.notificationTargets,
       upgradeSectionId: base.upgradeSectionId,
     );
@@ -235,7 +228,7 @@ class RoleNavigationConfig {
 
   static const RoleNavigationConfig _trader = RoleNavigationConfig(
     role: UserRole.customer,
-    workspaceName: 'TradeX Pro Terminal',
+    workspaceName: 'hejournal.in Pro Terminal',
     workspaceLabel: 'Active Trader',
     upgradeSectionId: 'settings_billing',
     notificationTargets: <String, String>{
@@ -678,6 +671,11 @@ class RoleNavigationConfig {
         icon: Icons.fact_check_outlined,
       ),
       AppNavItem(
+        id: 'org_publishing',
+        label: 'Publishing & Reviews',
+        icon: Icons.pending_actions_outlined,
+      ),
+      AppNavItem(
         id: 'ai_copilot',
         label: 'AI Risk Assistant',
         icon: Icons.auto_awesome_outlined,
@@ -757,6 +755,11 @@ class RoleNavigationConfig {
             label: 'Affiliate Applications',
             icon: Icons.fact_check_outlined,
             selectedIcon: Icons.fact_check_rounded,
+          ),
+          AppNavItem(
+            id: 'org_publishing',
+            label: 'Publishing & Reviews',
+            icon: Icons.pending_actions_outlined,
           ),
         ],
       ),

@@ -27,7 +27,8 @@ class AdminConsoleRepository {
   final OrganizationSettingsRepository _orgRepo =
       OrganizationSettingsRepositoryImpl();
   final DeskRiskRepository _riskRepo = DeskRiskRepositoryImpl();
-  final ProfileSettingsRepository _profileRepo = ProfileSettingsRepositoryImpl();
+  final ProfileSettingsRepository _profileRepo =
+      ProfileSettingsRepositoryImpl();
 
   bool _hydrated = false;
   String _circuitBreakerState = 'armed';
@@ -173,15 +174,11 @@ class AdminConsoleRepository {
     _killswitchReason = reason;
     if (state == 'halted') {
       _seats = _seats
-          .map(
-            (s) => s.role == 'owner' ? s : s.copyWith(status: 'frozen'),
-          )
+          .map((s) => s.role == 'owner' ? s : s.copyWith(status: 'frozen'))
           .toList();
     } else if (state == 'armed') {
       _seats = _seats
-          .map(
-            (s) => s.status == 'frozen' ? s.copyWith(status: 'active') : s,
-          )
+          .map((s) => s.status == 'frozen' ? s.copyWith(status: 'active') : s)
           .toList();
     }
     await recordAuditLog(
@@ -192,7 +189,7 @@ class AdminConsoleRepository {
           ? 'CIRCUIT_BREAKER_TRIPPED'
           : 'DESK_EXECUTION_RESUMED',
       targetType: 'desk_circuit_breaker',
-      targetLabel: 'TradeX Institutional Desk',
+      targetLabel: 'hejournal.in Institutional Desk',
       severity: state == 'halted' ? 'critical' : 'warning',
       details: reason?.trim().isNotEmpty == true
           ? reason!.trim()
@@ -353,7 +350,9 @@ class AdminConsoleRepository {
         final client = SupabaseConfig.client!;
         final rows = await client
             .from('profiles')
-            .select('id,handle,display_name,email,subscription_tier,status,role,created_at')
+            .select(
+              'id,handle,display_name,email,subscription_tier,status,role,created_at',
+            )
             .order('created_at', ascending: false);
 
         if (rows.isNotEmpty) {
@@ -399,7 +398,8 @@ class AdminConsoleRepository {
               .map((Map<String, dynamic> r) {
                 final String uid = r['id']?.toString() ?? '';
                 final String tierRaw =
-                    (r['subscription_tier']?.toString() ?? 'free').toLowerCase();
+                    (r['subscription_tier']?.toString() ?? 'free')
+                        .toLowerCase();
                 final String tier = switch (tierRaw) {
                   'enterprise' => 'Enterprise',
                   'pro' => 'Pro',
@@ -412,10 +412,12 @@ class AdminConsoleRepository {
                 };
                 return AdminConsumerAccount(
                   userId: uid,
-                  handle: (r['handle']?.toString() ?? 'trader')
-                      .replaceAll('@', ''),
+                  handle: (r['handle']?.toString() ?? 'trader').replaceAll(
+                    '@',
+                    '',
+                  ),
                   displayName: r['display_name']?.toString() ?? 'Trader',
-                  email: r['email']?.toString() ?? 'trader@tradex.ai',
+                  email: r['email']?.toString() ?? 'trader@hejournal.in',
                   subscriptionTier: tier,
                   monthlySubscriptionInr: mrr,
                   journalsCount: journalCounts[uid] ?? 0,
@@ -525,7 +527,9 @@ class AdminConsoleRepository {
       } catch (e) {
         if (!_missingTablesNotice.contains('desk_order_approvals')) {
           _missingTablesNotice.add('desk_order_approvals');
-          debugPrint('AdminConsoleRepository notice: desk_order_approvals table not found in Supabase (using resilient local fallback).');
+          debugPrint(
+            'AdminConsoleRepository notice: desk_order_approvals table not found in Supabase (using resilient local fallback).',
+          );
         }
       }
     }
@@ -571,9 +575,7 @@ class AdminConsoleRepository {
 
     await recordAuditLog(
       category: 'order_approval',
-      action: approve
-          ? 'PRE_TRADE_ORDER_APPROVED'
-          : 'PRE_TRADE_ORDER_REJECTED',
+      action: approve ? 'PRE_TRADE_ORDER_APPROVED' : 'PRE_TRADE_ORDER_REJECTED',
       targetType: 'desk_order_approval',
       targetLabel:
           '${updated.side} ${updated.quantity} ${updated.symbol} (${updated.exchange})',
@@ -689,7 +691,9 @@ class AdminConsoleRepository {
       } catch (e) {
         if (!_missingTablesNotice.contains('desk_risk_breaches')) {
           _missingTablesNotice.add('desk_risk_breaches');
-          debugPrint('AdminConsoleRepository notice: desk_risk_breaches table not found in Supabase (using resilient local fallback).');
+          debugPrint(
+            'AdminConsoleRepository notice: desk_risk_breaches table not found in Supabase (using resilient local fallback).',
+          );
         }
       }
     }
@@ -863,7 +867,9 @@ class AdminConsoleRepository {
       } catch (e) {
         if (!_missingTablesNotice.contains('admin_audit_logs')) {
           _missingTablesNotice.add('admin_audit_logs');
-          debugPrint('AdminConsoleRepository notice: admin_audit_logs table not found in Supabase (using resilient local fallback).');
+          debugPrint(
+            'AdminConsoleRepository notice: admin_audit_logs table not found in Supabase (using resilient local fallback).',
+          );
         }
       }
     }
@@ -955,7 +961,9 @@ class AdminConsoleRepository {
     try {
       ws = await getAffiliateWorkspaceSnapshot();
     } catch (e) {
-      debugPrint('[AdminConsoleRepository] getAffiliateWorkspaceSnapshot error: $e');
+      debugPrint(
+        '[AdminConsoleRepository] getAffiliateWorkspaceSnapshot error: $e',
+      );
       ws = AffiliateWorkspace.fromJson(const <String, Object?>{});
     }
     final double allocated = _seats.isNotEmpty
@@ -980,10 +988,8 @@ class AdminConsoleRepository {
     final double mrrInr = _consumers
         .where((c) => c.status == 'active')
         .fold<double>(0, (sum, c) => sum + c.monthlySubscriptionInr);
-    final double affiliateArrInr = ws.referrals.fold<double>(
-      0,
-      (sum, r) => sum + r.monthlyPrice,
-    ) * 12;
+    final double affiliateArrInr =
+        ws.referrals.fold<double>(0, (sum, r) => sum + r.monthlyPrice) * 12;
 
     final points = _pointsForTimeframe(timeframe);
     final divisions = _divisionsForMultiplier(multiplier);
@@ -999,8 +1005,12 @@ class AdminConsoleRepository {
       maxDrawdownPct: 2.85,
       profitFactor: 2.34,
       subscriptionMrrInr: mrrInr > 0 ? mrrInr : 1485000.0,
-      affiliateGeneratedArrInr: affiliateArrInr > 0 ? affiliateArrInr : 4250000.0,
-      affiliatePayoutsSettledInr: ws.profile.totalPaidOut > 0 ? ws.profile.totalPaidOut : 1850000.0,
+      affiliateGeneratedArrInr: affiliateArrInr > 0
+          ? affiliateArrInr
+          : 4250000.0,
+      affiliatePayoutsSettledInr: ws.profile.totalPaidOut > 0
+          ? ws.profile.totalPaidOut
+          : 1850000.0,
       activeCircuitBreakerState: _circuitBreakerState,
       killswitchReason: _killswitchReason,
       points: points,
@@ -1148,49 +1158,46 @@ class AdminConsoleRepository {
         ],
       };
 
-  List<DeskDivisionPerformance> _divisionsForMultiplier(double multiplier) =>
-      <DeskDivisionPerformance>[
-        DeskDivisionPerformance(
-          divisionName: 'Index & Options Desk (NSE NFO)',
-          allocatedCapitalInr: 85000000, // ₹8.50 Cr
-          periodNetPnlInr: 2840000 * multiplier,
-          sharpeRatio: 2.64,
-          winRatePct: 68.4,
-          activeSeats: _seats
-              .where((s) => s.deskDivision.contains('Index'))
-              .length,
-        ),
-        DeskDivisionPerformance(
-          divisionName: 'Equities Momentum (NSE/BSE Cash)',
-          allocatedCapitalInr: 52000000, // ₹5.20 Cr
-          periodNetPnlInr: 1620000 * multiplier,
-          sharpeRatio: 2.18,
-          winRatePct: 63.2,
-          activeSeats: _seats
-              .where((s) => s.deskDivision.contains('Equities'))
-              .length,
-        ),
-        DeskDivisionPerformance(
-          divisionName: 'Quant & Statistical Arbitrage',
-          allocatedCapitalInr: 33000000, // ₹3.30 Cr
-          periodNetPnlInr: 1080000 * multiplier,
-          sharpeRatio: 3.12,
-          winRatePct: 74.5,
-          activeSeats: _seats
-              .where((s) => s.deskDivision.contains('Quant'))
-              .length,
-        ),
-        DeskDivisionPerformance(
-          divisionName: 'Commodities & Macro FX (MCX)',
-          allocatedCapitalInr: 15000000, // ₹1.50 Cr
-          periodNetPnlInr: 400000 * multiplier,
-          sharpeRatio: 1.76,
-          winRatePct: 58.9,
-          activeSeats: _seats
-              .where((s) => s.deskDivision.contains('Commodities'))
-              .length,
-        ),
-      ];
+  List<DeskDivisionPerformance> _divisionsForMultiplier(
+    double multiplier,
+  ) => <DeskDivisionPerformance>[
+    DeskDivisionPerformance(
+      divisionName: 'Index & Options Desk (NSE NFO)',
+      allocatedCapitalInr: 85000000, // ₹8.50 Cr
+      periodNetPnlInr: 2840000 * multiplier,
+      sharpeRatio: 2.64,
+      winRatePct: 68.4,
+      activeSeats: _seats.where((s) => s.deskDivision.contains('Index')).length,
+    ),
+    DeskDivisionPerformance(
+      divisionName: 'Equities Momentum (NSE/BSE Cash)',
+      allocatedCapitalInr: 52000000, // ₹5.20 Cr
+      periodNetPnlInr: 1620000 * multiplier,
+      sharpeRatio: 2.18,
+      winRatePct: 63.2,
+      activeSeats: _seats
+          .where((s) => s.deskDivision.contains('Equities'))
+          .length,
+    ),
+    DeskDivisionPerformance(
+      divisionName: 'Quant & Statistical Arbitrage',
+      allocatedCapitalInr: 33000000, // ₹3.30 Cr
+      periodNetPnlInr: 1080000 * multiplier,
+      sharpeRatio: 3.12,
+      winRatePct: 74.5,
+      activeSeats: _seats.where((s) => s.deskDivision.contains('Quant')).length,
+    ),
+    DeskDivisionPerformance(
+      divisionName: 'Commodities & Macro FX (MCX)',
+      allocatedCapitalInr: 15000000, // ₹1.50 Cr
+      periodNetPnlInr: 400000 * multiplier,
+      sharpeRatio: 1.76,
+      winRatePct: 58.9,
+      activeSeats: _seats
+          .where((s) => s.deskDivision.contains('Commodities'))
+          .length,
+    ),
+  ];
 
   static String _computeDeterministicHexDigest(String input) {
     final bytes = utf8.encode(input);
@@ -1201,8 +1208,7 @@ class AdminConsoleRepository {
     for (int i = 0; i < bytes.length; i++) {
       final int idx = i % 32;
       state[idx] = (state[idx] ^ bytes[i] ^ ((i * 31) & 0xFF)) & 0xFF;
-      state[(idx + 7) % 32] =
-          (state[(idx + 7) % 32] + state[idx] + 13) & 0xFF;
+      state[(idx + 7) % 32] = (state[(idx + 7) % 32] + state[idx] + 13) & 0xFF;
     }
     return state.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
@@ -1318,8 +1324,8 @@ class AdminConsoleRepository {
       AdminConsumerAccount(
         userId: 'f040d8c1-c063-45f4-b963-beb1a7f9fc9f',
         handle: 'admin',
-        displayName: 'TradeX System Admin',
-        email: 'admin@tradex.ai',
+        displayName: 'hejournal.in System Admin',
+        email: 'admin@hejournal.in',
         subscriptionTier: 'Enterprise',
         monthlySubscriptionInr: 7999.0,
         journalsCount: 7,
@@ -1534,7 +1540,7 @@ class AdminConsoleRepository {
         category: 'risk_control',
         action: 'DESK_RISK_POLICY_VERIFIED',
         targetType: 'desk_risk_configs',
-        targetLabel: 'TradeX Institutional Alpha Desk',
+        targetLabel: 'hejournal.in Institutional Alpha Desk',
         severity: 'info',
         ipAddress: '103.21.244.18 (Mumbai-DC1)',
         sha256Hash:

@@ -97,9 +97,7 @@ class _StrategiesPageState extends State<StrategiesPage> {
             ),
             if (_selectedStrategy != null && _versions.isNotEmpty) ...[
               UiGap.v(context.sp(theme.spacing.xl)),
-              AppVersionHistoryBlock(
-                versions: _versions,
-              ),
+              AppVersionHistoryBlock(versions: _versions),
             ],
           ],
         ),

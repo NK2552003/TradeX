@@ -78,10 +78,22 @@ class NoteAttachments {
 
   /// The repository reference inside an attachment URI, or null for anything
   /// else — an ordinary `https://` image somebody pasted, say.
-  static String? refOf(Uri uri) =>
-      uri.scheme == imageScheme || uri.scheme == fileScheme
-      ? '${uri.host}${uri.path}'
-      : null;
+  static String? refOf(Uri uri) {
+    if (uri.scheme == imageScheme || uri.scheme == fileScheme) {
+      final host = uri.host;
+      final path = uri.path;
+      if (host.isEmpty) return path;
+      if (path.isEmpty) return host;
+      return path.startsWith('/') ? '$host$path' : '$host/$path';
+    }
+    // Also support relative references or path-only markdown images
+    if (uri.scheme.isEmpty &&
+        uri.path.isNotEmpty &&
+        !uri.path.startsWith('http')) {
+      return uri.path;
+    }
+    return null;
+  }
 
   static bool isImageFile(String path) => const <String>[
     '.png',
@@ -171,9 +183,22 @@ class NoteAttachments {
       final File file = resolved?.scheme == 'file'
           ? File.fromUri(resolved!)
           : File(source);
-      final String canonical = await file.resolveSymbolicLinks();
-      if (!p.isWithin(boundary, canonical)) return null;
-      return File(canonical).readAsBytes();
+      if (await file.exists()) {
+        final String canonical = await file.resolveSymbolicLinks();
+        if (p.isWithin(boundary, canonical)) {
+          return file.readAsBytes();
+        }
+      }
+      // Check if staged filename matches in note_attachments directory
+      final String name = p.basename(source);
+      final File fallback = File(p.join(root.path, name));
+      if (await fallback.exists()) {
+        final String canonical = await fallback.resolveSymbolicLinks();
+        if (p.isWithin(boundary, canonical)) {
+          return fallback.readAsBytes();
+        }
+      }
+      return null;
     } catch (_) {
       return null;
     }

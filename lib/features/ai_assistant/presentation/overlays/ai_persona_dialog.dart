@@ -8,7 +8,10 @@ class AiPersonaDialog extends StatelessWidget {
 
   const AiPersonaDialog({super.key, required this.current});
 
-  static Future<AiPersona?> show(BuildContext context, {required AiPersona current}) {
+  static Future<AiPersona?> show(
+    BuildContext context, {
+    required AiPersona current,
+  }) {
     return showDialog<AiPersona>(
       context: context,
       builder: (context) => AiPersonaDialog(current: current),
@@ -24,7 +27,10 @@ class AiPersonaDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('The persona shapes how the copilot frames its answers', style: context.uiText.body),
+            Text(
+              'The persona shapes how the copilot frames its answers',
+              style: context.uiText.body,
+            ),
             SizedBox(height: context.sp(context.ui.spacing.md)),
             AiPersonaSelector(
               selected: current,

@@ -20,6 +20,7 @@ class UiChartSeries {
   const UiChartSeries({
     required this.name,
     this.color,
+    this.negativeColor,
     this.type = UiChartSeriesType.line,
     this.axis = UiChartAxis.left,
     this.lineGlow = false,
@@ -30,6 +31,7 @@ class UiChartSeries {
 
   final String name;
   final Color? color;
+  final Color? negativeColor;
   final UiChartSeriesType type;
   final UiChartAxis axis;
   final bool lineGlow;
@@ -183,11 +185,8 @@ class _UiChartState extends State<UiChart> {
         void track(Offset local) {
           if (!widget.interactive || widget.data.isEmpty) return;
           final double plotW = w - pad.left - pad.right;
-          final double t =
-              ((local.dx - pad.left) / (plotW <= 0 ? 1 : plotW)).clamp(
-                0.0,
-                1.0,
-              );
+          final double t = ((local.dx - pad.left) / (plotW <= 0 ? 1 : plotW))
+              .clamp(0.0, 1.0);
           final int i = (t * (widget.data.length - 1)).round().clamp(
             0,
             widget.data.length - 1,
@@ -212,11 +211,7 @@ class _UiChartState extends State<UiChart> {
             curved: widget.curved,
             formatter: fmt,
             // Label density adapts to available width.
-            maxXLabels: ctx.uiRes.pick<int>(
-              mobile: 4,
-              tablet: 6,
-              desktop: 8,
-            ),
+            maxXLabels: ctx.uiRes.pick<int>(mobile: 4, tablet: 6, desktop: 8),
             padding: pad,
             strokeWidth: ctx.sz(2),
             activeIndex: widget.interactive ? _active : null,
@@ -332,10 +327,7 @@ class _UiChartState extends State<UiChart> {
           ),
           SizedBox(height: context.sp(theme.spacing.md)),
         ],
-        SizedBox(
-          height: h,
-          child: chartBody,
-        ),
+        SizedBox(height: h, child: chartBody),
       ],
     );
   }
@@ -519,6 +511,11 @@ class _ChartPainter extends CustomPainter {
     // Include zero baseline for bar series.
     if (series.any((UiChartSeries s) => s.type == UiChartSeriesType.bar)) {
       minY = math.min(minY, 0);
+      maxY = math.max(maxY, 0);
+    }
+    if (minY == maxY) {
+      minY -= 1;
+      maxY += 1;
     }
 
     double yOf(double v) =>
@@ -561,6 +558,10 @@ class _ChartPainter extends CustomPainter {
       }
     }
 
+    // Clip plotting area so bars/lines never overflow the card header or outer boundary
+    canvas.save();
+    canvas.clipRect(plot);
+
     // Bars first so lines draw above them.
     final List<int> barIdx = <int>[
       for (int i = 0; i < series.length; i++)
@@ -595,24 +596,35 @@ class _ChartPainter extends CustomPainter {
       } else {
         final double barW = slot * 0.6 / barIdx.length;
         for (int b = 0; b < barIdx.length; b++) {
-          final Paint paint = Paint()..color = colors[barIdx[b]];
+          final UiChartSeries currentSeries = series[barIdx[b]];
           for (int i = 0; i < data.length; i++) {
             final double v = _value(i, barIdx[b]);
             final double cx = plot.left + slot * (i + 0.5);
             final double left = cx - (barIdx.length * barW) / 2 + b * barW;
+            final double zeroY = yOf(0);
+            final double valY = yOf(v);
             final Rect bar = Rect.fromLTRB(
               left,
-              math.min(yOf(v), yOf(0)),
+              math.min(valY, zeroY),
               left + barW * 0.9,
-              math.max(yOf(v), yOf(0)),
+              math.max(valY, zeroY),
             );
+            final bool isNeg = v < 0;
+            final Color barColor =
+                (isNeg && currentSeries.negativeColor != null)
+                    ? currentSeries.negativeColor!
+                    : colors[barIdx[b]];
+            final Paint barPaint = Paint()..color = barColor;
+            final double r = math.min(strokeWidth, (bar.height / 2).abs());
             canvas.drawRRect(
               RRect.fromRectAndCorners(
                 bar,
-                topLeft: Radius.circular(strokeWidth),
-                topRight: Radius.circular(strokeWidth),
+                topLeft: isNeg ? Radius.zero : Radius.circular(r),
+                topRight: isNeg ? Radius.zero : Radius.circular(r),
+                bottomLeft: isNeg ? Radius.circular(r) : Radius.zero,
+                bottomRight: isNeg ? Radius.circular(r) : Radius.zero,
               ),
-              paint,
+              barPaint,
             );
           }
         }
@@ -732,6 +744,7 @@ class _ChartPainter extends CustomPainter {
     }
 
     _drawCrosshair(canvas, plot, minY, maxY);
+    canvas.restore();
   }
 
   double _value(int pointIndex, int seriesIndex) {

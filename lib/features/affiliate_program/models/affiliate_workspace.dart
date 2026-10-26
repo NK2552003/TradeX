@@ -63,11 +63,12 @@ class AffiliateRecord {
   DateTime? date(String key) => DateTime.tryParse(text(key));
 
   String get displayName => text(
-        'display_name',
-        text('full_name', text('affiliate_code', 'Partner')),
-      );
-  String get referralSlug =>
-      text('custom_slug').isNotEmpty ? text('custom_slug') : text('affiliate_code');
+    'display_name',
+    text('full_name', text('affiliate_code', 'Partner')),
+  );
+  String get referralSlug => text('custom_slug').isNotEmpty
+      ? text('custom_slug')
+      : text('affiliate_code');
   String get tier => text('tier', 'standard');
   String get tierId => text('tier_code', text('tier', 'standard'));
   double get commissionRate =>
@@ -75,24 +76,20 @@ class AffiliateRecord {
   double get lifetimeEarnings => number('total_earnings');
   double get unpaidBalance => number('unpaid_balance');
   double get totalPaidOut => number('paid_earnings');
-  double get monthlyPrice =>
-      number('monthly_price_inr') > 0
-          ? number('monthly_price_inr')
-          : number('bonus_awarded');
+  double get monthlyPrice => number('monthly_price_inr') > 0
+      ? number('monthly_price_inr')
+      : number('bonus_awarded');
   double get amount =>
       number('amount') > 0 ? number('amount') : number('gross_amount_inr');
-  double get grossAmount =>
-      number('gross_amount_inr') > 0
-          ? number('gross_amount_inr')
-          : number('amount');
-  double get tdsAmount =>
-      number('tds_amount_inr') > 0
-          ? number('tds_amount_inr')
-          : double.parse((grossAmount * 0.05).toStringAsFixed(2));
-  double get netAmount =>
-      number('net_amount_inr') > 0
-          ? number('net_amount_inr')
-          : double.parse((grossAmount - tdsAmount).toStringAsFixed(2));
+  double get grossAmount => number('gross_amount_inr') > 0
+      ? number('gross_amount_inr')
+      : number('amount');
+  double get tdsAmount => number('tds_amount_inr') > 0
+      ? number('tds_amount_inr')
+      : double.parse((grossAmount * 0.05).toStringAsFixed(2));
+  double get netAmount => number('net_amount_inr') > 0
+      ? number('net_amount_inr')
+      : double.parse((grossAmount - tdsAmount).toStringAsFixed(2));
   String get methodLabel =>
       text('payout_method', 'upi').toUpperCase().replaceAll('_', ' ');
   String get destination {
@@ -103,8 +100,7 @@ class AffiliateRecord {
         text('payout_method', 'UPI');
   }
 
-  DateTime get requestedAt =>
-      date('created_at') ?? DateTime.now();
+  DateTime get requestedAt => date('created_at') ?? DateTime.now();
   String get referenceCode => text('transaction_reference');
   String get status => text('status', 'pending');
 
@@ -154,8 +150,9 @@ class AffiliateWorkspace {
   }
 
   String get code => profile.text('affiliate_code');
-  String get slug =>
-      profile.text('custom_slug').isNotEmpty ? profile.text('custom_slug') : code;
+  String get slug => profile.text('custom_slug').isNotEmpty
+      ? profile.text('custom_slug')
+      : code;
   String get referralUrl =>
       slug.isEmpty ? '' : '${AppConstants.appUrl}/r/$slug';
 
@@ -192,21 +189,21 @@ class AffiliateWorkspace {
         '';
   }
 
-  String get bankName => profile.map('payout_details')['bank_name']?.toString() ?? '';
+  String get bankName =>
+      profile.map('payout_details')['bank_name']?.toString() ?? '';
   String get accountHolder =>
       profile.map('payout_details')['account_holder']?.toString() ?? '';
   String get accountNumber =>
       profile.map('payout_details')['account_number']?.toString() ?? '';
-  String get ifscCode => profile.map('payout_details')['ifsc']?.toString() ?? '';
+  String get ifscCode =>
+      profile.map('payout_details')['ifsc']?.toString() ?? '';
   String get upiId => profile.map('payout_details')['upi_id']?.toString() ?? '';
-  String get panNumber =>
-      profile.text('pan_number').isNotEmpty
-          ? profile.text('pan_number')
-          : (profile.map('payout_details')['pan']?.toString() ?? '');
-  String get gstin =>
-      profile.text('gstin').isNotEmpty
-          ? profile.text('gstin')
-          : (profile.map('payout_details')['gstin']?.toString() ?? '');
+  String get panNumber => profile.text('pan_number').isNotEmpty
+      ? profile.text('pan_number')
+      : (profile.map('payout_details')['pan']?.toString() ?? '');
+  String get gstin => profile.text('gstin').isNotEmpty
+      ? profile.text('gstin')
+      : (profile.map('payout_details')['gstin']?.toString() ?? '');
   bool get gstRegistered =>
       profile.flag('gst_registered') || gstin.trim().isNotEmpty;
 
@@ -218,10 +215,9 @@ class AffiliateWorkspace {
   double tdsAmountFor(num gross) =>
       double.parse((gross.toDouble() * tdsRate).toStringAsFixed(2));
 
-  double gstAmountFor(num gross) =>
-      gstRegistered
-          ? double.parse((gross.toDouble() * 0.18).toStringAsFixed(2))
-          : 0.0;
+  double gstAmountFor(num gross) => gstRegistered
+      ? double.parse((gross.toDouble() * 0.18).toStringAsFixed(2))
+      : 0.0;
 
   double netPayoutFor(num gross) => double.parse(
     (gross.toDouble() - tdsAmountFor(gross) + gstAmountFor(gross))

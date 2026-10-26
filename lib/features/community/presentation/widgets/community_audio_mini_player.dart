@@ -9,10 +9,7 @@ import 'package:tradex/features/community/presentation/widgets/community_live_ro
 /// Floating docked mini-player mounted in the community platform when a trader
 /// is tuned into an active live audio space.
 class CommunityAudioMiniPlayer extends StatefulWidget {
-  const CommunityAudioMiniPlayer({
-    super.key,
-    required this.repository,
-  });
+  const CommunityAudioMiniPlayer({super.key, required this.repository});
 
   final CommunityRepository repository;
 
@@ -107,14 +104,20 @@ class _CommunityAudioMiniPlayerState extends State<CommunityAudioMiniPlayer>
                     return Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        _WaveBar(height: 6 + (v * 10), color: theme.colors.danger),
+                        _WaveBar(
+                          height: 6 + (v * 10),
+                          color: theme.colors.danger,
+                        ),
                         const SizedBox(width: 2),
                         _WaveBar(
                           height: 14 - (v * 8),
                           color: theme.colors.danger,
                         ),
                         const SizedBox(width: 2),
-                        _WaveBar(height: 8 + (v * 8), color: theme.colors.danger),
+                        _WaveBar(
+                          height: 8 + (v * 8),
+                          color: theme.colors.danger,
+                        ),
                       ],
                     );
                   },

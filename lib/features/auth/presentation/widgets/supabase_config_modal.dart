@@ -99,7 +99,7 @@ class _SupabaseConfigModalState extends State<SupabaseConfigModal> {
                   ? 'Supabase Connected'
                   : 'Local Mock Backend Mode Active',
               message: isConnected
-                  ? 'TradeX is connected to live Supabase backend instance.'
+                  ? 'hejournal.in is connected to live Supabase backend instance.'
                   : 'Currently operating in local mock mode. Enter your Supabase Project URL & Anon Key below to connect live authentication.',
               intent: isConnected ? UiIntent.success : UiIntent.info,
             ),

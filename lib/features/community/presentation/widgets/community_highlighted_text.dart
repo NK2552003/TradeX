@@ -59,10 +59,7 @@ class CommunityHighlightedText extends StatelessWidget {
     }
     if (lastIndex < text.length) {
       spans.add(
-        TextSpan(
-          text: text.substring(lastIndex),
-          style: effectiveStyle,
-        ),
+        TextSpan(text: text.substring(lastIndex), style: effectiveStyle),
       );
     }
 

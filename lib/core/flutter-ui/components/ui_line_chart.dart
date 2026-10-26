@@ -38,12 +38,7 @@ class UiLineChart extends StatelessWidget {
       if (p is UiChartPoint) {
         result.add(p);
       } else if (p is num) {
-        result.add(
-          UiChartPoint(
-            label: '$i',
-            values: <double>[p.toDouble()],
-          ),
-        );
+        result.add(UiChartPoint(label: '$i', values: <double>[p.toDouble()]));
       } else if (p is Map<String, dynamic>) {
         final String label = p['label']?.toString() ?? '$i';
         final List<double> vals = <double>[];
@@ -66,6 +61,7 @@ class UiLineChart extends StatelessWidget {
     }
     return result;
   }
+
   final double? height;
   final bool showGrid;
   final bool showAxisLabels;

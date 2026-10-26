@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
@@ -73,14 +74,17 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
   }
 
   void _showRenameDialog(BuildContext context, MessageThread thread) {
-    final TextEditingController controller =
-        TextEditingController(text: thread.groupTitle ?? '');
+    final TextEditingController controller = TextEditingController(
+      text: thread.groupTitle ?? '',
+    );
     UiDialog.show<void>(
       context,
       child: UiDialog(
         title: 'Rename Group',
         content: Padding(
-          padding: EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+          padding: EdgeInsets.symmetric(
+            vertical: context.sp(context.ui.spacing.sm),
+          ),
           child: UiInput(
             label: 'Group Name',
             controller: controller,
@@ -118,10 +122,16 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
   }
 
   void _showAddMemberDialog(BuildContext context, MessageThread thread) {
-    final List<AppTrader> candidates = DemoDataSource.instance
-        .traders()
-        .where((AppTrader t) => !thread.participants.any((AppTrader p) => p.id == t.id))
-        .toList();
+    List<AppTrader> candidates = [];
+    if (CustomerDataPolicy.allowDemo) {
+      candidates = DemoDataSource.instance
+          .traders()
+          .where(
+            (AppTrader t) =>
+                !thread.participants.any((AppTrader p) => p.id == t.id),
+          )
+          .toList();
+    }
 
     UiDialog.show<void>(
       context,
@@ -145,7 +155,8 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
               : ListView.separated(
                   shrinkWrap: true,
                   itemCount: candidates.length,
-                  separatorBuilder: (BuildContext _, int _) => const UiDivider(),
+                  separatorBuilder: (BuildContext _, int _) =>
+                      const UiDivider(),
                   itemBuilder: (BuildContext ctx, int i) {
                     final AppTrader candidate = candidates[i];
                     return Padding(
@@ -154,7 +165,9 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
                       ),
                       child: Row(
                         children: <Widget>[
-                          UiAvatar(name: candidate.displayName ?? candidate.handle),
+                          UiAvatar(
+                            name: candidate.displayName ?? candidate.handle,
+                          ),
                           SizedBox(width: context.sp(context.ui.spacing.sm)),
                           Expanded(
                             child: Column(
@@ -179,7 +192,10 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
                             variant: UiVariant.soft,
                             intent: UiIntent.primary,
                             onPressed: () {
-                              widget.repository.addParticipant(thread.id, candidate);
+                              widget.repository.addParticipant(
+                                thread.id,
+                                candidate,
+                              );
                               Navigator.of(context).pop();
                               UiToastScope.maybeOf(context)?.show(
                                 UiToastData(
@@ -214,7 +230,9 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
       child: UiDialog(
         title: 'Clear Chat History',
         content: Padding(
-          padding: EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+          padding: EdgeInsets.symmetric(
+            vertical: context.sp(context.ui.spacing.sm),
+          ),
           child: Text(
             'Are you sure you want to clear all messages in this conversation? This cannot be undone.',
             style: context.uiText.body,
@@ -253,7 +271,9 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
       child: UiDialog(
         title: isGroup ? 'Leave Group' : 'Delete Conversation',
         content: Padding(
-          padding: EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+          padding: EdgeInsets.symmetric(
+            vertical: context.sp(context.ui.spacing.sm),
+          ),
           child: Text(
             isGroup
                 ? 'Are you sure you want to leave "${thread.title}"? You will no longer receive new messages.'
@@ -297,7 +317,9 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
       child: UiDialog(
         title: 'Block @${thread.peer.handle}',
         content: Padding(
-          padding: EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+          padding: EdgeInsets.symmetric(
+            vertical: context.sp(context.ui.spacing.sm),
+          ),
           child: Text(
             'Are you sure you want to block @${thread.peer.handle}? They will no longer be able to message you.',
             style: context.uiText.body,
@@ -435,8 +457,11 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
             ),
             if (thread.peer.verified && !thread.isGroup) ...<Widget>[
               SizedBox(width: context.sp(theme.spacing.xxs)),
-              Icon(Icons.verified_rounded,
-                  size: context.sz(18), color: colors.primary),
+              Icon(
+                Icons.verified_rounded,
+                size: context.sz(18),
+                color: colors.primary,
+              ),
             ],
             if (thread.isGroup) ...<Widget>[
               SizedBox(width: context.sp(theme.spacing.xxs)),
@@ -633,7 +658,9 @@ class _ConversationInfoSheetState extends State<ConversationInfoSheet> {
 
   Widget _mutedLine(BuildContext context, String text) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+      padding: EdgeInsets.symmetric(
+        vertical: context.sp(context.ui.spacing.sm),
+      ),
       child: Text(
         text,
         style: context.uiText.body.copyWith(
