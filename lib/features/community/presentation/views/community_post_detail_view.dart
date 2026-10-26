@@ -125,12 +125,14 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
       context,
       maxWidth: 680,
       child: Builder(
-        builder: (dialogContext) => CommunityComposerCard(
-          author: widget.currentUser,
-          repository: widget.repository,
-          quotedPost: post,
-          onPostCreated: () => Navigator.of(dialogContext).pop(),
-          onClose: () => Navigator.of(dialogContext).pop(),
+        builder: (dialogContext) => SingleChildScrollView(
+          child: CommunityComposerCard(
+            author: widget.currentUser,
+            repository: widget.repository,
+            quotedPost: post,
+            onPostCreated: () => Navigator.of(dialogContext).pop(),
+            onClose: () => Navigator.of(dialogContext).pop(),
+          ),
         ),
       ),
     );

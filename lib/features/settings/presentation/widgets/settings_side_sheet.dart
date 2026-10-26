@@ -15,6 +15,7 @@ Future<T?> showSettingsSideSheet<T>(
   double desktopWidthRatio = 0.52,
   double? maxWidth,
   double? minDesktopWidth,
+  bool scrollable = false,
 }) {
   final UiTheme initialTheme = context.ui;
 
@@ -182,7 +183,22 @@ Future<T?> showSettingsSideSheet<T>(
                               ),
 
                             // Side Sheet Body Content
-                            Expanded(child: child),
+                            Expanded(
+                              child: scrollable
+                                  ? Scrollbar(
+                                      child: SingleChildScrollView(
+                                        padding: EdgeInsets.only(
+                                          bottom: isMobile
+                                              ? bottomInset + 16.0
+                                              : ctx.sp(theme.spacing.lg),
+                                        ),
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        child: child,
+                                      ),
+                                    )
+                                  : child,
+                            ),
                           ],
                         ),
                       ),

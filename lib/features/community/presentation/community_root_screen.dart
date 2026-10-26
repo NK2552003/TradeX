@@ -589,6 +589,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
         desktopWidthRatio: 0.52,
         maxWidth: 720,
         minDesktopWidth: 540,
+        scrollable: true,
         child: CommunityComposerCard(
           author: _currentAuthor,
           repository: _repo,

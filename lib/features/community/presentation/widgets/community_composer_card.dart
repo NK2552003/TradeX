@@ -1301,16 +1301,23 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                     ),
                   ],
                   SizedBox(width: context.sp(theme.spacing.xxs)),
-                  Flexible(
-                    child: Text(
-                      '@${widget.author.handle}',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
-                        fontSize: context.fs(12),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final cleanHandle = widget.author.handle
+                          .replaceFirst(RegExp(r'^@+'), '')
+                          .trim();
+                      return Flexible(
+                        child: Text(
+                          '@$cleanHandle',
+                          style: context.uiText.caption.copyWith(
+                            color: theme.colors.foregroundMuted,
+                            fontSize: context.fs(12),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
