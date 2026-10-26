@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
 import 'package:tradex/features/ai_assistant/presentation/widgets/ai_assistant_widgets.dart';
@@ -308,9 +310,9 @@ class _AiHistoryViewState extends State<AiHistoryView> {
                   ),
                 ),
                 SizedBox(width: context.sp(context.ui.spacing.sm)),
-                UiButton(
-                  icon: Icons.add,
-                  label: 'New chat',
+                UiIconButton(
+                  icon: Icons.add_comment_outlined,
+                  tooltip: 'New chat',
                   onPressed: widget.onNewThread,
                 ),
               ],

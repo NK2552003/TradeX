@@ -31,8 +31,10 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
   String _name = '', _slug = '', _channel = 'youtube';
   String? _error;
   bool _saving = false;
+  bool _slugEdited = false;
 
   Future<void> _create(VoidCallback reload) async {
+    if (_saving) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -43,6 +45,7 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
       setState(() {
         _name = '';
         _slug = '';
+        _slugEdited = false;
         _saving = false;
       });
       reload();
@@ -61,10 +64,7 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
     }
   }
 
-  Future<void> _toggle(
-    AffiliateRecord campaign,
-    VoidCallback reload,
-  ) async {
+  Future<void> _toggle(AffiliateRecord campaign, VoidCallback reload) async {
     final active = campaign.text('status') != 'active';
     try {
       await _repo.setCampaignStatus(campaign.id, active);
@@ -145,11 +145,10 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
           (sum, c) => sum + c.number('revenue_generated_inr'),
         );
         final builderCard = UiCard(
+          title: 'Create Campaign Link',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Create Campaign Link', style: context.uiText.heading),
-              UiGap.v(context.ui.spacing.sm),
+            children: <Widget>[
               if (_error != null) ...[
                 UiCallout(
                   title: 'Check campaign details',
@@ -165,7 +164,7 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
                   hintText: 'NIFTY Weekly Journal Walkthrough',
                   onChanged: (v) => setState(() {
                     _name = v;
-                    if (_slug.isEmpty) {
+                    if (!_slugEdited) {
                       _slug = v
                           .toLowerCase()
                           .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
@@ -196,7 +195,10 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
                 child: UiInput(
                   value: _slug,
                   hintText: 'weekly-journal',
-                  onChanged: (v) => setState(() => _slug = v),
+                  onChanged: (v) => setState(() {
+                    _slug = v;
+                    _slugEdited = true;
+                  }),
                 ),
               ),
               UiGap.v(context.ui.spacing.md),
@@ -213,25 +215,15 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
 
         final campaignsCard = UiCard(
           padding: EdgeInsets.zero,
+          headerPadding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+          title: 'Campaign Links',
+          trailing: UiBadge(
+            label: 'Attributed: ${w.money(totalCampaignRevenue)}',
+            intent: UiIntent.bullish,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
-                child: Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: context.sp(context.ui.spacing.sm),
-                  runSpacing: context.sp(context.ui.spacing.xs),
-                  children: [
-                    Text('Campaign Links', style: context.uiText.heading),
-                    UiBadge(
-                      label: 'Attributed: ${w.money(totalCampaignRevenue)}',
-                      intent: UiIntent.bullish,
-                    ),
-                  ],
-                ),
-              ),
+            children: <Widget>[
               UiTable<AffiliateRecord>(
                 rows: w.campaigns,
                 rowKey: (c) => c.id,
@@ -240,6 +232,7 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
                 columns: [
                   UiTableColumn<AffiliateRecord>(
                     id: 'name',
+                    flex: 2,
                     label: 'Campaign',
                     cellBuilder: (ctx, c) => Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,6 +333,7 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
             ),
             UiGap.v(context.ui.spacing.sm),
             UiCardGrid(
+              equalHeight: true,
               minTileWidth: 270,
               children: [
                 for (final asset in w.assets)
@@ -365,7 +359,10 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
                         ),
                         UiGap.v(context.ui.spacing.sm),
                         Text(
-                          asset.text('body').replaceAll('{link}', w.referralUrl),
+                          asset
+                              .text('body')
+                              .replaceAll('{{referral_url}}', w.referralUrl)
+                              .replaceAll('{link}', w.referralUrl),
                           style: context.uiText.caption,
                         ),
                         UiGap.v(context.ui.spacing.md),
@@ -379,6 +376,7 @@ class _AffiliateMarketingPageState extends State<AffiliateMarketingPage> {
                             asset.text('title'),
                             asset
                                 .text('body')
+                                .replaceAll('{{referral_url}}', w.referralUrl)
                                 .replaceAll('{link}', w.referralUrl),
                           ),
                         ),

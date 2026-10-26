@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
 import 'package:tradex/features/admin_console/models/admin_console_models.dart';
 import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
@@ -7,10 +9,7 @@ import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dar
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 
 class AdminOverviewPage extends StatefulWidget {
-  const AdminOverviewPage({
-    super.key,
-    this.onNavigate,
-  });
+  const AdminOverviewPage({super.key, this.onNavigate});
 
   final ValueChanged<String>? onNavigate;
 
@@ -20,6 +19,8 @@ class AdminOverviewPage extends StatefulWidget {
 
 class _AdminOverviewPageState extends State<AdminOverviewPage> {
   final AdminConsoleRepository _repo = AdminConsoleRepository.instance;
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _queueKey = GlobalKey();
 
   bool _loading = true;
   AdminDeskAnalyticsSnapshot? _snapshot;
@@ -34,10 +35,20 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
   List<AccountDeletionRequestModel> _deletions =
       const <AccountDeletionRequestModel>[];
 
+  // In-memory resolved states for instant inline resolution morphing
+  final Map<String, String> _resolvedOrders = <String, String>{};
+  final Map<String, String> _resolvedBreaches = <String, String>{};
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -69,7 +80,9 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
           return <AffiliateApplicationModel>[];
         }),
         _repo.getAffiliateWorkspaceSnapshot().catchError((e) {
-          debugPrint('AdminOverviewPage getAffiliateWorkspaceSnapshot error: $e');
+          debugPrint(
+            'AdminOverviewPage getAffiliateWorkspaceSnapshot error: $e',
+          );
           return AffiliateWorkspace.fromJson(const <String, Object?>{});
         }),
         _repo.listDeletionRequests().catchError((e) {
@@ -98,6 +111,17 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
     }
   }
 
+  void _scrollToQueue() {
+    final ctx = _queueKey.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
   Future<void> _toggleCircuitBreaker(String currentState) async {
     final bool isHalted = currentState == 'halted';
     final TextEditingController reasonCtrl = TextEditingController(
@@ -106,45 +130,23 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
           : 'Emergency volatility circuit breaker triggered by Desk Admin.',
     );
 
-    final bool? confirmed = await showDialog<bool>(
+    final bool? confirmed = await UiDialog.present<bool>(
       context: context,
       builder: (BuildContext ctx) => UiDialog(
         title: isHalted
             ? 'Resume Institutional Desk Execution?'
-            : 'Engage Emergency Desk Killswitch?',
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            UiCallout(
-              title: isHalted
-                  ? 'Unfreezing all active trader seats'
-                  : 'All non-owner seats will be frozen immediately',
-              message: isHalted
-                  ? 'Traders will regain order placement capabilities within their assigned INR capital and drawdown limits.'
-                  : 'New pre-trade orders across NSE, BSE, NFO, and MCX will be blocked until the circuit breaker is reset.',
-              intent: isHalted ? UiIntent.success : UiIntent.danger,
-            ),
-            SizedBox(height: ctx.sp(ctx.ui.spacing.md)),
-            UiField(
-              label: 'Compliance Audit Reason',
-              required: true,
-              child: UiTextarea(
-                controller: reasonCtrl,
-                minLines: 2,
-                maxLines: 4,
-              ),
-            ),
-          ],
-        ),
+            : 'Halt the whole desk?',
+        description: isHalted
+            ? 'This unfreezes every active seat and resumes order placement within assigned capital caps.'
+            : 'This freezes every seat and blocks new orders until you lift the halt.',
         actions: <Widget>[
           UiButton(
-            label: 'Cancel',
+            label: isHalted ? 'Cancel' : 'Keep trading',
             variant: UiVariant.outline,
             onPressed: () => Navigator.of(ctx).pop(false),
           ),
           UiButton(
-            label: isHalted ? 'Resume Desk' : 'Engage Killswitch',
+            label: isHalted ? 'Resume Desk Execution' : 'Freeze all seats',
             intent: isHalted ? UiIntent.success : UiIntent.danger,
             variant: isHalted ? UiVariant.solid : UiVariant.destructive,
             onPressed: () => Navigator.of(ctx).pop(true),
@@ -162,12 +164,10 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
       if (mounted) {
         UiToast.show(
           context,
-          title: isHalted
-              ? 'Desk Execution Resumed'
-              : 'Emergency Killswitch Engaged',
+          title: isHalted ? 'Desk Execution Resumed' : 'All seats frozen',
           message: isHalted
-              ? 'Circuit breaker reset to ARMED. Audit hash recorded.'
-              : 'All trader seats frozen and logged to SHA-256 compliance ledger.',
+              ? 'Circuit breaker reset to armed. All active trader seats unlocked.'
+              : 'All trader seats frozen and pre-trade order routing blocked.',
           intent: isHalted ? UiIntent.success : UiIntent.danger,
         );
       }
@@ -176,707 +176,1213 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
     }
   }
 
-  Future<void> _quickReviewOrder(DeskOrderApproval order, bool approve) async {
+  Future<void> _handleOrderAction(DeskOrderApproval order, bool approve) async {
+    final String statusMsg = approve ? 'Order approved' : 'Order rejected';
+    setState(() {
+      _resolvedOrders[order.id] = statusMsg;
+    });
+    UiToast.show(
+      context,
+      title: statusMsg,
+      message:
+          '${order.side} ${order.quantity} ${order.symbol} (${formatInrCompact(order.notionalValueInr)})',
+      intent: approve ? UiIntent.success : UiIntent.danger,
+    );
     await _repo.reviewOrderApproval(
       orderId: order.id,
       approve: approve,
       notes: approve
-          ? 'Quick-approved from Desk Console.'
-          : 'Rejected from Desk Console due to exposure concentration.',
+          ? 'Approved from Institutional Desk Console.'
+          : 'Rejected from Institutional Desk Console.',
     );
-    await _load();
-    if (mounted) {
-      UiToast.show(
-        context,
-        title: approve ? 'Pre-Trade Order Approved' : 'Pre-Trade Order Rejected',
-        message: '${order.side} ${order.quantity} ${order.symbol} (${formatInrCompact(order.notionalValueInr)}) updated.',
-        intent: approve ? UiIntent.success : UiIntent.warning,
-      );
-    }
+  }
+
+  Future<void> _handleBreachAction(DeskRiskBreach breach, bool freeze) async {
+    final String statusMsg = freeze ? 'Seat frozen' : 'Marked resolved';
+    setState(() {
+      _resolvedBreaches[breach.id] = statusMsg;
+    });
+    UiToast.show(
+      context,
+      title: statusMsg,
+      message: '${breach.traderName} (${breach.symbol}) updated.',
+      intent: freeze ? UiIntent.danger : UiIntent.success,
+    );
+    await _repo.updateRiskBreachStatus(
+      breachId: breach.id,
+      status: freeze ? 'trader_frozen' : 'resolved',
+      freezeTrader: freeze,
+      resolutionNotes: freeze
+          ? 'Seat frozen from Institutional Desk Console.'
+          : 'Breach marked resolved from Institutional Desk Console.',
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
+    final UiColors c = theme.colors;
+
     if (_loading || _snapshot == null) {
       return UiSkeleton.dashboard();
     }
+
     final AdminDeskAnalyticsSnapshot snap = _snapshot!;
     final bool isHalted = snap.activeCircuitBreakerState == 'halted';
+
+    // Pending list minus any resolved in-memory during this session
     final List<DeskOrderApproval> pendingOrders = _orders
-        .where((o) => o.status == 'pending')
+        .where((o) => o.status == 'pending' && !_resolvedOrders.containsKey(o.id))
         .toList();
     final List<DeskRiskBreach> openBreaches = _breaches
-        .where((b) => b.status == 'open' || b.status == 'acknowledged')
+        .where((b) =>
+            (b.status == 'open' || b.status == 'acknowledged') &&
+            !_resolvedBreaches.containsKey(b.id))
         .toList();
+
     final int pendingAffiliates = _applications
         .where((a) => a.status == AffiliateApplicationStatus.pending)
         .length;
-    final int pendingPayouts = (_affiliateWorkspace?.payouts ?? const <AffiliatePayout>[])
-        .where((p) => p.status == 'pending' || p.status == 'processing')
-        .length;
+    final int pendingPayouts =
+        (_affiliateWorkspace?.payouts ?? const <AffiliatePayout>[])
+            .where((p) => p.status == 'pending' || p.status == 'processing')
+            .length;
     final int pendingDeletions = _deletions
         .where((d) => d.status != 'data_purged' && d.status != 'cancelled')
         .length;
 
-    return UiPage(
-      maxWidth: 1440,
-      header: UiHeader(
-        title: 'Institutional Desk Console',
-        subtitle:
-            'Real-time INR capital allocation, pre-trade risk gates, affiliate governance, and DPDP data purge supervision.',
-        leading: Icon(Icons.space_dashboard_outlined, color: theme.colors.primary),
-        actions: <Widget>[
-          UiButton(
-            label: 'Refresh',
-            leadingIcon: Icons.refresh_rounded,
-            variant: UiVariant.outline,
-            size: UiSize.sm,
-            onPressed: _load,
-          ),
-          UiButton(
-            label: isHalted ? 'Resume Desk Execution' : 'Emergency Killswitch',
-            leadingIcon: isHalted
-                ? Icons.play_circle_outline_rounded
-                : Icons.gpp_maybe_outlined,
-            intent: isHalted ? UiIntent.success : UiIntent.danger,
-            variant: isHalted ? UiVariant.solid : UiVariant.destructive,
-            size: UiSize.sm,
-            onPressed: () =>
-                _toggleCircuitBreaker(snap.activeCircuitBreakerState),
-          ),
-        ],
+    return Scaffold(
+      backgroundColor: c.background,
+      body: SingleChildScrollView(
+        controller: _scrollController,
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // Top Frozen Banner
+            if (isHalted)
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(
+                  vertical: context.sp(theme.spacing.sm),
+                  horizontal: context.sp(theme.spacing.md),
+                ),
+                color: c.destructive,
+                child: Center(
+                  child: Text(
+                    'Desk halted: all seats are frozen',
+                    style: context.uiText.bodyStrong.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+
+            // Main Wrap Container
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1240),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(theme.spacing.md),
+                    vertical: context.sp(theme.spacing.sm),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      // Top bar / Header
+                      Padding(
+                        padding: EdgeInsets.only(
+                          top: context.sp(theme.spacing.sm),
+                          bottom: context.sp(theme.spacing.md),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(
+                                    'Institutional Desk Console',
+                                    style: context.uiText.title.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 30,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  SizedBox(height: context.sp(theme.spacing.xxs)),
+                                  Text(
+                                    'Live INR capital, pre-trade risk checks, partner payouts and data-deletion requests.',
+                                    style: context.uiText.caption.copyWith(
+                                      color: c.foregroundMuted,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Wrap(
+                              spacing: context.sp(theme.spacing.xs),
+                              runSpacing: context.sp(theme.spacing.xs),
+                              children: <Widget>[
+                                UiButton(
+                                  label: 'Refresh',
+                                  variant: UiVariant.outline,
+                                  size: UiSize.sm,
+                                  onPressed: () {
+                                    _load();
+                                    UiToast.show(
+                                      context,
+                                      title: 'Figures refreshed',
+                                      message: 'Desk data synced from server.',
+                                      intent: UiIntent.info,
+                                    );
+                                  },
+                                ),
+                                UiButton(
+                                  label: isHalted
+                                      ? 'Resume desk execution'
+                                      : 'Emergency killswitch',
+                                  intent: isHalted
+                                      ? UiIntent.success
+                                      : UiIntent.danger,
+                                  variant: isHalted
+                                      ? UiVariant.solid
+                                      : UiVariant.destructive,
+                                  size: UiSize.sm,
+                                  onPressed: () => _toggleCircuitBreaker(
+                                    snap.activeCircuitBreakerState,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Live Status Line
+                      DeskStatusBar(
+                        isHalted: isHalted,
+                        supervisedCapitalInr: snap.supervisedCapitalInr,
+                        allocatedCapitalInr: snap.allocatedCapitalInr,
+                        seatCount: _seats.length,
+                        maxDrawdownPct: snap.maxDrawdownPct,
+                      ),
+
+                      // 4-column Ledger KPIs
+                      DeskLedgerBlock(
+                        items: <DeskLedgerItem>[
+                          DeskLedgerItem(
+                            label: 'Allocated Desk Capital',
+                            value: formatInrCompact(snap.allocatedCapitalInr),
+                            subtext:
+                                '${_consumers.length} registered traders · ${formatInrCompact(snap.supervisedCapitalInr)} pool',
+                          ),
+                          DeskLedgerItem(
+                            label: 'Intraday Desk Net P&L',
+                            value: formatInrCompact(snap.intradayPnlInr, signed: true),
+                            valueColor: snap.intradayPnlInr >= 0
+                                ? c.bullish
+                                : c.bearish,
+                            subtext:
+                                'MRR ${formatInrAmount(snap.subscriptionMrrInr)}/mo · ${_consumers.where((c) => c.subscriptionTier != "Basic").length} paid subscribers',
+                          ),
+                          DeskLedgerItem(
+                            label: 'Needs your decision',
+                            value:
+                                '${pendingOrders.length} orders · ${openBreaches.length} alerts',
+                            actionLabel: 'Review below',
+                            onTap: _scrollToQueue,
+                          ),
+                          DeskLedgerItem(
+                            label: 'Partners and deletions',
+                            value:
+                                '${pendingAffiliates + pendingPayouts} partner · $pendingDeletions purge',
+                            subtext:
+                                'Settled INR payouts ${formatInrCompact(snap.affiliatePayoutsSettledInr)}',
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: context.sp(theme.spacing.lg)),
+
+                      // Main Sections Grid
+                      LayoutBuilder(
+                        builder: (BuildContext ctx, BoxConstraints constraints) {
+                          final bool isWide = constraints.maxWidth >= 950;
+                          return Column(
+                            key: _queueKey,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              // Row 1: Order Approvals (7) + Risk Alerts (5)
+                              if (isWide)
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Expanded(
+                                      flex: 7,
+                                      child: _buildOrderApprovalsSection(
+                                        context,
+                                        pendingOrders,
+                                      ),
+                                    ),
+                                    SizedBox(width: ctx.sp(theme.spacing.xl)),
+                                    Expanded(
+                                      flex: 5,
+                                      child: _buildRiskAlertsSection(
+                                        context,
+                                        openBreaches,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              else ...<Widget>[
+                                _buildOrderApprovalsSection(
+                                  context,
+                                  pendingOrders,
+                                ),
+                                SizedBox(height: ctx.sp(theme.spacing.lg)),
+                                _buildRiskAlertsSection(context, openBreaches),
+                              ],
+
+                              SizedBox(height: context.sp(theme.spacing.xl)),
+
+                              // Row 2: Desk P&L Chart (7) + Segment Allocation Donut (5)
+                              if (isWide)
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Expanded(
+                                      flex: 7,
+                                      child: _buildPnlChartSection(
+                                        context,
+                                        snap,
+                                      ),
+                                    ),
+                                    SizedBox(width: ctx.sp(theme.spacing.xl)),
+                                    Expanded(
+                                      flex: 5,
+                                      child: _buildCapitalAllocationSection(
+                                        context,
+                                        snap,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              else ...<Widget>[
+                                _buildPnlChartSection(context, snap),
+                                SizedBox(height: ctx.sp(theme.spacing.lg)),
+                                _buildCapitalAllocationSection(context, snap),
+                              ],
+
+                              SizedBox(height: context.sp(theme.spacing.xl)),
+
+                              // Row 3: Governance (6) + Audit Trail (6)
+                              if (isWide)
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Expanded(
+                                      flex: 6,
+                                      child: _buildGovernanceSection(
+                                        context,
+                                        pendingAffiliates: pendingAffiliates,
+                                        pendingPayouts: pendingPayouts,
+                                        pendingDeletions: pendingDeletions,
+                                      ),
+                                    ),
+                                    SizedBox(width: ctx.sp(theme.spacing.xl)),
+                                    Expanded(
+                                      flex: 6,
+                                      child: _buildAuditSection(context),
+                                    ),
+                                  ],
+                                )
+                              else ...<Widget>[
+                                _buildGovernanceSection(
+                                  context,
+                                  pendingAffiliates: pendingAffiliates,
+                                  pendingPayouts: pendingPayouts,
+                                  pendingDeletions: pendingDeletions,
+                                ),
+                                SizedBox(height: ctx.sp(theme.spacing.lg)),
+                                _buildAuditSection(context),
+                              ],
+                              SizedBox(height: context.sp(theme.spacing.xxl)),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Section 1: Order Approvals (c7)
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildOrderApprovalsSection(
+    BuildContext context,
+    List<DeskOrderApproval> pendingOrders,
+  ) {
+    final UiTheme theme = context.ui;
+    final UiColors c = theme.colors;
+
+    final int count = pendingOrders.length;
+    final String countLabel = count > 0 ? '$count waiting' : 'All clear';
+    final UiIntent countIntent = count > 0 ? UiIntent.warning : UiIntent.success;
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: c.border, width: theme.borders.hairline),
+        ),
+      ),
+      padding: EdgeInsets.only(bottom: context.sp(theme.spacing.lg)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          // Circuit Breaker Banner
-          UiCallout(
-            title: isHalted
-                ? 'CIRCUIT BREAKER HALTED — ALL NON-OWNER TRADER SEATS FROZEN'
-                : 'DESK CIRCUIT BREAKER ARMED · NSE / BSE / NFO / MCX PRE-TRADE GATES ACTIVE',
-            message: isHalted
-                ? (snap.killswitchReason ??
-                      'Desk execution halted by Risk Officer.')
-                : 'Supervised Firm Capital: ${formatInrCompact(snap.supervisedCapitalInr)} · Deployed Across ${_seats.length} Seats: ${formatInrCompact(snap.allocatedCapitalInr)} · Max Firm Drawdown: ${snap.maxDrawdownPct.toStringAsFixed(2)}%',
-            intent: isHalted ? UiIntent.danger : UiIntent.info,
-          ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-
-          // Top KPI Metric Grid (100% INR)
-          UiCardGrid(
-            mobileColumns: 1,
-            tabletColumns: 2,
-            desktopColumns: 4,
-            largeColumns: 4,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              UiMetricCard(
-                label: 'Allocated Desk Capital',
-                value: formatInrCompact(snap.allocatedCapitalInr),
-                caption:
-                    '${_consumers.length} registered consumer traders · ${formatInrCompact(snap.supervisedCapitalInr)} pool',
-                delta: 8.4,
-                icon: Icons.account_balance_outlined,
-                sparkline: const <double>[15.0, 16.2, 16.8, 17.5, 18.0, 18.5],
+              Expanded(
+                child: Text(
+                  'Order approvals',
+                  style: context.uiText.heading.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                  ),
+                ),
               ),
-              UiMetricCard(
-                label: 'Intraday Desk Net P&L',
-                value: formatInrCompact(snap.intradayPnlInr, signed: true),
-                caption:
-                    'MRR: ${formatInrAmount(snap.subscriptionMrrInr)}/mo (${_consumers.where((c) => c.subscriptionTier != "Basic").length} Paid Subscribers)',
-                delta: 14.2,
-                icon: Icons.trending_up_rounded,
-                sparkline: const <double>[4.2, 6.8, 5.9, 9.4, 11.1, 12.65],
-              ),
-              UiMetricCard(
-                label: 'Pre-Trade & Breach Queue',
-                value:
-                    '${pendingOrders.length} Orders · ${openBreaches.length} Alerts',
-                caption: 'Click Risk & Compliance to action',
-                icon: Icons.shield_outlined,
-                intent: openBreaches.isNotEmpty
-                    ? UiIntent.warning
-                    : UiIntent.success,
-              ),
-              UiMetricCard(
-                label: 'Partner & Deletion Queue',
-                value:
-                    '${pendingAffiliates + pendingPayouts} Partner · $pendingDeletions Purge',
-                caption:
-                    'Settled INR Payouts: ${formatInrCompact(snap.affiliatePayoutsSettledInr)}',
-                icon: Icons.handshake_outlined,
-                intent: UiIntent.primary,
+              UiBadge(
+                label: countLabel,
+                intent: countIntent,
+                size: UiSize.xs,
               ),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-
-          // Charts Row: Cumulative Desk P&L (INR) & Division Capital Allocation
-          _buildChartsSection(context, snap),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-
-          // Live Action Queues: Pre-Trade Approvals & Risk Breaches
-          _buildLiveQueuesSection(context, pendingOrders, openBreaches),
-          SizedBox(height: context.sp(theme.spacing.lg)),
-
-          // Cross-Platform Linking Hub (Consumer, Affiliate INR, & Account Deletions) + Audit Stream
-          _buildGovernanceAndAuditSection(
-            context,
-            pendingAffiliates: pendingAffiliates,
-            pendingPayouts: pendingPayouts,
-            pendingDeletions: pendingDeletions,
+          SizedBox(height: context.sp(theme.spacing.xxs)),
+          Text(
+            'Orders over the single-order limit or the concentration limit.',
+            style: context.uiText.caption.copyWith(
+              color: c.foregroundMuted,
+              fontSize: 14,
+            ),
           ),
+          SizedBox(height: context.sp(theme.spacing.md)),
+          if (_orders.isEmpty)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+              child: Text(
+                'No orders waiting.',
+                style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+              ),
+            )
+          else
+            ..._orders.map((DeskOrderApproval order) {
+              final bool isResolved = _resolvedOrders.containsKey(order.id) ||
+                  order.status != 'pending';
+              final String? resolvedMsg = _resolvedOrders[order.id] ??
+                  (order.status == 'approved'
+                      ? 'Order approved'
+                      : (order.status == 'rejected' ? 'Order rejected' : null));
+
+              return Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: c.border, width: theme.borders.hairline),
+                  ),
+                ),
+                padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Wrap(
+                            spacing: context.sp(theme.spacing.xs),
+                            runSpacing: context.sp(theme.spacing.xxs),
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: <Widget>[
+                              UiBadge(
+                                label: '${order.side} · ${order.exchange}',
+                                intent: order.side == 'BUY'
+                                    ? UiIntent.bullish
+                                    : UiIntent.bearish,
+                                size: UiSize.xs,
+                              ),
+                              Text(
+                                '${order.symbol}, ${order.quantity} qty',
+                                style: context.uiText.bodyStrong.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                formatInrCompact(order.notionalValueInr),
+                                style: context.uiText.bodyStrong.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  fontFeatures: const <FontFeature>[
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: context.sp(theme.spacing.xxs)),
+                          Text(
+                            '${order.traderName} (@${order.traderHandle}). ${order.reasonFlagged}',
+                            style: context.uiText.caption.copyWith(
+                              color: c.foregroundMuted,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.md)),
+                    if (isResolved && resolvedMsg != null)
+                      Text(
+                        resolvedMsg,
+                        style: context.uiText.bodyStrong.copyWith(
+                          color: resolvedMsg.contains('approved')
+                              ? c.bullish
+                              : c.destructive,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      )
+                    else
+                      Wrap(
+                        spacing: context.sp(theme.spacing.xs),
+                        children: <Widget>[
+                          UiButton(
+                            label: 'Reject',
+                            size: UiSize.sm,
+                            variant: UiVariant.outline,
+                            intent: UiIntent.danger,
+                            onPressed: () => _handleOrderAction(order, false),
+                          ),
+                          UiButton(
+                            label: 'Approve',
+                            size: UiSize.sm,
+                            variant: UiVariant.solid,
+                            intent: UiIntent.success,
+                            onPressed: () => _handleOrderAction(order, true),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );
   }
 
-  Widget _buildChartsSection(
+  // ─────────────────────────────────────────────────────────────────────────
+  // Section 2: Risk Alerts (c5)
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildRiskAlertsSection(
     BuildContext context,
-    AdminDeskAnalyticsSnapshot snap,
+    List<DeskRiskBreach> openBreaches,
   ) {
     final UiTheme theme = context.ui;
-    final Widget pnlChartCard = UiCard(
+    final UiColors c = theme.colors;
+
+    final int count = openBreaches.length;
+    final String countLabel = count > 0 ? '$count active' : 'None active';
+    final UiIntent countIntent = count > 0 ? UiIntent.danger : UiIntent.success;
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: c.border, width: theme.borders.hairline),
+        ),
+      ),
+      padding: EdgeInsets.only(bottom: context.sp(theme.spacing.lg)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Cumulative Desk P&L vs Benchmark (INR ₹)',
-                      style: context.uiText.subheading,
-                    ),
-                    Text(
-                      'Net institutional desk return compared against NIFTY 50 equivalent exposure',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  'Risk alerts',
+                  style: context.uiText.heading.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                  ),
                 ),
               ),
-              UiButton(
-                label: 'Full Analytics',
-                variant: UiVariant.ghost,
-                size: UiSize.sm,
-                trailingIcon: Icons.arrow_forward_rounded,
-                onPressed: () => widget.onNavigate?.call('org_analytics'),
+              UiBadge(
+                label: countLabel,
+                intent: countIntent,
+                size: UiSize.xs,
+              ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.xxs)),
+          Text(
+            'Drawdown, SPAN margin and stop-loss triggers.',
+            style: context.uiText.caption.copyWith(
+              color: c.foregroundMuted,
+              fontSize: 14,
+            ),
+          ),
+          SizedBox(height: context.sp(theme.spacing.md)),
+          if (_breaches.isEmpty)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+              child: Text(
+                'No active risk alerts.',
+                style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+              ),
+            )
+          else
+            ..._breaches.map((DeskRiskBreach breach) {
+              final bool isResolved = _resolvedBreaches.containsKey(breach.id) ||
+                  breach.status == 'resolved' ||
+                  breach.status == 'trader_frozen';
+              final String? resolvedMsg = _resolvedBreaches[breach.id] ??
+                  (breach.status == 'trader_frozen'
+                      ? 'Seat frozen'
+                      : (breach.status == 'resolved' ? 'Marked resolved' : null));
+
+              return Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: c.border, width: theme.borders.hairline),
+                  ),
+                ),
+                padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Wrap(
+                      spacing: context.sp(theme.spacing.xs),
+                      runSpacing: context.sp(theme.spacing.xxs),
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: <Widget>[
+                        Text(
+                          breach.breachType,
+                          style: context.uiText.bodyStrong.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        UiBadge(
+                          label: breach.severity == 'critical'
+                              ? 'Critical'
+                              : 'Warning',
+                          intent: breach.severity == 'critical'
+                              ? UiIntent.danger
+                              : UiIntent.warning,
+                          size: UiSize.xs,
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.xxs)),
+                    Text(
+                      '${breach.traderName} (@${breach.traderHandle}). ${breach.description}',
+                      style: context.uiText.caption.copyWith(
+                        color: c.foregroundMuted,
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                    if (isResolved && resolvedMsg != null)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          resolvedMsg,
+                          style: context.uiText.bodyStrong.copyWith(
+                            color: resolvedMsg.contains('resolved')
+                                ? c.bullish
+                                : c.destructive,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    else
+                      Wrap(
+                        spacing: context.sp(theme.spacing.xs),
+                        children: <Widget>[
+                          UiButton(
+                            label: 'Freeze seat',
+                            size: UiSize.sm,
+                            variant: UiVariant.outline,
+                            intent: UiIntent.danger,
+                            onPressed: () => _handleBreachAction(breach, true),
+                          ),
+                          UiButton(
+                            label: 'Mark resolved',
+                            size: UiSize.sm,
+                            variant: UiVariant.outline,
+                            intent: UiIntent.success,
+                            onPressed: () => _handleBreachAction(breach, false),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Section 3: Desk P&L vs NIFTY Chart (c7)
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildPnlChartSection(
+    BuildContext context,
+    AdminDeskAnalyticsSnapshot snap,
+  ) {
+    final UiTheme theme = context.ui;
+    final UiColors c = theme.colors;
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: c.border, width: theme.borders.hairline),
+        ),
+      ),
+      padding: EdgeInsets.only(bottom: context.sp(theme.spacing.lg)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: <Widget>[
+              Text(
+                'Desk P&L against NIFTY',
+                style: context.uiText.heading.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                ),
+              ),
+              InkWell(
+                onTap: () => widget.onNavigate?.call('org_analytics'),
+                child: Text(
+                  'Full analytics',
+                  style: context.uiText.caption.copyWith(
+                    color: c.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.xxs)),
+          Text(
+            'Net desk return compared with the same exposure held in NIFTY 50.',
+            style: context.uiText.caption.copyWith(
+              color: c.foregroundMuted,
+              fontSize: 14,
+            ),
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Wrap(
+            spacing: context.sp(theme.spacing.md),
+            children: <Widget>[
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Container(
+                    width: 18,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: c.foreground,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  Text(
+                    'Desk net P&L',
+                    style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Container(
+                    width: 18,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: c.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  Text(
+                    'NIFTY benchmark',
+                    style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+                  ),
+                ],
               ),
             ],
           ),
           SizedBox(height: context.sp(theme.spacing.md)),
           UiAreaChart(
-            height: 230,
+            height: 250,
             valueFormatter: (num v) => formatInrCompact(v),
             data: snap.points
                 .map(
                   (p) => UiChartPoint(
                     label: p.label,
-                    values: <double>[
-                      p.deskPnlInr,
-                      p.benchmarkPnlInr,
-                    ],
+                    values: <double>[p.deskPnlInr, p.benchmarkPnlInr],
                   ),
                 )
                 .toList(),
             series: <UiChartSeries>[
               UiChartSeries(
-                name: 'Desk Net P&L (₹)',
-                color: theme.colors.primary,
-                lineGlow: true,
+                name: 'Desk Net P&L',
+                color: c.foreground,
+                lineGlow: false,
               ),
               UiChartSeries(
-                name: 'NIFTY Benchmark (₹)',
-                color: theme.colors.info,
+                name: 'NIFTY Benchmark',
+                color: c.primary,
               ),
             ],
           ),
         ],
       ),
     );
+  }
 
-    final Widget divisionCard = UiCard(
+  // ─────────────────────────────────────────────────────────────────────────
+  // Section 4: Capital by Segment Donut (c5)
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildCapitalAllocationSection(
+    BuildContext context,
+    AdminDeskAnalyticsSnapshot snap,
+  ) {
+    final UiTheme theme = context.ui;
+    final UiColors c = theme.colors;
+
+    final List<({String label, double pct, Color color})> segments = [
+      (label: 'Index & options (NSE/NFO)', pct: 46.0, color: c.primary),
+      (label: 'Cash equities', pct: 24.5, color: c.bullish),
+      (label: 'Arbitrage baskets', pct: 21.4, color: c.warning),
+      (label: 'Commodities & FX (MCX)', pct: 8.1, color: c.secondary),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: c.border, width: theme.borders.hairline),
+        ),
+      ),
+      padding: EdgeInsets.only(bottom: context.sp(theme.spacing.lg)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Desk Capital Allocation (INR)',
-                      style: context.uiText.subheading,
-                    ),
-                    Text(
-                      'Deployed margin across Indian market segments',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
-                      ),
-                    ),
-                  ],
+              Text(
+                'Capital by segment',
+                style: context.uiText.heading.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
                 ),
               ),
               UiBadge(
                 label: formatInrCompact(snap.allocatedCapitalInr),
-                intent: UiIntent.primary,
+                intent: UiIntent.neutral,
                 size: UiSize.xs,
               ),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          UiDonutChart(
-            size: 165,
-            centerLabel: formatInrCompact(snap.allocatedCapitalInr),
-            valueFormatter: (num v) => formatInrCompact(v),
-            slices: snap.divisions
-                .map(
-                  (d) => UiDonutSlice(
-                    label: d.divisionName,
-                    value: d.allocatedCapitalInr,
-                  ),
-                )
-                .toList(),
+          SizedBox(height: context.sp(theme.spacing.xxs)),
+          Text(
+            'Margin deployed across Indian market segments.',
+            style: context.uiText.caption.copyWith(
+              color: c.foregroundMuted,
+              fontSize: 14,
+            ),
           ),
-        ],
-      ),
-    );
-
-    if (MediaQuery.sizeOf(context).width < 960) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          pnlChartCard,
           SizedBox(height: context.sp(theme.spacing.md)),
-          divisionCard,
-        ],
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(flex: 3, child: pnlChartCard),
-        SizedBox(width: context.sp(theme.spacing.md)),
-        Expanded(flex: 2, child: divisionCard),
-      ],
-    );
-  }
-
-  Widget _buildLiveQueuesSection(
-    BuildContext context,
-    List<DeskOrderApproval> pendingOrders,
-    List<DeskRiskBreach> openBreaches,
-  ) {
-    final UiTheme theme = context.ui;
-
-    final Widget ordersCard = UiCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Pre-Trade Order Approval Queue',
-                      style: context.uiText.subheading,
-                    ),
-                    Text(
-                      'Orders exceeding single-order INR notional or concentration gates',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
-                      ),
-                    ),
-                  ],
+                flex: 4,
+                child: UiDonutChart(
+                  size: 155,
+                  centerLabel: formatInrCompact(snap.allocatedCapitalInr),
+                  valueFormatter: (num v) => formatInrCompact(v),
+                  slices: snap.divisions
+                      .map(
+                        (d) => UiDonutSlice(
+                          label: d.divisionName,
+                          value: d.allocatedCapitalInr,
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
-              UiButton(
-                label: 'Risk & Compliance',
-                variant: UiVariant.outline,
-                size: UiSize.xs,
-                onPressed: () => widget.onNavigate?.call('org_risk'),
-              ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          if (pendingOrders.isEmpty)
-            const UiEmptyState(
-              icon: Icons.check_circle_outline_rounded,
-              title: 'All pre-trade orders cleared',
-              message: 'No high-notional INR orders awaiting manual desk approval.',
-              compact: true,
-            )
-          else
-            ...pendingOrders.map(
-              (order) => Padding(
-                padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
-                child: UiCard(
-                  variant: UiCardVariant.outlined,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      Row(
+              SizedBox(width: context.sp(theme.spacing.md)),
+              Expanded(
+                flex: 5,
+                child: Column(
+                  children: segments.map((s) {
+                    return Container(
+                      padding: EdgeInsets.symmetric(
+                        vertical: context.sp(theme.spacing.xs),
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          top: BorderSide(
+                            color: c.border,
+                            width: theme.borders.hairline,
+                          ),
+                        ),
+                      ),
+                      child: Row(
                         children: <Widget>[
-                          UiBadge(
-                            label: '${order.side} · ${order.exchange}',
-                            intent: order.side == 'BUY'
-                                ? UiIntent.bullish
-                                : UiIntent.bearish,
-                            size: UiSize.xs,
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: s.color,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
                           ),
                           SizedBox(width: context.sp(theme.spacing.xs)),
                           Expanded(
                             child: Text(
-                              '${order.symbol} (${order.quantity} qty)',
-                              style: context.uiText.bodyStrong,
-                              overflow: TextOverflow.ellipsis,
+                              s.label,
+                              style: context.uiText.caption.copyWith(
+                                color: c.foreground,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                           Text(
-                            formatInrCompact(order.notionalValueInr),
-                            style: context.uiText.mono.copyWith(
+                            '${s.pct.toStringAsFixed(1)}%',
+                            style: context.uiText.caption.copyWith(
                               fontWeight: FontWeight.w700,
+                              fontFeatures: const <FontFeature>[
+                                FontFeature.tabularFigures(),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                      SizedBox(height: context.sp(theme.spacing.xs)),
-                      Text(
-                        '${order.traderName} (@${order.traderHandle}) · ${order.reasonFlagged}',
-                        style: context.uiText.caption.copyWith(
-                          color: theme.colors.foregroundMuted,
-                        ),
-                      ),
-                      SizedBox(height: context.sp(theme.spacing.sm)),
-                      Wrap(
-                        alignment: WrapAlignment.end,
-                        spacing: context.sp(theme.spacing.xs),
-                        runSpacing: context.sp(theme.spacing.xs),
-                        children: <Widget>[
-                          UiButton(
-                            label: 'Reject',
-                            size: UiSize.xs,
-                            variant: UiVariant.outline,
-                            intent: UiIntent.danger,
-                            onPressed: () => _quickReviewOrder(order, false),
-                          ),
-                          UiButton(
-                            label: 'Approve Order',
-                            size: UiSize.xs,
-                            intent: UiIntent.success,
-                            onPressed: () => _quickReviewOrder(order, true),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                    );
+                  }).toList(),
                 ),
-              ),
-            ),
-        ],
-      ),
-    );
-
-    final Widget breachesCard = UiCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Active Risk Breach Alerts',
-                      style: context.uiText.subheading,
-                    ),
-                    Text(
-                      'Live drawdown, SPAN margin, and mandatory stop-loss triggers',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              UiBadge(
-                label: '${openBreaches.length} ACTIVE',
-                intent: openBreaches.isEmpty
-                    ? UiIntent.success
-                    : UiIntent.warning,
-                size: UiSize.xs,
               ),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          if (openBreaches.isEmpty)
-            const UiEmptyState(
-              icon: Icons.verified_user_outlined,
-              title: 'Zero active risk breaches',
-              message: 'All seats are operating within INR margin and drawdown caps.',
-              compact: true,
-            )
-          else
-            ...openBreaches.map(
-              (breach) => Padding(
-                padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
-                child: UiCard(
-                  variant: UiCardVariant.outlined,
-                  intent: breach.severity == 'critical'
-                      ? UiIntent.danger
-                      : UiIntent.warning,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Text(
-                              '${breach.breachType} · ${breach.symbol}',
-                              style: context.uiText.bodyStrong,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          UiBadge(
-                            label: breach.severity.toUpperCase(),
-                            intent: breach.severity == 'critical'
-                                ? UiIntent.danger
-                                : UiIntent.warning,
-                            size: UiSize.xs,
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: context.sp(theme.spacing.xs)),
-                      Text(
-                        '${breach.traderName} (@${breach.traderHandle}) — ${breach.description}',
-                        style: context.uiText.caption.copyWith(
-                          color: theme.colors.foregroundMuted,
-                        ),
-                      ),
-                      SizedBox(height: context.sp(theme.spacing.sm)),
-                      Wrap(
-                        alignment: WrapAlignment.end,
-                        spacing: context.sp(theme.spacing.xs),
-                        runSpacing: context.sp(theme.spacing.xs),
-                        children: <Widget>[
-                          UiButton(
-                            label: 'Freeze Seat',
-                            size: UiSize.xs,
-                            variant: UiVariant.outline,
-                            intent: UiIntent.danger,
-                            onPressed: () async {
-                              await _repo.updateRiskBreachStatus(
-                                breachId: breach.id,
-                                status: 'trader_frozen',
-                                freezeTrader: true,
-                                resolutionNotes:
-                                    'Seat frozen from Desk Console.',
-                              );
-                              await _load();
-                            },
-                          ),
-                          UiButton(
-                            label: 'Mark Resolved',
-                            size: UiSize.xs,
-                            variant: UiVariant.outline,
-                            intent: UiIntent.success,
-                            onPressed: () async {
-                              await _repo.updateRiskBreachStatus(
-                                breachId: breach.id,
-                                status: 'resolved',
-                                resolutionNotes:
-                                    'Resolved and verified from Desk Console.',
-                              );
-                              await _load();
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
-
-    if (MediaQuery.sizeOf(context).width < 960) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          ordersCard,
-          SizedBox(height: context.sp(theme.spacing.md)),
-          breachesCard,
-        ],
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(child: ordersCard),
-        SizedBox(width: context.sp(theme.spacing.md)),
-        Expanded(child: breachesCard),
-      ],
-    );
   }
 
-  Widget _buildGovernanceAndAuditSection(
+  // ─────────────────────────────────────────────────────────────────────────
+  // Section 5: Traders, Partners & Deletions Governance (c6)
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildGovernanceSection(
     BuildContext context, {
     required int pendingAffiliates,
     required int pendingPayouts,
     required int pendingDeletions,
   }) {
     final UiTheme theme = context.ui;
+    final UiColors c = theme.colors;
     final AffiliateWorkspace? ws = _affiliateWorkspace;
 
-    final Widget crossPlatformHub = UiCard(
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: c.border, width: theme.borders.hairline),
+        ),
+      ),
+      padding: EdgeInsets.only(bottom: context.sp(theme.spacing.lg)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            'Cross-Platform Governance (Consumer · Affiliate INR · DPDP Purge)',
-            style: context.uiText.subheading,
+            'Traders, partners and deletions',
+            style: context.uiText.heading.copyWith(
+              fontWeight: FontWeight.w700,
+              fontSize: 20,
+            ),
           ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
+          SizedBox(height: context.sp(theme.spacing.xxs)),
           Text(
-            'Direct administrative links across Trader seats, Consumer subscriptions, Affiliate INR payouts, and conditional account deletions.',
+            'Seats, subscriptions, INR payouts and data purges (DPDP).',
             style: context.uiText.caption.copyWith(
-              color: theme.colors.foregroundMuted,
+              color: c.foregroundMuted,
+              fontSize: 14,
             ),
           ),
           SizedBox(height: context.sp(theme.spacing.md)),
-          AppSettingCard(
-            title: 'Traders, Seats & Consumer Directory',
-            description:
-                '${_consumers.length} registered consumer traders · Overrides for Basic (₹0), Pro (₹2,499) and Enterprise (₹7,999) tiers.',
-            icon: Icons.badge_outlined,
-            control: UiButton(
-              label: 'Manage Seats',
-              size: UiSize.xs,
-              variant: UiVariant.outline,
-              onPressed: () => widget.onNavigate?.call('org_team'),
+
+          // Row 1: Traders and seats
+          Container(
+            padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: c.border, width: theme.borders.hairline),
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Traders and seats',
+                        style: context.uiText.bodyStrong.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: context.sp(theme.spacing.xxs)),
+                      Text(
+                        '${_consumers.length} registered traders. Overrides for Basic (₹0), Pro (₹2,499) and Enterprise (₹7,999).',
+                        style: context.uiText.caption.copyWith(
+                          color: c.foregroundMuted,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: context.sp(theme.spacing.sm)),
+                UiButton(
+                  label: 'Manage seats',
+                  size: UiSize.sm,
+                  variant: UiVariant.outline,
+                  onPressed: () => widget.onNavigate?.call('org_team'),
+                ),
+              ],
             ),
           ),
-          AppSettingCard(
-            title: 'Affiliate Applications & INR Payout Settlement',
-            description:
-                '$pendingAffiliates pending partner reviews · $pendingPayouts INR payouts awaiting UTR · Unpaid partner ledger: ${formatInrAmount(ws?.profile.unpaidBalance ?? 0)}',
-            icon: Icons.fact_check_outlined,
-            control: UiButton(
-              label: 'Review Affiliates',
-              size: UiSize.xs,
-              intent: UiIntent.primary,
-              onPressed: () => widget.onNavigate?.call('affiliate_reviews'),
+
+          // Row 2: Affiliate applications and payouts
+          Container(
+            padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: c.border, width: theme.borders.hairline),
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Affiliate applications and payouts',
+                        style: context.uiText.bodyStrong.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: context.sp(theme.spacing.xxs)),
+                      Text(
+                        '$pendingAffiliates partner review pending. $pendingPayouts payout waiting for a UTR. Unpaid partner ledger ${formatInrAmount(ws?.profile.unpaidBalance ?? 0)}.',
+                        style: context.uiText.caption.copyWith(
+                          color: c.foregroundMuted,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: context.sp(theme.spacing.sm)),
+                UiButton(
+                  label: 'Review affiliates',
+                  size: UiSize.sm,
+                  variant: UiVariant.solid,
+                  intent: UiIntent.success,
+                  onPressed: () =>
+                      widget.onNavigate?.call('affiliate_reviews'),
+                ),
+              ],
             ),
           ),
-          AppSettingCard(
-            title: 'Account Deletions & Conditional Data Purge Queue',
-            description:
-                '$pendingDeletions requests awaiting immediate or 30-day conditional data purge.',
-            icon: Icons.delete_sweep_outlined,
-            control: UiButton(
-              label: 'Inspect Queue',
-              size: UiSize.xs,
-              variant: UiVariant.outline,
-              intent: pendingDeletions > 0 ? UiIntent.warning : UiIntent.neutral,
-              onPressed: () => widget.onNavigate?.call('org_team'),
+
+          // Row 3: Account deletions
+          Container(
+            padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.md)),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: c.border, width: theme.borders.hairline),
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Account deletions',
+                        style: context.uiText.bodyStrong.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: context.sp(theme.spacing.xxs)),
+                      Text(
+                        '$pendingDeletions request waiting for an immediate or 30-day data purge.',
+                        style: context.uiText.caption.copyWith(
+                          color: c.foregroundMuted,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: context.sp(theme.spacing.sm)),
+                UiButton(
+                  label: 'Inspect queue',
+                  size: UiSize.sm,
+                  variant: UiVariant.outline,
+                  intent: UiIntent.warning,
+                  onPressed: () => widget.onNavigate?.call('org_team'),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
+  }
 
-    final Widget auditStream = UiCard(
+  // ─────────────────────────────────────────────────────────────────────────
+  // Section 6: Audit Trail Stream (c6)
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildAuditSection(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final UiColors c = theme.colors;
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: c.border, width: theme.borders.hairline),
+        ),
+      ),
+      padding: EdgeInsets.only(bottom: context.sp(theme.spacing.lg)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: <Widget>[
-              Expanded(
+              Text(
+                'Audit trail',
+                style: context.uiText.heading.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                ),
+              ),
+              InkWell(
+                onTap: () => widget.onNavigate?.call('org_audit'),
+                child: Text(
+                  'Full audit log',
+                  style: context.uiText.caption.copyWith(
+                    color: c.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.xxs)),
+          Text(
+            'Latest compliance events, each sealed with a SHA-256 hash.',
+            style: context.uiText.caption.copyWith(
+              color: c.foregroundMuted,
+              fontSize: 14,
+            ),
+          ),
+          SizedBox(height: context.sp(theme.spacing.md)),
+          Column(
+            children: _audits.take(4).map((AdminAuditLogEntry a) {
+              return Container(
+                padding: EdgeInsets.only(
+                  left: context.sp(theme.spacing.sm),
+                  bottom: context.sp(theme.spacing.md),
+                ),
+                decoration: BoxDecoration(
+                  border: Border(
+                    left: BorderSide(
+                      color: c.border,
+                      width: 2,
+                    ),
+                  ),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'Tamper-Evident Audit Stream (SHA-256)',
-                      style: context.uiText.subheading,
-                    ),
-                    Text(
-                      'Latest cryptographic compliance events across desk & partner operations',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
+                      '${a.action.replaceAll('_', ' ')} · ${a.targetLabel}',
+                      style: context.uiText.bodyStrong.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.xxs)),
+                    Text(
+                      '@${a.actorHandle} ${a.details}',
+                      style: context.uiText.caption.copyWith(
+                        color: c.foregroundMuted,
+                        fontSize: 13,
+                      ),
+                    ),
+                    SizedBox(height: context.sp(theme.spacing.xxs)),
+                    Wrap(
+                      spacing: context.sp(theme.spacing.sm),
+                      children: <Widget>[
+                        Text(
+                          '${a.sha256Hash.substring(0, 16)}…',
+                          style: context.uiText.mono.copyWith(
+                            color: c.foregroundMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          AppTokens.shortDate(a.createdAt),
+                          style: context.uiText.caption.copyWith(
+                            color: c.foregroundMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ),
-              UiButton(
-                label: 'Full Audit Log',
-                size: UiSize.xs,
-                variant: UiVariant.ghost,
-                trailingIcon: Icons.arrow_forward_rounded,
-                onPressed: () => widget.onNavigate?.call('org_audit'),
-              ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-          UiTimeline(
-            entries: _audits
-                .take(4)
-                .map(
-                  (a) => UiTimelineEntry(
-                    title: '${a.action} · ${a.targetLabel}',
-                    subtitle:
-                        '@${a.actorHandle} · ${a.details}\nSHA-256: ${a.sha256Hash.substring(0, 16)}…',
-                    timestamp: AppTokens.shortDate(a.createdAt),
-                    icon: switch (a.category) {
-                      'risk_control' => Icons.shield_outlined,
-                      'order_approval' => Icons.rule_folder_outlined,
-                      'payout_settlement' => Icons.currency_rupee_rounded,
-                      'account_deletion' => Icons.delete_forever_outlined,
-                      _ => Icons.verified_user_outlined,
-                    },
-                    intent: switch (a.severity) {
-                      'critical' => UiIntent.danger,
-                      'warning' => UiIntent.warning,
-                      _ => UiIntent.primary,
-                    },
-                  ),
-                )
-                .toList(),
+              );
+            }).toList(),
           ),
         ],
       ),
-    );
-
-    if (MediaQuery.sizeOf(context).width < 960) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          crossPlatformHub,
-          SizedBox(height: context.sp(theme.spacing.md)),
-          auditStream,
-        ],
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(child: crossPlatformHub),
-        SizedBox(width: context.sp(theme.spacing.md)),
-        Expanded(child: auditStream),
-      ],
     );
   }
 }

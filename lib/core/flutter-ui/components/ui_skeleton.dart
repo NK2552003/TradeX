@@ -156,7 +156,9 @@ class UiSkeleton extends StatefulWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: <Widget>[
-                      UiSkeleton(width: context.sz(120), height: 16),
+                      Flexible(
+                        child: UiSkeleton(width: context.sz(120), height: 16),
+                      ),
                       UiSkeleton.badge(width: 50, height: 20),
                     ],
                   ),
@@ -192,7 +194,9 @@ class UiSkeleton extends StatefulWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
-                  UiSkeleton(width: context.sz(80), height: 12),
+                  Flexible(
+                    child: UiSkeleton(width: context.sz(80), height: 12),
+                  ),
                   UiSkeleton(width: context.sz(18), height: 18, circle: true),
                 ],
               ),
@@ -203,7 +207,9 @@ class UiSkeleton extends StatefulWidget {
                 children: <Widget>[
                   UiSkeleton.badge(width: 54, height: 18),
                   SizedBox(width: context.sp(theme.spacing.xs)),
-                  UiSkeleton(width: context.sz(60), height: 10),
+                  Flexible(
+                    child: UiSkeleton(width: context.sz(60), height: 10),
+                  ),
                 ],
               ),
             ],
@@ -667,9 +673,24 @@ class UiSkeleton extends StatefulWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: <Widget>[
-                          UiSkeleton(width: context.sz(80), height: 12),
-                          UiSkeleton(width: context.sz(80), height: 12),
-                          UiSkeleton(width: context.sz(80), height: 12),
+                          Flexible(
+                            child: UiSkeleton(
+                              width: context.sz(80),
+                              height: 12,
+                            ),
+                          ),
+                          Flexible(
+                            child: UiSkeleton(
+                              width: context.sz(80),
+                              height: 12,
+                            ),
+                          ),
+                          Flexible(
+                            child: UiSkeleton(
+                              width: context.sz(80),
+                              height: 12,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -1238,7 +1259,9 @@ class UiSkeleton extends StatefulWidget {
                   if (showHeader) ...<Widget>[
                     Row(
                       children: <Widget>[
-                        Flexible(child: UiSkeleton(width: context.sz(140), height: 13)),
+                        Flexible(
+                          child: UiSkeleton(width: context.sz(140), height: 13),
+                        ),
                         SizedBox(width: context.sp(theme.spacing.sm)),
                         UiSkeleton.button(width: context.sz(104), height: 28),
                       ],

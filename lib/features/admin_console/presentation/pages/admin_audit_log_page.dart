@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
 import 'package:tradex/features/admin_console/models/admin_console_models.dart';
 
@@ -62,7 +64,7 @@ class _AdminAuditLogPageState extends State<AdminAuditLogPage> {
         : _repo.exportAuditLogsCsv(list);
     await Clipboard.setData(ClipboardData(text: payload));
     if (!mounted) return;
-    await showDialog<void>(
+    await UiDialog.present<void>(
       context: context,
       builder: (BuildContext ctx) => UiDialog(
         title: asJson
@@ -102,7 +104,7 @@ class _AdminAuditLogPageState extends State<AdminAuditLogPage> {
   }
 
   Future<void> _inspectHashModal(AdminAuditLogEntry entry) async {
-    await showDialog<void>(
+    await UiDialog.present<void>(
       context: context,
       builder: (BuildContext ctx) => UiDialog(
         title: 'Cryptographic Audit Proof · ${entry.action}',
@@ -203,39 +205,39 @@ class _AdminAuditLogPageState extends State<AdminAuditLogPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          UiCardGrid(
-            mobileColumns: 1,
-            tabletColumns: 2,
-            desktopColumns: 4,
-            largeColumns: 4,
-            childAspectRatio: context.uiRes.isMobile ? 2.3 : 1.9,
-            children: <Widget>[
-              UiMetricCard(
-                label: 'Total Audit Records',
+          // Desk Ledger 4-Column Block
+          DeskLedgerBlock(
+            items: <DeskLedgerItem>[
+              DeskLedgerItem(
+                label: 'TOTAL AUDIT RECORDS',
                 value: '${_entries.length}',
-                caption: '100% SHA-256 hash-verified',
-                icon: Icons.verified_outlined,
+                subtext: '100% SHA-256 hash-verified',
+                badgeText: 'TAMPER-PROOF',
+                badgeIntent: UiIntent.success,
               ),
-              UiMetricCard(
-                label: 'Warning / Critical Events',
+              DeskLedgerItem(
+                label: 'WARNING / CRITICAL EVENTS',
                 value: '$criticalCount',
-                caption: 'Circuit breakers & breach locks',
-                icon: Icons.gpp_maybe_outlined,
-                intent: criticalCount > 0
+                valueColor: criticalCount > 0
+                    ? theme.colors.warning
+                    : theme.colors.foreground,
+                subtext: 'Circuit breakers & breach locks',
+                badgeText: criticalCount > 0 ? 'NEEDS REVIEW' : 'OPTIMAL',
+                badgeIntent: criticalCount > 0
                     ? UiIntent.warning
                     : UiIntent.success,
               ),
-              UiMetricCard(
-                label: 'INR Affiliate & Payout Logs',
+              DeskLedgerItem(
+                label: 'INR AFFILIATE & PAYOUT LOGS',
                 value: '$payoutAndAffiliateCount',
-                caption: 'TDS u/s 194H & UTR settlements',
-                icon: Icons.currency_rupee_rounded,
+                subtext: 'TDS u/s 194H & UTR settlements',
               ),
-              UiMetricCard(
-                label: 'DPDP Data Purge Proofs',
+              DeskLedgerItem(
+                label: 'DPDP DATA PURGE PROOFS',
                 value: '$deletionCount',
-                caption: 'Conditional account deletions',
-                icon: Icons.delete_sweep_outlined,
+                subtext: 'Conditional account deletions',
+                badgeText: 'DPDP COMPLIANT',
+                badgeIntent: UiIntent.info,
               ),
             ],
           ),
@@ -276,10 +278,7 @@ class _AdminAuditLogPageState extends State<AdminAuditLogPage> {
                           child: UiSelect<String>(
                             value: _categoryFilter,
                             options: const <UiOption<String>>[
-                              UiOption(
-                                value: 'all',
-                                label: 'All Categories',
-                              ),
+                              UiOption(value: 'all', label: 'All Categories'),
                               UiOption(
                                 value: 'risk_control',
                                 label: 'Risk & Circuit Breaker',

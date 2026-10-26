@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
 import 'package:tradex/features/admin_console/models/admin_console_models.dart';
@@ -54,6 +55,111 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     await _load();
   }
 
+  Future<void> _showTraderDrawer(AdminTraderSeat seat) async {
+    await DeskOverlaySheet.show<void>(
+      context: context,
+      title: 'Trader Performance Analytics',
+      subtitle: '${seat.displayName} (@${seat.handle}) · ${seat.deskDivision}',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          UiCallout(
+            title: '${seat.displayName} · ${seat.deskDivision}',
+            message:
+                'Status: ${seat.status.toUpperCase()} · Trader Tier: Proprietary Institutional\n'
+                'Allocated Firm Capital: ${formatInrAmount(seat.allocatedCapitalInr)}',
+            intent: seat.status == 'active' ? UiIntent.success : UiIntent.warning,
+          ),
+          const SizedBox(height: 16),
+          UiCard(
+            title: 'Risk-Adjusted Performance Matrix',
+            child: Column(
+              children: <Widget>[
+                _drawerStatRow('30-Day Net P&L (₹)', formatInrAmount(seat.monthlyPnlInr),
+                    color: seat.monthlyPnlInr >= 0 ? Colors.green : Colors.red),
+                _drawerStatRow('Intraday P&L (₹)', formatInrAmount(seat.dailyPnlInr),
+                    color: seat.dailyPnlInr >= 0 ? Colors.green : Colors.red),
+                _drawerStatRow('Sharpe Ratio', seat.sharpeRatio.toStringAsFixed(2)),
+                _drawerStatRow('Win Rate %', '${seat.winRatePct.toStringAsFixed(1)}%'),
+                _drawerStatRow('Current Drawdown', '${seat.currentDrawdownPct.toStringAsFixed(2)}%'),
+                _drawerStatRow('Hard Drawdown Cap', '${seat.maxDrawdownLimitPct.toStringAsFixed(2)}%'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          UiCard(
+            title: 'Drawdown Utilization',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Text(
+                      '${seat.currentDrawdownPct.toStringAsFixed(1)}% / ${seat.maxDrawdownLimitPct.toStringAsFixed(1)}% limit',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    UiBadge(
+                      label: seat.isDrawdownNearLimit ? 'NEAR LIMIT' : 'HEALTHY',
+                      intent: seat.isDrawdownNearLimit ? UiIntent.danger : UiIntent.success,
+                      size: UiSize.xs,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (seat.currentDrawdownPct / seat.maxDrawdownLimitPct).clamp(0.0, 1.0),
+                    minHeight: 8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          UiCard(
+            title: 'Desk Permissions & Segments',
+            child: Column(
+              children: <Widget>[
+                _drawerStatRow('Permitted Segments', 'NSE Cash, NFO Futures & Options'),
+                _drawerStatRow('Mandatory Stop-Loss', 'Enforced via Bracket / GTT'),
+                _drawerStatRow('Max Intraday Leverage', '10x intraday SPAN margin'),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: <Widget>[
+        UiButton(
+          label: 'Close',
+          variant: UiVariant.outline,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+    );
+  }
+
+  Widget _drawerStatRow(String label, String value, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
+          Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
@@ -88,46 +194,44 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          UiCardGrid(
-            mobileColumns: 1,
-            tabletColumns: 2,
-            desktopColumns: 4,
-            largeColumns: 4,
-            childAspectRatio: context.uiRes.isMobile ? 2.3 : 1.85,
-            children: <Widget>[
-              UiMetricCard(
-                label: '$_timeframe Net Desk P&L',
+          // Desk Ledger 4-Column Block
+          DeskLedgerBlock(
+            items: <DeskLedgerItem>[
+              DeskLedgerItem(
+                label: '$_timeframe NET DESK P&L',
                 value: formatInrCompact(snap.periodNetPnlInr, signed: true),
-                caption:
+                valueColor: snap.periodNetPnlInr >= 0
+                    ? theme.colors.bullish
+                    : theme.colors.bearish,
+                subtext:
                     'Intraday: ${formatInrCompact(snap.intradayPnlInr, signed: true)}',
-                delta: 16.8,
-                icon: Icons.currency_rupee_rounded,
-                sparkline: snap.points.map((p) => p.deskPnlInr).toList(),
+                badgeText: '+16.8%',
+                badgeIntent: UiIntent.success,
               ),
-              UiMetricCard(
-                label: 'Firm Sharpe & Win Rate',
+              DeskLedgerItem(
+                label: 'FIRM SHARPE & WIN RATE',
                 value:
                     '${snap.firmSharpeRatio.toStringAsFixed(2)} · ${snap.firmWinRatePct.toStringAsFixed(1)}%',
-                caption:
+                subtext:
                     'Profit Factor: ${snap.profitFactor.toStringAsFixed(2)} · Max DD: ${snap.maxDrawdownPct.toStringAsFixed(2)}%',
-                delta: 4.5,
-                icon: Icons.insights_rounded,
+                badgeText: '+4.5%',
+                badgeIntent: UiIntent.success,
               ),
-              UiMetricCard(
-                label: 'Consumer Subscription MRR',
+              DeskLedgerItem(
+                label: 'CONSUMER SUBSCRIPTION MRR',
                 value: '${formatInrAmount(snap.subscriptionMrrInr)}/mo',
-                caption:
+                subtext:
                     'Annualized Run Rate: ${formatInrCompact(snap.subscriptionMrrInr * 12)}',
-                delta: 11.2,
-                icon: Icons.workspace_premium_outlined,
+                badgeText: '+11.2%',
+                badgeIntent: UiIntent.success,
               ),
-              UiMetricCard(
-                label: 'Affiliate Partner ARR (INR)',
+              DeskLedgerItem(
+                label: 'AFFILIATE PARTNER ARR (INR)',
                 value: formatInrCompact(snap.affiliateGeneratedArrInr),
-                caption:
+                subtext:
                     'Settled INR Payouts: ${formatInrAmount(snap.affiliatePayoutsSettledInr)}',
-                delta: 22.4,
-                icon: Icons.handshake_outlined,
+                badgeText: '+22.4%',
+                badgeIntent: UiIntent.success,
               ),
             ],
           ),
@@ -155,21 +259,13 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     final UiTheme theme = context.ui;
 
     final Widget pnlCard = UiCard(
+      title:
+          'Institutional Desk Alpha vs NIFTY 50 Benchmark ($_timeframe · INR ₹)',
+      subtitle:
+          'Net realized + mark-to-market desk gains across NSE/BSE/NFO/MCX',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            'Institutional Desk Alpha vs NIFTY 50 Benchmark ($_timeframe · INR ₹)',
-            style: context.uiText.subheading,
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Text(
-            'Net realized + mark-to-market desk gains across NSE/BSE/NFO/MCX',
-            style: context.uiText.caption.copyWith(
-              color: theme.colors.foregroundMuted,
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
           UiAreaChart(
             height: 240,
             valueFormatter: (num v) => formatInrCompact(v),
@@ -177,10 +273,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                 .map(
                   (p) => UiChartPoint(
                     label: p.label,
-                    values: <double>[
-                      p.deskPnlInr,
-                      p.benchmarkPnlInr,
-                    ],
+                    values: <double>[p.deskPnlInr, p.benchmarkPnlInr],
                   ),
                 )
                 .toList(),
@@ -201,21 +294,11 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     );
 
     final Widget revenueCard = UiCard(
+      title: 'Consumer & Affiliate SaaS Revenue (INR ₹)',
+      subtitle: 'Combined Pro (₹2,499/mo) & Enterprise (₹7,999/mo) collections',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            'Consumer & Affiliate SaaS Revenue (INR ₹)',
-            style: context.uiText.subheading,
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Text(
-            'Combined Pro (₹2,499/mo) & Enterprise (₹7,999/mo) collections',
-            style: context.uiText.caption.copyWith(
-              color: theme.colors.foregroundMuted,
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
           UiBarChart(
             height: 240,
             valueFormatter: (num v) => formatInrCompact(v),
@@ -223,9 +306,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                 .map(
                   (p) => UiChartPoint(
                     label: p.label,
-                    values: <double>[
-                      p.revenueInr,
-                    ],
+                    values: <double>[p.revenueInr],
                   ),
                 )
                 .toList(),
@@ -240,24 +321,10 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
       ),
     );
 
-    if (context.uiRes.isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          pnlCard,
-          SizedBox(height: context.sp(theme.spacing.md)),
-          revenueCard,
-        ],
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(flex: 3, child: pnlCard),
-        SizedBox(width: context.sp(theme.spacing.md)),
-        Expanded(flex: 2, child: revenueCard),
-      ],
+    return UiCardGrid(
+      minTileWidth: 450,
+      largeColumns: 2,
+      children: [pnlCard, revenueCard],
     );
   }
 
@@ -265,24 +332,13 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     BuildContext context,
     AdminDeskAnalyticsSnapshot snap,
   ) {
-    final UiTheme theme = context.ui;
-
     final Widget barListCard = UiCard(
+      title: 'Net P&L Contribution by Desk Division (INR ₹)',
+      subtitle:
+          'Ranked performance across NSE NFO, Cash Momentum, Quant Arb, and MCX',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            'Net P&L Contribution by Desk Division (INR ₹)',
-            style: context.uiText.subheading,
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Text(
-            'Ranked performance across NSE NFO, Cash Momentum, Quant Arb, and MCX',
-            style: context.uiText.caption.copyWith(
-              color: theme.colors.foregroundMuted,
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
           UiBarList(
             valueFormatter: (num v) => formatInrCompact(v, signed: true),
             items: snap.divisions
@@ -301,21 +357,11 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     );
 
     final Widget donutCard = UiCard(
+      title: 'Deployed Capital Share (INR)',
+      subtitle: 'Margin allocation across desk divisions',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            'Deployed Capital Share (INR)',
-            style: context.uiText.subheading,
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Text(
-            'Margin allocation across desk divisions',
-            style: context.uiText.caption.copyWith(
-              color: theme.colors.foregroundMuted,
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
           UiDonutChart(
             size: 165,
             centerLabel: formatInrCompact(snap.allocatedCapitalInr),
@@ -333,24 +379,10 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
       ),
     );
 
-    if (context.uiRes.isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          barListCard,
-          SizedBox(height: context.sp(theme.spacing.md)),
-          donutCard,
-        ],
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(flex: 3, child: barListCard),
-        SizedBox(width: context.sp(theme.spacing.md)),
-        Expanded(flex: 2, child: donutCard),
-      ],
+    return UiCardGrid(
+      minTileWidth: 450,
+      largeColumns: 2,
+      children: [barListCard, donutCard],
     );
   }
 
@@ -360,31 +392,43 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
       ..sort((a, b) => b.monthlyPnlInr.compareTo(a.monthlyPnlInr));
 
     return UiCard(
+      title: 'Proprietary Trader Scorecard Leaderboard (INR ₹)',
+      subtitle:
+          'Risk-adjusted return metrics, capital utilization, and drawdown discipline per seat (tap row to inspect)',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            'Proprietary Trader Scorecard Leaderboard (INR ₹)',
-            style: context.uiText.subheading,
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Text(
-            'Risk-adjusted return metrics, capital utilization, and drawdown discipline per seat',
-            style: context.uiText.caption.copyWith(
-              color: theme.colors.foregroundMuted,
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
           UiTable<AdminTraderSeat>(
             rows: sorted,
             rowKey: (s) => s.userId,
             stackOnMobile: true,
+            onRowTap: _showTraderDrawer,
             columns: <UiTableColumn<AdminTraderSeat>>[
               UiTableColumn<AdminTraderSeat>(
                 id: 'trader',
                 label: 'Trader',
                 flex: 2,
-                valueGetter: (s) => '${s.displayName} (@${s.handle})',
+                cellBuilder: (BuildContext ctx, AdminTraderSeat s) => Row(
+                  children: <Widget>[
+                    UiAvatar(name: s.displayName, size: UiSize.sm),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(s.displayName, style: ctx.uiText.bodyStrong),
+                          Text(
+                            '@${s.handle}',
+                            style: ctx.uiText.caption.copyWith(
+                              color: theme.colors.foregroundMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
               UiTableColumn<AdminTraderSeat>(
                 id: 'division',

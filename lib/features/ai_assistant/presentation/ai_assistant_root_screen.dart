@@ -2,6 +2,8 @@ import 'package:tradex/core/navigation/feature_location_scope.dart';
 import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
 import 'package:tradex/features/ai_assistant/presentation/overlays/ai_chart_analysis_dialog.dart';
@@ -430,7 +432,7 @@ class AiAssistantRootScreenState extends State<AiAssistantRootScreen> {
 
   Widget _buildDesktop(BuildContext context) {
     return UiThreePane(
-      railWidth: 280,
+      railWidth: 240,
       listRatio: 0.6,
       rail: _historyRail(context),
       list: _chatView(context, showHeader: true),

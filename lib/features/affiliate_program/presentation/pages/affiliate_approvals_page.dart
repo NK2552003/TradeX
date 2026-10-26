@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
 import 'package:tradex/features/affiliate_program/data/affiliate_application_repository.dart';
@@ -73,7 +74,7 @@ class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
   ) async {
     if (_reviewing) return;
     final TextEditingController notes = TextEditingController();
-    final bool? confirmed = await showDialog<bool>(
+    final bool? confirmed = await UiDialog.present<bool>(
       context: context,
       builder: (BuildContext dialogContext) => UiDialog(
         title: approve ? 'Approve affiliate access?' : 'Reject application?',
@@ -172,10 +173,7 @@ class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
     await _load();
   }
 
-  Future<void> _settlePayoutModal(
-    AffiliatePayout payout,
-    bool approve,
-  ) async {
+  Future<void> _settlePayoutModal(AffiliatePayout payout, bool approve) async {
     final TextEditingController refCtrl = TextEditingController(
       text: approve
           ? 'UTR${DateTime.now().millisecondsSinceEpoch.toString().substring(4)}'
@@ -187,7 +185,7 @@ class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
           : 'Returned to partner unpaid balance: Bank/UPI verification required.',
     );
 
-    final bool? confirmed = await showDialog<bool>(
+    final bool? confirmed = await UiDialog.present<bool>(
       context: context,
       builder: (BuildContext ctx) => UiDialog(
         title: approve
@@ -276,7 +274,7 @@ class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
     final TextEditingController bodyCtrl = TextEditingController();
     String category = 'social';
 
-    final bool? published = await showDialog<bool>(
+    final bool? published = await UiDialog.present<bool>(
       context: context,
       builder: (BuildContext ctx) => StatefulBuilder(
         builder: (BuildContext ctx, StateSetter setModalState) => UiDialog(
@@ -427,31 +425,39 @@ class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
               message: _error,
               intent: UiIntent.danger,
             ),
-          UiCardGrid(
-            mobileColumns: 1,
-            tabletColumns: 3,
-            desktopColumns: 3,
-            largeColumns: 3,
-            childAspectRatio: context.uiRes.isMobile ? 2.4 : 2.0,
-            children: <Widget>[
-              UiMetricCard(
-                label: 'Pending review',
+
+          // Desk Ledger 3-Column Block
+          DeskLedgerBlock(
+            items: <DeskLedgerItem>[
+              DeskLedgerItem(
+                label: 'PENDING REVIEW',
                 value: '$pending',
-                icon: Icons.pending_actions_outlined,
+                valueColor: pending > 0
+                    ? theme.colors.warning
+                    : theme.colors.foreground,
+                subtext: 'Awaiting compliance review',
+                badgeText: pending > 0 ? 'NEEDS REVIEW' : 'CLEAR',
+                badgeIntent: pending > 0
+                    ? UiIntent.warning
+                    : UiIntent.success,
               ),
-              UiMetricCard(
-                label: 'Approved partners',
+              DeskLedgerItem(
+                label: 'APPROVED PARTNERS',
                 value: '$approved',
-                icon: Icons.verified_user_outlined,
+                valueColor: theme.colors.bullish,
+                subtext: 'Active creator partners',
+                badgeText: 'VERIFIED',
+                badgeIntent: UiIntent.success,
               ),
-              UiMetricCard(
-                label: 'Total applications',
+              DeskLedgerItem(
+                label: 'TOTAL APPLICATIONS',
                 value: '${_applications.length}',
-                icon: Icons.group_add_outlined,
+                subtext: 'Historical onboarding pipeline',
               ),
             ],
           ),
           SizedBox(height: context.sp(theme.spacing.lg)),
+
           UiToggleGroup<AffiliateApplicationStatus?>(
             value: _filter,
             expand: context.uiRes.isMobile,
@@ -524,68 +530,12 @@ class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
   ) {
     final UiTheme theme = context.ui;
     return UiCard(
+      title: 'Partner INR Payout Settlement & Tier Governance',
+      subtitle:
+          'Active Partner: ${ws.profile.displayName} (/r/${ws.profile.referralSlug}) · Unpaid Balance: ${formatInrAmount(ws.profile.unpaidBalance)} · Settled: ${formatInrAmount(ws.profile.totalPaidOut)}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Wrap(
-            spacing: context.sp(theme.spacing.md),
-            runSpacing: context.sp(theme.spacing.sm),
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: <Widget>[
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Partner INR Payout Settlement & Tier Governance',
-                    style: context.uiText.subheading,
-                  ),
-                  Text(
-                    'Active Partner: ${ws.profile.displayName} (/r/${ws.profile.referralSlug}) · Unpaid Balance: ${formatInrAmount(ws.profile.unpaidBalance)} · Settled: ${formatInrAmount(ws.profile.totalPaidOut)}',
-                    style: context.uiText.caption.copyWith(
-                      color: theme.colors.foregroundMuted,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(
-                width: 240,
-                child: UiSelect<String>(
-                  value: ws.profile.tier,
-                  options: ws.tiers
-                      .map(
-                        (t) => UiOption<String>(
-                          value: t.tierId,
-                          label:
-                              '${t.displayName} (${(t.commissionRate * 100).toStringAsFixed(0)}% INR)',
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (String? tierId) async {
-                    if (tierId == null) return;
-                    final tierObj = ws.tiers
-                        .where((t) => t.tierId == tierId)
-                        .firstOrNull;
-                    await _workspaceRepository.adminUpdatePartnerTier(
-                      tierId: tierId,
-                      commissionRate: tierObj?.commissionRate ?? 0.25,
-                    );
-                    await _load();
-                    if (context.mounted) {
-                      UiToast.show(
-                        context,
-                        title: 'Partner Commission Tier Updated',
-                        message:
-                            'Updated partner tier to ${tierId.toUpperCase()}.',
-                        intent: UiIntent.success,
-                      );
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
           UiTable<AffiliatePayout>(
             rows: ws.payouts,
             rowKey: (p) => p.id,
@@ -777,19 +727,17 @@ class _ApplicationCard extends StatelessWidget {
   Widget _detail(BuildContext context, IconData icon, String text) {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Icon(
           icon,
           size: context.sz(16),
           color: context.ui.colors.foregroundMuted,
         ),
-        SizedBox(width: context.sp(context.ui.spacing.xs)),
-        ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: context.sz(260)),
+        UiGap.h(context.ui.spacing.xs),
+        Flexible(
           child: Text(
             text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: context.uiText.caption.copyWith(
               color: context.ui.colors.foregroundMuted,
             ),

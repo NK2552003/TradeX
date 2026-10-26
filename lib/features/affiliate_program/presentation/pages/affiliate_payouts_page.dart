@@ -41,7 +41,11 @@ class _AffiliatePayoutsPageState extends State<AffiliatePayoutsPage> {
     final rawMin = w.profile.number('minimum_payout_threshold');
     final min = rawMin < 1000 ? 1000.0 : rawMin;
     final balance = w.profile.number('unpaid_balance');
-    if (parsed == null || parsed < min || parsed > balance) {
+    if (parsed == null ||
+        !parsed.isFinite ||
+        (parsed * 100 - (parsed * 100).round()).abs() > 0.000001 ||
+        parsed < min ||
+        parsed > balance) {
       setState(
         () => _error =
             'Enter an INR amount between ${w.money(min)} and ${w.money(balance)}.',
@@ -72,7 +76,8 @@ class _AffiliatePayoutsPageState extends State<AffiliatePayoutsPage> {
                 value: Text(w.money(parsed), style: ctx.uiText.mono),
               ),
               UiKeyValueRow(
-                label: 'Statutory TDS (${(w.tdsRate * 100).toStringAsFixed(0)}% u/s 194H)',
+                label:
+                    'Statutory TDS (${(w.tdsRate * 100).toStringAsFixed(0)}% u/s 194H)',
                 value: Text('- ${w.money(tds)}', style: ctx.uiText.mono),
               ),
               if (gst > 0)
@@ -94,10 +99,7 @@ class _AffiliatePayoutsPageState extends State<AffiliatePayoutsPage> {
                 label: 'Settlement Rail',
                 value: Text(w.payoutMethod.toUpperCase()),
               ),
-              UiKeyValueRow(
-                label: 'Destination',
-                value: Text(w.payoutAccount),
-              ),
+              UiKeyValueRow(label: 'Destination', value: Text(w.payoutAccount)),
               if (w.panNumber.isNotEmpty)
                 UiKeyValueRow(
                   label: 'Verified PAN',
@@ -141,7 +143,8 @@ class _AffiliatePayoutsPageState extends State<AffiliatePayoutsPage> {
       UiToast.show(
         context,
         title: 'INR Payout Requested',
-        message: 'Funds are reserved in INR while the settlement desk processes your transfer.',
+        message:
+            'Funds are reserved in INR while the settlement desk processes your transfer.',
         intent: UiIntent.success,
       );
     } catch (e) {
@@ -229,7 +232,11 @@ class _AffiliatePayoutsPageState extends State<AffiliatePayoutsPage> {
           leadingIcon: Icons.tune_rounded,
           size: UiSize.sm,
           variant: UiVariant.outline,
-          onPressed: () => widget.onNavigate?.call('settings_affiliate'),
+          onPressed:
+              widget.onOpenSettings ??
+              (widget.onNavigate == null
+                  ? null
+                  : () => widget.onNavigate!('settings_affiliate')),
         ),
       ],
       builder: (context, w, reload) {
@@ -245,6 +252,7 @@ class _AffiliatePayoutsPageState extends State<AffiliatePayoutsPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             UiCardGrid(
+              equalHeight: true,
               minTileWidth: 210,
               children: [
                 UiMetricCard(
@@ -282,11 +290,10 @@ class _AffiliatePayoutsPageState extends State<AffiliatePayoutsPage> {
             ),
             UiGap.v(context.ui.spacing.lg),
             UiCard(
+              title: 'Request an INR Payout',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('Request an INR Payout', style: context.uiText.heading),
-                  UiGap.v(context.ui.spacing.sm),
+                children: <Widget>[
                   if (_error != null) ...[
                     UiCallout(
                       title: 'Payout request blocked',
@@ -353,32 +360,22 @@ class _AffiliatePayoutsPageState extends State<AffiliatePayoutsPage> {
             UiGap.v(context.ui.spacing.lg),
             UiCard(
               padding: EdgeInsets.zero,
+              headerPadding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+              title: 'INR Payout History',
+              trailing: UiToggleGroup<String>(
+                size: UiSize.sm,
+                value: _status,
+                onChanged: (v) => setState(() => _status = v),
+                options: const [
+                  UiOption(value: 'all', label: 'All'),
+                  UiOption(value: 'pending', label: 'Pending'),
+                  UiOption(value: 'paid', label: 'Paid'),
+                  UiOption(value: 'failed', label: 'Failed'),
+                ],
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
-                    child: Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: context.sp(context.ui.spacing.sm),
-                      runSpacing: context.sp(context.ui.spacing.sm),
-                      children: [
-                        Text('INR Payout History', style: context.uiText.heading),
-                        UiToggleGroup<String>(
-                          size: UiSize.sm,
-                          value: _status,
-                          onChanged: (v) => setState(() => _status = v),
-                          options: const [
-                            UiOption(value: 'all', label: 'All'),
-                            UiOption(value: 'pending', label: 'Pending'),
-                            UiOption(value: 'paid', label: 'Paid'),
-                            UiOption(value: 'failed', label: 'Failed'),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                children: <Widget>[
                   UiTable<AffiliateRecord>(
                     rows: rows,
                     rowKey: (row) => row.id,

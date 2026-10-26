@@ -25,6 +25,7 @@ class UiCard extends StatefulWidget {
     super.key,
     required this.child,
     this.padding,
+    this.headerPadding,
     this.title,
     this.titleWidget,
     this.subtitle,
@@ -48,7 +49,7 @@ class UiCard extends StatefulWidget {
     this.collapsible = false,
     this.initiallyExpanded = true,
     this.onExpandedChanged,
-    this.hoverLift = true,
+    this.hoverLift = false,
     this.density = UiDensity.comfortable,
     this.radius,
     this.borderRadius,
@@ -62,6 +63,9 @@ class UiCard extends StatefulWidget {
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
+
+  /// Optional header inset for tables or media with an edge-to-edge body.
+  final EdgeInsetsGeometry? headerPadding;
   final String? title;
 
   /// Overrides [title] when a custom header widget is required.
@@ -130,14 +134,16 @@ class _UiCardState extends State<UiCard> {
     final theme = context.ui;
     final r = context.uiRes;
     final c = theme.colors;
-    final Color tint = widget.accentColor ?? (widget.intent?.color(context) ?? c.primary);
-    final BorderRadius radius = (widget.borderRadius as BorderRadius?) ??
-        context.radius(widget.radius ?? theme.radii.xl);
+    final Color tint =
+        widget.accentColor ?? (widget.intent?.color(context) ?? c.primary);
+    final BorderRadius radius =
+        (widget.borderRadius as BorderRadius?) ??
+        context.radius(widget.radius ?? theme.radii.lg);
     final double f = widget.density.factor;
     final EdgeInsetsGeometry pad =
         widget.padding ??
         EdgeInsets.all(
-          context.sp(r.isMobile ? theme.spacing.lg : theme.spacing.xl) * f,
+          context.sp(r.isMobile ? theme.spacing.md : theme.spacing.lg) * f,
         );
     final bool tappable = widget.enabled && widget.onTap != null;
 
@@ -153,16 +159,23 @@ class _UiCardState extends State<UiCard> {
         final bool active = widget.motion && tappable && s.active;
         final _CardSkin skin = _skin(ctx, active, tint);
         final BoxDecoration decoration = BoxDecoration(
-          color: skin.gradient == null ? skin.background : null,
+          color: skin.gradient == null
+              ? (widget.selected
+                    ? Color.alphaBlend(
+                        tint.withValues(alpha: 0.06),
+                        skin.background,
+                      )
+                    : skin.background)
+              : null,
           gradient: skin.gradient,
           borderRadius: radius,
           border: widget.borderless
               ? null
               : Border.all(
-                  color: widget.selected ? tint : skin.borderColor,
-                  width: widget.selected
-                      ? theme.borders.thick
-                      : theme.borders.hairline,
+                  color: widget.selected
+                      ? tint.withValues(alpha: 0.45)
+                      : skin.borderColor,
+                  width: theme.borders.hairline,
                 ),
           boxShadow: skin.shadow,
         );
@@ -205,7 +218,12 @@ class _UiCardState extends State<UiCard> {
     );
   }
 
-  Widget _cardContent(BuildContext ctx, EdgeInsetsGeometry pad, double f, BorderRadius radius) {
+  Widget _cardContent(
+    BuildContext ctx,
+    EdgeInsetsGeometry pad,
+    double f,
+    BorderRadius radius,
+  ) {
     final Widget body = _body(ctx, pad, f);
     if (widget.media == null) return body;
     return Column(
@@ -260,15 +278,18 @@ class _UiCardState extends State<UiCard> {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (hasHeader) ...<Widget>[
-            _UiCardHeader(
-              title: widget.title,
-              titleWidget: widget.titleWidget,
-              subtitle: widget.subtitle,
-              leading: widget.leading,
-              trailing: widget.trailing,
-              collapsible: widget.collapsible,
-              expanded: _expanded,
-              onToggle: _toggle,
+            Padding(
+              padding: widget.headerPadding ?? EdgeInsets.zero,
+              child: _UiCardHeader(
+                title: widget.title,
+                titleWidget: widget.titleWidget,
+                subtitle: widget.subtitle,
+                leading: widget.leading,
+                trailing: widget.trailing,
+                collapsible: widget.collapsible,
+                expanded: _expanded,
+                onToggle: _toggle,
+              ),
             ),
             if (widget.headerDivider) ...<Widget>[
               SizedBox(height: ctx.sp(theme.spacing.md) * f),
@@ -277,7 +298,8 @@ class _UiCardState extends State<UiCard> {
                 color: theme.colors.border,
               ),
             ],
-            SizedBox(height: ctx.sp(theme.spacing.md) * f),
+            if (widget.headerPadding == null)
+              SizedBox(height: ctx.sp(theme.spacing.md) * f),
           ],
           content,
           if (_expanded &&
@@ -347,10 +369,7 @@ class _UiCardState extends State<UiCard> {
           borderColor: tint.withValues(alpha: 0.45),
         );
       case UiCardVariant.subtle:
-        return _CardSkin(
-          background: c.surfaceMuted,
-          borderColor: c.border,
-        );
+        return _CardSkin(background: c.surfaceMuted, borderColor: c.border);
       case UiCardVariant.surface:
         return _CardSkin(
           background: active ? c.surfaceMuted : c.surface,
@@ -433,7 +452,7 @@ class _UiCardHeader extends StatelessWidget {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final bool isNarrow =
-            constraints.maxWidth < 340 || context.uiRes.isMobile;
+            constraints.maxWidth < context.sz(440) || context.uiRes.isMobile;
         final Widget titleColumn = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -442,9 +461,7 @@ class _UiCardHeader extends StatelessWidget {
             else if (title != null)
               Text(
                 title!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.heading.copyWith(
+                style: context.uiText.subheading.copyWith(
                   color: theme.colors.foreground,
                 ),
               ),
@@ -452,8 +469,6 @@ class _UiCardHeader extends StatelessWidget {
               SizedBox(height: context.sp(theme.spacing.xxs)),
               Text(
                 subtitle!,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
                 style: context.uiText.caption.copyWith(
                   color: theme.colors.foregroundMuted,
                 ),
@@ -494,10 +509,7 @@ class _UiCardHeader extends StatelessWidget {
                 ],
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: trailing!,
-              ),
+              trailing!,
             ],
           );
         }
@@ -513,10 +525,7 @@ class _UiCardHeader extends StatelessWidget {
             if (trailing != null) ...<Widget>[
               SizedBox(width: context.sp(theme.spacing.sm)),
               Flexible(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: trailing!,
-                ),
+                child: Align(alignment: Alignment.topRight, child: trailing!),
               ),
             ],
             if (collapsible) ...<Widget>[

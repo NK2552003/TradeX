@@ -14,19 +14,21 @@ class UiPage extends StatelessWidget {
     this.scrollable = true,
     this.scrollController,
     this.maxWidth,
-  }) : header = header ??
-            (title != null
-                ? UiHeader(
-                    title: title,
-                    subtitle: subtitle,
-                    actions: actions ?? const <Widget>[],
-                  )
-                : null);
+  }) : header =
+           header ??
+           (title != null
+               ? UiHeader(
+                   title: title,
+                   subtitle: subtitle,
+                   actions: actions ?? const <Widget>[],
+                 )
+               : null);
 
   final Widget child;
   final Widget? header;
   final bool scrollable;
   final ScrollController? scrollController;
+
   /// Content column cap in logical points (scaled internally).
   final double? maxWidth;
 
@@ -42,7 +44,7 @@ class UiPage extends StatelessWidget {
           desktop: theme.spacing.lg,
         ),
       ),
-      vertical: context.sp(theme.spacing.sm),
+      vertical: context.sp(theme.spacing.lg),
     );
 
     final double? rawMaxWidth = maxWidth;
@@ -51,9 +53,7 @@ class UiPage extends StatelessWidget {
         : context.sz(rawMaxWidth);
 
     Widget body = ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: maxW,
-      ),
+      constraints: BoxConstraints(maxWidth: maxW),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -68,10 +68,7 @@ class UiPage extends StatelessWidget {
 
     body = Padding(
       padding: pad,
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: body,
-      ),
+      child: Align(alignment: Alignment.topCenter, child: body),
     );
     // No background of its own. A page always sits inside something that has
     // already painted one — the app shell's content surface, a dialog, a sheet —
@@ -120,11 +117,7 @@ class UiHeader extends StatelessWidget {
             children: <Widget>[
               Text(
                 title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.subheading.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: context.fs(14),
+                style: context.uiText.title.copyWith(
                   color: theme.colors.foreground,
                 ),
               ),
@@ -132,10 +125,7 @@ class UiHeader extends StatelessWidget {
                 SizedBox(height: context.sp(theme.spacing.xxs)),
                 Text(
                   subtitle!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.uiText.caption.copyWith(
-                    fontSize: context.fs(11),
+                  style: context.uiText.body.copyWith(
                     color: theme.colors.foregroundMuted,
                   ),
                 ),
@@ -172,7 +162,9 @@ class UiHeader extends StatelessWidget {
             Expanded(child: identity),
             if (actions.isNotEmpty) ...<Widget>[
               SizedBox(width: context.sp(theme.spacing.md)),
-              Flexible(child: actionRow),
+              Flexible(
+                child: Align(alignment: Alignment.topRight, child: actionRow),
+              ),
             ],
           ],
         );

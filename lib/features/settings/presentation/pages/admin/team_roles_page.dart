@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/settings/data/repositories/organization_settings_repository.dart';
 import 'package:tradex/features/settings/models/org_models.dart';
 
@@ -50,8 +52,9 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
     final emailController = TextEditingController();
     String selectedRole = 'trader';
     bool inviting = false;
+    String? invitationError;
 
-    showDialog(
+    UiDialog.present(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (dialogCtx, setDialogState) => UiDialog(
@@ -69,6 +72,7 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
               SizedBox(height: context.sp(context.ui.spacing.md)),
               UiField(
                 label: 'Email Address',
+                error: invitationError,
                 child: UiInput(
                   hintText: 'colleague@firm.com',
                   keyboardType: TextInputType.emailAddress,
@@ -105,7 +109,13 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
               loading: inviting,
               onPressed: () async {
                 final email = emailController.text.trim();
-                if (email.isEmpty) return;
+                if (inviting) return;
+                if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+                  setDialogState(
+                    () => invitationError = 'Enter a valid email address.',
+                  );
+                  return;
+                }
                 setDialogState(() => inviting = true);
                 try {
                   await _repo.inviteMember(email: email, role: selectedRole);
@@ -123,18 +133,24 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
                     );
                   }
                 } catch (e) {
-                  setDialogState(() => inviting = false);
+                  if (dialogCtx.mounted) {
+                    setDialogState(() {
+                      inviting = false;
+                      invitationError =
+                          'Invitation could not be saved. Try again.';
+                    });
+                  }
                 }
               },
             ),
           ],
         ),
       ),
-    );
+    ).whenComplete(emailController.dispose);
   }
 
   void _showRemoveMemberDialog(OrgMember member) {
-    showDialog(
+    UiDialog.present(
       context: context,
       builder: (ctx) => UiDialog(
         title: 'Remove ${member.displayName}?',
@@ -182,143 +198,100 @@ class _TeamRolesPageState extends State<TeamRolesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.ui;
-    final colors = theme.colors;
-
-    // The count-and-invite strip is part of the skeleton too, so the real strip
-    // does not pop in above a list that is still loading.
-    if (_loading) {
-      return UiSkeleton.settingsList(rows: 4);
-    }
-
-    return Column(
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            context.sp(theme.spacing.lg),
-            context.sp(theme.spacing.sm),
-            context.sp(theme.spacing.lg),
-            0,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${_members.length} Active Desk Members',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.uiText.bodyStrong.copyWith(
-                    color: colors.foregroundMuted,
-                  ),
-                ),
-              ),
-              SizedBox(width: context.sp(theme.spacing.sm)),
-              UiButton(
-                label: 'Invite Member',
-                leadingIcon: Icons.person_add_alt_1_rounded,
-                size: UiSize.xs,
-                onPressed: _showInviteMemberDialog,
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.separated(
-            // Clears the phone dock, which floats over the page.
-            padding: EdgeInsets.fromLTRB(
-              context.sp(theme.spacing.lg),
-              context.sp(theme.spacing.lg),
-              context.sp(theme.spacing.lg),
-              context.sp(theme.spacing.lg) +
-                  (context.uiRes.isMobile ? context.uiDockInset : 0),
-            ),
-            itemCount: _members.length,
-            separatorBuilder: (context, index) =>
-                SizedBox(height: context.sp(theme.spacing.sm)),
-            itemBuilder: (context, index) {
-              final member = _members[index];
-              final isOwner = member.role == 'owner';
-
-              return UiCard(
-                child: Row(
-                  children: [
-                    UiAvatar(
-                      name: member.displayName,
-                      imageUrl: member.avatarUrl,
-                      size: UiSize.md,
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.md)),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  member.displayName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: context.uiText.bodyStrong,
-                                ),
-                              ),
-                              SizedBox(width: context.sp(theme.spacing.xs)),
-                              UiBadge(
-                                label: member.role.toUpperCase(),
-                                intent: _getRoleBadgeIntent(member.role),
-                                size: UiSize.xs,
-                              ),
-                            ],
-                          ),
-                          Text(
-                            '@${member.handle} · Joined ${member.joinedAt.year}-${member.joinedAt.month.toString().padLeft(2, '0')}-${member.joinedAt.day.toString().padLeft(2, '0')}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: context.uiText.caption.copyWith(
-                              color: colors.foregroundMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (!isOwner) ...[
-                      UiSelect<String>(
-                        width: context.uiRes.isMobile ? 96.0 : 120.0,
-                        size: UiSize.sm,
-                        value: member.role,
-                        options: _roleOptions
-                            .where((r) => r != 'owner')
-                            .map(
-                              (r) => UiOption<String>(
-                                label: r.toUpperCase(),
-                                value: r,
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (newRole) async {
-                          await _repo.updateMemberRole(
-                            userId: member.userId,
-                            role: newRole,
-                          );
-                          await _loadMembers();
-                        },
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.xs)),
-                      UiIconButton(
-                        icon: Icons.delete_outline_rounded,
-                        size: UiSize.xs,
-                        variant: UiVariant.destructive,
-                        tooltip: 'Remove member',
-                        onPressed: () => _showRemoveMemberDialog(member),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            },
-          ),
+    if (_loading) return UiSkeleton.settingsList(rows: 4);
+    return UiPage(
+      title: 'Team directory & roles',
+      subtitle:
+          '${_members.length} desk members. Review access or invite a colleague.',
+      actions: [
+        UiButton(
+          label: 'Invite Member',
+          leadingIcon: Icons.person_add_alt_1_rounded,
+          onPressed: _showInviteMemberDialog,
         ),
       ],
+      child: UiTable<OrgMember>(
+        rows: _members,
+        rowKey: (member) => member.userId,
+        stackOnMobile: true,
+        pageSize: 12,
+        emptyLabel: 'No team members yet. Invite a colleague to get started.',
+        columns: [
+          UiTableColumn(
+            header: 'Member',
+            flex: 2,
+            cell: (context, member) => Row(
+              children: [
+                UiAvatar(name: member.displayName, imageUrl: member.avatarUrl),
+                UiGap.h(context.ui.spacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        member.displayName,
+                        style: context.uiText.bodyStrong,
+                      ),
+                      Text('@${member.handle}', style: context.uiText.caption),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          UiTableColumn(
+            header: 'Joined',
+            cell: (context, member) =>
+                Text(AppTokens.shortDate(member.joinedAt)),
+          ),
+          UiTableColumn(
+            header: 'Desk role',
+            cell: (context, member) => member.role == 'owner'
+                ? UiBadge(
+                    label: 'Owner',
+                    intent: _getRoleBadgeIntent(member.role),
+                  )
+                : UiSelect<String>(
+                    value: member.role,
+                    options: [
+                      for (final role in _roleOptions.where(
+                        (role) => role != 'owner',
+                      ))
+                        UiOption(value: role, label: role),
+                    ],
+                    onChanged: (role) async {
+                      try {
+                        await _repo.updateMemberRole(
+                          userId: member.userId,
+                          role: role,
+                        );
+                        if (mounted) await _loadMembers();
+                      } catch (_) {
+                        if (context.mounted) {
+                          UiToast.show(
+                            context,
+                            title: 'Role could not be updated',
+                            intent: UiIntent.danger,
+                          );
+                        }
+                      }
+                    },
+                  ),
+          ),
+          UiTableColumn(
+            header: 'Access',
+            cell: (context, member) => member.role == 'owner'
+                ? const Text('Organization owner')
+                : UiButton(
+                    label: 'Remove',
+                    variant: UiVariant.ghost,
+                    intent: UiIntent.danger,
+                    size: UiSize.sm,
+                    onPressed: () => _showRemoveMemberDialog(member),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -54,7 +54,9 @@ class AffiliateOverviewPage extends StatelessWidget {
           leadingIcon: Icons.account_balance_wallet_outlined,
           size: UiSize.sm,
           intent: UiIntent.primary,
-          onPressed: () => onNavigate?.call('payouts'),
+          onPressed:
+              onOpenPayouts ??
+              (onNavigate == null ? null : () => onNavigate!('payouts')),
         ),
       ],
       builder: (context, w, reload) {
@@ -86,7 +88,8 @@ class AffiliateOverviewPage extends StatelessWidget {
                         : UiIntent.warning,
                   ),
                   UiBadge(
-                    label: 'TDS ${(w.tdsRate * 100).toStringAsFixed(0)}% u/s 194H',
+                    label:
+                        'TDS ${(w.tdsRate * 100).toStringAsFixed(0)}% u/s 194H',
                     intent: UiIntent.info,
                   ),
                   if (w.gstRegistered)
@@ -126,7 +129,11 @@ class AffiliateOverviewPage extends StatelessWidget {
                     leadingIcon: Icons.campaign_outlined,
                     size: UiSize.sm,
                     variant: UiVariant.outline,
-                    onPressed: () => onNavigate?.call('marketing'),
+                    onPressed:
+                        onOpenMarketing ??
+                        (onNavigate == null
+                            ? null
+                            : () => onNavigate!('marketing')),
                   ),
                   UiButton(
                     label: 'Payout & Tax Settings',
@@ -142,25 +149,14 @@ class AffiliateOverviewPage extends StatelessWidget {
         );
 
         final funnelCard = UiCard(
+          title: 'Conversion Funnel & Tier Milestone',
+          trailing: UiBadge(
+            label: '${w.conversionRate.toStringAsFixed(1)}% CONV',
+            intent: UiIntent.bullish,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Conversion Funnel & Tier Milestone',
-                      style: context.uiText.heading,
-                    ),
-                  ),
-                  UiBadge(
-                    label: '${w.conversionRate.toStringAsFixed(1)}% CONV',
-                    intent: UiIntent.bullish,
-                  ),
-                ],
-              ),
-              UiGap.v(context.ui.spacing.md),
+            children: <Widget>[
               UiProgressBar(
                 value: w.totalClicks == 0
                     ? 0
@@ -205,6 +201,7 @@ class AffiliateOverviewPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             UiCardGrid(
+              equalHeight: true,
               minTileWidth: 210,
               children: [
                 UiMetricCard(
@@ -264,47 +261,30 @@ class AffiliateOverviewPage extends StatelessWidget {
             // Dynamic Commission Tiers Breakdown (Loaded from repository / DB)
             if (w.tiers.isNotEmpty) ...[
               UiCard(
+                title: 'Partner Commission Tiers & INR Settlement Rules',
+                subtitle:
+                    'Dynamic tier structure synced with Institutional Desk governance.',
+                trailing: UiBadge(
+                  label:
+                      'MIN PAYOUT ${w.money(p.number('minimum_payout_threshold') < 1000 ? 1000 : p.number('minimum_payout_threshold'))}',
+                  intent: UiIntent.primary,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: context.sp(context.ui.spacing.sm),
-                      runSpacing: context.sp(context.ui.spacing.xs),
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Partner Commission Tiers & INR Settlement Rules',
-                              style: context.uiText.heading,
-                            ),
-                            Text(
-                              'Dynamic tier structure synced with Institutional Desk governance.',
-                              style: context.uiText.caption.copyWith(
-                                color: context.ui.colors.foregroundMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                        UiBadge(
-                          label: 'MIN PAYOUT ${w.money(p.number('minimum_payout_threshold') < 1000 ? 1000 : p.number('minimum_payout_threshold'))}',
-                          intent: UiIntent.primary,
-                        ),
-                      ],
-                    ),
-                    UiGap.v(context.ui.spacing.md),
+                  children: <Widget>[
                     UiCardGrid(
+                      equalHeight: true,
                       minTileWidth: 230,
                       children: [
                         for (final tier in w.tiers)
                           UiCard(
-                            variant: tier.text('tier_code') ==
+                            variant:
+                                tier.text('tier_code') ==
                                     p.text('tier', 'standard')
                                 ? UiCardVariant.accent
                                 : UiCardVariant.subtle,
-                            accentColor: tier.text('tier_code') ==
+                            accentColor:
+                                tier.text('tier_code') ==
                                     p.text('tier', 'standard')
                                 ? context.ui.colors.primary
                                 : null,
@@ -342,7 +322,8 @@ class AffiliateOverviewPage extends StatelessWidget {
                                   style: context.uiText.caption,
                                 ),
                                 UiGap.v(context.ui.spacing.xs),
-                                for (final perk in tier.stringList('perks').take(2))
+                                for (final perk
+                                    in tier.stringList('perks').take(2))
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4),
                                     child: Row(
@@ -377,14 +358,10 @@ class AffiliateOverviewPage extends StatelessWidget {
 
             if (series.isNotEmpty) ...[
               UiCard(
+                title: 'INR Earnings & Settlement Ledger (₹)',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'INR Earnings & Settlement Ledger (₹)',
-                      style: context.uiText.heading,
-                    ),
-                    UiGap.v(context.ui.spacing.sm),
+                  children: <Widget>[
                     UiBarChart(
                       height: 210,
                       data: series,
@@ -402,25 +379,20 @@ class AffiliateOverviewPage extends StatelessWidget {
             ],
 
             UiCard(
+              title: 'Active Campaigns',
+              trailing: UiButton(
+                label: 'Manage Campaigns',
+                size: UiSize.xs,
+                variant: UiVariant.ghost,
+                onPressed:
+                    onOpenMarketing ??
+                    (onNavigate == null
+                        ? null
+                        : () => onNavigate!('marketing')),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: context.sp(context.ui.spacing.sm),
-                    runSpacing: context.sp(context.ui.spacing.xs),
-                    children: [
-                      Text('Active Campaigns', style: context.uiText.heading),
-                      UiButton(
-                        label: 'Manage Campaigns',
-                        size: UiSize.xs,
-                        variant: UiVariant.ghost,
-                        onPressed: () => onNavigate?.call('marketing'),
-                      ),
-                    ],
-                  ),
-                  UiGap.v(context.ui.spacing.sm),
+                children: <Widget>[
                   if (w.campaigns.isEmpty)
                     const Text(
                       'No campaigns yet. Create one in Campaign Studio.',
@@ -445,27 +417,21 @@ class AffiliateOverviewPage extends StatelessWidget {
 
             UiCard(
               padding: EdgeInsets.zero,
+              headerPadding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
+              title: 'Latest Referrals (INR)',
+              trailing: UiButton(
+                label: 'All Referrals',
+                size: UiSize.xs,
+                variant: UiVariant.ghost,
+                onPressed:
+                    onOpenReferrals ??
+                    (onNavigate == null
+                        ? null
+                        : () => onNavigate!('referrals')),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.all(context.sp(context.ui.spacing.md)),
-                    child: Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: context.sp(context.ui.spacing.sm),
-                      runSpacing: context.sp(context.ui.spacing.xs),
-                      children: [
-                        Text('Latest Referrals (INR)', style: context.uiText.heading),
-                        UiButton(
-                          label: 'All Referrals',
-                          size: UiSize.xs,
-                          variant: UiVariant.ghost,
-                          onPressed: () => onNavigate?.call('referrals'),
-                        ),
-                      ],
-                    ),
-                  ),
+                children: <Widget>[
                   UiTable<AffiliateRecord>(
                     rows: w.referrals.take(5).toList(),
                     rowKey: (r) => r.id,
@@ -515,25 +481,14 @@ class AffiliateOverviewPage extends StatelessWidget {
             if (w.terms.isNotEmpty) ...[
               UiGap.v(context.ui.spacing.lg),
               UiCard(
+                title: 'Partner Terms, Indian Tax (TDS/GST) & SEBI/ASCI Rules',
+                trailing: UiBadge(
+                  label: p.text('terms_version_accepted', '2026.1-INR'),
+                  intent: UiIntent.info,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Partner Terms, Indian Tax (TDS/GST) & SEBI/ASCI Rules',
-                            style: context.uiText.heading,
-                          ),
-                        ),
-                        UiBadge(
-                          label: p.text('terms_version_accepted', '2026.1-INR'),
-                          intent: UiIntent.info,
-                        ),
-                      ],
-                    ),
-                    UiGap.v(context.ui.spacing.sm),
+                  children: <Widget>[
                     UiAccordion(
                       items: [
                         for (final term in w.terms)

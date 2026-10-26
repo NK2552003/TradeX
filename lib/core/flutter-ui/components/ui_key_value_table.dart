@@ -91,14 +91,20 @@ class UiKeyValueTable extends StatelessWidget {
     if (rows.isEmpty) return const SizedBox.shrink();
     final bool header =
         labelHeader != null || valueHeader != null || trailingHeader != null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        if (header) _header(context),
-        for (int i = 0; i < rows.length; i++)
-          _row(context, rows[i], first: i == 0 && !header),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow =
+            constraints.maxWidth - _pad(context).horizontal < context.sz(440);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (header && !narrow) _header(context),
+            for (int i = 0; i < rows.length; i++)
+              _row(context, rows[i], first: i == 0 && (!header || narrow)),
+          ],
+        );
+      },
     );
   }
 
@@ -129,6 +135,7 @@ class UiKeyValueTable extends StatelessWidget {
               style: uiOverline(context),
             ),
           ),
+          SizedBox(width: context.sp(theme.spacing.md)),
           SizedBox(
             width: _valW(context),
             child: Text(
@@ -137,7 +144,8 @@ class UiKeyValueTable extends StatelessWidget {
               textAlign: TextAlign.end,
             ),
           ),
-          if (_hasTrailing)
+          if (_hasTrailing) ...[
+            SizedBox(width: context.sp(theme.spacing.sm)),
             SizedBox(
               width: _trailW(context),
               child: Text(
@@ -146,6 +154,7 @@ class UiKeyValueTable extends StatelessWidget {
                 textAlign: TextAlign.end,
               ),
             ),
+          ],
         ],
       ),
     );
@@ -161,77 +170,85 @@ class UiKeyValueTable extends StatelessWidget {
 
     final Widget content = Padding(
       padding: _pad(context),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          if (row.icon != null) ...<Widget>[
-            Icon(
-              row.icon,
-              size: context.sz(theme.sizes.iconXs),
-              color: row.intent == UiIntent.neutral
-                  ? c.foregroundSubtle
-                  : tint,
-            ),
-            SizedBox(width: context.sp(theme.spacing.xs)),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final label = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                row.label,
+                style:
+                    (row.emphasis
+                            ? context.uiText.bodyStrong
+                            : context.uiText.body)
+                        .copyWith(color: c.foreground),
+              ),
+              if (row.detail != null)
                 Text(
-                  row.label,
-                  style: (row.emphasis
-                          ? context.uiText.bodyStrong
-                          : context.uiText.body)
-                      .copyWith(color: c.foreground),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  row.detail!,
+                  style: context.uiText.caption.copyWith(
+                    color: c.foregroundMuted,
+                  ),
                 ),
-                if (row.detail != null)
+            ],
+          );
+          final narrow = constraints.maxWidth < context.sz(440);
+          final value = Text(
+            row.value,
+            textAlign: narrow ? TextAlign.start : TextAlign.end,
+            style: context.uiText.numeric.copyWith(
+              color: tint,
+              fontWeight: row.emphasis ? FontWeight.w700 : FontWeight.w500,
+            ),
+          );
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                label,
+                SizedBox(height: context.sp(theme.spacing.xs)),
+                value,
+                if (row.trailing != null)
                   Text(
-                    row.detail!,
+                    row.trailing!,
                     style: context.uiText.caption.copyWith(
-                      color: c.foregroundSubtle,
+                      color: c.foregroundMuted,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
               ],
-            ),
-          ),
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          SizedBox(
-            width: _valW(context),
-            child: Text(
-              row.value,
-              textAlign: TextAlign.end,
-              style: context.uiText.numeric.copyWith(
-                color: tint,
-                fontWeight: row.emphasis ? FontWeight.w700 : FontWeight.w500,
-                fontSize: context.uiText.numeric.fontSize,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (_hasTrailing)
-            SizedBox(
-              width: _trailW(context),
-              child: Text(
-                row.trailing ?? '',
-                textAlign: TextAlign.end,
-                style: context.uiText.caption.copyWith(
-                  color: c.foregroundMuted,
-                  fontFeatures: const <FontFeature>[
-                    FontFeature.tabularFigures(),
-                  ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (row.icon != null) ...[
+                Icon(
+                  row.icon,
+                  size: context.sz(theme.sizes.iconXs),
+                  color: tint,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-        ],
+                SizedBox(width: context.sp(theme.spacing.xs)),
+              ],
+              Expanded(child: label),
+              SizedBox(width: context.sp(theme.spacing.md)),
+              SizedBox(width: _valW(context), child: value),
+              if (_hasTrailing) ...[
+                SizedBox(width: context.sp(theme.spacing.sm)),
+                SizedBox(
+                  width: _trailW(context),
+                  child: Text(
+                    row.trailing ?? '',
+                    textAlign: TextAlign.end,
+                    style: context.uiText.caption.copyWith(
+                      color: c.foregroundMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
 
@@ -260,9 +277,7 @@ class UiKeyValueTable extends StatelessWidget {
                     widthFactor: share.clamp(0.0, 1.0),
                     child: Container(
                       height: context.sz(2),
-                      color: (row.intent == UiIntent.neutral
-                              ? c.primary
-                              : tint)
+                      color: (row.intent == UiIntent.neutral ? c.primary : tint)
                           .withValues(alpha: 0.55),
                     ),
                   ),

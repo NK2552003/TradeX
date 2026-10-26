@@ -48,7 +48,11 @@ class _AffiliateReferralsPageState extends State<AffiliateReferralsPage> {
     return copy;
   }
 
-  void _showReferral(BuildContext context, AffiliateWorkspace w, AffiliateRecord r) {
+  void _showReferral(
+    BuildContext context,
+    AffiliateWorkspace w,
+    AffiliateRecord r,
+  ) {
     final double gross = r.number('bonus_awarded');
     final double tds = r.number('tds_deducted_inr') > 0
         ? r.number('tds_deducted_inr')
@@ -178,6 +182,7 @@ class _AffiliateReferralsPageState extends State<AffiliateReferralsPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             UiCardGrid(
+              equalHeight: true,
               minTileWidth: 210,
               children: [
                 UiMetricCard(
@@ -190,7 +195,8 @@ class _AffiliateReferralsPageState extends State<AffiliateReferralsPage> {
                   label: 'Converted Subscribers',
                   value:
                       '${filtered.where((r) => r.text('status') == 'converted').length}',
-                  caption: '${w.conversionRate.toStringAsFixed(1)}% conversion rate',
+                  caption:
+                      '${w.conversionRate.toStringAsFixed(1)}% conversion rate',
                   icon: Icons.verified_outlined,
                   intent: UiIntent.bullish,
                 ),

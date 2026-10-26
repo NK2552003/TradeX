@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:tradex/core/app-ui/app_ui.dart' show AppPageBlock;
+// ignore: unnecessary_import
+import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import '../../data/affiliate_workspace_repository.dart';
 import '../../models/affiliate_workspace.dart';
@@ -22,7 +23,8 @@ class AffiliateWorkspaceView extends StatefulWidget {
     BuildContext,
     AffiliateWorkspace,
     AffiliateWorkspaceActions,
-  )? actions;
+  )?
+  actions;
   final Widget Function(
     BuildContext,
     AffiliateWorkspace,
@@ -118,7 +120,8 @@ class _AffiliateWorkspaceViewState extends State<AffiliateWorkspaceView> {
           ),
         ];
 
-        return AppPageBlock(
+        return UiPage(
+          maxWidth: 1440,
           title: widget.title,
           subtitle: widget.subtitle,
           actions: headerActions,
@@ -208,18 +211,10 @@ class AffiliatePanel extends StatelessWidget {
   final Widget child;
   @override
   Widget build(BuildContext context) => UiCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(title, style: context.uiText.title),
-        if (description != null) ...[
-          const UiGap.v(8),
-          Text(description!, style: context.uiText.body),
-        ],
-        const UiGap.v(16),
-        child,
-      ],
-    ),
+    title: title,
+    subtitle: description,
+    headerDivider: true,
+    child: child,
   );
 }
 
@@ -249,13 +244,13 @@ class AffiliateColumns extends StatelessWidget {
 
 Future<void> copyAffiliateText(
   BuildContext context,
-  String text,
   String title,
+  String text,
 ) async {
   try {
     await Clipboard.setData(ClipboardData(text: text));
     if (context.mounted) {
-      UiToast.show(context, title: title, intent: UiIntent.success);
+      UiToast.show(context, title: '$title copied', intent: UiIntent.success);
     }
   } catch (_) {
     if (context.mounted) {

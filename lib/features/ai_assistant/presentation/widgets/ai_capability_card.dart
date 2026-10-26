@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
 
 /// A capability tile in the "what can the copilot do" grid. Tapping it seeds the
@@ -29,19 +30,10 @@ class AiCapabilityCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Container(
-                width: context.sz(40),
-                height: context.sz(40),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: colors.primary.withValues(alpha: 0.12),
-                  borderRadius: context.radius(theme.radii.md),
-                ),
-                child: Icon(
-                  capability.icon,
-                  size: context.sz(theme.sizes.iconLg),
-                  color: colors.primary,
-                ),
+              Icon(
+                capability.icon,
+                size: context.sz(22),
+                color: colors.foregroundMuted,
               ),
               const Spacer(),
               if (capability.badge != null)
@@ -57,7 +49,7 @@ class AiCapabilityCard extends StatelessWidget {
           Text(
             capability.title,
             style: context.uiText.bodyStrong,
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           SizedBox(height: context.sp(theme.spacing.xxs)),

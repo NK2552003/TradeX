@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
 import 'package:tradex/features/admin_console/models/admin_console_models.dart';
 import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
@@ -21,8 +23,11 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
   String _breakerState = 'armed';
   String _orderFilter = 'pending'; // pending | approved | rejected | all
   DeskRiskModel _policy = DeskRiskModel.defaultConfig();
+  DeskRiskModel _savedPolicy = DeskRiskModel.defaultConfig();
   List<DeskOrderApproval> _orders = const <DeskOrderApproval>[];
   List<DeskRiskBreach> _breaches = const <DeskRiskBreach>[];
+
+  bool get _hasUnsavedChanges => _policy != _savedPolicy;
 
   @override
   void initState() {
@@ -40,8 +45,10 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
         _repo.listRiskBreaches(),
       ]);
       if (!mounted) return;
+      final loadedPolicy = results[0] as DeskRiskModel;
       setState(() {
-        _policy = results[0] as DeskRiskModel;
+        _policy = loadedPolicy;
+        _savedPolicy = loadedPolicy;
         _breakerState = results[1] as String;
         _orders = results[2] as List<DeskOrderApproval>;
         _breaches = results[3] as List<DeskRiskBreach>;
@@ -56,7 +63,10 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
     try {
       final updated = await _repo.updateDeskRiskConfig(_policy);
       if (!mounted) return;
-      setState(() => _policy = updated);
+      setState(() {
+        _policy = updated;
+        _savedPolicy = updated;
+      });
       UiToast.show(
         context,
         title: 'Desk Risk Policy Enforced',
@@ -69,22 +79,17 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
     }
   }
 
-  Future<void> _reviewOrderDialog(
-    DeskOrderApproval order,
-    bool approve,
-  ) async {
+  Future<void> _reviewOrderDialog(DeskOrderApproval order, bool approve) async {
     final TextEditingController notesCtrl = TextEditingController(
       text: approve
           ? 'Approved after verifying SPAN margin and delta hedge.'
           : 'Rejected: Exceeds single-order concentration cap.',
     );
 
-    final bool? confirmed = await showDialog<bool>(
+    final bool? confirmed = await UiDialog.present<bool>(
       context: context,
       builder: (BuildContext ctx) => UiDialog(
-        title: approve
-            ? 'Approve Pre-Trade Order?'
-            : 'Reject Pre-Trade Order?',
+        title: approve ? 'Approve Pre-Trade Order?' : 'Reject Pre-Trade Order?',
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -166,9 +171,21 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
       header: UiHeader(
         title: 'Risk Limits, Pre-Trade Gates & Compliance',
         subtitle:
-            'Configure firm-wide INR drawdown rules, approve high-notional NSE/NFO/MCX orders, and resolve desk risk breaches.',
+            'Firm-wide INR margin caps, high-notional order approvals & breach incident response.',
         leading: Icon(Icons.shield_outlined, color: theme.colors.primary),
         actions: <Widget>[
+          if (_hasUnsavedChanges)
+            const UiBadge(
+              label: 'Unsaved Policy Changes',
+              intent: UiIntent.warning,
+              size: UiSize.xs,
+            )
+          else
+            const UiBadge(
+              label: 'All Rules Synced',
+              intent: UiIntent.success,
+              size: UiSize.xs,
+            ),
           UiButton(
             label: 'Refresh',
             leadingIcon: Icons.refresh_rounded,
@@ -189,45 +206,51 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          UiCardGrid(
-            mobileColumns: 1,
-            tabletColumns: 2,
-            desktopColumns: 4,
-            largeColumns: 4,
-            childAspectRatio: context.uiRes.isMobile ? 2.3 : 1.9,
-            children: <Widget>[
-              UiMetricCard(
-                label: 'Circuit Breaker Status',
-                value: _breakerState.toUpperCase(),
-                caption: _breakerState == 'halted'
+          // Desk Ledger 4-Column Summary Block
+          DeskLedgerBlock(
+            items: <DeskLedgerItem>[
+              DeskLedgerItem(
+                label: 'CIRCUIT BREAKER',
+                value: _breakerState == 'halted' ? 'HALTED' : 'ARMED',
+                valueColor: _breakerState == 'halted'
+                    ? theme.colors.danger
+                    : theme.colors.success,
+                subtext: _breakerState == 'halted'
                     ? 'All non-owner seats frozen'
                     : 'Pre-trade risk engine active',
-                icon: Icons.gpp_good_outlined,
-                intent: _breakerState == 'halted'
+                badgeText: _breakerState == 'halted' ? 'HALTED' : 'ARMED',
+                badgeIntent: _breakerState == 'halted'
                     ? UiIntent.danger
                     : UiIntent.success,
               ),
-              UiMetricCard(
-                label: 'Max Intraday Leverage',
+              DeskLedgerItem(
+                label: 'MAX INTRADAY LEVERAGE',
                 value: '${_policy.maxLeverage.toStringAsFixed(0)}x',
-                caption:
-                    'Daily Loss Cap: ${_policy.maxDailyLossPercent.toStringAsFixed(1)}%',
-                icon: Icons.speed_rounded,
+                subtext:
+                    'Daily loss cap: ${_policy.maxDailyLossPercent.toStringAsFixed(1)}%',
               ),
-              UiMetricCard(
-                label: 'Pending Order Approvals',
+              DeskLedgerItem(
+                label: 'ORDERS AWAITING APPROVAL',
                 value: '$pendingCount Flagged',
-                caption: '${_orders.length} total pre-trade checks',
-                icon: Icons.rule_folder_outlined,
-                intent: pendingCount > 0 ? UiIntent.warning : UiIntent.success,
+                valueColor: pendingCount > 0
+                    ? theme.colors.warning
+                    : theme.colors.foreground,
+                subtext: '${_orders.length} total pre-trade checks',
+                badgeText: pendingCount > 0 ? 'NEEDS REVIEW' : 'CLEAR',
+                badgeIntent: pendingCount > 0
+                    ? UiIntent.warning
+                    : UiIntent.success,
               ),
-              UiMetricCard(
-                label: 'Active Breach Incidents',
+              DeskLedgerItem(
+                label: 'OPEN BREACHES',
                 value: '$openBreachesCount Open',
-                caption:
-                    'Hard Drawdown Cap: ${_policy.maxTotalDrawdownPercent.toStringAsFixed(1)}%',
-                icon: Icons.warning_amber_rounded,
-                intent: openBreachesCount > 0
+                valueColor: openBreachesCount > 0
+                    ? theme.colors.danger
+                    : theme.colors.success,
+                subtext:
+                    'Hard drawdown cap: ${_policy.maxTotalDrawdownPercent.toStringAsFixed(1)}%',
+                badgeText: openBreachesCount > 0 ? 'ALERT' : 'OPTIMAL',
+                badgeIntent: openBreachesCount > 0
                     ? UiIntent.danger
                     : UiIntent.success,
               ),
@@ -254,21 +277,21 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
     final UiTheme theme = context.ui;
 
     final Widget slidersCard = UiCard(
+      title: 'Institutional Margin & Drawdown Thresholds',
+      subtitle:
+          'Real-time thresholds enforced across all proprietary trader seats.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            'Institutional Margin & Drawdown Thresholds',
-            style: context.uiText.subheading,
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Text(
-            'Real-time thresholds enforced across all proprietary trader seats.',
-            style: context.uiText.caption.copyWith(
-              color: theme.colors.foregroundMuted,
+          if (_policy.maxDailyLossPercent > _policy.maxTotalDrawdownPercent) ...<Widget>[
+            UiCallout(
+              title: 'Configuration Warning',
+              message:
+                  'Daily loss cap (${_policy.maxDailyLossPercent.toStringAsFixed(1)}%) cannot exceed total drawdown cap (${_policy.maxTotalDrawdownPercent.toStringAsFixed(1)}%). Risk engine may trigger premature liquidation.',
+              intent: UiIntent.warning,
             ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
+            SizedBox(height: context.sp(theme.spacing.md)),
+          ],
           UiField(
             label:
                 'Maximum Intraday Leverage (${_policy.maxLeverage.toStringAsFixed(0)}x)',
@@ -279,7 +302,8 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
               max: 50.0,
               divisions: 49,
               onChanged: (double v) => setState(
-                () => _policy = _policy.copyWith(maxLeverage: v.roundToDouble()),
+                () =>
+                    _policy = _policy.copyWith(maxLeverage: v.roundToDouble()),
               ),
             ),
           ),
@@ -306,10 +330,10 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
             helperText:
                 'Trailing high-water mark drawdown limit before seat suspension',
             child: UiSlider(
-              value: _policy.maxTotalDrawdownPercent.clamp(2.0, 30.0),
-              min: 2.0,
+              value: _policy.maxTotalDrawdownPercent.clamp(1.0, 30.0),
+              min: 1.0,
               max: 30.0,
-              divisions: 28,
+              divisions: 29,
               onChanged: (double v) => setState(
                 () => _policy = _policy.copyWith(maxTotalDrawdownPercent: v),
               ),
@@ -320,21 +344,12 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
     );
 
     final Widget gatesCard = UiCard(
+      title: 'Exchange Segment & Execution Gates',
+      subtitle:
+          'Control permitted asset classes and mandatory order attachments.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            'Exchange Segment & Execution Gates',
-            style: context.uiText.subheading,
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Text(
-            'Control permitted asset classes and mandatory order attachments.',
-            style: context.uiText.caption.copyWith(
-              color: theme.colors.foregroundMuted,
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
           AppSettingCard(
             title: 'Mandatory Stop-Loss Attachment',
             description:
@@ -342,12 +357,13 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
             icon: Icons.shield_moon_outlined,
             control: UiSwitch(
               value: _policy.requireStopLoss,
-              onChanged: (bool v) =>
-                  setState(() => _policy = _policy.copyWith(requireStopLoss: v)),
+              onChanged: (bool v) => setState(
+                () => _policy = _policy.copyWith(requireStopLoss: v),
+              ),
             ),
           ),
           AppSettingCard(
-            title: 'Auto-Liquidate on Hard Drawdown Breach',
+            title: 'Auto Square-Off on Hard Drawdown Breach',
             description:
                 'Automatically square off open positions if daily loss cap is breached.',
             icon: Icons.flash_on_outlined,
@@ -384,24 +400,10 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
       ),
     );
 
-    if (context.uiRes.isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          slidersCard,
-          SizedBox(height: context.sp(theme.spacing.md)),
-          gatesCard,
-        ],
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(child: slidersCard),
-        SizedBox(width: context.sp(theme.spacing.md)),
-        Expanded(child: gatesCard),
-      ],
+    return UiCardGrid(
+      minTileWidth: 420,
+      largeColumns: 2,
+      children: [slidersCard, gatesCard],
     );
   }
 
@@ -411,43 +413,22 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
   ) {
     final UiTheme theme = context.ui;
     return UiCard(
+      title: 'Pre-Trade High-Notional Order Approval Queue (INR ₹)',
+      subtitle:
+          'Review and release or block flagged institutional orders before exchange routing.',
+      trailing: UiToggleGroup<String>(
+        value: _orderFilter,
+        options: const <UiToggleOption<String>>[
+          UiToggleOption(value: 'pending', label: 'Pending'),
+          UiToggleOption(value: 'approved', label: 'Approved'),
+          UiToggleOption(value: 'rejected', label: 'Rejected'),
+          UiToggleOption(value: 'all', label: 'All'),
+        ],
+        onChanged: (String v) => setState(() => _orderFilter = v),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Wrap(
-            spacing: context.sp(theme.spacing.md),
-            runSpacing: context.sp(theme.spacing.sm),
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: <Widget>[
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Pre-Trade High-Notional Order Approval Queue (INR ₹)',
-                    style: context.uiText.subheading,
-                  ),
-                  Text(
-                    'Review and release or block flagged institutional orders before exchange routing.',
-                    style: context.uiText.caption.copyWith(
-                      color: theme.colors.foregroundMuted,
-                    ),
-                  ),
-                ],
-              ),
-              UiToggleGroup<String>(
-                value: _orderFilter,
-                options: const <UiToggleOption<String>>[
-                  UiToggleOption(value: 'pending', label: 'Pending'),
-                  UiToggleOption(value: 'approved', label: 'Approved'),
-                  UiToggleOption(value: 'rejected', label: 'Rejected'),
-                  UiToggleOption(value: 'all', label: 'All'),
-                ],
-                onChanged: (String v) => setState(() => _orderFilter = v),
-              ),
-            ],
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
           if (visibleOrders.isEmpty)
             const UiEmptyState(
               icon: Icons.fact_check_outlined,
@@ -465,39 +446,32 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
                   id: 'instrument',
                   label: 'Instrument & Exchange',
                   flex: 2,
-                  cellBuilder: (BuildContext ctx, DeskOrderApproval o) =>
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
+                  cellBuilder: (BuildContext ctx, DeskOrderApproval o) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Wrap(
+                        spacing: ctx.sp(theme.spacing.xs),
+                        runSpacing: ctx.sp(theme.spacing.xs),
                         children: <Widget>[
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              UiBadge(
-                                label: '${o.side} · ${o.exchange}',
-                                intent: o.side == 'BUY'
-                                    ? UiIntent.bullish
-                                    : UiIntent.bearish,
-                                size: UiSize.xs,
-                              ),
-                              SizedBox(width: ctx.sp(theme.spacing.xs)),
-                              Flexible(
-                                child: Text(
-                                  o.symbol,
-                                  style: ctx.uiText.bodyStrong,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
+                          UiBadge(
+                            label: '${o.side} · ${o.exchange}',
+                            intent: o.side == 'BUY'
+                                ? UiIntent.bullish
+                                : UiIntent.bearish,
+                            size: UiSize.xs,
                           ),
-                          Text(
-                            '${o.quantity} qty @ ${formatInrAmount(o.orderPriceInr)} · ${o.strategyName}',
-                            style: ctx.uiText.caption.copyWith(
-                              color: theme.colors.foregroundMuted,
-                            ),
-                          ),
+                          Text(o.symbol, style: ctx.uiText.bodyStrong),
                         ],
                       ),
+                      Text(
+                        '${o.quantity} qty @ ${formatInrAmount(o.orderPriceInr)} · ${o.strategyName}',
+                        style: ctx.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 UiTableColumn<DeskOrderApproval>(
                   id: 'trader',
@@ -576,21 +550,12 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
   Widget _buildBreachLogSection(BuildContext context) {
     final UiTheme theme = context.ui;
     return UiCard(
+      title: 'Risk Breach Incident Log (INR)',
+      subtitle:
+          'Historical and active margin, drawdown, and stop-loss compliance alerts.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            'Risk Breach Incident Log (INR)',
-            style: context.uiText.subheading,
-          ),
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Text(
-            'Historical and active margin, drawdown, and stop-loss compliance alerts.',
-            style: context.uiText.caption.copyWith(
-              color: theme.colors.foregroundMuted,
-            ),
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
           UiTable<DeskRiskBreach>(
             rows: _breaches,
             rowKey: (b) => b.id,
@@ -626,8 +591,40 @@ class _AdminRiskCompliancePageState extends State<AdminRiskCompliancePage> {
                 id: 'exposure',
                 label: 'Metric vs Cap (₹)',
                 numeric: true,
-                valueGetter: (b) =>
-                    '${formatInrCompact(b.metricValueInr)} / ${formatInrCompact(b.thresholdValueInr)}',
+                cellBuilder: (BuildContext ctx, DeskRiskBreach b) {
+                  final double ratio = b.thresholdValueInr > 0
+                      ? (b.metricValueInr / b.thresholdValueInr).clamp(0.0, 1.5)
+                      : 1.0;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        '${formatInrCompact(b.metricValueInr)} / ${formatInrCompact(b.thresholdValueInr)}',
+                        style: ctx.uiText.mono.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: ctx.sp(theme.spacing.xxs)),
+                      SizedBox(
+                        width: 90,
+                        height: 4,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: LinearProgressIndicator(
+                            value: (ratio / 1.5).clamp(0.0, 1.0),
+                            backgroundColor: theme.colors.surfaceMuted,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              ratio >= 1.0
+                                  ? theme.colors.danger
+                                  : theme.colors.warning,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               UiTableColumn<DeskRiskBreach>(
                 id: 'status',

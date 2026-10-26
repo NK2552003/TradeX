@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
 import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
 import 'package:tradex/features/affiliate_program/presentation/widgets/affiliate_workspace_view.dart';
@@ -60,10 +62,9 @@ class _AffiliateSettingsPageState extends State<AffiliateSettingsPage> {
     _slug = s.customSlug;
     _account = s.payoutAccount;
     _method = s.payoutMethod.isEmpty ? 'upi' : s.payoutMethod;
-    _threshold = (s.minimumPayoutThreshold < 1000
-            ? 1000.0
-            : s.minimumPayoutThreshold)
-        .toStringAsFixed(0);
+    _threshold =
+        (s.minimumPayoutThreshold < 1000 ? 1000.0 : s.minimumPayoutThreshold)
+            .toStringAsFixed(0);
     _autoPayout = s.autoPayoutEnabled;
     _accountHolder = s.accountHolder;
     _bankName = s.bankName;
@@ -502,7 +503,8 @@ class _AffiliateSettingsPageState extends State<AffiliateSettingsPage> {
                             );
                             final gstField = UiField(
                               label: 'GSTIN (Optional — 18% GST Invoicing)',
-                              helper: '15-character GSTIN (e.g. 27ABCDE1234F1Z5)',
+                              helper:
+                                  '15-character GSTIN (e.g. 27ABCDE1234F1Z5)',
                               child: UiInput(
                                 value: _gstin,
                                 hintText: '27ABCDE1234F1Z5',
@@ -588,7 +590,8 @@ class _AffiliateSettingsPageState extends State<AffiliateSettingsPage> {
               if (s.terms.isNotEmpty) ...[
                 UiGap.v(theme.spacing.lg),
                 AppSettingsSectionBlock(
-                  title: 'Partner Agreement & Regulatory Terms (${s.termsVersionAccepted})',
+                  title:
+                      'Partner Agreement & Regulatory Terms (${s.termsVersionAccepted})',
                   description:
                       'Binding INR settlement, Section 194H TDS, and SEBI/ASCI disclosure rules for TradeX affiliates.',
                   children: [
