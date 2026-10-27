@@ -12,10 +12,12 @@ import 'package:path/path.dart' as p;
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 // Required unified UI surfaces for feature pages.
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/linking/link_graph.dart';
+import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
 import 'package:tradex/features/linking/record_link_picker.dart';
 import 'package:tradex/core/markdown_kit/markdown_kit.dart';
 import 'package:tradex/features/linking/link_graph_service.dart';
@@ -63,6 +65,7 @@ class JournalEditorScreen extends StatefulWidget {
     this.onDeleted,
     this.detailsOnly = false,
     this.initialMode = JournalEditorMode.write,
+    this.onOpenLink,
   });
 
   /// The entry being edited. An empty [AppTrade.id] is an unsaved draft, created
@@ -82,6 +85,9 @@ class JournalEditorScreen extends StatefulWidget {
 
   /// Production record routes use focused forms; writing lives in Notes.
   final bool detailsOnly;
+
+  /// Follows a record/ticker link tapped in the preview tab or linked notes list.
+  final void Function(AppLinkRef ref)? onOpenLink;
 
   @override
   State<JournalEditorScreen> createState() => JournalEditorScreenState();
@@ -409,6 +415,64 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
     }
     final AppTrade before = _entry;
     final AppTrade draft = _draft;
+    if (!silent && draft.entry > 0 && draft.size > 0) {
+      final CustomerLimitEvaluation eval =
+          await CustomerLimitations.evaluateTradeRisk(
+            symbol: draft.ticker,
+            entryPrice: draft.entry,
+            quantity: draft.size,
+            stopLoss: draft.stopLoss,
+          );
+      if (!mounted) return null;
+      if (eval.isCircuitBreakerHalted) {
+        UiToast.error(
+          context,
+          title: eval.title ?? 'Desk Execution Halted',
+          message: eval.message ?? 'New trades are temporarily halted.',
+        );
+        return null;
+      }
+      if (eval.exceedsPositionCap) {
+        final risk = await AdminConsoleRepository.instance.getDeskRiskConfig();
+        await AdminConsoleRepository.instance.recordRiskBreach(
+          symbol: draft.ticker,
+          breachType: 'Position Size Cap Breach',
+          metricValueInr: draft.entry * draft.size,
+          thresholdValueInr: risk.maxPositionPerTrader,
+          description: eval.message ?? 'Order notional exceeded position cap.',
+          severity: 'critical',
+        );
+        if (!mounted) return null;
+        UiToast.error(
+          context,
+          title: eval.title ?? 'Position Cap Breach',
+          message:
+              '${eval.message ?? ''} Logged to Admin Risk & Compliance incident queue.',
+        );
+        return null;
+      }
+      if (eval.requiresManagerApproval) {
+        await AdminConsoleRepository.instance.submitOrderForApproval(
+          symbol: draft.ticker,
+          side: draft.side == AppSide.long ? 'BUY' : 'SELL',
+          quantity: draft.size.round().clamp(1, 1000000),
+          orderPriceInr: draft.entry,
+          notionalValueInr: draft.entry * draft.size,
+          stopLossInr: draft.stopLoss ?? 0,
+          targetPriceInr: draft.target ?? 0,
+          strategyName: draft.strategy ?? 'Discretionary Setup',
+          reasonFlagged: eval.message ?? 'Exceeds approval threshold',
+        );
+        if (mounted) {
+          UiToast.info(
+            context,
+            title: eval.title ?? 'Queued for Desk Approval',
+            message:
+                eval.message ?? 'Order sent to Admin Pre-Trade Approval Queue.',
+          );
+        }
+      }
+    }
     setState(() => _saving = true);
     try {
       final JournalRepository repo = JournalRepositoryScope.repository;
@@ -923,7 +987,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
         UiToast.warning(
           context,
           title: 'Dictation is not available',
-          message: 'Check the microphone permission for TradeX.',
+          message: 'Check the microphone permission for hejournal.in.',
         );
       }
       return;
@@ -1331,6 +1395,13 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
                   _tradeFields(ctx, twoColumn: true),
                   SizedBox(height: ctx.sp(ctx.ui.spacing.md)),
                   _liveNumbers(ctx),
+                  SizedBox(height: ctx.sp(ctx.ui.spacing.sm)),
+                  CustomerTradeRiskBanner(
+                    symbol: _ticker.text.trim(),
+                    entryPrice: _parse(_entryPrice),
+                    quantity: _parse(_size),
+                    stopLoss: _parse(_stop),
+                  ),
                 ],
               ),
             ),
@@ -1575,6 +1646,9 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
             AppLinkRefTile(
               ref: ref,
               dense: true,
+              onTap: widget.onOpenLink == null
+                  ? null
+                  : () => widget.onOpenLink!(ref),
               onRemove: reading ? null : () => _unlinkNote(ref.id),
             ),
           ],
@@ -1590,7 +1664,8 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
           : 'Only you can read this entry',
       enabled: !reading,
       onChanged: (bool value) async {
-        if (value && !await confirmRecordPublication(context, 'trade journal')) {
+        if (value &&
+            !await confirmRecordPublication(context, 'trade journal')) {
           return;
         }
         if (mounted) setState(() => _isPublic = value);
@@ -1780,6 +1855,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
             outlineController: _outline,
             imageResolver: JournalAttachments.resolve,
             emptyPlaceholder: 'Nothing to read yet — switch to Write.',
+            onOpenRef: widget.onOpenLink,
           ),
     );
     // In the narrow layout UiPage already scrolls; nesting another one would

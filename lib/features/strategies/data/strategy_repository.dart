@@ -22,7 +22,8 @@ abstract class StrategyRepository {
 }
 
 class StrategyRepositoryImpl implements StrategyRepository {
-  StrategyRepositoryImpl._([StrategiesRepository? repo]) : _strategiesRepo = repo;
+  StrategyRepositoryImpl._([StrategiesRepository? repo])
+    : _strategiesRepo = repo;
 
   static final StrategyRepositoryImpl instance = StrategyRepositoryImpl._();
 

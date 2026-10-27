@@ -52,7 +52,8 @@ class PortfolioSummaryCard extends StatelessWidget {
                 ),
               ),
               UiBadge(
-                label: '${isBullish ? '+' : ''}${dailyGainPercent.toStringAsFixed(2)}% Today',
+                label:
+                    '${isBullish ? '+' : ''}${dailyGainPercent.toStringAsFixed(2)}% Today',
                 intent: isBullish ? UiIntent.success : UiIntent.danger,
                 variant: UiBadgeVariant.soft,
               ),
@@ -78,7 +79,9 @@ class PortfolioSummaryCard extends StatelessWidget {
                   height: context.sz(28),
                   child: UiSparkChart(
                     data: sparklineData,
-                    color: isBullish ? theme.colors.success : theme.colors.destructive,
+                    color: isBullish
+                        ? theme.colors.success
+                        : theme.colors.destructive,
                   ),
                 ),
             ],
@@ -187,18 +190,17 @@ class AssetAllocationCard extends StatelessWidget {
       title: title,
       child: Column(
         children: <Widget>[
-          UiDonutChart(
-            slices: slices,
-            centerLabel: totalValue,
-          ),
+          UiDonutChart(slices: slices, centerLabel: totalValue),
           SizedBox(height: context.sp(theme.spacing.md)),
           UiCategoryBar(
             categories: slices
-                .map((DonutSlice s) => UiCategoryItem(
-                      label: s.label,
-                      value: s.value,
-                      color: s.color,
-                    ))
+                .map(
+                  (DonutSlice s) => UiCategoryItem(
+                    label: s.label,
+                    value: s.value,
+                    color: s.color,
+                  ),
+                )
                 .toList(),
           ),
         ],
@@ -289,7 +291,8 @@ class TradeHistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final List<AppTrade> list = trades ??
+    final List<AppTrade> list =
+        trades ??
         <AppTrade>[
           AppTrade(
             id: '1',
@@ -364,7 +367,9 @@ class TradeHistoryCard extends StatelessWidget {
                   UiBadge(
                     label:
                         '${list[i].pnl >= 0 ? "+" : ""}\$${list[i].pnl.toStringAsFixed(2)}',
-                    intent: list[i].pnl >= 0 ? UiIntent.success : UiIntent.danger,
+                    intent: list[i].pnl >= 0
+                        ? UiIntent.success
+                        : UiIntent.danger,
                     variant: UiBadgeVariant.soft,
                   ),
                 ],
@@ -438,7 +443,8 @@ class PositionCard extends StatelessWidget {
                 ],
               ),
               UiBadge(
-                label: '${isBullish ? "+" : ""}${pnlPercent.toStringAsFixed(2)}%',
+                label:
+                    '${isBullish ? "+" : ""}${pnlPercent.toStringAsFixed(2)}%',
                 intent: isBullish ? UiIntent.success : UiIntent.danger,
               ),
             ],
@@ -504,9 +510,24 @@ class WatchlistCard extends StatelessWidget {
     super.key,
     this.title = 'Watchlist',
     this.symbols = const <Map<String, dynamic>>[
-      {'symbol': 'NVDA', 'price': 128.5, 'change': 3.42, 'spark': [10.0, 12.0, 14.0, 16.0]},
-      {'symbol': 'AAPL', 'price': 224.2, 'change': -0.84, 'spark': [15.0, 14.0, 13.0, 12.0]},
-      {'symbol': 'TSLA', 'price': 218.9, 'change': 5.12, 'spark': [8.0, 10.0, 14.0, 18.0]},
+      {
+        'symbol': 'NVDA',
+        'price': 128.5,
+        'change': 3.42,
+        'spark': [10.0, 12.0, 14.0, 16.0],
+      },
+      {
+        'symbol': 'AAPL',
+        'price': 224.2,
+        'change': -0.84,
+        'spark': [15.0, 14.0, 13.0, 12.0],
+      },
+      {
+        'symbol': 'TSLA',
+        'price': 218.9,
+        'change': 5.12,
+        'spark': [8.0, 10.0, 14.0, 18.0],
+      },
     ],
     this.onSelectSymbol,
   });
@@ -551,7 +572,9 @@ class WatchlistCard extends StatelessWidget {
                         width: ctx.sz(60),
                         height: ctx.sz(20),
                         child: UiSparkChart(
-                          data: List<double>.from(item['spark'] as List<dynamic>),
+                          data: List<double>.from(
+                            item['spark'] as List<dynamic>,
+                          ),
                           color: (item['change'] as num) >= 0
                               ? theme.colors.success
                               : theme.colors.destructive,
@@ -594,7 +617,8 @@ class JournalEntryCard extends StatelessWidget {
     this.ticker = 'NVDA',
     this.strategy = 'Earnings Breakout',
     this.date = 'Sep 8, 2026',
-    this.notes = 'Clean volume confirmation upon crossing 125 resistance. Scaled out at target.',
+    this.notes =
+        'Clean volume confirmation upon crossing 125 resistance. Scaled out at target.',
     this.tags = const <String>['bullish', 'breakout', 'tech'],
     this.pnl = 1450.0,
     this.onTap,
@@ -689,8 +713,18 @@ class MarketOverviewCard extends StatelessWidget {
     this.title = 'Global Markets',
     this.indices = const <Map<String, dynamic>>[
       {'name': 'S&P 500', 'value': '5,842.10', 'change': '+0.42%', 'pos': true},
-      {'name': 'Nasdaq 100', 'value': '20,410.50', 'change': '+0.88%', 'pos': true},
-      {'name': 'Bitcoin', 'value': '\$67,420', 'change': '-1.20%', 'pos': false},
+      {
+        'name': 'Nasdaq 100',
+        'value': '20,410.50',
+        'change': '+0.88%',
+        'pos': true,
+      },
+      {
+        'name': 'Bitcoin',
+        'value': '\$67,420',
+        'change': '-1.20%',
+        'pos': false,
+      },
       {'name': 'Gold', 'value': '\$2,640.80', 'change': '+0.15%', 'pos': true},
     ],
   });
@@ -773,10 +807,7 @@ class StrategyCard extends StatelessWidget {
                   ],
                 ),
               ),
-              UiSwitch(
-                value: active,
-                onChanged: onToggle,
-              ),
+              UiSwitch(value: active, onChanged: onToggle),
             ],
           ),
           SizedBox(height: context.sp(theme.spacing.md)),
@@ -786,10 +817,18 @@ class StrategyCard extends StatelessWidget {
                 child: _stat(context, 'Sharpe', sharpeRatio.toStringAsFixed(2)),
               ),
               Expanded(
-                child: _stat(context, 'Win Rate', '${winRate.toStringAsFixed(1)}%'),
+                child: _stat(
+                  context,
+                  'Win Rate',
+                  '${winRate.toStringAsFixed(1)}%',
+                ),
               ),
               Expanded(
-                child: _stat(context, 'Max DD', '-${maxDrawdown.toStringAsFixed(1)}%'),
+                child: _stat(
+                  context,
+                  'Max DD',
+                  '-${maxDrawdown.toStringAsFixed(1)}%',
+                ),
               ),
             ],
           ),
@@ -808,10 +847,7 @@ class StrategyCard extends StatelessWidget {
             color: context.ui.colors.foregroundMuted,
           ),
         ),
-        Text(
-          value,
-          style: context.uiText.bodyStrong,
-        ),
+        Text(value, style: context.uiText.bodyStrong),
       ],
     );
   }
@@ -840,10 +876,7 @@ class AccountCard extends StatelessWidget {
     return UiCard(
       child: Row(
         children: <Widget>[
-          UiAvatar(
-            name: name,
-            size: UiSize.lg,
-          ),
+          UiAvatar(name: name, size: UiSize.lg),
           SizedBox(width: context.sp(theme.spacing.md)),
           Expanded(
             child: Column(
@@ -905,7 +938,8 @@ class AiInsightCard extends StatelessWidget {
     this.signal = 'BULLISH BREAKOUT',
     this.confidence = 92,
     this.headline = 'Volume Expansion Above \$125 Pivot',
-    this.rationale = 'Statistical pattern match across 84 historical earnings pre-runs indicates 78% probability of continued impulse towards \$138.',
+    this.rationale =
+        'Statistical pattern match across 84 historical earnings pre-runs indicates 78% probability of continued impulse towards \$138.',
     this.target = '\$138.00',
     this.stopLoss = '\$121.50',
     this.onExecute,
@@ -1033,7 +1067,8 @@ class CommunityPostCard extends StatelessWidget {
     this.authorName = 'Sarah Jenkins',
     this.authorTier = 'TOP TRADER',
     this.timeAgo = '2h ago',
-    this.content = 'Closed my swing position on NVDA with +18% gain! Locking profits ahead of CPI release tomorrow.',
+    this.content =
+        'Closed my swing position on NVDA with +18% gain! Locking profits ahead of CPI release tomorrow.',
     this.likes = 42,
     this.comments = 11,
     this.onLike,

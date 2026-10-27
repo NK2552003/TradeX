@@ -73,8 +73,28 @@ class EnvConfig {
   );
 
   // --- AI API Keys ---
+  static String get openrouterApiKey => _get('OPENROUTER_API_KEY');
   static String get geminiApiKey => _get('GEMINI_API_KEY');
   static String get openaiApiKey => _get('OPENAI_API_KEY');
+  static String get claudeApiKey {
+    final claude = _get('CLAUDE_API_KEY');
+    if (claude.isNotEmpty) return claude;
+    return _get('ANTHROPIC_API_KEY');
+  }
+
+  static bool get hasAiKey =>
+      openrouterApiKey.isNotEmpty ||
+      geminiApiKey.isNotEmpty ||
+      openaiApiKey.isNotEmpty ||
+      claudeApiKey.isNotEmpty;
+
+  // Publishable client identifiers only. Never put a Razorpay secret or a
+  // RevenueCat secret API key in an application asset or dart-define.
+  static String get revenueCatTestApiKey => _get('REVENUECAT_TEST_API_KEY');
+  static String get revenueCatAndroidApiKey =>
+      _get('REVENUECAT_ANDROID_API_KEY');
+  static String get revenueCatIosApiKey => _get('REVENUECAT_IOS_API_KEY');
+  static String get razorpayTestKeyId => _get('RAZORPAY_TEST_KEY_ID');
 
   // --- App Environment ---
   static String get environment =>

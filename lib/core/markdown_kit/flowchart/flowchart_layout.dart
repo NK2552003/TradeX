@@ -35,8 +35,10 @@ class FlowchartLayout {
     final Map<String, int> rank = _computeRanks(graph, backEdges);
     final int maxRank = rank.values.fold(0, (int m, int r) => r > m ? r : m);
 
-    final List<List<_LNode>> layers =
-        List.generate(maxRank + 1, (_) => <_LNode>[]);
+    final List<List<_LNode>> layers = List.generate(
+      maxRank + 1,
+      (_) => <_LNode>[],
+    );
     final Map<String, _LNode> realBoxes = <String, _LNode>{};
     for (final FlowNode node in graph.nodes.values) {
       final _LNode box = _LNode(rank: rank[node.id] ?? 0, real: node)
@@ -331,8 +333,8 @@ class FlowchartLayout {
   }
 
   static List<List<_LNode>> _snapshotOrder(List<List<_LNode>> layers) => [
-        for (final List<_LNode> layer in layers) List<_LNode>.from(layer),
-      ];
+    for (final List<_LNode> layer in layers) List<_LNode>.from(layer),
+  ];
 
   static void _restoreOrder(
     List<List<_LNode>> layers,
@@ -389,8 +391,9 @@ class FlowchartLayout {
     final int n = layer.length;
     final List<double> keys = List<double>.filled(n, 0);
     for (int i = 0; i < n; i++) {
-      final List<_LNode> neighbors =
-          up ? layer[i].upNeighbors : layer[i].downNeighbors;
+      final List<_LNode> neighbors = up
+          ? layer[i].upNeighbors
+          : layer[i].downNeighbors;
       if (neighbors.isEmpty) {
         // No pull from the adjacent rank: stay roughly where it already
         // was rather than collapsing to one end of the layer.
@@ -423,8 +426,9 @@ class FlowchartLayout {
           segs.add(<int>[u.order, v.order]);
         }
       }
-      segs.sort((List<int> a, List<int> b) =>
-          a[0] != b[0] ? a[0] - b[0] : a[1] - b[1]);
+      segs.sort(
+        (List<int> a, List<int> b) => a[0] != b[0] ? a[0] - b[0] : a[1] - b[1],
+      );
       for (int i = 0; i < segs.length; i++) {
         for (int j = i + 1; j < segs.length; j++) {
           if (segs[j][1] < segs[i][1]) total++;
@@ -437,7 +441,8 @@ class FlowchartLayout {
   // ---- coordinate assignment -------------------------------------------
 
   static void _assignCrossAxis(FlowGraph graph, List<List<_LNode>> layers) {
-    final bool horizontal = graph.direction == FlowDirection.leftToRight ||
+    final bool horizontal =
+        graph.direction == FlowDirection.leftToRight ||
         graph.direction == FlowDirection.rightToLeft;
     double extent(_LNode n) => horizontal ? n.height : n.width;
 
@@ -519,7 +524,8 @@ class FlowchartLayout {
   }
 
   static void _assignMainAxis(FlowGraph graph, List<List<_LNode>> layers) {
-    final bool horizontal = graph.direction == FlowDirection.leftToRight ||
+    final bool horizontal =
+        graph.direction == FlowDirection.leftToRight ||
         graph.direction == FlowDirection.rightToLeft;
     double extent(_LNode n) => horizontal ? n.width : n.height;
 
@@ -540,7 +546,8 @@ class FlowchartLayout {
     }
     final double total = cursor - _rankGap;
 
-    final bool flip = graph.direction == FlowDirection.bottomToTop ||
+    final bool flip =
+        graph.direction == FlowDirection.bottomToTop ||
         graph.direction == FlowDirection.rightToLeft;
     if (flip) {
       for (final List<_LNode> layer in layers) {
@@ -552,7 +559,8 @@ class FlowchartLayout {
   }
 
   static void _finalizePositions(FlowGraph graph, List<List<_LNode>> layers) {
-    final bool horizontal = graph.direction == FlowDirection.leftToRight ||
+    final bool horizontal =
+        graph.direction == FlowDirection.leftToRight ||
         graph.direction == FlowDirection.rightToLeft;
     for (final List<_LNode> layer in layers) {
       for (final _LNode n in layer) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/billing/revenuecat_billing.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/settings/data/repositories/billing_settings_repository.dart';
 import 'package:tradex/features/settings/models/billing_models.dart';
@@ -46,6 +47,7 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
   /// Set while renewal is being stopped or restarted, so the action shows the
   /// wait instead of the whole page dropping back to skeletons.
   bool _updatingRenewal = false;
+  static const bool _verifiedBillingConnected = false;
 
   @override
   void initState() {
@@ -63,17 +65,12 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
   Future<void> _loadBillingData({bool silent = false}) async {
     if (!silent) setState(() => _loading = true);
     try {
-      final List<Object?> results =
-          await Future.wait<Object?>(<Future<Object?>>[
-            _repo.getSubscription(),
-            _repo.getPaymentMethod(),
-            _repo.getRetentionOffer(),
-          ]);
+      final subscription = await _repo.getSubscription();
       if (!mounted) return;
       setState(() {
-        _subscription = results[0]! as SubscriptionSummary;
-        _paymentMethod = results[1] as PaymentMethodSummary?;
-        _offer = results[2] as RetentionOffer?;
+        _subscription = subscription;
+        _paymentMethod = null;
+        _offer = null;
         _loading = false;
       });
     } catch (_) {
@@ -242,6 +239,7 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
     if (sub.tier == AppTier.free) {
       return 'No charge · upgrade any time to unlock paid features.';
     }
+    if (sub.billingCycle == 'lifetime') return 'Lifetime access';
     final String price =
         '${AppTokens.price(sub.amount)}${sub.isAnnual ? '/yr' : '/mo'}';
     final String next = sub.endsAtPeriodEnd
@@ -261,18 +259,35 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
         value: SubscriptionSummary.fraction(sub.seatsUsed, sub.maxSeats),
         label: 'Desk seats (${sub.seatsUsed} of ${sub.maxSeats})',
       ),
-    UiProgressBar(
-      value: SubscriptionSummary.fraction(
-        sub.tradesLoggedThisMonth,
-        sub.maxTradesPerMonth,
+    if (sub.maxNotes > 0)
+      UiProgressBar(
+        value: SubscriptionSummary.fraction(sub.notesUsed, sub.maxNotes),
+        label: 'Research notes (${sub.notesUsed} of ${sub.maxNotes} total)',
       ),
-      label:
-          'Journal entries (${sub.tradesLoggedThisMonth} of ${sub.maxTradesPerMonth})',
-    ),
-    UiProgressBar(
-      value: SubscriptionSummary.fraction(sub.aiTokensUsed, sub.maxAiTokens),
-      label: 'AI copilot requests (${sub.aiTokensUsed} of ${sub.maxAiTokens})',
-    ),
+    if (sub.maxTradesPerMonth > 0)
+      UiProgressBar(
+        value: SubscriptionSummary.fraction(
+          sub.tradesLoggedThisMonth,
+          sub.maxTradesPerMonth,
+        ),
+        label:
+            'Journal entries (${sub.tradesLoggedThisMonth} of ${sub.maxTradesPerMonth} total)',
+      ),
+    if (sub.maxLivePlaybooks > 0)
+      UiProgressBar(
+        value: SubscriptionSummary.fraction(
+          sub.livePlaybooksUsed,
+          sub.maxLivePlaybooks,
+        ),
+        label:
+            'Active playbooks (${sub.livePlaybooksUsed} of ${sub.maxLivePlaybooks})',
+      ),
+    if (sub.maxAiTokens > 0)
+      UiProgressBar(
+        value: SubscriptionSummary.fraction(sub.aiTokensUsed, sub.maxAiTokens),
+        label:
+            'AI requests this month (${sub.aiTokensUsed} of ${sub.maxAiTokens})',
+      ),
   ];
 
   @override
@@ -447,7 +462,9 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                     ],
                     // The reader has cancelled but is still inside a paid
                     // period: say when it ends and offer the way back.
-                    if (selfServe && sub.endsAtPeriodEnd) ...<Widget>[
+                    if (_verifiedBillingConnected &&
+                        selfServe &&
+                        sub.endsAtPeriodEnd) ...<Widget>[
                       SizedBox(height: context.sp(theme.spacing.md)),
                       UiCallout(
                         title:
@@ -515,7 +532,65 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
               ),
               SizedBox(height: context.sp(theme.spacing.lg)),
 
-              if (!isAffiliate) ...<Widget>[
+              if (!_verifiedBillingConnected)
+                const UiCallout(
+                  title: 'Direct billing is not connected',
+                  message:
+                      'Payment methods, invoices, coupons and direct renewals require verified checkout.',
+                  intent: UiIntent.info,
+                ),
+              if (RevenueCatBilling.isConfigured && selfServe) ...<Widget>[
+                UiGap.v(theme.spacing.md),
+                UiButton(
+                  label: 'Manage store subscription',
+                  variant: UiVariant.outline,
+                  onPressed: () async {
+                    try {
+                      await RevenueCatBilling.presentCustomerCenter();
+                      await _loadBillingData(silent: true);
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      UiToast.show(
+                        context,
+                        title: 'Customer Center unavailable',
+                        message: e.toString(),
+                        intent: UiIntent.warning,
+                      );
+                    }
+                  },
+                ),
+                UiGap.v(theme.spacing.sm),
+                UiButton(
+                  label: 'Restore store purchases',
+                  variant: UiVariant.ghost,
+                  onPressed: () async {
+                    try {
+                      final info = await RevenueCatBilling.restore();
+                      if (!context.mounted) return;
+                      UiToast.show(
+                        context,
+                        title:
+                            info.entitlements.active.containsKey(
+                              RevenueCatBilling.entitlementId,
+                            )
+                            ? 'Purchase restored'
+                            : 'No active Pro purchase found',
+                        intent: UiIntent.info,
+                      );
+                      await _loadBillingData(silent: true);
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      UiToast.show(
+                        context,
+                        title: 'Restore failed',
+                        message: e.toString(),
+                        intent: UiIntent.warning,
+                      );
+                    }
+                  },
+                ),
+              ],
+              if (_verifiedBillingConnected && !isAffiliate) ...<Widget>[
                 AppSettingsSectionBlock(
                   title: isAdmin
                       ? 'Payment method & invoicing terms'

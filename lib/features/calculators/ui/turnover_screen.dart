@@ -150,14 +150,16 @@ class _TurnoverCalculatorScreenState extends State<TurnoverCalculatorScreen> {
           label: 'Profit ratio',
           value: AppTokens.percent(profitRatio, decimals: 2),
           intent: belowFloor ? UiIntent.bearish : UiIntent.bullish,
-          hint: 'of turnover — the floor is '
+          hint:
+              'of turnover — the floor is '
               '${AppTokens.percent(_presumptiveRate, decimals: 0)}',
         ),
         UiStat(
           label: 'Presumptive income',
           value: AppTokens.lakhCrore(r.presumptiveIncome),
           intent: UiIntent.info,
-          hint: '${AppTokens.percent(_presumptiveRate, decimals: 0)} of turnover',
+          hint:
+              '${AppTokens.percent(_presumptiveRate, decimals: 0)} of turnover',
         ),
         UiStat(
           label: 'Limit used',
@@ -244,7 +246,8 @@ class _TurnoverCalculatorScreenState extends State<TurnoverCalculatorScreen> {
               presets: const <double>[0, 500000, 2000000, 10000000],
               presetLabel: (double v) =>
                   v == 0 ? 'None' : AppTokens.lakhCrore(v),
-              helper: 'Losses are added, not subtracted — they raise turnover '
+              helper:
+                  'Losses are added, not subtracted — they raise turnover '
                   'by ${AppTokens.lakhCrore(_loss)}.',
               onChanged: (double v) => setState(() => _loss = v),
             ),
@@ -273,7 +276,8 @@ class _TurnoverCalculatorScreenState extends State<TurnoverCalculatorScreen> {
               label: 'Your slab',
               value: _slab,
               onChanged: (double v) => setState(() => _slab = v),
-              helper: 'Derivatives are business income, so the slab applies — '
+              helper:
+                  'Derivatives are business income, so the slab applies — '
                   'no special rate.',
               options: const <UiToggleOption<double>>[
                 UiToggleOption<double>(value: 5, label: '5%'),
@@ -329,7 +333,8 @@ class _TurnoverCalculatorScreenState extends State<TurnoverCalculatorScreen> {
                 trailing: '100%',
                 intent: UiIntent.info,
                 emphasis: true,
-                detail: 'The absolute sum — what the threshold is tested against',
+                detail:
+                    'The absolute sum — what the threshold is tested against',
               ),
               UiKeyValueRow(
                 label: 'Net result',
@@ -366,7 +371,11 @@ class _TurnoverCalculatorScreenState extends State<TurnoverCalculatorScreen> {
                     l <= 0 ? 0 : r.turnover / l * 100,
                     decimals: 1,
                   ),
-                  trailing: r.turnover > l ? 'Yes' : belowFloor ? 'Yes' : 'No',
+                  trailing: r.turnover > l
+                      ? 'Yes'
+                      : belowFloor
+                      ? 'Yes'
+                      : 'No',
                   intent: r.turnover > l ? UiIntent.bearish : UiIntent.bullish,
                   emphasis: (l - _threshold).abs() < 1,
                   detail: r.turnover > l
@@ -506,7 +515,8 @@ class _TurnoverCalculatorScreenState extends State<TurnoverCalculatorScreen> {
         if (overLimit)
           UiCallout(
             intent: UiIntent.danger,
-            title: 'Turnover is over the '
+            title:
+                'Turnover is over the '
                 '${AppTokens.lakhCrore(_threshold)} limit',
             message:
                 '${AppTokens.lakhCrore(r.turnover)} exceeds it by '
@@ -519,7 +529,8 @@ class _TurnoverCalculatorScreenState extends State<TurnoverCalculatorScreen> {
         if (!overLimit && belowFloor)
           UiCallout(
             intent: UiIntent.warning,
-            title: 'The profit ratio is under '
+            title:
+                'The profit ratio is under '
                 '${AppTokens.percent(_presumptiveRate, decimals: 0)}',
             message:
                 'Declaring ${AppTokens.signedMoney(r.netPnl, decimals: 0)} on '
@@ -534,7 +545,8 @@ class _TurnoverCalculatorScreenState extends State<TurnoverCalculatorScreen> {
         if (_loss > 0)
           UiCallout(
             intent: UiIntent.info,
-            title: '${AppTokens.lakhCrore(_loss)} of losses added '
+            title:
+                '${AppTokens.lakhCrore(_loss)} of losses added '
                 '${AppTokens.lakhCrore(_loss)} of turnover',
             message:
                 'Without them turnover would be '

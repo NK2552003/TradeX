@@ -1,4 +1,4 @@
-/// Data model representing an affiliate profile & earnings in TraderHub TradeX.
+/// Data model representing an affiliate profile & earnings in hejournal.in.
 class AffiliateProfileModel {
   const AffiliateProfileModel({
     required this.id,

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
+import 'ui_badge.dart';
 import 'ui_card.dart';
 import 'ui_common.dart';
+import 'ui_spark_chart.dart';
 
-/// KPI / metric tile built on [UiCard]; used for portfolio stats.
+/// A metric with a clear reading order: label, value, change, then context.
+/// Content determines its height, including at accessibility text sizes.
 class UiMetricCard extends StatelessWidget {
   const UiMetricCard({
     super.key,
@@ -14,11 +17,15 @@ class UiMetricCard extends StatelessWidget {
     this.delta,
     this.change,
     this.isPositive,
-    this.subtitle,
+    String? subtitle,
+    String? caption,
     this.icon,
     this.chart,
+    this.sparkline,
+    this.intent,
     this.onTap,
-  }) : label = title ?? label ?? '';
+  }) : label = title ?? label ?? '',
+       subtitle = subtitle ?? caption;
 
   final String label;
   final String value;
@@ -28,108 +35,92 @@ class UiMetricCard extends StatelessWidget {
   final String? subtitle;
   final IconData? icon;
   final Widget? chart;
+  final List<double>? sparkline;
+  final UiIntent? intent;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    final r = context.uiRes;
-
-    final String? effectiveChange = change ?? (delta != null ? uiSignedPercent(delta!) : null);
-    final Color deltaColor = isPositive != null
-        ? (isPositive! ? theme.colors.bullish : theme.colors.bearish)
-        : (delta == null
-            ? theme.colors.foregroundMuted
-            : (delta! >= 0 ? theme.colors.bullish : theme.colors.bearish));
+    final effectiveChange =
+        change ?? (delta != null ? uiSignedPercent(delta!) : null);
+    final positive = isPositive ?? (delta != null ? delta! >= 0 : null);
+    final changeIntent = positive == null
+        ? UiIntent.neutral
+        : positive
+        ? UiIntent.success
+        : UiIntent.danger;
+    final trend =
+        chart ??
+        (sparkline != null && sparkline!.length > 1
+            ? UiSparkChart(
+                data: sparkline!,
+                color: (intent ?? UiIntent.primary).color(context),
+              )
+            : null);
 
     return UiCard(
       onTap: onTap,
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(r.isMobile ? theme.spacing.sm + 2 : theme.spacing.md),
-        vertical: context.sp(r.isMobile ? theme.spacing.sm : theme.spacing.md),
-      ),
+      semanticLabel: '$label: $value',
+      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+      minHeight: context.sz(144),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
+        children: [
           Row(
-            children: <Widget>[
-              if (icon != null) ...<Widget>[
-                Icon(
-                  icon,
-                  size: context.sz(theme.sizes.iconSm),
-                  color: theme.colors.foregroundMuted,
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-              ],
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Expanded(
                 child: Text(
                   label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: context.uiText.label.copyWith(
                     color: theme.colors.foregroundMuted,
                   ),
                 ),
               ),
+              if (icon != null) ...[
+                SizedBox(width: context.sp(theme.spacing.sm)),
+                Icon(
+                  icon,
+                  size: context.sz(theme.sizes.iconSm),
+                  color: (intent ?? UiIntent.neutral).color(context),
+                ),
+              ],
             ],
           ),
-          if (subtitle != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.xxs)),
-            Text(
-              subtitle!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.uiText.caption.copyWith(
-                color: theme.colors.foregroundSubtle,
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Text(
+            value,
+            style: context.uiText.title.copyWith(
+              color: theme.colors.foreground,
+              fontWeight: FontWeight.w700,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          if (effectiveChange != null) ...[
+            SizedBox(height: context.sp(theme.spacing.xs)),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: UiBadge(
+                label: effectiveChange,
+                intent: changeIntent,
+                size: UiSize.xs,
               ),
             ),
           ],
-          SizedBox(height: context.sp(theme.spacing.xs)),
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: context.sp(theme.spacing.xs),
-            runSpacing: context.sp(theme.spacing.xxs),
-            children: <Widget>[
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.uiText.title.copyWith(
-                  color: theme.colors.foreground,
-                  fontWeight: FontWeight.w700,
-                  fontSize: context.fs(r.isMobile ? 16 : 18),
-                ),
+          if (subtitle != null) ...[
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            Text(
+              subtitle!,
+              style: context.uiText.caption.copyWith(
+                color: theme.colors.foregroundMuted,
               ),
-              if (effectiveChange != null)
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.sp(theme.spacing.xs),
-                    vertical: context.sp(theme.spacing.xxs * 0.5),
-                  ),
-                  decoration: BoxDecoration(
-                    color: deltaColor.withValues(alpha: 0.12),
-                    borderRadius: context.radius(theme.radii.sm),
-                  ),
-                  child: Text(
-                    effectiveChange,
-                    maxLines: 1,
-                    style: context.uiText.caption.copyWith(
-                      color: deltaColor,
-                      fontWeight: FontWeight.w700,
-                      fontSize: context.fs(r.isMobile ? 11 : 12),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          if (chart != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            SizedBox(
-              height: context.sz(r.isMobile ? 20.0 : 24.0),
-              child: chart,
             ),
+          ],
+          if (trend != null) ...[
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            SizedBox(height: context.sz(32), child: trend),
           ],
         ],
       ),

@@ -158,8 +158,9 @@ class UiToggleGroup<T> extends StatelessWidget {
                 children: items,
               )
             : Row(
-                mainAxisSize:
-                    effectiveExpand ? MainAxisSize.max : MainAxisSize.min,
+                mainAxisSize: effectiveExpand
+                    ? MainAxisSize.max
+                    : MainAxisSize.min,
                 children: <Widget>[
                   for (final Widget item in items)
                     effectiveExpand ? Expanded(child: item) : item,
@@ -252,9 +253,7 @@ class UiToggleGroup<T> extends StatelessWidget {
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: constraints.maxWidth,
-              ),
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
               child: result,
             ),
           );
@@ -363,6 +362,8 @@ class _UiToggleButton<T> extends StatelessWidget {
         foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
             if (option.icon != null) ...<Widget>[
               Icon(
@@ -382,6 +383,7 @@ class _UiToggleButton<T> extends StatelessWidget {
                   option.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                   style: size
                       .textStyle(ctx)
                       .copyWith(

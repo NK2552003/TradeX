@@ -13,6 +13,7 @@ import 'market_screeners_view.dart';
 import 'market_catalogue_view.dart';
 import 'market_overview_view.dart';
 import 'market_coverage_view.dart';
+import 'yahoo_market_ribbon.dart';
 
 class MarketRootScreen extends StatefulWidget {
   const MarketRootScreen({
@@ -214,21 +215,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
         );
       }
       if (!result.hasData) {
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const UiSkeleton(height: 200, width: 400),
-              UiGap.v(context.ui.spacing.md),
-              Text(
-                'Loading market intelligence...',
-                style: context.uiText.caption.copyWith(
-                  color: context.ui.colors.foregroundMuted,
-                ),
-              ),
-            ],
-          ),
-        );
+        return UiSkeleton.market(tab: _tab);
       }
       final snapshot = result.data!;
       final dossier =
@@ -297,12 +284,23 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
           onInstrument: _openInstrument,
           isLiked: _isLiked,
           onLike: _toggleLike,
-          onTopicSelected: (t) => setState(() {
-            _topic = t;
-            _newsLimit = 20;
-          }),
+          onTopicSelected: (t) async {
+            setState(() {
+              _topic = t;
+              _newsLimit = 20;
+            });
+            if (t != 'all') {
+              final loaded = await _repo.loadTopic(t);
+              if (mounted && loaded.isNotEmpty) {
+                setState(() {
+                  snapshot.topics[t] = loaded;
+                });
+              }
+            }
+          },
           selectedTopic: _topic,
           limit: _newsLimit,
+          pageSize: 10,
           onMore: () => setState(() => _newsLimit += 20),
         ),
         2 => MarketMoversView(
@@ -316,12 +314,13 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
         5 => MarketCoverageView(
           snapshot: snapshot,
           repository: _repo,
-          onInstrument: _openInstrument,
+        onInstrument: _openInstrument,
           searchQuery: widget.searchQuery,
         ),
         _ => MarketScreenersView(
           snapshot: filtered,
           onInstrument: _openInstrument,
+          repository: _repo,
         ),
       };
       return Padding(
@@ -334,57 +333,101 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Bundled market snapshots · May be out of date · Analytics, not investment advice',
-              style: context.uiText.caption,
-            ),
-            UiGap.v(context.ui.spacing.xs),
             if (_article == null && _instrument == null) ...[
-              UiCard(
-                padding: EdgeInsets.all(context.sp(context.ui.spacing.sm)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
+              if (_tab == 0) ...[
+                UiCard(
+                  variant: UiCardVariant.surface,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.sp(context.ui.spacing.md),
+                    vertical: context.sp(context.ui.spacing.sm),
+                  ),
+                  child: LayoutBuilder(
+                    builder: (context, headerBox) => Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
+                        Container(
+                          padding: EdgeInsets.all(
+                            context.sp(context.ui.spacing.xs),
+                          ),
+                          decoration: BoxDecoration(
+                            color: context.ui.colors.primary.withValues(
+                              alpha: 0.12,
+                            ),
+                            borderRadius: context.radius(context.ui.radii.sm),
+                          ),
+                          child: Icon(
+                            Icons.insights,
+                            size: context.sz(20),
+                            color: context.ui.colors.primary,
+                          ),
+                        ),
+                        UiGap.h(context.ui.spacing.sm),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Market Intelligence',
-                                style: context.uiText.title,
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      'Market Intelligence',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: context.uiText.title.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  UiGap.h(context.ui.spacing.xs),
+                                  UiBadge(
+                                    label: 'SNAPSHOT',
+                                    variant: UiBadgeVariant.soft,
+                                    intent: UiIntent.primary,
+                                    size: UiSize.xs,
+                                  ),
+                                ],
                               ),
+                              UiGap.v(context.ui.spacing.xxs),
                               Text(
-                                'Snapshot ${marketSnapshotDate(snapshot.manifest)}',
-                                style: context.uiText.caption,
+                                'Snapshot ${marketSnapshotDate(snapshot.manifest)} · Analytics & Research',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.uiText.caption.copyWith(
+                                  color: context.ui.colors.foregroundMuted,
+                                ),
                               ),
                             ],
                           ),
                         ),
+                        if (headerBox.maxWidth >= 550) ...[
+                          Text(
+                            'Analytics only · Not investment advice',
+                            style: context.uiText.caption.copyWith(
+                              color: context.ui.colors.foregroundSubtle,
+                              fontSize: context.fs(11),
+                            ),
+                          ),
+                          UiGap.h(context.ui.spacing.sm),
+                        ],
                         UiIconButton(
                           icon: Icons.refresh,
                           tooltip: 'Reload market assets',
+                          intent: UiIntent.neutral,
                           onPressed: () => setState(
                             () => _future = _repo.snapshot(refresh: true),
                           ),
                         ),
                       ],
                     ),
-                    if (snapshot.instruments.isNotEmpty) ...[
-                      UiGap.v(context.ui.spacing.xs),
-                      UiMarquee(
-                        text: [
-                          for (final q in {
-                            ...snapshot.gainers.take(3),
-                            ...snapshot.losers.take(3),
-                          })
-                            '${q.symbol} ${q.currency} ${q.price.toStringAsFixed(2)} ${AppTokens.signedPercent(q.changePercent)}',
-                        ].join('    •    '),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
+                UiGap.v(context.ui.spacing.sm),
+              ],
+
+              // Real-Time Yahoo Finance Analytics Ribbon across all market sections
+              YahooMarketRibbon(
+                instruments: snapshot.instruments,
+                onSelectInstrument: _openInstrument,
               ),
               UiGap.v(context.ui.spacing.sm),
               if (!(context.uiRes.isDesktop && widget.onNavigate != null)) ...[
@@ -415,7 +458,7 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
                 ),
                 UiGap.v(context.ui.spacing.sm),
               ],
-              if (_tab == 1)
+              if (_tab == 1 && !context.uiRes.isDesktop) ...[
                 UiSelect<String>(
                   value: _topic,
                   options: [
@@ -423,12 +466,23 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
                     for (final topic in snapshot.topics.keys)
                       UiOption(label: topicDisplayLabel(topic), value: topic),
                   ],
-                  onChanged: (value) => setState(() {
-                    _topic = value;
-                    _newsLimit = 20;
-                  }),
+                  onChanged: (value) async {
+                    setState(() {
+                      _topic = value;
+                      _newsLimit = 20;
+                    });
+                    if (value != 'all') {
+                      final loaded = await _repo.loadTopic(value);
+                      if (mounted && loaded.isNotEmpty) {
+                        setState(() {
+                          snapshot.topics[value] = loaded;
+                        });
+                      }
+                    }
+                  },
                 ),
-              UiGap.v(context.ui.spacing.sm),
+                UiGap.v(context.ui.spacing.sm),
+              ],
             ] else if (widget.onSubpageChanged == null) ...[
               UiCard(
                 variant: UiCardVariant.ghost,

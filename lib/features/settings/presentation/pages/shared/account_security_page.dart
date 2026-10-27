@@ -2,15 +2,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 import 'package:tradex/features/settings/models/connected_account_model.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/delete_account_page.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
 class AccountSecurityPage extends StatefulWidget {
-  const AccountSecurityPage({super.key, this.repository});
+  const AccountSecurityPage({
+    super.key,
+    this.userRole = UserRole.customer,
+    this.repository,
+    this.onAccountDeleted,
+  });
 
+  final UserRole userRole;
   final ProfileSettingsRepository? repository;
+  final VoidCallback? onAccountDeleted;
 
   @override
   State<AccountSecurityPage> createState() => _AccountSecurityPageState();
@@ -19,7 +27,7 @@ class AccountSecurityPage extends StatefulWidget {
 class _AccountSecurityPageState extends State<AccountSecurityPage> {
   late final ProfileSettingsRepository _repo;
   bool _loading = true;
-  String _currentEmail = 'nitish@tradex.ai';
+  String _currentEmail = 'nitish@hejournal.in';
   List<ConnectedAccount> _connectedAccounts = [];
 
   // Controllers for password change
@@ -603,11 +611,15 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                                 onPressed: () {
                                   openSettingsSubpage(
                                     context,
-                                    title: 'Delete Trader Account',
+                                    title: 'Delete Account & Data Purge',
                                     subtitle:
-                                        'Permanent account deletion and data wiping',
+                                        'Configure post-deletion data purge condition and close account',
                                     icon: Icons.delete_forever_outlined,
-                                    page: DeleteAccountPage(repository: _repo),
+                                    page: DeleteAccountPage(
+                                      userRole: widget.userRole,
+                                      repository: _repo,
+                                      onAccountDeleted: widget.onAccountDeleted,
+                                    ),
                                   );
                                 },
                               ),
@@ -647,11 +659,15 @@ class _AccountSecurityPageState extends State<AccountSecurityPage> {
                                 onPressed: () {
                                   openSettingsSubpage(
                                     context,
-                                    title: 'Delete Trader Account',
+                                    title: 'Delete Account & Data Purge',
                                     subtitle:
-                                        'Permanent account deletion and data wiping',
+                                        'Configure post-deletion data purge condition and close account',
                                     icon: Icons.delete_forever_outlined,
-                                    page: DeleteAccountPage(repository: _repo),
+                                    page: DeleteAccountPage(
+                                      userRole: widget.userRole,
+                                      repository: _repo,
+                                      onAccountDeleted: widget.onAccountDeleted,
+                                    ),
                                   );
                                 },
                               ),

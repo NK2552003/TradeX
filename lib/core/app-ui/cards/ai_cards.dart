@@ -92,9 +92,7 @@ class AppAiMessageBubble extends StatelessWidget {
             MarkdownBody(
               data: message.body,
               selectable: true,
-              inlineSyntaxes: <md.InlineSyntax>[
-                TickerInlineSyntax(),
-              ],
+              inlineSyntaxes: <md.InlineSyntax>[TickerInlineSyntax()],
               builders: <String, MarkdownElementBuilder>{
                 'ticker': TickerElementBuilder(onOpenRef: onOpenRef),
               },
@@ -104,11 +102,13 @@ class AppAiMessageBubble extends StatelessWidget {
                   if (uri != null && AppDeepLink.isInternal(uri)) {
                     final target = AppDeepLink.target(uri);
                     if (target != null && onOpenRef != null) {
-                      onOpenRef!(AppLinkRef(
-                        kind: target.kind,
-                        id: target.id,
-                        title: text.isNotEmpty ? text : target.id,
-                      ));
+                      onOpenRef!(
+                        AppLinkRef(
+                          kind: target.kind,
+                          id: target.id,
+                          title: text.isNotEmpty ? text : target.id,
+                        ),
+                      );
                       return;
                     }
                   }
@@ -214,8 +214,9 @@ class AppAiMessageBubble extends StatelessWidget {
     );
   }
 
-  static final RegExp _tickerRegex =
-      RegExp(r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)');
+  static final RegExp _tickerRegex = RegExp(
+    r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)',
+  );
 
   Widget _buildUserMessageText(BuildContext context, UiTheme theme) {
     final TextStyle baseStyle = context.uiText.body.copyWith(
@@ -251,26 +252,21 @@ class AppAiMessageBubble extends StatelessWidget {
           recognizer: onOpenRef == null
               ? null
               : (TapGestureRecognizer()
-                ..onTap = () {
-                  onOpenRef!(
-                    AppLinkRef(
-                      kind: AppLinkKind.ticker,
-                      id: symbol,
-                      title: symbol,
-                    ),
-                  );
-                }),
+                  ..onTap = () {
+                    onOpenRef!(
+                      AppLinkRef(
+                        kind: AppLinkKind.ticker,
+                        id: symbol,
+                        title: symbol,
+                      ),
+                    );
+                  }),
         ),
       );
       lastIndex = match.end;
     }
     if (lastIndex < text.length) {
-      spans.add(
-        TextSpan(
-          text: text.substring(lastIndex),
-          style: baseStyle,
-        ),
-      );
+      spans.add(TextSpan(text: text.substring(lastIndex), style: baseStyle));
     }
     return Text.rich(TextSpan(children: spans), style: baseStyle);
   }

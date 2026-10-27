@@ -7,6 +7,7 @@ class UiBarListItem {
   const UiBarListItem({
     required this.label,
     required this.value,
+    this.displayValue,
     this.percentage,
     this.icon,
     this.onTap,
@@ -15,6 +16,7 @@ class UiBarListItem {
 
   final String label;
   final num value;
+  final String? displayValue;
   final double? percentage;
   final IconData? icon;
   final VoidCallback? onTap;
@@ -56,24 +58,29 @@ class UiBarList extends StatelessWidget {
               onTap: items[i].onTap,
               builder: (BuildContext ctx, UiInteractiveState s) => Stack(
                 children: <Widget>[
-                  FractionallySizedBox(
-                    widthFactor: (items[i].percentage ??
-                            (max == 0 ? 0.0 : items[i].value.abs() / max))
-                        .clamp(0.0, 1.0),
-                    child: Container(
-                      height: ctx.sz(theme.sizes.controlHeightSm),
-                      decoration: BoxDecoration(
-                        color: (items[i].color ?? intent.color(ctx)).withValues(
-                          alpha: s.hovered ? 0.28 : 0.18,
+                  Positioned.fill(
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor:
+                          (items[i].percentage ??
+                                  (max == 0 ? 0.0 : items[i].value.abs() / max))
+                              .clamp(0.0, 1.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: (items[i].color ?? intent.color(ctx))
+                              .withValues(alpha: s.hovered ? 0.28 : 0.18),
+                          borderRadius: ctx.radius(theme.radii.md),
                         ),
-                        borderRadius: ctx.radius(theme.radii.md),
                       ),
                     ),
                   ),
                   Container(
-                    height: ctx.sz(theme.sizes.controlHeightSm),
+                    constraints: BoxConstraints(
+                      minHeight: ctx.sz(theme.sizes.controlHeightSm),
+                    ),
                     padding: EdgeInsets.symmetric(
                       horizontal: ctx.sp(theme.spacing.sm),
+                      vertical: ctx.sp(theme.spacing.sm),
                     ),
                     child: Row(
                       children: <Widget>[
@@ -88,11 +95,6 @@ class UiBarList extends StatelessWidget {
                         Expanded(
                           child: Text(
                             items[i].label,
-                            // The bar is a fixed height, so a label allowed to
-                            // wrap to a second line would be clipped vertically
-                            // rather than ellipsised.
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                             style: ctx.uiText.label.copyWith(
                               color: theme.colors.foreground,
                             ),
@@ -104,9 +106,7 @@ class UiBarList extends StatelessWidget {
                         // way rather than pushing itself off the row.
                         Flexible(
                           child: Text(
-                            fmt(items[i].value),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            items[i].displayValue ?? fmt(items[i].value),
                             textAlign: TextAlign.end,
                             style: ctx.uiText.numeric.copyWith(
                               color: theme.colors.foregroundMuted,

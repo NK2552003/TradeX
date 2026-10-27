@@ -203,7 +203,7 @@ class AppLinkGraphService {
       await _ticker(ownerKind, ownerId, symbol, attach: attach);
       return;
     }
-    // note↔note and the other same-kind pairs are not edges TradeX stores;
+    // note↔note and the other same-kind pairs are not edges hejournal.in stores;
     // related notes are derived from shared tags instead.
   }
 

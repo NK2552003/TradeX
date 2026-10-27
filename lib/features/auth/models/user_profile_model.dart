@@ -3,7 +3,7 @@ import 'package:tradex/features/auth/models/auth_user_role.dart';
 /// Account status state.
 enum ProfileStatus { active, suspended, pendingApproval }
 
-/// Data model representing a user profile in TraderHub TradeX platform.
+/// Data model representing a user profile in hejournal.in platform.
 class UserProfileModel {
   const UserProfileModel({
     required this.id,
@@ -88,10 +88,12 @@ class UserProfileModel {
       riskMantra: json['risk_mantra'] as String?,
       publicJournals: json['public_journals'] as bool? ?? false,
       subscriptionTier: json['subscription_tier'] as String? ?? 'free',
-      followers: (json['followers_count'] as num?)?.toInt() ??
+      followers:
+          (json['followers_count'] as num?)?.toInt() ??
           (json['followers'] as num?)?.toInt() ??
           0,
-      following: (json['following_count'] as num?)?.toInt() ??
+      following:
+          (json['following_count'] as num?)?.toInt() ??
           (json['following'] as num?)?.toInt() ??
           0,
       postsCount: (json['posts_count'] as num?)?.toInt() ?? 0,

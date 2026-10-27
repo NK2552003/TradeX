@@ -82,90 +82,93 @@ class _CommunityBookmarksViewState extends State<CommunityBookmarksView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               // Header Row
-          Row(
-            children: <Widget>[
-              Text(
-                'Bookmarks',
-                style: context.uiText.title.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: theme.colors.foreground,
-                ),
+              Row(
+                children: <Widget>[
+                  Text(
+                    'Bookmarks',
+                    style: context.uiText.title.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: theme.colors.foreground,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (bookmarked.isNotEmpty)
+                    UiButton(
+                      label: 'Clear all',
+                      variant: UiVariant.ghost,
+                      size: UiSize.sm,
+                      expandOnMobile: false,
+                      onPressed: () {
+                        for (final p in List<CommunityPost>.from(bookmarked)) {
+                          widget.repository.toggleBookmark(p.id);
+                        }
+                        UiToast.show(
+                          context,
+                          title: 'Bookmarks Cleared',
+                          message: 'All bookmarked posts were removed.',
+                          intent: UiIntent.info,
+                        );
+                      },
+                    ),
+                ],
               ),
-              const Spacer(),
-              if (bookmarked.isNotEmpty)
-                UiButton(
-                  label: 'Clear all',
-                  variant: UiVariant.ghost,
-                  size: UiSize.sm,
-                  expandOnMobile: false,
-                  onPressed: () {
-                    for (final p in List<CommunityPost>.from(bookmarked)) {
-                      widget.repository.toggleBookmark(p.id);
-                    }
-                    UiToast.show(
-                      context,
-                      title: 'Bookmarks Cleared',
-                      message: 'All bookmarked posts were removed.',
-                      intent: UiIntent.info,
-                    );
-                  },
-                ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+
+              // Filter tabs
+              UiTabs(
+                tabs: [
+                  'All (${bookmarked.length})',
+                  'Setups',
+                  'Notes',
+                  'Journal',
+                  'Strategies',
+                ],
+                selectedIndex: _selectedFilter,
+                onChanged: (idx) => setState(() => _selectedFilter = idx),
+              ),
+              SizedBox(height: context.sp(theme.spacing.sm)),
+
+              // Privacy Callout
+              UiCallout(
+                title: 'Private Saves',
+                message:
+                    'Bookmarks are private. Only you can view your saved setups and notes.',
+                intent: UiIntent.info,
+              ),
+              SizedBox(height: context.sp(theme.spacing.md)),
+
+              // Empty state or Post List
+              if (filtered.isEmpty)
+                const CommunityEmptyState(
+                  icon: Icons.bookmark_border_rounded,
+                  title: 'No bookmarks found',
+                  message:
+                      'Tap the bookmark icon on any trade setup or post to save it here for quick reference.',
+                )
+              else
+                for (final post in filtered)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      bottom: context.sp(theme.spacing.sm),
+                    ),
+                    child: CommunityPostCard(
+                      post: post,
+                      variant: CommunityPostCardVariant.boxed,
+                      repository: widget.repository,
+                      onTap: () => widget.onPostTap?.call(post),
+                      onLike: () => widget.repository.toggleLike(post.id),
+                      onRepost: () => widget.repository.toggleRepost(post.id),
+                      onBookmark: () =>
+                          widget.repository.toggleBookmark(post.id),
+                      onAuthorTap: widget.onAuthorTap,
+                      onOpenRef: widget.onOpenRef,
+                      onTagTap: widget.onTagTap,
+                    ),
+                  ),
             ],
           ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-
-          // Filter tabs
-          UiTabs(
-            tabs: [
-              'All (${bookmarked.length})',
-              'Setups',
-              'Notes',
-              'Journal',
-              'Strategies',
-            ],
-            selectedIndex: _selectedFilter,
-            onChanged: (idx) => setState(() => _selectedFilter = idx),
-          ),
-          SizedBox(height: context.sp(theme.spacing.sm)),
-
-          // Privacy Callout
-          UiCallout(
-            title: 'Private Saves',
-            message:
-                'Bookmarks are private. Only you can view your saved setups and notes.',
-            intent: UiIntent.info,
-          ),
-          SizedBox(height: context.sp(theme.spacing.md)),
-
-          // Empty state or Post List
-          if (filtered.isEmpty)
-            const CommunityEmptyState(
-              icon: Icons.bookmark_border_rounded,
-              title: 'No bookmarks found',
-              message:
-                  'Tap the bookmark icon on any trade setup or post to save it here for quick reference.',
-            )
-          else
-            for (final post in filtered)
-              Padding(
-                padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
-                child: CommunityPostCard(
-                  post: post,
-                  variant: CommunityPostCardVariant.boxed,
-                  repository: widget.repository,
-                  onTap: () => widget.onPostTap?.call(post),
-                  onLike: () => widget.repository.toggleLike(post.id),
-                  onRepost: () => widget.repository.toggleRepost(post.id),
-                  onBookmark: () => widget.repository.toggleBookmark(post.id),
-                  onAuthorTap: widget.onAuthorTap,
-                  onOpenRef: widget.onOpenRef,
-                  onTagTap: widget.onTagTap,
-                ),
-              ),
-        ],
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 }

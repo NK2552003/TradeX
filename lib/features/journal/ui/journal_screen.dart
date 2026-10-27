@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/record_access.dart';
 import 'dart:async';
 
@@ -399,6 +400,12 @@ class JournalScreenState extends State<JournalScreen> {
 
   Future<void> _apply(AppLinkOpenRequest request) async {
     if (request.kind != AppLinkKind.journal) return;
+    if (request.id.isEmpty) {
+      if (request.editWriting) {
+        _newEntry();
+      }
+      return;
+    }
     final revision = ++_accessRevision;
     try {
       final record = await _repo.getById(request.id);
@@ -504,6 +511,13 @@ class JournalScreenState extends State<JournalScreen> {
   }
 
   Future<void> _newEntry() async {
+    final bool canCreate = await CustomerLimitations.checkCanCreateTrade(
+      context,
+      currentTradeCount: _entries
+          .where((e) => RecordAccess.owns(e.userId))
+          .length,
+    );
+    if (!canCreate || !mounted) return;
     final AppJournalTemplate? template = await showJournalTemplateGallery(
       context,
     );
@@ -852,6 +866,7 @@ class JournalScreenState extends State<JournalScreen> {
     detailsOnly: _editorDetailsOnly,
     onClose: _closeEditor,
     onDeleted: _backToIndex,
+    onOpenLink: _openRef,
   );
 
   Widget _buildDashboardContent(BuildContext context) {

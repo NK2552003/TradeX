@@ -35,8 +35,8 @@ class _LumpsumCalculatorScreenState extends State<LumpsumCalculatorScreen> {
 
   Future<void> _fetchLiveBenchmarks() async {
     try {
-      final MacroBenchmarks b =
-          await MarketDataService.instance.getMacroBenchmarks();
+      final MacroBenchmarks b = await MarketDataService.instance
+          .getMacroBenchmarks();
       if (!mounted) return;
       setState(() {
         _rate = b.nifty10YCagr;
@@ -266,7 +266,8 @@ class _LumpsumCalculatorScreenState extends State<LumpsumCalculatorScreen> {
                 trailing: AppTokens.lakhCrore(inf.presentValue),
                 intent: UiIntent.primary,
                 emphasis: true,
-                detail: '${AppTokens.percent(inf.erosionPct, decimals: 0)} of '
+                detail:
+                    '${AppTokens.percent(inf.erosionPct, decimals: 0)} of '
                     'the value is inflated away',
               ),
             ],
@@ -351,7 +352,8 @@ class _LumpsumCalculatorScreenState extends State<LumpsumCalculatorScreen> {
             items: <UiBarListItem>[
               for (final double x in const <double>[6, 8, 10, 12, 15, 18])
                 UiBarListItem(
-                  label: '${AppTokens.percent(x, decimals: 0)} · '
+                  label:
+                      '${AppTokens.percent(x, decimals: 0)} · '
                       '${(_principal <= 0 ? 0 : calcLumpsum(principal: _principal, annualRatePct: x, years: _years).futureValue / _principal).toStringAsFixed(1)}×',
                   value: calcLumpsum(
                     principal: _principal,
@@ -407,7 +409,9 @@ class _LumpsumCalculatorScreenState extends State<LumpsumCalculatorScreen> {
                 intent: inf.presentValue >= _principal
                     ? UiIntent.bullish
                     : UiIntent.bearish,
-                label: inf.presentValue >= _principal ? 'real gain' : 'real loss',
+                label: inf.presentValue >= _principal
+                    ? 'real gain'
+                    : 'real loss',
                 alpha: 0.16,
               ),
             ],
@@ -442,7 +446,8 @@ class _LumpsumCalculatorScreenState extends State<LumpsumCalculatorScreen> {
         if (realRate > 0 && inf.erosionPct > 40)
           UiCallout(
             intent: UiIntent.warning,
-            title: 'Inflation takes '
+            title:
+                'Inflation takes '
                 '${AppTokens.percent(inf.erosionPct, decimals: 0)} of the corpus',
             message:
                 '${AppTokens.lakhCrore(r.futureValue)} in $yrs years buys what '

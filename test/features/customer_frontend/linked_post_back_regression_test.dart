@@ -20,7 +20,26 @@ void main() {
         addTearDown(tester.view.resetDevicePixelRatio);
         final source = CommunityRepository();
         final post = source.forYouPosts.first;
-        final notes = await NotesRepositoryScope.repository.fetchAll();
+        var notes = await NotesRepositoryScope.repository.fetchAll();
+        if (!notes.any((note) => note.isPublic)) {
+          if (notes.isNotEmpty) {
+            await NotesRepositoryScope.repository.update(
+              notes.first.copyWith(isPublic: true),
+            );
+          } else {
+            await NotesRepositoryScope.repository.create(
+              AppNote(
+                id: 'test_public_note_1',
+                title: 'Test Public Note',
+                content: 'Test content',
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+                isPublic: true,
+              ),
+            );
+          }
+          notes = await NotesRepositoryScope.repository.fetchAll();
+        }
         final note = notes.firstWhere((note) => note.isPublic);
         final location = ValueNotifier<CustomerRoute>(
           CustomerRoute.parse(Uri(path: '/community/post/${post.id}')),

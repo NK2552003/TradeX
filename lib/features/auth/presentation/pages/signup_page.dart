@@ -1,10 +1,11 @@
+import 'package:tradex/features/affiliate_program/data/affiliate_attribution.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
-import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/widgets/auth_carousel_panel.dart';
 import 'package:tradex/features/auth/widgets/role_selector_tab.dart';
@@ -51,7 +52,7 @@ class _SignupPageState extends State<SignupPage> {
     _selectedRole = widget.initialRole == UserRole.userAdmin
         ? UserRole.customer
         : widget.initialRole;
-    _repository = widget.authRepository ?? AuthBackendService.instance;
+    _repository = widget.authRepository ?? SupabaseAuthBackendService.instance;
   }
 
   @override
@@ -94,14 +95,15 @@ class _SignupPageState extends State<SignupPage> {
       _isLoading = true;
     });
 
+    final attribution = await AffiliateAttribution.load();
     final result = await _repository.signUp(
       role: _selectedRole,
       handle: handlerId,
       email: email,
       password: password,
-      referralCode: _selectedRole == UserRole.affiliate
+      referralCode: _referralCodeController.text.trim().isNotEmpty
           ? _referralCodeController.text.trim()
-          : null,
+          : attribution?['code'] as String?,
     );
 
     if (!mounted) return;
@@ -221,7 +223,7 @@ class _SignupPageState extends State<SignupPage> {
                                                       ),
                                                     ),
                                                     Text(
-                                                      'TradeX',
+                                                      'hejournal.in',
                                                       style: context
                                                           .uiText
                                                           .bodyStrong
@@ -681,7 +683,7 @@ class _SignupPageState extends State<SignupPage> {
       builder: (context) => UiDialog(
         title: title,
         content: Text(
-          'TraderHub TradeX terms, customer privacy protection, and financial regulatory rules.',
+          'hejournal.in terms, customer privacy protection, and financial regulatory rules.',
           style: context.uiText.body,
         ),
         actions: [

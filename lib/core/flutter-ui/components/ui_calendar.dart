@@ -177,142 +177,141 @@ class _UiCalendarState extends State<UiCalendar> {
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: context.sz(380)),
       child: Container(
-          padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-          decoration: BoxDecoration(
-            color: c.surface,
-            borderRadius: context.radius(theme.radii.xl),
-            border: Border.all(color: c.border, width: theme.borders.hairline),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              // Header: Switch between Crown Picker mode and Month Navigation mode
-              if (_isWheelPickerOpen)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    UiButton(
-                      label: 'This Month',
-                      variant: UiVariant.ghost,
-                      size: UiSize.sm,
-                      expandOnMobile: false,
-                      onPressed: () {
-                        final now = DateTime.now();
-                        setState(() {
-                          _month = DateTime(now.year, now.month);
-                        });
-                        _monthWheelController?.animateToItem(
-                          now.month - 1,
-                          duration: theme.motion.normal,
-                          curve: Curves.easeOutCubic,
-                        );
-                        _yearWheelController?.animateToItem(
-                          (now.year - _firstYear).clamp(0, _yearCount - 1),
-                          duration: theme.motion.normal,
-                          curve: Curves.easeOutCubic,
-                        );
-                      },
+        padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: context.radius(theme.radii.xl),
+          border: Border.all(color: c.border, width: theme.borders.hairline),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // Header: Switch between Crown Picker mode and Month Navigation mode
+            if (_isWheelPickerOpen)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  UiButton(
+                    label: 'This Month',
+                    variant: UiVariant.ghost,
+                    size: UiSize.sm,
+                    expandOnMobile: false,
+                    onPressed: () {
+                      final now = DateTime.now();
+                      setState(() {
+                        _month = DateTime(now.year, now.month);
+                      });
+                      _monthWheelController?.animateToItem(
+                        now.month - 1,
+                        duration: theme.motion.normal,
+                        curve: Curves.easeOutCubic,
+                      );
+                      _yearWheelController?.animateToItem(
+                        (now.year - _firstYear).clamp(0, _yearCount - 1),
+                        duration: theme.motion.normal,
+                        curve: Curves.easeOutCubic,
+                      );
+                    },
+                  ),
+                  UiButton(
+                    label: 'Done',
+                    variant: UiVariant.primary,
+                    size: UiSize.sm,
+                    expandOnMobile: false,
+                    trailingIcon: Icons.check_rounded,
+                    onPressed: () => setState(() => _isWheelPickerOpen = false),
+                  ),
+                ],
+              )
+            else
+              Row(
+                children: <Widget>[
+                  UiIconButton(
+                    icon: Icons.chevron_left,
+                    size: UiSize.sm,
+                    tooltip: 'Previous month',
+                    onPressed: () => setState(
+                      () => _month = DateTime(_month.year, _month.month - 1),
                     ),
-                    UiButton(
-                      label: 'Done',
-                      variant: UiVariant.primary,
-                      size: UiSize.sm,
-                      expandOnMobile: false,
-                      trailingIcon: Icons.check_rounded,
-                      onPressed: () =>
-                          setState(() => _isWheelPickerOpen = false),
-                    ),
-                  ],
-                )
-              else
-                Row(
-                  children: <Widget>[
-                    UiIconButton(
-                      icon: Icons.chevron_left,
-                      size: UiSize.sm,
-                      tooltip: 'Previous month',
-                      onPressed: () => setState(
-                        () => _month = DateTime(_month.year, _month.month - 1),
-                      ),
-                    ),
-                    Expanded(
-                      child: UiInteractive(
-                        onTap: _toggleWheelPicker,
-                        builder: (BuildContext ctx, UiInteractiveState s) =>
-                            Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: ctx.sp(theme.spacing.sm),
-                            vertical: ctx.sp(theme.spacing.xxs),
-                          ),
-                          decoration: BoxDecoration(
-                            color: s.hovered
-                                ? c.surfaceHover
-                                : Colors.transparent,
-                            borderRadius: ctx.radius(theme.radii.pill),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  count > 1
-                                      ? '${_label(months.first)} – ${_label(months.last)}'
-                                      : _label(months.first),
-                                  textAlign: TextAlign.center,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: ctx.uiText.bodyStrong.copyWith(
-                                    color: c.foreground,
+                  ),
+                  Expanded(
+                    child: UiInteractive(
+                      onTap: _toggleWheelPicker,
+                      builder: (BuildContext ctx, UiInteractiveState s) =>
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: ctx.sp(theme.spacing.sm),
+                              vertical: ctx.sp(theme.spacing.xxs),
+                            ),
+                            decoration: BoxDecoration(
+                              color: s.hovered
+                                  ? c.surfaceHover
+                                  : Colors.transparent,
+                              borderRadius: ctx.radius(theme.radii.pill),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    count > 1
+                                        ? '${_label(months.first)} – ${_label(months.last)}'
+                                        : _label(months.first),
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: ctx.uiText.bodyStrong.copyWith(
+                                      color: c.foreground,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              SizedBox(width: ctx.sp(theme.spacing.xxs)),
-                              Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                size: ctx.sz(18),
-                                color: c.foregroundMuted,
-                              ),
-                            ],
+                                SizedBox(width: ctx.sp(theme.spacing.xxs)),
+                                Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: ctx.sz(18),
+                                  color: c.foregroundMuted,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
                     ),
-                    UiIconButton(
-                      icon: Icons.chevron_right,
-                      size: UiSize.sm,
-                      tooltip: 'Next month',
-                      onPressed: () => setState(
-                        () => _month = DateTime(_month.year, _month.month + 1),
-                      ),
+                  ),
+                  UiIconButton(
+                    icon: Icons.chevron_right,
+                    size: UiSize.sm,
+                    tooltip: 'Next month',
+                    onPressed: () => setState(
+                      () => _month = DateTime(_month.year, _month.month + 1),
                     ),
+                  ),
+                ],
+              ),
+            SizedBox(height: context.sp(theme.spacing.md)),
+            if (_isWheelPickerOpen)
+              _buildAppleCrownWheelPicker(context)
+            else if (stacked)
+              for (final DateTime m in months)
+                Padding(
+                  padding: EdgeInsets.only(
+                    bottom: context.sp(theme.spacing.xs),
+                  ),
+                  child: titled(m),
+                )
+            else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  for (int i = 0; i < months.length; i++) ...<Widget>[
+                    if (i > 0) SizedBox(width: context.sp(theme.spacing.lg)),
+                    Expanded(child: titled(months[i])),
                   ],
-                ),
-              SizedBox(height: context.sp(theme.spacing.md)),
-              if (_isWheelPickerOpen)
-                _buildAppleCrownWheelPicker(context)
-              else if (stacked)
-                for (final DateTime m in months)
-                  Padding(
-                    padding: EdgeInsets.only(
-                      bottom: context.sp(theme.spacing.xs),
-                    ),
-                    child: titled(m),
-                  )
-              else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    for (int i = 0; i < months.length; i++) ...<Widget>[
-                      if (i > 0) SizedBox(width: context.sp(theme.spacing.lg)),
-                      Expanded(child: titled(months[i])),
-                    ],
-                  ],
-                ),
-            ],
-          ),
+                ],
+              ),
+          ],
         ),
-      );
+      ),
+    );
   }
 
   Widget _buildAppleCrownWheelPicker(BuildContext context) {
@@ -380,8 +379,7 @@ class _UiCalendarState extends State<UiCalendar> {
                       childDelegate: ListWheelChildBuilderDelegate(
                         childCount: 12,
                         builder: (BuildContext ctx, int index) {
-                          final bool isSelected =
-                              index == (_month.month - 1);
+                          final bool isSelected = index == (_month.month - 1);
                           return Center(
                             child: Text(
                               _months[index],

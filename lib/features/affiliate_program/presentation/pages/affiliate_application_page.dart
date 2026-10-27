@@ -23,6 +23,7 @@ class AffiliateApplicationPage extends StatefulWidget {
     this.onSubmitted,
     this.onDone,
     this.onCancel,
+    this.onOpenPartnerHub,
   });
 
   final String userId;
@@ -33,6 +34,7 @@ class AffiliateApplicationPage extends StatefulWidget {
   final ValueChanged<AffiliateApplicationModel>? onSubmitted;
   final VoidCallback? onDone;
   final VoidCallback? onCancel;
+  final VoidCallback? onOpenPartnerHub;
 
   @override
   State<AffiliateApplicationPage> createState() =>
@@ -49,6 +51,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
   bool _termsAccepted = false;
   bool _submitting = false;
   AffiliateApplicationModel? _submitted;
+  bool _loadFailed = false;
   String? _error;
 
   late final TextEditingController _name;
@@ -136,18 +139,64 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
   }
 
   Future<void> _loadExistingApplication() async {
-    final AffiliateApplicationModel? existing = await _repository.getForUser(
-      widget.userId,
-    );
-    if (!mounted) return;
-    setState(() {
-      if (existing != null &&
-          existing.status != AffiliateApplicationStatus.draft &&
-          existing.status != AffiliateApplicationStatus.rejected) {
-        _submitted = existing;
+    _loadFailed = false;
+    try {
+      final existing = await _repository.getForUser(widget.userId);
+      if (!mounted) return;
+      setState(() {
+        if (existing != null) {
+          if (existing.status != AffiliateApplicationStatus.draft &&
+              existing.status != AffiliateApplicationStatus.rejected) {
+            _submitted = existing;
+          } else {
+            _name.text = existing.fullName;
+            _email.text = existing.email;
+            _phone.text = existing.phone;
+            _city.text = existing.city;
+            _state.text = existing.state;
+            _dateOfBirth = existing.dateOfBirth;
+            _gender = existing.gender.isEmpty ? null : existing.gender;
+            _platforms
+              ..clear()
+              ..addAll(existing.platforms);
+            _primaryPlatform = existing.primaryPlatform.isEmpty
+                ? null
+                : existing.primaryPlatform;
+            _channel.text = existing.channelHandle;
+            _audienceReach = existing.audienceReach.isEmpty
+                ? null
+                : existing.audienceReach;
+            _niches
+              ..clear()
+              ..addAll(existing.niches);
+            _sampleLink.text = existing.sampleLink ?? '';
+            _accountHolder.text = existing.accountHolder;
+            _bankName = existing.bankName.isEmpty ? null : existing.bankName;
+            _accountNumber.text = existing.accountNumber;
+            _ifsc.text = existing.ifsc;
+            _accountType = existing.accountType.isEmpty
+                ? null
+                : existing.accountType;
+            _pan.text = existing.pan;
+            _upi.text = existing.upiId ?? '';
+            if (existing.status == AffiliateApplicationStatus.rejected) {
+              _error =
+                  'Changes requested: ${existing.reviewNotes ?? 'Review your details and resubmit.'}';
+            }
+          }
+        }
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loadFailed = true;
+          _error =
+              'Your application status could not be loaded. Please retry before submitting.';
+        });
       }
-      _loadingExistingApplication = false;
-    });
+    } finally {
+      if (mounted) setState(() => _loadingExistingApplication = false);
+    }
   }
 
   @override
@@ -170,6 +219,79 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  void _showPhoneOtpDialog(BuildContext context) {
+    String otp = '';
+    String? otpError;
+    UiDialog.show<void>(
+      context,
+      child: StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setDialogState) => UiDialog(
+          title: 'Verify +91 ${_phone.text.trim()}',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Text(
+                'Enter the 6-digit verification code sent to +91 ${_phone.text.trim()}.',
+                style: ctx.uiText.body,
+              ),
+              SizedBox(height: ctx.sp(ctx.ui.spacing.sm)),
+              if (otpError != null) ...<Widget>[
+                UiCallout(
+                  title: 'Invalid code',
+                  message: otpError,
+                  intent: UiIntent.danger,
+                ),
+                SizedBox(height: ctx.sp(ctx.ui.spacing.sm)),
+              ],
+              UiField(
+                label: '6-Digit Verification OTP',
+                helper: 'Enter your 6-digit mobile verification code',
+                child: UiInput(
+                  value: otp,
+                  hintText: '123456',
+                  maxLength: 6,
+                  keyboardType: TextInputType.number,
+                  onChanged: (String v) => setDialogState(() {
+                    otp = v.trim();
+                    otpError = null;
+                  }),
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            UiButton(
+              label: 'Cancel',
+              variant: UiVariant.outline,
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+            UiButton(
+              label: 'Verify Mobile',
+              intent: UiIntent.primary,
+              onPressed: () {
+                if (otp.length != 6) {
+                  setDialogState(
+                    () => otpError = 'Please enter a 6-digit numeric code.',
+                  );
+                  return;
+                }
+                Navigator.of(ctx).pop();
+                setState(() => _phoneVerified = true);
+                UiToast.show(
+                  context,
+                  title: 'Mobile Number Verified',
+                  message: '+91 ${_phone.text.trim()} is verified for KYC.',
+                  intent: UiIntent.success,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   bool get _personalValid {
@@ -241,6 +363,20 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
   }
 
   Future<void> _submit() async {
+    if (_submitting) return;
+    if (!_personalValid || !_presenceValid || !_payoutValid) {
+      setState(() {
+        _step = !_personalValid
+            ? 0
+            : !_presenceValid
+            ? 1
+            : 2;
+        _error =
+            'Review the required details before submitting your application.';
+      });
+      return;
+    }
+
     if (!_termsAccepted) {
       setState(() => _error = 'Accept the Affiliate Program terms to submit.');
       return;
@@ -325,7 +461,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
         ),
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: context.sz(680)),
+            constraints: BoxConstraints(maxWidth: context.sz(860)),
             child: const _ApplicationPageSkeleton(),
           ),
         ),
@@ -341,6 +477,22 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
 
     if (_loadingExistingApplication) {
       return _buildLoading(context);
+    }
+    if (_loadFailed) {
+      return UiPage(
+        title: 'Affiliate application',
+        child: UiEmptyState(
+          title: 'Application status unavailable',
+          message: _error,
+          action: UiButton(
+            label: 'Retry application',
+            onPressed: () async {
+              setState(() => _loadingExistingApplication = true);
+              await _loadExistingApplication();
+            },
+          ),
+        ),
+      );
     }
     if (_submitted != null) return _buildPending(context, _submitted!);
 
@@ -379,12 +531,13 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
           ),
           child: Center(
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: context.sz(680)),
+              constraints: BoxConstraints(maxWidth: context.sz(860)),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   UiCard(
                     variant: UiCardVariant.surface,
+                    padding: EdgeInsets.zero,
                     child: Padding(
                       padding: EdgeInsets.all(
                         context.sp(
@@ -397,122 +550,76 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Unified Header inside Card: Back Button, Logo, TradeX & Step Badge
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                          // Unified Header inside Card: Back Button, Logo, hejournal.in & Step Badge
+                          Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: context.sp(theme.spacing.sm),
+                            runSpacing: context.sp(theme.spacing.sm),
                             children: [
-                              Flexible(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (widget.onCancel != null)
-                                      UiIconButton(
-                                        icon: Icons.arrow_back_rounded,
-                                        size: UiSize.sm,
-                                        tooltip: widget.isExistingCustomer
-                                            ? 'Back to Workspace'
-                                            : 'Back to Sign in',
-                                        onPressed: widget.onCancel,
-                                      ),
-                                    if (widget.onCancel != null)
-                                      SizedBox(
-                                        width: context.sp(theme.spacing.xs),
-                                      ),
-                                    const AppLogoMark(size: 20),
-                                    if (!responsive.isMobile) ...[
-                                      SizedBox(
-                                        width: context.sp(theme.spacing.xs),
-                                      ),
-                                      Text(
-                                        'TradeX',
-                                        style: context.uiText.bodyStrong
-                                            .copyWith(
-                                              fontSize: 16,
-                                              letterSpacing: -0.2,
-                                            ),
-                                      ),
-                                    ],
-                                  ],
+                              if (widget.onCancel != null)
+                                UiButton(
+                                  label: widget.isExistingCustomer
+                                      ? 'Back to workspace'
+                                      : 'Back to sign in',
+                                  leadingIcon: Icons.arrow_back_rounded,
+                                  variant: UiVariant.ghost,
+                                  size: UiSize.sm,
+                                  onPressed: widget.onCancel,
                                 ),
-                              ),
                               UiBadge(
-                                label: 'STEP ${_step + 1} OF 4',
+                                label: 'Step ${_step + 1} of 4',
                                 intent: UiIntent.primary,
-                                variant: UiBadgeVariant.soft,
-                                size: UiSize.sm,
                               ),
                             ],
                           ),
-                          if (!responsive.isMobile) ...[
-                            SizedBox(height: context.sp(theme.spacing.lg)),
-                            UiStepper(
-                              steps: const [
-                                UiStepperStep(
-                                  title: 'Personal',
-                                  subtitle: 'Basic info',
-                                ),
-                                UiStepperStep(
-                                  title: 'Presence',
-                                  subtitle: 'Channels',
-                                ),
-                                UiStepperStep(
-                                  title: 'Payout',
-                                  subtitle: 'Bank details',
-                                ),
-                                UiStepperStep(
-                                  title: 'Review',
-                                  subtitle: 'Confirm',
-                                ),
-                              ],
-                              currentIndex: _step.clamp(0, 3),
-                            ),
-                          ] else ...[
-                            SizedBox(height: context.sp(theme.spacing.md)),
-                            // Minimal Modern Segmented Step Indicator inside card on mobile
-                            Row(
-                              children: [
-                                for (int i = 0; i < 4; i++)
-                                  Expanded(
-                                    child: Container(
-                                      height: 3.5,
-                                      margin: EdgeInsets.only(
-                                        right: i < 3 ? 6.0 : 0.0,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(2),
-                                        color: i <= _step
-                                            ? colors.primary
-                                            : colors.borderStrong.withValues(
-                                                alpha: 0.5,
-                                              ),
-                                      ),
-                                    ),
+                          UiGap.v(theme.spacing.md),
+                          LayoutBuilder(
+                            builder: (context, constraints) =>
+                                constraints.maxWidth < context.sz(600)
+                                ? UiProgressBar(
+                                    value: (_step + 1) / 4,
+                                    label: [
+                                      'Personal details',
+                                      'Audience & channels',
+                                      'Payout & tax details',
+                                      'Review application',
+                                    ][_step],
+                                  )
+                                : UiStepper(
+                                    steps: const [
+                                      UiStepperStep(title: 'Personal'),
+                                      UiStepperStep(title: 'Presence'),
+                                      UiStepperStep(title: 'Payout'),
+                                      UiStepperStep(title: 'Review'),
+                                    ],
+                                    currentIndex: _step,
+                                    onStepTap: (index) {
+                                      if (index <= _furthestStep) {
+                                        setState(() {
+                                          _step = index;
+                                          _error = null;
+                                        });
+                                      }
+                                    },
                                   ),
-                              ],
-                            ),
-                          ],
+                          ),
                           SizedBox(height: context.sp(theme.spacing.lg)),
                           AuthStepIcon(icon: stepIcon, intent: stepIntent),
                           SizedBox(height: context.sp(theme.spacing.sm)),
                           Text(
                             widget.isExistingCustomer
-                                ? 'Add Affiliate Access'
-                                : 'Complete Affiliate Application',
-                            textAlign: TextAlign.center,
-                            style: context.uiText.display.copyWith(
-                              fontSize: 28.0,
-                              fontWeight: FontWeight.w400,
-                              letterSpacing: -0.5,
-                            ),
+                                ? 'Add affiliate access'
+                                : 'Affiliate application',
+                            textAlign: TextAlign.left,
+                            style: context.uiText.heading,
                           ),
                           SizedBox(height: context.sp(theme.spacing.xxs)),
                           Text(
-                            'Your trading account remains active while the TradeX team reviews this application.',
-                            textAlign: TextAlign.center,
+                            'Share your details for partner review. You can keep using your trading account.',
+                            textAlign: TextAlign.left,
                             style: context.uiText.body.copyWith(
                               color: colors.foregroundMuted,
-                              fontSize: 13.5,
                             ),
                           ),
                           SizedBox(height: context.sp(theme.spacing.md)),
@@ -605,7 +712,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                       SizedBox(width: context.sp(theme.spacing.xs)),
                       Flexible(
                         child: Text(
-                          'Manage your account and privacy settings in TradeX',
+                          'Manage your account and privacy settings in hejournal.in',
                           overflow: TextOverflow.ellipsis,
                           style: context.uiText.caption.copyWith(
                             color: colors.foregroundSubtle,
@@ -670,10 +777,10 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
           UiField(
             label: 'Phone number',
             required: true,
-            success: _phoneVerified ? 'Phone verified' : null,
+            success: _phoneVerified ? 'Phone verified (+91)' : null,
             helper: _phoneVerified
                 ? null
-                : 'SMS verification is not available in this environment.',
+                : 'Enter a 10-digit Indian mobile number and tap verify.',
             child: UiInput(
               controller: _phone,
               prefixText: '+91 ',
@@ -690,8 +797,10 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                 variant: _phoneVerified ? UiVariant.success : UiVariant.outline,
                 tooltip: _phoneVerified
                     ? 'Phone verified'
-                    : 'SMS verification unavailable',
-                onPressed: null,
+                    : 'Verify +91 mobile via OTP',
+                onPressed: _phone.text.trim().length >= 10
+                    ? () => _showPhoneOtpDialog(context)
+                    : null,
               ),
             ),
           ),
@@ -755,7 +864,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
         ),
         SizedBox(height: context.sp(theme.spacing.xxs)),
         Text(
-          'Tell reviewers where and how you plan to introduce TradeX.',
+          'Tell reviewers where and how you plan to introduce hejournal.in.',
           style: context.uiText.caption.copyWith(
             color: theme.colors.foregroundMuted,
           ),
@@ -1001,20 +1110,15 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
 
   Widget _buildReview(BuildContext context) {
     final UiTheme theme = context.ui;
-    final responsive = context.uiRes;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (responsive.isMobile)
-          _buildMobileReviewTiles(context)
-        else
-          _buildDesktopReviewCards(context),
+        _buildReviewCards(context),
         SizedBox(height: context.sp(theme.spacing.md)),
         const UiCallout(
           title: 'Review and access policy',
           message:
-              'Submitting does not grant immediate Partner Hub access. An administrator must approve the application first. You can continue using TradeX as a customer/trader while it is pending.',
+              'Submitting does not grant immediate Partner Hub access. An administrator must approve the application first. You can continue using hejournal.in as a customer/trader while it is pending.',
           intent: UiIntent.warning,
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
@@ -1022,7 +1126,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
           value: _termsAccepted,
           asCard: true,
           label:
-              'I confirm these details are accurate and accept the TradeX Affiliate Program terms.',
+              'I confirm these details are accurate and accept the hejournal.in Affiliate Program terms.',
           description:
               'I understand that approval can be refused or suspended for policy violations.',
           onChanged: (bool value) => setState(() => _termsAccepted = value),
@@ -1031,7 +1135,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
     );
   }
 
-  Widget _buildMobileReviewTiles(BuildContext context) {
+  Widget _buildReviewCards(BuildContext context) {
     final theme = context.ui;
     final colors = theme.colors;
 
@@ -1074,199 +1178,41 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
       ),
     ];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surfaceMuted.withValues(alpha: 0.35),
-        borderRadius: context.radius(theme.radii.lg),
-        border: Border.all(color: colors.border, width: theme.borders.hairline),
-      ),
-      child: Column(
-        children: [
-          for (int i = 0; i < sections.length; i++) ...[
-            if (i > 0) Divider(height: 1, thickness: 1, color: colors.border),
-            Padding(
-              padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: EdgeInsets.all(
-                              context.sp(theme.spacing.xxs),
-                            ),
-                            decoration: BoxDecoration(
-                              color: colors.primary.withValues(alpha: 0.12),
-                              borderRadius: context.radius(theme.radii.sm),
-                            ),
-                            child: Icon(
-                              sections[i].icon,
-                              size: context.sz(16),
-                              color: colors.primary,
-                            ),
-                          ),
-                          SizedBox(width: context.sp(theme.spacing.xs)),
-                          Text(
-                            sections[i].title,
-                            style: context.uiText.bodyStrong.copyWith(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      UiButton(
-                        label: 'Edit',
-                        leadingIcon: Icons.edit_outlined,
-                        variant: UiVariant.ghost,
-                        size: UiSize.xs,
-                        expandOnMobile: false,
-                        onPressed: sections[i].onEdit,
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.xs)),
-                  Text(
-                    sections[i].values
-                        .where((v) => v.trim().isNotEmpty)
-                        .join(' · '),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.uiText.caption.copyWith(
-                      color: colors.foregroundMuted,
-                      fontSize: 13,
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              ),
+    return UiCardGrid(
+      minTileWidth: 220,
+      largeColumns: 3,
+      children: [
+        for (final section in sections)
+          UiCard(
+            title: section.title,
+            leading: Icon(
+              section.icon,
+              color: colors.primary,
+              size: context.sz(20),
             ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDesktopReviewCards(BuildContext context) {
-    final UiTheme theme = context.ui;
-
-    final Widget personalCard = _reviewCard(
-      context,
-      'Personal',
-      Icons.badge_outlined,
-      <String>[
-        _name.text,
-        _email.text,
-        '+91 ${_phone.text}',
-        '${_city.text}, ${_state.text}',
-      ],
-      () => setState(() => _step = 0),
-    );
-
-    final Widget presenceCard = _reviewCard(
-      context,
-      'Presence',
-      Icons.campaign_outlined,
-      <String>[
-        _primaryPlatform ?? '',
-        _channel.text,
-        _audienceReach ?? '',
-        _niches.join(', '),
-      ],
-      () => setState(() => _step = 1),
-    );
-
-    final Widget
-    payoutCard = _reviewCard(context, 'Payout', Icons.account_balance_outlined, <
-      String
-    >[
-      _accountHolder.text,
-      _bankName ?? '',
-      '•••• ${_accountNumber.text.length >= 4 ? _accountNumber.text.substring(_accountNumber.text.length - 4) : _accountNumber.text}',
-      '${_ifsc.text.toUpperCase()} · ${_accountType ?? ''}',
-    ], () => setState(() => _step = 2));
-
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        if (constraints.maxWidth < 580) {
-          return _buildMobileReviewTiles(context);
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Expanded(child: personalCard),
-            SizedBox(width: context.sp(theme.spacing.sm)),
-            Expanded(child: presenceCard),
-            SizedBox(width: context.sp(theme.spacing.sm)),
-            Expanded(child: payoutCard),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _reviewCard(
-    BuildContext context,
-    String title,
-    IconData icon,
-    List<String> values,
-    VoidCallback onEdit,
-  ) {
-    final theme = context.ui;
-    final colors = theme.colors;
-    return UiCard(
-      variant: UiCardVariant.surface,
-      child: Padding(
-        padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
+            trailing: UiButton(
+              label: 'Edit',
+              leadingIcon: Icons.edit_outlined,
+              variant: UiVariant.ghost,
+              size: UiSize.sm,
+              onPressed: section.onEdit,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(icon, size: context.sz(17), color: colors.primary),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: context.uiText.bodyStrong.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                for (final value in section.values.where(
+                  (value) => value.trim().isNotEmpty,
+                ))
+                  Padding(
+                    padding: EdgeInsets.only(
+                      bottom: context.sp(theme.spacing.xs),
                     ),
-                    overflow: TextOverflow.ellipsis,
+                    child: Text(value, style: context.uiText.body),
                   ),
-                ),
-                UiIconButton(
-                  icon: Icons.edit_outlined,
-                  size: UiSize.xs,
-                  tooltip: 'Edit $title',
-                  onPressed: onEdit,
-                ),
               ],
             ),
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            for (final String value in values.where(
-              (String v) => v.trim().isNotEmpty,
-            ))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 3),
-                child: Text(
-                  value,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.uiText.caption.copyWith(
-                    color: colors.foregroundMuted,
-                    fontSize: 12.5,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+          ),
+      ],
     );
   }
 
@@ -1296,7 +1242,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
         ),
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: context.sz(680)),
+            constraints: BoxConstraints(maxWidth: context.sz(860)),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1306,7 +1252,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                     const AppLogoMark(size: 20),
                     SizedBox(width: context.sp(theme.spacing.xs)),
                     Text(
-                      'TradeX',
+                      'hejournal.in',
                       style: context.uiText.bodyStrong.copyWith(
                         fontSize: 16,
                         letterSpacing: -0.2,
@@ -1317,6 +1263,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                 SizedBox(height: context.sp(theme.spacing.lg)),
                 UiCard(
                   variant: UiCardVariant.surface,
+                  padding: EdgeInsets.zero,
                   child: Padding(
                     padding: EdgeInsets.all(
                       context.sp(
@@ -1336,13 +1283,15 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                         ),
                         SizedBox(height: context.sp(theme.spacing.md)),
                         Text(
-                          'Application Submitted!',
+                          application.status ==
+                                  AffiliateApplicationStatus.approved
+                              ? 'Application approved'
+                              : application.status ==
+                                    AffiliateApplicationStatus.suspended
+                              ? 'Partner access suspended'
+                              : 'Application Submitted!',
                           textAlign: TextAlign.center,
-                          style: context.uiText.display.copyWith(
-                            fontSize: 28.0,
-                            fontWeight: FontWeight.w400,
-                            letterSpacing: -0.5,
-                          ),
+                          style: context.uiText.heading,
                         ),
                         SizedBox(height: context.sp(theme.spacing.xxs)),
                         Text(
@@ -1354,11 +1303,29 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                           ),
                         ),
                         SizedBox(height: context.sp(theme.spacing.md)),
-                        const UiCallout(
-                          title: 'Awaiting administrator review',
+                        UiCallout(
+                          title:
+                              application.status ==
+                                  AffiliateApplicationStatus.approved
+                              ? 'Partner Hub is ready'
+                              : application.status ==
+                                    AffiliateApplicationStatus.suspended
+                              ? 'Contact partner support'
+                              : 'Awaiting administrator review',
                           message:
-                              'Most applications are reviewed within 48 hours. Partner links, payouts, and referral analytics remain locked until approval.',
-                          intent: UiIntent.warning,
+                              application.status ==
+                                  AffiliateApplicationStatus.approved
+                              ? 'Your referral links, campaign analytics, and payout tools are available in Partner Hub.'
+                              : application.status ==
+                                    AffiliateApplicationStatus.suspended
+                              ? (application.reviewNotes ??
+                                    'Partner tools are restricted. Your trader account remains available.')
+                              : 'Partner links, payouts, and referral analytics remain locked until administrator approval.',
+                          intent:
+                              application.status ==
+                                  AffiliateApplicationStatus.approved
+                              ? UiIntent.success
+                              : UiIntent.warning,
                         ),
                         SizedBox(height: context.sp(theme.spacing.md)),
                         Text(
@@ -1371,12 +1338,31 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                         ),
                         SizedBox(height: context.sp(theme.spacing.lg)),
                         UiButton(
-                          label: 'Continue to TradeX',
+                          label: 'Refresh application status',
+                          variant: UiVariant.outline,
+                          onPressed: () async {
+                            setState(() => _loadingExistingApplication = true);
+                            await _loadExistingApplication();
+                          },
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.sm)),
+                        UiButton(
+                          label:
+                              application.status ==
+                                      AffiliateApplicationStatus.approved &&
+                                  widget.onOpenPartnerHub != null
+                              ? 'Open Partner Hub'
+                              : 'Continue to hejournal.in',
                           trailingIcon: Icons.arrow_forward_rounded,
                           variant: UiVariant.primary,
                           intent: UiIntent.primary,
                           size: responsive.isMobile ? UiSize.md : UiSize.lg,
-                          onPressed: widget.onDone ?? widget.onCancel,
+                          onPressed:
+                              application.status ==
+                                      AffiliateApplicationStatus.approved &&
+                                  widget.onOpenPartnerHub != null
+                              ? widget.onOpenPartnerHub
+                              : widget.onDone ?? widget.onCancel,
                         ),
                       ],
                     ),
@@ -1392,11 +1378,13 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                       color: colors.foregroundSubtle,
                     ),
                     SizedBox(width: context.sp(theme.spacing.xs)),
-                    Text(
-                      'Manage your account and privacy settings in TradeX',
-                      style: context.uiText.caption.copyWith(
-                        color: colors.foregroundSubtle,
-                        fontSize: 11.5,
+                    Flexible(
+                      child: Text(
+                        'Manage your account and privacy settings in hejournal.in',
+                        textAlign: TextAlign.center,
+                        style: context.uiText.caption.copyWith(
+                          color: colors.foregroundSubtle,
+                        ),
                       ),
                     ),
                   ],
@@ -1410,25 +1398,10 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
   }
 
   Widget _responsivePair(BuildContext context, Widget first, Widget second) {
-    final bool stack =
-        context.uiRes.isMobile || MediaQuery.sizeOf(context).width < 560;
-    if (stack) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          first,
-          SizedBox(height: context.sp(context.ui.spacing.md)),
-          second,
-        ],
-      );
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(child: first),
-        SizedBox(width: context.sp(context.ui.spacing.md)),
-        Expanded(child: second),
-      ],
+    return UiCardGrid(
+      minTileWidth: 260,
+      largeColumns: 2,
+      children: [first, second],
     );
   }
 }

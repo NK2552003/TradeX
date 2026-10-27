@@ -75,6 +75,16 @@ class MarketChangeDistribution extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.ui;
+    final gainers = instruments.where((q) => q.changePercent > 0).toList();
+    final losers = instruments.where((q) => q.changePercent < 0).toList();
+    final bestGain = gainers.isEmpty
+        ? 0.0
+        : gainers.map((q) => q.changePercent).reduce((a, b) => a > b ? a : b);
+    final worstLoss = losers.isEmpty
+        ? 0.0
+        : losers.map((q) => q.changePercent).reduce((a, b) => a < b ? a : b);
+
     final bins = <String, int>{
       '< -5%': 0,
       '-5 to -2%': 0,
@@ -98,28 +108,136 @@ class MarketChangeDistribution extends StatelessWidget {
           : '> 5%';
       bins[key] = bins[key]! + 1;
     }
-    return UiCard(
-      title: 'Daily change distribution',
-      subtitle: '${instruments.length} quoted instruments · percentage change',
-      child: instruments.isEmpty
-          ? const UiEmptyState(title: 'No quotes in this snapshot')
-          : UiBarChart(
-              height: 230,
-              showLegend: false,
-              data: [
-                for (final entry in bins.entries)
-                  UiChartPoint(
-                    label: entry.key,
-                    values: [entry.value.toDouble()],
-                  ),
-              ],
-              series: [
-                UiChartSeries(
-                  name: 'Instruments',
-                  color: context.ui.colors.primary,
-                ),
-              ],
+
+    Widget statItem(String label, String value, Color color) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: context.uiText.caption.copyWith(
+              color: theme.colors.foregroundMuted,
+              fontWeight: FontWeight.w700,
+              fontSize: context.fs(11),
+              letterSpacing: 0.6,
             ),
+          ),
+          UiGap.v(theme.spacing.xxs),
+          Text(
+            value,
+            style: context.uiText.title.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      );
+    }
+
+    Widget verticalDivider() {
+      return Container(
+        width: 1,
+        height: context.sz(32),
+        color: theme.colors.border.withValues(alpha: 0.4),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Top Stats Banner matching Image 1
+        Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(theme.spacing.md),
+            vertical: context.sp(theme.spacing.sm),
+          ),
+          decoration: BoxDecoration(
+            color: theme.colors.surfaceMuted,
+            borderRadius: context.radius(theme.radii.sm),
+            border: Border.all(
+              color: theme.colors.border,
+              width: theme.borders.hairline,
+            ),
+          ),
+          child: LayoutBuilder(
+            builder: (context, c) {
+              if (c.maxWidth < 540) {
+                return Wrap(
+                  alignment: WrapAlignment.spaceAround,
+                  runAlignment: WrapAlignment.center,
+                  spacing: context.sp(theme.spacing.sm),
+                  runSpacing: context.sp(theme.spacing.xs),
+                  children: [
+                    statItem('TOP GAINERS', '${gainers.length}', theme.colors.bullish),
+                    statItem('TOP LOSERS', '${losers.length}', theme.colors.bearish),
+                    statItem(
+                      'BEST GAIN',
+                      '+${bestGain.toStringAsFixed(2)}%',
+                      theme.colors.bullish,
+                    ),
+                    statItem(
+                      'WORST LOSS',
+                      '${worstLoss.toStringAsFixed(2)}%',
+                      theme.colors.bearish,
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Expanded(child: statItem('TOP GAINERS', '${gainers.length}', theme.colors.bullish)),
+                  verticalDivider(),
+                  Expanded(child: statItem('TOP LOSERS', '${losers.length}', theme.colors.bearish)),
+                  verticalDivider(),
+                  Expanded(
+                    child: statItem(
+                      'BEST GAIN',
+                      '+${bestGain.toStringAsFixed(2)}%',
+                      theme.colors.bullish,
+                    ),
+                  ),
+                  verticalDivider(),
+                  Expanded(
+                    child: statItem(
+                      'WORST LOSS',
+                      '${worstLoss.toStringAsFixed(2)}%',
+                      theme.colors.bearish,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        UiGap.v(theme.spacing.sm),
+
+        // Distribution Bar Chart Card
+        UiCard(
+          title: 'Daily change distribution',
+          subtitle:
+              '${instruments.length} quoted instruments · percentage change',
+          child: instruments.isEmpty
+              ? const UiEmptyState(title: 'No quotes in this snapshot')
+              : UiBarChart(
+                  height: 230,
+                  showLegend: false,
+                  data: [
+                    for (final entry in bins.entries)
+                      UiChartPoint(
+                        label: entry.key,
+                        values: [entry.value.toDouble()],
+                      ),
+                  ],
+                  series: [
+                    UiChartSeries(
+                      name: 'Instruments',
+                      color: theme.colors.foreground,
+                    ),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 }
@@ -308,26 +426,63 @@ class MarketInstitutionalHolders extends StatelessWidget {
 }
 
 class MarketRelatedMoves extends StatelessWidget {
-  const MarketRelatedMoves({super.key, required this.instruments});
+  const MarketRelatedMoves({
+    super.key,
+    required this.instruments,
+    this.onInstrument,
+  });
   final List<MarketInstrument> instruments;
+  final ValueChanged<MarketInstrument>? onInstrument;
 
   @override
   Widget build(BuildContext context) {
     if (instruments.isEmpty) return const SizedBox.shrink();
+    final theme = context.ui;
     return UiCard(
       title: 'Related quote moves',
       subtitle:
           'Snapshot change for mentioned instruments; no causal attribution',
-      child: UiBarChart(
-        data: [
-          for (final q in instruments.take(8))
-            UiChartPoint(label: q.symbol, values: [q.changePercent]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          UiBarChart(
+            data: [
+              for (final q in instruments.take(8))
+                UiChartPoint(label: q.symbol, values: [q.changePercent]),
+            ],
+            series: [
+              UiChartSeries(
+                name: 'Change %',
+                color: theme.colors.bullish,
+                negativeColor: theme.colors.bearish,
+              ),
+            ],
+            negativeColor: theme.colors.bearish,
+            height: 180,
+            showLegend: false,
+          ),
+          UiGap.v(theme.spacing.sm),
+          Wrap(
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xs),
+            children: [
+              for (final q in instruments.take(8))
+                InkWell(
+                  onTap: () => onInstrument?.call(q),
+                  borderRadius: context.radius(theme.radii.pill),
+                  child: UiBadge(
+                    label:
+                        '${q.symbol} ${q.changePercent >= 0 ? '+' : ''}${q.changePercent.toStringAsFixed(2)}%',
+                    intent:
+                        q.changePercent >= 0
+                            ? UiIntent.success
+                            : UiIntent.danger,
+                    variant: UiBadgeVariant.soft,
+                  ),
+                ),
+            ],
+          ),
         ],
-        series: [
-          UiChartSeries(name: 'Change %', color: context.ui.colors.primary),
-        ],
-        height: 220,
-        showLegend: false,
       ),
     );
   }

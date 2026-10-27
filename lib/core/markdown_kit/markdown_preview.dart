@@ -248,11 +248,13 @@ class RichMarkdownPreview extends StatelessWidget {
           if (uri != null && AppDeepLink.isInternal(uri)) {
             final target = AppDeepLink.target(uri);
             if (target != null && onOpenRef != null) {
-              onOpenRef!(AppLinkRef(
-                kind: target.kind,
-                id: target.id,
-                title: text.isNotEmpty ? text : target.id,
-              ));
+              onOpenRef!(
+                AppLinkRef(
+                  kind: target.kind,
+                  id: target.id,
+                  title: text.isNotEmpty ? text : target.id,
+                ),
+              );
               return;
             }
           }
@@ -603,8 +605,9 @@ String _neutralizeToken(String text, String token) {
 /// mistaken for unclosed LaTeX math delimiters.
 String _neutralizeSingleDollar(String text) {
   final List<int> positions = <int>[];
-  final RegExp tickerPattern =
-      RegExp(r'(?<![\$\w])\$[A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9}\b(?!\$)');
+  final RegExp tickerPattern = RegExp(
+    r'(?<![\$\w])\$[A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9}\b(?!\$)',
+  );
   final Set<int> tickerDollarPositions = <int>{};
   for (final Match m in tickerPattern.allMatches(text)) {
     tickerDollarPositions.add(m.start);

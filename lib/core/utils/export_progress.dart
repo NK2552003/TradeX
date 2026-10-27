@@ -72,8 +72,9 @@ class _ProgressScrim extends StatelessWidget {
                 const SizedBox(height: 18),
                 Text(
                   title,
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 ValueListenableBuilder<String>(

@@ -1,4 +1,5 @@
 import 'package:tradex/core/app-ui/theme/app_tokens.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/models/pricing_models.dart';
@@ -27,9 +28,15 @@ class SubscriptionPricingRepositoryImpl
     bool annual = false,
   }) async {
     final json = await _content.pricing();
+    CustomerTierQuota.installPublishedCatalogue(json);
     json['plans'] = (json['plans'] as List).map((raw) {
       final row = Map<String, dynamic>.from(raw as Map);
-      row['is_current'] = row['tier'] == _session.tier.value.name;
+      final currentTierName = _session.tier.value.name;
+      final planTier = row['tier']?.toString();
+      row['is_current'] =
+          planTier == currentTierName ||
+          ((planTier == 'premium' || planTier == 'pro') &&
+              (currentTierName == 'pro' || currentTierName == 'premium'));
       return row;
     }).toList();
     return PricingCatalogueResponse.fromJson(json);
@@ -48,7 +55,9 @@ class SubscriptionPricingRepositoryImpl
       (p) => p.id == tierId,
       orElse: () => throw ArgumentError('Unknown plan'),
     );
-    // Local onboarding state only. Paid checkout must be confirmed server-side.
+    if (!plan.isCurrent && (!plan.isPurchasable || plan.tier != AppTier.free)) {
+      throw StateError('Paid plans require verified store checkout.');
+    }
     _session.startPeriod(AppTier.values.byName(plan.tier.name), billingCycle);
   }
 }

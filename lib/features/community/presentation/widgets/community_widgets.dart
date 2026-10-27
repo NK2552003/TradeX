@@ -10,6 +10,7 @@ export 'community_bookmark_folder_dialog.dart';
 export 'community_card_share_dialog.dart';
 export 'community_comment_card.dart';
 export 'community_composer_card.dart';
+export 'community_composer_trigger_card.dart';
 export 'community_design.dart';
 export 'community_edit_post_dialog.dart';
 export 'community_engagement_bar.dart';
@@ -38,4 +39,3 @@ export 'community_trade_setup_tile.dart';
 export 'community_trader_card.dart';
 export 'community_audio_mini_player.dart';
 export 'community_host_live_space_dialog.dart';
-

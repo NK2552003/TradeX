@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 
 abstract class ChatRepository {
   Future<List<AppConversation>> getConversations();
@@ -14,11 +16,9 @@ abstract class ChatRepository {
 
 class ChatRepositoryImpl implements ChatRepository {
   ChatRepositoryImpl({DemoDataSource? demoDataSource})
-      : _demo = demoDataSource ?? DemoDataSource.instance;
+    : _demo = demoDataSource ?? DemoDataSource.instance;
 
   final DemoDataSource _demo;
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
-
   SupabaseClient? get _client {
     if (SupabaseConfig.isConfigured) {
       try {
@@ -30,14 +30,17 @@ class ChatRepositoryImpl implements ChatRepository {
     return null;
   }
 
-  String get _targetUserId => _client?.auth.currentUser?.id ?? _demoUserId;
+  String get _targetUserId =>
+      _client?.auth.currentUser?.id ??
+      SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+      '';
 
   @override
   Future<List<AppConversation>> getConversations() async {
     final client = _client;
     final userId = _targetUserId;
     if (client == null) {
-      return _demo.conversations();
+      return CustomerDataPolicy.allowDemo ? _demo.conversations() : [];
     }
 
     try {
@@ -58,7 +61,10 @@ class ChatRepositoryImpl implements ChatRepository {
       for (final row in response as List<dynamic>) {
         final map = row as Map<String, dynamic>;
         final userAId = map['user_a_id'] as String;
-        final peerData = (userAId == userId ? map['user_b'] : map['user_a']) as Map<String, dynamic>? ?? {};
+        final peerData =
+            (userAId == userId ? map['user_b'] : map['user_a'])
+                as Map<String, dynamic>? ??
+            {};
 
         final peerId = peerData['id'] as String? ?? 'usr_peer';
         final peerHandle = peerData['handle'] as String? ?? 'trader';
@@ -73,10 +79,13 @@ class ChatRepositoryImpl implements ChatRepository {
             .limit(1)
             .maybeSingle();
 
-        final lastMsgContent = messageResponse?['content'] as String? ?? 'No messages yet';
+        final lastMsgContent =
+            messageResponse?['content'] as String? ?? 'No messages yet';
         final lastMsgTime = messageResponse != null
             ? DateTime.parse(messageResponse['created_at'] as String)
-            : (map['last_message_at'] != null ? DateTime.parse(map['last_message_at'] as String) : DateTime.now());
+            : (map['last_message_at'] != null
+                  ? DateTime.parse(map['last_message_at'] as String)
+                  : DateTime.now());
 
         conversations.add(
           AppConversation(
@@ -93,10 +102,16 @@ class ChatRepositoryImpl implements ChatRepository {
           ),
         );
       }
-      return conversations.isEmpty ? _demo.conversations() : conversations;
+      return conversations.isEmpty
+          ? (CustomerDataPolicy.allowDemo
+                ? _demo.conversations()
+                : <AppConversation>[])
+          : conversations;
     } catch (e) {
       debugPrint('ChatRepositoryImpl.getConversations error: $e');
-      return _demo.conversations();
+      return CustomerDataPolicy.allowDemo
+          ? _demo.conversations()
+          : <AppConversation>[];
     }
   }
 
@@ -105,7 +120,9 @@ class ChatRepositoryImpl implements ChatRepository {
     final client = _client;
     final userId = _targetUserId;
     if (client == null) {
-      return _demo.chatMessages(conversationId);
+      return CustomerDataPolicy.allowDemo
+          ? _demo.chatMessages(conversationId)
+          : [];
     }
 
     try {
@@ -126,15 +143,24 @@ class ChatRepositoryImpl implements ChatRepository {
         );
       }).toList();
 
-      return messages.isEmpty ? _demo.chatMessages(conversationId) : messages;
+      return messages.isEmpty
+          ? (CustomerDataPolicy.allowDemo
+                ? _demo.chatMessages(conversationId)
+                : <AppChatMessage>[])
+          : messages;
     } catch (e) {
       debugPrint('ChatRepositoryImpl.getMessages error: $e');
-      return _demo.chatMessages(conversationId);
+      return CustomerDataPolicy.allowDemo
+          ? _demo.chatMessages(conversationId)
+          : <AppChatMessage>[];
     }
   }
 
   @override
-  Future<AppChatMessage> sendMessage(String conversationId, String content) async {
+  Future<AppChatMessage> sendMessage(
+    String conversationId,
+    String content,
+  ) async {
     final client = _client;
     final userId = _targetUserId;
     final sentAt = DateTime.now();
@@ -149,15 +175,20 @@ class ChatRepositoryImpl implements ChatRepository {
     }
 
     try {
-      final response = await client.from('messages').insert({
-        'conversation_id': conversationId,
-        'sender_id': userId,
-        'content': content,
-      }).select('id, content, sender_id, created_at').single();
+      final response = await client
+          .from('messages')
+          .insert({
+            'conversation_id': conversationId,
+            'sender_id': userId,
+            'content': content,
+          })
+          .select('id, content, sender_id, created_at')
+          .single();
 
-      await client.from('conversations').update({
-        'last_message_at': sentAt.toIso8601String(),
-      }).eq('id', conversationId);
+      await client
+          .from('conversations')
+          .update({'last_message_at': sentAt.toIso8601String()})
+          .eq('id', conversationId);
 
       return AppChatMessage(
         id: response['id'] as String,
@@ -187,31 +218,33 @@ class ChatRepositoryImpl implements ChatRepository {
     final controller = StreamController<AppChatMessage>();
 
     final channel = client.channel('public:messages:$conversationId');
-    channel.onPostgresChanges(
-      event: PostgresChangeEvent.insert,
-      schema: 'public',
-      table: 'messages',
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'conversation_id',
-        value: conversationId,
-      ),
-      callback: (payload) {
-        final newRecord = payload.newRecord;
-        if (newRecord.isNotEmpty) {
-          final senderId = newRecord['sender_id'] as String?;
-          final msg = AppChatMessage(
-            id: newRecord['id'] as String? ?? 'msg_realtime',
-            body: newRecord['content'] as String? ?? '',
-            fromMe: senderId == userId,
-            sentAt: newRecord['created_at'] != null
-                ? DateTime.parse(newRecord['created_at'] as String)
-                : DateTime.now(),
-          );
-          controller.add(msg);
-        }
-      },
-    ).subscribe();
+    channel
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'conversation_id',
+            value: conversationId,
+          ),
+          callback: (payload) {
+            final newRecord = payload.newRecord;
+            if (newRecord.isNotEmpty) {
+              final senderId = newRecord['sender_id'] as String?;
+              final msg = AppChatMessage(
+                id: newRecord['id'] as String? ?? 'msg_realtime',
+                body: newRecord['content'] as String? ?? '',
+                fromMe: senderId == userId,
+                sentAt: newRecord['created_at'] != null
+                    ? DateTime.parse(newRecord['created_at'] as String)
+                    : DateTime.now(),
+              );
+              controller.add(msg);
+            }
+          },
+        )
+        .subscribe();
 
     controller.onCancel = () {
       client.removeChannel(channel);

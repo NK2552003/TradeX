@@ -954,7 +954,7 @@ class StrategyEditorScreenState extends State<StrategyEditorScreen> {
         UiToast.warning(
           context,
           title: 'Dictation is not available',
-          message: 'Check the microphone permission for TradeX.',
+          message: 'Check the microphone permission for hejournal.in.',
         );
       }
       return;

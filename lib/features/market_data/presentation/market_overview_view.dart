@@ -7,6 +7,8 @@ import 'market_movers_panel.dart';
 import 'market_news_widgets.dart';
 import 'market_layout.dart';
 import 'market_visuals.dart';
+import 'market_world_indices_card.dart';
+import 'market_sector_heatmap_card.dart';
 
 String marketSnapshotDate(Map<String, dynamic> manifest) {
   final date = DateTime.tryParse('${manifest['generated_at']}')?.toLocal();
@@ -29,20 +31,8 @@ class MarketOverviewView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final advancing = snapshot.instruments
-        .where((q) => q.changePercent > 0)
-        .length;
-    final declining = snapshot.instruments
-        .where((q) => q.changePercent < 0)
-        .length;
-    final unchanged = snapshot.instruments.length - advancing - declining;
-    final total = snapshot.instruments.length;
-    final exportedQuotes = (snapshot.manifest['quote_count'] as num? ?? total);
-    final breadthRatio = total == 0 ? 0.0 : advancing / total;
-    final isRisingMarket = advancing > declining;
-    final breadthIntent = advancing > declining
-        ? UiIntent.success
-        : (declining > advancing ? UiIntent.danger : UiIntent.neutral);
+    final exportedQuotes =
+        (snapshot.manifest['quote_count'] as num? ?? snapshot.instruments.length);
     final sectors = <String, num>{};
     final markets = <String, num>{};
     for (final q in snapshot.instruments) {
@@ -61,126 +51,14 @@ class MarketOverviewView extends StatelessWidget {
       primary: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Market Breadth Hero Card
-          UiCard(
-            accentColor: isRisingMarket
-                ? context.ui.colors.success
-                : context.ui.colors.danger,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.monitor_heart_outlined,
-                                size: context.sz(16),
-                                color: context.ui.colors.foregroundMuted,
-                              ),
-                              UiGap.h(context.ui.spacing.xs),
-                              Flexible(
-                                child: Text(
-                                  'Market Pulse',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: context.uiText.caption.copyWith(
-                                    color: context.ui.colors.foregroundMuted,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          UiGap.v(context.ui.spacing.xs),
-                          Text(
-                            isRisingMarket
-                                ? 'Broadly Rising'
-                                : (declining > advancing
-                                      ? 'Broadly Declining'
-                                      : 'Mixed Session'),
-                            style: context.uiText.heading,
-                          ),
-                          UiGap.v(context.ui.spacing.xs),
-                          Text(
-                            '$total instruments tracked · ${marketSnapshotDate(snapshot.manifest)}',
-                            style: context.uiText.caption.copyWith(
-                              color: context.ui.colors.foregroundMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    UiBadge(
-                      label: isRisingMarket
-                          ? 'Risk On'
-                          : (declining > advancing ? 'Risk Off' : 'Neutral'),
-                      intent: breadthIntent,
-                      variant: UiBadgeVariant.soft,
-                    ),
-                  ],
-                ),
-                UiGap.v(context.ui.spacing.lg),
-                UiStatStrip(
-                  stats: [
-                    UiStat(
-                      label: 'Advancing',
-                      value: '$advancing',
-                      intent: UiIntent.success,
-                    ),
-                    UiStat(
-                      label: 'Declining',
-                      value: '$declining',
-                      intent: UiIntent.danger,
-                    ),
-                    UiStat(label: 'Unchanged', value: '$unchanged'),
-                    UiStat(
-                      label: 'A/D Ratio',
-                      value: declining == 0
-                          ? '∞'
-                          : (advancing / declining).toStringAsFixed(2),
-                    ),
-                  ],
-                ),
-                if (snapshot.instruments.isNotEmpty) ...[
-                  UiGap.v(context.ui.spacing.md),
-                  UiProgressBar(value: breadthRatio, intent: breadthIntent),
-                  UiGap.v(context.ui.spacing.xs),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${(breadthRatio * 100).toStringAsFixed(0)}% advancing',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.uiText.caption.copyWith(
-                            color: context.ui.colors.success,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          '${((declining / (total == 0 ? 1 : total)) * 100).toStringAsFixed(0)}% declining',
-                          textAlign: TextAlign.end,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.uiText.caption.copyWith(
-                            color: context.ui.colors.danger,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
+          MarketWorldIndicesCard(
+            instruments: snapshot.instruments,
+            onInstrument: onInstrument,
           ),
-          UiGap.v(context.ui.spacing.md),
+          UiGap.v(context.ui.spacing.lg),
+
+          MarketSectorHeatmapCard(instruments: snapshot.instruments),
+          UiGap.v(context.ui.spacing.lg),
 
           MarketChangeDistribution(instruments: snapshot.instruments),
           UiGap.v(context.ui.spacing.md),

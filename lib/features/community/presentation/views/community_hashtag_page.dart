@@ -61,9 +61,20 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage> {
   void _loadData() {
     final clean = widget.tag.replaceAll('#', '').replaceAll(r'$', '');
     _posts = widget.repository.fetchHashtagPosts(clean);
-    if (_posts.isEmpty) {
-      _posts = widget.repository.feedPosts;
+  }
+
+  List<CommunityPost> get _visiblePosts {
+    final posts = List<CommunityPost>.of(_posts);
+    if (_selectedTabIndex == 1) {
+      posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } else {
+      posts.sort(
+        (a, b) => (b.likes + b.comments + b.reposts).compareTo(
+          a.likes + a.comments + a.reposts,
+        ),
+      );
     }
+    return posts;
   }
 
   @override
@@ -97,7 +108,7 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage> {
               ),
             ),
             Text(
-              '${_posts.length * 142} discussions · 74% Bullish',
+              '${_posts.length} public discussions',
               style: context.uiText.caption.copyWith(
                 color: colors.foregroundMuted,
                 fontSize: 11,
@@ -141,54 +152,35 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage> {
           constraints: const BoxConstraints(maxWidth: kCommunityMaxWidth),
           child: Column(
             children: [
-              // Topic Header Card
-              Container(
-                padding: EdgeInsets.all(context.sp(16)),
-                color: colors.surface,
+              // Topic summary uses the same shared surface as Explore cards.
+              UiCard(
+                variant: UiCardVariant.subtle,
                 child: Row(
                   children: [
-                    Container(
-                      padding: EdgeInsets.all(context.sp(12)),
-                      decoration: BoxDecoration(
-                        color: colors.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(context.sz(12)),
-                      ),
-                      child: Text(
-                        widget.tag.startsWith(r'$') ? r'$' : '#',
-                        style: context.uiText.title.copyWith(
-                          color: colors.primary,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                    UiBadge(
+                      label: widget.tag.startsWith(r'$') ? r'$' : '#',
+                      intent: UiIntent.primary,
+                      variant: UiBadgeVariant.soft,
                     ),
-                    SizedBox(width: context.sp(12)),
+                    UiGap.h(theme.spacing.sm),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             displayTag,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: context.uiText.title.copyWith(
                               fontWeight: FontWeight.w800,
                               color: colors.foreground,
                             ),
                           ),
-                          SizedBox(height: context.sp(4)),
-                          Row(
-                            children: [
-                              UiBadge(
-                                label: 'Bullish 74%',
-                                intent: UiIntent.success,
-                                variant: UiBadgeVariant.soft,
-                              ),
-                              SizedBox(width: context.sp(8)),
-                              Text(
-                                'High Momentum',
-                                style: context.uiText.caption.copyWith(
-                                  color: colors.foregroundMuted,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            '${_posts.length} public discussions',
+                            style: context.uiText.caption.copyWith(
+                              color: colors.foregroundMuted,
+                            ),
                           ),
                         ],
                       ),
@@ -218,7 +210,7 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage> {
                 child: _selectedTabIndex == 2
                     ? _buildTradersList()
                     : CommunityFeedList(
-                        posts: _posts,
+                        posts: _visiblePosts,
                         onPostTap: (post) {
                           if (widget.onPostTap != null) {
                             widget.onPostTap!(post);
@@ -251,7 +243,15 @@ class _CommunityHashtagPageState extends State<CommunityHashtagPage> {
   }
 
   Widget _buildTradersList() {
-    final authors = widget.repository.topTraders;
+    final authors = <CommunityAuthor>[for (final post in _posts) post.author];
+    final seen = <String>{};
+    authors.removeWhere((author) => !seen.add(author.id));
+    if (authors.isEmpty) {
+      return const UiEmptyState(
+        icon: Icons.people_outline_rounded,
+        title: 'No traders for this topic yet',
+      );
+    }
     return ListView.separated(
       padding: EdgeInsets.all(context.sp(16)),
       itemCount: authors.length,

@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
 import 'package:tradex/features/affiliate_program/data/affiliate_application_repository.dart';
+import 'package:tradex/features/affiliate_program/data/affiliate_workspace_repository.dart';
 import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
+import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
 
 class AffiliateApprovalsPage extends StatefulWidget {
-  const AffiliateApprovalsPage({super.key, this.repository});
+  const AffiliateApprovalsPage({
+    super.key,
+    this.repository,
+    this.workspaceRepository,
+  });
 
   final AffiliateApplicationRepository? repository;
+  final AffiliateWorkspaceRepository? workspaceRepository;
 
   @override
   State<AffiliateApprovalsPage> createState() => _AffiliateApprovalsPageState();
@@ -15,34 +24,57 @@ class AffiliateApprovalsPage extends StatefulWidget {
 
 class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
   late final AffiliateApplicationRepository _repository;
+  late final AffiliateWorkspaceRepository _workspaceRepository;
   List<AffiliateApplicationModel> _applications = <AffiliateApplicationModel>[];
+  AffiliateWorkspace? _workspace;
   AffiliateApplicationStatus? _filter = AffiliateApplicationStatus.pending;
   bool _loading = true;
+  String? _error;
+  bool _reviewing = false;
 
   @override
   void initState() {
     super.initState();
     _repository =
         widget.repository ?? AffiliateApplicationRepositoryImpl.instance;
+    _workspaceRepository =
+        widget.workspaceRepository ?? AffiliateWorkspaceRepository.instance;
     _load();
   }
 
   Future<void> _load() async {
-    final List<AffiliateApplicationModel> applications = await _repository
-        .listApplications();
-    if (!mounted) return;
     setState(() {
-      _applications = applications;
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
+    try {
+      final applications = await _repository.listApplications();
+      AffiliateWorkspace? ws;
+      try {
+        ws = await _workspaceRepository.load();
+      } catch (_) {}
+      if (mounted) {
+        setState(() {
+          _applications = applications;
+          _workspace = ws;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Applications could not be loaded. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _review(
     AffiliateApplicationModel application,
     bool approve,
   ) async {
+    if (_reviewing) return;
     final TextEditingController notes = TextEditingController();
-    final bool? confirmed = await showDialog<bool>(
+    final bool? confirmed = await UiDialog.present<bool>(
       context: context,
       builder: (BuildContext dialogContext) => UiDialog(
         title: approve ? 'Approve affiliate access?' : 'Reject application?',
@@ -56,7 +88,7 @@ class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
                   : 'Applicant keeps customer access',
               message: approve
                   ? '${application.fullName} will gain the Affiliate Partner workspace while keeping all customer/trader capabilities.'
-                  : '${application.fullName} will not gain partner tools. Their normal TradeX account remains active.',
+                  : '${application.fullName} will not gain partner tools. Their normal hejournal.in account remains active.',
               intent: approve ? UiIntent.success : UiIntent.warning,
             ),
             SizedBox(height: dialogContext.sp(dialogContext.ui.spacing.md)),
@@ -96,22 +128,247 @@ class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
       notes.dispose();
       return;
     }
-    await _repository.review(
-      applicationId: application.id,
-      approve: approve,
-      notes: notes.text,
-    );
-    notes.dispose();
-    if (!mounted) return;
-    UiToast.show(
-      context,
-      title: approve ? 'Affiliate approved' : 'Application rejected',
-      message: approve
-          ? '${application.fullName} can now access the Partner Hub.'
-          : '${application.fullName} was notified and can revise their application.',
-      intent: approve ? UiIntent.success : UiIntent.warning,
-    );
+    setState(() => _reviewing = true);
+    try {
+      await _repository.review(
+        applicationId: application.id,
+        approve: approve,
+        notes: notes.text,
+      );
+      await AdminConsoleRepository.instance.recordAuditLog(
+        category: 'affiliate_review',
+        action: approve
+            ? 'AFFILIATE_APPLICATION_APPROVED'
+            : 'AFFILIATE_APPLICATION_REJECTED',
+        targetType: 'affiliate_application',
+        targetLabel: '${application.fullName} (${application.channelHandle})',
+        severity: approve ? 'info' : 'warning',
+        details: notes.text.trim().isEmpty
+            ? (approve
+                  ? 'Approved Indian affiliate partner access.'
+                  : 'Rejected affiliate application.')
+            : notes.text.trim(),
+      );
+      if (!mounted) return;
+      UiToast.show(
+        context,
+        title: approve ? 'Affiliate approved' : 'Application rejected',
+        message: approve
+            ? '${application.fullName} can now access the Partner Hub.'
+            : 'The review was saved. The applicant can revise their application.',
+        intent: approve ? UiIntent.success : UiIntent.warning,
+      );
+    } catch (_) {
+      if (mounted) {
+        UiToast.show(
+          context,
+          title: 'Review could not be saved. Please try again.',
+          intent: UiIntent.danger,
+        );
+      }
+    } finally {
+      notes.dispose();
+      if (mounted) setState(() => _reviewing = false);
+    }
     await _load();
+  }
+
+  Future<void> _settlePayoutModal(AffiliatePayout payout, bool approve) async {
+    final TextEditingController refCtrl = TextEditingController(
+      text: approve
+          ? 'UTR${DateTime.now().millisecondsSinceEpoch.toString().substring(4)}'
+          : '',
+    );
+    final TextEditingController notesCtrl = TextEditingController(
+      text: approve
+          ? 'Settled via NPCI / NEFT after 5% TDS deduction u/s 194H.'
+          : 'Returned to partner unpaid balance: Bank/UPI verification required.',
+    );
+
+    final bool? confirmed = await UiDialog.present<bool>(
+      context: context,
+      builder: (BuildContext ctx) => UiDialog(
+        title: approve
+            ? 'Settle Partner INR Payout?'
+            : 'Reject & Refund INR Payout?',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            UiCallout(
+              title:
+                  'Gross: ${formatInrAmount(payout.grossAmount)} · Net Payable: ${formatInrAmount(payout.netAmount)}',
+              message:
+                  '5% TDS u/s 194H: -${formatInrAmount(payout.tdsAmount)}\n'
+                  'Destination: ${payout.methodLabel} (${payout.destination})',
+              intent: approve ? UiIntent.success : UiIntent.warning,
+            ),
+            SizedBox(height: ctx.sp(ctx.ui.spacing.md)),
+            if (approve) ...<Widget>[
+              UiField(
+                label: 'Bank NEFT / IMPS / UPI UTR Reference',
+                required: true,
+                child: UiInput(
+                  controller: refCtrl,
+                  hintText: 'e.g. HDFCN52026102599102',
+                ),
+              ),
+              SizedBox(height: ctx.sp(ctx.ui.spacing.md)),
+            ],
+            UiField(
+              label: 'Settlement / Compliance Note',
+              child: UiTextarea(
+                controller: notesCtrl,
+                minLines: 2,
+                maxLines: 3,
+              ),
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          UiButton(
+            label: 'Cancel',
+            variant: UiVariant.outline,
+            onPressed: () => Navigator.of(ctx).pop(false),
+          ),
+          UiButton(
+            label: approve ? 'Confirm UTR Settlement' : 'Reject & Refund',
+            intent: approve ? UiIntent.success : UiIntent.danger,
+            variant: approve ? UiVariant.solid : UiVariant.destructive,
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await AdminConsoleRepository.instance.reviewAffiliatePayout(
+        payoutId: payout.id,
+        approve: approve,
+        referenceCode: refCtrl.text.trim(),
+        notes: notesCtrl.text.trim(),
+      );
+      await _load();
+      if (mounted) {
+        UiToast.show(
+          context,
+          title: approve
+              ? 'INR Payout Settled'
+              : 'Payout Rejected & Balance Refunded',
+          message: approve
+              ? 'UTR ${refCtrl.text.trim()} recorded on partner tax ledger.'
+              : 'Refunded ${formatInrAmount(payout.amount)} to partner unpaid balance.',
+          intent: approve ? UiIntent.success : UiIntent.warning,
+        );
+      }
+    }
+    refCtrl.dispose();
+    notesCtrl.dispose();
+  }
+
+  Future<void> _publishAssetModal() async {
+    final TextEditingController titleCtrl = TextEditingController();
+    final TextEditingController badgeCtrl = TextEditingController(
+      text: 'SEBI/ASCI Verified',
+    );
+    final TextEditingController bodyCtrl = TextEditingController();
+    String category = 'social';
+
+    final bool? published = await UiDialog.present<bool>(
+      context: context,
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setModalState) => UiDialog(
+          title: 'Publish Partner Media Kit Copy Asset (INR)',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              UiField(
+                label: 'Asset Title',
+                required: true,
+                child: UiInput(
+                  controller: titleCtrl,
+                  hintText: 'e.g. Diwali Muhurat Trading Journal Pitch',
+                ),
+              ),
+              SizedBox(height: ctx.sp(ctx.ui.spacing.md)),
+              UiField(
+                label: 'Channel Category',
+                child: UiSelect<String>(
+                  value: category,
+                  options: const <UiOption<String>>[
+                    UiOption(value: 'social', label: 'Social / X / Threads'),
+                    UiOption(value: 'video', label: 'YouTube Description'),
+                    UiOption(value: 'email', label: 'Newsletter / Substack'),
+                    UiOption(value: 'community', label: 'Telegram / Discord'),
+                  ],
+                  onChanged: (String? v) {
+                    if (v != null) setModalState(() => category = v);
+                  },
+                ),
+              ),
+              SizedBox(height: ctx.sp(ctx.ui.spacing.md)),
+              UiField(
+                label: 'Compliance Badge Label',
+                child: UiInput(controller: badgeCtrl),
+              ),
+              SizedBox(height: ctx.sp(ctx.ui.spacing.md)),
+              UiField(
+                label: 'Copy Body (Use {{referral_url}} placeholder)',
+                required: true,
+                child: UiTextarea(
+                  controller: bodyCtrl,
+                  hintText:
+                      'Track NSE/BSE F&O setups in INR on hejournal.in: {{referral_url}}',
+                  minLines: 3,
+                  maxLines: 5,
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            UiButton(
+              label: 'Cancel',
+              variant: UiVariant.outline,
+              onPressed: () => Navigator.of(ctx).pop(false),
+            ),
+            UiButton(
+              label: 'Publish to Partner Hub',
+              intent: UiIntent.primary,
+              onPressed: () {
+                if (titleCtrl.text.trim().isEmpty ||
+                    bodyCtrl.text.trim().isEmpty) {
+                  return;
+                }
+                Navigator.of(ctx).pop(true);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (published == true) {
+      await _workspaceRepository.adminPublishMarketingAsset(
+        title: titleCtrl.text,
+        category: category,
+        badge: badgeCtrl.text,
+        body: bodyCtrl.text,
+      );
+      await _load();
+      if (mounted) {
+        UiToast.show(
+          context,
+          title: 'Media Kit Asset Published',
+          message:
+              'New INR marketing template is now live in the Affiliate Partner Hub.',
+          intent: UiIntent.success,
+        );
+      }
+    }
+    titleCtrl.dispose();
+    badgeCtrl.dispose();
+    bodyCtrl.dispose();
   }
 
   @override
@@ -140,9 +397,16 @@ class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
       header: UiHeader(
         title: 'Affiliate Applications',
         subtitle:
-            'Review creator identity, reach, payout readiness, and unlock partner access.',
+            'Review creator identity, reach, Indian INR payout readiness, settle partner withdrawals, and govern commission tiers.',
         leading: Icon(Icons.fact_check_outlined, color: theme.colors.primary),
         actions: <Widget>[
+          UiButton(
+            label: 'Publish Media Kit Asset',
+            leadingIcon: Icons.campaign_outlined,
+            variant: UiVariant.outline,
+            size: UiSize.sm,
+            onPressed: _publishAssetModal,
+          ),
           UiButton(
             label: 'Refresh',
             leadingIcon: Icons.refresh_rounded,
@@ -155,31 +419,43 @@ class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          UiCardGrid(
-            mobileColumns: 1,
-            tabletColumns: 3,
-            desktopColumns: 3,
-            largeColumns: 3,
-            childAspectRatio: context.uiRes.isMobile ? 2.4 : 2.0,
-            children: <Widget>[
-              UiMetricCard(
-                label: 'Pending review',
+          if (_error != null)
+            UiCallout(
+              title: 'Applications unavailable',
+              message: _error,
+              intent: UiIntent.danger,
+            ),
+
+          // Desk Ledger 3-Column Block
+          DeskLedgerBlock(
+            items: <DeskLedgerItem>[
+              DeskLedgerItem(
+                label: 'PENDING REVIEW',
                 value: '$pending',
-                icon: Icons.pending_actions_outlined,
+                valueColor: pending > 0
+                    ? theme.colors.warning
+                    : theme.colors.foreground,
+                subtext: 'Awaiting compliance review',
+                badgeText: pending > 0 ? 'NEEDS REVIEW' : 'CLEAR',
+                badgeIntent: pending > 0 ? UiIntent.warning : UiIntent.success,
               ),
-              UiMetricCard(
-                label: 'Approved partners',
+              DeskLedgerItem(
+                label: 'APPROVED PARTNERS',
                 value: '$approved',
-                icon: Icons.verified_user_outlined,
+                valueColor: theme.colors.bullish,
+                subtext: 'Active creator partners',
+                badgeText: 'VERIFIED',
+                badgeIntent: UiIntent.success,
               ),
-              UiMetricCard(
-                label: 'Total applications',
+              DeskLedgerItem(
+                label: 'TOTAL APPLICATIONS',
                 value: '${_applications.length}',
-                icon: Icons.group_add_outlined,
+                subtext: 'Historical onboarding pipeline',
               ),
             ],
           ),
           SizedBox(height: context.sp(theme.spacing.lg)),
+
           UiToggleGroup<AffiliateApplicationStatus?>(
             value: _filter,
             expand: context.uiRes.isMobile,
@@ -236,6 +512,95 @@ class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
                 ),
               ),
             ),
+
+          if (_workspace != null && _workspace!.enrolled) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.xl)),
+            _buildInrPayoutGovernanceSection(context, _workspace!),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInrPayoutGovernanceSection(
+    BuildContext context,
+    AffiliateWorkspace ws,
+  ) {
+    final UiTheme theme = context.ui;
+    return UiCard(
+      title: 'Partner INR Payout Settlement & Tier Governance',
+      subtitle:
+          'Active Partner: ${ws.profile.displayName} (/r/${ws.profile.referralSlug}) · Unpaid Balance: ${formatInrAmount(ws.profile.unpaidBalance)} · Settled: ${formatInrAmount(ws.profile.totalPaidOut)}',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          UiTable<AffiliatePayout>(
+            rows: ws.payouts,
+            rowKey: (p) => p.id,
+            stackOnMobile: true,
+            columns: <UiTableColumn<AffiliatePayout>>[
+              UiTableColumn<AffiliatePayout>(
+                id: 'requested',
+                label: 'Requested Date',
+                valueGetter: (p) =>
+                    p.requestedAt.toIso8601String().split('T').first,
+              ),
+              UiTableColumn<AffiliatePayout>(
+                id: 'rail',
+                label: 'Indian Payout Rail',
+                valueGetter: (p) => '${p.methodLabel} · ${p.destination}',
+              ),
+              UiTableColumn<AffiliatePayout>(
+                id: 'gross',
+                label: 'Gross (₹)',
+                numeric: true,
+                valueGetter: (p) => formatInrAmount(p.grossAmount),
+              ),
+              UiTableColumn<AffiliatePayout>(
+                id: 'tds',
+                label: '5% TDS u/s 194H',
+                numeric: true,
+                valueGetter: (p) => '-${formatInrAmount(p.tdsAmount)}',
+              ),
+              UiTableColumn<AffiliatePayout>(
+                id: 'net',
+                label: 'Net Disbursed (₹)',
+                numeric: true,
+                valueGetter: (p) => formatInrAmount(p.netAmount),
+              ),
+              UiTableColumn<AffiliatePayout>(
+                id: 'status',
+                label: 'Settlement Action',
+                cellBuilder: (BuildContext ctx, AffiliatePayout p) =>
+                    p.status == 'pending' || p.status == 'processing'
+                    ? Wrap(
+                        spacing: ctx.sp(theme.spacing.xxs),
+                        children: <Widget>[
+                          UiButton(
+                            label: 'Settle UTR',
+                            size: UiSize.xs,
+                            intent: UiIntent.success,
+                            onPressed: () => _settlePayoutModal(p, true),
+                          ),
+                          UiButton(
+                            label: 'Reject',
+                            size: UiSize.xs,
+                            variant: UiVariant.outline,
+                            intent: UiIntent.danger,
+                            onPressed: () => _settlePayoutModal(p, false),
+                          ),
+                        ],
+                      )
+                    : UiBadge(
+                        label: '${p.status.toUpperCase()} · ${p.referenceCode}',
+                        intent: p.status == 'paid'
+                            ? UiIntent.success
+                            : UiIntent.neutral,
+                        size: UiSize.xs,
+                      ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -303,7 +668,7 @@ class _ApplicationCard extends StatelessWidget {
         _detail(
           context,
           Icons.account_balance_outlined,
-          '${application.bankName} · ${application.maskedAccountNumber}',
+          '${application.bankName} · ${application.maskedAccountNumber} (${application.ifscCode})',
         ),
         _detail(
           context,
@@ -360,19 +725,17 @@ class _ApplicationCard extends StatelessWidget {
   Widget _detail(BuildContext context, IconData icon, String text) {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Icon(
           icon,
           size: context.sz(16),
           color: context.ui.colors.foregroundMuted,
         ),
-        SizedBox(width: context.sp(context.ui.spacing.xs)),
-        ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: context.sz(260)),
+        UiGap.h(context.ui.spacing.xs),
+        Flexible(
           child: Text(
             text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: context.uiText.caption.copyWith(
               color: context.ui.colors.foregroundMuted,
             ),

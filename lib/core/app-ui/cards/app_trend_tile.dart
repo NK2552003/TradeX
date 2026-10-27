@@ -52,11 +52,12 @@ class AppTrendTile extends StatelessWidget {
     final UiIntent effIntent =
         intent ?? (ch != null ? AppTokens.plIntent(ch) : UiIntent.neutral);
     final Color accent = effIntent.color(context);
-    final String? changeText = changeLabel ??
+    final String? changeText =
+        changeLabel ??
         (ch != null
             ? (changeIsPercent
-                ? AppTokens.signedPercent(ch)
-                : AppTokens.signedMoney(ch))
+                  ? AppTokens.signedPercent(ch)
+                  : AppTokens.signedMoney(ch))
             : null);
 
     return UiCard(

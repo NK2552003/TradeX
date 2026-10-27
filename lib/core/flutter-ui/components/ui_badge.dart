@@ -127,8 +127,7 @@ class UiBadge extends StatelessWidget {
     final bool solid = _variant == UiBadgeVariant.solid;
 
     final Color fg = solid ? intent.onColor(context) : base;
-    final TextStyle baseStyle =
-        effective == UiSize.xs || effective == UiSize.sm
+    final TextStyle baseStyle = effective == UiSize.xs || effective == UiSize.sm
         ? context.uiText.caption
         : context.uiText.label;
     final TextStyle textStyle = baseStyle.copyWith(
@@ -162,7 +161,7 @@ class UiBadge extends StatelessWidget {
         break;
       case UiBadgeVariant.soft:
         background = base.withValues(alpha: 0.12);
-        borderColor = base.withValues(alpha: 0.3);
+        borderColor = Colors.transparent;
         break;
     }
 

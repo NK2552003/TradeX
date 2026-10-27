@@ -5,7 +5,7 @@ import '../models/app_models.dart';
 import '../motion/app_motion.dart';
 
 /// Universal desk record card component — the unified card pattern for
-/// Notes, Journal trades, and Strategy playbooks across TradeX.
+/// Notes, Journal trades, and Strategy playbooks across hejournal.in.
 ///
 /// Implements the two-part vertical flex layout:
 /// - Top: Eyebrow header (accent dot + uppercase category + trailing action),
@@ -90,7 +90,8 @@ class AppDeskRecordCard extends StatelessWidget {
     final UiTheme theme = context.ui;
     final Color accent = accentColor ?? theme.colors.primary;
 
-    final double effectiveMinHeight = minHeight ??
+    final double effectiveMinHeight =
+        minHeight ??
         context.sz(switch (density) {
           AppNoteDensity.titleOnly => 108,
           AppNoteDensity.comfortable => 140,
@@ -110,10 +111,7 @@ class AppDeskRecordCard extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             spacing: context.sp(theme.spacing.sm),
             runSpacing: context.sp(theme.spacing.xxs),
-            children: <Widget>[
-              metadataWidget,
-              footerEngagement!,
-            ],
+            children: <Widget>[metadataWidget, footerEngagement!],
           )
         : metadataWidget;
 
@@ -124,7 +122,8 @@ class AppDeskRecordCard extends StatelessWidget {
         selected: selected,
         accentColor: accentColor,
         minHeight: effectiveMinHeight,
-        semanticLabel: semanticLabel ??
+        semanticLabel:
+            semanticLabel ??
             ((category != null && category!.trim().isNotEmpty)
                 ? '$category: $title'
                 : title),
@@ -142,7 +141,8 @@ class AppDeskRecordCard extends StatelessWidget {
                     trailingHeader != null) ...<Widget>[
                   Row(
                     children: <Widget>[
-                      if (category != null && category!.trim().isNotEmpty) ...<Widget>[
+                      if (category != null &&
+                          category!.trim().isNotEmpty) ...<Widget>[
                         if (leadingIcon != null)
                           Padding(
                             padding: EdgeInsets.only(
@@ -251,12 +251,14 @@ class AppDeskEngagementRow extends StatelessWidget {
     this.likes = 0,
     this.comments = 0,
     this.isLinked = false,
+    this.onTap,
   });
 
   final int views;
   final int likes;
   final int comments;
   final bool isLinked;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -265,7 +267,7 @@ class AppDeskEngagementRow extends StatelessWidget {
       color: theme.colors.foregroundSubtle,
     );
 
-    return Row(
+    final Widget row = Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         if (isLinked) ...<Widget>[
@@ -302,6 +304,12 @@ class AppDeskEngagementRow extends StatelessWidget {
         SizedBox(width: context.sp(theme.spacing.xxs)),
         Text('$comments', style: style),
       ],
+    );
+    if (onTap == null) return row;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: row,
     );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:tradex/core/ai/unified_ai_service.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/ai_assistant/presentation/overlays/ai_assistant_overlay_sheet.dart';
@@ -10,6 +11,7 @@ import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/strategies/data/strategies_repository.dart';
 
@@ -104,21 +106,29 @@ final List<AiChartPreset> kAiChartPresets = <AiChartPreset>[
   ),
 ];
 
-/// The hardcoded "current user" for any AI → community share. Mirrors the
-/// literal used by [_CommunityAiAssistantDialogState._exportToCommunityPost] so
-/// every share posts as the same signed-in trader (Alex Vance).
-const CommunityAuthor _kCurrentUserAuthor = CommunityAuthor(
-  id: 'usr_current',
-  handle: 'alex_vance',
-  displayName: 'Alex Vance',
-  userRole: UserRole.userAdmin,
-  avatarUrl:
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-  verified: true,
-  followers: 4890,
-  following: 512,
-  winRate: 71.2,
-);
+/// Resolves the authenticated user author for any AI → community share.
+CommunityAuthor _resolveCurrentAuthor(CommunityRepository repo) {
+  if (repo.currentAuthor.id.isNotEmpty &&
+      repo.currentAuthor.id != 'usr_current') {
+    return repo.currentAuthor;
+  }
+  final user = SupabaseConfig.client?.auth.currentUser;
+  if (user != null) {
+    final meta = user.userMetadata;
+    return CommunityAuthor(
+      id: user.id,
+      handle:
+          (meta?['handle'] ?? user.email?.split('@').first ?? 'trader')
+              as String,
+      displayName:
+          (meta?['display_name'] ?? meta?['full_name'] ?? 'Trader') as String,
+      avatarUrl: meta?['avatar_url'] as String?,
+      userRole: UserRole.customer,
+      verified: false,
+    );
+  }
+  return repo.currentAuthor;
+}
 
 /// AI persona / model flavour selectable in the conversational copilot. Each
 /// persona changes the opening line and the emphasis appended to answers so the
@@ -463,7 +473,7 @@ class _CommunityAiAssistantDialogState
       _communityRepo.createPost(
         body:
             '🤖 **AI Chart Scan [${setup.symbol}]**: Detected ${setup.pattern} on the ${setup.timeframe} timeframe.\n\n${setup.rationale}\n\n#TradeSetup #${setup.symbol.replaceAll(' ', '')} #AITrading',
-        author: _kCurrentUserAuthor,
+        author: _resolveCurrentAuthor(_communityRepo),
         tradeSetup: CommunityTradeSetup(
           ticker: setup.symbol,
           side: setup.direction.toUpperCase(),
@@ -1840,7 +1850,7 @@ class _CommunityAiFloatingBarState extends State<CommunityAiFloatingBar> {
             // 1. AI Action Segment (Top)
             Tooltip(
               message:
-                  'TradeX AI Terminal (${_telemetryMessages[_telemetryIndex]})',
+                  'hejournal.in AI Terminal (${_telemetryMessages[_telemetryIndex]})',
               child: MouseRegion(
                 onEnter: (_) => setState(() => _isAiHovered = true),
                 onExit: (_) => setState(() => _isAiHovered = false),
@@ -1953,7 +1963,8 @@ class _CommunityAiFloatingBarState extends State<CommunityAiFloatingBar> {
     final double buttonSize = context.sz(48);
 
     return Tooltip(
-      message: 'TradeX AI Terminal (${_telemetryMessages[_telemetryIndex]})',
+      message:
+          'hejournal.in AI Terminal (${_telemetryMessages[_telemetryIndex]})',
       child: MouseRegion(
         onEnter: (_) => setState(() => _isAiHovered = true),
         onExit: (_) => setState(() => _isAiHovered = false),
@@ -2308,7 +2319,7 @@ class _CommunityAiFullViewOverlayState
                 Row(
                   children: <Widget>[
                     Text(
-                      'TradeX Alpha Terminal',
+                      'hejournal.in Alpha Terminal',
                       style: context.uiText.bodyStrong.copyWith(
                         fontWeight: FontWeight.w800,
                         fontSize: context.fs(14.5),
@@ -2739,7 +2750,7 @@ class _CommunityAiFullViewOverlayState
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              'Connected to TradeX Alpha Gateway • Tick Latency: 12ms',
+              'Connected to hejournal.in Alpha Gateway • Tick Latency: 12ms',
               style: context.uiText.caption.copyWith(
                 fontSize: context.fs(10.5),
                 color: theme.colors.foregroundMuted,
@@ -2987,78 +2998,89 @@ class _CommunityAiQuickPromptDialogState
     _promptCtrl.clear();
     _scrollToBottom();
 
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    String body = '';
+    List<String> followUps = <String>[
+      'What is the risk-adjusted position size?',
+      'Show higher timeframe trend bias',
+      'Give me entry, stop, and take-profit targets',
+    ];
+
+    try {
+      final aiRes = await UnifiedAiService.instance.complete(
+        prompt: q,
+        systemPrompt:
+            'You are hejournal.in Community Trading Assistant. Persona: ${persona.label}. Focus on high-signal technical analysis, key structural levels, order flow, and risk parameters. Deliver actionable bullet points and concise tables when relevant.',
+      );
+      if (aiRes.trim().isNotEmpty) {
+        body = aiRes.trim();
+      }
+    } catch (_) {}
+
     if (!mounted) return;
 
-    final String body;
-    final List<String> followUps;
-
-    if (q.contains('Pivot Levels') || q.contains('Nifty')) {
-      body =
-          '• Current Spot: 24,820 | Trend: Bullish Continuation Above VWAP\n'
-          '• Critical Support 1: 24,780 (Order Block Mitigation Zone)\n'
-          '• Key Resistance: 24,940 - 25,000 (Major Call Open Interest Wall)\n'
-          '• Hard Invalidation: 15m candle close below 24,740 flips structure to neutral.';
-      followUps = <String>[
-        'What is the BankNifty correlation today?',
-        'Which call strike has best gamma edge?',
-        'Show 15m volume delta',
-      ];
-    } else if (q.contains('Breakouts')) {
-      body =
-          '1. **RELIANCE**: Long above ₹3,020. Bull flag breakout with 2.4x volume surge. Target: ₹3,110 (R:R 1:2.8).\n'
-          '2. **HDFCBANK**: Consolidating at 50-EMA support. Reversal trigger at ₹1,680. Target: ₹1,735.\n'
-          '3. **NVDA**: Ascending triangle compression. Breakout trigger \$128.50. Target: \$139.00.';
-      followUps = <String>[
-        'What is the stop loss for RELIANCE?',
-        'Are institutional blocks participating?',
-        'Give me the option strike equivalent',
-      ];
-    } else if (q.contains('FII') || q.contains('Positioning')) {
-      body =
-          '• FII Net Long Index Futures: 64.2% (+4,800 contracts today)\n'
-          '• Put-Call Ratio (PCR): 1.18 (Bullish Contango)\n'
-          '• DII Cash Inflow: +₹1,420 Crores absorbing retail profit booking.\n'
-          '• Smart money consensus: Holding long bias into weekly expiry settlement.';
-      followUps = <String>[
-        'Are FIIs hedging with OTM puts?',
-        'What was the proprietary desk delta today?',
-        'How does current PCR compare to last expiry?',
-      ];
-    } else if (q.contains('Risk') || q.contains('Sizing')) {
-      body =
-          '• Max Risk: ₹15,000 | Account Equity: ₹5,00,000 (3.0% Risk Limit)\n'
-          '• NIFTY Setup: Entry 24,850 | SL 24,780 (70 points at risk)\n'
-          '• Nifty Lot Size: 50 | Risk per Lot: 70 * 50 = ₹3,500\n'
-          '• Recommended Sizing: **4 Lots (200 qty)** = ₹14,000 Max Loss (Within risk limit!).';
-      followUps = <String>[
-        'Calculate sizing for ₹10,000 max loss',
-        'What if I use trailing stop at 1:1.5?',
-        'Show position sizing for BankNifty',
-      ];
-    } else if (q.contains('Greeks') ||
-        q.contains('Volatility') ||
-        q.contains('Option')) {
-      body =
-          '• India VIX: 13.85 (-3.2% cooling off post-open)\n'
-          '• ATM Implied Volatility: 12.4% (IV Rank at 24th percentile - cheap options)\n'
-          '• Gamma Peak: 24,900 CE with heavy pinning expected\n'
-          '• Preferred Structure: Bull Call Spread (24,850 / 25,000 CE) to reduce theta decay.';
-      followUps = <String>[
-        'What is the theta burn rate per hour?',
-        'Is debit spread better than naked buying here?',
-        'Where is the max pain strike?',
-      ];
-    } else {
-      body =
-          '• Analytical scan for: "$q"\n'
-          '• Technical structure: Consolidating near key liquidity pool with positive volume divergence.\n'
-          '• Actionable rule: Wait for confirmed retest of prior breakout level before executing.';
-      followUps = <String>[
-        'What is the risk-adjusted position size?',
-        'Show higher timeframe trend bias',
-        'Give me entry, stop, and take-profit targets',
-      ];
+    if (body.isEmpty) {
+      if (q.contains('Pivot Levels') || q.contains('Nifty')) {
+        body =
+            '• Current Spot: 24,820 | Trend: Bullish Continuation Above VWAP\n'
+            '• Critical Support 1: 24,780 (Order Block Mitigation Zone)\n'
+            '• Key Resistance: 24,940 - 25,000 (Major Call Open Interest Wall)\n'
+            '• Hard Invalidation: 15m candle close below 24,740 flips structure to neutral.';
+        followUps = <String>[
+          'What is the BankNifty correlation today?',
+          'Which call strike has best gamma edge?',
+          'Show 15m volume delta',
+        ];
+      } else if (q.contains('Breakouts')) {
+        body =
+            '1. **RELIANCE**: Long above ₹3,020. Bull flag breakout with 2.4x volume surge. Target: ₹3,110 (R:R 1:2.8).\n'
+            '2. **HDFCBANK**: Consolidating at 50-EMA support. Reversal trigger at ₹1,680. Target: ₹1,735.\n'
+            '3. **NVDA**: Ascending triangle compression. Breakout trigger \$128.50. Target: \$139.00.';
+        followUps = <String>[
+          'What is the stop loss for RELIANCE?',
+          'Are institutional blocks participating?',
+          'Give me the option strike equivalent',
+        ];
+      } else if (q.contains('FII') || q.contains('Positioning')) {
+        body =
+            '• FII Net Long Index Futures: 64.2% (+4,800 contracts today)\n'
+            '• Put-Call Ratio (PCR): 1.18 (Bullish Contango)\n'
+            '• DII Cash Inflow: +₹1,420 Crores absorbing retail profit booking.\n'
+            '• Smart money consensus: Holding long bias into weekly expiry settlement.';
+        followUps = <String>[
+          'Are FIIs hedging with OTM puts?',
+          'What was the proprietary desk delta today?',
+          'How does current PCR compare to last expiry?',
+        ];
+      } else if (q.contains('Risk') || q.contains('Sizing')) {
+        body =
+            '• Max Risk: ₹15,000 | Account Equity: ₹5,00,000 (3.0% Risk Limit)\n'
+            '• NIFTY Setup: Entry 24,850 | SL 24,780 (70 points at risk)\n'
+            '• Nifty Lot Size: 50 | Risk per Lot: 70 * 50 = ₹3,500\n'
+            '• Recommended Sizing: **4 Lots (200 qty)** = ₹14,000 Max Loss (Within risk limit!).';
+        followUps = <String>[
+          'Calculate sizing for ₹10,000 max loss',
+          'What if I use trailing stop at 1:1.5?',
+          'Show position sizing for BankNifty',
+        ];
+      } else if (q.contains('Greeks') ||
+          q.contains('Volatility') ||
+          q.contains('Option')) {
+        body =
+            '• India VIX: 13.85 (-3.2% cooling off post-open)\n'
+            '• ATM Implied Volatility: 12.4% (IV Rank at 24th percentile - cheap options)\n'
+            '• Gamma Peak: 24,900 CE with heavy pinning expected\n'
+            '• Preferred Structure: Bull Call Spread (24,850 / 25,000 CE) to reduce theta decay.';
+        followUps = <String>[
+          'What is the theta burn rate per hour?',
+          'Is debit spread better than naked buying here?',
+          'Where is the max pain strike?',
+        ];
+      } else {
+        body =
+            '• Analytical scan for: "$q"\n'
+            '• Technical structure: Consolidating near key liquidity pool with positive volume divergence.\n'
+            '• Actionable rule: Wait for confirmed retest of prior breakout level before executing.';
+      }
     }
 
     final String synthesized =
@@ -3082,8 +3104,8 @@ class _CommunityAiQuickPromptDialogState
     final CommunityRepository repo = widget.repository ?? CommunityRepository();
     repo.createPost(
       body:
-          '🤖 **AI Copilot Intelligence [${_selectedPersona.label}]**:\n\n$content\n\n#TradeX #AICopilot #${_selectedPersona.shortLabel}',
-      author: _kCurrentUserAuthor,
+          '🤖 **AI Copilot Intelligence [${_selectedPersona.label}]**:\n\n$content\n\n#hejournal.in #AICopilot #${_selectedPersona.shortLabel}',
+      author: _resolveCurrentAuthor(repo),
       tags: <String>['AICopilot', _selectedPersona.shortLabel, 'Alpha'],
     );
     if (widget.onPostCreated != null && repo.feedPosts.isNotEmpty) {
@@ -3577,8 +3599,8 @@ class CommunityAiMarketPulseDialog extends StatelessWidget {
           '• Leading Sectors: Nifty Metal (+2.45%), Nifty Auto (+1.82%)\n'
           '• Most Discussed: NIFTY 50 (78% Bullish), RELIANCE (82% Bullish)\n'
           '• Smart Money Delta: FII Net Long +₹1,420 Cr absorbing retail supply.\n\n'
-          '#MarketPulse #Sentiment #TradeX #InstitutionalEdge',
-      author: _kCurrentUserAuthor,
+          '#MarketPulse #Sentiment #hejournal.in #InstitutionalEdge',
+      author: _resolveCurrentAuthor(repo),
       tags: const <String>['MarketPulse', 'Sentiment', 'InstitutionalEdge'],
     );
     if (onPostCreated != null && repo.feedPosts.isNotEmpty) {

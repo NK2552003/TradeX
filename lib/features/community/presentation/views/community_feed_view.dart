@@ -9,6 +9,7 @@ import 'package:tradex/features/community/presentation/widgets/community_live_sp
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_widgets.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// The central Home Feed view of the community platform, modeled on Twitter/X.
 class CommunityFeedView extends StatefulWidget {
@@ -320,6 +321,53 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     }).toList();
   }
 
+  void _openComposer(BuildContext context, [ComposerMode mode = ComposerMode.post]) {
+    final isMobile = context.uiRes.isMobile;
+    if (isMobile) {
+      if (widget.onCompose != null && mode == ComposerMode.post) {
+        widget.onCompose!();
+      } else {
+        final UiTheme theme = context.ui;
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          barrierColor: theme.colors.overlay,
+          builder: (BuildContext ctx) => CommunityDensityScope(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+              child: SingleChildScrollView(
+                child: CommunityComposerCard(
+                  author: widget.currentUser,
+                  repository: widget.repository,
+                  initialMode: mode,
+                  isDrawerTile: true,
+                  onPostCreated: () => Navigator.of(ctx).pop(),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    } else {
+      showSettingsSideSheet<void>(
+        context,
+        title: 'Create Post',
+        subtitle: 'Share your thesis, trade setup, or questions with traders',
+        desktopWidthRatio: 0.52,
+        maxWidth: 720,
+        minDesktopWidth: 540,
+        scrollable: true,
+        child: CommunityComposerCard(
+          author: widget.currentUser,
+          repository: widget.repository,
+          initialMode: mode,
+          onPostCreated: () => Navigator.of(context).pop(),
+        ),
+      );
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Tab 0: For you
   // ---------------------------------------------------------------------------
@@ -406,17 +454,17 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         liveSpaceBanner,
-        if (!isMobile)
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: context.sp(theme.spacing.md),
-              vertical: context.sp(theme.spacing.xs),
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: context.sp(
+              isMobile ? theme.spacing.sm : theme.spacing.md,
             ),
-            child: CommunityComposerCard(
-              author: widget.currentUser,
-              repository: widget.repository,
-            ),
+            vertical: context.sp(theme.spacing.xs),
           ),
+          child: CommunityComposerTriggerCard(
+            onTap: (ComposerMode mode) => _openComposer(context, mode),
+          ),
+        ),
       ],
     );
 
@@ -808,13 +856,16 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    if (item.summary != null) ...<Widget>[
+                    if (item.summary != null &&
+                        item.summary!.trim().isNotEmpty) ...<Widget>[
                       SizedBox(height: context.sp(theme.spacing.xs)),
                       Text(
-                        item.summary!,
+                        item.summary!.trim(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: context.uiText.body.copyWith(
                           color: theme.colors.foregroundMuted,
-                          height: 1.4,
+                          height: 1.35,
                         ),
                       ),
                     ],

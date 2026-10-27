@@ -50,10 +50,13 @@ class UiTabs extends StatefulWidget {
     this.showPanel = true,
     this.enabled = true,
   }) : index = index ?? selectedIndex,
-       items = items ?? (tabs?.map((t) {
-         if (t is UiTabItem) return t;
-         return UiTabItem(label: t.toString());
-       }).toList() ?? const <UiTabItem>[]);
+       items =
+           items ??
+           (tabs?.map((t) {
+                 if (t is UiTabItem) return t;
+                 return UiTabItem(label: t.toString());
+               }).toList() ??
+               const <UiTabItem>[]);
 
   final List<UiTabItem> items;
 

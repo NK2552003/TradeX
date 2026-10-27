@@ -23,9 +23,9 @@ class UiSplitPane extends StatefulWidget {
     this.showDetail = true,
     this.resizable = true,
     this.splitFrom = UiDeviceType.tablet,
-  })  : primary = primary ?? left ?? const SizedBox.shrink(),
-        detail = detail ?? right ?? const SizedBox.shrink(),
-        initialRatio = splitRatio ?? initialRatio ?? 0.35;
+  }) : primary = primary ?? left ?? const SizedBox.shrink(),
+       detail = detail ?? right ?? const SizedBox.shrink(),
+       initialRatio = splitRatio ?? initialRatio ?? 0.35;
 
   final Widget primary;
   final Widget detail;

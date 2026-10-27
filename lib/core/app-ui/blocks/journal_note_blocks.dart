@@ -849,8 +849,7 @@ class AppJournalNoteCard extends StatelessWidget {
                         '${entry.checklistDone}/${entry.checklistTotal} checks',
                     icon: Icons.checklist_rounded,
                     size: UiSize.xs,
-                    intent:
-                        entry.checklistDone == entry.checklistTotal
+                    intent: entry.checklistDone == entry.checklistTotal
                         ? UiIntent.bullish
                         : (entry.checklistDone == 0
                               ? UiIntent.bearish
@@ -873,9 +872,7 @@ class AppJournalNoteCard extends StatelessWidget {
                     intent: UiIntent.info,
                     variant: UiBadgeVariant.outline,
                   ),
-                if (footerEngagement != null) ...<Widget>[
-                  footerEngagement!,
-                ],
+                if (footerEngagement != null) ...<Widget>[footerEngagement!],
               ],
             ),
           ],
@@ -883,9 +880,7 @@ class AppJournalNoteCard extends StatelessWidget {
       ),
     );
 
-    return AppHoverLift(
-      child: cardBody,
-    );
+    return AppHoverLift(child: cardBody);
   }
 }
 
@@ -897,10 +892,8 @@ class _AppJournalCardParentData extends ContainerBoxParentData<RenderBox> {}
 /// avoiding the standard Flutter 1px flex subpixel overflow error. In unbounded constraints
 /// (e.g. inside a scrollable [ListView]), it lays out children sequentially.
 class _AppJournalCardLayout extends MultiChildRenderObjectWidget {
-  _AppJournalCardLayout({
-    required Widget top,
-    required Widget bottom,
-  }) : super(children: <Widget>[top, bottom]);
+  _AppJournalCardLayout({required Widget top, required Widget bottom})
+    : super(children: <Widget>[top, bottom]);
 
   @override
   RenderObject createRenderObject(BuildContext context) {
@@ -1022,7 +1015,9 @@ class _RenderAppJournalCard extends RenderBox
           bottom.parentData! as _AppJournalCardParentData;
       bottomData.offset = Offset(0, top.size.height);
 
-      size = constraints.constrain(Size(maxWidth, top.size.height + bottomHeight));
+      size = constraints.constrain(
+        Size(maxWidth, top.size.height + bottomHeight),
+      );
     }
   }
 

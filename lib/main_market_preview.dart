@@ -21,7 +21,7 @@ void main() {
       builder: (context) => MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: UiTheme.dark().toThemeData(),
-        title: 'TraderHub · Market Intelligence',
+        title: 'hejournal.in · Market Intelligence',
         builder: (context, child) =>
             UiToastScope(child: child ?? const SizedBox.shrink()),
         home: AppScaffold(

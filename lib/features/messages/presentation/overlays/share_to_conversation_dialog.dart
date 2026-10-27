@@ -19,7 +19,10 @@ class ShareToConversationDialog extends StatefulWidget {
     this.message,
     this.initialText,
     this.onShared,
-  }) : assert(reference != null || message != null || initialText != null, 'Either reference, message, or initialText must be provided');
+  }) : assert(
+         reference != null || message != null || initialText != null,
+         'Either reference, message, or initialText must be provided',
+       );
 
   final MessagesRepository repository;
   final AppLinkRef? reference;
@@ -36,7 +39,8 @@ class ShareToConversationDialog extends StatefulWidget {
     String? initialText,
     void Function(String threadId)? onShared,
   }) {
-    final MessagesRepository repo = repository ?? MessagesRepositoryScope.repository;
+    final MessagesRepository repo =
+        repository ?? MessagesRepositoryScope.repository;
     return UiDialog.show<void>(
       context,
       child: MessagesDensityScope(
@@ -68,7 +72,7 @@ class ShareToConversationDialog extends StatefulWidget {
     );
   }
 
-  /// Universal share menu sheet providing options to send via TradeX chat,
+  /// Universal share menu sheet providing options to send via hejournal.in chat,
   /// copy public web link, or export as PDF.
   static Future<void> showShareMenu(
     BuildContext context, {
@@ -141,7 +145,7 @@ class ShareToConversationDialog extends StatefulWidget {
               _buildShareAction(
                 ctx,
                 icon: Icons.send_rounded,
-                title: 'Send via TradeX Messages',
+                title: 'Send via hejournal.in Messages',
                 subtitle: 'Share privately into trader conversation',
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -298,9 +302,11 @@ class _ShareToConversationDialogState extends State<ShareToConversationDialog> {
     final String q = _query.trim().toLowerCase();
     if (q.isEmpty) return threads;
     return threads
-        .where((MessageThread t) =>
-            t.title.toLowerCase().contains(q) ||
-            t.peer.handle.toLowerCase().contains(q))
+        .where(
+          (MessageThread t) =>
+              t.title.toLowerCase().contains(q) ||
+              t.peer.handle.toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -308,7 +314,11 @@ class _ShareToConversationDialogState extends State<ShareToConversationDialog> {
     final String? id = _selectedId;
     if (id == null) return;
     if (widget.reference != null) {
-      widget.repository.sendSharedRef(id, widget.reference!, note: _note.text.trim());
+      widget.repository.sendSharedRef(
+        id,
+        widget.reference!,
+        note: _note.text.trim(),
+      );
     } else if (widget.message != null) {
       widget.repository.sendMessage(
         id,
@@ -378,8 +388,8 @@ class _ShareToConversationDialogState extends State<ShareToConversationDialog> {
                     widget.message!.hasText
                         ? widget.message!.body
                         : (widget.message!.attachment != null
-                            ? 'Attachment: ${widget.message!.attachment!.title}'
-                            : 'Shared item'),
+                              ? 'Attachment: ${widget.message!.attachment!.title}'
+                              : 'Shared item'),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: context.uiText.body,

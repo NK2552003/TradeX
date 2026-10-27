@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// Required explicit UI library import for feature widgets.
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
 
 /// A row in the conversation history list. Shows the thread's persona lens, its
@@ -35,7 +38,11 @@ class AiThreadTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          _PersonaGlyph(persona: thread.persona, selected: selected),
+          Icon(
+            thread.persona.icon,
+            size: context.sz(18),
+            color: colors.foregroundMuted,
+          ),
           SizedBox(width: context.sp(theme.spacing.sm)),
           Expanded(
             child: Column(
@@ -90,7 +97,7 @@ class AiThreadTile extends StatelessWidget {
                       icon: thread.persona.icon,
                       intent: UiIntent.primary,
                       variant: UiBadgeVariant.soft,
-                      size: UiSize.sm,
+                      size: UiSize.xs,
                     ),
                     if (thread.messageCount > 0)
                       Text(
@@ -106,40 +113,6 @@ class AiThreadTile extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PersonaGlyph extends StatelessWidget {
-  const _PersonaGlyph({required this.persona, required this.selected});
-
-  final AiPersona persona;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final UiTheme theme = context.ui;
-    final UiColors colors = theme.colors;
-    return Container(
-      width: context.sz(40),
-      height: context.sz(40),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[
-            colors.primary.withValues(alpha: selected ? 0.28 : 0.16),
-            colors.primary.withValues(alpha: selected ? 0.14 : 0.06),
-          ],
-        ),
-        borderRadius: context.radius(theme.radii.md),
-      ),
-      child: Icon(
-        persona.icon,
-        size: context.sz(theme.sizes.iconMd),
-        color: colors.primary,
       ),
     );
   }

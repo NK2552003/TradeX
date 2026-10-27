@@ -90,6 +90,7 @@ class _CommunityProfileViewState extends State<CommunityProfileView> {
         displayName: widget.author.displayName,
         handle: widget.author.handle,
         userRole: widget.author.userRole,
+        forceTraderView: true,
         bio: widget.author.bio,
         avatarUrl: widget.author.avatarUrl,
         location: widget.author.location,

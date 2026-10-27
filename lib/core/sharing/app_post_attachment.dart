@@ -102,16 +102,15 @@ class AppWritingPostAttachment extends AppWritingRecordPostAttachment {
     List<String> tags = const <String>[],
     bool hasMedia = false,
     String? primaryTicker,
-  }) =>
-      AppWritingPostAttachment._(
-        source: source,
-        visibility: visibility,
-        excerpt: excerpt,
-        updatedAt: updatedAt ?? DateTime.now(),
-        tags: tags,
-        hasMedia: hasMedia,
-        primaryTicker: primaryTicker,
-      );
+  }) => AppWritingPostAttachment._(
+    source: source,
+    visibility: visibility,
+    excerpt: excerpt,
+    updatedAt: updatedAt ?? DateTime.now(),
+    tags: tags,
+    hasMedia: hasMedia,
+    primaryTicker: primaryTicker,
+  );
 
   static const int previewCharacterLimit = 220;
 

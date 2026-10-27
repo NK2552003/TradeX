@@ -95,10 +95,7 @@ class UiDataPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (hasCaption) _caption(context, pad),
-            body,
-          ],
+          children: <Widget>[if (hasCaption) _caption(context, pad), body],
         ),
       ),
     );
@@ -196,10 +193,7 @@ class UiDataPanel extends StatelessWidget {
             children: <Widget>[
               if (leadingIcon != null) iconWidget,
               if (labelWidget != null)
-                Text(
-                  label!.toUpperCase(),
-                  style: uiOverline(context),
-                ),
+                Text(label!.toUpperCase(), style: uiOverline(context)),
               if (hint != null) ...<Widget>[
                 SizedBox(width: context.sp(theme.spacing.sm)),
                 Expanded(
@@ -216,9 +210,7 @@ class UiDataPanel extends StatelessWidget {
                     ),
                   ),
                 ),
-              ] else ...<Widget>[
-                const Spacer(),
-              ],
+              ] else ...<Widget>[const Spacer()],
               ?trailingWidget,
             ],
           );

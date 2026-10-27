@@ -33,7 +33,9 @@ class CommunityEditPostDialog extends StatelessWidget {
         barrierColor: context.uiColors.overlay,
         builder: (BuildContext ctx) => CommunityDensityScope(
           child: Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+            ),
             child: SingleChildScrollView(
               child: CommunityComposerCard(
                 author: post.author,

@@ -120,6 +120,7 @@ class UiCandleChart extends StatefulWidget {
   final List<UiCandleOverlay> overlays;
   final List<UiPriceLine> priceLines;
   final List<UiCandleMarker> markers;
+
   /// Height of the price pane in logical points (scaled internally).
   final double? height;
   final bool showVolume;
@@ -150,9 +151,7 @@ class _UiCandleChartState extends State<UiCandleChart> {
     // logical height and scale it themselves, and a caller cannot tell which
     // components do. An unscaled height was the one chart on a tablet that
     // stayed phone-sized while everything around it grew.
-    final double height = context.sz(
-      widget.height ?? theme.sizes.chartHeight,
-    );
+    final double height = context.sz(widget.height ?? theme.sizes.chartHeight);
 
     if (widget.candles.isEmpty) {
       return SizedBox(

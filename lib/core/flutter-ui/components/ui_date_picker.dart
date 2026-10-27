@@ -20,8 +20,8 @@ class UiDatePicker extends StatelessWidget {
     this.enabled = true,
     this.firstDate,
     this.lastDate,
-  })  : value = selectedDate ?? value,
-        onChanged = onDateSelected ?? onChanged;
+  }) : value = selectedDate ?? value,
+       onChanged = onDateSelected ?? onChanged;
 
   final DateTime? value;
   final DateTimeRange? range;

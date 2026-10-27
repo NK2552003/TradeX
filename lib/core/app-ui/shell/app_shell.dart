@@ -492,58 +492,42 @@ class _AppShellState extends State<AppShell> {
               ? (activeMoreItem.selectedIcon ?? activeMoreItem.icon)
               : Icons.close_rounded,
           columns: 3,
-          items: _isCommunityRoute
-              ? <QuickGridItem>[
-                  QuickGridItem(
-                    icon: Icons.edit_note_rounded,
-                    label: 'Writing Desk',
-                    onTap: () => widget.onSelect('workspace'),
-                  ),
-                  QuickGridItem(
-                    icon: Icons.menu_book_rounded,
-                    label: 'Journal',
-                    onTap: () => widget.onSelect('journal'),
-                  ),
-                  QuickGridItem(
-                    icon: Icons.account_tree_outlined,
-                    label: 'Strategies',
-                    onTap: () => widget.onSelect('strategies'),
-                  ),
-                  QuickGridItem(
-                    icon: Icons.edit_note_rounded,
-                    label: 'Notes',
-                    onTap: () => widget.onSelect('notes'),
-                  ),
-                  QuickGridItem(
-                    icon: Icons.bookmark_outline_rounded,
-                    label: 'Bookmarks',
-                    onTap: () => widget.onSelect('community_bookmarks'),
-                  ),
-                  QuickGridItem(
-                    icon: Icons.public_outlined,
-                    label: 'Market Intelligence',
-                    onTap: () => widget.onSelect('market'),
-                  ),
-                  QuickGridItem(
-                    icon: Icons.calculate_outlined,
-                    label: 'Calculators',
-                    onTap: () => widget.onSelect('calculators'),
-                  ),
-                  QuickGridItem(
-                    icon: Icons.settings_outlined,
-                    label: 'Settings',
-                    onTap: () => widget.onSelect('settings'),
-                  ),
-                ]
-              : widget.mobileMoreItems
-                    .map(
-                      (AppNavItem item) => QuickGridItem(
-                        icon: item.icon,
-                        label: item.label,
-                        onTap: () => widget.onSelect(item.id),
+          items:
+              <AppNavItem>[
+                    if (_isCommunityRoute) ...<AppNavItem>[
+                      for (final AppNavItem item
+                          in (widget.mobilePrimaryItems ??
+                              const <AppNavItem>[]))
+                        if (item.id != 'community' &&
+                            !item.id.startsWith('community_'))
+                          item,
+                      const AppNavItem(
+                        id: 'community_bookmarks',
+                        label: 'Bookmarks',
+                        icon: Icons.bookmark_outline_rounded,
                       ),
-                    )
-                    .toList(),
+                    ],
+                    ...widget.mobileMoreItems,
+                  ]
+                  .fold<List<AppNavItem>>(<AppNavItem>[], (
+                    List<AppNavItem> acc,
+                    AppNavItem item,
+                  ) {
+                    if (acc.every(
+                      (AppNavItem existing) => existing.id != item.id,
+                    )) {
+                      acc.add(item);
+                    }
+                    return acc;
+                  })
+                  .map(
+                    (AppNavItem item) => QuickGridItem(
+                      icon: item.selectedIcon ?? item.icon,
+                      label: item.label,
+                      onTap: () => widget.onSelect(item.id),
+                    ),
+                  )
+                  .toList(),
         ),
         centerActionActive: moreRouteSelected,
         swipeEnabled: false,
@@ -909,11 +893,15 @@ class AppWorkspaceTile extends StatelessWidget {
     required this.collapsed,
     this.workspaceName = 'Acme Inc',
     this.tierLabel = 'Enterprise',
+    this.switchItems = const <AppNavItem>[],
+    this.onSelectSwitch,
   });
 
   final bool collapsed;
   final String workspaceName;
   final String tierLabel;
+  final List<AppNavItem> switchItems;
+  final ValueChanged<String>? onSelectSwitch;
 
   @override
   Widget build(BuildContext context) {
@@ -969,14 +957,42 @@ class AppWorkspaceTile extends StatelessWidget {
                 ],
               ),
             ),
+            if (switchItems.isNotEmpty)
+              Icon(
+                Icons.swap_vert_rounded,
+                size: context.sz(14),
+                color: theme.colors.foregroundMuted,
+              ),
           ],
         ],
       ),
     );
 
-    return collapsed
-        ? UiTooltip(message: '$workspaceName ($tierLabel)', child: tile)
+    final Widget interactiveTile =
+        switchItems.isNotEmpty && onSelectSwitch != null
+        ? UiDropdownMenu(
+            actions: switchItems
+                .map(
+                  (AppNavItem item) => UiMenuItem(
+                    label: item.label,
+                    icon: item.selectedIcon ?? item.icon,
+                    intent: item.label.contains('(Active)')
+                        ? UiIntent.primary
+                        : UiIntent.neutral,
+                    onTap: () => onSelectSwitch!(item.id),
+                  ),
+                )
+                .toList(),
+            child: tile,
+          )
         : tile;
+
+    return collapsed
+        ? UiTooltip(
+            message: '$workspaceName ($tierLabel) · Switch Workspace',
+            child: interactiveTile,
+          )
+        : interactiveTile;
   }
 }
 
@@ -1038,8 +1054,8 @@ class AppSidebar extends StatelessWidget {
                   (trader?.tier == AppTier.enterprise
                       ? 'Institutional Desk'
                       : (trader?.tier == AppTier.premium
-                            ? 'TradeX Pro Terminal'
-                            : 'TradeX Desk')),
+                            ? 'hejournal.in Pro Terminal'
+                            : 'hejournal.in Desk')),
               tierLabel:
                   tierLabel ??
                   (trader?.tier == AppTier.enterprise
@@ -1047,6 +1063,14 @@ class AppSidebar extends StatelessWidget {
                       : (trader?.tier == AppTier.premium
                             ? 'Active Trader'
                             : 'Standard')),
+              switchItems: userMenuItems
+                  .where(
+                    (AppNavItem i) =>
+                        i.id.startsWith('switch_role_') ||
+                        i.id == 'toggle_profile_mode',
+                  )
+                  .toList(),
+              onSelectSwitch: onNavigate ?? onSelect,
             ),
             SizedBox(height: context.sp(theme.spacing.xs)),
             Expanded(

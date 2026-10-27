@@ -2,22 +2,39 @@ import 'package:flutter/material.dart';
 
 import '../theme/ui_theme.dart';
 import 'ui_checkbox.dart';
+import 'ui_card.dart';
+import 'ui_icon_button.dart';
+import 'ui_dropdown_menu.dart';
+import 'ui_badge.dart';
+import 'ui_scrollbar.dart';
 import 'ui_common.dart';
 import 'ui_skeleton.dart';
 
 class UiTableColumn<T> {
   const UiTableColumn({
-    required this.header,
-    required this.cell,
+    String? header,
+    this.label,
+    this.id,
+    Widget Function(BuildContext context, T row)? cell,
+    this.cellBuilder,
+    this.valueGetter,
     this.numeric = false,
     this.flex = 1,
     this.width,
     this.hideBelow = UiTableVisibility.always,
-    this.compare,
-  });
+    int Function(T a, T b)? compare,
+    this.sortValue,
+    this.sortable,
+  }) : rawHeader = header,
+       rawCell = cell,
+       rawCompare = compare;
 
-  final String header;
-  final Widget Function(BuildContext context, T row) cell;
+  final String? rawHeader;
+  final String? label;
+  final String? id;
+  final Widget Function(BuildContext context, T row)? rawCell;
+  final Widget Function(BuildContext context, T row)? cellBuilder;
+  final String Function(T row)? valueGetter;
   final bool numeric;
   final int flex;
   final double? width;
@@ -26,7 +43,25 @@ class UiTableColumn<T> {
   final UiTableVisibility hideBelow;
 
   /// Provide a comparator to make the column sortable by tapping its header.
-  final int Function(T a, T b)? compare;
+  final int Function(T a, T b)? rawCompare;
+  final Comparable<Object?> Function(T row)? sortValue;
+  final bool? sortable;
+
+  String get header => rawHeader ?? label ?? id ?? '';
+
+  Widget Function(BuildContext context, T row) get cell =>
+      rawCell ??
+      cellBuilder ??
+      (BuildContext context, T row) => Text(
+        valueGetter != null ? valueGetter!(row) : '',
+        style: context.uiText.body,
+      );
+
+  int Function(T a, T b)? get compare =>
+      rawCompare ??
+      (sortValue != null
+          ? (T a, T b) => sortValue!(a).compareTo(sortValue!(b))
+          : null);
 }
 
 enum UiTableVisibility { always, tabletUp, desktopUp }
@@ -42,12 +77,14 @@ class UiTable<T> extends StatefulWidget {
     super.key,
     required this.columns,
     required this.rows,
+    this.rowKey,
     this.onRowTap,
     this.stackOnMobile = false,
     this.emptyLabel = 'No data',
     this.pageSize,
     this.onSort,
     this.sortColumn,
+    this.sortColumnId,
     this.sortAscending,
     this.footer,
     this.loading = false,
@@ -64,6 +101,7 @@ class UiTable<T> extends StatefulWidget {
 
   final List<UiTableColumn<T>> columns;
   final List<T> rows;
+  final Object Function(T row)? rowKey;
   final void Function(T row)? onRowTap;
   final bool stackOnMobile;
   final String emptyLabel;
@@ -76,6 +114,7 @@ class UiTable<T> extends StatefulWidget {
 
   /// Controlled sort state. When provided, rows are assumed pre-sorted.
   final int? sortColumn;
+  final String? sortColumnId;
   final bool? sortAscending;
 
   /// Optional footer row (totals, summaries).
@@ -113,17 +152,37 @@ class _UiTableState<T> extends State<UiTable<T>> {
   bool _asc = true;
   int _page = 0;
   final Set<T> _expanded = <T>{};
+  final ScrollController _horizontal = ScrollController();
+
+  @override
+  void dispose() {
+    _horizontal.dispose();
+    super.dispose();
+  }
 
   Set<T> get _selected => widget.selectedRows ?? const <Never>{};
 
-  bool get _controlled => widget.sortColumn != null;
-  int? get _activeSortCol => _controlled ? widget.sortColumn : _sortCol;
+  int? get _controlledColumn {
+    if (widget.sortColumn != null) return widget.sortColumn;
+    if (widget.sortColumnId == null) return null;
+    final index = widget.columns.indexWhere(
+      (column) => column.id == widget.sortColumnId,
+    );
+    return index < 0 ? null : index;
+  }
+
+  bool get _controlled => _controlledColumn != null;
+  int? get _activeSortCol => _controlled ? _controlledColumn : _sortCol;
   bool get _activeAsc => _controlled ? (widget.sortAscending ?? true) : _asc;
 
   @override
   void didUpdateWidget(UiTable<T> old) {
     super.didUpdateWidget(old);
-    if (old.rows.length != widget.rows.length) _page = 0;
+    if (old.rows.length != widget.rows.length ||
+        old.pageSize != widget.pageSize) {
+      _page = 0;
+    }
+    _expanded.removeWhere((row) => !widget.rows.contains(row));
   }
 
   List<UiTableColumn<T>> _visible(BuildContext context) {
@@ -177,7 +236,12 @@ class _UiTableState<T> extends State<UiTable<T>> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) =>
+        _buildTable(context, constraints.maxWidth),
+  );
+
+  Widget _buildTable(BuildContext context, double availableWidth) {
     final theme = context.ui;
     final double densityPad = widget.density.factor;
     if (widget.errorText != null) {
@@ -234,58 +298,8 @@ class _UiTableState<T> extends State<UiTable<T>> {
 
     final List<T> visibleRows = _paged(_sorted);
 
-    if (widget.stackOnMobile && context.uiRes.isMobile) {
-      return Column(
-        children: <Widget>[
-          for (final T row in visibleRows)
-            UiInteractive(
-              enabled: widget.onRowTap != null,
-              onTap: widget.onRowTap == null
-                  ? null
-                  : () => widget.onRowTap!(row),
-              builder: (BuildContext ctx, UiInteractiveState s) => Container(
-                margin: EdgeInsets.only(bottom: ctx.sp(theme.spacing.sm)),
-                padding: EdgeInsets.all(ctx.sp(theme.spacing.lg)),
-                decoration: BoxDecoration(
-                  color: s.hovered
-                      ? theme.colors.surfaceMuted
-                      : theme.colors.surface,
-                  borderRadius: ctx.radius(theme.radii.lg),
-                  border: Border.all(
-                    color: theme.colors.border,
-                    width: theme.borders.hairline,
-                  ),
-                ),
-                child: Column(
-                  children: <Widget>[
-                    for (final UiTableColumn<T> col in widget.columns)
-                      Padding(
-                        padding: EdgeInsets.only(
-                          bottom: ctx.sp(theme.spacing.xs),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Expanded(
-                              child: Text(
-                                col.header,
-                                style: ctx.uiText.caption.copyWith(
-                                  color: theme.colors.foregroundMuted,
-                                ),
-                              ),
-                            ),
-                            Flexible(child: col.cell(ctx, row)),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          if (widget.footer != null) widget.footer!,
-          if (widget.pageSize != null) _pager(context),
-        ],
-      );
+    if (widget.stackOnMobile && availableWidth < context.sz(640)) {
+      return _stackedRecords(context, visibleRows);
     }
 
     final List<UiTableColumn<T>> cols = _visible(context);
@@ -305,15 +319,21 @@ class _UiTableState<T> extends State<UiTable<T>> {
                 value:
                     visibleRows.isNotEmpty &&
                     visibleRows.every(_selected.contains),
-                onChanged: (bool v) => widget.onSelectionChanged?.call(
-                  v ? <T>{..._selected, ...visibleRows} : <T>{},
-                ),
+                onChanged: (bool value) {
+                  final next = <T>{..._selected};
+                  if (value) {
+                    next.addAll(visibleRows);
+                  } else {
+                    next.removeAll(visibleRows);
+                  }
+                  widget.onSelectionChanged?.call(next);
+                },
               ),
             ),
           if (widget.expandableWhen != null)
             SizedBox(width: context.sz(theme.sizes.controlHeightXs)),
           for (final UiTableColumn<T> col in cols)
-            _cellWrap(col, _headerCell(context, col)),
+            _cellWrap(context, col, _headerCell(context, col)),
         ],
       ),
     );
@@ -321,6 +341,9 @@ class _UiTableState<T> extends State<UiTable<T>> {
     final List<Widget> bodyRows = <Widget>[
       for (int i = 0; i < visibleRows.length; i++)
         Column(
+          key: widget.rowKey == null
+              ? null
+              : ValueKey(widget.rowKey!(visibleRows[i])),
           children: <Widget>[
             UiInteractive(
               enabled: widget.onRowTap != null,
@@ -381,6 +404,7 @@ class _UiTableState<T> extends State<UiTable<T>> {
                       ),
                     for (final UiTableColumn<T> col in cols)
                       _cellWrap(
+                        ctx,
                         col,
                         Align(
                           alignment: col.numeric
@@ -423,13 +447,18 @@ class _UiTableState<T> extends State<UiTable<T>> {
       bodyContent = SingleChildScrollView(child: bodyContent);
     }
 
-    final double minTableWidth = cols.fold<double>(
+    final double minTableWidth =
+        cols.fold<double>(
           0.0,
           (double acc, UiTableColumn<T> c) =>
-              acc + (c.width != null ? context.sz(c.width!) : 80.0),
+              acc +
+              (c.width != null
+                  ? context.sz(c.width!)
+                  : context.sz(128) * c.flex),
         ) +
         (widget.selectable ? 40.0 : 0.0) +
-        (widget.expandableWhen != null ? 40.0 : 0.0);
+        (widget.expandableWhen != null ? 40.0 : 0.0) +
+        context.sp(theme.spacing.lg) * 2;
 
     return LayoutBuilder(
       builder: (BuildContext ctx, BoxConstraints constraints) {
@@ -462,11 +491,14 @@ class _UiTableState<T> extends State<UiTable<T>> {
         );
 
         final Widget responsiveTable = needsHScroll
-            ? SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: minTableWidth,
-                  child: tableContainer,
+            ? UiScrollbar(
+                controller: _horizontal,
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  controller: _horizontal,
+                  scrollDirection: Axis.horizontal,
+                  padding: EdgeInsets.only(bottom: ctx.sp(theme.spacing.sm)),
+                  child: SizedBox(width: minTableWidth, child: tableContainer),
                 ),
               )
             : tableContainer;
@@ -485,7 +517,8 @@ class _UiTableState<T> extends State<UiTable<T>> {
   Widget _headerCell(BuildContext context, UiTableColumn<T> col) {
     final theme = context.ui;
     final int index = widget.columns.indexOf(col);
-    final bool sortable = col.compare != null || widget.onSort != null;
+    final bool sortable =
+        col.sortable != false && (col.compare != null || widget.onSort != null);
     final bool active = _activeSortCol == index;
 
     final Widget label = Row(
@@ -600,7 +633,148 @@ class _UiTableState<T> extends State<UiTable<T>> {
     );
   }
 
-  Widget _cellWrap(UiTableColumn<T> col, Widget child) => col.width != null
-      ? SizedBox(width: col.width, child: child)
-      : Expanded(flex: col.flex, child: child);
+  Widget _cellWrap(BuildContext context, UiTableColumn<T> col, Widget child) {
+    final padded = Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(context.ui.spacing.sm),
+      ),
+      child: child,
+    );
+    return col.width != null
+        ? SizedBox(width: context.sz(col.width!), child: padded)
+        : Expanded(flex: col.flex, child: padded);
+  }
+
+  Widget _stackedRecords(BuildContext context, List<T> rows) {
+    final theme = context.ui;
+    final sortable = widget.columns
+        .where(
+          (column) =>
+              column.sortable != false &&
+              (column.compare != null || widget.onSort != null),
+        )
+        .toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (sortable.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: context.sp(theme.spacing.sm),
+              children: [
+                UiDropdownMenu(
+                  semanticLabel: 'Sort records',
+                  actions: [
+                    for (final column in sortable)
+                      UiMenuItem(
+                        label: column.header,
+                        selected:
+                            _activeSortCol == widget.columns.indexOf(column),
+                        onPressed: () =>
+                            _toggleSort(widget.columns.indexOf(column)),
+                      ),
+                  ],
+                  child: UiBadge(
+                    label: _activeSortCol == null
+                        ? 'Sort records'
+                        : 'Sort: ${widget.columns[_activeSortCol!].header}',
+                  ),
+                ),
+                if (_activeSortCol != null)
+                  UiIconButton(
+                    icon: _activeAsc
+                        ? Icons.arrow_upward
+                        : Icons.arrow_downward,
+                    tooltip: _activeAsc ? 'Sort descending' : 'Sort ascending',
+                    onPressed: () => _toggleSort(_activeSortCol!),
+                  ),
+              ],
+            ),
+          ),
+        for (final row in rows)
+          Padding(
+            key: widget.rowKey == null ? null : ValueKey(widget.rowKey!(row)),
+            padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+            child: UiCard(
+              selected: _selected.contains(row),
+              padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+              onTap: widget.onRowTap == null
+                  ? null
+                  : () => widget.onRowTap!(row),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (widget.selectable ||
+                      widget.expandableWhen?.call(row) == true)
+                    Row(
+                      children: [
+                        if (widget.selectable)
+                          Expanded(
+                            child: UiCheckbox(
+                              value: _selected.contains(row),
+                              label: 'Select record',
+                              onChanged: (value) {
+                                final next = <T>{..._selected};
+                                value ? next.add(row) : next.remove(row);
+                                widget.onSelectionChanged?.call(next);
+                              },
+                            ),
+                          ),
+                        if (!widget.selectable) const Spacer(),
+                        if (widget.expandableWhen?.call(row) == true)
+                          UiIconButton(
+                            icon: _expanded.contains(row)
+                                ? Icons.expand_less
+                                : Icons.expand_more,
+                            tooltip: _expanded.contains(row)
+                                ? 'Collapse row'
+                                : 'Expand row',
+                            onPressed: () => setState(
+                              () => _expanded.contains(row)
+                                  ? _expanded.remove(row)
+                                  : _expanded.add(row),
+                            ),
+                          ),
+                      ],
+                    ),
+                  for (final column in widget.columns)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: context.sp(theme.spacing.sm),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (column.header.isNotEmpty) ...[
+                            Text(
+                              column.header,
+                              style: context.uiText.caption.copyWith(
+                                color: theme.colors.foregroundMuted,
+                              ),
+                            ),
+                            SizedBox(height: context.sp(theme.spacing.xxs)),
+                          ],
+                          DefaultTextStyle.merge(
+                            style: context.uiText.body,
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: column.cell(context, row),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (_expanded.contains(row) && widget.expandedBuilder != null)
+                    widget.expandedBuilder!(context, row),
+                ],
+              ),
+            ),
+          ),
+        if (widget.footer != null) widget.footer!,
+        if (widget.pageSize != null) _pager(context),
+      ],
+    );
+  }
 }

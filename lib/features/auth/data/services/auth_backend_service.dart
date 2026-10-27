@@ -177,7 +177,7 @@ class AuthBackendService implements AuthRepository {
       orElse: () => UserProfileModel(
         id: 'usr_demo_active',
         handle: query.startsWith('@') ? query : '@$query',
-        email: query.contains('@') ? query : '$query@tradex.ai',
+        email: query.contains('@') ? query : '$query@hejournal.in',
         displayName: _deriveDisplayName(query, query),
         role: role,
         adminKey: adminKey,

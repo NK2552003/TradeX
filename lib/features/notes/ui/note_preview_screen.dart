@@ -16,7 +16,7 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 import '../data/note_attachments.dart';
 import '../data/notes_repository.dart';
 import 'package:tradex/features/ai_assistant/ai_assistant.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/community/data/unified_comments_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
 import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
@@ -93,6 +93,19 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
         if (mounted) _repo.recordView(widget.note.id).ignore();
       });
     }
+    _loadNoteComments();
+  }
+
+  List<CommunityComment> _noteComments = const <CommunityComment>[];
+
+  Future<void> _loadNoteComments() async {
+    final list = await UnifiedCommentsRepositoryImpl.instance.fetchComments(
+      entityType: 'note',
+      entityId: _note.id,
+    );
+    if (mounted) {
+      setState(() => _noteComments = list);
+    }
   }
 
   @override
@@ -116,39 +129,6 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   /// Roughly 220 words a minute, floored at a minute so a two-line note does
   /// not claim to take zero.
   int get _readMinutes => (_note.wordCount / 220).ceil().clamp(1, 999);
-
-  final Map<String, String?> _noteCommentReactions = <String, String?>{};
-  final Map<String, int> _noteCommentLikesDelta = <String, int>{};
-
-  List<CommunityComment> _buildNoteComments() {
-    return _activeNote.comments.map((c) {
-      final userReaction = _noteCommentReactions[c.id];
-      final isLiked = userReaction != null;
-      final delta = _noteCommentLikesDelta[c.id] ?? 0;
-      return CommunityComment(
-        id: c.id,
-        postId: _activeNote.id,
-        author: CommunityAuthor(
-          id: c.userId,
-          handle: c.authorName.toLowerCase().replaceAll(' ', ''),
-          displayName: c.authorName,
-          userRole: UserRole.customer,
-          avatarUrl:
-              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-          verified: true,
-          followers: 1420,
-          following: 280,
-          winRate: 66.8,
-        ),
-        body: c.body,
-        createdAt: c.createdAt,
-        likes: (2 + delta).clamp(0, 9999),
-        liked: isLiked,
-        userReaction: userReaction,
-        reactions: const <String>['👍'],
-      );
-    }).toList();
-  }
 
   bool get _canEdit =>
       widget.canEdit &&
@@ -211,7 +191,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   }
 
   Future<void> _shareNote() async {
-    final String shareUrl = 'https://tradex.app/p/notes/${_note.id}';
+    final String shareUrl = 'https://hejournal.in/p/notes/${_note.id}';
     final AppLinkRef ref = AppLinkRef(
       kind: AppLinkKind.note,
       id: _note.id,
@@ -239,6 +219,11 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
         );
       }
     }
+  }
+
+  void _showCommentError(Object e) {
+    if (!mounted) return;
+    UiToast.error(context, title: 'Could not post comment', message: '$e');
   }
 
   Future<void> _toggleSaveNote() =>
@@ -528,7 +513,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
             emptyPlaceholder: 'This note has no body yet.',
             onOpenRef: _handleOpenLink,
           ),
-          if (_bundle.isNotEmpty) ...<Widget>[
+          if (_bundle.isNotEmpty || _canEdit) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.xl)),
             _linkedRecords(context),
           ],
@@ -650,54 +635,36 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
             targetId: _activeNote.id,
             targetType: 'note',
             title: 'Technical Note Discussion',
-            comments: _buildNoteComments(),
+            comments: _noteComments,
             isPublic: _note.isPublic,
-            canToggleVisibility: true,
+            canToggleVisibility: _canEdit,
             onToggleVisibility: (v) => _toggleVisibility(),
-            currentUser: const CommunityAuthor(
-              id: 'usr_current',
-              handle: 'alex_vance',
-              displayName: 'Alex Vance',
-              userRole: UserRole.userAdmin,
-              avatarUrl:
-                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-              verified: true,
-              followers: 4890,
-              following: 512,
-              winRate: 71.2,
-            ),
+            currentUser: UnifiedCommentsRepositoryImpl.instance
+                .getCurrentAuthor(),
             onAddComment: (text, {parentCommentId, sentiment}) async {
-              await _repo.addComment(_activeNote.id, text);
-              if (mounted) setState(() {});
+              try {
+                await UnifiedCommentsRepositoryImpl.instance.addComment(
+                  entityType: 'note',
+                  entityId: _activeNote.id,
+                  body: text,
+                  parentCommentId: parentCommentId,
+                  sentiment: sentiment,
+                );
+                await _loadNoteComments();
+              } catch (e) {
+                _showCommentError(e);
+              }
             },
-            onLikeComment: (commentId, {reaction}) {
-              setState(() {
-                final current = _noteCommentReactions[commentId];
-                if (reaction != null && reaction.trim().isNotEmpty) {
-                  final target = reaction.trim();
-                  if (current == target) {
-                    _noteCommentReactions.remove(commentId);
-                    _noteCommentLikesDelta[commentId] =
-                        (_noteCommentLikesDelta[commentId] ?? 0) - 1;
-                  } else {
-                    if (current == null) {
-                      _noteCommentLikesDelta[commentId] =
-                          (_noteCommentLikesDelta[commentId] ?? 0) + 1;
-                    }
-                    _noteCommentReactions[commentId] = target;
-                  }
-                } else {
-                  if (current != null) {
-                    _noteCommentReactions.remove(commentId);
-                    _noteCommentLikesDelta[commentId] =
-                        (_noteCommentLikesDelta[commentId] ?? 0) - 1;
-                  } else {
-                    _noteCommentReactions[commentId] = '👍';
-                    _noteCommentLikesDelta[commentId] =
-                        (_noteCommentLikesDelta[commentId] ?? 0) + 1;
-                  }
-                }
-              });
+            onLikeComment: (commentId, {reaction}) async {
+              try {
+                await UnifiedCommentsRepositoryImpl.instance.toggleReaction(
+                  commentId: commentId,
+                  reaction: reaction ?? '👍',
+                );
+                await _loadNoteComments();
+              } catch (e) {
+                debugPrint('[NotePreviewScreen] Like error: $e');
+              }
             },
           ),
         ],
@@ -759,6 +726,13 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
             icon: Icons.auto_graph_rounded,
             intent: UiIntent.primary,
             variant: UiBadgeVariant.outline,
+            onTap:
+                widget.onOpenLink == null ||
+                    (_note.strategyId?.trim().isEmpty ?? true)
+                ? null
+                : () => _handleOpenLink(
+                    _graph.refFor(AppLinkKind.strategy, _note.strategyId!),
+                  ),
           ),
         for (final String ticker in _note.linkedTickers)
           UiBadge(
@@ -791,6 +765,85 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
         : UiIntent.primary,
   );
 
+  Future<void> _pickLinks(AppLinkKind targetKind) async {
+    if (_note.id.isEmpty) return;
+    final Set<String> current = switch (targetKind) {
+      AppLinkKind.strategy => <String>{
+        if (_note.strategyId != null && _note.strategyId!.isNotEmpty)
+          _note.strategyId!,
+      },
+      AppLinkKind.journal => _note.linkedJournalIds.toSet(),
+      AppLinkKind.ticker => _note.linkedTickers.toSet(),
+      _ => const <String>{},
+    };
+    final List<String>? chosen = await showAppLinkPicker(
+      context,
+      kind: targetKind,
+      options: _graph.options(
+        targetKind,
+        exclude: <String>[_note.id, ...current],
+      ),
+      multiSelect: targetKind != AppLinkKind.strategy,
+    );
+    if (chosen == null || chosen.isEmpty || !mounted) return;
+    try {
+      if (targetKind == AppLinkKind.strategy) {
+        for (final String oldId in current) {
+          await _links.unlink(
+            fromKind: AppLinkKind.note,
+            fromId: _note.id,
+            toKind: AppLinkKind.strategy,
+            toId: oldId,
+          );
+        }
+      }
+      for (final String added in chosen) {
+        await _links.link(
+          fromKind: AppLinkKind.note,
+          fromId: _note.id,
+          toKind: targetKind,
+          toId: added,
+        );
+      }
+      final AppNote? refreshed = await _repo.getById(_note.id);
+      if (refreshed != null && mounted) {
+        setState(() => _activeNote = refreshed);
+      }
+    } catch (error) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Link was not updated',
+          message: '$error',
+        );
+      }
+    }
+  }
+
+  Future<void> _removeLink(AppLinkRef target) async {
+    if (_note.id.isEmpty) return;
+    try {
+      await _links.unlink(
+        fromKind: AppLinkKind.note,
+        fromId: _note.id,
+        toKind: target.kind,
+        toId: target.id,
+      );
+      final AppNote? refreshed = await _repo.getById(_note.id);
+      if (refreshed != null && mounted) {
+        setState(() => _activeNote = refreshed);
+      }
+    } catch (error) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Link was not removed',
+          message: '$error',
+        );
+      }
+    }
+  }
+
   /// What this note connects to: the trades it was written about, the playbook
   /// it belongs to, the other notes it cites and the instruments it names.
   ///
@@ -810,8 +863,14 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
           subtitle: 'What this note was written about',
           card: false,
           dense: true,
-          showEmptyKinds: false,
+          showEmptyKinds: _canEdit,
           onOpen: _handleOpenLink,
+          onRemove: _canEdit ? _removeLink : null,
+          onAddJournal: _canEdit ? () => _pickLinks(AppLinkKind.journal) : null,
+          onAddStrategy: _canEdit
+              ? () => _pickLinks(AppLinkKind.strategy)
+              : null,
+          onAddTicker: _canEdit ? () => _pickLinks(AppLinkKind.ticker) : null,
         ),
       ],
     );

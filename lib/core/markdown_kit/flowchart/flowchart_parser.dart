@@ -66,13 +66,17 @@ class FlowchartParser {
   }
 
   static FlowDirection? _headerDirection(String line) {
-    final RegExpMatch? m =
-        RegExp(r'^(graph|flowchart)\s+(TB|TD|BT|LR|RL)\b', caseSensitive: false)
-            .firstMatch(line);
+    final RegExpMatch? m = RegExp(
+      r'^(graph|flowchart)\s+(TB|TD|BT|LR|RL)\b',
+      caseSensitive: false,
+    ).firstMatch(line);
     if (m == null) {
       // A bare `graph` / `flowchart` with no direction still counts as the
       // header line (defaults to top-to-bottom) so it isn't parsed as a node.
-      if (RegExp(r'^(graph|flowchart)\b', caseSensitive: false).hasMatch(line)) {
+      if (RegExp(
+        r'^(graph|flowchart)\b',
+        caseSensitive: false,
+      ).hasMatch(line)) {
         return FlowDirection.topToBottom;
       }
       return null;
@@ -118,9 +122,11 @@ class FlowchartParser {
       if (match == null) break;
 
       final String leftText = remaining.substring(0, match.start).trim();
-      final _NodeToken? leftToken =
-          previous == null ? _parseNodeToken(leftText) : null;
-      final FlowNode fromNode = previous ?? _register(nodes, leftToken, leftText);
+      final _NodeToken? leftToken = previous == null
+          ? _parseNodeToken(leftText)
+          : null;
+      final FlowNode fromNode =
+          previous ?? _register(nodes, leftToken, leftText);
 
       String rest = remaining.substring(match.end);
       String? label = match.inlineLabel;
@@ -134,8 +140,7 @@ class FlowchartParser {
       final _NodeToken? rightToken = _parseNodeToken(rest.trimLeft());
       if (rightToken == null) break; // malformed tail — stop, keep what we have
       final int leadingWs = rest.length - rest.trimLeft().length;
-      final FlowNode toNode =
-          _register(nodes, rightToken, rightToken.raw);
+      final FlowNode toNode = _register(nodes, rightToken, rightToken.raw);
 
       edges.add(
         FlowEdge(
@@ -206,13 +211,34 @@ class FlowchartParser {
 
   /// Ordered longest-delimiter-first so `((..))` isn't mistaken for `(..)`.
   static final List<_NodePattern> _nodePatterns = <_NodePattern>[
-    _NodePattern(RegExp(r'^([A-Za-z0-9_\-]+)\(\(([^)]*)\)\)'), FlowNodeShape.circle),
-    _NodePattern(RegExp(r'^([A-Za-z0-9_\-]+)\(\[([^\]]*)\]\)'), FlowNodeShape.stadium),
-    _NodePattern(RegExp(r'^([A-Za-z0-9_\-]+)\[\(([^)]*)\)\]'), FlowNodeShape.cylinder),
-    _NodePattern(RegExp(r'^([A-Za-z0-9_\-]+)\[\[([^\]]*)\]\]'), FlowNodeShape.subroutine),
-    _NodePattern(RegExp(r'^([A-Za-z0-9_\-]+)\{\{([^}]*)\}\}'), FlowNodeShape.hexagon),
-    _NodePattern(RegExp(r'^([A-Za-z0-9_\-]+)\{([^}]*)\}'), FlowNodeShape.diamond),
-    _NodePattern(RegExp(r'^([A-Za-z0-9_\-]+)\(([^)]*)\)'), FlowNodeShape.rounded),
+    _NodePattern(
+      RegExp(r'^([A-Za-z0-9_\-]+)\(\(([^)]*)\)\)'),
+      FlowNodeShape.circle,
+    ),
+    _NodePattern(
+      RegExp(r'^([A-Za-z0-9_\-]+)\(\[([^\]]*)\]\)'),
+      FlowNodeShape.stadium,
+    ),
+    _NodePattern(
+      RegExp(r'^([A-Za-z0-9_\-]+)\[\(([^)]*)\)\]'),
+      FlowNodeShape.cylinder,
+    ),
+    _NodePattern(
+      RegExp(r'^([A-Za-z0-9_\-]+)\[\[([^\]]*)\]\]'),
+      FlowNodeShape.subroutine,
+    ),
+    _NodePattern(
+      RegExp(r'^([A-Za-z0-9_\-]+)\{\{([^}]*)\}\}'),
+      FlowNodeShape.hexagon,
+    ),
+    _NodePattern(
+      RegExp(r'^([A-Za-z0-9_\-]+)\{([^}]*)\}'),
+      FlowNodeShape.diamond,
+    ),
+    _NodePattern(
+      RegExp(r'^([A-Za-z0-9_\-]+)\(([^)]*)\)'),
+      FlowNodeShape.rounded,
+    ),
     _NodePattern(RegExp(r'^([A-Za-z0-9_\-]+)\[([^\]]*)\]'), FlowNodeShape.rect),
     _NodePattern(RegExp(r'^([A-Za-z0-9_\-]+)>([^\]]*)\]'), FlowNodeShape.flag),
   ];
@@ -248,7 +274,12 @@ class FlowchartParser {
 }
 
 class _EdgePattern {
-  const _EdgePattern(this.regex, this.style, this.hasLabel, {this.arrow = true});
+  const _EdgePattern(
+    this.regex,
+    this.style,
+    this.hasLabel, {
+    this.arrow = true,
+  });
   final RegExp regex;
   final FlowEdgeStyle style;
   final bool hasLabel;

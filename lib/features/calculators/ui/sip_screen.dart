@@ -35,8 +35,8 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
 
   Future<void> _fetchLiveBenchmarks() async {
     try {
-      final MacroBenchmarks b =
-          await MarketDataService.instance.getMacroBenchmarks();
+      final MacroBenchmarks b = await MarketDataService.instance
+          .getMacroBenchmarks();
       if (!mounted) return;
       setState(() {
         _rate = b.nifty10YCagr;
@@ -87,7 +87,9 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
         label: 'Corpus after $yrs years',
         value: AppTokens.lakhCrore(r.futureValue),
         intent: metGoal ? UiIntent.bullish : UiIntent.primary,
-        tag: metGoal ? 'goal met' : '${AppTokens.percent(goalPct, decimals: 0)} of goal',
+        tag: metGoal
+            ? 'goal met'
+            : '${AppTokens.percent(goalPct, decimals: 0)} of goal',
         tagIntent: metGoal ? UiIntent.bullish : UiIntent.neutral,
         footnote:
             '${AppTokens.lakhCrore(r.invested)} paid in over ${r.months} '
@@ -285,10 +287,10 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                   ),
                   trailing: AppTokens.signedPercent(
                     calcSip(
-                          monthly: _monthly,
-                          annualRatePct: x,
-                          years: _years,
-                        ).futureValue /
+                              monthly: _monthly,
+                              annualRatePct: x,
+                              years: _years,
+                            ).futureValue /
                             calcSip(
                               monthly: _monthly,
                               annualRatePct: 12,
@@ -402,11 +404,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                 intent: UiIntent.neutral,
                 below: true,
               ),
-              UiRangeMarker(
-                value: _goal,
-                label: 'Goal',
-                intent: UiIntent.info,
-              ),
+              UiRangeMarker(value: _goal, label: 'Goal', intent: UiIntent.info),
             ],
           ),
         ),
@@ -415,7 +413,8 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
         if (!metGoal)
           UiCallout(
             intent: UiIntent.warning,
-            title: 'The goal is short by '
+            title:
+                'The goal is short by '
                 '${AppTokens.lakhCrore(_goal - r.futureValue)}',
             message:
                 'At ${AppTokens.percent(_rate, decimals: 0)} for $yrs years the '

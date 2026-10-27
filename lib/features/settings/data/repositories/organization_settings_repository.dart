@@ -17,7 +17,7 @@ abstract class OrganizationSettingsRepository {
 
 class OrganizationSettingsRepositoryImpl
     implements OrganizationSettingsRepository {
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
+  String _resolveUserId() => SupabaseConfig.client?.auth.currentUser?.id ?? '';
 
   final List<OrgMember> _members = <OrgMember>[
     OrgMember(
@@ -47,7 +47,7 @@ class OrganizationSettingsRepositoryImpl
   ];
 
   OrgBranding _branding = const OrgBranding(
-    displayName: 'TradeX Institutional Alpha',
+    displayName: 'hejournal.in Institutional Alpha',
     logoUrl: null,
     primaryColor: '#00F0FF',
   );
@@ -59,7 +59,9 @@ class OrganizationSettingsRepositoryImpl
         final client = SupabaseConfig.client!;
         final res = await client
             .from('organization_members')
-            .select('user_id, role, created_at, profiles(handle, display_name, avatar_url)')
+            .select(
+              'user_id, role, created_at, profiles(handle, display_name, avatar_url)',
+            )
             .order('created_at', ascending: true);
 
         if ((res as List).isNotEmpty) {
@@ -70,10 +72,15 @@ class OrganizationSettingsRepositoryImpl
               OrgMember(
                 userId: item['user_id'] as String,
                 handle: profilesMap['handle'] as String? ?? 'trader',
-                displayName: profilesMap['display_name'] as String? ?? profilesMap['handle'] as String? ?? 'Trader',
+                displayName:
+                    profilesMap['display_name'] as String? ??
+                    profilesMap['handle'] as String? ??
+                    'Trader',
                 role: item['role'] as String? ?? 'trader',
                 avatarUrl: profilesMap['avatar_url'] as String?,
-                joinedAt: DateTime.tryParse(item['created_at'] as String? ?? '') ?? DateTime.now(),
+                joinedAt:
+                    DateTime.tryParse(item['created_at'] as String? ?? '') ??
+                    DateTime.now(),
               ),
             );
           }
@@ -105,8 +112,8 @@ class OrganizationSettingsRepositoryImpl
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isEmpty) return;
 
         final org = await client
             .from('organizations')
@@ -151,10 +158,15 @@ class OrganizationSettingsRepositoryImpl
         final client = SupabaseConfig.client!;
         await client
             .from('organization_members')
-            .update({'role': role, 'updated_at': DateTime.now().toIso8601String()})
+            .update({
+              'role': role,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
             .eq('user_id', userId);
       } catch (e) {
-        debugPrint('OrganizationSettingsRepositoryImpl.updateMemberRole error: $e');
+        debugPrint(
+          'OrganizationSettingsRepositoryImpl.updateMemberRole error: $e',
+        );
       }
     }
   }
@@ -180,8 +192,8 @@ class OrganizationSettingsRepositoryImpl
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isEmpty) return _branding;
 
         final data = await client
             .from('organizations')
@@ -192,7 +204,8 @@ class OrganizationSettingsRepositoryImpl
         if (data != null) {
           final settings = data['settings'] as Map<String, dynamic>? ?? {};
           _branding = OrgBranding(
-            displayName: data['name'] as String? ?? 'TradeX Institutional',
+            displayName:
+                data['name'] as String? ?? 'hejournal.in Institutional',
             logoUrl: settings['logo_url'] as String?,
             primaryColor: settings['primary_color'] as String? ?? '#00F0FF',
           );
@@ -219,10 +232,13 @@ class OrganizationSettingsRepositoryImpl
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final user = client.auth.currentUser;
-        final targetUserId = user?.id ?? _demoUserId;
+        final targetUserId = _resolveUserId();
+        if (targetUserId.isEmpty) return _branding;
 
-        final slug = _branding.displayName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '-');
+        final slug = _branding.displayName.toLowerCase().replaceAll(
+          RegExp(r'[^a-z0-9]'),
+          '-',
+        );
         await client.from('organizations').upsert({
           'owner_id': targetUserId,
           'name': _branding.displayName,
@@ -234,7 +250,9 @@ class OrganizationSettingsRepositoryImpl
           'updated_at': DateTime.now().toIso8601String(),
         });
       } catch (e) {
-        debugPrint('OrganizationSettingsRepositoryImpl.updateBranding error: $e');
+        debugPrint(
+          'OrganizationSettingsRepositoryImpl.updateBranding error: $e',
+        );
       }
     }
     return _branding;

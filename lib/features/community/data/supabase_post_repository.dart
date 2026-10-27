@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:uuid/uuid.dart';
 
 abstract class SupabasePostRepository {
@@ -29,7 +31,6 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
   final DemoDataSource _demo = DemoDataSource.instance;
 
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
   static final RegExp _uuidRegex = RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   );
@@ -40,8 +41,13 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
       if (user != null && user.id.isNotEmpty) {
         return user.id;
       }
+      final profileId =
+          SupabaseAuthBackendService.instance.currentUserProfile?.id;
+      if (profileId != null && profileId.isNotEmpty) {
+        return profileId;
+      }
     }
-    return _demoUserId;
+    return '';
   }
 
   bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
@@ -66,7 +72,10 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
         final res = await client
             .from('community_posts')
-            .select('*, profiles(username, display_name, avatar_url), community_post_attachments(*)')
+            .select(
+              '*, profiles!community_posts_author_id_fkey(handle, display_name, avatar_url), community_post_attachments(*)',
+            )
+            .or('is_public.eq.true,author_id.eq.$currentUserId')
             .order('created_at', ascending: false);
 
         final filtered = (res as List)
@@ -75,7 +84,9 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
         return filtered.map((row) {
           final profile = row['profiles'] as Map<String, dynamic>?;
-          final handle = profile?['username'] as String? ?? 'trader';
+          final handle =
+              (profile?['handle'] ?? profile?['username']) as String? ??
+              'trader';
           final name = profile?['display_name'] as String? ?? handle;
 
           final tickersList = row['tickers'] as List?;
@@ -89,7 +100,23 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
             for (final a in attachments) {
               final att = a as Map<String, dynamic>;
               if (att['kind'] == 'image') {
-                postImageUrl = att['url']?.toString() ?? att['ref_id']?.toString();
+                final rawImg =
+                    att['url']?.toString() ?? att['ref_id']?.toString();
+                if (rawImg != null && rawImg.isNotEmpty) {
+                  if (!rawImg.startsWith('http') &&
+                      !rawImg.startsWith('file:') &&
+                      !rawImg.startsWith('data:')) {
+                    try {
+                      postImageUrl = client.storage
+                          .from('community-attachments')
+                          .getPublicUrl(rawImg);
+                    } catch (_) {
+                      postImageUrl = rawImg;
+                    }
+                  } else {
+                    postImageUrl = rawImg;
+                  }
+                }
                 break;
               }
             }
@@ -105,7 +132,8 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
             ),
             body: row['body'] as String? ?? '',
             createdAt: row['created_at'] != null
-                ? DateTime.tryParse(row['created_at'].toString()) ?? DateTime.now()
+                ? DateTime.tryParse(row['created_at'].toString()) ??
+                      DateTime.now()
                 : DateTime.now(),
             likes: (row['likes_count'] as num?)?.toInt() ?? 0,
             comments: (row['comments_count'] as num?)?.toInt() ?? 0,
@@ -117,7 +145,10 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
         debugPrint('[SupabasePostRepository] getPosts error: $e');
       }
     }
-    return _demo.posts();
+    if (CustomerDataPolicy.allowDemo) {
+      return _demo.posts();
+    }
+    return const <AppPost>[];
   }
 
   @override
@@ -147,11 +178,24 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
           'updated_at': now.toIso8601String(),
         };
 
-        final res = await client
-            .from('community_posts')
-            .insert(row)
-            .select('*, profiles(username, display_name, avatar_url)')
-            .single();
+        dynamic res;
+        try {
+          res = await client
+              .from('community_posts')
+              .insert({...row, 'moderation_status': 'pending'})
+              .select(
+                '*, profiles!community_posts_author_id_fkey(handle, display_name, avatar_url)',
+              )
+              .single();
+        } catch (_) {
+          res = await client
+              .from('community_posts')
+              .insert(row)
+              .select(
+                '*, profiles!community_posts_author_id_fkey(handle, display_name, avatar_url)',
+              )
+              .single();
+        }
 
         if (imageUrl != null && imageUrl.isNotEmpty) {
           await client.from('community_post_attachments').insert({
@@ -164,7 +208,8 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
         }
 
         final profile = res['profiles'] as Map<String, dynamic>?;
-        final handle = profile?['username'] as String? ?? 'trader';
+        final handle =
+            (profile?['handle'] ?? profile?['username']) as String? ?? 'trader';
         final name = profile?['display_name'] as String? ?? handle;
 
         return AppPost(
@@ -184,15 +229,21 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
         );
       } catch (e) {
         debugPrint('[SupabasePostRepository] createPost error: $e');
+        rethrow;
       }
     }
 
+    final currentProf = SupabaseAuthBackendService.instance.currentUserProfile;
+    final handle = currentProf?.handle ?? '@trader';
+    final name = currentProf?.displayName ?? 'Trader';
+
     return AppPost(
       id: 'pst_${now.millisecondsSinceEpoch}',
-      author: const AppTrader(
-        id: 'usr_me',
-        handle: 'nitish_trader',
-        displayName: 'Nitish Kumar',
+      author: AppTrader(
+        id: currentProf?.id ?? 'usr_me',
+        handle: handle,
+        displayName: name,
+        avatarUrl: currentProf?.avatarUrl,
       ),
       body: content,
       createdAt: now,
@@ -240,14 +291,25 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
       try {
         final client = SupabaseConfig.client!;
         final userId = _resolveUserId();
-        await client.from('community_comments').insert({
-          'id': const Uuid().v4(),
-          'post_id': postId,
-          'author_id': userId,
-          'body': commentText.trim(),
-        });
+        try {
+          await client.from('community_comments').insert({
+            'id': const Uuid().v4(),
+            'post_id': postId,
+            'author_id': userId,
+            'body': commentText.trim(),
+            'moderation_status': 'pending',
+          });
+        } catch (_) {
+          await client.from('community_comments').insert({
+            'id': const Uuid().v4(),
+            'post_id': postId,
+            'author_id': userId,
+            'body': commentText.trim(),
+          });
+        }
       } catch (e) {
         debugPrint('[SupabasePostRepository] commentPost error: $e');
+        rethrow;
       }
     }
   }
@@ -259,13 +321,17 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
         final client = SupabaseConfig.client!;
         final res = await client
             .from('community_comments')
-            .select('*, profiles(username, display_name, avatar_url)')
+            .select(
+              '*, profiles!community_comments_author_id_fkey(handle, display_name, avatar_url)',
+            )
             .eq('post_id', postId)
             .order('created_at', ascending: true);
 
         return (res as List).map((row) {
           final profile = row['profiles'] as Map<String, dynamic>?;
-          final handle = profile?['username'] as String? ?? 'trader';
+          final handle =
+              (profile?['handle'] ?? profile?['username']) as String? ??
+              'trader';
           final name = profile?['display_name'] as String? ?? handle;
 
           return AppComment(
@@ -278,7 +344,8 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
             ),
             body: row['body'] as String? ?? '',
             createdAt: row['created_at'] != null
-                ? DateTime.tryParse(row['created_at'].toString()) ?? DateTime.now()
+                ? DateTime.tryParse(row['created_at'].toString()) ??
+                      DateTime.now()
                 : DateTime.now(),
             likes: (row['likes_count'] as num?)?.toInt() ?? 0,
           );
@@ -287,7 +354,9 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
         debugPrint('[SupabasePostRepository] getComments error: $e');
       }
     }
-    return _demo.comments(postId);
+    return CustomerDataPolicy.allowDemo
+        ? _demo.comments(postId)
+        : const <AppComment>[];
   }
 
   @override

@@ -280,6 +280,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         mergedTickers.add(sym);
       }
     }
+    final AppNote before = _note;
     final AppNote draft = _note.copyWith(
       title: _effectiveTitle,
       content: _body.text,
@@ -295,11 +296,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     setState(() => _saving = true);
     try {
       final NotesRepository repo = NotesRepositoryScope.repository;
-      final AppNote saved = widget.sourceDocument != null
+      AppNote saved = widget.sourceDocument != null
           ? await widget.sourceDocument!.save(draft)
           : _note.id.isEmpty
           ? await repo.create(draft)
           : await repo.update(draft);
+      if (widget.sourceDocument == null) {
+        saved = await _reconcileLinks(saved, before: before);
+      }
       if (!mounted) return saved;
       setState(() {
         _note = saved;
@@ -327,6 +331,72 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       );
       return null;
     }
+  }
+
+  /// Writes the far end of every link the trader changed, then re-reads the
+  /// note so bidirectional edges stay synchronized across strategies and trades.
+  Future<AppNote> _reconcileLinks(
+    AppNote saved, {
+    required AppNote before,
+  }) async {
+    final bool fresh = before.id.isEmpty;
+    Future<void> edge(Future<void> Function() write) async {
+      try {
+        await write();
+      } catch (_) {}
+    }
+
+    final Set<String> oldJournals = fresh
+        ? const <String>{}
+        : before.linkedJournalIds.toSet();
+    final Set<String> newJournals = saved.linkedJournalIds.toSet();
+    for (final String id in newJournals.difference(oldJournals)) {
+      await edge(
+        () => _links.link(
+          fromKind: AppLinkKind.note,
+          fromId: saved.id,
+          toKind: AppLinkKind.journal,
+          toId: id,
+        ),
+      );
+    }
+    for (final String id in oldJournals.difference(newJournals)) {
+      await edge(
+        () => _links.unlink(
+          fromKind: AppLinkKind.note,
+          fromId: saved.id,
+          toKind: AppLinkKind.journal,
+          toId: id,
+        ),
+      );
+    }
+
+    final String? oldStrategy = fresh ? null : before.strategyId;
+    final String? newStrategy = saved.strategyId;
+    if (oldStrategy != newStrategy) {
+      if (oldStrategy != null && oldStrategy.isNotEmpty) {
+        await edge(
+          () => _links.unlink(
+            fromKind: AppLinkKind.note,
+            fromId: saved.id,
+            toKind: AppLinkKind.strategy,
+            toId: oldStrategy,
+          ),
+        );
+      }
+      if (newStrategy != null && newStrategy.isNotEmpty) {
+        await edge(
+          () => _links.link(
+            fromKind: AppLinkKind.note,
+            fromId: saved.id,
+            toKind: AppLinkKind.strategy,
+            toId: newStrategy,
+          ),
+        );
+      }
+    }
+
+    return (await NotesRepositoryScope.repository.getById(saved.id)) ?? saved;
   }
 
   /// Leaving the editor saves silently. Losing a paragraph because a back
@@ -654,7 +724,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         UiToast.warning(
           context,
           title: 'Dictation is not available',
-          message: 'Check the microphone permission for TradeX.',
+          message: 'Check the microphone permission for hejournal.in.',
         );
       }
       return;
@@ -740,7 +810,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           // The metadata rail and split preview need real working room. Tablets use
           // the same scrollable composition as phones instead of squeezing three
           // independently scrolling regions into one short viewport.
-          final bool wide = constraints.maxWidth >= context.sz(980);
+          final bool wide =
+              constraints.maxWidth >= context.sz(980) &&
+              constraints.maxHeight >= context.sz(600);
 
           return PopScope(
             // Back is a save, not a discard, and it has to unwind the host's own
@@ -760,7 +832,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                       _editorCommandBar(context, wide: wide),
                       SizedBox(height: context.sp(theme.spacing.sm)),
                       if (wide)
-                        Expanded(child: _wideBody(context))
+                        Expanded(
+                          child: _wideBody(
+                            context,
+                            availableHeight: constraints.maxHeight,
+                          ),
+                        )
                       else
                         _narrowBody(context),
                     ],
@@ -919,14 +996,18 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     );
   }
 
-  Widget _wideBody(BuildContext context) {
+  Widget _wideBody(BuildContext context, {double? availableHeight}) {
     final UiTheme theme = context.ui;
+    final double? accordionMaxHeight = availableHeight != null
+        ? (availableHeight * 0.32).clamp(context.sz(140), context.sz(260))
+        : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         _titleField(context),
         SizedBox(height: context.sp(theme.spacing.sm)),
-        _detailsPanel(context, twoColumn: true),
+        _detailsPanel(context, twoColumn: true, maxHeight: accordionMaxHeight),
         if (_mode != NoteEditorMode.read) ...<Widget>[
           SizedBox(height: context.sp(theme.spacing.sm)),
           MarkdownFormatRibbon(
@@ -1064,7 +1145,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   /// Type, strategy, tags, tickers and visibility — collapsed by default so the
   /// page opens on the writing, and reachable in one tap when it matters.
-  Widget _detailsPanel(BuildContext context, {required bool twoColumn}) {
+  Widget _detailsPanel(
+    BuildContext context, {
+    required bool twoColumn,
+    double? maxHeight,
+  }) {
+    final double maxH = maxHeight ?? context.sz(twoColumn ? 260 : 320);
+
     return UiAccordion(
       variant: UiAccordionVariant.contained,
       openIndices: _detailsOpen ? const <int>{0} : const <int>{},
@@ -1078,7 +1165,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           subtitle: _detailsSummary,
           leadingIcon: _type.icon,
           intent: _type.intent,
-          content: _detailsFields(context, twoColumn: twoColumn),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxH),
+            child: SingleChildScrollView(
+              child: _detailsFields(context, twoColumn: twoColumn),
+            ),
+          ),
         ),
       ],
     );
@@ -1138,88 +1230,73 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       ),
     );
 
-    return Column(
+    final Widget journalField = UiField(
+      label: 'Linked journal entries',
+      helper: 'Connect the executions this note was written about',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          UiButton(
+            label: 'Link journal entry',
+            leadingIcon: Icons.add_link_rounded,
+            variant: UiVariant.outline,
+            size: UiSize.sm,
+            expand: true,
+            onPressed: _linkJournalEntry,
+          ),
+          if (linkedTrades.isNotEmpty) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.sm)),
+            for (
+              int index = 0;
+              index < linkedTrades.length;
+              index++
+            ) ...<Widget>[
+              if (index > 0) SizedBox(height: context.sp(theme.spacing.xs)),
+              AppLinkedJournalCard(
+                trade: linkedTrades[index],
+                onRemove: () => setState(
+                  () => _linkedJournalIds = _linkedJournalIds
+                      .where((String id) => id != linkedTrades[index].id)
+                      .toList(growable: false),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+
+    final Widget tagsField = UiField(
+      label: 'Tags',
+      helper: 'Group notes that belong together',
+      child: UiTagInput(
+        tags: _tags,
+        prefix: '#',
+        suggestions: NotesQuery.tagsOf(
+          _graph.noteList,
+        ).take(8).toList(growable: false),
+        onChanged: (List<String> next) => setState(() => _tags = next),
+      ),
+    );
+
+    final Widget tickersField = UiField(
+      label: 'Tickers',
+      child: UiTagInput(
+        tags: _tickers,
+        prefix: '\$',
+        intent: UiIntent.info,
+        suggestions: <String>[
+          for (final AppLinkRef ref
+              in _graph.options(AppLinkKind.ticker).take(8))
+            ref.id,
+        ],
+        onChanged: (List<String> next) => setState(() => _tickers = next),
+      ),
+    );
+
+    final Widget publicField = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (twoColumn)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(child: typeField),
-              SizedBox(width: context.sp(theme.spacing.md)),
-              Expanded(child: strategyField),
-            ],
-          )
-        else ...<Widget>[
-          typeField,
-          SizedBox(height: context.sp(theme.spacing.sm)),
-          strategyField,
-        ],
-        SizedBox(height: context.sp(theme.spacing.sm)),
-        UiField(
-          label: 'Linked journal entries',
-          helper: 'Connect the executions this note was written about',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              UiButton(
-                label: 'Link journal entry',
-                leadingIcon: Icons.add_link_rounded,
-                variant: UiVariant.outline,
-                size: UiSize.sm,
-                expand: true,
-                onPressed: _linkJournalEntry,
-              ),
-              if (linkedTrades.isNotEmpty) ...<Widget>[
-                SizedBox(height: context.sp(theme.spacing.sm)),
-                for (
-                  int index = 0;
-                  index < linkedTrades.length;
-                  index++
-                ) ...<Widget>[
-                  if (index > 0) SizedBox(height: context.sp(theme.spacing.xs)),
-                  AppLinkedJournalCard(
-                    trade: linkedTrades[index],
-                    onRemove: () => setState(
-                      () => _linkedJournalIds = _linkedJournalIds
-                          .where((String id) => id != linkedTrades[index].id)
-                          .toList(growable: false),
-                    ),
-                  ),
-                ],
-              ],
-            ],
-          ),
-        ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
-        UiField(
-          label: 'Tags',
-          helper: 'Group notes that belong together',
-          child: UiTagInput(
-            tags: _tags,
-            prefix: '#',
-            suggestions: NotesQuery.tagsOf(
-              _graph.noteList,
-            ).take(8).toList(growable: false),
-            onChanged: (List<String> next) => setState(() => _tags = next),
-          ),
-        ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
-        UiField(
-          label: 'Tickers',
-          child: UiTagInput(
-            tags: _tickers,
-            prefix: '\$',
-            intent: UiIntent.info,
-            suggestions: <String>[
-              for (final AppLinkRef ref
-                  in _graph.options(AppLinkKind.ticker).take(8))
-                ref.id,
-            ],
-            onChanged: (List<String> next) => setState(() => _tickers = next),
-          ),
-        ),
-        SizedBox(height: context.sp(theme.spacing.sm)),
         UiSwitch(
           value: _isPublic,
           label: 'Share publicly',
@@ -1241,6 +1318,52 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 'and join the conversation after this note is saved publicly.',
             intent: UiIntent.info,
           ),
+        ],
+      ],
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (twoColumn) ...<Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(child: typeField),
+              SizedBox(width: context.sp(theme.spacing.md)),
+              Expanded(child: strategyField),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(child: tagsField),
+              SizedBox(width: context.sp(theme.spacing.md)),
+              Expanded(child: tickersField),
+            ],
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(child: journalField),
+              SizedBox(width: context.sp(theme.spacing.md)),
+              Expanded(child: publicField),
+            ],
+          ),
+        ] else ...<Widget>[
+          typeField,
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          strategyField,
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          journalField,
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          tagsField,
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          tickersField,
+          SizedBox(height: context.sp(theme.spacing.sm)),
+          publicField,
         ],
       ],
     );

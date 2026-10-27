@@ -73,6 +73,7 @@ class UiOtpField extends StatefulWidget {
 
   /// Controls box size; [UiSize.lg] matches the default auth-flow inputs.
   final UiSize size;
+
   /// Space between boxes in logical points (scaled internally). Defaults to the
   /// `sm` spacing token.
   final double? gap;
@@ -193,8 +194,9 @@ class _UiOtpFieldState extends State<UiOtpField> {
         final double totalWidth =
             (boxSize * widget.length) + (spacing * (widget.length - 1));
 
-        final List<Widget> boxes =
-            List<Widget>.generate(widget.length, (int i) {
+        final List<Widget> boxes = List<Widget>.generate(widget.length, (
+          int i,
+        ) {
           final bool filled = i < value.length;
           final bool isCursor = _focused && widget.enabled && i == value.length;
           final Color borderColor = (isCursor || showRing)

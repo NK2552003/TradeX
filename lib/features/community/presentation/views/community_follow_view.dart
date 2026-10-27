@@ -31,22 +31,21 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   final String _searchQuery = '';
   String _leaderboardPeriod = '1M';
 
-  String get _effectiveQuery =>
-      (widget.searchQuery?.trim().isNotEmpty ?? false)
-          ? widget.searchQuery!.trim()
-          : _searchQuery;
+  String get _effectiveQuery => (widget.searchQuery?.trim().isNotEmpty ?? false)
+      ? widget.searchQuery!.trim()
+      : _searchQuery;
 
-  static const List<String> _tabs = <String>[
+  List<String> get _tabLabels => <String>[
     'Suggested',
-    'Following',
-    'Followers',
+    'Following (${widget.repository.followingCount})',
+    'Followers (${widget.repository.followersCount})',
     'Leaderboard',
   ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     widget.repository.addListener(_onDataChanged);
   }
 
@@ -78,18 +77,10 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
                 ? const NeverScrollableScrollPhysics()
                 : null,
             children: <Widget>[
-              _CommunityKeepAliveTab(
-                child: _buildSuggestedTab(),
-              ),
-              _CommunityKeepAliveTab(
-                child: _buildFollowingTab(),
-              ),
-              _CommunityKeepAliveTab(
-                child: _buildFollowersTab(),
-              ),
-              _CommunityKeepAliveTab(
-                child: _buildLeaderboardTab(),
-              ),
+              _CommunityKeepAliveTab(child: _buildSuggestedTab()),
+              _CommunityKeepAliveTab(child: _buildFollowingTab()),
+              _CommunityKeepAliveTab(child: _buildFollowersTab()),
+              _CommunityKeepAliveTab(child: _buildLeaderboardTab()),
             ],
           ),
         ),
@@ -151,8 +142,9 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
                   child: TabBar(
                     controller: _tabController,
                     isScrollable: isMobile,
-                    tabAlignment:
-                        isMobile ? TabAlignment.start : TabAlignment.fill,
+                    tabAlignment: isMobile
+                        ? TabAlignment.start
+                        : TabAlignment.fill,
                     padding: EdgeInsets.zero,
                     labelPadding: EdgeInsets.symmetric(
                       horizontal: context.sp(
@@ -161,8 +153,9 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
                     ),
                     indicatorSize: TabBarIndicatorSize.tab,
                     splashBorderRadius: context.radius(theme.radii.pill),
-                    overlayColor:
-                        WidgetStateProperty.resolveWith<Color?>((states) {
+                    overlayColor: WidgetStateProperty.resolveWith<Color?>((
+                      states,
+                    ) {
                       if (states.contains(WidgetState.selected)) {
                         return Colors.transparent;
                       }
@@ -197,7 +190,7 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
                       fontSize: context.fs(isMobile ? 12.5 : 13.5),
                       fontWeight: FontWeight.w500,
                     ),
-                    tabs: _tabs.map((label) {
+                    tabs: _tabLabels.map((label) {
                       return Tab(
                         height: context.sz(34),
                         child: Padding(
@@ -255,6 +248,7 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
     final traders = widget.repository.suggestedTraders.where((t) {
+      if (t.id == widget.repository.currentAuthor.id) return false;
       if (_effectiveQuery.isEmpty) return true;
       final q = _effectiveQuery.toLowerCase();
       return t.displayName.toLowerCase().contains(q) ||
@@ -272,8 +266,9 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   Widget _buildFollowingTab({double topPadding = 0}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
-    final traders = widget.repository.suggestedTraders.where((t) {
-      if (!t.isFollowing) return false;
+    final traders = widget.repository.allKnownAuthors.where((t) {
+      final isF = t.isFollowing || widget.repository.followedAuthorIds.contains(t.id);
+      if (!isF) return false;
       if (_effectiveQuery.isEmpty) return true;
       final q = _effectiveQuery.toLowerCase();
       return t.displayName.toLowerCase().contains(q) ||
@@ -305,7 +300,8 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
   Widget _buildFollowersTab({double topPadding = 0}) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
-    final traders = widget.repository.suggestedTraders.reversed.where((t) {
+    final traders = widget.repository.allKnownAuthors.where((t) {
+      if (!widget.repository.followerAuthorIds.contains(t.id)) return false;
       if (_effectiveQuery.isEmpty) return true;
       final q = _effectiveQuery.toLowerCase();
       return t.displayName.toLowerCase().contains(q) ||
@@ -313,6 +309,13 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
           (t.tradingStyle?.toLowerCase().contains(q) ?? false);
     }).toList();
 
+    if (traders.isEmpty) {
+      return const UiEmptyState(
+        icon: Icons.people_outline_rounded,
+        title: 'No followers yet',
+        message: 'People who follow your profile will appear here.',
+      );
+    }
     return _buildTraderList(traders, isMobile, theme, topPadding: topPadding);
   }
 
@@ -471,26 +474,46 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
             );
           }
 
-          return GridView.builder(
+          return ListView.builder(
             padding: EdgeInsets.fromLTRB(
               context.sp(theme.spacing.md),
               topPadding + context.sp(theme.spacing.xs),
               context.sp(theme.spacing.md),
               context.sp(theme.spacing.md),
             ),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount,
-              mainAxisSpacing: context.sp(theme.spacing.sm),
-              crossAxisSpacing: context.sp(theme.spacing.sm),
-              mainAxisExtent: context.sz(146),
-            ),
-            itemCount: traders.length,
-            itemBuilder: (BuildContext context, int index) {
-              final trader = traders[index];
-              return CommunityTraderCard(
-                trader: trader,
-                onTap: () => widget.onAuthorTap?.call(trader),
-                onFollow: () => widget.repository.toggleFollow(trader.id),
+            itemCount: (traders.length + 1) ~/ 2,
+            itemBuilder: (BuildContext context, int rowIndex) {
+              final first = traders[rowIndex * 2];
+              final secondIndex = rowIndex * 2 + 1;
+              return Padding(
+                padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: CommunityTraderCard(
+                        trader: first,
+                        onTap: () => widget.onAuthorTap?.call(first),
+                        onFollow: () =>
+                            widget.repository.toggleFollow(first.id),
+                      ),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.sm)),
+                    Expanded(
+                      child: secondIndex < traders.length
+                          ? CommunityTraderCard(
+                              trader: traders[secondIndex],
+                              onTap: () => widget.onAuthorTap?.call(
+                                traders[secondIndex],
+                              ),
+                              onFollow: () => widget.repository.toggleFollow(
+                                traders[secondIndex].id,
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
               );
             },
           );

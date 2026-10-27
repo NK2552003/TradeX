@@ -169,7 +169,8 @@ class _MessageComposerState extends State<MessageComposer> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              if (widget.replyTo != null && !_isRecording) _replyBar(context, widget.replyTo!),
+              if (widget.replyTo != null && !_isRecording)
+                _replyBar(context, widget.replyTo!),
               if (_showQuickBar && !_isRecording) _quickBar(context),
               if (_isRecording)
                 _recordingBar(context)
@@ -264,13 +265,16 @@ class _MessageComposerState extends State<MessageComposer> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: List<Widget>.generate(16, (int i) {
-                          final double h = 4.0 + ((i + _recordSeconds) % 5) * 3.0;
+                          final double h =
+                              4.0 + ((i + _recordSeconds) % 5) * 3.0;
                           return Container(
                             width: context.sz(2.5),
                             height: context.sz(h),
                             decoration: BoxDecoration(
                               color: colors.primary.withValues(alpha: 0.6),
-                              borderRadius: BorderRadius.circular(context.sz(2)),
+                              borderRadius: BorderRadius.circular(
+                                context.sz(2),
+                              ),
                             ),
                           );
                         }),
@@ -397,10 +401,7 @@ class _MessageComposerState extends State<MessageComposer> {
         color: colors.surfaceMuted,
         borderRadius: context.radius(theme.radii.sm),
         border: Border(
-          left: BorderSide(
-            color: colors.primary,
-            width: context.sz(3),
-          ),
+          left: BorderSide(color: colors.primary, width: context.sz(3)),
         ),
       ),
       child: Row(
@@ -420,7 +421,9 @@ class _MessageComposerState extends State<MessageComposer> {
                 Text(
                   reply.body.isNotEmpty
                       ? reply.body
-                      : (reply.sharedRef?.title ?? reply.attachment?.title ?? 'Attachment'),
+                      : (reply.sharedRef?.title ??
+                            reply.attachment?.title ??
+                            'Attachment'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: context.uiText.caption.copyWith(

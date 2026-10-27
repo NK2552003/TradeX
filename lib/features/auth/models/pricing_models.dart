@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/theme/app_tokens.dart';
 
-/// Single subscription plan model for TradeX pricing catalogue.
+/// Single subscription plan model for hejournal.in pricing catalogue.
 @immutable
 class PricingPlanModel {
   const PricingPlanModel({
@@ -17,6 +17,7 @@ class PricingPlanModel {
     this.highlighted = false,
     this.isCurrent = false,
     this.ctaLabel = 'Get Started',
+    this.isPurchasable = true,
   });
 
   final String id;
@@ -31,6 +32,7 @@ class PricingPlanModel {
   final bool highlighted;
   final bool isCurrent;
   final String ctaLabel;
+  final bool isPurchasable;
 
   /// Price formatted according to billing cycle.
   String priceLabel({required bool isAnnual}) {
@@ -69,6 +71,7 @@ class PricingPlanModel {
       highlighted: json['highlighted'] as bool? ?? false,
       isCurrent: json['is_current'] as bool? ?? false,
       ctaLabel: json['cta_label'] as String? ?? 'Get Started',
+      isPurchasable: json['is_purchasable'] as bool? ?? true,
     );
   }
 
@@ -85,6 +88,7 @@ class PricingPlanModel {
     'highlighted': highlighted,
     'is_current': isCurrent,
     'cta_label': ctaLabel,
+    'is_purchasable': isPurchasable,
   };
 }
 

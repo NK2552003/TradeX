@@ -56,8 +56,7 @@ OptionsPnlResult calcOptionsPnl({
   final double hi = strike * 1.2;
   final double step = (hi - lo) / (samples - 1);
   final List<(double, double)> payoff = <(double, double)>[
-    for (int i = 0; i < samples; i++)
-      (lo + step * i, pnlAt(lo + step * i)),
+    for (int i = 0; i < samples; i++) (lo + step * i, pnlAt(lo + step * i)),
   ];
 
   // A long call has uncapped upside; a long put is capped by strike → 0.
@@ -133,9 +132,7 @@ double _cdf(double x) {
   final double t = 1 / (1 + p * z);
   final double y =
       1 -
-      (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) *
-          t *
-          math.exp(-z * z);
+      (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * math.exp(-z * z);
   return 0.5 * (1 + sign * y);
 }
 
@@ -184,10 +181,8 @@ BlackScholesResult calcBlackScholes({
   final double delta = isCall ? _cdf(d1) : _cdf(d1) - 1;
   final double gamma = _pdf(d1) / (spot * v * sqrtT);
   final double thetaPerYear = isCall
-      ? -spot * _pdf(d1) * v / (2 * sqrtT) -
-            r * strike * discount * _cdf(d2)
-      : -spot * _pdf(d1) * v / (2 * sqrtT) +
-            r * strike * discount * _cdf(-d2);
+      ? -spot * _pdf(d1) * v / (2 * sqrtT) - r * strike * discount * _cdf(d2)
+      : -spot * _pdf(d1) * v / (2 * sqrtT) + r * strike * discount * _cdf(-d2);
   final double vega = spot * _pdf(d1) * sqrtT / 100;
   final double rho = isCall
       ? strike * t * discount * _cdf(d2) / 100
@@ -225,11 +220,7 @@ ContractValueResult calcContractValue({
   double lots = 1,
 }) {
   final double perLot = lotSize * price;
-  return ContractValueResult(
-    perLot: perLot,
-    total: perLot * lots,
-    lots: lots,
-  );
+  return ContractValueResult(perLot: perLot, total: perLot * lots, lots: lots);
 }
 
 // ── Multi-leg strategy ──────────────────────────────────────────────────────
@@ -287,6 +278,7 @@ class StrategyLeg {
     lotSize: lotSize ?? this.lotSize,
   );
 }
+
 class StrategyResult {
   const StrategyResult({
     required this.maxProfit,
@@ -321,6 +313,7 @@ class StrategyResult {
   /// 21 samples across ±20% of spot.
   final List<({double price, double pnl})> payoffCurve;
 }
+
 /// Payoff of any combination of option legs at expiry.
 ///
 /// The curve is piecewise linear with a kink at every strike, so the extremes
@@ -454,6 +447,7 @@ StrategyResult calcStrategy(List<StrategyLeg> legs, double spot) {
     payoffCurve: curve,
   );
 }
+
 extension OptionStrategyTemplateX on OptionStrategyTemplate {
   String get label => switch (this) {
     OptionStrategyTemplate.custom => 'Custom',
@@ -502,6 +496,7 @@ extension OptionStrategyTemplateX on OptionStrategyTemplate {
     _ => null,
   };
 }
+
 /// Strike interval an exchange would list around [spot].
 double strikeStepFor(double spot) => switch (spot) {
   < 500 => 5,
@@ -712,11 +707,12 @@ MaxPainResult calcMaxPain({
     );
   }
   final List<({double strike, double callOi, double putOi})> rows =
-      List<({double strike, double callOi, double putOi})>.of(chain)
-        ..sort((
+      List<({double strike, double callOi, double putOi})>.of(chain)..sort(
+        (
           ({double strike, double callOi, double putOi}) a,
           ({double strike, double callOi, double putOi}) b,
-        ) => a.strike.compareTo(b.strike));
+        ) => a.strike.compareTo(b.strike),
+      );
 
   final List<({double strike, double totalPain})> pain =
       <({double strike, double totalPain})>[];

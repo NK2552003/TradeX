@@ -1,16 +1,23 @@
 import 'customer_data_policy.dart';
 import 'supabase_config.dart';
+import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 
 /// UI permissions use record ownership; route flags never confer ownership.
 class RecordAccess {
   RecordAccess._();
+
   static bool owns(String ownerId, {String? actorId}) {
-    final actor = actorId ?? SupabaseConfig.client?.auth.currentUser?.id;
-    if (actor != null && actor.isNotEmpty) return ownerId == actor;
-    return CustomerDataPolicy.allowDemo &&
-        (ownerId.isEmpty ||
-            ownerId == 'demo_user' ||
-            ownerId == '00000000-0000-0000-0000-000000000001');
+    if (ownerId.isEmpty) return true;
+    final actor =
+        actorId ??
+        SupabaseConfig.client?.auth.currentUser?.id ??
+        SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+        AuthBackendService.instance.currentUserProfile?.id;
+    if (actor != null && actor.isNotEmpty) {
+      return ownerId == actor;
+    }
+    return CustomerDataPolicy.allowDemo;
   }
 
   static bool canRead(

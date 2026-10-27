@@ -25,7 +25,7 @@ class UiDonutChart extends StatelessWidget {
     this.thickness,
     this.center,
     this.centerLabel,
-    this.showLegend = true,
+    this.showLegend = false,
     this.valueFormatter,
   });
 
@@ -107,10 +107,10 @@ class UiDonutChart extends StatelessWidget {
                   ),
                 ),
                 SizedBox(width: context.sp(theme.spacing.xs)),
-                Flexible(
+                Expanded(
                   child: Text(
                     slices[i].label,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: context.uiText.caption.copyWith(
                       color: theme.colors.foregroundMuted,
@@ -151,7 +151,8 @@ class UiDonutChart extends StatelessWidget {
         if (!showLegend) return Center(child: donut);
 
         final bool isCompact =
-            constraints.maxWidth < 360 || context.uiRes.isMobile;
+            constraints.maxWidth < defaultDim + context.sz(240) ||
+            context.uiRes.isMobile;
         if (isCompact) {
           return Column(
             mainAxisSize: MainAxisSize.min,

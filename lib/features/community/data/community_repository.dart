@@ -1,18 +1,24 @@
 import 'package:tradex/core/config/record_access.dart';
 import 'package:tradex/core/data/owned_record_writer.dart';
 import 'community_post_writer.dart';
+import 'workspace_attachment_service.dart';
+import 'package:tradex/features/workspace/data/workspace_post_service.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
+import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
@@ -28,7 +34,6 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
   static final RegExp _uuidRegex = RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   );
@@ -45,11 +50,55 @@ class CommunityRepository extends ChangeNotifier {
       if (user != null && user.id.isNotEmpty) {
         return user.id;
       }
+      final sessionUser = SupabaseConfig.client?.auth.currentSession?.user;
+      if (sessionUser != null && sessionUser.id.isNotEmpty) {
+        return sessionUser.id;
+      }
     }
-    return _demoUserId;
+    final stored =
+        SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+        AuthBackendService.instance.currentUserProfile?.id;
+    if (stored != null && stored.isNotEmpty) {
+      return stored;
+    }
+    return '';
   }
 
   bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
+
+  static const String _commentReactionsPrefsPrefix = 'tradex_comment_rx_';
+
+  Future<Map<String, String>> _loadLocalCommentReactions(String userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final effectiveId = userId.trim().isEmpty ? 'guest' : userId.trim();
+      final raw = prefs.getString('$_commentReactionsPrefsPrefix$effectiveId');
+      if (raw != null && raw.isNotEmpty) {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        return decoded.map((k, v) => MapEntry(k, v.toString()));
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  Future<void> _saveLocalCommentReaction(
+    String userId,
+    String commentId,
+    String? reaction,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final effectiveId = userId.trim().isEmpty ? 'guest' : userId.trim();
+      final key = '$_commentReactionsPrefsPrefix$effectiveId';
+      final current = await _loadLocalCommentReactions(effectiveId);
+      if (reaction != null && reaction.isNotEmpty) {
+        current[commentId] = reaction;
+      } else {
+        current.remove(commentId);
+      }
+      await prefs.setString(key, jsonEncode(current));
+    } catch (_) {}
+  }
 
   Future<void> init() async {
     if (_initialized) return;
@@ -123,17 +172,32 @@ class CommunityRepository extends ChangeNotifier {
       final targetUserId = _resolveUserId();
 
       final Set<String> likedPostIds = <String>{};
+      final Map<String, String> userPostReactions = <String, String>{};
       final Set<String> bookmarkedPostIds = <String>{};
-      final Set<String> followedAuthorIds = <String>{};
+      final Set<String> repostedPostIds = <String>{};
+      _followedAuthorIds.clear();
+      _followerAuthorIds.clear();
+      final Map<String, String> userPollVotes = <String, String>{};
 
       try {
-        final likesRes = await client
-            .from('community_likes')
-            .select('post_id')
-            .eq('user_id', targetUserId);
-        for (final item in likesRes as List) {
+        List likesRes = const [];
+        try {
+          likesRes = await client
+              .from('community_likes')
+              .select('post_id, reaction')
+              .eq('user_id', targetUserId);
+        } catch (_) {
+          likesRes = await client
+              .from('community_likes')
+              .select('post_id')
+              .eq('user_id', targetUserId);
+        }
+        for (final item in likesRes) {
           final id = item['post_id']?.toString();
-          if (id != null) likedPostIds.add(id);
+          if (id != null) {
+            likedPostIds.add(id);
+            userPostReactions[id] = item['reaction']?.toString() ?? '👍';
+          }
         }
       } catch (e) {
         debugPrint('[CommunityRepository] Error fetching likes: $e');
@@ -153,23 +217,64 @@ class CommunityRepository extends ChangeNotifier {
       }
 
       try {
+        final repostsRes = await client
+            .from('community_reposts')
+            .select('post_id')
+            .eq('user_id', targetUserId);
+        for (final item in repostsRes as List) {
+          final id = item['post_id']?.toString();
+          if (id != null) repostedPostIds.add(id);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching reposts: $e');
+      }
+
+      try {
+        final votesRes = await client
+            .from('community_poll_votes')
+            .select('poll_id, option_id')
+            .eq('user_id', targetUserId);
+        for (final item in votesRes as List) {
+          final pId = item['poll_id']?.toString();
+          final oId = item['option_id']?.toString();
+          if (pId != null && oId != null) userPollVotes[pId] = oId;
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching poll votes: $e');
+      }
+
+      try {
         final followsRes = await client
             .from('community_follows')
             .select('following_id')
             .eq('follower_id', targetUserId);
         for (final item in followsRes as List) {
           final id = item['following_id']?.toString();
-          if (id != null) followedAuthorIds.add(id);
+          if (id != null) _followedAuthorIds.add(id);
         }
       } catch (e) {
         debugPrint('[CommunityRepository] Error fetching follows: $e');
       }
 
+      try {
+        final followersRes = await client
+            .from('community_follows')
+            .select('follower_id')
+            .eq('following_id', targetUserId);
+        for (final item in followersRes as List) {
+          final id = item['follower_id']?.toString();
+          if (id != null) _followerAuthorIds.add(id);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching followers: $e');
+      }
+
       final res = await client
           .from('community_posts')
           .select(
-            '*, profiles(id, username, display_name, avatar_url, bio, role, win_rate, trading_style, verified, followers_count, following_count, posts_count), community_post_trade_setups(*), community_post_attachments(*)',
+            '*, profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified), community_post_trade_setups(*), community_post_attachments(*), community_polls(*, community_poll_options(*))',
           )
+          .or('is_public.eq.true,author_id.eq.$targetUserId')
           .order('created_at', ascending: false);
 
       final List<CommunityPost> allPosts = [];
@@ -181,27 +286,44 @@ class CommunityRepository extends ChangeNotifier {
 
         final author = CommunityAuthor(
           id: authorId,
-          handle: authorProfile?['username'] as String? ?? 'trader',
+          handle:
+              (authorProfile?['handle'] ?? authorProfile?['username'])
+                  as String? ??
+              'trader',
           displayName:
               authorProfile?['display_name'] as String? ??
+              authorProfile?['handle'] as String? ??
               authorProfile?['username'] as String? ??
               'Trader',
           userRole: _parseUserRole(authorProfile?['role'] as String?),
           avatarUrl: authorProfile?['avatar_url'] as String?,
           bio: authorProfile?['bio'] as String?,
           verified: authorProfile?['verified'] as bool? ?? false,
-          isFollowing: followedAuthorIds.contains(authorId),
+          isFollowing: _followedAuthorIds.contains(authorId),
           followers: (authorProfile?['followers_count'] as num?)?.toInt() ?? 0,
           following: (authorProfile?['following_count'] as num?)?.toInt() ?? 0,
           winRate: (authorProfile?['win_rate'] as num?)?.toDouble(),
-          tradingStyle: authorProfile?['trading_style'] as String?,
+          tradingStyle:
+              (authorProfile?['top_strategy'] ??
+                      authorProfile?['trading_style'])
+                  as String?,
+          primaryMarket: authorProfile?['primary_market'] as String?,
+          avgHoldDuration: authorProfile?['avg_hold_duration'] as String?,
+          riskMantra: authorProfile?['risk_mantra'] as String?,
+          location: authorProfile?['location'] as String?,
+          website: authorProfile?['website'] as String?,
           postsCount: (authorProfile?['posts_count'] as num?)?.toInt() ?? 0,
         );
 
         CommunityTradeSetup? setup;
-        final setupsList = row['community_post_trade_setups'];
-        if (setupsList != null && setupsList is List && setupsList.isNotEmpty) {
-          final s = setupsList.first as Map<String, dynamic>;
+        final rawSetups = row['community_post_trade_setups'];
+        Map<String, dynamic>? s;
+        if (rawSetups is Map<String, dynamic>) {
+          s = rawSetups;
+        } else if (rawSetups is List && rawSetups.isNotEmpty) {
+          s = rawSetups.first as Map<String, dynamic>;
+        }
+        if (s != null) {
           setup = CommunityTradeSetup(
             ticker: s['ticker'] as String? ?? '',
             side: (s['side']?.toString().toUpperCase() == 'SHORT')
@@ -225,9 +347,21 @@ class CommunityRepository extends ChangeNotifier {
             final refId = attMap['ref_id']?.toString() ?? '';
 
             if (kind == 'image') {
-              final img = url ?? refId;
-              if (img.isNotEmpty && !imageUrls.contains(img)) {
-                imageUrls.add(img);
+              var img = url ?? refId;
+              if (img.isNotEmpty) {
+                if (!img.startsWith('http') &&
+                    !img.startsWith('file:') &&
+                    !img.startsWith('data:') &&
+                    SupabaseConfig.isConfigured) {
+                  try {
+                    img = client.storage
+                        .from('community-attachments')
+                        .getPublicUrl(img);
+                  } catch (_) {}
+                }
+                if (!imageUrls.contains(img)) {
+                  imageUrls.add(img);
+                }
               }
             } else if (kind == 'note' ||
                 kind == 'journal' ||
@@ -244,7 +378,74 @@ class CommunityRepository extends ChangeNotifier {
                 ),
                 excerpt: title,
               );
+            } else if (kind == 'chart_candles' && url != null) {
+              try {
+                final decoded = jsonDecode(url);
+                if (decoded is List) {
+                  final candles = <UiCandle>[];
+                  for (final item in decoded) {
+                    if (item is Map) {
+                      final time = DateTime.tryParse('${item['time']}');
+                      if (time != null) {
+                        candles.add(
+                          UiCandle(
+                            time: time,
+                            open: (item['open'] as num?)?.toDouble() ?? 0.0,
+                            high: (item['high'] as num?)?.toDouble() ?? 0.0,
+                            low: (item['low'] as num?)?.toDouble() ?? 0.0,
+                            close: (item['close'] as num?)?.toDouble() ?? 0.0,
+                            volume: (item['volume'] as num?)?.toDouble() ?? 0.0,
+                          ),
+                        );
+                      }
+                    }
+                  }
+                  if (candles.isNotEmpty && setup != null) {
+                    setup = setup.copyWith(candles: candles);
+                  }
+                }
+              } catch (_) {}
             }
+          }
+        }
+
+        CommunityPoll? poll;
+        final rawPoll = row['community_polls'];
+        if (rawPoll != null) {
+          final pMap = (rawPoll is List && rawPoll.isNotEmpty)
+              ? rawPoll.first as Map<String, dynamic>
+              : (rawPoll is Map<String, dynamic> ? rawPoll : null);
+          if (pMap != null) {
+            final pollId = pMap['id']?.toString() ?? '';
+            final rawOptions =
+                pMap['community_poll_options'] as List? ?? const [];
+            final options = <CommunityPollOption>[];
+            int? userVotedIndex;
+            final userVotedOptionId = userPollVotes[pollId];
+            for (int i = 0; i < rawOptions.length; i++) {
+              final opt = rawOptions[i] as Map<String, dynamic>;
+              final optId = opt['id']?.toString() ?? '';
+              final text = opt['option_text']?.toString() ?? '';
+              final votes = (opt['votes_count'] as num?)?.toInt() ?? 0;
+              if (userVotedOptionId == optId) {
+                userVotedIndex = i;
+              }
+              options.add(
+                CommunityPollOption(id: optId, text: text, votes: votes),
+              );
+            }
+            poll = CommunityPoll(
+              id: pollId,
+              question: pMap['question'] as String? ?? '',
+              options: options,
+              expiresAt: DateTime.tryParse(
+                pMap['expires_at']?.toString() ?? '',
+              ),
+              votedOptionIndex: userVotedIndex,
+              votedOptionIndices: userVotedIndex != null
+                  ? [userVotedIndex]
+                  : const [],
+            );
           }
         }
 
@@ -267,11 +468,14 @@ class CommunityRepository extends ChangeNotifier {
           imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
           imageUrls: imageUrls,
           attachment: attachment,
+          poll: poll,
           likes: (row['likes_count'] as num?)?.toInt() ?? 0,
           comments: (row['comments_count'] as num?)?.toInt() ?? 0,
           reposts: (row['reposts_count'] as num?)?.toInt() ?? 0,
           views: (row['views_count'] as num?)?.toInt() ?? 0,
           liked: likedPostIds.contains(postId),
+          userReaction: userPostReactions[postId],
+          reposted: repostedPostIds.contains(postId),
           bookmarked: bookmarkedPostIds.contains(postId),
         );
 
@@ -281,15 +485,80 @@ class CommunityRepository extends ChangeNotifier {
       if (_disposed) return;
       _forYouPosts = allPosts;
       _followingPosts = allPosts
-          .where((p) => followedAuthorIds.contains(p.author.id))
+          .where((p) => _followedAuthorIds.contains(p.author.id))
           .toList();
       _signalPosts = allPosts.where((p) => p.tradeSetup != null).toList();
       _rebuildBookmarks();
 
       try {
+        final Map<String, String> userCommentLikes = {};
+        if (targetUserId.isNotEmpty) {
+          // 1. Load local persistent reactions first
+          final localLikes = await _loadLocalCommentReactions(targetUserId);
+          userCommentLikes.addAll(localLikes);
+
+          // 2. Query community_comment_likes table from Supabase
+          try {
+            final cLikes = await client
+                .from('community_comment_likes')
+                .select('comment_id, reaction')
+                .eq('user_id', targetUserId);
+            for (final cl in cLikes as List) {
+              final cid = cl['comment_id']?.toString();
+              if (cid != null) {
+                userCommentLikes[cid] = cl['reaction']?.toString() ?? '👍';
+              }
+            }
+          } catch (_) {
+            // Fallback: check unified_comment_likes
+            try {
+              final cLikes = await client
+                  .from('unified_comment_likes')
+                  .select('comment_id, reaction')
+                  .eq('user_id', targetUserId);
+              for (final cl in cLikes as List) {
+                final cid = cl['comment_id']?.toString();
+                if (cid != null) {
+                  userCommentLikes[cid] = cl['reaction']?.toString() ?? '👍';
+                }
+              }
+            } catch (_) {}
+          }
+        }
+
+        // 3. Query all comment reactions to display emoji reactions badge
+        final Map<String, Set<String>> commentReactions = {};
+        try {
+          final allReactions = await client
+              .from('community_comment_likes')
+              .select('comment_id, reaction');
+          for (final r in allReactions as List) {
+            final cid = r['comment_id']?.toString();
+            final rx = r['reaction']?.toString();
+            if (cid != null && rx != null && rx.trim().isNotEmpty) {
+              (commentReactions[cid] ??= <String>{}).add(rx.trim());
+            }
+          }
+        } catch (_) {
+          try {
+            final allReactions = await client
+                .from('unified_comment_likes')
+                .select('comment_id, reaction');
+            for (final r in allReactions as List) {
+              final cid = r['comment_id']?.toString();
+              final rx = r['reaction']?.toString();
+              if (cid != null && rx != null && rx.trim().isNotEmpty) {
+                (commentReactions[cid] ??= <String>{}).add(rx.trim());
+              }
+            }
+          } catch (_) {}
+        }
+
         final commentsRes = await client
             .from('community_comments')
-            .select('*, profiles(id, username, display_name, avatar_url, role)')
+            .select(
+              '*, profiles!community_comments_author_id_fkey(id, handle, display_name, avatar_url, role)',
+            )
             .order('created_at', ascending: true);
 
         final Map<String, List<CommunityComment>> newComments = {};
@@ -301,21 +570,39 @@ class CommunityRepository extends ChangeNotifier {
           final profile = row['profiles'] as Map<String, dynamic>?;
           final commentAuthor = CommunityAuthor(
             id: row['author_id']?.toString() ?? '',
-            handle: profile?['username'] as String? ?? 'trader',
-            displayName: profile?['display_name'] as String? ?? 'Trader',
+            handle:
+                (profile?['handle'] ?? profile?['username']) as String? ??
+                'trader',
+            displayName:
+                profile?['display_name'] as String? ??
+                profile?['handle'] as String? ??
+                'Trader',
             userRole: _parseUserRole(profile?['role'] as String?),
             avatarUrl: profile?['avatar_url'] as String?,
           );
 
+          final commentId = row['id']?.toString() ?? '';
+          final userRx = userCommentLikes[commentId];
+          final isLiked = userRx != null;
+          final rxSet = commentReactions[commentId] ?? <String>{};
+          if (userRx != null) {
+            rxSet.add(userRx);
+          }
+          final serverLikes = (row['likes_count'] as num?)?.toInt() ?? 0;
+          final effectiveLikes = isLiked && serverLikes == 0 ? 1 : serverLikes;
+
           final comment = CommunityComment(
-            id: row['id']?.toString() ?? '',
+            id: commentId,
             postId: postId,
             author: commentAuthor,
             body: row['body'] as String? ?? '',
             createdAt:
                 DateTime.tryParse(row['created_at']?.toString() ?? '') ??
                 DateTime.now(),
-            likes: (row['likes_count'] as num?)?.toInt() ?? 0,
+            likes: effectiveLikes,
+            liked: isLiked,
+            userReaction: userRx,
+            reactions: rxSet.toList(),
             parentCommentId: row['parent_id']?.toString(),
           );
 
@@ -328,10 +615,81 @@ class CommunityRepository extends ChangeNotifier {
 
       await fetchLiveRooms();
 
+      try {
+        final profRes = await client
+            .from('profiles')
+            .select(
+              'id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified',
+            )
+            .limit(10);
+        final List<CommunityAuthor> authors = [];
+        CommunityAuthor fromProfile(Map<String, dynamic> pmap) {
+          final pId = pmap['id']?.toString() ?? '';
+          final handle =
+              (pmap['handle'] ?? pmap['username']) as String? ?? 'trader';
+          return CommunityAuthor(
+            id: pId,
+            handle: handle,
+            displayName: pmap['display_name'] as String? ?? handle,
+            avatarUrl: pmap['avatar_url'] as String?,
+            bio: pmap['bio'] as String?,
+            tradingStyle:
+                (pmap['top_strategy'] ?? pmap['trading_style']) as String?,
+            primaryMarket: pmap['primary_market'] as String?,
+            avgHoldDuration: pmap['avg_hold_duration'] as String?,
+            riskMantra: pmap['risk_mantra'] as String?,
+            location: pmap['location'] as String?,
+            website: pmap['website'] as String?,
+            winRate: (pmap['win_rate'] as num?)?.toDouble(),
+            followers:
+                (pmap['followers_count'] as num?)?.toInt() ??
+                (pmap['followers'] as num?)?.toInt() ??
+                0,
+            following:
+                (pmap['following_count'] as num?)?.toInt() ??
+                (pmap['following'] as num?)?.toInt() ??
+                0,
+            postsCount: (pmap['posts_count'] as num?)?.toInt() ?? 0,
+            verified: pmap['verified'] as bool? ?? false,
+            userRole: _parseUserRole(pmap['role'] as String?),
+            isFollowing: _followedAuthorIds.contains(pId),
+          );
+        }
+
+        for (final p in profRes as List) {
+          authors.add(fromProfile(p as Map<String, dynamic>));
+        }
+        final missingFollowerIds = _followerAuthorIds
+            .where((id) => !authors.any((author) => author.id == id))
+            .toList();
+        if (missingFollowerIds.isNotEmpty) {
+          final followerProfiles = await client
+              .from('profiles')
+              .select(
+                'id, handle, display_name, avatar_url, bio, role, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified',
+              )
+              .inFilter('id', missingFollowerIds);
+          for (final profile in followerProfiles as List) {
+            authors.add(fromProfile(profile as Map<String, dynamic>));
+          }
+        }
+        if (authors.isNotEmpty) {
+          _suggestedTraders = authors;
+          _leaderboard = [for (final a in authors) MapEntry(a, 0.0)];
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] Error fetching profiles: $e');
+      }
+
+      await fetchNotificationsFromSupabase();
+      subscribeToRealtimeNotifications();
+
       notifyListeners();
     } catch (e) {
-      refreshError =
-          'Could not refresh community posts. Existing posts have been kept.';
+      refreshError = 'Could not refresh approved community posts.';
+      _forYouPosts = const <CommunityPost>[];
+      _followingPosts = const <CommunityPost>[];
+      _signalPosts = const <CommunityPost>[];
       if (!_disposed) notifyListeners();
       debugPrint('[CommunityRepository] fetchFromSupabase error: $e');
     }
@@ -360,7 +718,7 @@ class CommunityRepository extends ChangeNotifier {
       final res = await client
           .from('community_live_rooms')
           .select(
-            '*, profiles:host_id(id, username, display_name, avatar_url, bio, role, verified)',
+            '*, profiles:host_id(id, handle, display_name, avatar_url, bio, role)',
           )
           .order('created_at', ascending: false);
 
@@ -369,13 +727,16 @@ class CommunityRepository extends ChangeNotifier {
         final row = item as Map<String, dynamic>;
         final hostProfile = row['profiles'] as Map<String, dynamic>?;
         final hostId = row['host_id']?.toString() ?? '';
+        final rawHandle =
+            (hostProfile?['handle'] ?? hostProfile?['username']) as String? ??
+            'host';
+        final handle = rawHandle.startsWith('@')
+            ? rawHandle.substring(1)
+            : rawHandle;
         final host = CommunityAuthor(
           id: hostId,
-          handle: hostProfile?['username'] as String? ?? 'host',
-          displayName:
-              hostProfile?['display_name'] as String? ??
-              hostProfile?['username'] as String? ??
-              'Space Host',
+          handle: handle,
+          displayName: hostProfile?['display_name'] as String? ?? handle,
           userRole: _parseUserRole(hostProfile?['role'] as String?),
           avatarUrl: hostProfile?['avatar_url'] as String?,
           bio: hostProfile?['bio'] as String?,
@@ -443,6 +804,7 @@ class CommunityRepository extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _realtimeChannel?.unsubscribe();
+    _notificationsChannel?.unsubscribe();
     super.dispose();
   }
 
@@ -476,12 +838,16 @@ class CommunityRepository extends ChangeNotifier {
   List<CommunityTrendItem> _trending = <CommunityTrendItem>[];
   List<CommunityNotificationItem> _notifications =
       <CommunityNotificationItem>[];
+  RealtimeChannel? _notificationsChannel;
+  ValueChanged<CommunityNotificationItem>? onLiveNotificationReceived;
   bool _pushNotificationsPromptVisible = true;
   List<AppWritingPostAttachment> _attachableRecords =
       <AppWritingPostAttachment>[];
 
   final Set<String> _mutedUsers = <String>{};
   final Set<String> _blockedUsers = <String>{};
+  final Set<String> _followedAuthorIds = <String>{};
+  final Set<String> _followerAuthorIds = <String>{};
   final List<String> _customFeedTabs = <String>['Crypto', 'Options'];
   List<CommunityConversation> _conversations = <CommunityConversation>[];
   final Map<String, List<CommunityChatMessage>> _messagesByConversation =
@@ -569,8 +935,35 @@ class CommunityRepository extends ChangeNotifier {
 
   Set<String> get mutedUsers => _mutedUsers;
   Set<String> get blockedUsers => _blockedUsers;
+  Set<String> get followedAuthorIds => Set.unmodifiable(_followedAuthorIds);
+  Set<String> get followerAuthorIds => Set.unmodifiable(_followerAuthorIds);
   List<CommunityPost> get feedPosts => forYouPosts;
   List<CommunityAuthor> get topTraders => suggestedTraders;
+
+  bool isFollowing(String authorId) =>
+      _followedAuthorIds.contains(authorId) ||
+      _suggestedTraders.any((a) => a.id == authorId && a.isFollowing);
+
+  int get followingCount => _followedAuthorIds.isNotEmpty
+      ? _followedAuthorIds.length
+      : _suggestedTraders.where((t) => t.isFollowing).length;
+
+  int get followersCount => _followerAuthorIds.isNotEmpty
+      ? _followerAuthorIds.length
+      : (_currentAuthorOverride?.followers ?? 0);
+
+  List<CommunityAuthor> get allKnownAuthors {
+    final map = <String, CommunityAuthor>{};
+    for (final a in _suggestedTraders) {
+      map[a.id] = a.copyWith(isFollowing: isFollowing(a.id));
+    }
+    for (final p in _forYouPosts) {
+      if (!map.containsKey(p.author.id)) {
+        map[p.author.id] = p.author.copyWith(isFollowing: isFollowing(p.author.id));
+      }
+    }
+    return map.values.toList();
+  }
 
   List<LiveAudioRoom> get liveRooms =>
       _liveRooms.where((r) => r.isLive).toList();
@@ -665,6 +1058,13 @@ class CommunityRepository extends ChangeNotifier {
   List<CommunityComment> commentsForPost(String postId) =>
       _commentsByPost[postId] ?? const <CommunityComment>[];
 
+  @visibleForTesting
+  void setCommentsForPost(String postId, List<CommunityComment> comments) {
+    _commentsByPost = Map<String, List<CommunityComment>>.from(_commentsByPost)
+      ..[postId] = comments;
+    notifyListeners();
+  }
+
   List<CommunityPost> postsForAuthor(String authorId) {
     if (authorId.trim().isEmpty) return const <CommunityPost>[];
     final seen = <String>{};
@@ -687,8 +1087,207 @@ class CommunityRepository extends ChangeNotifier {
     }).toList();
   }
 
+  /// Fetches an Instagram-style activity log for a user (likes, comments, reposts, trade shares).
+  Future<List<CommunityActivityItem>> fetchUserActivityHistory(
+    String userId,
+  ) async {
+    final cleanUserId = userId.trim();
+    if (cleanUserId.isEmpty) return const <CommunityActivityItem>[];
+
+    final List<CommunityActivityItem> items = [];
+    if (!SupabaseConfig.isConfigured) {
+      if (CustomerDataPolicy.allowDemo) {
+        for (final p in postsForAuthor(cleanUserId).take(4)) {
+          items.add(
+            CommunityActivityItem(
+              id: 'demo_post_${p.id}',
+              type: CommunityActivityType.post,
+              title: 'Published a post',
+              subtitle: p.body,
+              targetPostId: p.id,
+              post: p,
+              timestamp: p.createdAt,
+            ),
+          );
+        }
+      }
+      return items;
+    }
+
+    try {
+      final client = SupabaseConfig.client!;
+      final bool viewingOwnActivity = cleanUserId == _resolveUserId();
+
+      // 1. Likes
+      try {
+        final likesRes = await client
+            .from('community_likes')
+            .select(
+              'post_id, created_at, community_posts(*, profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url))',
+            )
+            .eq('user_id', cleanUserId)
+            .order('created_at', ascending: false)
+            .limit(30);
+
+        for (final item in likesRes as List) {
+          final row = item as Map<String, dynamic>;
+          final postId = row['post_id']?.toString() ?? '';
+          final postData = row['community_posts'] as Map<String, dynamic>?;
+          if (postData == null ||
+              (!viewingOwnActivity && postData['is_public'] != true)) {
+            continue;
+          }
+          final authorProf = postData['profiles'] as Map<String, dynamic>?;
+          final handle =
+              (authorProf?['handle'] ?? authorProf?['username']) as String? ??
+              'trader';
+          final body = postData['body'] as String? ?? 'Community Post';
+          final createdAt =
+              DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+              DateTime.now();
+
+          final cachedPost = _forYouPosts.cast<CommunityPost?>().firstWhere(
+            (p) => p?.id == postId,
+            orElse: () => null,
+          );
+
+          items.add(
+            CommunityActivityItem(
+              id: 'like_${postId}_${createdAt.millisecondsSinceEpoch}',
+              type: CommunityActivityType.like,
+              title: 'Liked @$handle\'s post',
+              subtitle: body,
+              targetPostId: postId,
+              post: cachedPost,
+              timestamp: createdAt,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] fetchUserActivity likes error: $e');
+      }
+
+      // 2. Comments
+      try {
+        final commentsRes = await client
+            .from('community_comments')
+            .select(
+              'id, post_id, body, created_at, community_posts(id, body, author_id, is_public)',
+            )
+            .eq('author_id', cleanUserId)
+            .order('created_at', ascending: false)
+            .limit(30);
+
+        for (final item in commentsRes as List) {
+          final row = item as Map<String, dynamic>;
+          final cId = row['id']?.toString() ?? '';
+          final postId = row['post_id']?.toString() ?? '';
+          final postData = row['community_posts'] as Map<String, dynamic>?;
+          if (postData == null ||
+              (!viewingOwnActivity && postData['is_public'] != true)) {
+            continue;
+          }
+          final commentBody = row['body'] as String? ?? '';
+          final createdAt =
+              DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+              DateTime.now();
+
+          final cachedPost = _forYouPosts.cast<CommunityPost?>().firstWhere(
+            (p) => p?.id == postId,
+            orElse: () => null,
+          );
+
+          items.add(
+            CommunityActivityItem(
+              id: 'cmt_$cId',
+              type: CommunityActivityType.comment,
+              title: 'Commented on a post',
+              subtitle: commentBody,
+              targetPostId: postId,
+              post: cachedPost,
+              timestamp: createdAt,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint(
+          '[CommunityRepository] fetchUserActivity comments error: $e',
+        );
+      }
+
+      // 3. Reposts
+      try {
+        final repostsRes = await client
+            .from('community_reposts')
+            .select(
+              'post_id, created_at, community_posts(*, profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url))',
+            )
+            .eq('user_id', cleanUserId)
+            .order('created_at', ascending: false)
+            .limit(30);
+
+        for (final item in repostsRes as List) {
+          final row = item as Map<String, dynamic>;
+          final postId = row['post_id']?.toString() ?? '';
+          final postData = row['community_posts'] as Map<String, dynamic>?;
+          if (postData == null ||
+              (!viewingOwnActivity && postData['is_public'] != true)) {
+            continue;
+          }
+          final authorProf = postData['profiles'] as Map<String, dynamic>?;
+          final handle =
+              (authorProf?['handle'] ?? authorProf?['username']) as String? ??
+              'trader';
+          final body = postData['body'] as String? ?? 'Trade setup';
+          final createdAt =
+              DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+              DateTime.now();
+
+          final cachedPost = _forYouPosts.cast<CommunityPost?>().firstWhere(
+            (p) => p?.id == postId,
+            orElse: () => null,
+          );
+
+          items.add(
+            CommunityActivityItem(
+              id: 'repost_${postId}_${createdAt.millisecondsSinceEpoch}',
+              type: CommunityActivityType.repost,
+              title: 'Reposted @$handle\'s setup',
+              subtitle: body,
+              targetPostId: postId,
+              post: cachedPost,
+              timestamp: createdAt,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] fetchUserActivity reposts error: $e');
+      }
+
+      items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      return items;
+    } catch (e) {
+      debugPrint('[CommunityRepository] fetchUserActivityHistory error: $e');
+      return items;
+    }
+  }
+
   CommunityAuthor? authorById(String id) {
     if (id == currentAuthor.id) return currentAuthor;
+    for (final a in _suggestedTraders) {
+      if (a.id == id ||
+          a.handle == id ||
+          a.handle.replaceFirst('@', '') == id) {
+        return a;
+      }
+    }
+    for (final p in _forYouPosts) {
+      if (p.author.id == id ||
+          p.author.handle == id ||
+          p.author.handle.replaceFirst('@', '') == id) {
+        return p.author;
+      }
+    }
     if (!CustomerDataPolicy.allowDemo) return null;
     final all = <CommunityAuthor>[
       _defaultCurrentUser,
@@ -712,58 +1311,166 @@ class CommunityRepository extends ChangeNotifier {
   // Mutations & Backend Annotations
   // -------------------------------------------------------------------------
 
+  /// Helper to locate a post across all active collections.
+  CommunityPost? findPost(String postId) {
+    for (final p in _forYouPosts) {
+      if (p.id == postId) return p;
+    }
+    for (final p in _followingPosts) {
+      if (p.id == postId) return p;
+    }
+    for (final p in _signalPosts) {
+      if (p.id == postId) return p;
+    }
+    for (final p in _bookmarkedPosts) {
+      if (p.id == postId) return p;
+    }
+    return null;
+  }
+
   /// @backend POST /api/v1/community/posts/{postId}/like
   /// Auth: Bearer token required
-  /// Returns: { "liked": bool, "likes": int }
-  void toggleLike(String postId) {
-    _forYouPosts = _toggleLikeInList(_forYouPosts, postId);
-    _followingPosts = _toggleLikeInList(_followingPosts, postId);
-    _signalPosts = _toggleLikeInList(_signalPosts, postId);
+  /// Returns: { "liked": bool, "likes": int, "user_reaction": String? }
+  void toggleLike(String postId, {String? reaction}) {
+    final existingPost = findPost(postId);
+    final bool wasLiked = existingPost?.liked ?? false;
+    final String? currentReaction = existingPost?.userReaction;
+    final String targetReaction =
+        (reaction != null && reaction.trim().isNotEmpty)
+        ? reaction.trim()
+        : '👍';
+
+    final bool isLikedNow;
+    final String? nextUserReaction;
+
+    if (reaction != null && reaction.trim().isNotEmpty) {
+      if (wasLiked && currentReaction == targetReaction) {
+        // Tapped same reaction again: toggle off
+        isLikedNow = false;
+        nextUserReaction = null;
+      } else {
+        // New reaction or changing from one reaction to another
+        isLikedNow = true;
+        nextUserReaction = targetReaction;
+      }
+    } else {
+      // Direct Like button tapped
+      if (wasLiked) {
+        isLikedNow = false;
+        nextUserReaction = null;
+      } else {
+        isLikedNow = true;
+        nextUserReaction = '👍';
+      }
+    }
+
+    _forYouPosts = _toggleLikeInList(
+      _forYouPosts,
+      postId,
+      isLikedNow: isLikedNow,
+      userReaction: nextUserReaction,
+    );
+    _followingPosts = _toggleLikeInList(
+      _followingPosts,
+      postId,
+      isLikedNow: isLikedNow,
+      userReaction: nextUserReaction,
+    );
+    _signalPosts = _toggleLikeInList(
+      _signalPosts,
+      postId,
+      isLikedNow: isLikedNow,
+      userReaction: nextUserReaction,
+    );
+    _bookmarkedPosts = _toggleLikeInList(
+      _bookmarkedPosts,
+      postId,
+      isLikedNow: isLikedNow,
+      userReaction: nextUserReaction,
+    );
     notifyListeners();
 
     if (SupabaseConfig.isConfigured && _isUuid(postId)) {
-      try {
-        final client = SupabaseConfig.client!;
-        final targetUserId = _resolveUserId();
-        final post = _forYouPosts.cast<CommunityPost?>().firstWhere(
-          (p) => p?.id == postId,
-          orElse: () => null,
-        );
-        final isLikedNow = post?.liked ?? false;
-
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+      if (targetUserId.isNotEmpty) {
         if (isLikedNow) {
-          unawaited(
-            client
-                .from('community_likes')
-                .insert({'post_id': postId, 'user_id': targetUserId})
-                .catchError((e) {
-                  debugPrint('[CommunityRepository] like insert error: $e');
-                }),
-          );
+          unawaited(() async {
+            try {
+              try {
+                await client.from('community_likes').upsert({
+                  'post_id': postId,
+                  'user_id': targetUserId,
+                  'reaction': nextUserReaction ?? '👍',
+                  'created_at': DateTime.now().toIso8601String(),
+                });
+              } catch (err) {
+                // If reaction column does not exist on remote schema yet (42703), retry without reaction
+                if (err.toString().contains('42703') ||
+                    err.toString().contains('reaction')) {
+                  await client.from('community_likes').upsert({
+                    'post_id': postId,
+                    'user_id': targetUserId,
+                    'created_at': DateTime.now().toIso8601String(),
+                  });
+                } else {
+                  rethrow;
+                }
+              }
+
+              // Also sync likes_count on community_posts table
+              final updatedPost = findPost(postId);
+              if (updatedPost != null) {
+                await client
+                    .from('community_posts')
+                    .update({'likes_count': updatedPost.likes})
+                    .eq('id', postId);
+              }
+            } catch (e) {
+              debugPrint('[CommunityRepository] like upsert error: $e');
+            }
+          }());
         } else {
-          unawaited(
-            client
-                .from('community_likes')
-                .delete()
-                .eq('post_id', postId)
-                .eq('user_id', targetUserId)
-                .catchError((e) {
-                  debugPrint('[CommunityRepository] like delete error: $e');
-                }),
-          );
+          unawaited(() async {
+            try {
+              await client
+                  .from('community_likes')
+                  .delete()
+                  .eq('post_id', postId)
+                  .eq('user_id', targetUserId);
+
+              // Also sync likes_count on community_posts table
+              final updatedPost = findPost(postId);
+              if (updatedPost != null) {
+                await client
+                    .from('community_posts')
+                    .update({'likes_count': updatedPost.likes})
+                    .eq('id', postId);
+              }
+            } catch (e) {
+              debugPrint('[CommunityRepository] like delete error: $e');
+            }
+          }());
         }
-      } catch (e) {
-        debugPrint('[CommunityRepository] toggleLike error: $e');
       }
     }
   }
 
-  List<CommunityPost> _toggleLikeInList(List<CommunityPost> list, String id) {
+  List<CommunityPost> _toggleLikeInList(
+    List<CommunityPost> list,
+    String id, {
+    required bool isLikedNow,
+    String? userReaction,
+  }) {
     return list.map((p) {
       if (p.id != id) return p;
+      final int newLikes = isLikedNow
+          ? (p.liked ? p.likes : p.likes + 1)
+          : (p.liked ? (p.likes - 1).clamp(0, 999999) : p.likes);
       return p.copyWith(
-        liked: !p.liked,
-        likes: p.liked ? p.likes - 1 : p.likes + 1,
+        liked: isLikedNow,
+        userReaction: userReaction,
+        likes: newLikes,
       );
     }).toList();
   }
@@ -772,19 +1479,90 @@ class CommunityRepository extends ChangeNotifier {
   /// Auth: Bearer token required
   /// Returns: { "reposted": bool, "reposts": int }
   void toggleRepost(String postId) {
-    _forYouPosts = _toggleRepostInList(_forYouPosts, postId);
-    _followingPosts = _toggleRepostInList(_followingPosts, postId);
-    _signalPosts = _toggleRepostInList(_signalPosts, postId);
+    final existingPost = findPost(postId);
+    final bool wasReposted = existingPost?.reposted ?? false;
+    final bool isRepostedNow = !wasReposted;
+
+    _forYouPosts = _toggleRepostInList(
+      _forYouPosts,
+      postId,
+      isRepostedNow: isRepostedNow,
+    );
+    _followingPosts = _toggleRepostInList(
+      _followingPosts,
+      postId,
+      isRepostedNow: isRepostedNow,
+    );
+    _signalPosts = _toggleRepostInList(
+      _signalPosts,
+      postId,
+      isRepostedNow: isRepostedNow,
+    );
+    _bookmarkedPosts = _toggleRepostInList(
+      _bookmarkedPosts,
+      postId,
+      isRepostedNow: isRepostedNow,
+    );
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+      if (targetUserId.isNotEmpty) {
+        if (isRepostedNow) {
+          unawaited(() async {
+            try {
+              await client.from('community_reposts').upsert({
+                'post_id': postId,
+                'user_id': targetUserId,
+                'created_at': DateTime.now().toIso8601String(),
+              });
+              final updated = findPost(postId);
+              if (updated != null) {
+                await client
+                    .from('community_posts')
+                    .update({'reposts_count': updated.reposts})
+                    .eq('id', postId);
+              }
+            } catch (e) {
+              debugPrint('[CommunityRepository] repost insert error: $e');
+            }
+          }());
+        } else {
+          unawaited(() async {
+            try {
+              await client
+                  .from('community_reposts')
+                  .delete()
+                  .eq('post_id', postId)
+                  .eq('user_id', targetUserId);
+              final updated = findPost(postId);
+              if (updated != null) {
+                await client
+                    .from('community_posts')
+                    .update({'reposts_count': updated.reposts})
+                    .eq('id', postId);
+              }
+            } catch (e) {
+              debugPrint('[CommunityRepository] repost delete error: $e');
+            }
+          }());
+        }
+      }
+    }
   }
 
-  List<CommunityPost> _toggleRepostInList(List<CommunityPost> list, String id) {
+  List<CommunityPost> _toggleRepostInList(
+    List<CommunityPost> list,
+    String id, {
+    required bool isRepostedNow,
+  }) {
     return list.map((p) {
       if (p.id != id) return p;
-      return p.copyWith(
-        reposted: !p.reposted,
-        reposts: p.reposted ? p.reposts - 1 : p.reposts + 1,
-      );
+      final int newReposts = isRepostedNow
+          ? (p.reposted ? p.reposts : p.reposts + 1)
+          : (p.reposted ? (p.reposts - 1).clamp(0, 999999) : p.reposts);
+      return p.copyWith(reposted: isRepostedNow, reposts: newReposts);
     }).toList();
   }
 
@@ -792,56 +1570,71 @@ class CommunityRepository extends ChangeNotifier {
   /// Auth: Bearer token required
   /// Returns: { "bookmarked": bool }
   void toggleBookmark(String postId) {
-    CommunityPost? target;
-    _forYouPosts = _forYouPosts.map((p) {
-      if (p.id != postId) return p;
-      target = p.copyWith(bookmarked: !p.bookmarked);
-      return target!;
-    }).toList();
-    _followingPosts = _followingPosts.map((p) {
-      if (p.id != postId) return p;
-      return p.copyWith(bookmarked: !p.bookmarked);
-    }).toList();
-    _signalPosts = _signalPosts.map((p) {
-      if (p.id != postId) return p;
-      return p.copyWith(bookmarked: !p.bookmarked);
-    }).toList();
+    final existingPost = findPost(postId);
+    final bool wasBookmarked = existingPost?.bookmarked ?? false;
+    final bool isBookmarkedNow = !wasBookmarked;
+
+    _forYouPosts = _forYouPosts
+        .map(
+          (p) => p.id == postId ? p.copyWith(bookmarked: isBookmarkedNow) : p,
+        )
+        .toList();
+    _followingPosts = _followingPosts
+        .map(
+          (p) => p.id == postId ? p.copyWith(bookmarked: isBookmarkedNow) : p,
+        )
+        .toList();
+    _signalPosts = _signalPosts
+        .map(
+          (p) => p.id == postId ? p.copyWith(bookmarked: isBookmarkedNow) : p,
+        )
+        .toList();
     _rebuildBookmarks();
     notifyListeners();
 
     if (SupabaseConfig.isConfigured && _isUuid(postId)) {
-      try {
-        final client = SupabaseConfig.client!;
-        final targetUserId = _resolveUserId();
-        final post = _forYouPosts.cast<CommunityPost?>().firstWhere(
-          (p) => p?.id == postId,
-          orElse: () => null,
-        );
-        final isBookmarkedNow = post?.bookmarked ?? false;
-
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+      if (targetUserId.isNotEmpty) {
         if (isBookmarkedNow) {
-          unawaited(
-            client
-                .from('community_bookmarks')
-                .insert({'post_id': postId, 'user_id': targetUserId})
-                .catchError((e) {
-                  debugPrint('[CommunityRepository] bookmark insert error: $e');
-                }),
-          );
+          unawaited(() async {
+            try {
+              await client.from('community_bookmarks').upsert({
+                'post_id': postId,
+                'user_id': targetUserId,
+                'created_at': DateTime.now().toIso8601String(),
+              });
+              final updated = findPost(postId);
+              if (updated != null) {
+                await client
+                    .from('community_posts')
+                    .update({'bookmarks_count': updated.bookmarked ? 1 : 0})
+                    .eq('id', postId);
+              }
+            } catch (e) {
+              debugPrint('[CommunityRepository] bookmark insert error: $e');
+            }
+          }());
         } else {
-          unawaited(
-            client
-                .from('community_bookmarks')
-                .delete()
-                .eq('post_id', postId)
-                .eq('user_id', targetUserId)
-                .catchError((e) {
-                  debugPrint('[CommunityRepository] bookmark delete error: $e');
-                }),
-          );
+          unawaited(() async {
+            try {
+              await client
+                  .from('community_bookmarks')
+                  .delete()
+                  .eq('post_id', postId)
+                  .eq('user_id', targetUserId);
+              final updated = findPost(postId);
+              if (updated != null) {
+                await client
+                    .from('community_posts')
+                    .update({'bookmarks_count': updated.bookmarked ? 1 : 0})
+                    .eq('id', postId);
+              }
+            } catch (e) {
+              debugPrint('[CommunityRepository] bookmark delete error: $e');
+            }
+          }());
         }
-      } catch (e) {
-        debugPrint('[CommunityRepository] toggleBookmark error: $e');
       }
     }
   }
@@ -856,19 +1649,22 @@ class CommunityRepository extends ChangeNotifier {
   /// @backend POST /api/v1/community/posts/{postId}/comments
   /// Body: { "body": String, "parent_comment_id": String?, "sentiment": String? }
   /// Returns: CommunityComment JSON
-  void addComment(
+  Future<void> addComment(
     String postId,
     String body, {
     CommunityAuthor? author,
     String? parentId,
     String? sentiment,
-  }) {
-    final a = author ?? _alexVance;
+  }) async {
+    final commentId = SupabaseConfig.isConfigured
+        ? const Uuid().v4()
+        : 'cmt_${DateTime.now().millisecondsSinceEpoch}';
+    final a = author ?? currentAuthor;
     final comment = CommunityComment(
-      id: 'cmt_${DateTime.now().millisecondsSinceEpoch}',
+      id: commentId,
       postId: postId,
       author: a,
-      body: body,
+      body: body.trim(),
       createdAt: DateTime.now(),
       sentiment: sentiment,
       parentCommentId: parentId,
@@ -918,30 +1714,35 @@ class CommunityRepository extends ChangeNotifier {
       ..[postId] = existing;
     _forYouPosts = _incrementComments(_forYouPosts, postId);
     _followingPosts = _incrementComments(_followingPosts, postId);
+    _signalPosts = _incrementComments(_signalPosts, postId);
     notifyListeners();
 
-    if (SupabaseConfig.isConfigured && _isUuid(postId)) {
+    if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final targetUserId = _resolveUserId();
-        final commentId = const Uuid().v4();
-        unawaited(
-          client
-              .from('community_comments')
-              .insert({
-                'id': commentId,
-                'post_id': postId,
-                'author_id': targetUserId,
-                'body': body.trim(),
-                if (parentId != null && _isUuid(parentId))
-                  'parent_id': parentId,
-              })
-              .catchError((e) {
-                debugPrint('[CommunityRepository] addComment error: $e');
-              }),
-        );
+        final actorId = client.auth.currentUser?.id;
+        if (actorId != null) {
+          try {
+            await client.from('community_comments').insert({
+              'id': commentId,
+              'post_id': postId,
+              'author_id': actorId,
+              'body': body.trim(),
+              'moderation_status': 'pending',
+              if (parentId != null && _isUuid(parentId)) 'parent_id': parentId,
+            });
+          } catch (_) {
+            await client.from('community_comments').insert({
+              'id': commentId,
+              'post_id': postId,
+              'author_id': actorId,
+              'body': body.trim(),
+              if (parentId != null && _isUuid(parentId)) 'parent_id': parentId,
+            });
+          }
+        }
       } catch (e) {
-        debugPrint('[CommunityRepository] addComment error: $e');
+        debugPrint('[CommunityRepository] addComment Supabase error: $e');
       }
     }
   }
@@ -967,32 +1768,52 @@ class CommunityRepository extends ChangeNotifier {
           final targetReaction = reaction.trim();
           if (wasLiked && currentReaction == targetReaction) {
             // Tapped same reaction again: toggle off
+            final updatedRx = List<String>.from(c.reactions)..remove(targetReaction);
             return c.copyWith(
               liked: false,
               likes: (c.likes - 1).clamp(0, 99999),
               userReaction: null,
+              reactions: updatedRx,
             );
           } else {
             // New reaction or changing from one reaction to another
+            final updatedRx = List<String>.from(c.reactions);
+            if (currentReaction != null) {
+              updatedRx.remove(currentReaction);
+            }
+            if (!updatedRx.contains(targetReaction)) {
+              updatedRx.add(targetReaction);
+            }
             return c.copyWith(
               liked: true,
               likes: wasLiked ? c.likes : c.likes + 1,
               userReaction: targetReaction,
+              reactions: updatedRx,
             );
           }
         } else {
           // Direct Like button tapped
           if (wasLiked) {
+            final updatedRx = List<String>.from(c.reactions);
+            if (currentReaction != null) {
+              updatedRx.remove(currentReaction);
+            }
             return c.copyWith(
               liked: false,
               likes: (c.likes - 1).clamp(0, 99999),
               userReaction: null,
+              reactions: updatedRx,
             );
           } else {
+            final updatedRx = List<String>.from(c.reactions);
+            if (!updatedRx.contains('👍')) {
+              updatedRx.add('👍');
+            }
             return c.copyWith(
               liked: true,
               likes: c.likes + 1,
               userReaction: '👍',
+              reactions: updatedRx,
             );
           }
         }
@@ -1033,30 +1854,134 @@ class CommunityRepository extends ChangeNotifier {
         _commentsByPost,
       )..[postId] = list;
       notifyListeners();
+
+      CommunityComment? findComment(List<CommunityComment> items) {
+        for (final item in items) {
+          if (item.id == commentId) return item;
+          final found = findComment(item.replies);
+          if (found != null) return found;
+        }
+        return null;
+      }
+
+      final c = findComment(list);
+      final targetUserId = _resolveUserId();
+
+      if (c != null) {
+        // ALWAYS persist reaction to local cache immediately so it's NEVER lost on reload
+        unawaited(_saveLocalCommentReaction(
+          targetUserId,
+          commentId,
+          c.liked ? (c.userReaction ?? '👍') : null,
+        ));
+
+        if (SupabaseConfig.isConfigured && _isUuid(commentId)) {
+          final client = SupabaseConfig.client!;
+          unawaited(() async {
+            try {
+              if (c.liked) {
+                final reactionVal = c.userReaction ?? '👍';
+                bool savedInPrimary = false;
+                try {
+                  await client.from('community_comment_likes').upsert({
+                    'comment_id': commentId,
+                    'user_id': targetUserId,
+                    'reaction': reactionVal,
+                    'created_at': DateTime.now().toIso8601String(),
+                  });
+                  savedInPrimary = true;
+                } catch (ePrimary) {
+                  debugPrint(
+                    '[CommunityRepository] community_comment_likes upsert error: $ePrimary',
+                  );
+                }
+
+                if (!savedInPrimary) {
+                  try {
+                    await client.from('unified_comment_likes').upsert({
+                      'comment_id': commentId,
+                      'user_id': targetUserId,
+                      'reaction': reactionVal,
+                      'created_at': DateTime.now().toIso8601String(),
+                    });
+                  } catch (_) {}
+                }
+
+                try {
+                  await client.from('community_comments').update({
+                    'likes_count': c.likes,
+                  }).eq('id', commentId);
+                } catch (_) {}
+              } else {
+                try {
+                  await client
+                      .from('community_comment_likes')
+                      .delete()
+                      .eq('comment_id', commentId)
+                      .eq('user_id', targetUserId);
+                } catch (_) {}
+
+                try {
+                  await client
+                      .from('unified_comment_likes')
+                      .delete()
+                      .eq('comment_id', commentId)
+                      .eq('user_id', targetUserId);
+                } catch (_) {}
+
+                try {
+                  await client.from('community_comments').update({
+                    'likes_count': c.likes,
+                  }).eq('id', commentId);
+                } catch (_) {}
+              }
+            } catch (e) {
+              debugPrint(
+                '[CommunityRepository] comment reaction sync error: $e',
+              );
+            }
+          }());
+        }
+      }
     }
   }
 
   /// @backend POST /api/v1/community/users/{traderId}/follow
   /// Returns: { "is_following": bool, "followers": int }
   void toggleFollow(String traderId) {
+    final bool wasFollowing =
+        _followedAuthorIds.contains(traderId) ||
+        _suggestedTraders.any(
+          (author) => author.id == traderId && author.isFollowing,
+        );
+    if (wasFollowing) {
+      _followedAuthorIds.remove(traderId);
+    } else {
+      _followedAuthorIds.add(traderId);
+    }
+    final isFollowingNow = !wasFollowing;
+
     _suggestedTraders = _suggestedTraders.map((a) {
       if (a.id != traderId) return a;
       return a.copyWith(
-        isFollowing: !a.isFollowing,
-        followers: a.isFollowing ? a.followers - 1 : a.followers + 1,
+        isFollowing: isFollowingNow,
+        followers: isFollowingNow ? a.followers + 1 : a.followers - 1,
       );
     }).toList();
+
+    _notifications = _notifications.map((n) {
+      if (n.actor?.id == traderId) {
+        return n.copyWith(isFollowingBack: isFollowingNow);
+      }
+      return n;
+    }).toList();
+
     notifyListeners();
 
     if (SupabaseConfig.isConfigured && _isUuid(traderId)) {
       try {
         final client = SupabaseConfig.client!;
         final currentUserId = _resolveUserId();
-        final trader = _suggestedTraders.cast<CommunityAuthor?>().firstWhere(
-          (a) => a?.id == traderId,
-          orElse: () => null,
-        );
-        final isFollowingNow = trader?.isFollowing ?? false;
         if (isFollowingNow) {
           unawaited(
             client
@@ -1135,19 +2060,44 @@ class CommunityRepository extends ChangeNotifier {
       scheduledFor: scheduledFor,
       views: 1,
     );
-    if (SupabaseConfig.isConfigured) {
-      await CommunityPostWriter(
-        SupabaseConfig.client!,
-        SupabaseConfig.client!.auth.currentUser?.id ?? '',
-      ).create(post);
-    }
-
     _forYouPosts = <CommunityPost>[post, ..._forYouPosts];
     _followingPosts = <CommunityPost>[post, ..._followingPosts];
     if (tradeSetup != null) {
       _signalPosts = <CommunityPost>[post, ..._signalPosts];
     }
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured) {
+      try {
+        await CommunityPostWriter(
+          SupabaseConfig.client!,
+          SupabaseConfig.client!.auth.currentUser?.id ?? '',
+        ).create(post);
+      } catch (e) {
+        debugPrint('[CommunityRepository] createPost Supabase error: $e');
+        rethrow;
+      }
+    } else if (attachment != null) {
+      try {
+        await WorkspaceAttachmentService().setVisibility(
+          attachment.source,
+          true,
+        );
+      } catch (_) {}
+    }
+
+    if (attachment != null && !SupabaseConfig.isConfigured) {
+      WorkspacePostService.instance.linkRecord(
+        kind: attachment.source.kind,
+        recordId: attachment.source.id,
+        postId: post.id,
+        postTitle: body.trim().isNotEmpty
+            ? body.trim()
+            : attachment.source.title,
+        authorName: author.displayName,
+        authorHandle: '@${author.handle.replaceFirst('@', '')}',
+      );
+    }
 
     final Set<String> linkedTickers = <String>{
       ...tickers,
@@ -1535,6 +2485,9 @@ class CommunityRepository extends ChangeNotifier {
   /// Body: { "option_index": int }
   /// Returns: CommunityPoll JSON
   void votePoll(String postId, int optionIndex) {
+    CommunityPoll? targetPoll;
+    CommunityPollOption? chosenOption;
+
     _forYouPosts = _forYouPosts.map((p) {
       if (p.id != postId || p.poll == null) return p;
       final poll = p.poll!;
@@ -1553,29 +2506,67 @@ class CommunityRepository extends ChangeNotifier {
           currentIndices.add(optionIndex);
           updatedOptions[optionIndex] = opt.copyWith(votes: opt.votes + 1);
         }
-        return p.copyWith(
-          poll: poll.copyWith(
-            options: updatedOptions,
-            votedOptionIndices: currentIndices,
-            votedOptionIndex: currentIndices.isEmpty
-                ? null
-                : currentIndices.first,
-          ),
+        final updatedPoll = poll.copyWith(
+          options: updatedOptions,
+          votedOptionIndices: currentIndices,
+          votedOptionIndex: currentIndices.isEmpty
+              ? null
+              : currentIndices.first,
         );
+        targetPoll = updatedPoll;
+        chosenOption = opt;
+        return p.copyWith(poll: updatedPoll);
       } else {
         if (poll.hasVoted) return p;
         final opt = updatedOptions[optionIndex];
         updatedOptions[optionIndex] = opt.copyWith(votes: opt.votes + 1);
-        return p.copyWith(
-          poll: poll.copyWith(
-            options: updatedOptions,
-            votedOptionIndex: optionIndex,
-            votedOptionIndices: [optionIndex],
-          ),
+        final updatedPoll = poll.copyWith(
+          options: updatedOptions,
+          votedOptionIndex: optionIndex,
+          votedOptionIndices: [optionIndex],
         );
+        targetPoll = updatedPoll;
+        chosenOption = opt;
+        return p.copyWith(poll: updatedPoll);
       }
     }).toList();
+
+    if (targetPoll != null) {
+      _followingPosts = _followingPosts.map((p) {
+        if (p.id == postId) return p.copyWith(poll: targetPoll);
+        return p;
+      }).toList();
+      _signalPosts = _signalPosts.map((p) {
+        if (p.id == postId) return p.copyWith(poll: targetPoll);
+        return p;
+      }).toList();
+    }
     notifyListeners();
+
+    if (SupabaseConfig.isConfigured &&
+        targetPoll != null &&
+        chosenOption != null) {
+      try {
+        final client = SupabaseConfig.client!;
+        final currentUserId = _resolveUserId();
+        if (_isUuid(targetPoll!.id) && _isUuid(chosenOption!.id)) {
+          unawaited(
+            client
+                .from('community_poll_votes')
+                .upsert({
+                  'poll_id': targetPoll!.id,
+                  'option_id': chosenOption!.id,
+                  'user_id': currentUserId,
+                })
+                .catchError((e) {
+                  debugPrint('[CommunityRepository] votePoll error: $e');
+                }),
+          );
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] votePoll error: $e');
+      }
+    }
   }
 
   /// @backend POST /api/v1/community/reports
@@ -1632,10 +2623,25 @@ class CommunityRepository extends ChangeNotifier {
       ..._followingPosts,
       ..._bookmarkedPosts,
     ];
+    final String mappedId = switch (postId) {
+      'post-101' => 'post_q1',
+      'post-102' => 'post_a2',
+      'post-103' => 'post_a1',
+      'post-104' => 'post_nitish_1',
+      'post-105' => 'post_a3',
+      'post_1' => 'post_nitish_1',
+      'post_2' => 'post_a1',
+      'post_3' => 'post_a2',
+      'post_4' => 'post_a3',
+      'post_5' => 'post_p1',
+      'post_6' => 'post_m1',
+      _ => postId,
+    };
     try {
       return all.firstWhere(
         (p) =>
-            p.id == postId && (p.isPublic || p.author.id == currentAuthor.id),
+            (p.id == postId || p.id == mappedId) &&
+            (p.isPublic || p.author.id == currentAuthor.id),
       );
     } catch (_) {
       return null;
@@ -1651,7 +2657,7 @@ class CommunityRepository extends ChangeNotifier {
       final res = await client
           .from('community_posts')
           .select(
-            '*, profiles(id, username, display_name, avatar_url, bio, role, win_rate, trading_style, verified, followers_count, following_count, posts_count), community_post_trade_setups(*), community_post_attachments(*)',
+            '*, profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url, bio, role, experience_level, trading_style), community_post_trade_setups(*), community_post_attachments(*), community_polls(*, community_poll_options(*))',
           )
           .eq('id', postId)
           .maybeSingle();
@@ -1665,9 +2671,13 @@ class CommunityRepository extends ChangeNotifier {
         }
         final author = CommunityAuthor(
           id: authorId,
-          handle: authorProfile?['username'] as String? ?? 'trader',
+          handle:
+              (authorProfile?['handle'] ?? authorProfile?['username'])
+                  as String? ??
+              'trader',
           displayName:
               authorProfile?['display_name'] as String? ??
+              authorProfile?['handle'] as String? ??
               authorProfile?['username'] as String? ??
               'Trader',
           userRole: _parseUserRole(authorProfile?['role'] as String?),
@@ -1681,9 +2691,14 @@ class CommunityRepository extends ChangeNotifier {
           postsCount: (authorProfile?['posts_count'] as num?)?.toInt() ?? 0,
         );
         CommunityTradeSetup? setup;
-        final setupsList = row['community_post_trade_setups'];
-        if (setupsList != null && setupsList is List && setupsList.isNotEmpty) {
-          final s = setupsList.first as Map<String, dynamic>;
+        final rawSetups = row['community_post_trade_setups'];
+        Map<String, dynamic>? s;
+        if (rawSetups is Map<String, dynamic>) {
+          s = rawSetups;
+        } else if (rawSetups is List && rawSetups.isNotEmpty) {
+          s = rawSetups.first as Map<String, dynamic>;
+        }
+        if (s != null) {
           setup = CommunityTradeSetup(
             ticker: s['ticker'] as String? ?? '',
             side: (s['side']?.toString().toUpperCase() == 'SHORT')
@@ -1705,9 +2720,21 @@ class CommunityRepository extends ChangeNotifier {
             final title = attMap['title']?.toString() ?? '';
             final refId = attMap['ref_id']?.toString() ?? '';
             if (kind == 'image') {
-              final img = url ?? refId;
-              if (img.isNotEmpty && !imageUrls.contains(img)) {
-                imageUrls.add(img);
+              var img = url ?? refId;
+              if (img.isNotEmpty) {
+                if (!img.startsWith('http') &&
+                    !img.startsWith('file:') &&
+                    !img.startsWith('data:') &&
+                    SupabaseConfig.isConfigured) {
+                  try {
+                    img = client.storage
+                        .from('community-attachments')
+                        .getPublicUrl(img);
+                  } catch (_) {}
+                }
+                if (!imageUrls.contains(img)) {
+                  imageUrls.add(img);
+                }
               }
             } else if (kind == 'note' ||
                 kind == 'journal' ||
@@ -1724,7 +2751,65 @@ class CommunityRepository extends ChangeNotifier {
                 ),
                 excerpt: title,
               );
+            } else if (kind == 'chart_candles' && url != null) {
+              try {
+                final decoded = jsonDecode(url);
+                if (decoded is List) {
+                  final candles = <UiCandle>[];
+                  for (final item in decoded) {
+                    if (item is Map) {
+                      final time = DateTime.tryParse('${item['time']}');
+                      if (time != null) {
+                        candles.add(
+                          UiCandle(
+                            time: time,
+                            open: (item['open'] as num?)?.toDouble() ?? 0.0,
+                            high: (item['high'] as num?)?.toDouble() ?? 0.0,
+                            low: (item['low'] as num?)?.toDouble() ?? 0.0,
+                            close: (item['close'] as num?)?.toDouble() ?? 0.0,
+                            volume: (item['volume'] as num?)?.toDouble() ?? 0.0,
+                          ),
+                        );
+                      }
+                    }
+                  }
+                  if (candles.isNotEmpty && setup != null) {
+                    setup = setup.copyWith(candles: candles);
+                  }
+                }
+              } catch (_) {}
             }
+          }
+        }
+        CommunityPoll? poll;
+        final rawPoll = row['community_polls'];
+        if (rawPoll != null) {
+          final pMap = (rawPoll is List && rawPoll.isNotEmpty)
+              ? rawPoll.first as Map<String, dynamic>
+              : (rawPoll is Map<String, dynamic> ? rawPoll : null);
+          if (pMap != null) {
+            final pollId = pMap['id']?.toString() ?? '';
+            final rawOptions =
+                pMap['community_poll_options'] as List? ?? const [];
+            final options = <CommunityPollOption>[];
+            for (final opt in rawOptions) {
+              final oMap = opt as Map<String, dynamic>;
+              options.add(
+                CommunityPollOption(
+                  id: oMap['id']?.toString() ?? '',
+                  text: oMap['option_text']?.toString() ?? '',
+                  votes: (oMap['votes_count'] as num?)?.toInt() ?? 0,
+                ),
+              );
+            }
+            poll = CommunityPoll(
+              id: pollId,
+              question: pMap['question'] as String? ?? '',
+              options: options,
+              expiresAt: DateTime.tryParse(
+                pMap['expires_at']?.toString() ?? '',
+              ),
+            );
           }
         }
         final post = CommunityPost(
@@ -1746,6 +2831,7 @@ class CommunityRepository extends ChangeNotifier {
           imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
           imageUrls: imageUrls,
           attachment: attachment,
+          poll: poll,
           likes: (row['likes_count'] as num?)?.toInt() ?? 0,
           comments: (row['comments_count'] as num?)?.toInt() ?? 0,
           reposts: (row['reposts_count'] as num?)?.toInt() ?? 0,
@@ -1921,18 +3007,270 @@ class CommunityRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  void markAllNotificationsRead() {
-    _notifications = _notifications.map((n) {
-      if (n.read) return n;
-      return CommunityNotificationItem(
-        id: n.id,
-        actor: n.actor,
-        type: n.type,
-        createdAt: n.createdAt,
-        postSnippet: n.postSnippet,
-        read: true,
+  Future<void> fetchNotificationsFromSupabase() async {
+    if (!SupabaseConfig.isConfigured) return;
+    try {
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+
+      final res = await client
+          .from('notifications')
+          .select()
+          .eq('user_id', targetUserId)
+          .order('created_at', ascending: false)
+          .limit(50);
+
+      final actorIds = (res as List)
+          .map((raw) => (raw as Map<String, dynamic>)['actor_id']?.toString())
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toSet();
+
+      final Map<String, CommunityAuthor> actorMap = {};
+      if (actorIds.isNotEmpty) {
+        try {
+          final profRes = await client
+              .from('profiles')
+              .select('id, handle, display_name, avatar_url, role')
+              .inFilter('id', actorIds.toList());
+          for (final raw in profRes as List) {
+            final p = raw as Map<String, dynamic>;
+            final id = p['id']?.toString() ?? '';
+            final rawHandle = p['handle']?.toString() ?? 'trader';
+            final handle = rawHandle.startsWith('@')
+                ? rawHandle.substring(1)
+                : rawHandle;
+            actorMap[id] = CommunityAuthor(
+              id: id,
+              handle: handle,
+              displayName: p['display_name']?.toString() ?? handle,
+              avatarUrl: p['avatar_url']?.toString(),
+              userRole: _parseUserRole(p['role']?.toString()),
+            );
+          }
+        } catch (_) {}
+      }
+
+      final List<CommunityNotificationItem> items = [];
+      for (final raw in res as List) {
+        final row = raw as Map<String, dynamic>;
+        final actorId = row['actor_id']?.toString();
+        final actor = actorId != null ? actorMap[actorId] : null;
+
+        final typeStr =
+            (row['type'] ?? row['category'])?.toString().toLowerCase() ??
+            'system';
+        final type = switch (typeStr) {
+          'like' => CommunityNotificationType.like,
+          'comment' => CommunityNotificationType.comment,
+          'reply' => CommunityNotificationType.reply,
+          'repost' => CommunityNotificationType.repost,
+          'follow' => CommunityNotificationType.follow,
+          'mention' => CommunityNotificationType.mention,
+          'signal' => CommunityNotificationType.signal,
+          'security' => CommunityNotificationType.security,
+          'trade_execution' => CommunityNotificationType.tradeExecution,
+          'margin_alert' => CommunityNotificationType.marginAlert,
+          'message' => CommunityNotificationType.message,
+          _ => CommunityNotificationType.system,
+        };
+
+        final data = row['data'] as Map<String, dynamic>? ?? const {};
+        final postId = data['post_id']?.toString();
+        final postImage = data['post_image']?.toString();
+        final isFollowingBack =
+            actor != null && _followedAuthorIds.contains(actor.id);
+        final bool isRead =
+            row['read'] == true ||
+            row['is_read'] == true ||
+            row['read_at'] != null;
+
+        items.add(
+          CommunityNotificationItem(
+            id: row['id']?.toString() ?? '',
+            actor: actor,
+            type: type,
+            createdAt:
+                DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+                DateTime.now(),
+            title: row['title']?.toString(),
+            body: row['body']?.toString(),
+            postSnippet: data['post_snippet']?.toString(),
+            postId: postId,
+            postImageUrl: postImage,
+            data: data,
+            read: isRead,
+            isFollowingBack: isFollowingBack,
+          ),
+        );
+      }
+
+      if (items.isNotEmpty) {
+        _notifications = items;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint(
+        '[CommunityRepository] fetchNotificationsFromSupabase error: $e',
       );
-    }).toList();
+    }
+  }
+
+  void subscribeToRealtimeNotifications() {
+    if (!SupabaseConfig.isConfigured || _notificationsChannel != null) return;
+    try {
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+
+      _notificationsChannel = client
+          .channel('public:notifications:$targetUserId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'notifications',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: targetUserId,
+            ),
+            callback: (payload) async {
+              final newRow = payload.newRecord;
+              if (newRow.isEmpty) return;
+
+              CommunityAuthor? actor;
+              final actorId = newRow['actor_id']?.toString();
+              if (actorId != null && actorId.isNotEmpty) {
+                try {
+                  final p = await client
+                      .from('profiles')
+                      .select()
+                      .eq('id', actorId)
+                      .maybeSingle();
+                  if (p != null) {
+                    actor = CommunityAuthor(
+                      id: p['id']?.toString() ?? '',
+                      handle: p['handle']?.toString() ?? 'trader',
+                      displayName: p['display_name']?.toString() ?? 'Trader',
+                      avatarUrl: p['avatar_url']?.toString(),
+                      userRole: _parseUserRole(p['role']?.toString()),
+                      verified: p['verified'] as bool? ?? false,
+                    );
+                  }
+                } catch (_) {}
+              }
+
+              final typeStr =
+                  newRow['type']?.toString().toLowerCase() ?? 'system';
+              final type = switch (typeStr) {
+                'like' => CommunityNotificationType.like,
+                'comment' => CommunityNotificationType.comment,
+                'reply' => CommunityNotificationType.reply,
+                'repost' => CommunityNotificationType.repost,
+                'follow' => CommunityNotificationType.follow,
+                'mention' => CommunityNotificationType.mention,
+                'signal' => CommunityNotificationType.signal,
+                'security' => CommunityNotificationType.security,
+                'trade_execution' => CommunityNotificationType.tradeExecution,
+                'margin_alert' => CommunityNotificationType.marginAlert,
+                'message' => CommunityNotificationType.message,
+                _ => CommunityNotificationType.system,
+              };
+
+              final data = newRow['data'] as Map<String, dynamic>? ?? const {};
+              final item = CommunityNotificationItem(
+                id: newRow['id']?.toString() ?? const Uuid().v4(),
+                actor: actor,
+                type: type,
+                createdAt:
+                    DateTime.tryParse(newRow['created_at']?.toString() ?? '') ??
+                    DateTime.now(),
+                title: newRow['title']?.toString(),
+                body: newRow['body']?.toString(),
+                postSnippet: data['post_snippet']?.toString(),
+                postId: data['post_id']?.toString(),
+                postImageUrl: data['post_image']?.toString(),
+                data: data,
+                read: false,
+                isFollowingBack:
+                    actor != null && _followedAuthorIds.contains(actor.id),
+              );
+
+              _notifications.insert(0, item);
+              notifyListeners();
+
+              onLiveNotificationReceived?.call(item);
+            },
+          )
+          .subscribe();
+    } catch (e) {
+      debugPrint(
+        '[CommunityRepository] Realtime notifications subscription error: $e',
+      );
+    }
+  }
+
+  Future<void> markNotificationRead(String id) async {
+    final idx = _notifications.indexWhere((n) => n.id == id);
+    if (idx != -1) {
+      _notifications[idx] = _notifications[idx].copyWith(read: true);
+      notifyListeners();
+    }
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final nowIso = DateTime.now().toIso8601String();
+        try {
+          await SupabaseConfig.client!
+              .from('notifications')
+              .update({'read': true, 'read_at': nowIso})
+              .eq('id', id);
+        } catch (_) {
+          await SupabaseConfig.client!
+              .from('notifications')
+              .update({'read_at': nowIso})
+              .eq('id', id);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] markNotificationRead error: $e');
+      }
+    }
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    _notifications = _notifications.map((n) => n.copyWith(read: true)).toList();
+    notifyListeners();
+
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final targetUserId = _resolveUserId();
+        final nowIso = DateTime.now().toIso8601String();
+        try {
+          await client
+              .from('notifications')
+              .update({'read': true, 'read_at': nowIso})
+              .eq('user_id', targetUserId);
+        } catch (_) {
+          await client
+              .from('notifications')
+              .update({'read_at': nowIso})
+              .eq('user_id', targetUserId)
+              .isFilter('read_at', null);
+        }
+      } catch (e) {
+        debugPrint('[CommunityRepository] markAllNotificationsRead error: $e');
+      }
+    }
+  }
+
+  void toggleFollowFromNotification(CommunityNotificationItem item) {
+    final actor = item.actor;
+    if (actor == null) return;
+    toggleFollow(actor.id);
+  }
+
+  @visibleForTesting
+  void setNotificationsForTesting(List<CommunityNotificationItem> items) {
+    _notifications = List<CommunityNotificationItem>.from(items);
     notifyListeners();
   }
 
@@ -2488,7 +3826,7 @@ class CommunityRepository extends ChangeNotifier {
       displayName: 'Marco Silva',
       userRole: UserRole.affiliate,
       bio:
-          'Official TradeX Partner & trading educator. Sharing setups, execution blueprints, and exclusive member discounts. 50K+ community members.',
+          'Official hejournal.in Partner & trading educator. Sharing setups, execution blueprints, and exclusive member discounts. 50K+ community members.',
       tier: AppTier.enterprise,
       verified: true,
       isFollowing: false,
@@ -2551,7 +3889,7 @@ class CommunityRepository extends ChangeNotifier {
     _tradexWire = const CommunityAuthor(
       id: 'usr_tradex_wire',
       handle: 'tradex_wire',
-      displayName: 'TradeX Market Wire',
+      displayName: 'hejournal.in Market Wire',
       userRole: UserRole.customer,
       bio:
           'Official market news desk: earnings beats, macro data, FII flows, and sector rotation alerts — all in real time.',
@@ -2636,10 +3974,16 @@ class CommunityRepository extends ChangeNotifier {
     _seedTrending();
     _seedNotifications();
     _seedDirectMessages();
+    _followerAuthorIds.addAll(<String>[
+      _priyaSharma.id,
+      _sarahWong.id,
+      _rajeshPatel.id,
+    ]);
+    _followedAuthorIds.add(_arisThorne.id);
     _suggestedTraders = <CommunityAuthor>[
       _marcoSilva,
       _priyaSharma,
-      _arisThorne,
+      _arisThorne.copyWith(isFollowing: true),
       _rajeshPatel,
       _sarahWong,
       _tradexWire,
@@ -2656,13 +4000,13 @@ class CommunityRepository extends ChangeNotifier {
   void _seedPosts() {
     final now = DateTime.now();
     final AppWritingPostAttachment? noteAttachment = _attachableRecords
-        .where((a) => a.kind == AppLinkKind.note)
+        .where((a) => a.kind == AppLinkKind.note && a.isPublic)
         .firstOrNull;
     final AppWritingPostAttachment? journalAttachment = _attachableRecords
-        .where((a) => a.kind == AppLinkKind.journal)
+        .where((a) => a.kind == AppLinkKind.journal && a.isPublic)
         .firstOrNull;
     final AppWritingPostAttachment? strategyAttachment = _attachableRecords
-        .where((a) => a.kind == AppLinkKind.strategy)
+        .where((a) => a.kind == AppLinkKind.strategy && a.isPublic)
         .firstOrNull;
 
     final postPoll = CommunityPost(
@@ -2830,7 +4174,7 @@ class CommunityRepository extends ChangeNotifier {
       author: _marcoSilva,
       repostedBy: 'Alex Vance',
       body:
-          '🚀 New module just dropped for TradeX members: "Earnings Season Playbook" — how I trade pre-earnings IV expansion and post-earnings crush. 47 real trades, video walkthroughs, Q&A session this weekend.\n\nUse code TRADEX-MARCO-2026 for 30% off.',
+          '🚀 New module just dropped for hejournal.in members: "Earnings Season Playbook" — how I trade pre-earnings IV expansion and post-earnings crush. 47 real trades, video walkthroughs, Q&A session this weekend.\n\nUse code TRADEX-MARCO-2026 for 30% off.',
       createdAt: now.subtract(const Duration(hours: 8)),
       tickers: const <String>['AAPL', 'MSFT', 'NVDA'],
       tags: const <String>['Education', 'EarningsSeason', 'OptionsStrategy'],
@@ -3188,10 +4532,31 @@ class CommunityRepository extends ChangeNotifier {
     final now = DateTime.now();
     _notifications = <CommunityNotificationItem>[
       CommunityNotificationItem(
+        id: 'n_sec_1',
+        type: CommunityNotificationType.security,
+        createdAt: now.subtract(const Duration(minutes: 1)),
+        title: 'Security Alert',
+        body:
+            "Someone's trying to log into your hejournal.in account. Let us know if it's you.",
+        read: false,
+      ),
+      CommunityNotificationItem(
+        id: 'n_sec_2',
+        type: CommunityNotificationType.security,
+        createdAt: now.subtract(const Duration(minutes: 2)),
+        title: 'Security Alert',
+        body:
+            "Someone's trying to log into your hejournal.in account. Let us know if it's you.",
+        read: false,
+      ),
+      CommunityNotificationItem(
         id: 'n1',
         actor: _priyaSharma,
         type: CommunityNotificationType.like,
         createdAt: now.subtract(const Duration(minutes: 5)),
+        title: 'New Like',
+        body:
+            'priya_sharma liked your post: "NIFTY reclaimed the opening range…"',
         postSnippet: 'NIFTY reclaimed the opening range…',
         read: false,
       ),
@@ -3200,22 +4565,40 @@ class CommunityRepository extends ChangeNotifier {
         actor: _marcoSilva,
         type: CommunityNotificationType.follow,
         createdAt: now.subtract(const Duration(minutes: 20)),
+        title: 'New Follower',
+        body: 'marco_silva started following you.',
+        read: false,
+        isFollowingBack: false,
+      ),
+      CommunityNotificationItem(
+        id: 'n_trade_1',
+        type: CommunityNotificationType.tradeExecution,
+        createdAt: now.subtract(const Duration(hours: 1)),
+        title: 'Trade Executed',
+        body:
+            'Bought 50 AAPL @ \$185.50 on SMART route. Execution latency: 4ms.',
         read: false,
       ),
       CommunityNotificationItem(
         id: 'n3',
         actor: _arisThorne,
-        type: CommunityNotificationType.repost,
-        createdAt: now.subtract(const Duration(hours: 1)),
-        postSnippet: 'RELIANCE broke out of a 3-week base…',
-        read: false,
+        type: CommunityNotificationType.comment,
+        createdAt: now.subtract(const Duration(days: 6)),
+        title: 'New Comment',
+        body:
+            'aris_thorne and 12 others liked your comment: "Got mine just for 800 rs. 😂 And bro just spent almost 2 lakh ju…"',
+        postSnippet:
+            'Got mine just for 800 rs. 😂 And bro just spent almost 2 lakh ju…',
+        read: true,
       ),
       CommunityNotificationItem(
         id: 'n4',
         actor: _tradexWire,
-        type: CommunityNotificationType.signal,
-        createdAt: now.subtract(const Duration(hours: 2)),
+        type: CommunityNotificationType.repost,
+        createdAt: now.subtract(const Duration(days: 8)),
         read: true,
+        title: 'New Repost',
+        body: 'tradex_wire, deepanshukumar and others reposted your setup.',
         postSnippet: 'RBI holds repo rate at 6.50%…',
       ),
     ];

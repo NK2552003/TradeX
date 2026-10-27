@@ -73,8 +73,16 @@ class UiWaterfallChart extends StatelessWidget {
     double lo = 0;
     double hi = 0;
     for (int i = 0; i < steps.length; i++) {
-      lo = <double>[lo, opens[i], closes[i]].reduce((double a, double b) => a < b ? a : b);
-      hi = <double>[hi, opens[i], closes[i]].reduce((double a, double b) => a > b ? a : b);
+      lo = <double>[
+        lo,
+        opens[i],
+        closes[i],
+      ].reduce((double a, double b) => a < b ? a : b);
+      hi = <double>[
+        hi,
+        opens[i],
+        closes[i],
+      ].reduce((double a, double b) => a > b ? a : b);
     }
     if (hi - lo < 1e-9) hi = lo + 1;
 

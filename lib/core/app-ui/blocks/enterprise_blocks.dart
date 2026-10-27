@@ -350,3 +350,419 @@ class AppUsageBlock extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Institutional Desk Console Reusable Blocks & Overlays
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Live status strip with pulsing heartbeat and top-level institutional metrics.
+class DeskStatusBar extends StatelessWidget {
+  const DeskStatusBar({
+    super.key,
+    required this.isHalted,
+    required this.supervisedCapitalInr,
+    required this.allocatedCapitalInr,
+    required this.seatCount,
+    required this.maxDrawdownPct,
+    this.statusText,
+  });
+
+  final bool isHalted;
+  final double supervisedCapitalInr;
+  final double allocatedCapitalInr;
+  final int seatCount;
+  final double maxDrawdownPct;
+  final String? statusText;
+
+  static String _formatCompact(double val) {
+    final double abs = val.abs();
+    if (abs >= 10000000) {
+      return '₹${(abs / 10000000).toStringAsFixed(2)} Cr';
+    }
+    if (abs >= 100000) {
+      return '₹${(abs / 100000).toStringAsFixed(2)} L';
+    }
+    return '₹${val.toStringAsFixed(0)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final UiColors c = theme.colors;
+
+    final Color statusColor = isHalted ? c.destructive : c.bullish;
+    final String label =
+        statusText ??
+        (isHalted ? 'Desk execution halted' : 'Desk execution active');
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        vertical: context.sp(theme.spacing.sm),
+        horizontal: context.sp(theme.spacing.xs),
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: c.border, width: theme.borders.hairline),
+          bottom: BorderSide(color: c.border, width: theme.borders.hairline),
+        ),
+      ),
+      child: Wrap(
+        spacing: context.sp(theme.spacing.lg),
+        runSpacing: context.sp(theme.spacing.xs),
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: <Widget>[
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              _PulsingDot(color: statusColor),
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              Text(
+                label,
+                style: context.uiText.bodyStrong.copyWith(
+                  color: statusColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          RichText(
+            text: TextSpan(
+              style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+              children: <TextSpan>[
+                const TextSpan(text: 'Firm capital '),
+                TextSpan(
+                  text: _formatCompact(supervisedCapitalInr),
+                  style: context.uiText.caption.copyWith(
+                    color: c.foreground,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          RichText(
+            text: TextSpan(
+              style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+              children: <TextSpan>[
+                TextSpan(text: 'Deployed across $seatCount seats '),
+                TextSpan(
+                  text: _formatCompact(allocatedCapitalInr),
+                  style: context.uiText.caption.copyWith(
+                    color: c.foreground,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          RichText(
+            text: TextSpan(
+              style: context.uiText.caption.copyWith(color: c.foregroundMuted),
+              children: <TextSpan>[
+                const TextSpan(text: 'Max firm drawdown '),
+                TextSpan(
+                  text: '${maxDrawdownPct.toStringAsFixed(2)}%',
+                  style: context.uiText.caption.copyWith(
+                    color: c.foreground,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PulsingDot extends StatefulWidget {
+  const _PulsingDot({required this.color});
+  final Color color;
+
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+    _anim = Tween<double>(
+      begin: 0.35,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _anim,
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+      ),
+    );
+  }
+}
+
+/// One metric KPI entry in a [DeskLedgerBlock].
+class DeskLedgerItem {
+  const DeskLedgerItem({
+    required this.label,
+    required this.value,
+    this.subtext,
+    this.actionLabel,
+    this.valueColor,
+    this.onTap,
+    this.badgeText,
+    this.badgeIntent,
+  });
+
+  final String label;
+  final String value;
+  final String? subtext;
+  final String? actionLabel;
+  final Color? valueColor;
+  final VoidCallback? onTap;
+  final String? badgeText;
+  final UiIntent? badgeIntent;
+}
+
+/// 4-column responsive ledger with thin border dividers.
+class DeskLedgerBlock extends StatelessWidget {
+  const DeskLedgerBlock({super.key, required this.items});
+
+  final List<DeskLedgerItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final UiColors c = theme.colors;
+
+    return LayoutBuilder(
+      builder: (BuildContext ctx, BoxConstraints constraints) {
+        final double width = constraints.maxWidth;
+        final int columns = width >= 900 ? 4 : (width >= 560 ? 2 : 1);
+
+        final List<List<DeskLedgerItem>> rows = <List<DeskLedgerItem>>[];
+        for (int i = 0; i < items.length; i += columns) {
+          final int end = (i + columns <= items.length)
+              ? i + columns
+              : items.length;
+          rows.add(items.sublist(i, end));
+        }
+
+        return Container(
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: c.border,
+                width: theme.borders.hairline,
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (int r = 0; r < rows.length; r++) ...<Widget>[
+                if (r > 0)
+                  Divider(
+                    height: 1,
+                    thickness: theme.borders.hairline,
+                    color: c.border,
+                  ),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      for (
+                        int col = 0;
+                        col < rows[r].length;
+                        col++
+                      ) ...<Widget>[
+                        if (col > 0)
+                          VerticalDivider(
+                            width: 1,
+                            thickness: theme.borders.hairline,
+                            color: c.border,
+                          ),
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              vertical: ctx.sp(theme.spacing.md),
+                              horizontal: ctx.sp(theme.spacing.sm),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: <Widget>[
+                                Row(
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: Text(
+                                        rows[r][col].label,
+                                        style: ctx.uiText.caption.copyWith(
+                                          color: c.foregroundMuted,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                    if (rows[r][col].badgeText != null)
+                                      UiBadge(
+                                        label: rows[r][col].badgeText!,
+                                        intent:
+                                            rows[r][col].badgeIntent ??
+                                            UiIntent.neutral,
+                                        size: UiSize.xs,
+                                      ),
+                                  ],
+                                ),
+                                SizedBox(height: ctx.sp(theme.spacing.xxs)),
+                                Text(
+                                  rows[r][col].value,
+                                  style: ctx.uiText.heading.copyWith(
+                                    color:
+                                        rows[r][col].valueColor ?? c.foreground,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 28,
+                                    fontFeatures: const <FontFeature>[
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(height: ctx.sp(theme.spacing.xxs)),
+                                if (rows[r][col].actionLabel != null &&
+                                    rows[r][col].onTap != null)
+                                  InkWell(
+                                    onTap: rows[r][col].onTap,
+                                    borderRadius: ctx.radius(theme.radii.sm),
+                                    child: Text(
+                                      rows[r][col].actionLabel!,
+                                      style: ctx.uiText.caption.copyWith(
+                                        color: c.primary,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  )
+                                else if (rows[r][col].subtext != null)
+                                  Text(
+                                    rows[r][col].subtext!,
+                                    style: ctx.uiText.caption.copyWith(
+                                      color: c.foregroundMuted,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// A responsive right-side slide-over drawer overlay container for subpages.
+class DeskOverlaySheet extends StatelessWidget {
+  const DeskOverlaySheet({
+    super.key,
+    required this.title,
+    this.subtitle,
+    required this.child,
+    this.actions = const <Widget>[],
+    this.onClose,
+    this.width = 460,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget child;
+  final List<Widget> actions;
+  final VoidCallback? onClose;
+  final double width;
+
+  /// Presents the overlay subpage sliding in smoothly from the right side.
+  static Future<T?> show<T>({
+    required BuildContext context,
+    required String title,
+    String? subtitle,
+    required Widget child,
+    List<Widget> actions = const <Widget>[],
+    double width = 460,
+  }) {
+    final theme = context.ui;
+    final bool mobile = context.uiRes.isMobile;
+    return UiDialog.present<T>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext ctx) => AnimatedPadding(
+        duration: theme.motion.fast,
+        padding: MediaQuery.viewInsetsOf(ctx),
+        child: Align(
+          alignment: mobile ? Alignment.bottomCenter : Alignment.centerRight,
+          child: SizedBox(
+            width: mobile ? double.infinity : ctx.sz(width),
+            height: mobile
+                ? MediaQuery.sizeOf(ctx).height * 0.94
+                : double.infinity,
+            child: Material(
+              type: MaterialType.transparency,
+              child: UiCard(
+                variant: UiCardVariant.elevated,
+                padding: EdgeInsets.zero,
+                borderRadius: mobile
+                    ? BorderRadius.vertical(
+                        top: Radius.circular(ctx.sz(theme.radii.xl)),
+                      )
+                    : BorderRadius.horizontal(
+                        left: Radius.circular(ctx.sz(theme.radii.lg)),
+                      ),
+                child: UiDialog(
+                  title: title,
+                  description: subtitle,
+                  actions: actions,
+                  child: SingleChildScrollView(child: child),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return UiDialog(
+      title: title,
+      description: subtitle,
+      actions: actions,
+      child: child,
+    );
+  }
+}

@@ -8,7 +8,7 @@ import 'package:tradex/features/public_site/data/public_site_repository.dart';
 
 void main() {
   test(
-    'published pricing remains available when database tables are unseeded',
+    'pricing fails closed when database tables are unseeded',
     () async {
       final client = SupabaseClient(
         'https://example.test',
@@ -25,12 +25,11 @@ void main() {
         client,
         fallback: MockPublicSiteRepository(bundle: FileAssets()),
       );
-      final catalogue = await repo.pricing();
-      expect(catalogue['plans'], isNotEmpty);
+      await expectLater(repo.pricing(), throwsA(isA<Object>()));
       await client.dispose();
     },
   );
-  test('stalled database request resolves through bundled pricing', () async {
+  test('stalled database pricing request times out', () async {
     final client = SupabaseClient(
       'https://example.test',
       'test-key',
@@ -41,7 +40,7 @@ void main() {
       fallback: MockPublicSiteRepository(bundle: FileAssets()),
       requestTimeout: const Duration(milliseconds: 20),
     );
-    expect((await repo.pricing())['plans'], isNotEmpty);
+    await expectLater(repo.pricing(), throwsA(isA<TimeoutException>()));
     await client.dispose();
   });
   test('missing landing row resolves through bundled page', () async {

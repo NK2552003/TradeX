@@ -25,6 +25,9 @@ not be described as live until the relevant repository has been swapped.
 | Landing and pricing | [13 Public Site](13-Public_Site/HOW_IT_WORKS.md) | Published JSON catalogues, bundled preview fallback and trusted administration writes. |
 | Calculator history | [06 Calculator History](06-Calculator_History/HOW_IT_WORKS.md) | Persist owner-only history with retention limits. |
 | Entity Ticker Links | [15 Entity Ticker Links](15-Entity_Ticker_Links/HOW_IT_WORKS.md) | Dedicated relational link table (`entity_ticker_links`) maintaining durable ticker associations across Notes, Journals, Strategies, Community, and Messages under daily market data updates. |
+| Affiliate Workspace (100% INR ₹) | [16 Affiliate Workspace](16-Affiliate_Workspace/README.md) | 100% INR (`₹`) partner workspace, dynamic commission tiers & SEBI/ASCI terms, 5% TDS u/s 194H, UPI/NEFT/IMPS/RTGS payout reservations, and admin UTR settlement. |
+| Admin Institutional Desk | [17 Admin Institutional Desk](17-Admin_Institutional_Desk/HOW_IT_WORKS.md) | Complete Admin Console (`overview`, `org_team`, `org_risk`, `org_audit`, `org_analytics`, `affiliate_reviews`), pre-trade INR order approvals, risk breach logs, SHA-256 audit chain, and consumer/affiliate governance. |
+| Account Deletion & Conditional Data Purge | [18 Account Deletion & Data Purge](18-Account_Deletion_And_Data_Purge/HOW_IT_WORKS.md) | Cross-role account deletion (`customer`, `affiliate`, `user_admin`) with 3 post-deletion data purge conditions (`immediate_purge`, `after_30_day_grace`, `purge_personal_keep_tax_ledger`) and `execute_user_data_purge` cascade RPC. |
 
 
 The schema and RLS policies are authoritative for database access. Feature

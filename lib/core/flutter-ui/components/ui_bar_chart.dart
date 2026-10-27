@@ -9,6 +9,7 @@ class UiBarChart extends StatelessWidget {
     super.key,
     this.data = const <UiChartPoint>[],
     required this.series,
+    this.negativeColor,
     this.height,
     this.showGrid = true,
     this.showAxisLabels = true,
@@ -23,6 +24,7 @@ class UiBarChart extends StatelessWidget {
 
   final List<UiChartPoint> data;
   final List<UiChartSeries> series;
+  final Color? negativeColor;
   final double? height;
   final bool showGrid;
   final bool showAxisLabels;
@@ -42,6 +44,7 @@ class UiBarChart extends StatelessWidget {
           (UiChartSeries s) => UiChartSeries(
             name: s.name,
             color: s.color,
+            negativeColor: s.negativeColor ?? negativeColor,
             type: UiChartSeriesType.bar,
             axis: s.axis,
           ),

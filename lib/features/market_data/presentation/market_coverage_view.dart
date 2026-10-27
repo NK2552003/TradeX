@@ -25,8 +25,18 @@ class MarketCoverageView extends StatefulWidget {
 }
 
 class _MarketCoverageViewState extends State<MarketCoverageView> {
-  late final _future = widget.repository.read('tickers/universe');
+  late final _future = _loadDirectory();
   String _status = 'all';
+
+  Future<dynamic> _loadDirectory() async {
+    final data = await widget.repository.safeRead('tickers/universe');
+    if (data is List && data.isNotEmpty) return data;
+    // Single JSON file fallback: construct directory rows from available snapshot quotes
+    return [
+      for (final q in widget.snapshot.instruments)
+        {'ticker': q.symbol, 'name': q.name, 'market': q.market, 'price': q.price}
+    ];
+  }
   @override
   Widget build(BuildContext context) => FutureBuilder<dynamic>(
     future: _future,
@@ -34,7 +44,24 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
       if (result.hasError) {
         return const UiEmptyState(title: 'Directory unavailable');
       }
-      if (!result.hasData) return const UiSkeleton(height: 180);
+      if (!result.hasData) {
+        return UiSkeleton.card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  UiSkeleton.heading(width: 140),
+                  UiSkeleton.badge(width: 60, height: 20),
+                ],
+              ),
+              UiGap.v(context.ui.spacing.md),
+              UiSkeleton.table(rows: 6, columns: 4),
+            ],
+          ),
+        );
+      }
       final directory = (result.data as List).whereType<Map>().toList();
       final quotes = {for (final q in widget.snapshot.instruments) q.symbol: q};
       final query = widget.searchQuery.trim().toLowerCase();
@@ -89,6 +116,8 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
                                   .length /
                               directory.length,
                     label: 'Directory symbols with a quote',
+                    intent: UiIntent.success,
+                    valueFormatter: (v) => '${v.toStringAsFixed(1)}%',
                   ),
                   UiGap.v(context.ui.spacing.md),
                   UiProgressBar(
@@ -98,6 +127,14 @@ class _MarketCoverageViewState extends State<MarketCoverageView> {
                                   quotes.length)
                               .clamp(0.0, 1.0),
                     label: 'Quoted symbols with a full dossier',
+                    intent: UiIntent.primary,
+                    valueFormatter: (v) {
+                      final details = manifest['detail_count'] as num? ?? 0;
+                      if (v > 0 && v < 1) {
+                        return '${v.toStringAsFixed(2)}% ($details profiles)';
+                      }
+                      return '${v.toStringAsFixed(1)}%';
+                    },
                   ),
                   UiGap.v(context.ui.spacing.lg),
                   UiCallout(

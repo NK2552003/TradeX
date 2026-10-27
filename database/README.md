@@ -44,6 +44,7 @@ fresh project and an upgraded project stop agreeing.
 | `023_public_site_and_market_assets.sql` | published landing/pricing JSON contracts, full stock details, read policies |
 | `024_market_screener_snapshots.sql` | complete screener payloads linked to ranked categories, authenticated read policy |
 | `025_entity_ticker_links.sql` | `entity_ticker_links`, persistent relational ticker reference table across Notes, Journal, Strategies, Community, and Messages with daily sync stability and stored RPCs |
+| `026_affiliate_workspace.sql` | partner campaigns/assets, read RPC, payout reservation/settlement, attribution, secured application reviews; see [affiliate handoff](../backend_handoff/16-Affiliate_Workspace/README.md) |
 
 Two steps in that list are not additive and are worth reading before you run
 them: 010 rewrites `strategies.content` from JSONB to TEXT (a playbook is
@@ -199,16 +200,14 @@ both a row policy and an object policy exist for each public bucket.
 ## Refreshed finance assets and public pricing
 
 After installing the schema/migrations, apply `seeds/03_public_site.sql` and
-`seeds/04_market_assets.sql` to load the bundled catalogue and exported market
-records. Seed 04 includes canonical ticker/quote/history/news records, normalized
-screeners, full stock details, options, actions, recommendations, holders and
-index/sector metadata. It is a large full-universe export; run it as a file with
-`psql -v ON_ERROR_STOP=1 -f`, not pasted into a web query editor. Both files can be
-applied again without duplicating articles or ranked results.
+`seeds/04_pricing_catalogue.sql`. The latter publishes the current Free, Pro,
+and Business plans, including the four server-enforced quota limits. The app
+reads published pricing from Supabase; the bundled JSON is a development/demo
+fixture and an admin editor starting point.
 
 `assets/data/manifest.json` reports actual quote, history, detail, article and
 category coverage. `scripts/source_kits.json` records the source archives.
 `python3 scripts/validate_asset_sql.py` checks repeatability in temporary Postgres.
 See `backend_handoff/07-Markets` and `13-Public_Site` for repository/read contracts.
-The app uses bundled pricing when configured database content is absent or fails
-to respond within eight seconds; publishing database catalogue rows takes priority.
+Configured clients fail visibly if the published Supabase pricing row is absent
+or unavailable, instead of presenting fixture prices as a live offer.

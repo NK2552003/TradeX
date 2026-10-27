@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/record_access.dart';
 import 'dart:async';
 
@@ -23,8 +24,8 @@ enum _NotesCollection { mine, public }
 
 /// The notes destination, for every role.
 ///
-/// Fully responsive writing desk notebook matching TraderHub design standards.
-/// Uses pre-built TraderHub components, dynamic real-time data from repositories,
+/// Fully responsive writing desk notebook matching hejournal.in design standards.
+/// Uses pre-built hejournal.in components, dynamic real-time data from repositories,
 /// interactive category tabs, ticker and playbook filters, and spotlight guide keys.
 class NotesScreen extends StatefulWidget {
   const NotesScreen({
@@ -235,6 +236,7 @@ class NotesScreenState extends State<NotesScreen> {
         request.id.startsWith('trade_') ||
         request.id.startsWith('entry_') ||
         request.id.startsWith('trn_') ||
+        request.id.startsWith('trd_') ||
         request.id.startsWith('journal_')) {
       _appliedRequest = request;
       widget.onOpenRef?.call(
@@ -249,6 +251,7 @@ class NotesScreenState extends State<NotesScreen> {
     }
     if (request.kind == AppLinkKind.strategy ||
         request.id.startsWith('strat_') ||
+        request.id.startsWith('stg_') ||
         request.id.startsWith('strategy_')) {
       _appliedRequest = request;
       widget.onOpenRef?.call(
@@ -263,6 +266,12 @@ class NotesScreenState extends State<NotesScreen> {
     }
     if (request.kind != AppLinkKind.note) return;
     _appliedRequest = request;
+    if (request.id.isEmpty) {
+      if (request.editWriting) {
+        _newNote();
+      }
+      return;
+    }
     final revision = ++_accessRevision;
     try {
       final note = await _repo.getById(request.id);
@@ -499,6 +508,11 @@ class NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _newNote() async {
+    final bool canCreate = await CustomerLimitations.checkCanCreateNote(
+      context,
+      currentNoteCount: _notes.where((n) => RecordAccess.owns(n.userId)).length,
+    );
+    if (!canCreate || !mounted) return;
     final AppNoteTemplate? template = await showNoteTemplateGallery(context);
     if (template == null || !mounted) return;
     setState(() {

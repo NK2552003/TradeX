@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:tradex/app.dart';
 import 'package:tradex/core/config/env_config.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/billing/revenuecat_billing.dart';
 
 Future<void> main() async {
   runZonedGuarded(
@@ -28,6 +29,12 @@ Future<void> main() async {
         await SupabaseConfig.initialize();
       } catch (e) {
         debugPrint('[main] SupabaseConfig.initialize caught error: $e');
+      }
+
+      try {
+        await RevenueCatBilling.initialize();
+      } catch (e) {
+        debugPrint('[main] RevenueCat initialization unavailable: $e');
       }
 
       // 3. System UI styling (safe on all platforms)

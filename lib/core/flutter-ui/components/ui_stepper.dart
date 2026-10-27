@@ -81,14 +81,13 @@ class UiStepper extends StatelessWidget {
           // overrunning the row.
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: (i == currentIndex
-                  ? context.uiText.bodyStrong
-                  : context.uiText.body.copyWith(
-                      color: theme.colors.foregroundMuted,
-                    ))
-              .copyWith(
-            fontSize: isMobile ? context.fs(11.5) : null,
-          ),
+          style:
+              (i == currentIndex
+                      ? context.uiText.bodyStrong
+                      : context.uiText.body.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ))
+                  .copyWith(fontSize: isMobile ? context.fs(11.5) : null),
         ),
         if (steps[i].subtitle != null && !isMobile)
           Text(

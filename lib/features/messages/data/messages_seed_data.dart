@@ -73,7 +73,8 @@ class MessagesSeed {
         isGroup: true,
         groupTitle: 'Momentum Squad',
         presence: MessagePresence.online,
-        lastMessagePreview: '${peers[2].displayName ?? peers[2].handle}: '
+        lastMessagePreview:
+            '${peers[2].displayName ?? peers[2].handle}: '
             'Watching NIFTY for a range expansion.',
         lastMessageAt: _now.subtract(const Duration(minutes: 22)),
         unread: 5,
@@ -148,7 +149,9 @@ class MessagesSeed {
                       ? MessageStatus.delivered
                       : MessageStatus.read)
                 : MessageStatus.read,
-            reactions: i == 1 ? const <String, int>{'🔥': 2, '💯': 1} : const <String, int>{},
+            reactions: i == 1
+                ? const <String, int>{'🔥': 2, '💯': 1}
+                : const <String, int>{},
             myReactions: i == 1 ? const <String>{'🔥'} : const <String>{},
           ),
         );
@@ -229,9 +232,7 @@ class MessagesSeed {
         );
       }
 
-      msgs.sort(
-        (ChatMessage a, ChatMessage b) => a.sentAt.compareTo(b.sentAt),
-      );
+      msgs.sort((ChatMessage a, ChatMessage b) => a.sentAt.compareTo(b.sentAt));
       out[thread.id] = msgs;
     }
     return out;

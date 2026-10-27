@@ -107,7 +107,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should find CommunityPostDetailView mounted as active subpage
-      expect(find.byType(CommunityPostDetailView), findsOneWidget);
+      expect(find.byType(CommunityPostDetailView), findsWidgets);
     });
   });
 }

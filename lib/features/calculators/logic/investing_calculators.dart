@@ -88,7 +88,8 @@ GrowthResult calcLumpsum({
     gain: futureValue - principal,
     growthPct: principal <= 0 ? 0 : (futureValue - principal) / principal * 100,
     yearlyValues: <double>[
-      for (int y = 1; y <= years.ceil(); y++) fv(y > years ? years : y.toDouble()),
+      for (int y = 1; y <= years.ceil(); y++)
+        fv(y > years ? years : y.toDouble()),
     ],
   );
 }
@@ -411,6 +412,7 @@ class XirrResult {
   /// False when no rate could be solved — a flat or one-sided set of flows.
   final bool converged;
 }
+
 /// Money-weighted return for irregular cash flows. Outflows are negative, the
 /// closing value is a positive flow on the last date.
 ///
@@ -656,6 +658,7 @@ class GrahamResult {
   /// Price that leaves a 30% margin of safety.
   final double buyBelow;
 }
+
 /// Graham's two valuation yardsticks side by side. A company earning nothing
 /// has no Graham number — the formula needs positive earnings and book value.
 GrahamResult calcGraham({

@@ -1,3 +1,4 @@
+import 'package:tradex/features/affiliate_program/data/affiliate_attribution.dart';
 import 'core/navigation/feature_location_scope.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +19,23 @@ class TradeXApp extends StatefulWidget {
 class _TradeXAppState extends State<TradeXApp> {
   late final GoRouter _router = GoRouter(
     routes: [
+      GoRoute(
+        path: '/r/:code',
+        redirect: (context, state) async {
+          final code = state.pathParameters['code']!;
+          await AffiliateAttribution.capture(
+            code,
+            state.uri.queryParameters['utm_campaign'],
+          );
+          return Uri(
+            path: '/auth/signup',
+            queryParameters: {
+              'ref': code,
+              'utm_campaign': ?state.uri.queryParameters['utm_campaign'],
+            },
+          ).toString();
+        },
+      ),
       for (final path in [
         '/',
         '/auth/:stage',

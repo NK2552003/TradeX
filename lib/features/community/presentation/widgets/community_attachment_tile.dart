@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 
-/// The Writing-Desk record attachment tile for TraderHub (TradeX).
+/// The Writing-Desk record attachment tile for hejournal.in (hejournal.in).
 ///
 /// Renders a linked note, trade-journal entry, or strategy playbook attached to
 /// a community post (or previewed inside the composer). Built on the shared

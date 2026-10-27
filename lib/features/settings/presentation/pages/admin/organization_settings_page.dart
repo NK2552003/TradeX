@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/settings/data/repositories/organization_settings_repository.dart';
 import 'package:tradex/features/settings/models/org_models.dart';
 import 'package:tradex/features/settings/presentation/pages/admin/team_roles_page.dart';
@@ -19,10 +21,13 @@ class OrganizationSettingsPage extends StatefulWidget {
 class _OrganizationSettingsPageState extends State<OrganizationSettingsPage> {
   late final OrganizationSettingsRepository _repo;
   OrgBranding _branding = const OrgBranding(
-    displayName: 'TradeX Institutional Alpha',
+    displayName: 'hejournal.in Institutional Alpha',
   );
   bool _loading = true;
   bool _saving = false;
+  String? _error;
+  String _logoUrl = '';
+  int _memberCount = 0;
   late TextEditingController _nameController;
 
   @override
@@ -43,23 +48,47 @@ class _OrganizationSettingsPageState extends State<OrganizationSettingsPage> {
     setState(() => _loading = true);
     try {
       final b = await _repo.getBranding();
+      final members = await _repo.getMembers();
       if (mounted) {
         setState(() {
           _branding = b;
+          _logoUrl = b.logoUrl ?? '';
+          _memberCount = members.length;
+          _error = null;
           _nameController.text = b.displayName;
           _loading = false;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Organization details could not be loaded. Try again.';
+        });
+      }
     }
   }
 
   Future<void> _saveBranding() async {
-    setState(() => _saving = true);
+    if (_saving) return;
+    final logo = Uri.tryParse(_logoUrl.trim());
+    if (_nameController.text.trim().isEmpty ||
+        (_logoUrl.trim().isNotEmpty &&
+            (logo == null || logo.scheme != 'https' || logo.host.isEmpty))) {
+      setState(
+        () => _error =
+            'Enter an organization name and a valid HTTPS logo URL, or leave the logo blank.',
+      );
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       final updated = await _repo.updateBranding(
         displayName: _nameController.text.trim(),
+        logoUrl: _logoUrl.trim(),
       );
       if (mounted) {
         setState(() {
@@ -88,11 +117,6 @@ class _OrganizationSettingsPageState extends State<OrganizationSettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.ui;
-    final colors = theme.colors;
-    final isMobile = context.uiRes.isMobile;
-
-    // Same shape as the loaded page: the org identity card, then its sections.
     if (_loading) {
       return UiSkeleton.settingsDetail(
         showIdentity: true,
@@ -100,160 +124,92 @@ class _OrganizationSettingsPageState extends State<OrganizationSettingsPage> {
         rowsPerSection: 3,
       );
     }
-    final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
-    final double bottomInset = isMobile
-        ? (keyboardInset > 0 ? keyboardInset + 24.0 : context.uiDockInset)
-        : context.sp(theme.spacing.lg);
-
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(
-        context.sp(theme.spacing.lg),
-        context.sp(theme.spacing.lg),
-        context.sp(theme.spacing.lg),
-        bottomInset,
-      ),
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 980),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Enterprise Badge Header
-              UiCard(
-                accentColor: colors.primary,
-                child: Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-                      decoration: BoxDecoration(
-                        color: colors.primary.withValues(alpha: 0.12),
-                        borderRadius: context.radius(theme.radii.md),
-                      ),
-                      child: Icon(
-                        Icons.corporate_fare_rounded,
-                        color: colors.primary,
-                        size: context.sz(28),
-                      ),
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.md)),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: context.sp(theme.spacing.xs),
-                            runSpacing: context.sp(theme.spacing.xxs),
-                            children: [
-                              Text(
-                                _branding.displayName,
-                                style: context.uiText.heading,
-                              ),
-                              const UiBadge(
-                                label: 'ENTERPRISE DESK',
-                                intent: UiIntent.primary,
-                                size: UiSize.xs,
-                              ),
-                            ],
-                          ),
-                          Text(
-                            'Active Institutional Tier · 3 of 10 Trader Seats Used',
-                            style: context.uiText.caption.copyWith(
-                              color: colors.foregroundMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+    final theme = context.ui;
+    return UiPage(
+      title: 'Organization & team',
+      subtitle:
+          'Manage your firm identity and the people who can access your desk.',
+      actions: [
+        UiButton(
+          label: 'Refresh',
+          variant: UiVariant.outline,
+          leadingIcon: Icons.refresh,
+          onPressed: _loadOrgData,
+        ),
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_error != null) ...[
+            UiCallout(
+              title: 'Check organization details',
+              message: _error,
+              intent: UiIntent.warning,
+            ),
+            UiGap.v(theme.spacing.md),
+          ],
+          UiCard(
+            title: _branding.displayName,
+            subtitle: '$_memberCount desk members',
+            leading: UiAvatar(
+              name: _branding.displayName,
+              imageUrl: _branding.logoUrl?.isEmpty == true
+                  ? null
+                  : _branding.logoUrl,
+            ),
+            child: SettingsNavRow(
+              title: 'Team & Roles',
+              subtitle: 'Review access, change roles and invite colleagues.',
+              icon: Icons.group_outlined,
+              badgeLabel: '$_memberCount members',
+              onTap: () => openSettingsSubpage(
+                context,
+                title: 'Team Directory & Roles',
+                subtitle: 'Manage trader seats, role privileges and invites',
+                icon: Icons.groups_outlined,
+                page: TeamRolesPage(repository: _repo),
               ),
-              SizedBox(height: context.sp(theme.spacing.lg)),
-
-              // Team & Roles Navigation Row
-              AppSettingsSectionBlock(
-                title: 'Team Directory & Access Control',
-                description:
-                    'Manage institutional trader accounts, role privileges, and invite colleagues.',
-                children: [
-                  SettingsNavRow(
-                    title: 'Team & Roles',
-                    subtitle: '3 Active Members (1 Owner, 1 Admin, 1 Trader)',
-                    icon: Icons.group_outlined,
-                    badgeLabel: '3 Seats',
-                    onTap: () {
-                      openSettingsSubpage(
-                        context,
-                        title: 'Team Directory & Roles',
-                        subtitle:
-                            'Manage trader seats, role privileges and invites',
-                        icon: Icons.groups_outlined,
-                        page: TeamRolesPage(repository: _repo),
-                      );
-                    },
-                  ),
-                ],
-              ),
-              SizedBox(height: context.sp(theme.spacing.lg)),
-
-              // Branding Customization
-              AppSettingsSectionBlock(
-                title: 'Organization Identity & White-labeling',
-                description:
-                    'Customize firm branding across shared playbooks and client exports.',
-                children: [
-                  UiCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        UiField(
-                          label: 'Organization Display Name',
-                          child: UiInput(
-                            value: _nameController.text,
-                            hintText: 'e.g. Apex Alpha Capital',
-                            onChanged: (v) => _nameController.text = v,
-                          ),
-                        ),
-                        SizedBox(height: context.sp(theme.spacing.md)),
-                        UiField(
-                          label: 'Desk Logo',
-                          helper:
-                              'Upload high-resolution transparent SVG or PNG logo.',
-                          child: UiDropzone(
-                            message: 'Drag & drop firm logo or click to upload',
-                            onPick: () {
-                              UiToast.show(
-                                context,
-                                title: 'Logo Uploaded',
-                                message: 'New organization logo uploaded.',
-                                intent: UiIntent.success,
-                              );
-                            },
-                          ),
-                        ),
-                        SizedBox(height: context.sp(theme.spacing.lg)),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: SizedBox(
-                            width: isMobile ? double.infinity : null,
-                            child: UiButton(
-                              label: 'Save Branding',
-                              intent: UiIntent.primary,
-                              loading: _saving,
-                              onPressed: _saveBranding,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+            ),
+          ),
+          UiGap.v(theme.spacing.lg),
+          UiCard(
+            title: 'Firm identity',
+            subtitle: 'Use the name and logo your team recognizes.',
+            actions: [
+              UiButton(
+                label: 'Save Branding',
+                intent: UiIntent.primary,
+                loading: _saving,
+                onPressed: _saveBranding,
               ),
             ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                UiField(
+                  label: 'Organization Display Name',
+                  required: true,
+                  child: UiInput(
+                    controller: _nameController,
+                    hintText: 'e.g. Apex Alpha Capital',
+                  ),
+                ),
+                UiGap.v(theme.spacing.md),
+                UiField(
+                  label: 'Logo URL',
+                  helper:
+                      'An HTTPS link to your published firm logo. Leave blank to use your initials.',
+                  child: UiInput(
+                    value: _logoUrl,
+                    hintText: 'https://example.com/logo.png',
+                    onChanged: (value) => _logoUrl = value,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+          SizedBox(height: context.uiDockInset),
+        ],
       ),
     );
   }

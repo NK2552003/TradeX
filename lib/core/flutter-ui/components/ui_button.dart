@@ -67,6 +67,9 @@ class UiButton extends StatelessWidget {
     this.splitAction,
     this.splitIcon = Icons.expand_more,
     this.hideLabelOnMobile = false,
+    this.disabled = false,
+    this.enabled = true,
+    this.alignment,
   }) : leadingIcon = icon ?? leadingIcon;
 
   /// Icon-only shorthand that keeps an accessible label.
@@ -83,6 +86,7 @@ class UiButton extends StatelessWidget {
     bool rounded = true,
     String? tooltip,
     UiButtonStyle? style,
+    AlignmentGeometry? alignment,
   }) : this(
          key: key,
          label: label,
@@ -98,6 +102,7 @@ class UiButton extends StatelessWidget {
          expandOnMobile: false,
          tooltip: tooltip ?? label,
          style: style,
+         alignment: alignment,
        );
 
   final String label;
@@ -142,8 +147,17 @@ class UiButton extends StatelessWidget {
 
   /// Collapses to icon-only on phones to save horizontal space.
   final bool hideLabelOnMobile;
+  final bool disabled;
+  final bool enabled;
 
-  bool get _enabled => (onPressed != null || onLongPress != null) && !loading;
+  /// Alignment of content inside the button (e.g. [Alignment.centerLeft]).
+  final AlignmentGeometry? alignment;
+
+  bool get _enabled =>
+      (onPressed != null || onLongPress != null) &&
+      !loading &&
+      !disabled &&
+      enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -199,7 +213,12 @@ class UiButton extends StatelessWidget {
           foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
           child: ClipRRect(
             borderRadius: radius,
-            child: _content(ctx, st, compactLabel, fullWidth),
+            child: alignment != null
+                ? Align(
+                    alignment: alignment!,
+                    child: _content(ctx, st, compactLabel, fullWidth),
+                  )
+                : _content(ctx, st, compactLabel, fullWidth),
           ),
         );
       },
@@ -280,18 +299,42 @@ class UiButton extends StatelessWidget {
       );
     }
 
+    final bool isLeftAligned =
+        alignment == Alignment.centerLeft ||
+        alignment == AlignmentDirectional.centerStart ||
+        alignment == Alignment.topLeft ||
+        alignment == AlignmentDirectional.topStart ||
+        alignment == Alignment.bottomLeft ||
+        alignment == AlignmentDirectional.bottomStart;
+
+    final bool isRightAligned =
+        alignment == Alignment.centerRight ||
+        alignment == AlignmentDirectional.centerEnd ||
+        alignment == Alignment.topRight ||
+        alignment == AlignmentDirectional.topEnd ||
+        alignment == Alignment.bottomRight ||
+        alignment == AlignmentDirectional.bottomEnd;
+
+    final TextAlign effectiveTextAlign = isLeftAligned
+        ? TextAlign.left
+        : (isRightAligned ? TextAlign.right : TextAlign.center);
+
     final Widget labelWidget = Text(
       loading ? (loadingLabel ?? label) : label,
       overflow: TextOverflow.ellipsis,
       maxLines: 1,
-      textAlign: TextAlign.center,
+      textAlign: effectiveTextAlign,
       style: text,
     );
+
+    final MainAxisAlignment effectiveMainAxisAlignment = isLeftAligned
+        ? MainAxisAlignment.start
+        : (isRightAligned ? MainAxisAlignment.end : MainAxisAlignment.center);
 
     return ClipRect(
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: effectiveMainAxisAlignment,
         children: <Widget>[
           if (lead != null) ...<Widget>[lead, SizedBox(width: gap)],
           Flexible(fit: FlexFit.loose, child: labelWidget),
@@ -356,7 +399,9 @@ class UiButton extends StatelessWidget {
       case UiVariant.primary:
       case UiVariant.solid:
         final Color fill = intent != null ? intent!.color(context) : c.primary;
-        final Color textCol = intent != null ? intent!.onColor(context) : c.onPrimary;
+        final Color textCol = intent != null
+            ? intent!.onColor(context)
+            : c.onPrimary;
         return _ButtonStyle(
           background: hoverMix(fill, fill.withValues(alpha: 0.88)),
           foreground: textCol,

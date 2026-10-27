@@ -20,7 +20,8 @@ class _AiPageState extends State<AiPage> {
     AppAiMessage(
       id: 'msg_001',
       role: AppAiRole.assistant,
-      body: 'Hello Nitish! I am your TradeX AI Copilot. Ask me about your journal performance, active setups, or risk parameters.',
+      body:
+          'Hello Nitish! I am your hejournal.in AI Copilot. Ask me about your journal performance, active setups, or risk parameters.',
       sentAt: DateTime.now().subtract(const Duration(minutes: 5)),
     ),
   ];
@@ -62,7 +63,10 @@ class _AiPageState extends State<AiPage> {
       _aiMessages.add(userMsg);
     });
 
-    final insight = await _repo.requestInsight(kind: 'chat_prompt', ticker: 'NIFTY50');
+    final insight = await _repo.requestInsight(
+      kind: 'chat_prompt',
+      ticker: 'NIFTY50',
+    );
     final assistantMsg = AppAiMessage(
       id: 'ai_${DateTime.now().millisecondsSinceEpoch}',
       role: AppAiRole.assistant,

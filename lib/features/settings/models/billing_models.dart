@@ -76,6 +76,10 @@ class SubscriptionSummary {
   int get maxTradesPerMonth => _count('journal_trades_limit');
   int get aiTokensUsed => _count('ai_queries_used');
   int get maxAiTokens => _count('ai_queries_limit');
+  int get notesUsed => _count('notes_used');
+  int get maxNotes => _count('notes_limit');
+  int get livePlaybooksUsed => _count('live_playbooks_used');
+  int get maxLivePlaybooks => _count('live_playbooks_limit');
   int get seatsUsed => _count('seats_used');
   int get maxSeats => _count('seats_limit');
 
@@ -154,16 +158,16 @@ class PaymentMethodSummary {
 @immutable
 class CheckoutSession {
   const CheckoutSession({
-    this.sessionId = 'cs_mock_12345',
-    this.url = 'https://checkout.stripe.com/c/pay/mock_session',
-    this.checkoutUrl = 'https://checkout.stripe.com/c/pay/mock_session',
-    this.clientSecret = 'pi_mock_secret_123456789',
+    required this.sessionId,
+    required this.url,
+    required this.checkoutUrl,
+    this.clientSecret,
   });
 
   final String sessionId;
   final String url;
   final String checkoutUrl;
-  final String clientSecret;
+  final String? clientSecret;
 }
 
 /// The entity that raised an invoice: who is charging, from where, and under

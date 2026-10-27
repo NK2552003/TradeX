@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 
 /// Represents a persistent link between a market ticker symbol and an entity
-/// across TradeX (trader note, trade journal entry, strategy playbook,
+/// across hejournal.in (trader note, trade journal entry, strategy playbook,
 /// community post, or direct message).
 ///
 /// Because market tickers undergo daily quotes, price updates, splits, and
@@ -54,29 +55,26 @@ class EntityTickerLink {
     'updated_at': updatedAt.toIso8601String(),
   };
 
-  factory EntityTickerLink.fromJson(Map<String, dynamic> json) =>
-      EntityTickerLink(
-        id: json['id']?.toString() ?? '',
-        userId: json['user_id']?.toString() ?? 'demo_user',
-        entityType: json['entity_type']?.toString() ?? 'note',
-        entityId: json['entity_id']?.toString() ?? '',
-        ticker: (json['ticker']?.toString() ?? '').toUpperCase(),
-        contextSource: json['context_source']?.toString() ?? 'inline',
-        priceAtLink: (json['price_at_link'] as num?)?.toDouble(),
-        metadata:
-            (json['metadata'] as Map<String, dynamic>?) ??
-            const <String, dynamic>{},
-        createdAt:
-            json['created_at'] == null
-                ? DateTime.now()
-                : DateTime.tryParse(json['created_at'].toString()) ??
-                    DateTime.now(),
-        updatedAt:
-            json['updated_at'] == null
-                ? DateTime.now()
-                : DateTime.tryParse(json['updated_at'].toString()) ??
-                    DateTime.now(),
-      );
+  factory EntityTickerLink.fromJson(
+    Map<String, dynamic> json,
+  ) => EntityTickerLink(
+    id: json['id']?.toString() ?? '',
+    userId: json['user_id']?.toString() ?? '',
+    entityType: json['entity_type']?.toString() ?? 'note',
+    entityId: json['entity_id']?.toString() ?? '',
+    ticker: (json['ticker']?.toString() ?? '').toUpperCase(),
+    contextSource: json['context_source']?.toString() ?? 'inline',
+    priceAtLink: (json['price_at_link'] as num?)?.toDouble(),
+    metadata:
+        (json['metadata'] as Map<String, dynamic>?) ??
+        const <String, dynamic>{},
+    createdAt: json['created_at'] == null
+        ? DateTime.now()
+        : DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now(),
+    updatedAt: json['updated_at'] == null
+        ? DateTime.now()
+        : DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now(),
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -90,7 +88,7 @@ class EntityTickerLink {
 }
 
 /// Repository and service for recording, querying, and observing ticker links
-/// across all TradeX surfaces (Notes, Journal, Strategies, Community, Messages).
+/// across all hejournal.in surfaces (Notes, Journal, Strategies, Community, Messages).
 ///
 /// Ensures every linked ticker is stored directly to the `entity_ticker_links`
 /// table so that daily ticker data updates and symbol modifications do not cause
@@ -103,6 +101,10 @@ class EntityTickerLinksRepository {
 
   static final RegExp _cashtagRegex = RegExp(
     r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)',
+  );
+
+  static final RegExp _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   );
 
   /// Helper to extract all `$TICKER` cashtags from markdown or plain text.
@@ -122,8 +124,6 @@ class EntityTickerLinksRepository {
   final StreamController<List<EntityTickerLink>> _streamController =
       StreamController<List<EntityTickerLink>>.broadcast();
 
-  int _nextId = 0;
-
   /// Records ticker links for an entity directly into the repository and
   /// synchronizes to the backend `entity_ticker_links` table if connected.
   Future<List<EntityTickerLink>> recordLinks({
@@ -136,16 +136,13 @@ class EntityTickerLinksRepository {
     Map<String, dynamic> metadata = const <String, dynamic>{},
   }) async {
     final String uid =
-        userId ??
-        SupabaseConfig.client?.auth.currentUser?.id ??
-        'demo_user';
+        userId ?? SupabaseConfig.client?.auth.currentUser?.id ?? '';
     final DateTime now = DateTime.now();
 
-    final Set<String> cleanedTickers =
-        tickers
-            .map((t) => t.replaceAll(r'$', '').trim().toUpperCase())
-            .where((t) => t.isNotEmpty)
-            .toSet();
+    final Set<String> cleanedTickers = tickers
+        .map((t) => t.replaceAll(r'$', '').trim().toUpperCase())
+        .where((t) => t.isNotEmpty)
+        .toSet();
 
     if (cleanedTickers.isEmpty) {
       await removeLinks(entityType: entityType, entityId: entityId);
@@ -188,7 +185,7 @@ class EntityTickerLinksRepository {
         updatedLinks.add(updated);
       } else {
         final EntityTickerLink created = EntityTickerLink(
-          id: 'etl_${(++_nextId).toString().padLeft(4, '0')}_${now.millisecondsSinceEpoch}',
+          id: const Uuid().v4(),
           userId: uid,
           entityType: entityType,
           entityId: entityId,
@@ -208,13 +205,24 @@ class EntityTickerLinksRepository {
 
     // Async push to backend Supabase table if online
     final client = SupabaseConfig.client;
-    if (client != null) {
+    if (client != null && _uuidRegex.hasMatch(uid)) {
       try {
-        final List<Map<String, dynamic>> payload =
-            updatedLinks.map((l) => l.toJson()).toList(growable: false);
+        final List<Map<String, dynamic>> payload = updatedLinks
+            .map((l) {
+              final map = l.toJson();
+              if (!_uuidRegex.hasMatch(l.id)) {
+                // Remove local client-generated id so PostgreSQL generates a valid UUID default
+                map.remove('id');
+              }
+              return map;
+            })
+            .toList(growable: false);
         await client
             .from('entity_ticker_links')
-            .upsert(payload, onConflict: 'user_id,entity_type,entity_id,ticker');
+            .upsert(
+              payload,
+              onConflict: 'user_id,entity_type,entity_id,ticker',
+            );
       } catch (e) {
         debugPrint('[EntityTickerLinksRepository] Backend sync warning: $e');
       }
@@ -298,7 +306,6 @@ class EntityTickerLinksRepository {
   @visibleForTesting
   void clearForTesting() {
     _links.clear();
-    _nextId = 0;
     _notify();
   }
 }

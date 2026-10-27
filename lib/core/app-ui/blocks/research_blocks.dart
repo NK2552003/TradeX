@@ -156,7 +156,11 @@ class AppNewsStoryCard extends StatelessWidget {
               child: Row(
                 children: [
                   if (contentType == 'VIDEO') ...[
-                    Icon(Icons.play_circle_outline_rounded, size: 16, color: context.ui.colors.foregroundMuted),
+                    Icon(
+                      Icons.play_circle_outline_rounded,
+                      size: 16,
+                      color: context.ui.colors.foregroundMuted,
+                    ),
                     const UiGap.h(4),
                   ],
                   Expanded(
@@ -198,15 +202,15 @@ class AppNewsStoryCard extends StatelessWidget {
                       height: 1.45,
                     ),
                   ),
-                  if (!compact && summary.isNotEmpty) ...[
-                    const UiGap.v(8),
+                  if (summary.trim().isNotEmpty) ...[
+                    const UiGap.v(6),
                     Text(
-                      summary,
-                      maxLines: 3,
+                      summary.trim(),
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: context.uiText.caption.copyWith(
                         color: context.ui.colors.foregroundMuted,
-                        height: 1.5,
+                        height: 1.35,
                       ),
                     ),
                   ],
@@ -222,7 +226,8 @@ class AppNewsStoryCard extends StatelessWidget {
                   width: 80,
                   height: 80,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const SizedBox(width: 80, height: 80),
+                  errorBuilder: (_, _, _) =>
+                      const SizedBox(width: 80, height: 80),
                 ),
               ),
             ],

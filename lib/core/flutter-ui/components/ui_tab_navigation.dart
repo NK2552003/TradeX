@@ -85,10 +85,7 @@ class UiTabNavigation extends StatelessWidget {
     if (views == null || views.isEmpty) return const <UiNavItem>[];
     return List<UiNavItem>.generate(
       views.length,
-      (int i) => UiNavItem(
-        label: 'Tab ${i + 1}',
-        icon: Icons.tab_rounded,
-      ),
+      (int i) => UiNavItem(label: 'Tab ${i + 1}', icon: Icons.tab_rounded),
     );
   }
 
@@ -126,10 +123,7 @@ class UiTabNavigation extends StatelessWidget {
               crossAxisAlignment: hasBoundedHeight
                   ? CrossAxisAlignment.stretch
                   : CrossAxisAlignment.start,
-              children: <Widget>[
-                nav,
-                viewWidget,
-              ],
+              children: <Widget>[nav, viewWidget],
             );
           } else {
             final Widget viewWidget = hasBoundedHeight
@@ -137,10 +131,7 @@ class UiTabNavigation extends StatelessWidget {
                 : currentView;
             return Column(
               mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                viewWidget,
-                nav,
-              ],
+              children: <Widget>[viewWidget, nav],
             );
           }
         }
@@ -262,10 +253,7 @@ class UiTabNavigation extends StatelessWidget {
             ),
             SizedBox(height: context.sp(theme.spacing.sm)),
           ],
-          if (hasBoundedHeight)
-            Expanded(child: itemsList)
-          else
-            itemsList,
+          if (hasBoundedHeight) Expanded(child: itemsList) else itemsList,
           if (footer != null) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.sm)),
             Padding(

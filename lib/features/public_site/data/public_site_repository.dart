@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/public_site/models/public_site_content.dart';
 
@@ -54,25 +55,33 @@ class DatabasePublicSiteRepository implements PublicSiteRepository {
 
   @override
   Future<Map<String, dynamic>> pricing() async {
-    try {
-      final row = await client
-          .from('pricing_catalogues')
-          .select('catalogue')
-          .eq('id', 'default')
-          .eq('published', true)
-          .maybeSingle()
-          .timeout(requestTimeout);
-      final content = row?['catalogue'];
-      if (content is! Map || (content['plans'] as List? ?? []).isEmpty) {
-        return await _fallback.pricing();
-      }
-      return Map<String, dynamic>.from(content);
-    } catch (_) {
-      return await _fallback.pricing();
+    final row = await client
+        .from('pricing_catalogues')
+        .select('catalogue')
+        .eq('id', 'default')
+        .eq('published', true)
+        .maybeSingle()
+        .timeout(requestTimeout);
+    final content = row?['catalogue'];
+    if (content is! Map || (content['plans'] as List? ?? []).isEmpty) {
+      throw StateError('No published pricing catalogue is available.');
     }
+    return Map<String, dynamic>.from(content);
   }
 }
 
 PublicSiteRepository publicSiteRepository() => SupabaseConfig.isConfigured
     ? DatabasePublicSiteRepository(SupabaseConfig.client!)
-    : MockPublicSiteRepository();
+    : _UnconfiguredPublicSiteRepository();
+
+class _UnconfiguredPublicSiteRepository extends MockPublicSiteRepository {
+  @override
+  Future<Map<String, dynamic>> pricing() {
+    if (CustomerDataPolicy.allowDemo) {
+      return super.pricing();
+    }
+    return Future<Map<String, dynamic>>.error(
+      StateError('Supabase is required to load subscription pricing.'),
+    );
+  }
+}

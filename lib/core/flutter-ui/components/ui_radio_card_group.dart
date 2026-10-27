@@ -96,12 +96,11 @@ class UiRadioCardGroup<T> extends StatelessWidget {
         final double availableWidth = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : 360.0;
-        final int effectiveCols =
-            (availableWidth < 380 && cols > 1) ? 1 : cols;
+        final int effectiveCols = (availableWidth < 380 && cols > 1) ? 1 : cols;
         final double itemWidth = effectiveCols <= 1
             ? availableWidth
             : ((availableWidth - gap * (effectiveCols - 1)) / effectiveCols)
-                .clamp(40.0, availableWidth);
+                  .clamp(40.0, availableWidth);
         return Wrap(
           spacing: gap,
           runSpacing: gap,

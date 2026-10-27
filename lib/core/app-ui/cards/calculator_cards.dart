@@ -251,4 +251,3 @@ class AppCalculatorWorkspaceSkeleton extends StatelessWidget {
     );
   }
 }
-

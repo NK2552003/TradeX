@@ -58,7 +58,8 @@ abstract final class FeatureGuideSteps {
     ),
     FeatureGuideStep(
       id: 'rules',
-      title: 'Write your rules (entry, invalidation, stop, sizing, exit) '
+      title:
+          'Write your rules (entry, invalidation, stop, sizing, exit) '
           'and save as Draft',
       why:
           'A playbook only proves itself if the rules were written before the '

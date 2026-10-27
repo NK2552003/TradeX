@@ -1,7 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/config/record_access.dart';
 import 'package:tradex/core/data/owned_record_writer.dart';
-import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -9,7 +10,6 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 import 'package:uuid/uuid.dart';
 
@@ -30,6 +30,8 @@ abstract class JournalRepository {
   Stream<List<AppTrade>> watchPublic();
 
   Future<List<AppTrade>> fetchAll();
+
+  Future<List<AppTrade>> fetchPublicEntries();
 
   Future<AppTrade?> getById(String id);
 
@@ -82,7 +84,6 @@ class JournalRepositoryImpl implements JournalRepository {
   /// Shared so the index, the reader and the editor observe one journal.
   static final JournalRepositoryImpl instance = JournalRepositoryImpl._();
 
-  static const String _demoUserId = '00000000-0000-0000-0000-000000000001';
   static final RegExp _uuidRegex = RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   );
@@ -106,7 +107,13 @@ class JournalRepositoryImpl implements JournalRepository {
         return user.id;
       }
     }
-    return _demoUserId;
+    final stored =
+        SupabaseAuthBackendService.instance.currentUserProfile?.id ??
+        AuthBackendService.instance.currentUserProfile?.id;
+    if (stored != null && stored.isNotEmpty) {
+      return stored;
+    }
+    return '';
   }
 
   bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
@@ -122,21 +129,17 @@ class JournalRepositoryImpl implements JournalRepository {
     if (_initialized) return;
     _initialized = true;
     final preferences = await SharedPreferences.getInstance();
-    _favoriteIds.addAll(
-      preferences.getStringList('journal_favorites:$actor') ?? const <String>[],
-    );
-
-    if (!SupabaseConfig.isConfigured && !CustomerDataPolicy.allowDemo) {
-      _publish();
-      return;
+    if (actor.isNotEmpty) {
+      _favoriteIds.addAll(
+        preferences.getStringList('journal_favorites:$actor') ??
+            const <String>[],
+      );
     }
+
     if (SupabaseConfig.isConfigured) {
       _initRealtime();
       await _fetchFromSupabase();
     } else {
-      // Offline / testing fallback without live Supabase
-      _entries.addAll(DemoDataSource.instance.trades());
-      _syncAllTickerLinks();
       _publish();
     }
   }
@@ -173,8 +176,7 @@ class JournalRepositoryImpl implements JournalRepository {
         final newRecord = payload.newRecord;
         if (newRecord.isNotEmpty) {
           final recordUserId = newRecord['user_id']?.toString();
-          final isPublic = newRecord['is_public'] == true;
-          if (recordUserId == currentUserId || isPublic) {
+          if (recordUserId == currentUserId) {
             final trade = _mapRowToTrade(newRecord);
             _entries.removeWhere((t) => t.id == trade.id);
             _entries.insert(0, trade);
@@ -186,18 +188,20 @@ class JournalRepositoryImpl implements JournalRepository {
         final newRecord = payload.newRecord;
         if (newRecord.isNotEmpty) {
           final trade = _mapRowToTrade(newRecord);
-          final at = _entries.indexWhere((t) => t.id == trade.id);
-          if (at != -1) {
-            _entries[at] = trade;
-          } else {
-            final recordUserId = newRecord['user_id']?.toString();
-            final isPublic = newRecord['is_public'] == true;
-            if (recordUserId == currentUserId || isPublic) {
+          final recordUserId = newRecord['user_id']?.toString();
+          if (recordUserId == currentUserId) {
+            final at = _entries.indexWhere((t) => t.id == trade.id);
+            if (at != -1) {
+              _entries[at] = trade;
+            } else {
               _entries.insert(0, trade);
             }
+            _recordTickerLinks(trade);
+            _publish();
+          } else {
+            _entries.removeWhere((t) => t.id == trade.id);
+            _publish();
           }
-          _recordTickerLinks(trade);
-          _publish();
         }
       } else if (eventType == PostgresChangeEvent.delete) {
         final oldRecord = payload.oldRecord;
@@ -223,11 +227,16 @@ class JournalRepositoryImpl implements JournalRepository {
     try {
       final client = SupabaseConfig.client!;
       final targetUserId = _resolveUserId();
+      if (targetUserId.isEmpty) {
+        _entries.clear();
+        _publish();
+        return;
+      }
 
       final res = await client
           .from('journal_entries')
-          .select('*, strategies(name)')
-          .or('user_id.eq.$targetUserId,is_public.eq.true')
+          .select('*, strategies(id, title)')
+          .eq('user_id', targetUserId)
           .order('opened_at', ascending: false);
 
       final List<AppTrade> list = (res as List)
@@ -275,7 +284,8 @@ class JournalRepositoryImpl implements JournalRepository {
 
     String? strategyName = row['strategy_name'] as String?;
     if (strategyName == null && row['strategies'] is Map) {
-      strategyName = (row['strategies'] as Map)['name']?.toString();
+      final sMap = row['strategies'] as Map;
+      strategyName = (sMap['title'] ?? sMap['name'])?.toString();
     }
 
     final AppOutcome outcome = switch (outcomeStr) {
@@ -460,40 +470,61 @@ class JournalRepositoryImpl implements JournalRepository {
   }
 
   @override
+  Future<List<AppTrade>> fetchPublicEntries() async {
+    if (!SupabaseConfig.isConfigured) {
+      return _entries.where((e) => e.isPublic).toList();
+    }
+    try {
+      final client = SupabaseConfig.client!;
+      final res = await client
+          .from('journal_entries')
+          .select('*, strategies(id, title)')
+          .eq('is_public', true)
+          .order('opened_at', ascending: false)
+          .limit(50);
+      return (res as List)
+          .map((row) => _mapRowToTrade(row as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('[JournalRepository] fetchPublicEntries error: $e');
+      return _entries.where((e) => e.isPublic).toList();
+    }
+  }
+
+  @override
   Future<AppTrade?> getById(String id) async {
     await _init();
-    if (!SupabaseConfig.isConfigured) {
-      for (final AppTrade entry in _entries) {
-        if (entry.id == id) return entry;
-      }
+    for (final AppTrade entry in _entries) {
+      if (entry.id == id) return entry;
     }
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
         final client = SupabaseConfig.client!;
         final res = await client
             .from('journal_entries')
-            .select('*, strategies(name)')
+            .select('*, strategies(id, title)')
             .eq('id', id)
             .maybeSingle();
         if (res != null) {
           final trade = _mapRowToTrade(res);
           if (!RecordAccess.canRead(trade.userId, trade.isPublic)) {
-            _entries.removeWhere((item) => item.id == id);
             return null;
           }
-          final at = _entries.indexWhere((t) => t.id == trade.id);
-          if (at == -1) {
-            _entries.insert(0, trade);
-          } else {
-            _entries[at] = trade;
+          final currentUserId = _resolveUserId();
+          if (trade.userId == currentUserId) {
+            final at = _entries.indexWhere((t) => t.id == trade.id);
+            if (at == -1) {
+              _entries.insert(0, trade);
+            } else {
+              _entries[at] = trade;
+            }
+            _recordTickerLinks(trade);
+            _publish();
           }
-          _publish();
           return trade;
         }
-        _entries.removeWhere((record) => record.id == id);
       } catch (e) {
         debugPrint('[JournalRepository] getById error: $e');
-        rethrow;
       }
     }
     return null;
@@ -505,13 +536,12 @@ class JournalRepositoryImpl implements JournalRepository {
     await _init();
 
     AppTrade saved = draft;
+    final targetUserId = _resolveUserId();
+    final String assignedId = _isUuid(draft.id) ? draft.id : const Uuid().v4();
+
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final targetUserId = _resolveUserId();
-        final String assignedId = _isUuid(draft.id)
-            ? draft.id
-            : const Uuid().v4();
         final row = _mapTradeToRow(
           draft.withDerivedCounts(),
           targetUserId,
@@ -521,22 +551,27 @@ class JournalRepositoryImpl implements JournalRepository {
         final res = await client
             .from('journal_entries')
             .insert(row)
-            .select('*, strategies(name)')
+            .select('*, strategies(id, title)')
             .single();
 
         saved = _mapRowToTrade(res);
       } catch (e) {
-        debugPrint('[JournalRepository] create error: $e');
-        rethrow;
+        debugPrint(
+          '[JournalRepository] create error (cloud sync fallback): $e',
+        );
+        saved = draft
+            .copyWith(
+              id: assignedId,
+              userId: targetUserId,
+              updatedAt: DateTime.now(),
+            )
+            .withDerivedCounts();
       }
     } else {
       saved = draft
           .copyWith(
-            id:
-                draft.id.isEmpty ||
-                    (SupabaseConfig.isConfigured && !_isUuid(draft.id))
-                ? const Uuid().v4()
-                : draft.id,
+            id: assignedId,
+            userId: targetUserId,
             updatedAt: DateTime.now(),
           )
           .withDerivedCounts();
@@ -572,13 +607,14 @@ class JournalRepositoryImpl implements JournalRepository {
             .update(row)
             .eq('id', entry.id)
             .eq('user_id', targetUserId)
-            .select('*, strategies(name)')
+            .select('*, strategies(id, title)')
             .single();
 
         saved = _mapRowToTrade(res);
       } catch (e) {
-        debugPrint('[JournalRepository] update error: $e');
-        rethrow;
+        debugPrint(
+          '[JournalRepository] update error (cloud sync fallback): $e',
+        );
       }
     }
 

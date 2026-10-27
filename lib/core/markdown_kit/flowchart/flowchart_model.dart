@@ -30,7 +30,11 @@ class FlowPoint {
 }
 
 class FlowNode {
-  FlowNode({required this.id, required this.label, this.shape = FlowNodeShape.rect});
+  FlowNode({
+    required this.id,
+    required this.label,
+    this.shape = FlowNodeShape.rect,
+  });
 
   final String id;
   String label;
@@ -83,10 +87,10 @@ class FlowGraph {
 
   /// An empty graph — used as a safe fallback when nothing could be parsed.
   factory FlowGraph.empty() => FlowGraph(
-        direction: FlowDirection.topToBottom,
-        nodes: <String, FlowNode>{},
-        edges: <FlowEdge>[],
-      );
+    direction: FlowDirection.topToBottom,
+    nodes: <String, FlowNode>{},
+    edges: <FlowEdge>[],
+  );
 
   final FlowDirection direction;
   final Map<String, FlowNode> nodes;

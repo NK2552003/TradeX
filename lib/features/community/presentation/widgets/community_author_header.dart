@@ -111,6 +111,7 @@ class CommunityAuthorHeader extends StatelessWidget {
     Color verifiedColor,
     String timeAgo,
   ) {
+    final cleanHandle = author.handle.replaceFirst(RegExp(r'^@'), '');
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: 4,
@@ -148,9 +149,9 @@ class CommunityAuthorHeader extends StatelessWidget {
             variant: UiBadgeVariant.soft,
             size: UiSize.xs,
           ),
-        if (author.handle.isNotEmpty)
+        if (cleanHandle.isNotEmpty)
           Text(
-            '@${author.handle}',
+            '@$cleanHandle',
             style: context.uiText.caption.copyWith(
               color: theme.colors.foregroundMuted,
             ),
@@ -171,6 +172,7 @@ class CommunityAuthorHeader extends StatelessWidget {
     Color verifiedColor,
     String timeAgo,
   ) {
+    final cleanHandle = author.handle.replaceFirst(RegExp(r'^@'), '');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -226,7 +228,7 @@ class CommunityAuthorHeader extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          author.handle.isEmpty ? timeAgo : '@${author.handle} · $timeAgo',
+          cleanHandle.isEmpty ? timeAgo : '@$cleanHandle · $timeAgo',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: context.uiText.caption.copyWith(
@@ -239,6 +241,7 @@ class CommunityAuthorHeader extends StatelessWidget {
   }
 
   Widget _buildOverflowMenu(BuildContext context) {
+    final cleanHandle = author.handle.replaceFirst(RegExp(r'^@'), '');
     return UiDropdownMenu(
       actions: <UiMenuItem>[
         if (onEdit != null)
@@ -262,7 +265,7 @@ class CommunityAuthorHeader extends StatelessWidget {
             onPressed: onBookmark!,
           ),
         UiMenuItem(
-          label: 'Mute @${author.handle}',
+          label: 'Mute @$cleanHandle',
           icon: Icons.volume_off_outlined,
           onPressed: onMute,
           enabled: onMute != null,

@@ -37,11 +37,7 @@ class MessagesThreadAvatar extends StatelessWidget {
 }
 
 class _GroupCluster extends StatelessWidget {
-  const _GroupCluster({
-    required this.thread,
-    required this.size,
-    this.onTap,
-  });
+  const _GroupCluster({required this.thread, required this.size, this.onTap});
 
   final MessageThread thread;
   final UiSize size;

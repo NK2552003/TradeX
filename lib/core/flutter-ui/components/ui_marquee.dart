@@ -88,7 +88,8 @@ class _UiMarqueeState extends State<UiMarquee>
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
-    final TextStyle style = widget.textStyle ??
+    final TextStyle style =
+        widget.textStyle ??
         context.uiText.body.copyWith(
           color: theme.colors.foreground,
           fontWeight: FontWeight.w500,
@@ -102,8 +103,12 @@ class _UiMarqueeState extends State<UiMarquee>
     );
 
     return MouseRegion(
-      onEnter: widget.pauseOnHover ? (_) => setState(() => _hovered = true) : null,
-      onExit: widget.pauseOnHover ? (_) => setState(() => _hovered = false) : null,
+      onEnter: widget.pauseOnHover
+          ? (_) => setState(() => _hovered = true)
+          : null,
+      onExit: widget.pauseOnHover
+          ? (_) => setState(() => _hovered = false)
+          : null,
       child: Padding(
         padding: widget.padding,
         child: ClipRect(

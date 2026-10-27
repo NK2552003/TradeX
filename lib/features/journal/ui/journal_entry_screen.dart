@@ -15,8 +15,8 @@ import 'package:tradex/features/linking/link_graph_service.dart';
 
 import '../data/journal_attachments.dart';
 import '../data/journal_repository.dart';
+import 'package:tradex/features/community/data/unified_comments_repository.dart';
 import 'package:tradex/features/ai_assistant/ai_assistant.dart';
-import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/universal_comments_section.dart';
 import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
@@ -98,6 +98,19 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     _graphSub = _links.watch().listen((AppLinkGraph graph) {
       if (mounted) setState(() => _graph = graph);
     });
+    _loadComments();
+  }
+
+  List<CommunityComment> _tradeComments = const <CommunityComment>[];
+
+  Future<void> _loadComments() async {
+    final list = await UnifiedCommentsRepositoryImpl.instance.fetchComments(
+      entityType: 'journal',
+      entityId: _entry.id,
+    );
+    if (mounted) {
+      setState(() => _tradeComments = list);
+    }
   }
 
   @override
@@ -173,161 +186,44 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
   /// Roughly 220 words a minute, floored at a minute.
   int get _readMinutes => (_entry.wordCount / 220).ceil().clamp(1, 999);
 
-  late List<CommunityComment> _tradeComments = <CommunityComment>[
-    CommunityComment(
-      id: 'cmt_j1',
-      postId: _entry.id,
-      author: const CommunityAuthor(
-        id: 'usr_sarah',
-        handle: 'sarah_fno',
-        displayName: 'Sarah Chen',
-        userRole: UserRole.customer,
-        avatarUrl:
-            'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-        verified: true,
-        followers: 3420,
-        following: 410,
-        winRate: 74.5,
-      ),
-      body:
-          'Clean execution on the breakout retest. Did you account for the liquidity sweep below support before entering?',
-      createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-      likes: 4,
-      reactions: const <String>['💡', '👍'],
-      sentiment: 'INSIGHTFUL',
-      replies: <CommunityComment>[
-        CommunityComment(
-          id: 'cmt_j1_1',
-          postId: _entry.id,
-          parentCommentId: 'cmt_j1',
-          author: const CommunityAuthor(
-            id: 'usr_current',
-            handle: 'alex_vance',
-            displayName: 'Alex Vance',
-            userRole: UserRole.userAdmin,
-            avatarUrl:
-                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-            verified: true,
-            followers: 4890,
-            following: 512,
-            winRate: 71.2,
-          ),
-          body:
-              'Yes, waited for the 5-min candle close back inside value area before triggering sizing.',
-          createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-          likes: 2,
-          reactions: const <String>['👍'],
-        ),
-      ],
-    ),
-  ];
-
   Future<void> _handleAddTradeComment(
     String text, {
     String? parentCommentId,
     String? sentiment,
   }) async {
-    final CommunityComment newComment = CommunityComment(
-      id: 'cmt_${DateTime.now().millisecondsSinceEpoch}',
-      postId: _entry.id,
-      parentCommentId: parentCommentId,
-      author: const CommunityAuthor(
-        id: 'usr_current',
-        handle: 'alex_vance',
-        displayName: 'Alex Vance',
-        userRole: UserRole.userAdmin,
-        avatarUrl:
-            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-        verified: true,
-        followers: 4890,
-        following: 512,
-        winRate: 71.2,
-      ),
-      body: text,
-      createdAt: DateTime.now(),
-      likes: 0,
-      sentiment: sentiment,
-    );
-
-    setState(() {
-      if (parentCommentId == null) {
-        _tradeComments = <CommunityComment>[newComment, ..._tradeComments];
-      } else {
-        CommunityComment? attach(CommunityComment c) {
-          if (c.id == parentCommentId) {
-            return c.copyWith(
-              replies: <CommunityComment>[...c.replies, newComment],
-            );
-          }
-          if (c.replies.isNotEmpty) {
-            return c.copyWith(
-              replies: c.replies.map((r) => attach(r) ?? r).toList(),
-            );
-          }
-          return null;
-        }
-
-        _tradeComments = _tradeComments.map((c) => attach(c) ?? c).toList();
-      }
-    });
-
-    if (mounted) {
-      UiToast.success(
-        context,
-        title: 'Review Posted',
-        message: 'Your critique has been added to the trade log.',
+    try {
+      await UnifiedCommentsRepositoryImpl.instance.addComment(
+        entityType: 'journal',
+        entityId: _entry.id,
+        body: text,
+        parentCommentId: parentCommentId,
+        sentiment: sentiment,
       );
+      await _loadComments();
+      if (mounted) {
+        UiToast.success(
+          context,
+          title: 'Review Posted',
+          message: 'Your critique has been added to the trade log.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        UiToast.error(context, title: 'Could not post comment', message: '$e');
+      }
     }
   }
 
-  void _handleLikeTradeComment(String commentId, {String? reaction}) {
-    setState(() {
-      CommunityComment? updateRec(CommunityComment item) {
-        if (item.id == commentId) {
-          final bool wasLiked = item.liked;
-          final String? currentReaction = item.userReaction;
-
-          if (reaction != null && reaction.trim().isNotEmpty) {
-            final target = reaction.trim();
-            if (wasLiked && currentReaction == target) {
-              return item.copyWith(
-                liked: false,
-                likes: (item.likes - 1).clamp(0, 9999),
-                userReaction: null,
-              );
-            } else {
-              return item.copyWith(
-                liked: true,
-                likes: wasLiked ? item.likes : item.likes + 1,
-                userReaction: target,
-              );
-            }
-          } else {
-            if (wasLiked) {
-              return item.copyWith(
-                liked: false,
-                likes: (item.likes - 1).clamp(0, 9999),
-                userReaction: null,
-              );
-            } else {
-              return item.copyWith(
-                liked: true,
-                likes: item.likes + 1,
-                userReaction: '👍',
-              );
-            }
-          }
-        }
-        if (item.replies.isNotEmpty) {
-          return item.copyWith(
-            replies: item.replies.map((r) => updateRec(r) ?? r).toList(),
-          );
-        }
-        return null;
-      }
-
-      _tradeComments = _tradeComments.map((c) => updateRec(c) ?? c).toList();
-    });
+  void _handleLikeTradeComment(String commentId, {String? reaction}) async {
+    try {
+      await UnifiedCommentsRepositoryImpl.instance.toggleReaction(
+        commentId: commentId,
+        reaction: reaction ?? '👍',
+      );
+      await _loadComments();
+    } catch (e) {
+      debugPrint('[JournalEntryScreen] Like error: $e');
+    }
   }
 
   // ── Linking ────────────────────────────────────────────────────────────────
@@ -486,7 +382,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
       _guard(() => _repo.toggleFavorite(_entry.id));
 
   Future<void> _shareTrade() async {
-    final String shareUrl = 'https://tradex.app/p/journal/${_entry.id}';
+    final String shareUrl = 'https://hejournal.in/p/journal/${_entry.id}';
     final AppLinkRef ref = AppLinkRef(
       kind: AppLinkKind.journal,
       id: _entry.id,
@@ -648,7 +544,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
     final String prompt =
         'Audit this trade execution for ${_entry.ticker} (${_entry.side.name.toUpperCase()}):\n\n'
         'Entry: ${_entry.entry}, Exit: ${_entry.exit ?? 'Open'}, Stop: ${_entry.stopLoss ?? 'None'}, Target: ${_entry.target ?? 'None'}\n'
-        'PnL: \$${_entry.pnl.toStringAsFixed(2)} (${_entry.pnlPercent.toStringAsFixed(2)}%), Outcome: ${_entry.outcome.name.toUpperCase()}\n'
+        'PnL: ${AppTokens.signedMoney(_entry.pnl)} (${_entry.pnlPercent.toStringAsFixed(2)}%), Outcome: ${_entry.outcome.name.toUpperCase()}\n'
         'Strategy: ${_entry.strategy ?? 'Discretionary'}\n\n'
         'Trader Notes:\n${_entry.content.isNotEmpty ? _entry.content : (_entry.notes ?? '')}\n\n'
         'Evaluate execution discipline, risk management, and recommend actionable adjustments for future setups.';
@@ -659,7 +555,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
       initialPrompt: prompt,
       contextTitle: '${_entry.ticker} (${_entry.side.name.toUpperCase()})',
       contextSubtitle:
-          'PnL: \$${_entry.pnl.toStringAsFixed(2)} · ${_entry.outcome.name.toUpperCase()}',
+          'PnL: ${AppTokens.signedMoney(_entry.pnl)} · ${_entry.outcome.name.toUpperCase()}',
       contextIcon: Icons.menu_book_outlined,
       contextRef: AppLinkRef(
         id: _entry.id,
@@ -821,18 +717,8 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
             isPublic: _entry.isPublic,
             canToggleVisibility: _canEdit,
             onToggleVisibility: (v) => _toggleVisibility(),
-            currentUser: const CommunityAuthor(
-              id: 'usr_current',
-              handle: 'alex_vance',
-              displayName: 'Alex Vance',
-              userRole: UserRole.userAdmin,
-              avatarUrl:
-                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-              verified: true,
-              followers: 4890,
-              following: 512,
-              winRate: 71.2,
-            ),
+            currentUser: UnifiedCommentsRepositoryImpl.instance
+                .getCurrentAuthor(),
             onAddComment: _handleAddTradeComment,
             onLikeComment: _handleLikeTradeComment,
           ),

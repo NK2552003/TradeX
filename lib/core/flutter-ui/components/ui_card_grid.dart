@@ -11,6 +11,7 @@ class UiCardGrid extends StatelessWidget {
     this.tabletColumns = 2,
     this.desktopColumns = 3,
     this.largeColumns = 4,
+    this.minTileWidth,
     this.childAspectRatio,
     this.mainAxisExtent,
     this.adaptiveSingleColumn = true,
@@ -23,6 +24,7 @@ class UiCardGrid extends StatelessWidget {
   final int tabletColumns;
   final int desktopColumns;
   final int largeColumns;
+  final double? minTileWidth;
   final double? childAspectRatio;
   final double? mainAxisExtent;
   final bool adaptiveSingleColumn;
@@ -35,6 +37,7 @@ class UiCardGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (children.isEmpty) return const SizedBox.shrink();
     final theme = context.ui;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -51,7 +54,18 @@ class UiCardGrid extends StatelessWidget {
           cols = largeColumns;
         }
         final double gap = context.sp(theme.spacing.md);
+        if (minTileWidth != null && constraints.maxWidth.isFinite) {
+          cols = ((constraints.maxWidth + gap) / (minTileWidth! + gap))
+              .floor()
+              .clamp(1, largeColumns);
+        }
 
+        cols = cols.clamp(1, children.length);
+        if (equalHeight && minTileWidth != null) {
+          // Balance automatic rows so four summaries form 2 x 2 instead of 3 + 1.
+          final rows = (children.length / cols).ceil();
+          cols = (children.length / rows).ceil();
+        }
         if (cols == 1 && adaptiveSingleColumn) {
           return Column(
             mainAxisSize: MainAxisSize.min,
@@ -75,13 +89,13 @@ class UiCardGrid extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      for (int column = 0; column < cols; column++) ...[
+                      for (
+                        int column = 0;
+                        column < cols && start + column < children.length;
+                        column++
+                      ) ...[
                         if (column > 0) SizedBox(width: gap),
-                        Expanded(
-                          child: start + column < children.length
-                              ? children[start + column]
-                              : const SizedBox.shrink(),
-                        ),
+                        Expanded(child: children[start + column]),
                       ],
                     ],
                   ),
@@ -91,8 +105,11 @@ class UiCardGrid extends StatelessWidget {
           );
         }
 
-        if (intrinsicHeight) {
-          final width = (constraints.maxWidth - gap * (cols - 1)) / cols;
+        if (intrinsicHeight ||
+            (childAspectRatio == null && mainAxisExtent == null)) {
+          // Round down to prevent fractional spacing from wrapping the final tile.
+          final width = ((constraints.maxWidth - gap * (cols - 1)) / cols)
+              .floorToDouble();
           return Wrap(
             spacing: gap,
             runSpacing: gap,

@@ -36,8 +36,8 @@ class _FdCalculatorScreenState extends State<FdCalculatorScreen> {
 
   Future<void> _fetchLiveBenchmarks() async {
     try {
-      final MacroBenchmarks b =
-          await MarketDataService.instance.getMacroBenchmarks();
+      final MacroBenchmarks b = await MarketDataService.instance
+          .getMacroBenchmarks();
       if (!mounted) return;
       setState(() {
         _rate = b.fdBenchmarkRate;
@@ -188,7 +188,8 @@ class _FdCalculatorScreenState extends State<FdCalculatorScreen> {
               label: 'Interest rate',
               value: _rate,
               suffix: '%',
-              helper: 'Effective '
+              helper:
+                  'Effective '
                   '${AppTokens.percent(r.effectiveYieldPct, decimals: 2)} once '
                   'compounding is counted.',
               onChanged: (double v) => setState(() => _rate = v),
@@ -403,7 +404,8 @@ class _FdCalculatorScreenState extends State<FdCalculatorScreen> {
           wide: true,
           child: UiRangeMeter(
             min: realYield < 0 ? realYield - 1 : 0,
-            max: (r.effectiveYieldPct > _rate ? r.effectiveYieldPct : _rate) + 1,
+            max:
+                (r.effectiveYieldPct > _rate ? r.effectiveYieldPct : _rate) + 1,
             minLabel: realYield < 0 ? 'loss' : '0%',
             maxLabel: 'gross',
             valueFormatter: (num v) => AppTokens.percent(v, decimals: 2),
@@ -472,7 +474,8 @@ class _FdCalculatorScreenState extends State<FdCalculatorScreen> {
         if (_slab >= 30 && !losesToInflation)
           UiCallout(
             intent: UiIntent.warning,
-            title: 'The slab takes '
+            title:
+                'The slab takes '
                 '${AppTokens.price(tax)} of the interest',
             message:
                 'At the 30% bracket a '

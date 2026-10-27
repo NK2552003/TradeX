@@ -47,7 +47,6 @@ class CommunityFeedList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final double topEdgeOffset = (padding is EdgeInsets)
         ? (padding as EdgeInsets).top
         : 0.0;

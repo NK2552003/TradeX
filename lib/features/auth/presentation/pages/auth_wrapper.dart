@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/billing/revenuecat_billing.dart';
 import 'package:tradex/core/data/session_trader.dart';
 import 'package:tradex/core/widgets/app_scaffold.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_application_page.dart';
@@ -129,6 +130,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
               }),
             );
           }
+          if (event == AuthChangeEvent.signedIn &&
+              data.session?.user.id != null) {
+            unawaited(RevenueCatBilling.identify(data.session!.user.id));
+          }
           if (event == AuthChangeEvent.signedOut &&
               _sessionState.stage != AuthStage.forgotPassword) {
             if (mounted) {
@@ -148,6 +153,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
     try {
       // 1. Live Supabase Session Check
       if (SupabaseConfig.isConfigured) {
+        final signedInId = SupabaseConfig.client?.auth.currentUser?.id;
+        if (signedInId != null) {
+          unawaited(RevenueCatBilling.identify(signedInId));
+        }
         final client = SupabaseConfig.client;
         if (client != null) {
           final session = client.auth.currentSession;
@@ -214,6 +223,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 token: client.auth.currentSession?.accessToken,
               );
 
+              final workspaceRole = await AuthSessionStorage.workspaceRoleFor(
+                profile,
+              );
               final lastDest = await AuthSessionStorage.getLastDestination();
               if (lastDest != null && lastDest.isNotEmpty) {
                 _initialAppDestination = lastDest;
@@ -226,7 +238,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                   userId: profile!.id,
                   email: profile.email,
                   displayName: profile.displayName,
-                  role: profile.role,
+                  role: workspaceRole,
                   profile: profile,
                   affiliateProfile: affProfile,
                 );
@@ -254,6 +266,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
             affiliateProfile: affProfile,
           );
 
+          final workspaceRole = await AuthSessionStorage.workspaceRoleFor(
+            storedProfile,
+          );
           final lastDest = await AuthSessionStorage.getLastDestination();
           if (lastDest != null && lastDest.isNotEmpty) {
             _initialAppDestination = lastDest;
@@ -267,7 +282,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 userId: storedProfile.id,
                 email: storedProfile.email,
                 displayName: storedProfile.displayName,
-                role: storedProfile.role,
+                role: workspaceRole,
                 profile: storedProfile,
                 affiliateProfile: affProfile,
               );
@@ -315,6 +330,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   void _navigateToStage(AuthStage stage, {UserRole? role, String? email}) {
     final activeService = SupabaseAuthBackendService.instance;
+    if (stage == AuthStage.authenticated && role != null) {
+      AuthSessionStorage.saveWorkspaceRole(
+        activeService.currentUserProfile?.id ?? _sessionState.userId,
+        role,
+      );
+    }
     setState(() {
       _sessionState = _sessionState.copyWith(
         stage: stage,
@@ -329,6 +350,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   void _handleLogout() async {
     await _authRepository.signOut();
+    try {
+      await RevenueCatBilling.clearIdentity();
+    } catch (e) {
+      debugPrint('[AuthWrapper] RevenueCat logout unavailable: $e');
+    }
     await AuthSessionStorage.clearSession();
     if (mounted) {
       setState(() {
@@ -338,6 +364,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   void _handleSwitchRole(UserRole newRole) {
+    final profile = SupabaseAuthBackendService.instance.currentUserProfile;
+    final id = profile?.id ?? _sessionState.userId;
+    AuthSessionStorage.saveWorkspaceRole(id, newRole);
     setState(() {
       _sessionState = _sessionState.copyWith(role: newRole);
     });
@@ -554,7 +583,7 @@ class _AuthLoadingScreen extends StatelessWidget {
             const AppLogoMark(size: 40, progress: 1.0),
             SizedBox(height: context.sp(theme.spacing.lg)),
             Text(
-              'TradeX',
+              'hejournal.in',
               style: context.uiText.display.copyWith(
                 fontSize: 32,
                 color: colors.foreground,

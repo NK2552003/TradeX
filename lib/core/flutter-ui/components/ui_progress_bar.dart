@@ -40,11 +40,6 @@ class UiProgressBar extends StatelessWidget {
                   Expanded(
                     child: Text(
                       label!,
-                      // Ellipsis without a line cap still wraps first and then
-                      // clips against the row height; the cap is what makes it
-                      // truncate on one line instead.
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: context.uiText.label.copyWith(
                         color: theme.colors.foregroundMuted,
                       ),
@@ -55,7 +50,9 @@ class UiProgressBar extends StatelessWidget {
                   Flexible(
                     child: Text(
                       valueFormatter?.call(t * 100) ??
-                          '${(t * 100).toStringAsFixed(0)}%',
+                          (t > 0 && t * 100 < 1
+                              ? '${(t * 100).toStringAsFixed(2)}%'
+                              : '${(t * 100).toStringAsFixed(0)}%'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.end,

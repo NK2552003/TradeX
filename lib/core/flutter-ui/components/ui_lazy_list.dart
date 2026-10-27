@@ -27,7 +27,9 @@ class _UiLazyListState extends State<UiLazyList> {
   late int _visible = widget.pageSize;
   bool _scheduled = false;
   void _more(ScrollMetrics metrics) {
-    if (_scheduled || metrics.extentAfter > 400 || _visible >= widget.itemCount) {
+    if (_scheduled ||
+        metrics.extentAfter > 400 ||
+        _visible >= widget.itemCount) {
       return;
     }
     _scheduled = true;

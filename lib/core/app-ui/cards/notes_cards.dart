@@ -65,6 +65,8 @@ class AppNoteCard extends StatelessWidget {
     this.density = AppNoteDensity.comfortable,
     this.selected = false,
     this.highlight = '',
+    this.extraBadges = const <Widget>[],
+    this.footerEngagement,
   });
 
   final AppNote note;
@@ -75,6 +77,8 @@ class AppNoteCard extends StatelessWidget {
 
   /// The active search term, so the matched words can be tinted in the preview.
   final String highlight;
+  final List<Widget> extraBadges;
+  final Widget? footerEngagement;
 
   static const int _maxTickerBadges = 3;
 
@@ -103,9 +107,7 @@ class AppNoteCard extends StatelessWidget {
         children: <Widget>[
           if (note.isPublic)
             Padding(
-              padding: EdgeInsets.only(
-                right: context.sp(theme.spacing.xxs),
-              ),
+              padding: EdgeInsets.only(right: context.sp(theme.spacing.xxs)),
               child: Icon(
                 Icons.public_rounded,
                 size: context.sz(theme.sizes.iconXs),
@@ -155,13 +157,18 @@ class AppNoteCard extends StatelessWidget {
             size: UiSize.xs,
             tooltip: tickers.skip(_maxTickerBadges).join(' · '),
           ),
+        ...extraBadges,
       ],
       tags: () {
         if (!showTags) return const <Widget>[];
         final Set<String> seenTags = <String>{};
         final String lowerTitle = note.title.trim().toLowerCase();
-        final String lowerStrategy = (note.strategyName ?? '').trim().toLowerCase();
-        final Set<String> lowerTickers = tickers.map((String t) => t.toLowerCase()).toSet();
+        final String lowerStrategy = (note.strategyName ?? '')
+            .trim()
+            .toLowerCase();
+        final Set<String> lowerTickers = tickers
+            .map((String t) => t.toLowerCase())
+            .toSet();
 
         final List<Widget> uniqueTags = <Widget>[];
         for (final String rawTag in note.tags) {
@@ -187,7 +194,8 @@ class AppNoteCard extends StatelessWidget {
       }(),
       footerMetadata: _buildNoteMetadata(context, note),
       footerEngagement:
-          note.isPublic ? _buildNoteEngagement(context, note) : null,
+          footerEngagement ??
+          (note.isPublic ? _buildNoteEngagement(context, note) : null),
     );
   }
 
@@ -215,10 +223,7 @@ class AppNoteCard extends StatelessWidget {
                   : theme.colors.foregroundSubtle,
             ),
             SizedBox(width: context.sp(theme.spacing.xxs)),
-            Text(
-              '${note.checklistDone}/${note.checklistTotal}',
-              style: style,
-            ),
+            Text('${note.checklistDone}/${note.checklistTotal}', style: style),
           ],
         ),
       ],
@@ -488,7 +493,9 @@ class AppNoteEngagementRow extends StatelessWidget {
         icon: Icons.visibility_outlined,
         label: 'Views',
         value: AppTokens.count(views),
-        hint: public.isEmpty ? '0 avg' : '${(views / public.length).round()} avg',
+        hint: public.isEmpty
+            ? '0 avg'
+            : '${(views / public.length).round()} avg',
         intent: views > 0 ? UiIntent.bullish : UiIntent.neutral,
       ),
       UiStat(

@@ -23,35 +23,40 @@ const List<TraderFeedPreset> kTraderFeedPresets = <TraderFeedPreset>[
   TraderFeedPreset(
     id: 'fno',
     title: 'Nifty & BankNifty F&O',
-    description: 'Weekly expiry setups, Greeks, IV skew, max pain and PCR analysis.',
+    description:
+        'Weekly expiry setups, Greeks, IV skew, max pain and PCR analysis.',
     icon: Icons.flash_on_rounded,
     tags: <String>['#Nifty', '#BankNifty', '#OptionsBuying', '#ExpirySpecial'],
   ),
   TraderFeedPreset(
     id: 'crypto',
     title: 'Crypto Momentum',
-    description: 'BTC dominance, high-beta altcoin breakouts, liquidation heatmaps & funding.',
+    description:
+        'BTC dominance, high-beta altcoin breakouts, liquidation heatmaps & funding.',
     icon: Icons.currency_bitcoin_rounded,
     tags: <String>['#BTC', '#ETH', '#Solana', '#PerpTrading'],
   ),
   TraderFeedPreset(
     id: 'swing',
     title: 'Swing Equity Breakouts',
-    description: 'Stage-2 base breakouts, 52-week highs, VCP contractions & institutional volume.',
+    description:
+        'Stage-2 base breakouts, 52-week highs, VCP contractions & institutional volume.',
     icon: Icons.trending_up_rounded,
     tags: <String>['#BreakoutStocks', '#VCP', '#StageAnalysis', '#CANSLIM'],
   ),
   TraderFeedPreset(
     id: 'scalping',
     title: 'Intraday Scalping & Order Flow',
-    description: '1-min to 5-min VWAP retests, volume delta, order blocks & liquidity sweeps.',
+    description:
+        '1-min to 5-min VWAP retests, volume delta, order blocks & liquidity sweeps.',
     icon: Icons.timer_outlined,
     tags: <String>['#Scalping', '#OrderFlow', '#VWAP', '#FVG'],
   ),
   TraderFeedPreset(
     id: 'macro',
     title: 'Global Macro & Commodities',
-    description: 'Gold (XAUUSD), Crude Oil, US 10Y Yields, DXY, and central bank catalysts.',
+    description:
+        'Gold (XAUUSD), Crude Oil, US 10Y Yields, DXY, and central bank catalysts.',
     icon: Icons.public_rounded,
     tags: <String>['#Gold', '#CrudeOil', '#Macro', '#Forex'],
   ),
@@ -59,10 +64,7 @@ const List<TraderFeedPreset> kTraderFeedPresets = <TraderFeedPreset>[
 
 /// Executive dialog allowing traders to customize, reorder, and add curated feeds.
 class CommunityFeedCustomizerDialog extends StatefulWidget {
-  const CommunityFeedCustomizerDialog({
-    super.key,
-    required this.repository,
-  });
+  const CommunityFeedCustomizerDialog({super.key, required this.repository});
 
   final CommunityRepository repository;
 
@@ -216,7 +218,8 @@ class _CommunityFeedCustomizerDialogState
                       Expanded(
                         child: UiInput(
                           value: _newTabInput,
-                          hintText: 'e.g. BankNifty Options, Breakouts, \$TSLA...',
+                          hintText:
+                              'e.g. BankNifty Options, Breakouts, \$TSLA...',
                           onChanged: (String val) =>
                               setState(() => _newTabInput = val),
                         ),
@@ -284,10 +287,16 @@ class _CommunityFeedCustomizerDialogState
                               vertical: context.sp(theme.spacing.xxs),
                             ),
                             decoration: BoxDecoration(
-                              color: theme.colors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(theme.radii.pill),
+                              color: theme.colors.primary.withValues(
+                                alpha: 0.1,
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                theme.radii.pill,
+                              ),
                               border: Border.all(
-                                color: theme.colors.primary.withValues(alpha: 0.3),
+                                color: theme.colors.primary.withValues(
+                                  alpha: 0.3,
+                                ),
                               ),
                             ),
                             child: Row(
@@ -309,7 +318,9 @@ class _CommunityFeedCustomizerDialogState
                                 SizedBox(width: context.sp(theme.spacing.xxs)),
                                 InkWell(
                                   onTap: () => _removeTab(tab),
-                                  borderRadius: BorderRadius.circular(theme.radii.pill),
+                                  borderRadius: BorderRadius.circular(
+                                    theme.radii.pill,
+                                  ),
                                   child: Icon(
                                     Icons.close_rounded,
                                     size: context.sz(14),
@@ -345,9 +356,12 @@ class _CommunityFeedCustomizerDialogState
                   ),
                   SizedBox(height: context.sp(theme.spacing.xs)),
 
-                  for (final TraderFeedPreset preset in kTraderFeedPresets) ...<Widget>[
+                  for (final TraderFeedPreset preset
+                      in kTraderFeedPresets) ...<Widget>[
                     Padding(
-                      padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+                      padding: EdgeInsets.only(
+                        bottom: context.sp(theme.spacing.xs),
+                      ),
                       child: UiCard(
                         variant: UiCardVariant.surface,
                         padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
@@ -355,9 +369,13 @@ class _CommunityFeedCustomizerDialogState
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
                             Container(
-                              padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
+                              padding: EdgeInsets.all(
+                                context.sp(theme.spacing.xs),
+                              ),
                               decoration: BoxDecoration(
-                                color: theme.colors.primary.withValues(alpha: 0.1),
+                                color: theme.colors.primary.withValues(
+                                  alpha: 0.1,
+                                ),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -377,14 +395,18 @@ class _CommunityFeedCustomizerDialogState
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                  SizedBox(height: context.sp(theme.spacing.xxs)),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxs),
+                                  ),
                                   Text(
                                     preset.description,
                                     style: context.uiText.caption.copyWith(
                                       color: theme.colors.foregroundMuted,
                                     ),
                                   ),
-                                  SizedBox(height: context.sp(theme.spacing.xxs)),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xxs),
+                                  ),
                                   Wrap(
                                     spacing: context.sp(theme.spacing.xxs),
                                     children: preset.tags.map((String t) {

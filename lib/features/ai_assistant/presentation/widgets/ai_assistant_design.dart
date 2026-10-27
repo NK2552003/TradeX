@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 
 // ===========================================================================
 // AI Assistant design foundations
@@ -77,11 +78,11 @@ class AiSectionHeader extends StatelessWidget {
           ],
           Expanded(
             child: Text(
-              title.toUpperCase(),
+              title,
               style: context.uiText.caption.copyWith(
                 color: theme.colors.foregroundSubtle,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.6,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0,
                 fontSize: context.fs(10.5),
               ),
             ),

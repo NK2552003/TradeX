@@ -59,14 +59,19 @@ class CommunityNotificationCard extends StatelessWidget {
                     ),
                     children: <TextSpan>[
                       TextSpan(
-                        text: notification.actor.displayName,
+                        text:
+                            notification.actor?.displayName ??
+                            notification.title ??
+                            'hejournal.in System',
                         style: context.uiText.bodyStrong.copyWith(
                           fontWeight: FontWeight.w700,
                           color: theme.colors.foreground,
                         ),
                       ),
                       TextSpan(
-                        text: ' ${notification.label}',
+                        text: notification.body != null
+                            ? ' ${notification.body}'
+                            : ' ${notification.label}',
                         style: TextStyle(color: theme.colors.foregroundMuted),
                       ),
                     ],

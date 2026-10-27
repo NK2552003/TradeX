@@ -1,5 +1,7 @@
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/record_access.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/strategies/data/strategies_repository.dart';
@@ -29,21 +31,38 @@ class WorkspaceAttachmentService {
   }) async {
     switch (source.kind) {
       case AppLinkKind.note:
-        final record = await NotesRepositoryScope.repository.getById(source.id);
+        final record =
+            await NotesRepositoryScope.repository.getById(source.id) ??
+            (CustomerDataPolicy.allowDemo
+                ? DemoDataSource.instance
+                      .notes()
+                      .where((note) => note.id == source.id)
+                      .firstOrNull
+                : null);
         if (record == null || (!requireOwner && !record.isPublic)) return null;
         if (requireOwner) RecordAccess.requireOwner(record.userId);
         return AppWritingPostAttachment.note(record);
       case AppLinkKind.journal:
-        final record = await JournalRepositoryScope.repository.getById(
-          source.id,
-        );
+        final record =
+            await JournalRepositoryScope.repository.getById(source.id) ??
+            (CustomerDataPolicy.allowDemo
+                ? DemoDataSource.instance
+                      .trades()
+                      .where((trade) => trade.id == source.id)
+                      .firstOrNull
+                : null);
         if (record == null || (!requireOwner && !record.isPublic)) return null;
         if (requireOwner) RecordAccess.requireOwner(record.userId);
         return AppWritingPostAttachment.journal(record);
       case AppLinkKind.strategy:
-        final record = await StrategiesRepositoryScope.repository.getById(
-          source.id,
-        );
+        final record =
+            await StrategiesRepositoryScope.repository.getById(source.id) ??
+            (CustomerDataPolicy.allowDemo
+                ? DemoDataSource.instance
+                      .strategies()
+                      .where((strategy) => strategy.id == source.id)
+                      .firstOrNull
+                : null);
         if (record == null || (!requireOwner && !record.isPublic)) return null;
         if (requireOwner) RecordAccess.requireOwner(record.userId);
         return AppWritingPostAttachment.strategy(record);

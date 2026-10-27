@@ -26,7 +26,9 @@ class UiProgressCircle extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.ui;
     final double dim = context.sz(size ?? 96);
-    final double actualThickness = context.sz(thickness ?? theme.sizes.trackThickness);
+    final double actualThickness = context.sz(
+      thickness ?? theme.sizes.trackThickness,
+    );
 
     if (value == null) {
       return SizedBox(

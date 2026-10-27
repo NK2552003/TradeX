@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
 import 'package:tradex/features/ai_assistant/presentation/widgets/ai_assistant_widgets.dart';
@@ -81,7 +83,10 @@ class _AiHistoryViewState extends State<AiHistoryView> {
           decoration: BoxDecoration(
             color: colors.background,
             borderRadius: ctx.radius(theme.radii.xl),
-            border: Border.all(color: colors.border, width: theme.borders.hairline),
+            border: Border.all(
+              color: colors.border,
+              width: theme.borders.hairline,
+            ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -90,7 +95,9 @@ class _AiHistoryViewState extends State<AiHistoryView> {
                 child: Container(
                   width: ctx.sz(36),
                   height: ctx.sz(4),
-                  margin: EdgeInsets.symmetric(vertical: ctx.sp(theme.spacing.xs)),
+                  margin: EdgeInsets.symmetric(
+                    vertical: ctx.sp(theme.spacing.xs),
+                  ),
                   decoration: BoxDecoration(
                     color: colors.borderStrong,
                     borderRadius: BorderRadius.circular(2),
@@ -118,7 +125,9 @@ class _AiHistoryViewState extends State<AiHistoryView> {
               UiDivider(),
               _actionTile(
                 ctx,
-                icon: thread.pinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
+                icon: thread.pinned
+                    ? Icons.push_pin_outlined
+                    : Icons.push_pin_rounded,
                 label: thread.pinned ? 'Unpin thread' : 'Pin to top',
                 onTap: () {
                   Navigator.pop(ctx);
@@ -161,8 +170,9 @@ class _AiHistoryViewState extends State<AiHistoryView> {
   }) {
     final UiTheme theme = context.ui;
     final UiColors colors = theme.colors;
-    final Color color =
-        intent == UiIntent.danger ? colors.destructive : colors.foreground;
+    final Color color = intent == UiIntent.danger
+        ? colors.destructive
+        : colors.foreground;
 
     return UiInteractive(
       onTap: onTap,
@@ -196,15 +206,17 @@ class _AiHistoryViewState extends State<AiHistoryView> {
   }
 
   void _showRenameDialog(AiThread thread) {
-    final TextEditingController controller =
-        TextEditingController(text: thread.title);
+    final TextEditingController controller = TextEditingController(
+      text: thread.title,
+    );
     UiDialog.show<void>(
       context,
       child: UiDialog(
         title: 'Rename Thread',
         content: Padding(
-          padding:
-              EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+          padding: EdgeInsets.symmetric(
+            vertical: context.sp(context.ui.spacing.sm),
+          ),
           child: UiInput(
             label: 'Thread Title',
             controller: controller,
@@ -246,8 +258,9 @@ class _AiHistoryViewState extends State<AiHistoryView> {
       child: UiDialog(
         title: 'Delete Thread',
         content: Padding(
-          padding:
-              EdgeInsets.symmetric(vertical: context.sp(context.ui.spacing.sm)),
+          padding: EdgeInsets.symmetric(
+            vertical: context.sp(context.ui.spacing.sm),
+          ),
           child: Text(
             'Are you sure you want to delete "${thread.title}"? This conversation history cannot be recovered.',
             style: context.uiText.body,
@@ -308,9 +321,9 @@ class _AiHistoryViewState extends State<AiHistoryView> {
                   ),
                 ),
                 SizedBox(width: context.sp(context.ui.spacing.sm)),
-                UiButton(
-                  icon: Icons.add,
-                  label: 'New chat',
+                UiIconButton(
+                  icon: Icons.add_comment_outlined,
+                  tooltip: 'New chat',
                   onPressed: widget.onNewThread,
                 ),
               ],
@@ -321,7 +334,8 @@ class _AiHistoryViewState extends State<AiHistoryView> {
                 ? AiEmptyState(
                     icon: Icons.chat_bubble_outline,
                     title: 'No chats yet',
-                    message: 'Start a new conversation to see your history here.',
+                    message:
+                        'Start a new conversation to see your history here.',
                     action: UiButton(
                       label: 'New Chat',
                       onPressed: widget.onNewThread,
@@ -334,24 +348,28 @@ class _AiHistoryViewState extends State<AiHistoryView> {
                           title: 'Pinned',
                           icon: Icons.push_pin,
                         ),
-                        ...pinnedThreads.map((thread) => AiThreadTile(
-                              thread: thread,
-                              selected: thread.id == widget.selectedThreadId,
-                              onTap: () => widget.onSelectThread(thread.id),
-                              onLongPress: () => _handleLongPress(thread),
-                            )),
+                        ...pinnedThreads.map(
+                          (thread) => AiThreadTile(
+                            thread: thread,
+                            selected: thread.id == widget.selectedThreadId,
+                            onTap: () => widget.onSelectThread(thread.id),
+                            onLongPress: () => _handleLongPress(thread),
+                          ),
+                        ),
                       ],
                       if (recentThreads.isNotEmpty) ...[
                         const AiSectionHeader(
                           title: 'Recent',
                           icon: Icons.access_time,
                         ),
-                        ...recentThreads.map((thread) => AiThreadTile(
-                              thread: thread,
-                              selected: thread.id == widget.selectedThreadId,
-                              onTap: () => widget.onSelectThread(thread.id),
-                              onLongPress: () => _handleLongPress(thread),
-                            )),
+                        ...recentThreads.map(
+                          (thread) => AiThreadTile(
+                            thread: thread,
+                            selected: thread.id == widget.selectedThreadId,
+                            onTap: () => widget.onSelectThread(thread.id),
+                            onLongPress: () => _handleLongPress(thread),
+                          ),
+                        ),
                       ],
                     ],
                   ),

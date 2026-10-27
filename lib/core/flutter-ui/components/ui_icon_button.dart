@@ -42,35 +42,44 @@ class UiIconButton extends StatelessWidget {
                   ? Colors.transparent
                   : c.disabledBackground)
             : intentColor != null
-                ? switch (variant) {
-                    UiVariant.primary || UiVariant.solid =>
-                      s.hovered ? intentColor.withValues(alpha: 0.85) : intentColor,
-                    UiVariant.soft =>
-                      s.hovered ? intentColor.withValues(alpha: 0.20) : intentColor.withValues(alpha: 0.12),
-                    UiVariant.outline =>
-                      s.hovered ? intentColor.withValues(alpha: 0.08) : Colors.transparent,
-                    UiVariant.ghost =>
-                      s.hovered ? intentColor.withValues(alpha: 0.08) : Colors.transparent,
-                    _ => s.hovered ? intentColor.withValues(alpha: 0.15) : Colors.transparent,
-                  }
-                : switch (variant) {
-                    UiVariant.primary => s.hovered ? c.primaryHover : c.primary,
-                    UiVariant.destructive => c.destructive,
-                    UiVariant.success => c.bullish,
-                    UiVariant.secondary => s.hovered ? c.surfaceHover : c.secondary,
-                    _ => s.hovered ? c.surfaceHover : Colors.transparent,
-                  };
+            ? switch (variant) {
+                UiVariant.primary || UiVariant.solid =>
+                  s.hovered ? intentColor.withValues(alpha: 0.85) : intentColor,
+                UiVariant.soft =>
+                  s.hovered
+                      ? intentColor.withValues(alpha: 0.20)
+                      : intentColor.withValues(alpha: 0.12),
+                UiVariant.outline =>
+                  s.hovered
+                      ? intentColor.withValues(alpha: 0.08)
+                      : Colors.transparent,
+                UiVariant.ghost =>
+                  s.hovered
+                      ? intentColor.withValues(alpha: 0.08)
+                      : Colors.transparent,
+                _ =>
+                  s.hovered
+                      ? intentColor.withValues(alpha: 0.15)
+                      : Colors.transparent,
+              }
+            : switch (variant) {
+                UiVariant.primary => s.hovered ? c.primaryHover : c.primary,
+                UiVariant.destructive => c.destructive,
+                UiVariant.success => c.bullish,
+                UiVariant.secondary => s.hovered ? c.surfaceHover : c.secondary,
+                _ => s.hovered ? c.surfaceHover : Colors.transparent,
+              };
         final Color fg = !s.enabled
             ? c.disabledForeground
             : intentColor != null
-                ? (variant == UiVariant.primary || variant == UiVariant.solid)
-                    ? (intent?.onColor(ctx) ?? c.onPrimary)
-                    : intentColor
-                : (variant == UiVariant.primary ||
-                      variant == UiVariant.destructive ||
-                      variant == UiVariant.success)
-                ? c.onPrimary
-                : c.foreground;
+            ? (variant == UiVariant.primary || variant == UiVariant.solid)
+                  ? (intent?.onColor(ctx) ?? c.onPrimary)
+                  : intentColor
+            : (variant == UiVariant.primary ||
+                  variant == UiVariant.destructive ||
+                  variant == UiVariant.success)
+            ? c.onPrimary
+            : c.foreground;
         return AnimatedContainer(
           duration: theme.motion.fast,
           width: dim,

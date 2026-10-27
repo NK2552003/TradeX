@@ -73,7 +73,7 @@ class AppTokens {
   static String tierLabel(AppTier tier) => switch (tier) {
     AppTier.free => 'Free',
     AppTier.premium => 'Premium',
-    AppTier.enterprise => 'Enterprise',
+    AppTier.enterprise => 'Business',
   };
 
   static IconData tierIcon(AppTier tier) => switch (tier) {
@@ -250,7 +250,7 @@ class AppTokens {
 
   // -------------------------------------------------------------- Weekdays
   //
-  // TradeX deliberately keeps `intl` out of the UI layer (see the pubspec
+  // hejournal.in deliberately keeps `intl` out of the UI layer (see the pubspec
   // note), so weekday names live here alongside [monthLabels] rather than
   // going through `DateFormat`.
 

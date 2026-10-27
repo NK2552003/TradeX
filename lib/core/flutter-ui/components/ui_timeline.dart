@@ -38,11 +38,16 @@ class UiTimeline extends StatelessWidget {
   final ValueChanged<int>? onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) =>
+        _buildTimeline(context, constraints.maxWidth),
+  );
+
+  Widget _buildTimeline(BuildContext context, double width) {
     final UiTheme theme = context.ui;
     // On a phone the row has no width to spare for a right-aligned stamp beside
     // the title, so the stamp drops under the entry instead of crushing it.
-    final bool stackStamp = context.uiRes.isMobile;
+    final bool stackStamp = width < context.sz(640);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

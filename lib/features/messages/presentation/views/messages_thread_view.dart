@@ -191,7 +191,10 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
     final UiColors colors = theme.colors;
 
     return Container(
-      padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(theme.spacing.md),
+        vertical: context.sp(theme.spacing.sm + 2),
+      ),
       decoration: BoxDecoration(
         color: colors.surface,
         border: Border(
@@ -209,12 +212,12 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
                 Icon(
                   Icons.privacy_tip_outlined,
                   size: context.sz(16),
-                  color: colors.foregroundMuted,
+                  color: colors.primary,
                 ),
                 SizedBox(width: context.sp(theme.spacing.xs)),
                 Expanded(
                   child: Text(
-                    '${thread.peer.displayName ?? thread.peer.handle} sent you a message request',
+                    '${thread.peer.displayName ?? thread.peer.handle} wants to send you a message',
                     style: context.uiText.bodyStrong,
                   ),
                 ),
@@ -222,64 +225,79 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
             ),
             SizedBox(height: context.sp(theme.spacing.xxs)),
             Text(
-              'They cannot see when you have read their messages until you accept.',
+              'Do you want to let @${thread.peer.handle} send you messages? They won\'t know you\'ve seen their message until you accept.',
               style: context.uiText.caption.copyWith(
                 color: colors.foregroundMuted,
               ),
             ),
-            SizedBox(height: context.sp(theme.spacing.md)),
+            SizedBox(height: context.sp(theme.spacing.sm)),
             Row(
               children: <Widget>[
-                UiButton(
-                  label: 'Block',
-                  icon: Icons.block_rounded,
-                  variant: UiVariant.ghost,
-                  intent: UiIntent.danger,
-                  onPressed: () {
-                    widget.repository.declineRequest(thread.id);
-                    widget.onBack?.call();
-                    UiToastScope.maybeOf(context)?.show(
-                      UiToastData(
-                        title: 'User Blocked',
-                        message: '@${thread.peer.handle} has been blocked.',
-                        intent: UiIntent.danger,
-                      ),
-                    );
-                  },
+                Expanded(
+                  flex: 1,
+                  child: UiButton(
+                    label: 'Block',
+                    icon: Icons.block_rounded,
+                    variant: UiVariant.ghost,
+                    intent: UiIntent.danger,
+                    size: UiSize.sm,
+                    onPressed: () {
+                      widget.repository.blockTrader(thread.peer.id);
+                      widget.repository.declineRequest(thread.id);
+                      widget.onBack?.call();
+                      UiToastScope.maybeOf(context)?.show(
+                        UiToastData(
+                          title: 'User Blocked',
+                          message: '@${thread.peer.handle} has been blocked.',
+                          intent: UiIntent.danger,
+                        ),
+                      );
+                    },
+                  ),
                 ),
-                const Spacer(),
-                UiButton(
-                  label: 'Decline',
-                  variant: UiVariant.outline,
-                  intent: UiIntent.neutral,
-                  onPressed: () {
-                    widget.repository.declineRequest(thread.id);
-                    widget.onBack?.call();
-                    UiToastScope.maybeOf(context)?.show(
-                      UiToastData(
-                        title: 'Request Declined',
-                        message: 'Message request removed.',
-                        intent: UiIntent.neutral,
-                      ),
-                    );
-                  },
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                Expanded(
+                  flex: 1,
+                  child: UiButton(
+                    label: 'Delete',
+                    icon: Icons.delete_outline_rounded,
+                    variant: UiVariant.soft,
+                    intent: UiIntent.neutral,
+                    size: UiSize.sm,
+                    onPressed: () {
+                      widget.repository.declineRequest(thread.id);
+                      widget.onBack?.call();
+                      UiToastScope.maybeOf(context)?.show(
+                        UiToastData(
+                          title: 'Request Deleted',
+                          message: 'Message request removed.',
+                          intent: UiIntent.neutral,
+                        ),
+                      );
+                    },
+                  ),
                 ),
-                SizedBox(width: context.sp(theme.spacing.sm)),
-                UiButton(
-                  label: 'Accept',
-                  icon: Icons.check_rounded,
-                  intent: UiIntent.primary,
-                  onPressed: () {
-                    widget.repository.acceptRequest(thread.id);
-                    UiToastScope.maybeOf(context)?.show(
-                      UiToastData(
-                        title: 'Request Accepted',
-                        message:
-                            'You can now exchange messages with @${thread.peer.handle}.',
-                        intent: UiIntent.success,
-                      ),
-                    );
-                  },
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                Expanded(
+                  flex: 1,
+                  child: UiButton(
+                    label: 'Accept',
+                    icon: Icons.check_rounded,
+                    variant: UiVariant.solid,
+                    intent: UiIntent.primary,
+                    size: UiSize.sm,
+                    onPressed: () {
+                      widget.repository.acceptRequest(thread.id);
+                      UiToastScope.maybeOf(context)?.show(
+                        UiToastData(
+                          title: 'Request Accepted',
+                          message:
+                              'You can now exchange messages with @${thread.peer.handle}.',
+                          intent: UiIntent.success,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
@@ -844,6 +862,18 @@ class _ProfileHeroCard extends StatelessWidget {
                   color: colors.foregroundMuted,
                 ),
               ),
+              if (thread.isRequest) ...<Widget>[
+                SizedBox(height: context.sp(theme.spacing.sm)),
+                UiCallout(
+                  intent: UiIntent.info,
+                  icon: Icons.privacy_tip_outlined,
+                  title:
+                      '${peer.displayName ?? peer.handle} wants to send you a message',
+                  message:
+                      'Do you want to let @${peer.handle} send you messages? '
+                      'They cannot see that you\'ve viewed this message until you accept.',
+                ),
+              ],
               if (!thread.isGroup &&
                   peer.bio != null &&
                   peer.bio!.trim().isNotEmpty) ...<Widget>[
@@ -934,11 +964,14 @@ class _ProfileHeroCard extends StatelessWidget {
                     color: colors.foregroundSubtle,
                   ),
                   SizedBox(width: context.sp(theme.spacing.xxs)),
-                  Text(
-                    'Direct messages are stored by TradeX. Do not share sensitive credentials.',
-                    style: context.uiText.caption.copyWith(
-                      color: colors.foregroundSubtle,
-                      fontSize: context.fs(11),
+                  Flexible(
+                    child: Text(
+                      'Direct messages are stored by hejournal.in. Do not share sensitive credentials.',
+                      textAlign: TextAlign.center,
+                      style: context.uiText.caption.copyWith(
+                        color: colors.foregroundSubtle,
+                        fontSize: context.fs(11),
+                      ),
                     ),
                   ),
                 ],

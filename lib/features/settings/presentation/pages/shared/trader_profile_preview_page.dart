@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 // Required unified primitive import for the profile preview surface.
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
@@ -17,6 +19,7 @@ import 'package:tradex/features/journal/ui/journal_entry_screen.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/notes/ui/note_preview_screen.dart';
+import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
 
 String _formatCount(int count) {
   if (count >= 1000000) {
@@ -25,6 +28,25 @@ String _formatCount(int count) {
     return '${(count / 1000).toStringAsFixed(1)}K';
   }
   return '$count';
+}
+
+String _monthName(int month) {
+  const months = <String>[
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  if (month >= 1 && month <= 12) return months[month - 1];
+  return '';
 }
 
 /// Stunning, responsive public profile preview resembling Twitter (X) + Trading Journal + Notes.
@@ -52,6 +74,7 @@ class TraderProfilePreviewPage extends StatefulWidget {
     this.onOpenRef,
     this.onDirectMessage,
     this.isCurrentUser = false,
+    this.forceTraderView = false,
   });
 
   final String displayName;
@@ -75,6 +98,7 @@ class TraderProfilePreviewPage extends StatefulWidget {
   final ValueChanged<AppLinkRef>? onOpenRef;
   final void Function(AppTrader trader)? onDirectMessage;
   final bool isCurrentUser;
+  final bool forceTraderView;
 
   @override
   State<TraderProfilePreviewPage> createState() =>
@@ -82,39 +106,450 @@ class TraderProfilePreviewPage extends StatefulWidget {
 }
 
 class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
+  String? _liveDisplayName;
+  String? _liveHandle;
+  String? _liveBio;
+  String? _liveAvatarUrl;
+  String? _liveLocation;
+  String? _liveWebsite;
+  String? _liveJoinedDate;
+  String? _liveAvgHoldDuration;
+  String? _livePrimaryMarket;
+  String? _liveTopStrategy;
+  String? _liveRiskMantra;
+  double? _liveWinRate;
+  int _liveFollowers = 0;
+  int _liveFollowing = 0;
+  int _livePostsCount = 0;
   bool _isFollowing = false;
+  UserRole? _liveRole;
+  bool? _liveVerified;
+  int _liveTotalTraders = 0;
+  int _liveTotalJournals = 0;
   int _selectedFilterIndex = 0;
+
+  String get _cleanHandle {
+    final raw = (_liveHandle?.trim().isNotEmpty == true)
+        ? _liveHandle!
+        : (widget.author?.handle.trim().isNotEmpty == true
+            ? widget.author!.handle
+            : widget.handle);
+    return raw.replaceFirst(RegExp(r'^@+'), '').trim();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final repo = widget.repository;
+    final targetAuthorId = widget.author?.id.isNotEmpty == true
+        ? widget.author!.id
+        : '';
+    final bool isSelf = widget.isCurrentUser ||
+        (targetAuthorId.isNotEmpty &&
+            targetAuthorId == SupabaseConfig.client?.auth.currentUser?.id);
+    if (repo != null) {
+      repo.addListener(_onRepoChanged);
+      if (isSelf) {
+        _liveFollowing = repo.followingCount;
+        _liveFollowers = repo.followersCount;
+      } else if (widget.author != null) {
+        _isFollowing = repo.isFollowing(widget.author!.id);
+        final match = repo.suggestedTraders
+            .where((a) => a.id == widget.author!.id)
+            .firstOrNull;
+        _liveFollowers = match?.followers ?? widget.author!.followers;
+        _liveFollowing = match?.following ?? widget.author!.following;
+      }
+    } else {
+      _liveFollowers = widget.author?.followers ?? 0;
+      _liveFollowing = widget.author?.following ?? 0;
+      _isFollowing = widget.author?.isFollowing ?? false;
+    }
+
+    if (widget.isCurrentUser) {
+      final cp = ProfileSettingsRepositoryImpl.instance.cachedProfile;
+      if (cp.displayName.isNotEmpty && cp.displayName != 'Your account') {
+        _liveDisplayName = cp.displayName;
+      }
+      if (cp.handle.isNotEmpty) _liveHandle = cp.handle;
+      if (cp.bio?.isNotEmpty == true) _liveBio = cp.bio;
+      if (cp.avatarUrl?.isNotEmpty == true) _liveAvatarUrl = cp.avatarUrl;
+      if (cp.location?.isNotEmpty == true) _liveLocation = cp.location;
+      if (cp.website?.isNotEmpty == true) _liveWebsite = cp.website;
+      if (cp.avgHoldDuration?.isNotEmpty == true) {
+        _liveAvgHoldDuration = cp.avgHoldDuration;
+      }
+      if (cp.primaryMarket?.isNotEmpty == true) {
+        _livePrimaryMarket = cp.primaryMarket;
+      }
+      if (cp.topStrategy?.isNotEmpty == true) {
+        _liveTopStrategy = cp.topStrategy;
+      }
+      if (cp.riskMantra?.isNotEmpty == true) {
+        _liveRiskMantra = cp.riskMantra;
+      }
+    }
+    _loadLiveTraderData();
+  }
+
+  void _onRepoChanged() {
+    if (!mounted) return;
+    final repo = widget.repository;
+    if (repo == null) return;
+    final targetAuthorId = widget.author?.id.isNotEmpty == true
+        ? widget.author!.id
+        : '';
+    final bool isSelf = widget.isCurrentUser ||
+        (targetAuthorId.isNotEmpty &&
+            targetAuthorId == SupabaseConfig.client?.auth.currentUser?.id);
+    setState(() {
+      if (isSelf) {
+        _liveFollowing = repo.followingCount;
+        _liveFollowers = repo.followersCount;
+      } else if (widget.author != null) {
+        _isFollowing = repo.isFollowing(widget.author!.id);
+        final match = repo.suggestedTraders
+            .where((a) => a.id == widget.author!.id)
+            .firstOrNull;
+        if (match != null) {
+          _liveFollowers = match.followers;
+          _liveFollowing = match.following;
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    widget.repository?.removeListener(_onRepoChanged);
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant TraderProfilePreviewPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.handle != widget.handle ||
+        oldWidget.author?.id != widget.author?.id ||
+        oldWidget.displayName != widget.displayName) {
+      if (widget.repository != null && widget.author != null) {
+        _isFollowing = widget.repository!.isFollowing(widget.author!.id);
+        final match = widget.repository!.suggestedTraders
+            .where((a) => a.id == widget.author!.id)
+            .firstOrNull;
+        _liveFollowers = match?.followers ?? widget.author!.followers;
+        _liveFollowing = match?.following ?? widget.author!.following;
+      } else if (widget.author != null) {
+        _liveFollowers = widget.author!.followers;
+        _liveFollowing = widget.author!.following;
+        _isFollowing = widget.author!.isFollowing;
+      }
+      _loadLiveTraderData();
+    }
+  }
+
+  Future<void> _loadLiveTraderData() async {
+    if (!SupabaseConfig.isConfigured) return;
+    final client = SupabaseConfig.client;
+    if (client == null) return;
+
+    try {
+      final currentAuthUser = client.auth.currentUser;
+      final String cleanH = _cleanHandle;
+      final String targetId = widget.author?.id.isNotEmpty == true
+          ? widget.author!.id
+          : (widget.isCurrentUser && currentAuthUser != null ? currentAuthUser.id : '');
+
+      Map<String, dynamic>? profileRow;
+      if (targetId.isNotEmpty) {
+        profileRow = await client
+            .from('profiles')
+            .select()
+            .eq('id', targetId)
+            .maybeSingle();
+      }
+      if (profileRow == null && cleanH.isNotEmpty) {
+        final rows = await client
+            .from('profiles')
+            .select()
+            .or('handle.eq.$cleanH,handle.eq.@$cleanH')
+            .limit(1);
+        if (rows.isNotEmpty) {
+          profileRow = rows.first;
+        }
+      }
+
+      final effectiveUserId = profileRow != null
+          ? (profileRow['id'] as String? ?? targetId)
+          : targetId;
+
+      if (profileRow != null) {
+        _liveDisplayName = profileRow['display_name'] as String?;
+        _liveHandle = profileRow['handle'] as String?;
+        _liveBio = profileRow['bio'] as String?;
+        _liveAvatarUrl = profileRow['avatar_url'] as String?;
+        _liveLocation = profileRow['location'] as String?;
+        _liveWebsite = profileRow['website'] as String?;
+        _liveAvgHoldDuration = profileRow['avg_hold_duration'] as String?;
+        _livePrimaryMarket = profileRow['primary_market'] as String?;
+        _liveTopStrategy = profileRow['top_strategy'] as String?;
+        _liveRiskMantra = profileRow['risk_mantra'] as String?;
+        _liveVerified = profileRow['verified'] as bool?;
+
+        final roleStr = profileRow['role'] as String?;
+        if (roleStr != null) {
+          _liveRole = switch (roleStr.toLowerCase()) {
+            'affiliate' => UserRole.affiliate,
+            'user_admin' || 'admin' => UserRole.userAdmin,
+            _ => UserRole.customer,
+          };
+        }
+
+        final createdAtRaw = profileRow['created_at'] as String?;
+        if (createdAtRaw != null) {
+          final dt = DateTime.tryParse(createdAtRaw);
+          if (dt != null) {
+            _liveJoinedDate = 'Joined ${_monthName(dt.month)} ${dt.year}';
+          }
+        }
+      }
+
+      if (effectiveUserId.isNotEmpty) {
+        try {
+          final followerRes = await client
+              .from('community_follows')
+              .select('id')
+              .eq('following_id', effectiveUserId);
+          _liveFollowers = (followerRes as List).length;
+        } catch (_) {}
+
+        try {
+          final followingRes = await client
+              .from('community_follows')
+              .select('id')
+              .eq('follower_id', effectiveUserId);
+          _liveFollowing = (followingRes as List).length;
+        } catch (_) {}
+
+        if (currentAuthUser != null && currentAuthUser.id != effectiveUserId) {
+          try {
+            final isFollowRes = await client
+                .from('community_follows')
+                .select('id')
+                .eq('follower_id', currentAuthUser.id)
+                .eq('following_id', effectiveUserId)
+                .maybeSingle();
+            _isFollowing = isFollowRes != null;
+          } catch (_) {}
+        }
+
+        try {
+          final postsRes = await client
+              .from('community_posts')
+              .select('id')
+              .eq('author_id', effectiveUserId);
+          _livePostsCount = (postsRes as List).length;
+        } catch (_) {}
+
+        try {
+          final journalRows = await client
+              .from('journal_entries')
+              .select('outcome, pnl, opened_at, closed_at, ticker')
+              .eq('user_id', effectiveUserId);
+
+          final entries = (journalRows as List);
+          if (entries.isNotEmpty) {
+            int closedCount = 0;
+            int winCount = 0;
+            final Map<String, int> tickerCounts = <String, int>{};
+            int totalHoldMinutes = 0;
+            int holdCount = 0;
+
+            for (final item in entries) {
+              final outcome = (item['outcome'] as String?)?.toLowerCase();
+              final pnl = (item['pnl'] as num?)?.toDouble();
+              final isWin = outcome == 'win' || (outcome == null && pnl != null && pnl > 0);
+              final isLoss = outcome == 'loss' || (outcome == null && pnl != null && pnl < 0);
+              final isBreakeven = outcome == 'breakeven' || (outcome == null && pnl != null && pnl == 0);
+
+              if (isWin || isLoss || isBreakeven) {
+                closedCount++;
+                if (isWin) winCount++;
+              }
+
+              final ticker = item['ticker'] as String?;
+              if (ticker != null && ticker.trim().isNotEmpty) {
+                tickerCounts[ticker.trim()] = (tickerCounts[ticker.trim()] ?? 0) + 1;
+              }
+
+              final openedAtStr = item['opened_at'] as String?;
+              final closedAtStr = item['closed_at'] as String?;
+              if (openedAtStr != null && closedAtStr != null) {
+                final o = DateTime.tryParse(openedAtStr);
+                final c = DateTime.tryParse(closedAtStr);
+                if (o != null && c != null && c.isAfter(o)) {
+                  totalHoldMinutes += c.difference(o).inMinutes;
+                  holdCount++;
+                }
+              }
+            }
+
+            if (closedCount > 0) {
+              _liveWinRate = (winCount / closedCount) * 100.0;
+            }
+
+            if ((_livePrimaryMarket == null || _livePrimaryMarket!.isEmpty) && tickerCounts.isNotEmpty) {
+              final sortedTickers = tickerCounts.entries.toList()
+                ..sort((a, b) => b.value.compareTo(a.value));
+              _livePrimaryMarket = sortedTickers.first.key;
+            }
+
+            if ((_liveAvgHoldDuration == null || _liveAvgHoldDuration!.isEmpty) && holdCount > 0) {
+              final avgM = totalHoldMinutes ~/ holdCount;
+              if (avgM < 60) {
+                _liveAvgHoldDuration = '${avgM}m (Intraday)';
+              } else if (avgM < 1440) {
+                _liveAvgHoldDuration = '${avgM ~/ 60}h ${avgM % 60}m';
+              } else {
+                _liveAvgHoldDuration = '${avgM ~/ 1440}d (Swing)';
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('[TraderProfilePreviewPage] journal query error: $e');
+        }
+      }
+
+      if (widget.userRole == UserRole.userAdmin || _liveRole == UserRole.userAdmin) {
+        try {
+          final pRes = await client.from('profiles').select('id');
+          _liveTotalTraders = (pRes as List).length;
+        } catch (_) {}
+        try {
+          final jRes = await client.from('journal_entries').select('id');
+          _liveTotalJournals = (jRes as List).length;
+        } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('[TraderProfilePreviewPage] _loadLiveTraderData error: $e');
+    } finally {
+      if (mounted) setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final isMobile = context.uiRes.isMobile;
-    final bool isAffiliate = widget.userRole == UserRole.affiliate;
-    final bool isAdmin = widget.userRole == UserRole.userAdmin;
+    final bool isPublicView = widget.forceTraderView || !widget.isCurrentUser;
+    final bool isAffiliate =
+        !isPublicView && widget.userRole == UserRole.affiliate;
+    final bool isAdmin = !isPublicView && widget.userRole == UserRole.userAdmin;
+    final UserRole effectiveRole = isPublicView
+        ? UserRole.customer
+        : (_liveRole ?? widget.userRole);
 
-    final Color verifiedColor = switch (widget.userRole) {
+    final String effectiveDisplayName = (_liveDisplayName?.trim().isNotEmpty == true)
+        ? _liveDisplayName!
+        : (widget.displayName.trim().isNotEmpty
+            ? widget.displayName
+            : (widget.author?.displayName ?? 'Trader'));
+
+    final String? effectiveAvatarUrl = (_liveAvatarUrl?.trim().isNotEmpty == true)
+        ? _liveAvatarUrl
+        : (widget.avatarUrl?.trim().isNotEmpty == true
+            ? widget.avatarUrl
+            : widget.author?.avatarUrl);
+
+    final bool effectiveVerified = _liveVerified ?? widget.author?.verified ?? true;
+
+    final String? effectiveLocation = (_liveLocation?.trim().isNotEmpty == true)
+        ? _liveLocation
+        : (widget.location?.trim().isNotEmpty == true
+            ? widget.location
+            : widget.author?.location);
+
+    final String? effectiveWebsite = (_liveWebsite?.trim().isNotEmpty == true)
+        ? _liveWebsite
+        : (widget.website?.trim().isNotEmpty == true
+            ? widget.website
+            : widget.author?.website);
+
+    final String? effectiveJoined = (_liveJoinedDate?.trim().isNotEmpty == true)
+        ? _liveJoinedDate
+        : widget.author?.joinedDate;
+
+    final String? effectiveHold = (_liveAvgHoldDuration?.trim().isNotEmpty == true)
+        ? _liveAvgHoldDuration
+        : (widget.avgHoldDuration?.trim().isNotEmpty == true
+            ? widget.avgHoldDuration
+            : widget.author?.avgHoldDuration);
+
+    final String? effectiveMarket = (_livePrimaryMarket?.trim().isNotEmpty == true)
+        ? _livePrimaryMarket
+        : (widget.primaryMarket?.trim().isNotEmpty == true
+            ? widget.primaryMarket
+            : widget.author?.primaryMarket);
+
+    final String? effectiveStrategy = (_liveTopStrategy?.trim().isNotEmpty == true)
+        ? _liveTopStrategy
+        : (widget.topStrategy?.trim().isNotEmpty == true
+            ? widget.topStrategy
+            : widget.author?.tradingStyle);
+
+    final String? effectiveRiskMantra = (_liveRiskMantra?.trim().isNotEmpty == true)
+        ? _liveRiskMantra
+        : (widget.riskMantra?.trim().isNotEmpty == true
+            ? widget.riskMantra
+            : widget.author?.riskMantra);
+
+    final double? effectiveWinRate = _liveWinRate ??
+        (widget.author?.winRate != null
+            ? (widget.author!.winRate! <= 1.0
+                ? widget.author!.winRate! * 100.0
+                : widget.author!.winRate)
+            : null);
+
+    final int effectiveFollowers = _liveFollowers;
+
+    final int effectiveFollowing = _liveFollowing;
+
+    final int effectivePosts = _livePostsCount > 0
+        ? _livePostsCount
+        : (widget.repository != null && widget.author != null
+            ? widget.repository!.postsForAuthor(widget.author!.id).length
+            : (widget.author?.postsCount ?? 0));
+
+    final Color verifiedColor = switch (effectiveRole) {
       UserRole.customer => theme.colors.primary,
       UserRole.affiliate => theme.colors.warning,
       UserRole.userAdmin => theme.colors.destructive,
     };
 
-    final String roleBadgeText = switch (widget.userRole) {
+    final String roleBadgeText = switch (effectiveRole) {
       UserRole.customer => 'PRO TRADER',
       UserRole.affiliate => 'OFFICIAL PARTNER',
       UserRole.userAdmin => 'DESK SUPERADMIN · ROOT',
     };
 
-    final String displayBio = widget.bio?.trim().isNotEmpty == true
-        ? widget.bio!
-        : (widget.author?.bio?.trim().isNotEmpty == true
-              ? widget.author!.bio!
-              : (isAdmin
+    final String displayBio = _liveBio?.trim().isNotEmpty == true
+        ? _liveBio!
+        : (widget.bio?.trim().isNotEmpty == true
+            ? widget.bio!
+            : (widget.author?.bio?.trim().isNotEmpty == true
+                ? widget.author!.bio!
+                : (isAdmin
                     ? 'Chief Risk Officer & Proprietary Desk Overseer. Managing firm-wide risk boundaries, capital allocation matrices, and trading engine infrastructure.'
                     : (isAffiliate
-                          ? 'Official TradeX Partner & trading educator. Sharing trade setups, execution blueprints, and exclusive member discounts.'
-                          : '')));
+                        ? 'Official hejournal.in Partner & trading educator. Sharing trade setups, execution blueprints, and member discounts.'
+                        : ''))));
 
-    final List<UiTabItem> tabItems = switch (widget.userRole) {
+    final String targetAuthorId = widget.author?.id.isNotEmpty == true
+        ? widget.author!.id
+        : (widget.isCurrentUser && SupabaseConfig.client?.auth.currentUser != null
+            ? SupabaseConfig.client!.auth.currentUser!.id
+            : '');
+
+    final List<UiTabItem> tabItems = switch (effectiveRole) {
       UserRole.userAdmin => <UiTabItem>[
         UiTabItem(
           label: 'Command Center',
@@ -142,10 +577,10 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           label: 'Campaigns',
           icon: Icons.campaign_outlined,
           content: _AffiliateCampaignsPreview(
-            displayName: widget.displayName,
-            handle: widget.handle,
+            displayName: effectiveDisplayName,
+            handle: _cleanHandle,
             referralCode: widget.referralCode ?? 'TRADEX-PARTNER-2026',
-            avatarUrl: widget.avatarUrl,
+            avatarUrl: effectiveAvatarUrl,
             verifiedColor: verifiedColor,
           ),
         ),
@@ -161,8 +596,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           label: 'Playbooks',
           icon: Icons.menu_book_outlined,
           content: _NotesPlaybooksPreview(
-            authorId: widget.author?.id,
-            handle: widget.handle,
+            authorId: targetAuthorId,
+            handle: _cleanHandle,
             onOpenRef: widget.onOpenRef,
           ),
         ),
@@ -177,9 +612,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           label: 'Posts',
           icon: Icons.dynamic_feed_outlined,
           content: _TwitterFeedPreview(
-            displayName: widget.displayName,
-            handle: widget.handle,
-            avatarUrl: widget.avatarUrl,
+            displayName: effectiveDisplayName,
+            handle: _cleanHandle,
+            avatarUrl: effectiveAvatarUrl,
             verifiedColor: verifiedColor,
             repository: widget.repository,
             author: widget.author,
@@ -195,8 +630,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             selectedFilter: _selectedFilterIndex,
             onFilterChanged: (int idx) =>
                 setState(() => _selectedFilterIndex = idx),
-            authorId: widget.author?.id,
-            handle: widget.handle,
+            authorId: targetAuthorId,
+            handle: _cleanHandle,
             onOpenRef: widget.onOpenRef,
           ),
         ),
@@ -204,8 +639,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           label: 'Notes',
           icon: Icons.note_alt_outlined,
           content: _NotesPlaybooksPreview(
-            authorId: widget.author?.id,
-            handle: widget.handle,
+            authorId: targetAuthorId,
+            handle: _cleanHandle,
             onOpenRef: widget.onOpenRef,
           ),
         ),
@@ -217,12 +652,38 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         label: 'Spaces History',
         icon: Icons.podcasts_rounded,
         content: CommunitySpaceHistory(
-          handle: widget.handle,
-          authorId: widget.author?.id,
+          handle: _cleanHandle,
+          authorId: targetAuthorId,
           repository: widget.repository,
         ),
       ),
     );
+
+    final String currentAuthId =
+        SupabaseConfig.client?.auth.currentUser?.id ?? '';
+    final String cachedHandle = ProfileSettingsRepositoryImpl
+        .instance.cachedProfile.handle
+        .toLowerCase()
+        .replaceFirst(RegExp(r'^@+'), '')
+        .trim();
+    final bool isViewingSelf = widget.isCurrentUser ||
+        (targetAuthorId.isNotEmpty && targetAuthorId == currentAuthId) ||
+        (cachedHandle.isNotEmpty && cachedHandle == _cleanHandle.toLowerCase());
+
+    if (isViewingSelf) {
+      tabItems.add(
+        UiTabItem(
+          label: 'Activity',
+          icon: Icons.history_rounded,
+          content: _TraderActivityHistoryPreview(
+            authorId: targetAuthorId,
+            handle: _cleanHandle,
+            repository: widget.repository,
+            onPostTap: widget.onPostTap,
+          ),
+        ),
+      );
+    }
 
     final Color bannerColor = isAdmin
         ? theme.colors.destructive
@@ -237,18 +698,6 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         : (isAffiliate
               ? Icons.workspace_premium_rounded
               : Icons.public_rounded);
-
-    final String calloutTitle = isAdmin
-        ? 'Desk superadmin profile & root governance'
-        : (isAffiliate
-              ? 'Affiliate partner profile preview'
-              : 'Public profile preview');
-
-    final String calloutMessage = isAdmin
-        ? 'Root administrator preview. You have unrestricted execution clearance across risk parameters, desk allocation, killswitch mechanisms, and global platform state.'
-        : (isAffiliate
-              ? 'This is how referred traders, students, and community members see your partner portal, referral codes, and verified campaigns.'
-              : 'This is how verified traders, subscribers, and community members see your public presence and track record.');
 
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double bottomInset = isMobile
@@ -270,14 +719,6 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              UiCallout(
-                title: calloutTitle,
-                message: calloutMessage,
-                intent: isAdmin
-                    ? UiIntent.danger
-                    : (isAffiliate ? UiIntent.warning : UiIntent.info),
-              ),
-              SizedBox(height: context.sp(theme.spacing.md)),
 
               // ---------------------------------------------------------------
               // Twitter/X Style Profile Hero Card
@@ -360,10 +801,10 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                 ],
                               ),
                               child: UiAvatar(
-                                name: widget.displayName,
-                                imageUrl: widget.avatarUrl,
+                                name: effectiveDisplayName,
+                                imageUrl: effectiveAvatarUrl,
                                 size: isMobile ? UiSize.lg : UiSize.xl,
-                                verified: true,
+                                verified: effectiveVerified,
                                 verifiedColor: verifiedColor,
                               ),
                             ),
@@ -390,7 +831,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       leadingIcon: Icons.terminal_rounded,
                                       variant: UiVariant.primary,
                                       intent: UiIntent.danger,
-                                      size: UiSize.sm,
+                                      size: UiSize.md,
                                       expandOnMobile: false,
                                       onPressed: () {
                                         UiToast.show(
@@ -406,6 +847,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       icon: Icons.crisis_alert_rounded,
                                       tooltip: 'Emergency Killswitch',
                                       variant: UiVariant.outline,
+                                      size: UiSize.md,
                                       onPressed: () {
                                         UiToast.show(
                                           context,
@@ -420,6 +862,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       icon: Icons.tune_rounded,
                                       tooltip: 'Risk Governance Config',
                                       variant: UiVariant.outline,
+                                      size: UiSize.md,
                                       onPressed: () {
                                         UiToast.show(
                                           context,
@@ -437,10 +880,11 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                           ? 'Share Referral Link'
                                           : 'Share Profile',
                                       variant: UiVariant.outline,
+                                      size: UiSize.md,
                                       onPressed: () {
                                         final link = isAffiliate
-                                            ? 'https://tradex.io/join/${widget.referralCode ?? widget.handle}'
-                                            : 'https://tradex.io/@${widget.handle}';
+                                            ? 'https://hejournal.in/join/${widget.referralCode ?? _cleanHandle}'
+                                            : 'https://hejournal.in/@$_cleanHandle';
                                         Clipboard.setData(
                                           ClipboardData(text: link),
                                         );
@@ -458,15 +902,16 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       icon: Icons.mail_outline_rounded,
                                       tooltip: 'Direct Message',
                                       variant: UiVariant.outline,
+                                      size: UiSize.md,
                                       onPressed: () {
                                         final AppTrader peer = AppTrader(
-                                          id:
-                                              widget.author?.id ??
-                                              'trader_${widget.handle}',
-                                          handle: widget.handle,
-                                          displayName: widget.displayName,
-                                          avatarUrl: widget.avatarUrl,
-                                          bio: widget.bio,
+                                          id: targetAuthorId.isNotEmpty
+                                              ? targetAuthorId
+                                              : 'trader_$_cleanHandle',
+                                          handle: '@$_cleanHandle',
+                                          displayName: effectiveDisplayName,
+                                          avatarUrl: effectiveAvatarUrl,
+                                          bio: displayBio,
                                           tier:
                                               widget.userRole ==
                                                   UserRole.affiliate
@@ -477,13 +922,52 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                           widget.onDirectMessage!(peer);
                                         } else {
                                           try {
-                                            MessagesRepositoryScope.repository
-                                                .startConversation(peer);
+                                            final repo = MessagesRepositoryScope
+                                                .repository;
+                                            if (repo.isMessagingRestricted(
+                                              peer,
+                                            )) {
+                                              UiDialog.show<void>(
+                                                context,
+                                                child: UiDialog(
+                                                  title:
+                                                      'Cannot message @$_cleanHandle',
+                                                  content: Padding(
+                                                    padding:
+                                                        EdgeInsets.symmetric(
+                                                          vertical: context.sp(
+                                                            context
+                                                                .ui
+                                                                .spacing
+                                                                .sm,
+                                                          ),
+                                                        ),
+                                                    child: Text(
+                                                      '@$_cleanHandle does not accept direct messages from everyone. Only invited traders or accounts they follow can start a conversation.',
+                                                      style:
+                                                          context.uiText.body,
+                                                    ),
+                                                  ),
+                                                  actions: <Widget>[
+                                                    UiButton(
+                                                      label: 'OK',
+                                                      intent: UiIntent.primary,
+                                                      onPressed: () =>
+                                                          Navigator.of(
+                                                            context,
+                                                          ).pop(),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                              return;
+                                            }
+                                            repo.startConversation(peer);
                                             UiToast.show(
                                               context,
                                               title: 'Direct Message',
                                               message:
-                                                  'Started conversation with @${widget.handle}',
+                                                  'Started conversation with @$_cleanHandle',
                                               intent: UiIntent.success,
                                             );
                                           } catch (_) {
@@ -491,7 +975,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                               context,
                                               title: 'Direct Message',
                                               message:
-                                                  'Opening conversation with @${widget.handle}',
+                                                  'Opening conversation with @$_cleanHandle',
                                               intent: UiIntent.info,
                                             );
                                           }
@@ -511,26 +995,65 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       intent: isAffiliate
                                           ? UiIntent.warning
                                           : UiIntent.primary,
-                                      size: UiSize.sm,
+                                      size: UiSize.md,
                                       tooltip: isAffiliate
                                           ? (_isFollowing
-                                                ? 'Subscribed to @${widget.handle}'
-                                                : 'Subscribe to @${widget.handle}')
+                                                ? 'Subscribed to @$_cleanHandle'
+                                                : 'Subscribe to @$_cleanHandle')
                                           : (_isFollowing
-                                                ? 'Following @${widget.handle}'
-                                                : 'Follow @${widget.handle}'),
-                                      onPressed: () {
-                                        setState(
-                                          () => _isFollowing = !_isFollowing,
-                                        );
+                                                ? 'Following @$_cleanHandle'
+                                                : 'Follow @$_cleanHandle'),
+                                      onPressed: () async {
+                                        setState(() {
+                                          _isFollowing = !_isFollowing;
+                                          if (_isFollowing) {
+                                            _liveFollowers++;
+                                          } else {
+                                            if (_liveFollowers > 0) _liveFollowers--;
+                                          }
+                                        });
+
+                                        final targetTid = targetAuthorId.isNotEmpty
+                                            ? targetAuthorId
+                                            : (widget.author?.id ?? '');
+                                        if (widget.repository != null && targetTid.isNotEmpty) {
+                                          widget.repository!.toggleFollow(targetTid);
+                                        } else if (SupabaseConfig.isConfigured && targetTid.isNotEmpty) {
+                                          try {
+                                            final client = SupabaseConfig.client!;
+                                            final curUid = client.auth.currentUser?.id;
+                                            if (curUid != null && curUid.isNotEmpty) {
+                                              if (_isFollowing) {
+                                                await client.from('community_follows').insert({
+                                                  'follower_id': curUid,
+                                                  'following_id': targetTid,
+                                                });
+                                              } else {
+                                                await client.from('community_follows').delete()
+                                                    .eq('follower_id', curUid)
+                                                    .eq('following_id', targetTid);
+                                              }
+                                            }
+                                          } catch (e) {
+                                            debugPrint('[TraderProfilePreviewPage] toggleFollow error: $e');
+                                          }
+                                        }
+
+                                        if (!mounted || !context.mounted) return;
                                         UiToast.show(
                                           context,
                                           title: _isFollowing
-                                              ? 'Subscribed to @${widget.handle}'
-                                              : 'Unsubscribed from @${widget.handle}',
+                                              ? (isAffiliate
+                                                    ? 'Subscribed to @$_cleanHandle'
+                                                    : 'Following @$_cleanHandle')
+                                              : (isAffiliate
+                                                    ? 'Unsubscribed from @$_cleanHandle'
+                                                    : 'Unfollowed @$_cleanHandle'),
                                           message: _isFollowing
-                                              ? 'You will receive creator market playbooks and discount updates.'
-                                              : 'You have unsubscribed from partner alerts.',
+                                              ? (isAffiliate
+                                                    ? 'You will receive creator playbooks and updates.'
+                                                    : 'Now following @$_cleanHandle.')
+                                              : 'You have unfollowed @$_cleanHandle.',
                                           intent: _isFollowing
                                               ? UiIntent.success
                                               : UiIntent.neutral,
@@ -570,7 +1093,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                             runSpacing: context.sp(theme.spacing.xxs),
                             children: <Widget>[
                               Text(
-                                widget.displayName,
+                                effectiveDisplayName,
                                 style: context.uiText.heading.copyWith(
                                   fontWeight: FontWeight.w800,
                                   fontSize: context.fs(isMobile ? 18 : 22),
@@ -606,7 +1129,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                           // Handle & Meta row
                           SizedBox(height: context.sp(theme.spacing.xxs)),
                           Text(
-                            '@${widget.handle}',
+                            '@$_cleanHandle',
                             style: context.uiText.body.copyWith(
                               color: theme.colors.foregroundMuted,
                               fontWeight: FontWeight.w500,
@@ -639,9 +1162,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                 _MetaItem(
                                   icon: Icons.domain_rounded,
                                   text:
-                                      widget.topStrategy?.trim().isNotEmpty ==
+                                      effectiveStrategy?.trim().isNotEmpty ==
                                           true
-                                      ? widget.topStrategy!
+                                      ? effectiveStrategy!
                                       : 'Proprietary Trading Desk',
                                 ),
                                 const _MetaItem(
@@ -650,7 +1173,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                 ),
                                 const _MetaItem(
                                   icon: Icons.speed_rounded,
-                                  text: 'Engine Latency: 1.2ms Direct',
+                                  text: 'Engine Latency: Nominal Direct',
                                 ),
                                 const _MetaItem(
                                   icon: Icons.terminal_rounded,
@@ -658,54 +1181,38 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                   isLink: true,
                                 ),
                               ] else ...[
-                                if (widget.location?.trim().isNotEmpty ==
-                                        true ||
-                                    widget.author?.location
-                                            ?.trim()
-                                            .isNotEmpty ==
-                                        true)
+                                if (effectiveLocation != null &&
+                                    effectiveLocation.trim().isNotEmpty)
                                   _MetaItem(
                                     icon: Icons.location_on_outlined,
-                                    text:
-                                        widget.location?.trim().isNotEmpty ==
-                                            true
-                                        ? widget.location!
-                                        : widget.author!.location!,
+                                    text: effectiveLocation,
                                   ),
-                                if (widget.author?.joinedDate
-                                        ?.trim()
-                                        .isNotEmpty ==
-                                    true)
+                                if (effectiveJoined != null &&
+                                    effectiveJoined.trim().isNotEmpty)
                                   _MetaItem(
                                     icon: Icons.calendar_month_outlined,
-                                    text: widget.author!.joinedDate!,
+                                    text: effectiveJoined,
                                   ),
                                 if (isAffiliate)
                                   _MetaItem(
                                     icon: Icons.link_rounded,
                                     text:
-                                        'tradex.io/join/${widget.referralCode ?? widget.handle}',
+                                        'hejournal.in/join/${widget.referralCode ?? _cleanHandle}',
                                     isLink: true,
                                   )
-                                else if (widget.website?.trim().isNotEmpty ==
-                                        true ||
-                                    widget.author?.website?.trim().isNotEmpty ==
-                                        true)
+                                else if (effectiveWebsite != null &&
+                                    effectiveWebsite.trim().isNotEmpty)
                                   _MetaItem(
                                     icon: Icons.link_rounded,
-                                    text:
-                                        widget.website?.trim().isNotEmpty ==
-                                            true
-                                        ? widget.website!
-                                        : widget.author!.website!,
+                                    text: effectiveWebsite,
                                     isLink: true,
                                   ),
                                 if (isAffiliate) ...[
-                                  if (widget.topStrategy?.trim().isNotEmpty ==
-                                      true)
+                                  if (effectiveStrategy != null &&
+                                      effectiveStrategy.trim().isNotEmpty)
                                     _MetaItem(
                                       icon: Icons.smart_display_outlined,
-                                      text: widget.topStrategy!,
+                                      text: effectiveStrategy,
                                     ),
                                   if (widget.audienceReach?.trim().isNotEmpty ==
                                       true)
@@ -714,34 +1221,17 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       text: 'Reach: ${widget.audienceReach!}',
                                     ),
                                 ] else ...[
-                                  if (widget.avgHoldDuration
-                                              ?.trim()
-                                              .isNotEmpty ==
-                                          true ||
-                                      widget.author?.avgHoldDuration
-                                              ?.trim()
-                                              .isNotEmpty ==
-                                          true)
+                                  if (effectiveHold != null &&
+                                      effectiveHold.trim().isNotEmpty)
                                     _MetaItem(
                                       icon: Icons.bolt_rounded,
-                                      text:
-                                          'Avg Hold: ${widget.avgHoldDuration?.trim().isNotEmpty == true ? widget.avgHoldDuration! : widget.author!.avgHoldDuration!}',
+                                      text: 'Avg Hold: $effectiveHold',
                                     ),
-                                  if (widget.primaryMarket?.trim().isNotEmpty ==
-                                          true ||
-                                      widget.author?.primaryMarket
-                                              ?.trim()
-                                              .isNotEmpty ==
-                                          true)
+                                  if (effectiveMarket != null &&
+                                      effectiveMarket.trim().isNotEmpty)
                                     _MetaItem(
                                       icon: Icons.show_chart_rounded,
-                                      text:
-                                          widget.primaryMarket
-                                                  ?.trim()
-                                                  .isNotEmpty ==
-                                              true
-                                          ? widget.primaryMarket!
-                                          : widget.author!.primaryMarket!,
+                                      text: effectiveMarket,
                                     ),
                                 ],
                               ],
@@ -754,20 +1244,24 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                             spacing: context.sp(theme.spacing.lg),
                             runSpacing: context.sp(theme.spacing.sm),
                             children: isAdmin
-                                ? const <Widget>[
+                                ? <Widget>[
                                     _SocialStat(
-                                      count: '12.4K',
-                                      label: 'Monitored Traders',
+                                      count: _liveTotalTraders > 0
+                                          ? '$_liveTotalTraders'
+                                          : '--',
+                                      label: 'Registered Traders',
                                     ),
                                     _SocialStat(
-                                      count: '₹148.2 Cr',
-                                      label: 'Supervised AUM',
+                                      count: _liveTotalJournals > 0
+                                          ? '$_liveTotalJournals'
+                                          : '--',
+                                      label: 'Journal Trades',
                                     ),
-                                    _SocialStat(
-                                      count: '99.99%',
-                                      label: 'Systems Uptime',
+                                    const _SocialStat(
+                                      count: 'Active (Live)',
+                                      label: 'System Status',
                                     ),
-                                    _SocialStat(
+                                    const _SocialStat(
                                       count: '0',
                                       label: 'Critical Breaches',
                                     ),
@@ -775,65 +1269,40 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                 : (isAffiliate
                                       ? <Widget>[
                                           _SocialStat(
-                                            count:
-                                                widget.audienceReach ??
-                                                _formatCount(
-                                                  widget.author?.followers ?? 0,
-                                                ),
-                                            label: 'Audience Reach',
-                                          ),
-                                          _SocialStat(
-                                            count: _formatCount(
-                                              widget.author?.followers ?? 0,
-                                            ),
+                                            count: _formatCount(effectiveFollowers),
                                             label: 'Followers',
                                           ),
                                           _SocialStat(
-                                            count: _formatCount(
-                                              widget.author?.postsCount ?? 0,
-                                            ),
+                                            count: _formatCount(effectiveFollowing),
+                                            label: 'Following',
+                                          ),
+                                          _SocialStat(
+                                            count: _formatCount(effectivePosts),
                                             label: 'Public Posts',
                                           ),
                                           _SocialStat(
-                                            count:
-                                                widget.referralCode ??
-                                                'PARTNER',
+                                            count: widget.referralCode?.trim().isNotEmpty == true
+                                                ? widget.referralCode!
+                                                : 'PARTNER',
                                             label: 'Partner Code',
                                           ),
                                         ]
                                       : <Widget>[
                                           _SocialStat(
-                                            count: _formatCount(
-                                              widget.author?.following ?? 0,
-                                            ),
+                                            count: _formatCount(effectiveFollowing),
                                             label: 'Following',
                                           ),
                                           _SocialStat(
-                                            count: _formatCount(
-                                              widget.author?.followers ?? 0,
-                                            ),
+                                            count: _formatCount(effectiveFollowers),
                                             label: 'Followers',
                                           ),
                                           _SocialStat(
-                                            count: _formatCount(
-                                              widget.repository != null &&
-                                                      widget.author != null
-                                                  ? widget.repository!
-                                                        .postsForAuthor(
-                                                          widget.author!.id,
-                                                        )
-                                                        .length
-                                                  : (widget
-                                                            .author
-                                                            ?.postsCount ??
-                                                        0),
-                                            ),
+                                            count: _formatCount(effectivePosts),
                                             label: 'Public Posts',
                                           ),
                                           _SocialStat(
-                                            count:
-                                                widget.author?.winRate != null
-                                                ? '${(widget.author!.winRate! * (widget.author!.winRate! <= 1 ? 100 : 1)).toStringAsFixed(1)}%'
+                                            count: effectiveWinRate != null
+                                                ? '${effectiveWinRate.toStringAsFixed(1)}%'
                                                 : '--',
                                             label: 'Win Rate',
                                           ),
@@ -863,37 +1332,43 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     BoxConstraints constraints,
                                   ) {
                                     if (isAdmin) {
+                                      final tradersCountStr = _liveTotalTraders > 0
+                                          ? '$_liveTotalTraders Accounts'
+                                          : 'Active';
+                                      final journalsCountStr = _liveTotalJournals > 0
+                                          ? '$_liveTotalJournals Logged'
+                                          : 'Live Stream';
                                       if (constraints.maxWidth > 520) {
                                         return Row(
                                           children: <Widget>[
                                             const Expanded(
                                               child: _KpiPill(
                                                 label: 'Admin Clearance',
-                                                value: 'Root / L5',
+                                                value: 'Root Superuser / L5',
                                                 isPositive: false,
                                               ),
                                             ),
                                             _buildKpiDivider(theme),
-                                            const Expanded(
+                                            Expanded(
                                               child: _KpiPill(
-                                                label: 'Firm Risk Status',
-                                                value: 'Optimal (1.4% VaR)',
+                                                label: 'Registered Accounts',
+                                                value: tradersCountStr,
+                                                isPositive: true,
+                                              ),
+                                            ),
+                                            _buildKpiDivider(theme),
+                                            Expanded(
+                                              child: _KpiPill(
+                                                label: 'Monitored Journals',
+                                                value: journalsCountStr,
                                                 isPositive: true,
                                               ),
                                             ),
                                             _buildKpiDivider(theme),
                                             const Expanded(
                                               child: _KpiPill(
-                                                label: 'Active Desks',
-                                                value: '8 Divisions',
-                                                isPositive: true,
-                                              ),
-                                            ),
-                                            _buildKpiDivider(theme),
-                                            const Expanded(
-                                              child: _KpiPill(
-                                                label: 'Engine Latency',
-                                                value: '1.2 ms Direct',
+                                                label: 'Platform Engine',
+                                                value: 'Direct DB Live',
                                                 isPositive: true,
                                               ),
                                             ),
@@ -901,7 +1376,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             const Expanded(
                                               child: _KpiPill(
                                                 label: 'Governance',
-                                                value: 'SEBI & ISO 27001',
+                                                value: 'SEBI & ISO Compliant',
                                                 isPositive: null,
                                               ),
                                             ),
@@ -912,8 +1387,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                           mainAxisSize: MainAxisSize.min,
                                           children: <Widget>[
                                             Row(
-                                              children: const <Widget>[
-                                                Expanded(
+                                              children: <Widget>[
+                                                const Expanded(
                                                   child: _KpiPill(
                                                     label: 'Clearance',
                                                     value: 'Root / L5',
@@ -922,15 +1397,15 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                 ),
                                                 Expanded(
                                                   child: _KpiPill(
-                                                    label: 'Firm Risk',
-                                                    value: 'Optimal',
+                                                    label: 'Accounts',
+                                                    value: tradersCountStr,
                                                     isPositive: true,
                                                   ),
                                                 ),
                                                 Expanded(
                                                   child: _KpiPill(
-                                                    label: 'Active Desks',
-                                                    value: '8 Divisions',
+                                                    label: 'Journals',
+                                                    value: journalsCountStr,
                                                     isPositive: true,
                                                   ),
                                                 ),
@@ -952,22 +1427,22 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                               children: const <Widget>[
                                                 Expanded(
                                                   child: _KpiPill(
-                                                    label: 'Engine Latency',
-                                                    value: '1.2 ms Direct',
+                                                    label: 'Engine',
+                                                    value: 'Live DB',
                                                     isPositive: true,
                                                   ),
                                                 ),
                                                 Expanded(
                                                   child: _KpiPill(
                                                     label: 'Governance',
-                                                    value: 'ISO 27001',
+                                                    value: 'SEBI Compliant',
                                                     isPositive: null,
                                                   ),
                                                 ),
                                                 Expanded(
                                                   child: _KpiPill(
-                                                    label: 'System Uptime',
-                                                    value: '99.99%',
+                                                    label: 'System Status',
+                                                    value: 'Nominal',
                                                     isPositive: true,
                                                   ),
                                                 ),
@@ -979,13 +1454,15 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     }
 
                                     if (isAffiliate) {
-                                      final String nicheText =
-                                          widget.primaryMarket
-                                                  ?.trim()
-                                                  .isNotEmpty ==
-                                              true
-                                          ? widget.primaryMarket!
+                                      final String nicheText = effectiveMarket != null && effectiveMarket.trim().isNotEmpty
+                                          ? effectiveMarket
                                           : 'Trading Education';
+                                      final String followersStr = effectiveFollowers > 0
+                                          ? '$effectiveFollowers Traders'
+                                          : '0 Traders';
+                                      final String codeStr = widget.referralCode?.trim().isNotEmpty == true
+                                          ? widget.referralCode!
+                                          : 'Active';
                                       if (constraints.maxWidth > 520) {
                                         return Row(
                                           children: <Widget>[
@@ -997,26 +1474,18 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                               ),
                                             ),
                                             _buildKpiDivider(theme),
-                                            const Expanded(
+                                            Expanded(
                                               child: _KpiPill(
-                                                label: 'Active Community',
-                                                value: '148 Traders',
+                                                label: 'Community Reach',
+                                                value: followersStr,
                                                 isPositive: true,
                                               ),
                                             ),
                                             _buildKpiDivider(theme),
-                                            const Expanded(
+                                            Expanded(
                                               child: _KpiPill(
-                                                label: 'Trader Perk',
-                                                value: '20% Lifetime Off',
-                                                isPositive: true,
-                                              ),
-                                            ),
-                                            _buildKpiDivider(theme),
-                                            const Expanded(
-                                              child: _KpiPill(
-                                                label: 'Member Trust',
-                                                value: '98.4% Positive',
+                                                label: 'Partner Code',
+                                                value: codeStr,
                                                 isPositive: true,
                                               ),
                                             ),
@@ -1028,6 +1497,14 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                 isPositive: null,
                                               ),
                                             ),
+                                            _buildKpiDivider(theme),
+                                            Expanded(
+                                              child: _KpiPill(
+                                                label: 'Public Posts',
+                                                value: '$effectivePosts Guides',
+                                                isPositive: effectivePosts > 0 ? true : null,
+                                              ),
+                                            ),
                                           ],
                                         );
                                       } else {
@@ -1035,8 +1512,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                           mainAxisSize: MainAxisSize.min,
                                           children: <Widget>[
                                             Row(
-                                              children: const <Widget>[
-                                                Expanded(
+                                              children: <Widget>[
+                                                const Expanded(
                                                   child: _KpiPill(
                                                     label: 'Status',
                                                     value: 'Verified Creator',
@@ -1046,14 +1523,14 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                 Expanded(
                                                   child: _KpiPill(
                                                     label: 'Community',
-                                                    value: '148 Traders',
+                                                    value: followersStr,
                                                     isPositive: true,
                                                   ),
                                                 ),
                                                 Expanded(
                                                   child: _KpiPill(
-                                                    label: 'Discount',
-                                                    value: '20% Off Pro',
+                                                    label: 'Code',
+                                                    value: codeStr,
                                                     isPositive: true,
                                                   ),
                                                 ),
@@ -1073,13 +1550,6 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             ),
                                             Row(
                                               children: <Widget>[
-                                                const Expanded(
-                                                  child: _KpiPill(
-                                                    label: 'Member Trust',
-                                                    value: '98.4% Rating',
-                                                    isPositive: true,
-                                                  ),
-                                                ),
                                                 Expanded(
                                                   child: _KpiPill(
                                                     label: 'Niche',
@@ -1087,11 +1557,11 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                     isPositive: null,
                                                   ),
                                                 ),
-                                                const Expanded(
+                                                Expanded(
                                                   child: _KpiPill(
-                                                    label: 'Playbooks',
-                                                    value: '24 Guides',
-                                                    isPositive: true,
+                                                    label: 'Guides',
+                                                    value: '$effectivePosts Guides',
+                                                    isPositive: effectivePosts > 0 ? true : null,
                                                   ),
                                                 ),
                                               ],
@@ -1101,54 +1571,22 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       }
                                     }
 
-                                    final String winRateStr =
-                                        widget.author?.winRate != null
-                                        ? '${(widget.author!.winRate! * (widget.author!.winRate! <= 1 ? 100 : 1)).toStringAsFixed(1)}%'
+                                    // Pro Trader / Customer view (The user's actual profile)
+                                    final String winRateStr = effectiveWinRate != null
+                                        ? '${effectiveWinRate.toStringAsFixed(1)}%'
                                         : '--';
-                                    final String topStrategyText =
-                                        widget.topStrategy?.trim().isNotEmpty ==
-                                            true
-                                        ? widget.topStrategy!
-                                        : (widget.author?.tradingStyle
-                                                      ?.trim()
-                                                      .isNotEmpty ==
-                                                  true
-                                              ? widget.author!.tradingStyle!
-                                              : '--');
-                                    final String marketText =
-                                        widget.primaryMarket
-                                                ?.trim()
-                                                .isNotEmpty ==
-                                            true
-                                        ? widget.primaryMarket!
-                                        : (widget.author?.primaryMarket
-                                                      ?.trim()
-                                                      .isNotEmpty ==
-                                                  true
-                                              ? widget.author!.primaryMarket!
-                                              : '--');
-                                    final String holdStr =
-                                        widget.avgHoldDuration
-                                                ?.trim()
-                                                .isNotEmpty ==
-                                            true
-                                        ? widget.avgHoldDuration!
-                                        : (widget.author?.avgHoldDuration
-                                                      ?.trim()
-                                                      .isNotEmpty ==
-                                                  true
-                                              ? widget.author!.avgHoldDuration!
-                                              : '--');
-                                    final String mantraStr =
-                                        widget.riskMantra?.trim().isNotEmpty ==
-                                            true
-                                        ? widget.riskMantra!
-                                        : (widget.author?.riskMantra
-                                                      ?.trim()
-                                                      .isNotEmpty ==
-                                                  true
-                                              ? widget.author!.riskMantra!
-                                              : '--');
+                                    final String holdStr = effectiveHold != null && effectiveHold.trim().isNotEmpty
+                                        ? effectiveHold
+                                        : 'Not Set';
+                                    final String marketText = effectiveMarket != null && effectiveMarket.trim().isNotEmpty
+                                        ? effectiveMarket
+                                        : 'Not Set';
+                                    final String mantraStr = effectiveRiskMantra != null && effectiveRiskMantra.trim().isNotEmpty
+                                        ? effectiveRiskMantra
+                                        : 'Not Set';
+                                    final String topStrategyText = effectiveStrategy != null && effectiveStrategy.trim().isNotEmpty
+                                        ? effectiveStrategy
+                                        : 'Not Set';
 
                                     if (constraints.maxWidth > 520) {
                                       return Row(
@@ -1157,9 +1595,9 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             child: _KpiPill(
                                               label: 'Win Rate',
                                               value: winRateStr,
-                                              isPositive:
-                                                  widget.author?.winRate !=
-                                                  null,
+                                              isPositive: effectiveWinRate != null
+                                                  ? effectiveWinRate >= 50.0
+                                                  : null,
                                             ),
                                           ),
                                           _buildKpiDivider(theme),
@@ -1167,9 +1605,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             child: _KpiPill(
                                               label: 'Avg Hold',
                                               value: holdStr,
-                                              isPositive: holdStr != '--'
-                                                  ? true
-                                                  : null,
+                                              isPositive: holdStr != 'Not Set' ? true : null,
                                             ),
                                           ),
                                           _buildKpiDivider(theme),
@@ -1185,9 +1621,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             child: _KpiPill(
                                               label: 'Risk Mantra',
                                               value: mantraStr,
-                                              isPositive: mantraStr != '--'
-                                                  ? true
-                                                  : null,
+                                              isPositive: mantraStr != 'Not Set' ? true : null,
                                             ),
                                           ),
                                           _buildKpiDivider(theme),
@@ -1210,16 +1644,16 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                 child: _KpiPill(
                                                   label: 'Win Rate',
                                                   value: winRateStr,
-                                                  isPositive:
-                                                      widget.author?.winRate !=
-                                                      null,
+                                                  isPositive: effectiveWinRate != null
+                                                      ? effectiveWinRate >= 50.0
+                                                      : null,
                                                 ),
                                               ),
                                               Expanded(
                                                 child: _KpiPill(
                                                   label: 'Avg Hold',
                                                   value: holdStr,
-                                                  isPositive: true,
+                                                  isPositive: holdStr != 'Not Set' ? true : null,
                                                 ),
                                               ),
                                               Expanded(
@@ -1249,7 +1683,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                 child: _KpiPill(
                                                   label: 'Risk Mantra',
                                                   value: mantraStr,
-                                                  isPositive: true,
+                                                  isPositive: mantraStr != 'Not Set' ? true : null,
                                                 ),
                                               ),
                                               Expanded(
@@ -1790,7 +2224,7 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                                   size: context.sz(14),
                                 ),
                                 Text(
-                                  '@${widget.handle}',
+                                  '@${widget.handle.replaceFirst(RegExp(r"^@+"), "")}',
                                   style: context.uiText.caption.copyWith(
                                     color: theme.colors.foregroundMuted,
                                   ),
@@ -2217,13 +2651,12 @@ class _PublicJournalPreview extends StatelessWidget {
       stream: JournalRepositoryScope.repository.watchPublic(),
       builder: (BuildContext context, AsyncSnapshot<List<AppTrade>> snapshot) {
         final List<AppTrade> allTrades = snapshot.data ?? <AppTrade>[];
-        final List<AppTrade> authorTrades =
-            (authorId != null && authorId!.isNotEmpty)
+        final List<AppTrade> trades = (authorId != null && authorId!.isNotEmpty)
             ? allTrades.where((t) => t.userId == authorId).toList()
             : allTrades;
-        final List<AppTrade> trades = authorTrades.isNotEmpty
-            ? authorTrades
-            : allTrades;
+
+        final String cleanH =
+            (handle ?? '').replaceFirst(RegExp(r'^@+'), '').trim();
 
         if (trades.isEmpty) {
           return Padding(
@@ -2234,8 +2667,8 @@ class _PublicJournalPreview extends StatelessWidget {
             child: UiEmptyState(
               icon: Icons.menu_book_outlined,
               title: 'No public journal entries',
-              message: handle != null && handle!.isNotEmpty
-                  ? '@$handle has not shared any journal trades publicly yet.'
+              message: cleanH.isNotEmpty
+                  ? '@$cleanH has not shared any journal trades publicly yet.'
                   : 'No verified trades shared publicly yet.',
             ),
           );
@@ -2648,13 +3081,12 @@ class _NotesPlaybooksPreview extends StatelessWidget {
       stream: NotesRepositoryScope.repository.watchPublic(),
       builder: (BuildContext context, AsyncSnapshot<List<AppNote>> snapshot) {
         final List<AppNote> allNotes = snapshot.data ?? <AppNote>[];
-        final List<AppNote> authorNotes =
-            (authorId != null && authorId!.isNotEmpty)
+        final List<AppNote> notes = (authorId != null && authorId!.isNotEmpty)
             ? allNotes.where((n) => n.userId == authorId).toList()
             : allNotes;
-        final List<AppNote> notes = authorNotes.isNotEmpty
-            ? authorNotes
-            : allNotes;
+
+        final String cleanH =
+            (handle ?? '').replaceFirst(RegExp(r'^@+'), '').trim();
 
         if (notes.isEmpty) {
           return Padding(
@@ -2665,8 +3097,8 @@ class _NotesPlaybooksPreview extends StatelessWidget {
             child: UiEmptyState(
               icon: Icons.note_alt_outlined,
               title: 'No public notes',
-              message: handle != null && handle!.isNotEmpty
-                  ? '@$handle has not published any public research notes or playbooks.'
+              message: cleanH.isNotEmpty
+                  ? '@$cleanH has not published any public research notes or playbooks.'
                   : 'No public notes or playbooks shared yet.',
             ),
           );
@@ -3101,14 +3533,14 @@ class _AffiliateCampaignsPreview extends StatelessWidget {
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
               Text(
-                'Exclusive TradeX Community Discount 🎉',
+                'Exclusive hejournal.in Community Discount 🎉',
                 style: context.uiText.heading.copyWith(
                   fontSize: context.fs(16),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Get 20% OFF all TradeX Pro & Team annual memberships. Includes access to my verified trade journals, setup notes, and private strategy templates.',
+                'Get 20% OFF all hejournal.in Pro & Team annual memberships. Includes access to my verified trade journals, setup notes, and private strategy templates.',
                 style: context.uiText.body.copyWith(
                   height: 1.45,
                   fontSize: context.fs(13.5),
@@ -3209,7 +3641,7 @@ class _AffiliateCampaignsPreview extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'In this 35-minute workshop, I break down my exact execution rules, risk management plan, and why TradeX orderflow charts give an unfair edge.',
+                'In this 35-minute workshop, I break down my exact execution rules, risk management plan, and why hejournal.in orderflow charts give an unfair edge.',
                 style: context.uiText.body.copyWith(height: 1.4),
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
@@ -3298,7 +3730,7 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'https://tradex.io/join/$referralCode',
+                        'https://hejournal.in/join/$referralCode',
                         style: context.uiText.bodyStrong.copyWith(
                           color: theme.colors.primary,
                           fontWeight: FontWeight.w600,
@@ -3314,13 +3746,13 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                       onPressed: () {
                         Clipboard.setData(
                           ClipboardData(
-                            text: 'https://tradex.io/join/$referralCode',
+                            text: 'https://hejournal.in/join/$referralCode',
                           ),
                         );
                         UiToast.show(
                           context,
                           title: 'Link copied',
-                          message: 'https://tradex.io/join/$referralCode',
+                          message: 'https://hejournal.in/join/$referralCode',
                           intent: UiIntent.success,
                         );
                       },
@@ -3378,7 +3810,7 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                 stepNumber: '1',
                 title: 'Create Your Free Account',
                 description:
-                    'Sign up on TradeX in under 60 seconds with your email, mobile number, or Google auth.',
+                    'Sign up on hejournal.in in under 60 seconds with your email, mobile number, or Google auth.',
                 statusText: 'Step 1',
                 statusIntent: UiIntent.primary,
               ),
@@ -3646,7 +4078,7 @@ class _AffiliateCommunityOverviewPreview extends StatelessWidget {
                 timeAgo: '3 days ago',
                 rating: 5,
                 comment:
-                    'Clear, zero-noise technical analysis. The private weekend workshops and TradeX orderflow charts give immense clarity before market open.',
+                    'Clear, zero-noise technical analysis. The private weekend workshops and hejournal.in orderflow charts give immense clarity before market open.',
               ),
             ],
           ),
@@ -4308,4 +4740,271 @@ class _GridPatternPainter extends CustomPainter {
   @override
   bool shouldRepaint(_GridPatternPainter oldDelegate) =>
       oldDelegate.gridColor != gridColor;
+}
+
+// ---------------------------------------------------------------------------
+// Instagram-style Activity / History Feed for Trader Profile
+// ---------------------------------------------------------------------------
+
+class _TraderActivityHistoryPreview extends StatefulWidget {
+  const _TraderActivityHistoryPreview({
+    this.authorId,
+    required this.handle,
+    this.repository,
+    this.onPostTap,
+  });
+
+  final String? authorId;
+  final String handle;
+  final CommunityRepository? repository;
+  final ValueChanged<CommunityPost>? onPostTap;
+
+  @override
+  State<_TraderActivityHistoryPreview> createState() =>
+      _TraderActivityHistoryPreviewState();
+}
+
+class _TraderActivityHistoryPreviewState
+    extends State<_TraderActivityHistoryPreview> {
+  int _filterIndex = 0; // 0 = All, 1 = Likes, 2 = Comments, 3 = Reposts
+  late Future<List<CommunityActivityItem>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadActivity();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TraderActivityHistoryPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.authorId != widget.authorId ||
+        oldWidget.handle != widget.handle) {
+      _loadActivity();
+    }
+  }
+
+  void _loadActivity() {
+    final repo = widget.repository ?? CommunityRepository();
+    final targetId = widget.authorId ?? widget.handle;
+    _future = repo.fetchUserActivityHistory(targetId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final UiTheme theme = context.ui;
+
+    return FutureBuilder<List<CommunityActivityItem>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.xl),
+            ),
+            child: Center(
+              child: SizedBox(
+                width: context.sz(24),
+                height: context.sz(24),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    theme.colors.primary,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        final allItems = snapshot.data ?? const <CommunityActivityItem>[];
+        final filteredItems = switch (_filterIndex) {
+          1 =>
+            allItems
+                .where((i) => i.type == CommunityActivityType.like)
+                .toList(),
+          2 =>
+            allItems
+                .where((i) => i.type == CommunityActivityType.comment)
+                .toList(),
+          3 =>
+            allItems
+                .where((i) => i.type == CommunityActivityType.repost)
+                .toList(),
+          _ => allItems,
+        };
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: EdgeInsets.only(bottom: context.sp(theme.spacing.md)),
+              child: UiToggleGroup<int>(
+                value: _filterIndex,
+                variant: UiToggleGroupVariant.segmented,
+                options: const <UiToggleOption<int>>[
+                  UiToggleOption<int>(value: 0, label: 'All Activity'),
+                  UiToggleOption<int>(
+                    value: 1,
+                    label: 'Likes',
+                    icon: Icons.favorite_border_rounded,
+                  ),
+                  UiToggleOption<int>(
+                    value: 2,
+                    label: 'Comments',
+                    icon: Icons.chat_bubble_outline_rounded,
+                  ),
+                  UiToggleOption<int>(
+                    value: 3,
+                    label: 'Reposts',
+                    icon: Icons.repeat_rounded,
+                  ),
+                ],
+                onChanged: (int v) => setState(() => _filterIndex = v),
+              ),
+            ),
+            if (filteredItems.isEmpty)
+              Padding(
+                padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
+                child: UiEmptyState(
+                  icon: Icons.history_rounded,
+                  title: 'No activity found',
+                  message:
+                      'This trader hasn\'t performed any matching community actions yet.',
+                ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: filteredItems.length,
+                separatorBuilder: (_, _) =>
+                    SizedBox(height: context.sp(theme.spacing.sm)),
+                itemBuilder: (context, idx) {
+                  final item = filteredItems[idx];
+                  final (icon, badgeLabel, intent) = switch (item.type) {
+                    CommunityActivityType.like => (
+                      Icons.favorite_rounded,
+                      'Liked',
+                      UiIntent.danger,
+                    ),
+                    CommunityActivityType.comment => (
+                      Icons.chat_bubble_rounded,
+                      'Commented',
+                      UiIntent.primary,
+                    ),
+                    CommunityActivityType.repost => (
+                      Icons.repeat_rounded,
+                      'Reposted',
+                      UiIntent.success,
+                    ),
+                    CommunityActivityType.pollVote => (
+                      Icons.poll_rounded,
+                      'Voted',
+                      UiIntent.warning,
+                    ),
+                    CommunityActivityType.post => (
+                      Icons.article_rounded,
+                      'Posted',
+                      UiIntent.info,
+                    ),
+                  };
+
+                  return InkWell(
+                    borderRadius: context.radius(theme.radii.md),
+                    onTap: () {
+                      if (item.post != null) {
+                        widget.onPostTap?.call(item.post!);
+                      }
+                    },
+                    child: UiCard(
+                      variant: UiCardVariant.surface,
+                      child: Padding(
+                        padding: EdgeInsets.all(context.sp(theme.spacing.md)),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Container(
+                              width: context.sz(36),
+                              height: context.sz(36),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: theme.colors.surfaceMuted,
+                              ),
+                              child: Icon(
+                                icon,
+                                size: context.sz(18),
+                                color: intent == UiIntent.danger
+                                    ? theme.colors.destructive
+                                    : (intent == UiIntent.success
+                                          ? theme.colors.success
+                                          : theme.colors.primary),
+                              ),
+                            ),
+                            SizedBox(width: context.sp(theme.spacing.md)),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Row(
+                                    children: <Widget>[
+                                      UiBadge(
+                                        label: badgeLabel,
+                                        intent: intent,
+                                        variant: UiBadgeVariant.soft,
+                                      ),
+                                      const Spacer(),
+                                      Text(
+                                        _formatActivityTime(item.timestamp),
+                                        style: context.uiText.caption.copyWith(
+                                          color: theme.colors.foregroundMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.xs),
+                                  ),
+                                  Text(
+                                    item.title,
+                                    style: context.uiText.bodyStrong,
+                                  ),
+                                  if (item.subtitle != null &&
+                                      item.subtitle!.isNotEmpty) ...<Widget>[
+                                    SizedBox(
+                                      height: context.sp(theme.spacing.xxs),
+                                    ),
+                                    Text(
+                                      item.subtitle!,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: context.uiText.body.copyWith(
+                                        color: theme.colors.foregroundMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _formatActivityTime(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${dt.day}/${dt.month}/${dt.year}';
+  }
 }

@@ -12,11 +12,15 @@ class CommunityQuoteCard extends StatelessWidget {
     required this.post,
     this.onTap,
     this.onAuthorTap,
+    this.onOpenRef,
+    this.onTagTap,
   });
 
   final CommunityPost post;
   final VoidCallback? onTap;
   final ValueChanged<CommunityAuthor>? onAuthorTap;
+  final ValueChanged<AppLinkRef>? onOpenRef;
+  final ValueChanged<String>? onTagTap;
 
   @override
   Widget build(BuildContext context) {
@@ -85,6 +89,7 @@ class CommunityQuoteCard extends StatelessWidget {
             SizedBox(height: context.sp(theme.spacing.xs)),
             CommunityHighlightedText(
               text: post.body,
+              onTagTap: onTagTap,
               style: context.uiText.body.copyWith(
                 fontSize: context.fs(13),
                 height: 1.35,
@@ -99,6 +104,11 @@ class CommunityQuoteCard extends StatelessWidget {
             PublicWorkspaceAttachment(
               attachment: post.attachment!,
               dense: true,
+              onTap: onOpenRef != null
+                  ? () => onOpenRef!(
+                      post.attachment!.source.copyWith(isPublicContext: true),
+                    )
+                  : onTap,
             ),
           ],
 

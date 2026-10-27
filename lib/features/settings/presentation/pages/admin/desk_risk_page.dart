@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/settings/data/repositories/desk_risk_repository.dart';
 import 'package:tradex/features/settings/models/desk_risk_model.dart';
 
@@ -68,7 +70,14 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
         );
       }
     } catch (e) {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+        UiToast.show(
+          context,
+          title: 'Risk policies could not be saved',
+          intent: UiIntent.danger,
+        );
+      }
     }
   }
 
@@ -82,6 +91,13 @@ class _DeskRiskPageState extends State<DeskRiskPage> {
       return UiSkeleton.settingsDetail(sections: 2, rowsPerSection: 4);
     }
 
+    if (_config == null) {
+      return UiEmptyState(
+        title: 'Risk settings unavailable',
+        message: 'Your policy could not be loaded. Try again.',
+        action: UiButton(label: 'Try again', onPressed: _loadConfig),
+      );
+    }
     final c = _config!;
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double bottomInset = isMobile
@@ -315,25 +331,13 @@ class _RiskLimitHeading extends StatelessWidget {
   final Widget badge;
 
   @override
-  Widget build(BuildContext context) {
-    final spacing = context.sp(context.ui.spacing.sm);
-    if (context.uiRes.isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: context.uiText.bodyStrong),
-          SizedBox(height: spacing),
-          badge,
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        Expanded(child: Text(label, style: context.uiText.bodyStrong)),
-        SizedBox(width: spacing),
-        badge,
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Wrap(
+    spacing: context.sp(context.ui.spacing.sm),
+    runSpacing: context.sp(context.ui.spacing.sm),
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: [
+      Text(label, style: context.uiText.bodyStrong),
+      badge,
+    ],
+  );
 }

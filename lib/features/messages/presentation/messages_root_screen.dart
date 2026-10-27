@@ -2,7 +2,6 @@ import 'package:tradex/core/linking/link_graph.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
@@ -46,7 +45,7 @@ class MessagesRootScreen extends StatefulWidget {
   final UserRole userRole;
   final AppTrader? currentUser;
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
-      onSubpageChanged;
+  onSubpageChanged;
 
   /// Opens a shared Writing-Desk record in its home feature. Supplied by shell.
   final void Function(AppLinkRef ref)? onOpenRef;
@@ -89,7 +88,7 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
     _repo = widget.repository ?? MessagesRepository();
     _searchQuery = widget.searchQuery ?? '';
     _repo.addListener(_onRepo);
-    
+
     if (widget.openRequest != null) {
       _applyRequest(widget.openRequest!);
     }
@@ -102,12 +101,13 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
         widget.searchQuery != null) {
       _searchQuery = widget.searchQuery!;
     }
-    if (widget.openRequest != null && widget.openRequest != oldWidget.openRequest) {
+    if (widget.openRequest != null &&
+        widget.openRequest != oldWidget.openRequest) {
       _applyRequest(widget.openRequest!);
     }
     _notifySubpage();
   }
-  
+
   void _notifySubpage() {
     if (!mounted) return;
     if (!_isMobile) {
@@ -132,7 +132,7 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
     }
     widget.onSubpageChanged?.call(null, null, null);
   }
-  
+
   void _applyRequest(AppLinkOpenRequest request) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -142,7 +142,8 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
 
   void _onRepo() {
     if (mounted) {
-      if (_activeThreadId != null && _repo.threadById(_activeThreadId!) == null) {
+      if (_activeThreadId != null &&
+          _repo.threadById(_activeThreadId!) == null) {
         _activeThreadId = null;
       }
       setState(() {});
@@ -183,8 +184,38 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
 
   /// Opens or starts a thread with [trader].
   void openThreadWithTrader(AppTrader trader) {
+    if (_repo.isMessagingRestricted(trader)) {
+      _showRestrictedNotice(trader);
+      return;
+    }
     final String threadId = _repo.startConversation(trader);
     openThreadById(threadId);
+  }
+
+  void _showRestrictedNotice(AppTrader trader) {
+    UiDialog.show<void>(
+      context,
+      child: UiDialog(
+        title: 'Cannot message @${trader.handle}',
+        content: Padding(
+          padding: EdgeInsets.symmetric(
+            vertical: context.sp(context.ui.spacing.sm),
+          ),
+          child: Text(
+            '@${trader.handle} does not accept direct messages from everyone. '
+            'Only invited traders or accounts they follow can start a conversation.',
+            style: context.uiText.body,
+          ),
+        ),
+        actions: <Widget>[
+          UiButton(
+            label: 'OK',
+            intent: UiIntent.primary,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -246,7 +277,8 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
   // -------------------------------------------------------------------------
 
   Future<void> _newMessage() async {
-    final List<AppTrader> candidates = DemoDataSource.instance.traders();
+    final List<AppTrader> candidates = await _repo.searchLiveTraders('');
+    if (!mounted) return;
     await NewMessageDialog.show(
       context,
       repository: _repo,
@@ -276,11 +308,22 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
               displayName: trader.displayName ?? trader.handle,
               handle: trader.handle,
               userRole: widget.userRole,
+              forceTraderView: true,
               avatarUrl: trader.avatarUrl,
               bio: trader.bio,
+              location: trader.location,
+              website: trader.website,
+              avgHoldDuration: trader.avgHoldDuration,
+              primaryMarket: trader.primaryMarket,
+              topStrategy: trader.topStrategy ?? trader.tradingStyle,
+              riskMantra: trader.riskMantra,
               onOpenRef: widget.onOpenRef,
               onDirectMessage: (AppTrader t) {
                 Navigator.of(ctx).pop();
+                if (_repo.isMessagingRestricted(t)) {
+                  _showRestrictedNotice(t);
+                  return;
+                }
                 final String threadId = _repo.startConversation(t);
                 final MessageThread? thread = _repo.threadById(threadId);
                 if (thread != null) _openThread(thread);
@@ -419,23 +462,23 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
   Widget _secondaryView(BuildContext context) {
     final Widget body = switch (_secondary) {
       _Secondary.requests => MessagesRequestsView(
-          repository: _repo,
-          onOpenThread: (MessageThread t) =>
-              _openThread(t, keepSecondaryOnWide: true),
-          onOpenProfile: _openProfile,
-          onAccepted: (String threadId) {
-            _closeSecondary();
-            final MessageThread? t = _repo.threadById(threadId);
-            if (t != null) _openThread(t, keepSecondaryOnWide: false);
-          },
-        ),
+        repository: _repo,
+        onOpenThread: (MessageThread t) =>
+            _openThread(t, keepSecondaryOnWide: true),
+        onOpenProfile: _openProfile,
+        onAccepted: (String threadId) {
+          _closeSecondary();
+          final MessageThread? t = _repo.threadById(threadId);
+          if (t != null) _openThread(t, keepSecondaryOnWide: false);
+        },
+      ),
       _Secondary.archived => MessagesArchivedView(
-          repository: _repo,
-          onOpenThread: (MessageThread t) {
-            _closeSecondary();
-            _openThread(t, keepSecondaryOnWide: false);
-          },
-        ),
+        repository: _repo,
+        onOpenThread: (MessageThread t) {
+          _closeSecondary();
+          _openThread(t, keepSecondaryOnWide: false);
+        },
+      ),
       _Secondary.none => const SizedBox.shrink(),
     };
 

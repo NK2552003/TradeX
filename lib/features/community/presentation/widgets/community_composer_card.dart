@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/features/community/data/workspace_attachment_service.dart';
 import 'dart:convert';
 
@@ -29,7 +30,7 @@ enum ComposerMode { post, tradeSetup, chart, poll, attachment }
 // CommunityComposerCard
 // ---------------------------------------------------------------------------
 
-/// A responsive, multi-step Bloomberg/Twitter Pro-grade composer card for TraderHub.
+/// A responsive, multi-step Bloomberg/Twitter Pro-grade composer card for hejournal.in.
 ///
 /// Features:
 /// - Multiple creation modes: Quick Post, Structured Trade Setup, Chart & Vision, Poll, Workspace Attachment.
@@ -48,6 +49,7 @@ class CommunityComposerCard extends StatefulWidget {
     super.key,
     required this.author,
     required this.repository,
+    this.initialMode = ComposerMode.post,
     this.hintText =
         "What's happening? Share a setup, thesis, or trading lesson…",
     this.onPostCreated,
@@ -58,6 +60,7 @@ class CommunityComposerCard extends StatefulWidget {
     this.isDrawerTile = false,
   });
 
+  final ComposerMode initialMode;
   final CommunityAuthor author;
   final CommunityRepository repository;
   final String hintText;
@@ -197,6 +200,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
   @override
   void initState() {
     super.initState();
+    _activeMode = widget.initialMode;
     _initFromPostToEdit();
     _bodyCtrl.addListener(_onBodyChanged);
     _setupEntryCtrl.addListener(_onSetupPricesChanged);
@@ -1297,16 +1301,23 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
                     ),
                   ],
                   SizedBox(width: context.sp(theme.spacing.xxs)),
-                  Flexible(
-                    child: Text(
-                      '@${widget.author.handle}',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
-                        fontSize: context.fs(12),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final cleanHandle = widget.author.handle
+                          .replaceFirst(RegExp(r'^@+'), '')
+                          .trim();
+                      return Flexible(
+                        child: Text(
+                          '@$cleanHandle',
+                          style: context.uiText.caption.copyWith(
+                            color: theme.colors.foregroundMuted,
+                            fontSize: context.fs(12),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -2482,30 +2493,32 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             ],
           ),
 
-          SizedBox(height: gapSm),
+          if (CustomerDataPolicy.allowDemo) ...[
+            SizedBox(height: gapSm),
 
-          // Sample Technical Chart Presets
-          Text(
-            'Or select sample technical setup:',
-            style: context.uiText.caption.copyWith(
-              fontSize: context.fs(11),
-              color: theme.colors.foregroundMuted,
+            // Sample Technical Chart Presets
+            Text(
+              'Or select sample technical setup:',
+              style: context.uiText.caption.copyWith(
+                fontSize: context.fs(11),
+                color: theme.colors.foregroundMuted,
+              ),
             ),
-          ),
-          SizedBox(height: gapXs),
-          Wrap(
-            spacing: gapXs,
-            runSpacing: gapXs,
-            children: [
-              for (final preset in _sampleChartPresets)
-                UiButton(
-                  label: preset.name,
-                  size: UiSize.xs,
-                  variant: UiVariant.outline,
-                  onPressed: () => _addImageUrl(preset.url),
-                ),
-            ],
-          ),
+            SizedBox(height: gapXs),
+            Wrap(
+              spacing: gapXs,
+              runSpacing: gapXs,
+              children: [
+                for (final preset in _sampleChartPresets)
+                  UiButton(
+                    label: preset.name,
+                    size: UiSize.xs,
+                    variant: UiVariant.outline,
+                    onPressed: () => _addImageUrl(preset.url),
+                  ),
+              ],
+            ),
+          ],
 
           // Attached Images Gallery
           if (_imageUrls.isNotEmpty) ...[

@@ -37,13 +37,17 @@ class AffiliateApplicationRepositoryImpl
             .from('affiliate_applications')
             .select()
             .eq('user_id', userId)
+            .order('created_at', ascending: false)
+            .limit(1)
             .maybeSingle();
 
         if (res != null) {
           return AffiliateApplicationModel.fromJson(res);
         }
+        return null;
       } catch (e) {
         debugPrint('[AffiliateApplicationRepository] getForUser error: $e');
+        rethrow;
       }
     }
 
@@ -55,7 +59,7 @@ class AffiliateApplicationRepositoryImpl
 
   @override
   Future<List<AffiliateApplicationModel>> listApplications() async {
-    if (SupabaseConfig.isConfigured) {
+    if (SupabaseConfig.isConfigured && SupabaseConfig.client != null) {
       try {
         final client = SupabaseConfig.client!;
         final res = await client
@@ -63,12 +67,25 @@ class AffiliateApplicationRepositoryImpl
             .select()
             .order('created_at', ascending: false);
 
-        return (res as List)
-            .map((item) => AffiliateApplicationModel.fromJson(item))
-            .toList();
+        if (res.isNotEmpty) {
+          final list = res
+              .whereType<Map<String, dynamic>>()
+              .map(AffiliateApplicationModel.fromJson)
+              .toList();
+          for (final a in list) {
+            _applications[a.id] = a;
+          }
+          return list;
+        }
       } catch (e) {
-        debugPrint('[AffiliateApplicationRepository] listApplications error: $e');
+        debugPrint(
+          '[AffiliateApplicationRepository] listApplications error: $e',
+        );
       }
+    }
+
+    if (_applications.isEmpty) {
+      _seedDefaultApplications();
     }
 
     final List<AffiliateApplicationModel> result = _applications.values.toList()
@@ -78,6 +95,35 @@ class AffiliateApplicationRepositoryImpl
         return right.compareTo(left);
       });
     return result;
+  }
+
+  void _seedDefaultApplications() {
+    final pendingApp = AffiliateApplicationModel(
+      id: 'app_seed_nk2552003',
+      userId: '002c19b4-2af7-4f29-9351-e283736677c4',
+      fullName: 'Nitish Kumar',
+      email: 'nk2552003@gmail.com',
+      phone: '+91 98765 43210',
+      city: 'Dehradun',
+      state: 'Uttarakhand',
+      dateOfBirth: DateTime(2003, 5, 25),
+      gender: 'male',
+      platforms: const <String>['youtube', 'telegram'],
+      primaryPlatform: 'youtube',
+      channelHandle: '@tradex_academy',
+      audienceReach: '25,000+ traders',
+      niches: const <String>['Price Action', 'Derivatives'],
+      accountHolder: 'Nitish Kumar',
+      bankName: 'HDFC Bank',
+      accountNumber: '50100482910421',
+      ifsc: 'HDFC0000240',
+      accountType: 'savings',
+      pan: 'ABCDE1234F',
+      upiId: 'nk2552003@okhdfcbank',
+      status: AffiliateApplicationStatus.pending,
+      submittedAt: DateTime.now().subtract(const Duration(hours: 14)),
+    );
+    _applications[pendingApp.id] = pendingApp;
   }
 
   @override
@@ -90,20 +136,40 @@ class AffiliateApplicationRepositoryImpl
     );
 
     if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final payload = pending.toJson();
-
-        final res = await client
+      final client = SupabaseConfig.client!;
+      if (client.auth.currentUser?.id != application.userId) {
+        throw StateError('Sign in as the applicant to submit.');
+      }
+      final payload = pending.toJson()..remove('id');
+      payload['review_notes'] = null;
+      payload['reviewed_at'] = null;
+      final existing = await client
+          .from('affiliate_applications')
+          .select('id,status')
+          .eq('user_id', application.userId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      if (existing != null &&
+          ['approved', 'suspended'].contains(existing['status'])) {
+        throw StateError('This application has already been reviewed.');
+      }
+      final Map<String, dynamic> res;
+      if (existing == null) {
+        res = await client
             .from('affiliate_applications')
-            .upsert(payload)
+            .insert(payload)
             .select()
             .single();
-
-        return AffiliateApplicationModel.fromJson(res);
-      } catch (e) {
-        debugPrint('[AffiliateApplicationRepository] submit error: $e');
+      } else {
+        res = await client
+            .from('affiliate_applications')
+            .update(payload)
+            .eq('id', existing['id'])
+            .select()
+            .single();
       }
+      return AffiliateApplicationModel.fromJson(res);
     }
 
     _applications[pending.id] = pending;
@@ -116,28 +182,50 @@ class AffiliateApplicationRepositoryImpl
     required bool approve,
     String? notes,
   }) async {
-    if (SupabaseConfig.isConfigured && approve) {
+    if (SupabaseConfig.isConfigured && SupabaseConfig.client != null) {
       try {
         final client = SupabaseConfig.client!;
-        await client.rpc(
-          'approve_affiliate_application',
-          params: {
-            'p_application_id': applicationId,
-            'p_review_notes': notes,
-          },
-        );
-
+        if (approve) {
+          try {
+            await client.rpc(
+              'approve_affiliate_application',
+              params: {
+                'p_application_id': applicationId,
+                'p_review_notes': notes,
+              },
+            );
+          } catch (_) {
+            await client.rpc(
+              'review_affiliate_application',
+              params: {
+                'p_application_id': applicationId,
+                'p_approve': approve,
+                'p_review_notes': notes,
+              },
+            );
+          }
+        } else {
+          await client
+              .from('affiliate_applications')
+              .update({
+                'status': 'rejected',
+                'review_notes': notes,
+                'reviewed_at': DateTime.now().toUtc().toIso8601String(),
+              })
+              .eq('id', applicationId);
+        }
         final res = await client
             .from('affiliate_applications')
             .select()
             .eq('id', applicationId)
             .maybeSingle();
-
         if (res != null) {
-          return AffiliateApplicationModel.fromJson(res);
+          final updated = AffiliateApplicationModel.fromJson(res);
+          _applications[applicationId] = updated;
+          return updated;
         }
       } catch (e) {
-        debugPrint('[AffiliateApplicationRepository] review RPC error: $e');
+        debugPrint('[AffiliateApplicationRepository] review remote error: $e');
       }
     }
 

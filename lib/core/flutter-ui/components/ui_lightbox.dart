@@ -16,10 +16,11 @@ class UiLightbox extends StatefulWidget {
     this.caption,
     this.onDownload,
     this.onShare,
-  }) : imageUrls = imageUrls ??
-            (mediaUrl != null
-                ? <String>[mediaUrl]
-                : (imageUrl != null ? <String>[imageUrl] : const <String>[]));
+  }) : imageUrls =
+           imageUrls ??
+           (mediaUrl != null
+               ? <String>[mediaUrl]
+               : (imageUrl != null ? <String>[imageUrl] : const <String>[]));
 
   final List<String> imageUrls;
   final int initialIndex;

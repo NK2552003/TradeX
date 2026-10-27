@@ -25,7 +25,9 @@ class PngExporter {
 
     final ui.Image image = await renderObject.toImage(pixelRatio: pixelRatio);
     try {
-      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       if (byteData == null) return null;
 
       final Directory dir = await getApplicationDocumentsDirectory();
@@ -46,7 +48,10 @@ class PngExporter {
     required GlobalKey boundaryKey,
     required String filename,
   }) async {
-    final File? file = await export(boundaryKey: boundaryKey, filename: filename);
+    final File? file = await export(
+      boundaryKey: boundaryKey,
+      filename: filename,
+    );
     if (file == null) return false;
     await SharePlus.instance.share(
       ShareParams(

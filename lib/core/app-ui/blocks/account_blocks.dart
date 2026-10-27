@@ -207,8 +207,7 @@ class AppPricingBlock extends StatelessWidget {
                               : () => onSelect!(plans[i]),
                         ),
                       ),
-                      if (i != plans.length - 1)
-                        SizedBox(width: gap),
+                      if (i != plans.length - 1) SizedBox(width: gap),
                     ],
                   ],
                 ),
@@ -229,8 +228,7 @@ class AppPricingBlock extends StatelessWidget {
                               : () => onSelect!(plans[i]),
                         ),
                       ),
-                      if (i != plans.length - 1)
-                        SizedBox(width: gap),
+                      if (i != plans.length - 1) SizedBox(width: gap),
                     ],
                   ],
                 ),

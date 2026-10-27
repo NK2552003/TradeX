@@ -65,11 +65,12 @@ class UiDateRangePicker extends StatelessWidget {
     this.firstDate,
     this.lastDate,
     this.showPresets = true,
-  })  : value = value ??
-            (startDate != null && endDate != null
-                ? DateTimeRange(start: startDate, end: endDate)
-                : null),
-        onChanged = onRangeSelected ?? onChanged;
+  }) : value =
+           value ??
+           (startDate != null && endDate != null
+               ? DateTimeRange(start: startDate, end: endDate)
+               : null),
+       onChanged = onRangeSelected ?? onChanged;
 
   final DateTimeRange? value;
   final ValueChanged<DateTimeRange>? onChanged;

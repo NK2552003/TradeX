@@ -56,7 +56,8 @@ class _MessagesArchivedViewState extends State<MessagesArchivedView> {
       return const MessagesEmptyState(
         icon: Icons.archive_outlined,
         title: 'Nothing archived',
-        message: 'Archived conversations stay out of your inbox but keep their '
+        message:
+            'Archived conversations stay out of your inbox but keep their '
             'full history.',
       );
     }

@@ -17,8 +17,9 @@ class CommunityHighlightedText extends StatelessWidget {
   final ValueChanged<String>? onTagTap;
   final bool selectable;
 
-  static final RegExp _tagRegex =
-      RegExp(r'(\$[A-Za-z\^][A-Za-z0-9_\.\-]{0,9}\b|#[A-Za-z0-9_]+|@[A-Za-z0-9_]+)');
+  static final RegExp _tagRegex = RegExp(
+    r'(tradex://[^\s\)]+|https?://[^\s\)]+|\$[A-Za-z\^][A-Za-z0-9_\.\-]{0,9}\b|#[A-Za-z0-9_]+|@[A-Za-z0-9_]+)',
+  );
   static RegExp get tagRegex => _tagRegex;
 
   @override
@@ -58,10 +59,7 @@ class CommunityHighlightedText extends StatelessWidget {
     }
     if (lastIndex < text.length) {
       spans.add(
-        TextSpan(
-          text: text.substring(lastIndex),
-          style: effectiveStyle,
-        ),
+        TextSpan(text: text.substring(lastIndex), style: effectiveStyle),
       );
     }
 

@@ -4,6 +4,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/presentation/views/community_explore_view.dart';
 import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
+import 'package:tradex/features/community/presentation/widgets/community_article_sheet.dart';
 import 'package:tradex/features/market_data/data/asset_market_repository.dart';
 import 'package:tradex/features/market_data/presentation/market_news_widgets.dart';
 import '../public_site/public_content_test.dart' show FileAssets;
@@ -39,13 +40,37 @@ void main() {
     await tester.tap(find.text('View all'));
     await tester.pumpAndSettle();
     expect(find.byType(CommunityMarketWirePage), findsOneWidget);
+    final panel = find.byKey(
+      const ValueKey<String>('settings-side-sheet-surface'),
+    );
+    expect(panel, findsOneWidget);
     expect(
-      find.text(repo.newsByCategory['crypto']!.first.headline),
+      find.descendant(
+        of: panel,
+        matching: find.text(repo.newsByCategory['crypto']!.first.headline),
+      ),
       findsOneWidget,
     );
     expect(
-      find.text(repo.newsByCategory['crypto']!.last.headline),
+      find.descendant(
+        of: panel,
+        matching: find.text(repo.newsByCategory['crypto']!.last.headline),
+      ),
       findsNothing,
+    );
+    await tester.tap(
+      find
+          .descendant(
+            of: panel,
+            matching: find.text(repo.newsByCategory['crypto']!.first.headline),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(CommunityArticleSheet), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('settings-side-sheet-surface')),
+      findsNWidgets(2),
     );
     expect(tester.takeException(), isNull);
   });

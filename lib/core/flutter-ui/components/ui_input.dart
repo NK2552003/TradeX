@@ -386,13 +386,11 @@ class _UiInputState extends State<UiInput> {
                 ),
               )
             : isGhost
-                ? null
-                : Border.all(
-                    color: borderColor,
-                    width: _focused
-                        ? theme.borders.thick
-                        : theme.borders.hairline,
-                  ),
+            ? null
+            : Border.all(
+                color: borderColor,
+                width: _focused ? theme.borders.thick : theme.borders.hairline,
+              ),
         boxShadow: _focused && !underline && !isGhost
             ? uiGlow(context, accent, alpha: 0.18)
             : null,
@@ -526,7 +524,9 @@ class _UiInputState extends State<UiInput> {
       ),
     );
 
-    if (widget.label != null || widget.helperText != null || widget.errorText != null) {
+    if (widget.label != null ||
+        widget.helperText != null ||
+        widget.errorText != null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -542,12 +542,15 @@ class _UiInputState extends State<UiInput> {
             SizedBox(height: context.sp(theme.spacing.xs)),
           ],
           coreField,
-          if (widget.errorText != null || widget.helperText != null) ...<Widget>[
+          if (widget.errorText != null ||
+              widget.helperText != null) ...<Widget>[
             SizedBox(height: context.sp(theme.spacing.xs)),
             Text(
               widget.errorText ?? widget.helperText!,
               style: context.uiText.caption.copyWith(
-                color: widget.errorText != null ? c.destructive : c.foregroundSubtle,
+                color: widget.errorText != null
+                    ? c.destructive
+                    : c.foregroundSubtle,
               ),
             ),
           ],

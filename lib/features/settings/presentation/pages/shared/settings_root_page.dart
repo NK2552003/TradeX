@@ -1,3 +1,4 @@
+import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -10,6 +11,7 @@ import 'package:tradex/features/settings/presentation/pages/admin/organization_s
 import 'package:tradex/features/settings/presentation/pages/affiliate/affiliate_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/account_security_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/appearance_settings_page.dart';
+import 'package:tradex/features/settings/presentation/pages/shared/delete_account_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/help_about_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/notifications_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/privacy_settings_page.dart';
@@ -30,6 +32,12 @@ class SettingsRootPage extends StatefulWidget {
     this.onSubscriptionTierChanged,
     this.subscriptionTier = AppTier.free,
     this.onApplyForAffiliate,
+    this.affiliateApplicationStatus,
+    this.onOpenPartnerHub,
+    this.onRefreshAffiliateStatus,
+    this.onOpenPayouts,
+    this.onOpenMarketing,
+    this.onSwitchToTrader,
     this.onSubpageChanged,
     this.onOpenRef,
     this.communityRepository,
@@ -43,6 +51,12 @@ class SettingsRootPage extends StatefulWidget {
   final ValueChanged<AppTier>? onSubscriptionTierChanged;
   final AppTier subscriptionTier;
   final VoidCallback? onApplyForAffiliate;
+  final AffiliateApplicationStatus? affiliateApplicationStatus;
+  final VoidCallback? onOpenPartnerHub,
+      onRefreshAffiliateStatus,
+      onOpenPayouts,
+      onOpenMarketing,
+      onSwitchToTrader;
   final void Function(String? title, IconData? icon, VoidCallback? onBack)?
   onSubpageChanged;
   final void Function(AppLinkRef ref)? onOpenRef;
@@ -151,13 +165,33 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
       ),
       'affiliate_perks' => TraderAffiliatePerksPage(
         onUpgradeToAffiliate: widget.onApplyForAffiliate,
+        applicationStatus: widget.affiliateApplicationStatus,
+        onOpenPartnerHub: widget.onOpenPartnerHub,
+        onRefreshStatus: widget.onRefreshAffiliateStatus,
       ),
-      'security' => const AccountSecurityPage(),
-      'affiliate' => const AffiliateSettingsPage(),
+      'security' => AccountSecurityPage(
+        userRole: widget.userRole,
+        onAccountDeleted: widget.onLogout,
+      ),
+      'affiliate' when widget.userRole != UserRole.affiliate =>
+        TraderAffiliatePerksPage(
+          applicationStatus: widget.affiliateApplicationStatus,
+          onUpgradeToAffiliate: widget.onApplyForAffiliate,
+          onOpenPartnerHub: widget.onOpenPartnerHub,
+          onRefreshStatus: widget.onRefreshAffiliateStatus,
+        ),
+      'affiliate' => AffiliateSettingsPage(
+        onOpenPayouts: widget.onOpenPayouts,
+        onOpenMarketing: widget.onOpenMarketing,
+        onSwitchToTrader: widget.onSwitchToTrader,
+      ),
       'organization' => const OrganizationSettingsPage(),
       'desk_risk' => const DeskRiskPage(),
       'notifications' => const NotificationsSettingsPage(),
-      'privacy' => const PrivacySettingsPage(),
+      'privacy' => PrivacySettingsPage(
+        userRole: widget.userRole,
+        onAccountDeleted: widget.onLogout,
+      ),
       'appearance' => const AppearanceSettingsPage(),
       'trading' => const TradingPreferencesPage(),
       'billing' => BillingSettingsPage(
@@ -405,6 +439,15 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (widget.onSwitchToTrader != null) ...[
+            UiButton(
+              label: 'Trader workspace',
+              leadingIcon: Icons.swap_horiz,
+              variant: UiVariant.outline,
+              onPressed: widget.onSwitchToTrader,
+            ),
+            SizedBox(height: context.sp(theme.spacing.md)),
+          ],
           // Account & Identity Section
           AppSettingsSectionBlock(
             title: 'Account & Security (${widget.userRole.label})',
@@ -440,7 +483,10 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                 subtitle: 'Password, sessions, and connected OAuth',
                 icon: Icons.lock_outline_rounded,
                 onTap: () => _navigateToSubpage(
-                  const AccountSecurityPage(),
+                  AccountSecurityPage(
+                    userRole: widget.userRole,
+                    onAccountDeleted: widget.onLogout,
+                  ),
                   'Email & Security',
                   Icons.lock_outline_rounded,
                 ),
@@ -457,11 +503,14 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                 SettingsNavRow(
                   title: 'Referral Links & Payout Settings',
                   subtitle:
-                      'Custom referral slug, 30% RevShare, PayPal/ACH routing',
+                      'Referral identity, account commission terms, and payment destination',
                   icon: Icons.handshake_outlined,
-                  badgeLabel: 'GOLD PARTNER',
                   onTap: () => _navigateToSubpage(
-                    const AffiliateSettingsPage(),
+                    AffiliateSettingsPage(
+                      onOpenPayouts: widget.onOpenPayouts,
+                      onOpenMarketing: widget.onOpenMarketing,
+                      onSwitchToTrader: widget.onSwitchToTrader,
+                    ),
                     'Affiliate & Payouts',
                     Icons.handshake_outlined,
                   ),
@@ -474,13 +523,28 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
               title: 'Affiliate Program',
               children: [
                 SettingsNavRow(
-                  title: 'Become a TradeX Affiliate',
+                  title: switch (widget.affiliateApplicationStatus) {
+                    AffiliateApplicationStatus.approved =>
+                      'Partner Hub & application',
+                    AffiliateApplicationStatus.pending =>
+                      'Affiliate application status',
+                    AffiliateApplicationStatus.rejected =>
+                      'Revise affiliate application',
+                    AffiliateApplicationStatus.suspended =>
+                      'Affiliate access status',
+                    _ => 'Become a hejournal.in Affiliate',
+                  },
                   subtitle:
                       'Complete the partner application and keep all trader tools',
                   icon: Icons.handshake_outlined,
-                  badgeLabel: 'APPLY',
+                  badgeLabel:
+                      widget.affiliateApplicationStatus?.name.toUpperCase() ??
+                      'APPLY',
                   onTap: () => _navigateToSubpage(
                     TraderAffiliatePerksPage(
+                      applicationStatus: widget.affiliateApplicationStatus,
+                      onOpenPartnerHub: widget.onOpenPartnerHub,
+                      onRefreshStatus: widget.onRefreshAffiliateStatus,
                       onUpgradeToAffiliate: () {
                         // Leave the perks screen before the shell swaps in the
                         // application, so the reader does not come back to it.
@@ -490,7 +554,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                         });
                       },
                     ),
-                    'TradeX Affiliate Program',
+                    'hejournal.in Affiliate Program',
                     Icons.handshake_outlined,
                   ),
                 ),
@@ -561,7 +625,10 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                 subtitle: 'Public journals, statistics sharing, blocked users',
                 icon: Icons.security_rounded,
                 onTap: () => _navigateToSubpage(
-                  const PrivacySettingsPage(),
+                  PrivacySettingsPage(
+                    userRole: widget.userRole,
+                    onAccountDeleted: widget.onLogout,
+                  ),
                   'Privacy & Data',
                   Icons.security_rounded,
                 ),
@@ -626,7 +693,23 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
           ),
           SizedBox(height: context.sp(theme.spacing.lg)),
 
-          // Logout Action Row
+          // Logout & Account Deletion Action Rows
+          SettingsNavRow(
+            title: 'Delete Account & Conditional Data Purge',
+            subtitle:
+                'Close your account and configure immediate or 30-day data deletion conditions',
+            icon: Icons.delete_forever_rounded,
+            isDestructive: true,
+            onTap: () => _navigateToSubpage(
+              DeleteAccountPage(
+                userRole: widget.userRole,
+                onAccountDeleted: widget.onLogout,
+              ),
+              'Delete Account & Data Purge',
+              Icons.delete_forever_rounded,
+            ),
+          ),
+          SizedBox(height: context.sp(theme.spacing.sm)),
           SettingsNavRow(
             title: 'Log Out of Account',
             subtitle: 'End active session securely',

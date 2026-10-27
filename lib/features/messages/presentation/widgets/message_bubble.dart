@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 
 /// One chat bubble.
@@ -46,14 +48,16 @@ class MessageBubble extends StatelessWidget {
 
     final UiTheme theme = context.ui;
     final bool me = message.fromMe;
-    final double maxWidth =
-        MediaQuery.sizeOf(context).width * maxWidthFraction;
+    final double maxWidth = MediaQuery.sizeOf(context).width * maxWidthFraction;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: context.sp(showTail ? theme.spacing.sm : theme.spacing.xxs)),
+      padding: EdgeInsets.only(
+        bottom: context.sp(showTail ? theme.spacing.sm : theme.spacing.xxs),
+      ),
       child: Column(
-        crossAxisAlignment:
-            me ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: me
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: <Widget>[
           if (senderName != null && !me)
             Padding(
@@ -102,7 +106,9 @@ class MessageBubble extends StatelessWidget {
 
     final List<Widget> parts = <Widget>[];
     if (replyMessage != null) {
-      final String sender = replyMessage!.fromMe ? 'You' : (senderName ?? 'Trader');
+      final String sender = replyMessage!.fromMe
+          ? 'You'
+          : (senderName ?? 'Trader');
       parts.add(
         Container(
           margin: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
@@ -111,7 +117,9 @@ class MessageBubble extends StatelessWidget {
             vertical: context.sp(theme.spacing.xxs),
           ),
           decoration: BoxDecoration(
-            color: me ? Colors.black.withValues(alpha: 0.15) : colors.surfaceHover,
+            color: me
+                ? Colors.black.withValues(alpha: 0.15)
+                : colors.surfaceHover,
             borderRadius: context.radius(theme.radii.sm),
             border: Border(
               left: BorderSide(
@@ -134,11 +142,15 @@ class MessageBubble extends StatelessWidget {
               Text(
                 replyMessage!.body.isNotEmpty
                     ? replyMessage!.body
-                    : (replyMessage!.sharedRef?.title ?? replyMessage!.attachment?.title ?? 'Attachment'),
+                    : (replyMessage!.sharedRef?.title ??
+                          replyMessage!.attachment?.title ??
+                          'Attachment'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: context.uiText.caption.copyWith(
-                  color: (me ? colors.onPrimary : colors.foreground).withValues(alpha: 0.8),
+                  color: (me ? colors.onPrimary : colors.foreground).withValues(
+                    alpha: 0.8,
+                  ),
                 ),
               ),
             ],
@@ -161,9 +173,14 @@ class MessageBubble extends StatelessWidget {
 
     // A media/record-only bubble uses tighter padding so the card fills it.
     final bool mediaOnly =
-        !message.hasText && (message.attachment != null || message.sharedRef != null);
-    final double padH = context.sp(mediaOnly ? theme.spacing.xs : theme.spacing.sm);
-    final double padV = context.sp(mediaOnly ? theme.spacing.xs : theme.spacing.sm);
+        !message.hasText &&
+        (message.attachment != null || message.sharedRef != null);
+    final double padH = context.sp(
+      mediaOnly ? theme.spacing.xs : theme.spacing.sm,
+    );
+    final double padV = context.sp(
+      mediaOnly ? theme.spacing.xs : theme.spacing.sm,
+    );
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -171,10 +188,7 @@ class MessageBubble extends StatelessWidget {
         borderRadius: _bubbleRadius(context, me),
         border: me
             ? null
-            : Border.all(
-                color: colors.border,
-                width: theme.borders.hairline,
-              ),
+            : Border.all(color: colors.border, width: theme.borders.hairline),
       ),
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
@@ -198,21 +212,24 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  static final RegExp _tickerRegex =
-      RegExp(r'(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$)');
+  static final RegExp _inlineTokenRegex = RegExp(
+    r'(tradex://[^\s\)]+|https?://[^\s\)]+|(?<![\$\w])\$([A-Za-z\^][A-Za-z0-9\.\-\_\^\=]{0,9})\b(?!\$))',
+  );
 
   Widget _buildMessageBodyText(BuildContext context, Color fg, bool me) {
-    final TextStyle baseStyle =
-        context.uiText.body.copyWith(color: fg, height: 1.35);
+    final TextStyle baseStyle = context.uiText.body.copyWith(
+      color: fg,
+      height: 1.35,
+    );
     final String text = message.body;
 
-    final Iterable<Match> matches = _tickerRegex.allMatches(text);
+    final Iterable<Match> matches = _inlineTokenRegex.allMatches(text);
     if (matches.isEmpty) {
       return Text(text, style: baseStyle);
     }
 
     final UiColors colors = context.uiColors;
-    final Color tickerColor = me ? colors.onPrimary : colors.primary;
+    final Color linkColor = me ? colors.onPrimary : colors.primary;
     final List<InlineSpan> spans = <InlineSpan>[];
     int lastIndex = 0;
 
@@ -225,47 +242,44 @@ class MessageBubble extends StatelessWidget {
           ),
         );
       }
-      final String rawTicker = match.group(0)!;
-      final String symbol = match.group(1)!.toUpperCase();
+      final String rawToken = match.group(0)!;
+      final String? tickerSymbol = match.group(2);
       spans.add(
         TextSpan(
-          text: rawTicker,
+          text: rawToken,
           style: baseStyle.copyWith(
-            color: tickerColor,
+            color: linkColor,
             fontWeight: FontWeight.bold,
             decoration: TextDecoration.underline,
-            decorationColor: tickerColor.withValues(alpha: 0.5),
+            decorationColor: linkColor.withValues(alpha: 0.5),
           ),
-          recognizer: onOpenRef == null
-              ? null
-              : (TapGestureRecognizer()
-                ..onTap = () {
-                  onOpenRef!(
-                    AppLinkRef(
-                      kind: AppLinkKind.ticker,
-                      id: symbol,
-                      title: symbol,
-                    ),
-                  );
-                }),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () {
+              if (tickerSymbol != null && tickerSymbol.isNotEmpty) {
+                final String sym = tickerSymbol.toUpperCase();
+                onOpenRef?.call(
+                  AppLinkRef(kind: AppLinkKind.ticker, id: sym, title: sym),
+                );
+                return;
+              }
+              final AppLinkRef? deepTarget = AppDeepLink.tryParseUrl(rawToken);
+              if (deepTarget != null && onOpenRef != null) {
+                onOpenRef!(deepTarget.copyWith(isPublicContext: true));
+                return;
+              }
+              Clipboard.setData(ClipboardData(text: rawToken));
+              UiToast.info(context, title: 'Link Copied', message: rawToken);
+            },
         ),
       );
       lastIndex = match.end;
     }
 
     if (lastIndex < text.length) {
-      spans.add(
-        TextSpan(
-          text: text.substring(lastIndex),
-          style: baseStyle,
-        ),
-      );
+      spans.add(TextSpan(text: text.substring(lastIndex), style: baseStyle));
     }
 
-    return Text.rich(
-      TextSpan(children: spans),
-      style: baseStyle,
-    );
+    return Text.rich(TextSpan(children: spans), style: baseStyle);
   }
 
   // ---------------------------------------------------------------------------
@@ -306,7 +320,8 @@ class MessageBubble extends StatelessWidget {
     if (attachment.kind == MessageAttachmentKind.tradeSetup) {
       return _tradeSetupAttachment(context, attachment);
     }
-    final bool visual = attachment.kind == MessageAttachmentKind.image ||
+    final bool visual =
+        attachment.kind == MessageAttachmentKind.image ||
         attachment.kind == MessageAttachmentKind.chart;
     if (visual && attachment.thumbnailUrl != null) {
       return _imageAttachment(context, attachment);
@@ -317,10 +332,7 @@ class MessageBubble extends StatelessWidget {
   /// A shared trade idea: direction + entry / stop / target levels and the
   /// derived reward:risk, rendered as a self-contained surface card so it reads
   /// correctly on both incoming and outgoing (filled) bubbles.
-  Widget _tradeSetupAttachment(
-    BuildContext context,
-    MessageAttachment a,
-  ) {
+  Widget _tradeSetupAttachment(BuildContext context, MessageAttachment a) {
     final UiTheme theme = context.ui;
     final bool isLong = (a.direction ?? 'long').toLowerCase() != 'short';
     double? rr;
@@ -432,14 +444,15 @@ class MessageBubble extends StatelessWidget {
               child: Image.network(
                 attachment.thumbnailUrl!,
                 fit: BoxFit.cover,
-                loadingBuilder: (
-                  BuildContext ctx,
-                  Widget child,
-                  ImageChunkEvent? progress,
-                ) {
-                  if (progress == null) return child;
-                  return _mediaFallback(context, loading: true);
-                },
+                loadingBuilder:
+                    (
+                      BuildContext ctx,
+                      Widget child,
+                      ImageChunkEvent? progress,
+                    ) {
+                      if (progress == null) return child;
+                      return _mediaFallback(context, loading: true);
+                    },
                 errorBuilder: (BuildContext ctx, Object e, StackTrace? s) =>
                     _mediaFallback(context),
               ),
@@ -504,7 +517,11 @@ class MessageBubble extends StatelessWidget {
                 color: chipBg,
                 borderRadius: context.radius(theme.radii.sm),
               ),
-              child: Icon(attachment.kind.icon, size: context.sz(18), color: fg),
+              child: Icon(
+                attachment.kind.icon,
+                size: context.sz(18),
+                color: fg,
+              ),
             ),
             SizedBox(width: context.sp(theme.spacing.sm)),
             Flexible(
@@ -519,7 +536,9 @@ class MessageBubble extends StatelessWidget {
                     style: context.uiText.bodyStrong.copyWith(color: fg),
                   ),
                   Text(
-                    attachment.sizeLabel ?? attachment.subtitle ?? attachment.kind.label,
+                    attachment.sizeLabel ??
+                        attachment.subtitle ??
+                        attachment.kind.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.uiText.caption.copyWith(
@@ -729,7 +748,30 @@ class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
   Timer? _timer;
 
   static const List<double> _waveformHeights = <double>[
-    6, 10, 16, 22, 14, 8, 18, 24, 20, 12, 16, 26, 18, 14, 22, 12, 8, 20, 24, 16, 10, 18, 14, 6
+    6,
+    10,
+    16,
+    22,
+    14,
+    8,
+    18,
+    24,
+    20,
+    12,
+    16,
+    26,
+    18,
+    14,
+    22,
+    12,
+    8,
+    20,
+    24,
+    16,
+    10,
+    18,
+    14,
+    6,
   ];
 
   int get _totalSeconds {
@@ -854,17 +896,18 @@ class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List<Widget>.generate(_waveformHeights.length, (int index) {
-                        final double barFraction = (index + 1) / _waveformHeights.length;
+                      children: List<Widget>.generate(_waveformHeights.length, (
+                        int index,
+                      ) {
+                        final double barFraction =
+                            (index + 1) / _waveformHeights.length;
                         final bool played = _progress >= barFraction;
                         final double h = _waveformHeights[index];
                         return Container(
                           width: context.sz(2.5),
                           height: context.sz(h),
                           decoration: BoxDecoration(
-                            color: played
-                                ? fg
-                                : fg.withValues(alpha: 0.35),
+                            color: played ? fg : fg.withValues(alpha: 0.35),
                             borderRadius: BorderRadius.circular(context.sz(2)),
                           ),
                         );

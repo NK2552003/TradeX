@@ -20,7 +20,7 @@ void main() {
       builder: (context) => MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: UiTheme.dark().toThemeData(),
-        title: 'TraderHub · Research workspace',
+        title: 'hejournal.in · Research workspace',
         builder: (context, child) =>
             UiToastScope(child: child ?? const SizedBox.shrink()),
         home: const AppScaffold(

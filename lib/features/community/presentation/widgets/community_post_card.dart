@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/linking/link_graph.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/views/community_image_viewer_page.dart';
@@ -26,7 +28,7 @@ enum CommunityPostCardVariant {
   boxed,
 }
 
-/// The signature Twitter/Threads-grade post card for TraderHub (TradeX).
+/// The signature Twitter/Threads-grade post card for hejournal.in (hejournal.in).
 ///
 /// Features a Hybrid layout:
 /// - In [CommunityPostCardVariant.feed]: flat timeline with a continuous vertical thread-line
@@ -106,6 +108,7 @@ class CommunityPostCard extends StatefulWidget {
 class _CommunityPostCardState extends State<CommunityPostCard> {
   late bool _liked;
   late int _likes;
+  String? _userReaction;
   late bool _reposted;
   late int _reposts;
   late bool _bookmarked;
@@ -115,6 +118,7 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     super.initState();
     _liked = widget.post.liked;
     _likes = widget.post.likes;
+    _userReaction = widget.post.userReaction;
     _reposted = widget.post.reposted;
     _reposts = widget.post.reposts;
     _bookmarked = widget.post.bookmarked;
@@ -124,9 +128,11 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
   void didUpdateWidget(CommunityPostCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.post.liked != widget.post.liked ||
-        oldWidget.post.likes != widget.post.likes) {
+        oldWidget.post.likes != widget.post.likes ||
+        oldWidget.post.userReaction != widget.post.userReaction) {
       _liked = widget.post.liked;
       _likes = widget.post.likes;
+      _userReaction = widget.post.userReaction;
     }
     if (oldWidget.post.reposted != widget.post.reposted ||
         oldWidget.post.reposts != widget.post.reposts) {
@@ -142,8 +148,34 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     setState(() {
       _liked = !_liked;
       _likes += _liked ? 1 : -1;
+      _userReaction = _liked ? (_userReaction ?? '👍') : null;
     });
-    widget.onLike?.call();
+    if (widget.repository != null) {
+      widget.repository.toggleLike(widget.post.id);
+    } else {
+      widget.onLike?.call();
+    }
+  }
+
+  void _handleReact(String reaction) {
+    final bool wasLiked = _liked;
+    final bool sameReaction = wasLiked && _userReaction == reaction;
+    setState(() {
+      if (sameReaction) {
+        _liked = false;
+        _likes = (_likes - 1).clamp(0, 999999);
+        _userReaction = null;
+      } else {
+        _liked = true;
+        _likes = wasLiked ? _likes : _likes + 1;
+        _userReaction = reaction;
+      }
+    });
+    if (widget.repository != null) {
+      widget.repository.toggleLike(widget.post.id, reaction: reaction);
+    } else {
+      widget.onLike?.call();
+    }
   }
 
   void _handleRepost() {
@@ -587,7 +619,22 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
           SizedBox(height: context.sp(theme.spacing.sm)),
           CommunityLinkPreviewTile(
             preview: post.linkPreview!,
-            onTap: widget.onTap,
+            onTap: () {
+              final String rawUrl = post.linkPreview!.domain.startsWith('http')
+                  ? post.linkPreview!.domain
+                  : 'https://${post.linkPreview!.domain}';
+              final AppLinkRef? deepTarget = AppDeepLink.tryParseUrl(rawUrl);
+              if (deepTarget != null && widget.onOpenRef != null) {
+                widget.onOpenRef!(deepTarget.copyWith(isPublicContext: true));
+                return;
+              }
+              Clipboard.setData(ClipboardData(text: rawUrl));
+              UiToast.info(
+                context,
+                title: post.linkPreview!.title,
+                message: 'External link copied: $rawUrl',
+              );
+            },
           ),
         ],
 
@@ -665,6 +712,18 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                 return CommunityQuoteCard(
                   post: original,
                   onAuthorTap: widget.onAuthorTap,
+                  onOpenRef: widget.onOpenRef,
+                  onTagTap: widget.onTagTap,
+                  onTap: widget.onOpenRef != null
+                      ? () => widget.onOpenRef!(
+                          AppLinkRef(
+                            kind: AppLinkKind.communityPost,
+                            id: original.id,
+                            title: 'Post by @${original.author.handle}',
+                            isPublicContext: true,
+                          ),
+                        )
+                      : widget.onTap,
                 );
               },
             )
@@ -716,11 +775,13 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             likes: _likes,
             views: post.views,
             liked: _liked,
+            userReaction: _userReaction,
             reposted: _reposted,
             bookmarked: _bookmarked,
             onReply: widget.onReply ?? widget.onTap,
             onRepost: _handleRepost,
             onLike: _handleLike,
+            onReact: _handleReact,
             onBookmark: _handleBookmark,
             onShare: () => _handleShare(context),
             onViewStats: () =>

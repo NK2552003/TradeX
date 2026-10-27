@@ -1,7 +1,7 @@
 /// The relationship layer between trader notes, journal entries and strategy
 /// playbooks.
 ///
-/// TradeX stores every edge on **both** ends: a note lists the journal entries
+/// hejournal.in stores every edge on **both** ends: a note lists the journal entries
 /// it discusses, and those entries list the note back. That is redundant on
 /// purpose. A single-sided edge is one failed write away from disappearing, and
 /// a trader who cannot get from a losing trade back to the plan that produced it
@@ -31,26 +31,82 @@ class AppDeepLink {
   const AppDeepLink._();
 
   static const String scheme = 'tradex';
+  static const Set<String> _webHosts = <String>{
+    'hejournal.in',
+    'www.hejournal.in',
+  };
 
   /// The canonical URL for one record.
   static Uri of(AppLinkKind kind, String id) =>
       Uri(scheme: scheme, host: kind.host, path: '/$id');
 
-  static bool isInternal(Uri uri) => uri.scheme == scheme;
+  static bool isInternal(Uri uri) {
+    if (uri.scheme == scheme) return true;
+    if ((uri.scheme == 'https' || uri.scheme == 'http') &&
+        _webHosts.contains(uri.host.toLowerCase())) {
+      return _parseWebTarget(uri) != null;
+    }
+    return false;
+  }
 
-  /// The record a URL points at, or null if this is not a `tradex://` link the
-  /// app understands. An unknown host is treated as "not ours" rather than
-  /// guessed at, so a future `tradex://watchlist/…` opens nothing instead of
-  /// opening the wrong thing.
-  static ({AppLinkKind kind, String id})? target(Uri uri) {
-    if (!isInternal(uri)) return null;
-    final AppLinkKind? kind = AppLinkKind.fromHost(uri.host);
+  static ({AppLinkKind kind, String id})? _parseWebTarget(Uri uri) {
+    final List<String> segs = uri.pathSegments
+        .where((String s) => s.trim().isNotEmpty)
+        .toList();
+    if (segs.isEmpty) return null;
+    // Supports /p/notes/<id>, /p/journal/<id>, /p/strategies/<id>, /p/post/<id>,
+    // /post/<id>, /notes/<id>, /journal/<id>, /strategies/<id>, /ticker/<id>.
+    int offset = 0;
+    if (segs.first.toLowerCase() == 'p' && segs.length >= 3) {
+      offset = 1;
+    }
+    if (segs.length < offset + 2) return null;
+    final String kindSegment = segs[offset].toLowerCase();
+    final String id = segs.sublist(offset + 1).join('/').trim();
+    if (id.isEmpty) return null;
+    final AppLinkKind? kind = switch (kindSegment) {
+      'note' || 'notes' => AppLinkKind.note,
+      'journal' || 'trade' || 'trades' || 'entry' => AppLinkKind.journal,
+      'strategy' || 'strategies' || 'playbook' => AppLinkKind.strategy,
+      'ticker' || 'tickers' || 'symbol' => AppLinkKind.ticker,
+      'post' || 'posts' || 'community' => AppLinkKind.communityPost,
+      'message' || 'messages' || 'thread' => AppLinkKind.messageThread,
+      'ai' || 'copilot' => AppLinkKind.aiCopilot,
+      _ => AppLinkKind.fromHost(kindSegment),
+    };
     if (kind == null) return null;
-    final String id = uri.pathSegments.isEmpty
-        ? ''
-        : uri.pathSegments.join('/');
-    if (id.trim().isEmpty) return null;
-    return (kind: kind, id: id.trim());
+    return (kind: kind, id: id);
+  }
+
+  /// The record a URL points at, or null if this is not a `tradex://` or
+  /// shared hejournal.in web link (`https://hejournal.in/p/...`, `https://hejournal.in/post/...`)
+  /// the app understands.
+  static ({AppLinkKind kind, String id})? target(Uri uri) {
+    if (uri.scheme == scheme) {
+      final AppLinkKind? kind = AppLinkKind.fromHost(uri.host);
+      if (kind == null) return null;
+      final String id = uri.pathSegments.isEmpty
+          ? ''
+          : uri.pathSegments.join('/');
+      if (id.trim().isEmpty) return null;
+      return (kind: kind, id: id.trim());
+    }
+    if ((uri.scheme == 'https' || uri.scheme == 'http') &&
+        _webHosts.contains(uri.host.toLowerCase())) {
+      return _parseWebTarget(uri);
+    }
+    return null;
+  }
+
+  /// Convenience parser for a raw URL string.
+  static AppLinkRef? tryParseUrl(String raw) {
+    final String clean = raw.trim();
+    if (clean.isEmpty) return null;
+    final Uri? uri = Uri.tryParse(clean);
+    if (uri == null) return null;
+    final ({AppLinkKind kind, String id})? parsed = target(uri);
+    if (parsed == null) return null;
+    return AppLinkRef(kind: parsed.kind, id: parsed.id, title: parsed.id);
   }
 
   /// Markdown for a link a human will read. The label is what the reader sees,

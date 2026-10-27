@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
@@ -48,24 +49,85 @@ class _NewMessageDialogState extends State<NewMessageDialog> {
   String _query = '';
   final TextEditingController _groupTitleController = TextEditingController();
   final Set<AppTrader> _selectedTraders = <AppTrader>{};
+  List<AppTrader> _liveTraders = [];
+  bool _isSearching = false;
+  Timer? _debounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _liveTraders = widget.candidates;
+    if (_liveTraders.isEmpty) {
+      _fetchLiveTraders('');
+    }
+  }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _groupTitleController.dispose();
     super.dispose();
   }
 
+  void _onSearchChanged(String val) {
+    setState(() => _query = val);
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 250), () {
+      _fetchLiveTraders(val);
+    });
+  }
+
+  Future<void> _fetchLiveTraders(String q) async {
+    if (!mounted) return;
+    setState(() => _isSearching = true);
+    final results = await widget.repository.searchLiveTraders(q);
+    if (!mounted) return;
+    setState(() {
+      _liveTraders = results;
+      _isSearching = false;
+    });
+  }
+
   List<AppTrader> get _results {
+    if (_liveTraders.isNotEmpty) return _liveTraders;
     final String q = _query.trim().toLowerCase();
     if (q.isEmpty) return widget.candidates;
     return widget.candidates
-        .where((AppTrader t) =>
-            (t.displayName ?? '').toLowerCase().contains(q) ||
-            t.handle.toLowerCase().contains(q))
+        .where(
+          (AppTrader t) =>
+              (t.displayName ?? '').toLowerCase().contains(q) ||
+              t.handle.toLowerCase().contains(q),
+        )
         .toList();
   }
 
   void _start(AppTrader peer) {
+    if (widget.repository.isMessagingRestricted(peer)) {
+      UiDialog.show<void>(
+        context,
+        child: UiDialog(
+          title: 'Cannot message @${peer.handle}',
+          content: Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(context.ui.spacing.sm),
+            ),
+            child: Text(
+              '@${peer.handle} does not accept direct messages from everyone. '
+              'Only invited traders or accounts they follow can start a conversation.',
+              style: context.uiText.body,
+            ),
+          ),
+          actions: <Widget>[
+            UiButton(
+              label: 'OK',
+              intent: UiIntent.primary,
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     final String id = widget.repository.startConversation(peer);
     widget.onStarted?.call(id);
     Navigator.of(context).pop(id);
@@ -147,15 +209,33 @@ class _NewMessageDialogState extends State<NewMessageDialog> {
             ),
         ],
         UiInput.search(
-          hintText: _mode == 0 ? 'Search traders you follow' : 'Add traders to group',
+          hintText: _mode == 0
+              ? 'Search live traders by name or handle'
+              : 'Add live traders to group',
           value: _query,
-          onChanged: (String v) => setState(() => _query = v),
-          onClear: () => setState(() => _query = ''),
+          onChanged: _onSearchChanged,
+          onClear: () => _onSearchChanged(''),
         ),
         SizedBox(height: context.sp(theme.spacing.sm)),
         ConstrainedBox(
           constraints: BoxConstraints(maxHeight: context.sz(280)),
-          child: results.isEmpty
+          child: _isSearching
+              ? Padding(
+                  padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
+                  child: Center(
+                    child: SizedBox(
+                      width: context.sz(24),
+                      height: context.sz(24),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          theme.colors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              : results.isEmpty
               ? Padding(
                   padding: EdgeInsets.all(context.sp(theme.spacing.lg)),
                   child: UiEmptyState(
@@ -199,7 +279,8 @@ class _NewMessageDialogState extends State<NewMessageDialog> {
             label: 'Create Group (${_selectedTraders.length})',
             icon: Icons.group_add_rounded,
             intent: UiIntent.primary,
-            onPressed: (_groupTitleController.text.trim().isNotEmpty &&
+            onPressed:
+                (_groupTitleController.text.trim().isNotEmpty &&
                     _selectedTraders.isNotEmpty)
                 ? _createGroup
                 : null,
@@ -273,10 +354,7 @@ class _TraderRow extends StatelessWidget {
                 ),
               ),
               if (isSelectable)
-                UiCheckbox(
-                  value: isSelected,
-                  onChanged: (_) => onTap(),
-                )
+                UiCheckbox(value: isSelected, onChanged: (_) => onTap())
               else
                 Icon(
                   Icons.chat_bubble_outline_rounded,

@@ -44,18 +44,22 @@ class ChartBlock extends StatelessWidget {
     final String? title = data['title'] as String?;
     final List<String> labels =
         (data['labels'] as List?)?.map((e) => e.toString()).toList() ??
-            const <String>[];
+        const <String>[];
     final List<dynamic> seriesRaw = (data['series'] as List?) ?? const [];
 
     final List<({String name, List<double> values})> series = [];
     for (int i = 0; i < seriesRaw.length; i++) {
       final entry = seriesRaw[i];
       if (entry is! Map) continue;
-      final List<double> values = (entry['data'] as List?)
+      final List<double> values =
+          (entry['data'] as List?)
               ?.map((e) => (e as num).toDouble())
               .toList() ??
           const <double>[];
-      series.add((name: entry['name']?.toString() ?? 'Series ${i + 1}', values: values));
+      series.add((
+        name: entry['name']?.toString() ?? 'Series ${i + 1}',
+        values: values,
+      ));
     }
 
     if (labels.isEmpty || series.isEmpty) {
@@ -68,8 +72,15 @@ class ChartBlock extends StatelessWidget {
     final Widget chart = type == 'pie'
         ? UiDonutChart(
             slices: [
-              for (int i = 0; i < labels.length && i < series.first.values.length; i++)
-                UiDonutSlice(label: labels[i], value: series.first.values[i].abs()),
+              for (
+                int i = 0;
+                i < labels.length && i < series.first.values.length;
+                i++
+              )
+                UiDonutSlice(
+                  label: labels[i],
+                  value: series.first.values[i].abs(),
+                ),
             ],
           )
         : UiChart(
@@ -77,7 +88,10 @@ class ChartBlock extends StatelessWidget {
               for (int i = 0; i < labels.length; i++)
                 UiChartPoint(
                   label: labels[i],
-                  values: [for (final s in series) i < s.values.length ? s.values[i] : 0],
+                  values: [
+                    for (final s in series)
+                      i < s.values.length ? s.values[i] : 0,
+                  ],
                 ),
             ],
             series: [
@@ -87,8 +101,8 @@ class ChartBlock extends StatelessWidget {
                   type: type == 'line'
                       ? UiChartSeriesType.line
                       : type == 'area'
-                          ? UiChartSeriesType.area
-                          : UiChartSeriesType.bar,
+                      ? UiChartSeriesType.area
+                      : UiChartSeriesType.bar,
                   showDots: type == 'line',
                 ),
             ],
@@ -109,12 +123,20 @@ class ChartBlock extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.insert_chart_outlined, size: 16, color: colors.foregroundMuted),
+              Icon(
+                Icons.insert_chart_outlined,
+                size: 16,
+                color: colors.foregroundMuted,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   (title != null && title.trim().isNotEmpty) ? title : 'Chart',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: colors.foreground),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: colors.foreground,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -144,7 +166,10 @@ class ChartBlock extends StatelessWidget {
           Icon(Icons.error_outline, size: 16, color: colors.warning),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(message, style: TextStyle(fontSize: 12.5, color: colors.foregroundMuted)),
+            child: Text(
+              message,
+              style: TextStyle(fontSize: 12.5, color: colors.foregroundMuted),
+            ),
           ),
         ],
       ),

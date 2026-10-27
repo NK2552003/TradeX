@@ -154,6 +154,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('₹987'), findsOneWidget);
+      await tester.ensureVisible(find.text('Monthly'));
       await tester.tap(find.text('Monthly'));
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('₹1,234'), findsOneWidget);

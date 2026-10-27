@@ -127,43 +127,45 @@ ALTER TABLE chat_shared_refs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_reactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_user_presence ENABLE ROW LEVEL SECURITY;
 
+-- Helper to break RLS infinite recursion
+CREATE OR REPLACE FUNCTION public.user_is_chat_participant(p_thread_id uuid, p_user_id uuid DEFAULT auth.uid())
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.chat_participants
+    WHERE thread_id = p_thread_id AND user_id = p_user_id
+  );
+$$;
+
 -- Participant-based RLS Policies
+DROP POLICY IF EXISTS "Users can view threads they belong to" ON chat_threads;
 CREATE POLICY "Users can view threads they belong to"
     ON chat_threads FOR SELECT
-    USING (EXISTS (
-        SELECT 1 FROM chat_participants
-        WHERE chat_participants.thread_id = chat_threads.id
-        AND chat_participants.user_id = auth.uid()
-    ));
+    USING (created_by = auth.uid() OR public.user_is_chat_participant(id, auth.uid()));
 
 CREATE POLICY "Users can create threads"
     ON chat_threads FOR INSERT
     WITH CHECK (auth.uid() = created_by);
 
+DROP POLICY IF EXISTS "Users can update threads they belong to" ON chat_threads;
 CREATE POLICY "Users can update threads they belong to"
     ON chat_threads FOR UPDATE
-    USING (EXISTS (
-        SELECT 1 FROM chat_participants
-        WHERE chat_participants.thread_id = chat_threads.id
-        AND chat_participants.user_id = auth.uid()
-    ));
+    USING (created_by = auth.uid() OR public.user_is_chat_participant(id, auth.uid()));
 
+DROP POLICY IF EXISTS "Users can view participants of their threads" ON chat_participants;
 CREATE POLICY "Users can view participants of their threads"
     ON chat_participants FOR SELECT
-    USING (EXISTS (
-        SELECT 1 FROM chat_participants cp
-        WHERE cp.thread_id = chat_participants.thread_id
-        AND cp.user_id = auth.uid()
-    ));
+    USING (user_id = auth.uid() OR public.user_is_chat_participant(thread_id, auth.uid()));
 
+DROP POLICY IF EXISTS "Users can add/leave thread participants" ON chat_participants;
 CREATE POLICY "Users can add/leave thread participants"
     ON chat_participants FOR ALL
-    USING (auth.uid() = user_id OR EXISTS (
-        SELECT 1 FROM chat_participants cp
-        WHERE cp.thread_id = chat_participants.thread_id
-        AND cp.user_id = auth.uid()
-        AND cp.role = 'admin'
-    ));
+    USING (auth.uid() = user_id OR public.user_is_chat_participant(thread_id, auth.uid()))
+    WITH CHECK (auth.uid() = user_id OR public.user_is_chat_participant(thread_id, auth.uid()));
 
 CREATE POLICY "Users can view messages in their threads"
     ON chat_messages FOR SELECT

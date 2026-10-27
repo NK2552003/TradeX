@@ -25,6 +25,27 @@ class UiDialog extends StatelessWidget {
   final IconData? icon;
   final UiIntent intent;
 
+  /// Completes after the closing transition has removed the dialog's fields.
+  /// Callers may then safely dispose their text controllers.
+  static Future<T?> present<T>({
+    required BuildContext context,
+    required WidgetBuilder builder,
+    bool barrierDismissible = true,
+    Color? barrierColor,
+  }) async {
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final route = DialogRoute<T>(
+      context: context,
+      builder: builder,
+      themes: InheritedTheme.capture(from: context, to: navigator.context),
+      barrierDismissible: barrierDismissible,
+      barrierColor: barrierColor ?? context.ui.colors.overlay,
+    );
+    final result = await navigator.push<T>(route);
+    await route.completed;
+    return result;
+  }
+
   /// Shows the dialog; a bottom sheet on phones, centered modal otherwise.
   static Future<T?> show<T>(
     BuildContext context, {
@@ -34,7 +55,7 @@ class UiDialog extends StatelessWidget {
   }) {
     final theme = context.ui;
     final mobile = context.uiRes.isMobile;
-    return showDialog<T>(
+    return present<T>(
       context: context,
       barrierDismissible: dismissible,
       barrierColor: theme.colors.overlay,
@@ -42,9 +63,7 @@ class UiDialog extends StatelessWidget {
         duration: theme.motion.fast,
         padding:
             MediaQuery.viewInsetsOf(ctx) +
-            EdgeInsets.all(
-              ctx.sp(mobile ? 0 : theme.spacing.md),
-            ),
+            EdgeInsets.all(ctx.sp(mobile ? 0 : theme.spacing.md)),
         child: Align(
           alignment: mobile ? Alignment.bottomCenter : Alignment.center,
           child: ConstrainedBox(

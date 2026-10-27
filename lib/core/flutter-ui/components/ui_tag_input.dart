@@ -53,8 +53,9 @@ class _UiTagInputState extends State<UiTagInput> {
     _controller.clear();
   }
 
-  void _remove(String tag) =>
-      widget.onChanged?.call(widget.tags.where((String t) => t != tag).toList());
+  void _remove(String tag) => widget.onChanged?.call(
+    widget.tags.where((String t) => t != tag).toList(),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -118,9 +119,7 @@ class _UiTagInputState extends State<UiTagInput> {
                                           : ctx.uiText.label)
                                       .copyWith(
                                         color: widget.intent.color(ctx),
-                                        fontSize: mobile
-                                            ? ctx.fs(11.5)
-                                            : null,
+                                        fontSize: mobile ? ctx.fs(11.5) : null,
                                       ),
                             ),
                           ),
@@ -128,9 +127,7 @@ class _UiTagInputState extends State<UiTagInput> {
                           Icon(
                             Icons.close_rounded,
                             size: ctx.sz(
-                              mobile
-                                  ? theme.sizes.iconXs
-                                  : theme.sizes.iconSm,
+                              mobile ? theme.sizes.iconXs : theme.sizes.iconSm,
                             ),
                             color: widget.intent.color(ctx),
                           ),

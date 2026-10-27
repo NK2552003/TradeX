@@ -1,4 +1,4 @@
-/// Settings feature for TraderHub TradeX
+/// Settings feature for hejournal.in
 library;
 
 // Models

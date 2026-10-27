@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/config/record_access.dart';
 import 'dart:async';
 
@@ -328,6 +329,12 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   /// leaving the library alone.
   Future<void> _apply(AppLinkOpenRequest request) async {
     if (request.kind != AppLinkKind.strategy) return;
+    if (request.id.isEmpty) {
+      if (request.editWriting) {
+        _newPlaybook();
+      }
+      return;
+    }
     final revision = ++_accessRevision;
     try {
       final record = await _repo.getById(request.id);
@@ -457,6 +464,14 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   /// This is also the guide's "Start from a template" step: it returns to the
   /// library unchanged when the trader backs out of the gallery.
   Future<void> _newPlaybook() async {
+    final int liveCount = _strategies
+        .where((AppStrategy s) => s.status == AppStrategyStatus.live)
+        .length;
+    final bool canCreate = await CustomerLimitations.checkCanCreateStrategy(
+      context,
+      currentLiveStrategyCount: liveCount,
+    );
+    if (!canCreate || !mounted) return;
     final AppStrategyTemplate? template = await showStrategyTemplateGallery(
       context,
     );

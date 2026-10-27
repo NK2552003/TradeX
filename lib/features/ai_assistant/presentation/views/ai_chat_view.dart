@@ -2,6 +2,9 @@ import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+// Required explicit UI library import for feature widgets.
+// ignore: unnecessary_import
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
 import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
 import 'package:tradex/features/ai_assistant/presentation/widgets/ai_assistant_widgets.dart';
@@ -212,7 +215,7 @@ class _AiChatViewState extends State<AiChatView> {
                           ShareToConversationDialog.show(
                             context,
                             initialText:
-                                '🤖 TradeX AI Copilot (${_repository.activeThread.title}):\n\n${last.body}',
+                                '🤖 hejournal.in AI Copilot (${_repository.activeThread.title}):\n\n${last.body}',
                           );
                         }
                       },
@@ -302,6 +305,7 @@ class _AiChatViewState extends State<AiChatView> {
                 ),
                 SizedBox(height: context.sp(theme.spacing.md)),
                 UiCardGrid(
+                  minTileWidth: 230,
                   intrinsicHeight: true,
                   desktopColumns: 2,
                   largeColumns: 2,
@@ -448,7 +452,7 @@ class _AiChatViewState extends State<AiChatView> {
             onShare: (msg) {
               ShareToConversationDialog.show(
                 context,
-                initialText: '🤖 TradeX AI Copilot:\n\n${msg.body}',
+                initialText: '🤖 hejournal.in AI Copilot:\n\n${msg.body}',
               );
             },
             onOpenRef: widget.onOpenRef,
@@ -497,7 +501,7 @@ class _AiChatViewState extends State<AiChatView> {
                           ShareToConversationDialog.show(
                             context,
                             initialText:
-                                '🤖 TradeX AI Copilot (${_repository.activeThread.title}):\n\n${last.body}',
+                                '🤖 hejournal.in AI Copilot (${_repository.activeThread.title}):\n\n${last.body}',
                           );
                         },
                       ),

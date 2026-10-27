@@ -94,7 +94,9 @@ class CommunityRepostDialog extends StatelessWidget {
                 Icon(
                   Icons.repeat_rounded,
                   size: context.sz(20),
-                  color: post.reposted ? theme.colors.success : theme.colors.foreground,
+                  color: post.reposted
+                      ? theme.colors.success
+                      : theme.colors.foreground,
                 ),
                 SizedBox(width: context.sp(theme.spacing.md)),
                 Column(

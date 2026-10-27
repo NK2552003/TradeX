@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/billing/revenuecat_billing.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/features/auth/data/repositories/subscription_pricing_repository.dart';
 import 'package:tradex/features/auth/models/pricing_models.dart';
@@ -29,12 +32,20 @@ class ChangePlanPage extends StatefulWidget {
 }
 
 class _ChangePlanPageState extends State<ChangePlanPage> {
+  bool get _supportsBusinessCheckout =>
+      kIsWeb ||
+      {
+        TargetPlatform.macOS,
+        TargetPlatform.windows,
+        TargetPlatform.linux,
+      }.contains(defaultTargetPlatform);
   late final BillingSettingsRepository _billingRepo;
   late final SubscriptionPricingRepository _pricingRepo;
 
   SubscriptionSummary? _subscription;
   PricingCatalogueResponse? _catalogue;
   bool _loading = true;
+  bool _loadFailed = false;
   bool _repricing = false;
   bool _isAnnual = true;
   String? _processingTierId;
@@ -61,10 +72,14 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
         _subscription = results[0] as SubscriptionSummary?;
         _catalogue = results[1] as PricingCatalogueResponse?;
         _loading = false;
+        _loadFailed = false;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _loadFailed = true;
+      });
     }
   }
 
@@ -88,6 +103,64 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _repricing = false);
+    }
+  }
+
+  Future<void> _openStoreOffer() async {
+    try {
+      await RevenueCatBilling.presentPaywall();
+      if (!mounted) return;
+      await _loadData();
+      if (!mounted) return;
+      UiToast.show(
+        context,
+        title: 'Purchase status refreshed',
+        message:
+            'Your account access updates after the store purchase is verified.',
+        intent: UiIntent.info,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      UiToast.show(
+        context,
+        title: 'Store offer unavailable',
+        message: e.toString(),
+        intent: UiIntent.warning,
+      );
+    }
+  }
+
+  Future<void> _openBusinessCheckout(PricingPlanModel plan) async {
+    if (_processingTierId != null) return;
+    setState(() => _processingTierId = plan.id);
+    try {
+      final session = await _billingRepo.startCheckout(
+        plan.id,
+        _isAnnual ? 'annual' : 'monthly',
+      );
+      if (!await launchUrl(
+        Uri.parse(session.url),
+        mode: LaunchMode.externalApplication,
+      )) {
+        throw StateError('Could not open the secure checkout.');
+      }
+      if (!mounted) return;
+      UiToast.show(
+        context,
+        title: 'Checkout opened',
+        message: 'Your plan changes only after Razorpay confirms payment.',
+        intent: UiIntent.info,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      UiToast.show(
+        context,
+        title: 'Business checkout unavailable',
+        message: error.toString().replaceFirst('Bad state: ', ''),
+        intent: UiIntent.warning,
+      );
+    } finally {
+      if (mounted) setState(() => _processingTierId = null);
     }
   }
 
@@ -290,7 +363,8 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                           UiToast.show(
                             context,
                             title: payable ? 'Plan Active' : 'Plan Changed',
-                            message: 'You are now on TradeX ${plan.name}.',
+                            message:
+                                'You are now on hejournal.in ${plan.name}.',
                             intent: UiIntent.success,
                           );
                           closeSettingsSubpage(context);
@@ -321,10 +395,18 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
     final UiColors colors = theme.colors;
     final UiResponsive responsive = context.uiRes;
 
+    if (_loadFailed) {
+      return UiEmptyState(
+        title: 'Pricing unavailable',
+        message: 'The published subscription catalogue could not be loaded.',
+        actionLabel: 'Try again',
+        onActionPressed: _loadData,
+      );
+    }
     if (_loading || _catalogue == null) {
       return Padding(
         padding: EdgeInsets.all(context.sp(theme.spacing.xl)),
-        child: const Center(child: CircularProgressIndicator()),
+        child: const Center(child: UiSkeleton(width: 240, height: 100)),
       );
     }
 
@@ -398,7 +480,6 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                       _buildCyclePill(
                         context,
                         label: 'Billed annually',
-                        badge: 'Save ${catalogue.annualDiscountPercent}%',
                         isSelected: _isAnnual,
                         onTap: () => _toggleCycle('annual'),
                       ),
@@ -688,7 +769,18 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
 
           // Action Button
           UiButton(
-            label: isProcessing
+            label:
+                RevenueCatBilling.isConfigured && plan.tier == AppTier.premium
+                ? 'View store offer'
+                : _supportsBusinessCheckout &&
+                      plan.tier == AppTier.enterprise &&
+                      plan.isPurchasable
+                ? (isProcessing
+                      ? 'Starting checkout…'
+                      : 'Subscribe to Business')
+                : !plan.isPurchasable
+                ? plan.ctaLabel
+                : isProcessing
                 ? 'Processing…'
                 : (isCurrent ? 'Current Plan' : 'Select ${plan.name}'),
             variant: isCurrent
@@ -697,6 +789,14 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
             intent: isFeatured ? UiIntent.primary : UiIntent.neutral,
             size: UiSize.md,
             onPressed: isCurrent || isProcessing
+                ? null
+                : RevenueCatBilling.isConfigured && plan.tier == AppTier.premium
+                ? _openStoreOffer
+                : _supportsBusinessCheckout &&
+                      plan.tier == AppTier.enterprise &&
+                      plan.isPurchasable
+                ? () => _openBusinessCheckout(plan)
+                : !plan.isPurchasable
                 ? null
                 : () => _showCheckoutDialog(plan),
           ),

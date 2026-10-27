@@ -69,19 +69,20 @@ class UiAvatar extends StatelessWidget {
                 onError: (Object error, StackTrace? stackTrace) {},
               )
             : (imageUrl == null || imageUrl!.isEmpty)
-                ? null
-                : DecorationImage(
-                    image: _resolveImageProvider(imageUrl!),
-                    fit: BoxFit.cover,
-                    onError: (Object error, StackTrace? stackTrace) {},
-                  ),
+            ? null
+            : DecorationImage(
+                image: _resolveImageProvider(imageUrl!),
+                fit: BoxFit.cover,
+                onError: (Object error, StackTrace? stackTrace) {},
+              ),
       ),
       alignment: Alignment.center,
       child: (imageUrl == null && imageProvider == null)
           ? Text(
               _initials,
               style: (textStyle ?? context.uiText.label).copyWith(
-                color: textColor ??
+                color:
+                    textColor ??
                     (gradient != null
                         ? Colors.white
                         : theme.colors.foregroundMuted),
