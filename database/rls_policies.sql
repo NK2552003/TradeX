@@ -723,12 +723,38 @@ ALTER TABLE community_poll_options ENABLE ROW LEVEL SECURITY;
 ALTER TABLE community_poll_votes ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS community_posts_read ON community_posts;
-CREATE POLICY community_posts_read ON community_posts FOR SELECT TO authenticated, anon
-    USING ((moderation_status = 'approved' AND is_public = true) OR author_id = auth.uid() OR is_user_admin());
-
 DROP POLICY IF EXISTS community_posts_manage ON community_posts;
-CREATE POLICY community_posts_manage ON community_posts FOR ALL
-    USING (auth.uid() = author_id) WITH CHECK (auth.uid() = author_id);
+DROP POLICY IF EXISTS community_posts_reviewed_read ON community_posts;
+DROP POLICY IF EXISTS community_posts_author_insert ON community_posts;
+DROP POLICY IF EXISTS community_posts_author_update ON community_posts;
+DROP POLICY IF EXISTS community_posts_author_delete ON community_posts;
+
+CREATE POLICY community_posts_reviewed_read ON community_posts FOR SELECT
+  TO anon, authenticated USING (
+    (
+      (moderation_status = 'approved' AND is_public = true)
+      OR (auth.uid() = author_id)
+      OR is_user_admin()
+    )
+    AND (
+      auth.uid() IS NULL
+      OR auth.uid() = author_id
+      OR is_user_admin()
+      OR NOT are_blocked(auth.uid(), author_id)
+    )
+  );
+
+CREATE POLICY community_posts_author_insert ON community_posts FOR INSERT
+  TO authenticated WITH CHECK (auth.uid() = author_id);
+
+CREATE POLICY community_posts_author_update ON community_posts FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = author_id OR is_user_admin())
+  WITH CHECK (auth.uid() = author_id OR is_user_admin());
+
+CREATE POLICY community_posts_author_delete ON community_posts FOR DELETE
+  TO authenticated
+  USING (auth.uid() = author_id OR is_user_admin());
 
 DROP POLICY IF EXISTS community_setups_read ON community_post_trade_setups;
 CREATE POLICY community_setups_read ON community_post_trade_setups FOR SELECT TO authenticated, anon
@@ -751,16 +777,58 @@ CREATE POLICY community_attachments_manage ON community_post_attachments FOR ALL
     WITH CHECK (EXISTS (SELECT 1 FROM community_posts WHERE id = post_id AND author_id = auth.uid()));
 
 DROP POLICY IF EXISTS community_comments_read ON community_comments;
-CREATE POLICY community_comments_read ON community_comments FOR SELECT TO authenticated, anon
-    USING ((moderation_status = 'approved' AND EXISTS (SELECT 1 FROM community_posts p WHERE p.id = post_id
-      AND p.moderation_status = 'approved' AND p.is_public = true)) OR author_id = auth.uid() OR is_user_admin());
-
 DROP POLICY IF EXISTS community_comments_insert ON community_comments;
-CREATE POLICY community_comments_insert ON community_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
-
 DROP POLICY IF EXISTS community_comments_manage ON community_comments;
-CREATE POLICY community_comments_manage ON community_comments FOR ALL
-    USING (auth.uid() = author_id) WITH CHECK (auth.uid() = author_id);
+DROP POLICY IF EXISTS community_comments_author_update ON community_comments;
+DROP POLICY IF EXISTS community_comments_author_delete ON community_comments;
+
+CREATE POLICY community_comments_read ON community_comments FOR SELECT
+  TO anon, authenticated USING (
+    (
+      (moderation_status = 'approved' AND EXISTS (
+        SELECT 1 FROM community_posts p
+        WHERE p.id = post_id
+        AND p.moderation_status = 'approved'
+        AND p.is_public = true
+      ))
+      OR author_id = auth.uid()
+      OR is_user_admin()
+    )
+    AND (
+      auth.uid() IS NULL
+      OR author_id = auth.uid()
+      OR is_user_admin()
+      OR NOT are_blocked(auth.uid(), author_id)
+    )
+    AND (
+      auth.uid() IS NULL
+      OR is_user_admin()
+      OR NOT EXISTS (
+        SELECT 1 FROM community_posts p
+        WHERE p.id = post_id
+        AND are_blocked(auth.uid(), p.author_id)
+      )
+    )
+  );
+
+CREATE POLICY community_comments_author_insert ON community_comments FOR INSERT
+  TO authenticated WITH CHECK (
+    auth.uid() = author_id
+    AND NOT EXISTS (
+      SELECT 1 FROM community_posts p
+      WHERE p.id = post_id
+      AND are_blocked(auth.uid(), p.author_id)
+    )
+  );
+
+CREATE POLICY community_comments_author_update ON community_comments FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = author_id OR is_user_admin())
+  WITH CHECK (auth.uid() = author_id OR is_user_admin());
+
+CREATE POLICY community_comments_author_delete ON community_comments FOR DELETE
+  TO authenticated
+  USING (auth.uid() = author_id OR is_user_admin());
 
 DROP POLICY IF EXISTS community_likes_manage ON community_likes;
 CREATE POLICY community_likes_manage ON community_likes FOR ALL

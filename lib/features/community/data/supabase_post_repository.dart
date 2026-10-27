@@ -70,6 +70,16 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
           );
         } catch (_) {}
 
+        try {
+          final blockerRes = await client
+              .from('blocks')
+              .select('blocker_id')
+              .eq('blocked_id', currentUserId);
+          blockedIds.addAll(
+            (blockerRes as List).map((b) => b['blocker_id'].toString()),
+          );
+        } catch (_) {}
+
         final res = await client
             .from('community_posts')
             .select(
@@ -319,6 +329,28 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
     if (SupabaseConfig.isConfigured && _isUuid(postId)) {
       try {
         final client = SupabaseConfig.client!;
+        final currentUserId = _resolveUserId();
+        final Set<String> blockedIds = <String>{};
+        try {
+          final b1 = await client
+              .from('blocks')
+              .select('blocked_id')
+              .eq('blocker_id', currentUserId);
+          blockedIds.addAll(
+            (b1 as List).map((b) => b['blocked_id'].toString()),
+          );
+        } catch (_) {}
+
+        try {
+          final b2 = await client
+              .from('blocks')
+              .select('blocker_id')
+              .eq('blocked_id', currentUserId);
+          blockedIds.addAll(
+            (b2 as List).map((b) => b['blocker_id'].toString()),
+          );
+        } catch (_) {}
+
         final res = await client
             .from('community_comments')
             .select(
@@ -327,7 +359,11 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
             .eq('post_id', postId)
             .order('created_at', ascending: true);
 
-        return (res as List).map((row) {
+        final filtered = (res as List)
+            .where((row) => !blockedIds.contains(row['author_id']?.toString()))
+            .toList();
+
+        return filtered.map((row) {
           final profile = row['profiles'] as Map<String, dynamic>?;
           final handle =
               (profile?['handle'] ?? profile?['username']) as String? ??
