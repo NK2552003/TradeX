@@ -329,7 +329,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
 
     final Widget revenueCard = UiCard(
       title: 'Consumer & Affiliate SaaS Revenue (INR ₹)',
-      subtitle: 'Combined Pro (₹2,499/mo) & Enterprise (₹7,999/mo) collections',
+      subtitle: 'Combined Pro (₹2,499/mo) & Business (₹999/mo) collections',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[

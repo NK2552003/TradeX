@@ -2,6 +2,7 @@ import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/config/customer_quota_usage.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/data/repositories/subscription_pricing_repository.dart';
@@ -70,16 +71,25 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     return _session.cancelAtPeriodEnd ? 'canceled' : 'active';
   }
 
-  SubscriptionSummary _summary() => SubscriptionSummary(
-    tier: _tier,
-    status: _status,
-    billingCycle: _session.billingCycle,
-    renewedAt: _session.renewedAt,
-    expiresAt: _session.expiresAt,
-    usage: CustomerDataPolicy.allowDemo ? _source.accountUsage(_tier) : {},
+  SubscriptionSummary _summary({
+    AppTier? tier,
+    String? status,
+    String? billingCycle,
+    DateTime? renewedAt,
+    DateTime? expiresAt,
+    Map<String, dynamic>? usage,
+  }) => SubscriptionSummary(
+    tier: tier ?? _tier,
+    status: status ?? _status,
+    billingCycle: billingCycle ?? _session.billingCycle,
+    renewedAt: renewedAt ?? _session.renewedAt,
+    expiresAt: expiresAt ?? _session.expiresAt,
+    usage:
+        usage ??
+        (CustomerDataPolicy.allowDemo ? _source.accountUsage(_tier) : {}),
     monthlyAmount:
         _pricingCatalogue?.plans
-            .where((plan) => plan.tier == _tier)
+            .where((plan) => plan.tier == (tier ?? _tier))
             .firstOrNull
             ?.monthlyAmount ??
         0,
@@ -94,30 +104,43 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     _pricingCatalogue = await SubscriptionPricingRepositoryImpl()
         .getPricingCatalogue();
     if (SupabaseConfig.isConfigured) {
-      try {
-        final client = SupabaseConfig.client!;
-        final targetUserId = _resolveUserId();
-        if (targetUserId.isEmpty) return _summary();
-
-        final data = await client
-            .from('subscriptions')
-            .select('*')
-            .eq('user_id', targetUserId)
-            .maybeSingle();
-        if (data != null) {
-          final tierStr = data['tier'] as String? ?? 'free';
-          final tier = AppTier.values.firstWhere(
-            (t) => t.name == tierStr,
-            orElse: () => AppTier.free,
-          );
-          final statusStr = data['status'] as String? ?? 'active';
-          final cycleStr = data['billing_cycle'] as String? ?? 'monthly';
-          _session.startPeriod(tier, cycleStr);
-          _session.cancelAtPeriodEnd = statusStr == 'canceled';
-        }
-      } catch (e) {
-        debugPrint('BillingSettingsRepositoryImpl.getSubscription error: $e');
+      final client = SupabaseConfig.client!;
+      final targetUserId = _resolveUserId();
+      if (targetUserId.isEmpty) throw StateError('Sign in to read your plan.');
+      final counted = await CustomerQuotaUsage.fetch();
+      final data = await client
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', targetUserId)
+          .maybeSingle();
+      final tier = counted.tier;
+      final cycle = data?['billing_cycle'] as String? ?? 'monthly';
+      _session.billingCycle = cycle;
+      _session.cancelAtPeriodEnd = data?['status'] == 'canceled';
+      final renewed = DateTime.tryParse(data?['renewed_at']?.toString() ?? '');
+      final expires = DateTime.tryParse(data?['expires_at']?.toString() ?? '');
+      if (tier != AppTier.free && cycle != 'lifetime' && expires == null) {
+        throw StateError('Your billing period is unavailable. Please retry.');
       }
+      return _summary(
+        tier: tier,
+        status: tier == AppTier.free
+            ? 'canceled'
+            : data?['status'] as String? ?? 'active',
+        billingCycle: cycle,
+        renewedAt: renewed ?? DateTime.fromMillisecondsSinceEpoch(0),
+        expiresAt: expires ?? DateTime.fromMillisecondsSinceEpoch(0),
+        usage: {
+          'journal_trades_used': counted.tradesUsed,
+          'journal_trades_limit': counted.tradesLimit,
+          'ai_queries_used': counted.aiQueriesUsed,
+          'ai_queries_limit': counted.aiQueriesLimit,
+          'notes_used': counted.notesUsed,
+          'notes_limit': counted.notesLimit,
+          'live_playbooks_used': counted.livePlaybooksUsed,
+          'live_playbooks_limit': counted.livePlaybooksLimit,
+        },
+      );
     }
     return _summary();
   }
@@ -149,9 +172,38 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
     String tierId,
     String billingCycle,
   ) async {
-    throw StateError(
-      'Direct checkout is unavailable until server-side payment verification is connected.',
+    if (tierId != 'tier_enterprise' ||
+        (billingCycle != 'monthly' && billingCycle != 'annual')) {
+      throw StateError('Choose a supported Business billing cycle.');
+    }
+    final client = SupabaseConfig.client;
+    if (client?.auth.currentUser == null) {
+      throw StateError('Sign in to start Business checkout.');
+    }
+    final response = await client!.functions.invoke(
+      'create-business-checkout',
+      body: {'billing_cycle': billingCycle},
     );
+    if (response.status != 200 || response.data is! Map) {
+      throw StateError('Business checkout is not available yet.');
+    }
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final id = data['subscription_id'];
+    final url = data['checkout_url'];
+    if (id is! String || url is! String) {
+      throw StateError('The payment provider returned an invalid checkout.');
+    }
+    final checkout = Uri.tryParse(url);
+    if (checkout == null ||
+        checkout.scheme != 'https' ||
+        !{
+          'rzp.io',
+          'razorpay.com',
+          'www.razorpay.com',
+        }.contains(checkout.host)) {
+      throw StateError('The payment provider returned an invalid checkout.');
+    }
+    return CheckoutSession(sessionId: id, url: url, checkoutUrl: url);
   }
 
   @override
@@ -255,11 +307,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
                 issuedAt:
                     DateTime.tryParse(item['issued_at'] as String? ?? '') ??
                     DateTime.now(),
-                pdfUrl:
-                    item['pdf_url'] as String? ??
-                    'https://hejournal.in/invoices/${item['invoice_ref']}.pdf',
-                issuer: _issuer,
-                taxPercent: _taxPercent,
+                pdfUrl: item['pdf_url'] as String? ?? '',
                 paymentMethodLabel: card == null
                     ? null
                     : '${card.brand} •••• ${card.last4}',

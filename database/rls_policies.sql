@@ -83,7 +83,9 @@ CREATE POLICY affiliate_payouts_admin_all ON affiliate_payouts FOR ALL USING (is
 DROP POLICY IF EXISTS subscriptions_own_read ON subscriptions;
 CREATE POLICY subscriptions_own_read ON subscriptions FOR SELECT USING (auth.uid() = user_id OR is_user_admin());
 DROP POLICY IF EXISTS subscriptions_own_write ON subscriptions;
-CREATE POLICY subscriptions_own_write ON subscriptions FOR ALL USING (auth.uid() = user_id OR is_user_admin()) WITH CHECK (auth.uid() = user_id OR is_user_admin());
+DROP POLICY IF EXISTS subscriptions_admin_write ON subscriptions;
+CREATE POLICY subscriptions_admin_write ON subscriptions FOR ALL TO authenticated
+    USING (is_user_admin()) WITH CHECK (is_user_admin());
 
 -- device tokens
 DROP POLICY IF EXISTS device_tokens_own_all ON device_tokens;
@@ -185,7 +187,14 @@ CREATE POLICY likes_owner_all ON likes FOR ALL USING (auth.uid() = user_id) WITH
 DROP POLICY IF EXISTS ai_insights_public_read ON ai_insights;
 CREATE POLICY ai_insights_public_read ON ai_insights FOR SELECT USING (true);
 
--- ai_insight_requests + revenuecat_webhook_events: no policies intentionally (service-role only).
+-- AI quota requests are user-owned and metered by the trigger in migration 034.
+DROP POLICY IF EXISTS ai_insight_requests_own_read ON ai_insight_requests;
+CREATE POLICY ai_insight_requests_own_read ON ai_insight_requests FOR SELECT TO authenticated
+    USING (user_id = auth.uid() OR is_user_admin());
+DROP POLICY IF EXISTS ai_insight_requests_own_insert ON ai_insight_requests;
+CREATE POLICY ai_insight_requests_own_insert ON ai_insight_requests FOR INSERT TO authenticated
+    WITH CHECK (user_id = auth.uid());
+-- revenuecat_webhook_events remains service-role only.
 
 -- blocks
 DROP POLICY IF EXISTS blocks_own_all ON blocks;

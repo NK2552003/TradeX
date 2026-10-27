@@ -200,16 +200,14 @@ both a row policy and an object policy exist for each public bucket.
 ## Refreshed finance assets and public pricing
 
 After installing the schema/migrations, apply `seeds/03_public_site.sql` and
-`seeds/04_market_assets.sql` to load the bundled catalogue and exported market
-records. Seed 04 includes canonical ticker/quote/history/news records, normalized
-screeners, full stock details, options, actions, recommendations, holders and
-index/sector metadata. It is a large full-universe export; run it as a file with
-`psql -v ON_ERROR_STOP=1 -f`, not pasted into a web query editor. Both files can be
-applied again without duplicating articles or ranked results.
+`seeds/04_pricing_catalogue.sql`. The latter publishes the current Free, Pro,
+and Business plans, including the four server-enforced quota limits. The app
+reads published pricing from Supabase; the bundled JSON is a development/demo
+fixture and an admin editor starting point.
 
 `assets/data/manifest.json` reports actual quote, history, detail, article and
 category coverage. `scripts/source_kits.json` records the source archives.
 `python3 scripts/validate_asset_sql.py` checks repeatability in temporary Postgres.
 See `backend_handoff/07-Markets` and `13-Public_Site` for repository/read contracts.
-The app uses bundled pricing when configured database content is absent or fails
-to respond within eight seconds; publishing database catalogue rows takes priority.
+Configured clients fail visibly if the published Supabase pricing row is absent
+or unavailable, instead of presenting fixture prices as a live offer.

@@ -239,6 +239,7 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
     if (sub.tier == AppTier.free) {
       return 'No charge · upgrade any time to unlock paid features.';
     }
+    if (sub.billingCycle == 'lifetime') return 'Lifetime access';
     final String price =
         '${AppTokens.price(sub.amount)}${sub.isAnnual ? '/yr' : '/mo'}';
     final String next = sub.endsAtPeriodEnd
@@ -258,18 +259,35 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
         value: SubscriptionSummary.fraction(sub.seatsUsed, sub.maxSeats),
         label: 'Desk seats (${sub.seatsUsed} of ${sub.maxSeats})',
       ),
-    UiProgressBar(
-      value: SubscriptionSummary.fraction(
-        sub.tradesLoggedThisMonth,
-        sub.maxTradesPerMonth,
+    if (sub.maxNotes > 0)
+      UiProgressBar(
+        value: SubscriptionSummary.fraction(sub.notesUsed, sub.maxNotes),
+        label: 'Research notes (${sub.notesUsed} of ${sub.maxNotes} total)',
       ),
-      label:
-          'Journal entries (${sub.tradesLoggedThisMonth} of ${sub.maxTradesPerMonth})',
-    ),
-    UiProgressBar(
-      value: SubscriptionSummary.fraction(sub.aiTokensUsed, sub.maxAiTokens),
-      label: 'AI copilot requests (${sub.aiTokensUsed} of ${sub.maxAiTokens})',
-    ),
+    if (sub.maxTradesPerMonth > 0)
+      UiProgressBar(
+        value: SubscriptionSummary.fraction(
+          sub.tradesLoggedThisMonth,
+          sub.maxTradesPerMonth,
+        ),
+        label:
+            'Journal entries (${sub.tradesLoggedThisMonth} of ${sub.maxTradesPerMonth} total)',
+      ),
+    if (sub.maxLivePlaybooks > 0)
+      UiProgressBar(
+        value: SubscriptionSummary.fraction(
+          sub.livePlaybooksUsed,
+          sub.maxLivePlaybooks,
+        ),
+        label:
+            'Active playbooks (${sub.livePlaybooksUsed} of ${sub.maxLivePlaybooks})',
+      ),
+    if (sub.maxAiTokens > 0)
+      UiProgressBar(
+        value: SubscriptionSummary.fraction(sub.aiTokensUsed, sub.maxAiTokens),
+        label:
+            'AI requests this month (${sub.aiTokensUsed} of ${sub.maxAiTokens})',
+      ),
   ];
 
   @override

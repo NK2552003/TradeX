@@ -115,7 +115,7 @@ class AppSession {
   );
 
   /// AI Copilot queries consumed in the current billing period.
-  final ValueNotifier<int> aiQueriesUsed = ValueNotifier<int>(8);
+  final ValueNotifier<int> aiQueriesUsed = ValueNotifier<int>(0);
 
   /// 'monthly' | 'annual'. The cycle the account is currently billed on.
   String billingCycle = _seedCycle;
@@ -203,7 +203,7 @@ class AppSession {
     hasCustomProfileModeOverride = false;
     profileMode.value = UserProfileMode.traderAffiliateAdmin;
     activeRole.value = UserRole.customer;
-    aiQueriesUsed.value = 8;
+    aiQueriesUsed.value = 0;
     billingCycle = _seedCycle;
     cancelAtPeriodEnd = false;
     renewedAt = _seedRenewedAt;

@@ -1192,7 +1192,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                       ),
                       SizedBox(height: context.sp(theme.spacing.xxs)),
                       Text(
-                        '${_consumers.length} registered traders. Overrides for Basic (₹0), Pro (₹2,499) and Enterprise (₹7,999).',
+                        '${_consumers.length} registered traders. Overrides for Basic (₹0), Pro (₹2,499) and Business (₹999).',
                         style: context.uiText.caption.copyWith(
                           color: c.foregroundMuted,
                           fontSize: 14,

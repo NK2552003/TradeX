@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/billing/revenuecat_billing.dart';
 import 'package:tradex/core/data/app_session.dart';
@@ -30,6 +32,13 @@ class ChangePlanPage extends StatefulWidget {
 }
 
 class _ChangePlanPageState extends State<ChangePlanPage> {
+  bool get _supportsBusinessCheckout =>
+      kIsWeb ||
+      {
+        TargetPlatform.macOS,
+        TargetPlatform.windows,
+        TargetPlatform.linux,
+      }.contains(defaultTargetPlatform);
   late final BillingSettingsRepository _billingRepo;
   late final SubscriptionPricingRepository _pricingRepo;
 
@@ -118,6 +127,40 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
         message: e.toString(),
         intent: UiIntent.warning,
       );
+    }
+  }
+
+  Future<void> _openBusinessCheckout(PricingPlanModel plan) async {
+    if (_processingTierId != null) return;
+    setState(() => _processingTierId = plan.id);
+    try {
+      final session = await _billingRepo.startCheckout(
+        plan.id,
+        _isAnnual ? 'annual' : 'monthly',
+      );
+      if (!await launchUrl(
+        Uri.parse(session.url),
+        mode: LaunchMode.externalApplication,
+      )) {
+        throw StateError('Could not open the secure checkout.');
+      }
+      if (!mounted) return;
+      UiToast.show(
+        context,
+        title: 'Checkout opened',
+        message: 'Your plan changes only after Razorpay confirms payment.',
+        intent: UiIntent.info,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      UiToast.show(
+        context,
+        title: 'Business checkout unavailable',
+        message: error.toString().replaceFirst('Bad state: ', ''),
+        intent: UiIntent.warning,
+      );
+    } finally {
+      if (mounted) setState(() => _processingTierId = null);
     }
   }
 
@@ -437,7 +480,6 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                       _buildCyclePill(
                         context,
                         label: 'Billed annually',
-                        badge: 'Save ${catalogue.annualDiscountPercent}%',
                         isSelected: _isAnnual,
                         onTap: () => _toggleCycle('annual'),
                       ),
@@ -730,6 +772,12 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
             label:
                 RevenueCatBilling.isConfigured && plan.tier == AppTier.premium
                 ? 'View store offer'
+                : _supportsBusinessCheckout &&
+                      plan.tier == AppTier.enterprise &&
+                      plan.isPurchasable
+                ? (isProcessing
+                      ? 'Starting checkout…'
+                      : 'Subscribe to Business')
                 : !plan.isPurchasable
                 ? plan.ctaLabel
                 : isProcessing
@@ -744,6 +792,10 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                 ? null
                 : RevenueCatBilling.isConfigured && plan.tier == AppTier.premium
                 ? _openStoreOffer
+                : _supportsBusinessCheckout &&
+                      plan.tier == AppTier.enterprise &&
+                      plan.isPurchasable
+                ? () => _openBusinessCheckout(plan)
                 : !plan.isPurchasable
                 ? null
                 : () => _showCheckoutDialog(plan),

@@ -406,7 +406,7 @@ class AdminConsoleRepository {
                   _ => 'Basic',
                 };
                 final double mrr = switch (tier) {
-                  'Enterprise' => 7999.0,
+                  'Enterprise' => 999.0,
                   'Pro' => 2499.0,
                   _ => 0.0,
                 };
@@ -460,7 +460,7 @@ class AdminConsoleRepository {
     }
     final old = _consumers[idx];
     final double newMrr = switch (subscriptionTier ?? old.subscriptionTier) {
-      'Enterprise' => 7999.0,
+      'Enterprise' => 999.0,
       'Pro' => 2499.0,
       _ => 0.0,
     };
@@ -1327,7 +1327,7 @@ class AdminConsoleRepository {
         displayName: 'hejournal.in System Admin',
         email: 'admin@hejournal.in',
         subscriptionTier: 'Enterprise',
-        monthlySubscriptionInr: 7999.0,
+        monthlySubscriptionInr: 999.0,
         journalsCount: 7,
         strategiesCount: 4,
         notesCount: 4,
@@ -1375,7 +1375,7 @@ class AdminConsoleRepository {
         displayName: 'Nitish Academic',
         email: 'nitish.202204098@tulas.edu.in',
         subscriptionTier: 'Enterprise',
-        monthlySubscriptionInr: 7999.0,
+        monthlySubscriptionInr: 999.0,
         journalsCount: 35,
         strategiesCount: 6,
         notesCount: 19,

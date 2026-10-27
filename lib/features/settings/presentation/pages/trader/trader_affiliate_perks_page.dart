@@ -262,7 +262,7 @@ class _TraderAffiliatePerksPageState extends State<TraderAffiliatePerksPage> {
                       icon: Icons.all_inclusive_rounded,
                       title: 'Up to 35% INR RevShare',
                       description:
-                          'Earn 15% to 35% in ₹ INR of every Pro (₹2,499/mo) or Enterprise (₹7,999/mo) subscription every month.',
+                          'Earn 15% to 35% in ₹ INR of every Pro (₹2,499/mo) or Business (₹999/mo) subscription every month.',
                       badge: 'INR RECURRING',
                     ),
                     _buildBenefitCard(

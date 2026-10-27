@@ -1442,7 +1442,7 @@ class DemoDataSource {
   static const Map<AppTier, double> _monthlyAmounts = <AppTier, double>{
     AppTier.free: 0,
     AppTier.premium: 2499,
-    AppTier.enterprise: 7999,
+    AppTier.enterprise: 999,
   };
 
   List<AppPlan> _monthlyPlans(AppTier current) => <AppPlan>[

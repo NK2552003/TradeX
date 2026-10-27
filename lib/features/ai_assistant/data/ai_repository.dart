@@ -84,6 +84,11 @@ class AiRepositoryImpl implements AiRepository {
     required String kind,
     String? ticker,
   }) async {
+    if (!CustomerDataPolicy.allowDemo) {
+      throw StateError(
+        'AI insight requests are unavailable until the service is connected.',
+      );
+    }
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
@@ -101,9 +106,6 @@ class AiRepositoryImpl implements AiRepository {
       }
     }
 
-    if (!CustomerDataPolicy.allowDemo) {
-      throw StateError('AI service is unavailable.');
-    }
     return AppAiInsight(
       id: 'ai_${DateTime.now().millisecondsSinceEpoch}',
       title: ticker != null

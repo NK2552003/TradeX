@@ -393,7 +393,7 @@ class _AdminTeamSeatsPageState extends State<AdminTeamSeatsPage> {
                       ),
                     if (consumer.subscriptionTier != 'Enterprise')
                       UiButton(
-                        label: 'Grant Enterprise (₹7,999)',
+                        label: 'Grant Business (₹999)',
                         size: UiSize.xs,
                         variant: UiVariant.solid,
                         intent: UiIntent.primary,

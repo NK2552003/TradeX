@@ -10,6 +10,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/customer_limitations.dart';
+import 'package:tradex/core/config/customer_quota_usage.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_seed_data.dart';
 import 'package:tradex/features/ai_assistant/models/ai_assistant_models.dart';
@@ -80,6 +81,7 @@ class AiAssistantRepository extends ChangeNotifier {
     _replyTimer?.cancel();
     _replySeq++;
     _generating = false;
+    _reservingPrompt = false;
     _generationError = null;
     _threads
       ..clear()
@@ -282,6 +284,7 @@ class AiAssistantRepository extends ChangeNotifier {
   late String _activeThreadId;
 
   bool _generating = false;
+  bool _reservingPrompt = false;
   Timer? _replyTimer;
 
   /// Monotonic token that invalidates a scheduled reply after stop / retry.
@@ -471,27 +474,53 @@ class AiAssistantRepository extends ChangeNotifier {
   /// Appends the user's turn and schedules a simulated assistant reply.
   ///
   /// @backend POST /ai/threads/{id}/messages — stream the assistant response.
-  void sendPrompt(String rawText, {AiPersona? persona}) {
+  Future<void> sendPrompt(String rawText, {AiPersona? persona}) async {
     _ensureActor();
-    if (!serviceAvailable || _generating) return;
+    if (!serviceAvailable || _generating || _reservingPrompt) return;
     _generationError = null;
     final String text = rawText.trim();
     if (text.isEmpty) return;
 
-    if (SupabaseConfig.isConfigured && !CustomerTierQuota.hasPublishedQuotas) {
-      _generationError = 'Plan limits are unavailable. Please retry shortly.';
+    _reservingPrompt = true;
+    try {
+      if (SupabaseConfig.isConfigured) {
+        await CustomerTierQuota.refreshPublishedCatalogue();
+        final usage = await CustomerQuotaUsage.fetch();
+        final quota = CustomerTierQuota.forTier(usage.tier);
+        if (usage.aiQueriesUsed >= quota.maxAiQueriesPerMonth) {
+          throw StateError(
+            'Monthly AI quota reached (${quota.maxAiQueriesPerMonth}).',
+          );
+        }
+        final client = SupabaseConfig.client;
+        if (client?.auth.currentUser?.id != usage.userId) {
+          throw StateError('Your account changed. Please retry.');
+        }
+        // The database trigger atomically checks the current user and monthly
+        // quota before this prompt is sent to the AI transport.
+        await client!.from('ai_insight_requests').insert({
+          'user_id': usage.userId,
+          'kind': 'copilot_prompt',
+        });
+        AppSession.instance.aiQueriesUsed.value = usage.aiQueriesUsed + 1;
+      } else {
+        final quota = CustomerLimitations.currentQuota;
+        if (AppSession.instance.aiQueriesUsed.value >=
+            quota.maxAiQueriesPerMonth) {
+          throw StateError(
+            'Monthly AI quota reached (${quota.maxAiQueriesPerMonth}).',
+          );
+        }
+        AppSession.instance.recordAiQuery();
+      }
+    } catch (error) {
+      _generationError = error.toString().replaceFirst('Bad state: ', '');
       _notify();
       return;
+    } finally {
+      _reservingPrompt = false;
     }
-
-    final quota = CustomerLimitations.currentQuota;
-    if (AppSession.instance.aiQueriesUsed.value >= quota.maxAiQueriesPerMonth) {
-      _generationError =
-          'Monthly AI Copilot quota reached (${quota.maxAiQueriesPerMonth} queries on ${quota.planName}). Paid upgrades are not available yet.';
-      _notify();
-      return;
-    }
-    AppSession.instance.recordAiQuery();
+    if (_disposed) return;
 
     final AiThread thread = activeThread;
     final DateTime now = DateTime.now();

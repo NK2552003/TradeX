@@ -89,42 +89,50 @@ void main() {
       expect(config.allows('switch_role_admin'), isFalse);
     });
 
-    test('Trader + Affiliate mode exposes ONLY Trader and Affiliate role switchers', () {
-      AppSession.instance.setProfileMode(UserProfileMode.traderAffiliate);
-      final config = RoleNavigationConfig.forRole(
-        UserRole.customer,
-        profileMode: UserProfileMode.traderAffiliate,
-      );
+    test(
+      'Trader + Affiliate mode exposes ONLY Trader and Affiliate role switchers',
+      () {
+        AppSession.instance.setProfileMode(UserProfileMode.traderAffiliate);
+        final config = RoleNavigationConfig.forRole(
+          UserRole.customer,
+          profileMode: UserProfileMode.traderAffiliate,
+        );
 
-      final ids = config.mobileMoreItems.map((e) => e.id).toSet();
-      expect(ids.contains('switch_role_customer'), isTrue);
-      expect(ids.contains('switch_role_affiliate'), isTrue);
-      expect(ids.contains('switch_role_admin'), isFalse);
-      expect(ids.contains('toggle_profile_mode'), isFalse);
-      expect(config.allows('switch_role_affiliate'), isTrue);
-      expect(config.allows('switch_role_admin'), isFalse);
-    });
+        final ids = config.mobileMoreItems.map((e) => e.id).toSet();
+        expect(ids.contains('switch_role_customer'), isTrue);
+        expect(ids.contains('switch_role_affiliate'), isTrue);
+        expect(ids.contains('switch_role_admin'), isFalse);
+        expect(ids.contains('toggle_profile_mode'), isFalse);
+        expect(config.allows('switch_role_affiliate'), isTrue);
+        expect(config.allows('switch_role_admin'), isFalse);
+      },
+    );
 
-    test('Trader + Admin mode exposes ONLY Trader and Admin role switchers', () {
-      AppSession.instance.setProfileMode(UserProfileMode.traderAdmin);
-      final config = RoleNavigationConfig.forRole(
-        UserRole.customer,
-        profileMode: UserProfileMode.traderAdmin,
-      );
+    test(
+      'Trader + Admin mode exposes ONLY Trader and Admin role switchers',
+      () {
+        AppSession.instance.setProfileMode(UserProfileMode.traderAdmin);
+        final config = RoleNavigationConfig.forRole(
+          UserRole.customer,
+          profileMode: UserProfileMode.traderAdmin,
+        );
 
-      final ids = config.mobileMoreItems.map((e) => e.id).toSet();
-      expect(ids.contains('switch_role_customer'), isTrue);
-      expect(ids.contains('switch_role_admin'), isTrue);
-      expect(ids.contains('switch_role_affiliate'), isFalse);
-      expect(ids.contains('toggle_profile_mode'), isFalse);
-      expect(config.allows('switch_role_admin'), isTrue);
-      expect(config.allows('switch_role_affiliate'), isFalse);
-    });
+        final ids = config.mobileMoreItems.map((e) => e.id).toSet();
+        expect(ids.contains('switch_role_customer'), isTrue);
+        expect(ids.contains('switch_role_admin'), isTrue);
+        expect(ids.contains('switch_role_affiliate'), isFalse);
+        expect(ids.contains('toggle_profile_mode'), isFalse);
+        expect(config.allows('switch_role_admin'), isTrue);
+        expect(config.allows('switch_role_affiliate'), isFalse);
+      },
+    );
 
     test(
       'Trader + Affiliate + Admin mode exposes all three workspace switchers',
       () {
-        AppSession.instance.setProfileMode(UserProfileMode.traderAffiliateAdmin);
+        AppSession.instance.setProfileMode(
+          UserProfileMode.traderAffiliateAdmin,
+        );
         final config = RoleNavigationConfig.forRole(
           UserRole.customer,
           profileMode: UserProfileMode.traderAffiliateAdmin,
@@ -153,30 +161,30 @@ void main() {
   });
 
   group('Customer Deep Links & Shared Web Links', () {
-    test('parses tradex:// and shared https://tradex.app / tradex.io links', () {
+    test('parses internal and shared hejournal.in links', () {
       final noteRef = AppDeepLink.tryParseUrl(
-        'https://tradex.app/p/notes/note_001',
+        'https://hejournal.in/p/notes/note_001',
       );
       expect(noteRef, isNotNull);
       expect(noteRef!.kind, AppLinkKind.note);
       expect(noteRef.id, 'note_001');
 
       final journalRef = AppDeepLink.tryParseUrl(
-        'https://tradex.app/p/journal/trd_nifty50_0',
+        'https://hejournal.in/p/journal/trd_nifty50_0',
       );
       expect(journalRef, isNotNull);
       expect(journalRef!.kind, AppLinkKind.journal);
       expect(journalRef.id, 'trd_nifty50_0');
 
       final strategyRef = AppDeepLink.tryParseUrl(
-        'https://tradex.app/p/strategies/stg_2',
+        'https://hejournal.in/p/strategies/stg_2',
       );
       expect(strategyRef, isNotNull);
       expect(strategyRef!.kind, AppLinkKind.strategy);
       expect(strategyRef.id, 'stg_2');
 
       final postRef = AppDeepLink.tryParseUrl(
-        'https://tradex.io/post/post_a1',
+        'https://hejournal.in/post/post_a1',
       );
       expect(postRef, isNotNull);
       expect(postRef!.kind, AppLinkKind.communityPost);
@@ -242,7 +250,7 @@ void main() {
       expect(pro.maxTrades, 5000);
       expect(pro.allowPdfExport, isTrue);
 
-      expect(enterprise.monthlyPriceInr, 7999);
+      expect(enterprise.monthlyPriceInr, 999);
       expect(enterprise.maxTrades, 50000);
     });
 

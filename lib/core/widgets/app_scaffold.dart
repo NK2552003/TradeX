@@ -1642,7 +1642,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                         ),
                         UiToggleOption<AppTier>(
                           value: AppTier.enterprise,
-                          label: 'Business (₹7,999)',
+                          label: 'Business (₹999)',
                         ),
                       ],
                       value: activeTier,
@@ -1714,9 +1714,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                 ? _showMarketSearch
                 : _isWritingFeature
                 ? _showWorkspaceSearch
-                : (_isCommunityFeature
-                      ? null
-                      : () => _go('search')),
+                : (_isCommunityFeature ? null : () => _go('search')),
             searchQuery: _isMarketFeature
                 ? _marketQuery
                 : _isWritingFeature

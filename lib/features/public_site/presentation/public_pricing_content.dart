@@ -56,16 +56,6 @@ class PublicPricingContent extends StatelessWidget {
             ),
           ),
         ),
-        if (annual) ...[
-          UiGap.v(theme.spacing.sm),
-          Center(
-            child: UiBadge(
-              label:
-                  "${catalogue.annualDiscountPercent}% ${catalogue.text('annual_savings')}",
-              intent: UiIntent.success,
-            ),
-          ),
-        ],
         UiGap.v(theme.spacing.lg),
         LayoutBuilder(
           builder: (context, box) {

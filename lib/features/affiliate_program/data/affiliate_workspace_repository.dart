@@ -654,7 +654,7 @@ class AffiliateWorkspaceRepository {
       'settlement_cycle': 'Instant UPI / RTGS Desk Settlement',
       'perks': [
         '35% lifetime INR revenue share across retail & desk seats',
-        'Complimentary Enterprise Desk seat (₹7,999/mo value)',
+        'Complimentary Business Desk seat (₹999/mo value)',
         'Co-hosted live trading bootcamps & INR sponsorship grants',
         'Custom webhook attribution & sub-affiliate rev-share splits',
       ],
@@ -699,7 +699,7 @@ class AffiliateWorkspaceRepository {
       'summary':
           '30-day attribution window on /r/:slug links with UTM campaign tracking and billing webhook qualification.',
       'body':
-          'When a prospective trader visits your referral link (/r/:code?utm_campaign=:slug), attribution is persisted for 30 days. Signups create a pending referral record; commissions are credited to your unpaid INR balance once the referred subscriber completes a verified paid subscription (Pro ₹2,499/mo or Enterprise ₹7,999/mo) and clears the 7-day refund guard.',
+          'When a prospective trader visits your referral link (/r/:code?utm_campaign=:slug), attribution is persisted for 30 days. Signups create a pending referral record; commissions are credited to your unpaid INR balance once the referred subscriber completes a verified paid subscription (Pro ₹2,499/mo or Business ₹999/mo) and clears the 7-day refund guard.',
       'mandatory': true,
       'sort_order': 3,
     },
@@ -808,7 +808,7 @@ class AffiliateWorkspaceRepository {
           'referral_code': 'nitish-trades',
           'channel': const ['youtube', 'newsletter', 'website'][i % 3],
           'plan_tier': i % 4 == 0 ? 'enterprise' : 'pro',
-          'subscription_amount_inr': i % 4 == 0 ? 7999.0 : 2499.0,
+          'subscription_amount_inr': i % 4 == 0 ? 999.0 : 2499.0,
           'commission_rate': 0.25,
           'status': i < 10
               ? 'converted'

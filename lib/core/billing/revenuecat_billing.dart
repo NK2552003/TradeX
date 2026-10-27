@@ -54,7 +54,7 @@ class RevenueCatBilling {
     return (await Purchases.getOfferings()).current;
   }
 
-  /// Requires a configured offering with monthly, annual and lifetime packages.
+  /// Requires the two supported subscription packages.
   static Future<PaywallResult> presentPaywall() async {
     if (!_configured) {
       throw StateError('Mobile store billing is not configured.');
@@ -62,10 +62,9 @@ class RevenueCatBilling {
     final offering = await currentOffering();
     if (offering == null ||
         offering.monthly == null ||
-        offering.annual == null ||
-        offering.lifetime == null) {
+        offering.annual == null) {
       throw StateError(
-        'The monthly, yearly and lifetime store packages must be published first.',
+        'The monthly and yearly store packages must be published first.',
       );
     }
     final userId = SupabaseConfig.client?.auth.currentUser?.id;

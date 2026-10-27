@@ -3,6 +3,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/config/customer_quota_usage.dart';
 import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
 import 'package:tradex/features/affiliate_program/models/affiliate_workspace.dart';
 import 'package:tradex/features/public_site/data/public_site_repository.dart';
@@ -120,8 +121,8 @@ class CustomerTierQuota {
     ),
     AppTier.enterprise => const CustomerTierQuota(
       tier: AppTier.enterprise,
-      planName: 'hejournal.in Enterprise',
-      monthlyPriceInr: 7999,
+      planName: 'hejournal.in Business',
+      monthlyPriceInr: 999,
       maxNotes: 10000,
       maxTrades: 50000,
       maxLiveStrategies: 250,
@@ -170,8 +171,13 @@ class CustomerLimitations {
     required int currentNoteCount,
   }) async {
     if (!await _refreshForAction(context) || !context.mounted) return false;
+    final usage = SupabaseConfig.isConfigured
+        ? await _readUsageForAction(context)
+        : null;
+    if (SupabaseConfig.isConfigured && usage == null) return false;
+    if (!context.mounted) return false;
     final CustomerTierQuota quota = currentQuota;
-    if (currentNoteCount < quota.maxNotes) return true;
+    if ((usage?.notesUsed ?? currentNoteCount) < quota.maxNotes) return true;
     await showPlanUpgradeDialog(
       context,
       featureTitle: 'Note Limit Reached (${quota.maxNotes} Notes)',
@@ -203,8 +209,13 @@ class CustomerLimitations {
       return false;
     }
 
+    final usage = SupabaseConfig.isConfigured
+        ? await _readUsageForAction(context)
+        : null;
+    if (SupabaseConfig.isConfigured && usage == null) return false;
+    if (!context.mounted) return false;
     final CustomerTierQuota quota = currentQuota;
-    if (currentTradeCount < quota.maxTrades) return true;
+    if ((usage?.tradesUsed ?? currentTradeCount) < quota.maxTrades) return true;
     await showPlanUpgradeDialog(
       context,
       featureTitle: 'Journal Quota Reached (${quota.maxTrades} Trades)',
@@ -220,8 +231,16 @@ class CustomerLimitations {
     required int currentLiveStrategyCount,
   }) async {
     if (!await _refreshForAction(context) || !context.mounted) return false;
+    final usage = SupabaseConfig.isConfigured
+        ? await _readUsageForAction(context)
+        : null;
+    if (SupabaseConfig.isConfigured && usage == null) return false;
+    if (!context.mounted) return false;
     final CustomerTierQuota quota = currentQuota;
-    if (currentLiveStrategyCount < quota.maxLiveStrategies) return true;
+    if ((usage?.livePlaybooksUsed ?? currentLiveStrategyCount) <
+        quota.maxLiveStrategies) {
+      return true;
+    }
     await showPlanUpgradeDialog(
       context,
       featureTitle:
@@ -319,6 +338,23 @@ class CustomerLimitations {
         );
       }
       return false;
+    }
+  }
+
+  static Future<CustomerQuotaUsage?> _readUsageForAction(
+    BuildContext context,
+  ) async {
+    try {
+      return await CustomerQuotaUsage.fetch();
+    } catch (_) {
+      if (context.mounted) {
+        UiToast.error(
+          context,
+          title: 'Account usage unavailable',
+          message: 'Retry when your live quota can be checked.',
+        );
+      }
+      return null;
     }
   }
 
@@ -452,11 +488,49 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
   String _breakerState = 'armed';
   String? _killswitchReason;
   DeskRiskModel _riskConfig = DeskRiskModel.defaultConfig();
+  CustomerQuotaUsage? _accountUsage;
+  bool _usageLoading = false;
+  bool _usageFailed = false;
 
   @override
   void initState() {
     super.initState();
     _loadDeskState();
+    _loadAccountUsage();
+  }
+
+  @override
+  void didUpdateWidget(covariant CustomerLimitationsBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.noteCount != widget.noteCount ||
+        oldWidget.tradeCount != widget.tradeCount ||
+        oldWidget.liveStrategyCount != widget.liveStrategyCount) {
+      _loadAccountUsage();
+    }
+  }
+
+  Future<void> _loadAccountUsage() async {
+    if (!SupabaseConfig.isConfigured) return;
+    setState(() {
+      _usageLoading = true;
+      _usageFailed = false;
+    });
+    try {
+      await CustomerTierQuota.refreshPublishedCatalogue();
+      final usage = await CustomerQuotaUsage.fetch();
+      if (!mounted) return;
+      setState(() {
+        _accountUsage = usage;
+        _usageLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _accountUsage = null;
+        _usageLoading = false;
+        _usageFailed = true;
+      });
+    }
   }
 
   Future<void> _loadDeskState() async {
@@ -484,12 +558,37 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
           valueListenable: session.aiQueriesUsed,
           builder: (BuildContext context, int aiUsed, Widget? _) {
             final CustomerTierQuota quota = CustomerTierQuota.forTier(tier);
+            final int? notesUsed = SupabaseConfig.isConfigured
+                ? _accountUsage?.notesUsed
+                : widget.noteCount;
+            final int? tradesUsed = SupabaseConfig.isConfigured
+                ? _accountUsage?.tradesUsed
+                : widget.tradeCount;
+            final int? playbooksUsed = SupabaseConfig.isConfigured
+                ? _accountUsage?.livePlaybooksUsed
+                : widget.liveStrategyCount;
+            final int? aiUsedForAccount =
+                SupabaseConfig.isConfigured && _accountUsage == null
+                ? null
+                : aiUsed;
             final bool isHalted = _breakerState == 'halted';
             final bool isTripped = _breakerState == 'tripped';
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
+                if (_usageLoading || _usageFailed) ...<Widget>[
+                  UiCallout(
+                    intent: _usageFailed ? UiIntent.warning : UiIntent.info,
+                    title: _usageFailed
+                        ? 'Account usage unavailable'
+                        : 'Loading account usage',
+                    description: _usageFailed
+                        ? 'Your live limits could not be verified. Creation actions remain blocked until they can be checked.'
+                        : 'Reading your usage and plan from the server.',
+                  ),
+                  SizedBox(height: context.sp(theme.spacing.sm)),
+                ],
                 if (isHalted || isTripped) ...<Widget>[
                   UiCallout(
                     intent: isHalted ? UiIntent.danger : UiIntent.warning,
@@ -531,28 +630,31 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                           ),
                           UiBadge(
                             label:
-                                'Notes ${widget.noteCount}/${quota.maxNotes}',
-                            intent: widget.noteCount >= quota.maxNotes
-                                ? UiIntent.danger
-                                : UiIntent.info,
-                            variant: UiBadgeVariant.soft,
-                            size: UiSize.xs,
-                          ),
-                          UiBadge(
-                            label:
-                                'Trades ${widget.tradeCount}/${quota.maxTrades}',
-                            intent: widget.tradeCount >= quota.maxTrades
-                                ? UiIntent.danger
-                                : UiIntent.info,
-                            variant: UiBadgeVariant.soft,
-                            size: UiSize.xs,
-                          ),
-                          UiBadge(
-                            label:
-                                'Live Playbooks ${widget.liveStrategyCount}/${quota.maxLiveStrategies}',
+                                'Notes ${notesUsed ?? '—'}/${quota.maxNotes}',
                             intent:
-                                widget.liveStrategyCount >=
-                                    quota.maxLiveStrategies
+                                notesUsed != null && notesUsed >= quota.maxNotes
+                                ? UiIntent.danger
+                                : UiIntent.info,
+                            variant: UiBadgeVariant.soft,
+                            size: UiSize.xs,
+                          ),
+                          UiBadge(
+                            label:
+                                'Trades ${tradesUsed ?? '—'}/${quota.maxTrades}',
+                            intent:
+                                tradesUsed != null &&
+                                    tradesUsed >= quota.maxTrades
+                                ? UiIntent.danger
+                                : UiIntent.info,
+                            variant: UiBadgeVariant.soft,
+                            size: UiSize.xs,
+                          ),
+                          UiBadge(
+                            label:
+                                'Live Playbooks ${playbooksUsed ?? '—'}/${quota.maxLiveStrategies}',
+                            intent:
+                                playbooksUsed != null &&
+                                    playbooksUsed >= quota.maxLiveStrategies
                                 ? UiIntent.warning
                                 : UiIntent.success,
                             variant: UiBadgeVariant.soft,
@@ -560,8 +662,11 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                           ),
                           UiBadge(
                             label:
-                                'AI Copilot $aiUsed/${quota.maxAiQueriesPerMonth}',
-                            intent: aiUsed >= quota.maxAiQueriesPerMonth
+                                'AI Copilot ${aiUsedForAccount ?? '—'}/${quota.maxAiQueriesPerMonth}',
+                            intent:
+                                aiUsedForAccount != null &&
+                                    aiUsedForAccount >=
+                                        quota.maxAiQueriesPerMonth
                                 ? UiIntent.danger
                                 : UiIntent.primary,
                             variant: UiBadgeVariant.soft,
@@ -589,7 +694,7 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                             UiButton(
                               label: tier == AppTier.free
                                   ? 'Upgrade Plan (₹2,499)'
-                                  : 'Enterprise (₹7,999)',
+                                  : 'Business (₹999)',
                               size: UiSize.xs,
                               variant: UiVariant.soft,
                               intent: UiIntent.primary,
