@@ -1,4 +1,4 @@
-# TradeX App Scaffold
+# alphajournal App Scaffold
 
 This folder contains a more complete Flutter starter structure for the TraderHub concept, based on the repository documentation.
 

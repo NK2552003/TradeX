@@ -171,7 +171,7 @@ class AppDeskSectionHeader extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A single horizontal row of date chips that scrolls to keep [selected]
-/// centred, ported from the QuietNote home surface into hejournal.in tokens.
+/// centred, ported from the QuietNote home surface into alphajournal tokens.
 ///
 /// Days carrying activity can be flagged via [markers] (compared by calendar
 /// day) so the reader can see where their notes and trades live before tapping.
@@ -624,24 +624,28 @@ class AppWorkspaceCalendarBar extends StatelessWidget {
     final String monthLabel =
         '${_fullMonths[selectedDay.month - 1]} ${selectedDay.year}';
 
-    return Wrap(
+    final Widget leftSide = Wrap(
       spacing: context.sp(theme.spacing.xs),
-      runSpacing: context.sp(theme.spacing.xs),
+      runSpacing: context.sp(theme.spacing.xxs),
       crossAxisAlignment: WrapCrossAlignment.center,
       children: <Widget>[
-        Icon(
-          Icons.calendar_today_rounded,
-          size: context.sz(theme.sizes.iconSm),
-          color: theme.colors.primary,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              Icons.calendar_today_rounded,
+              size: context.sz(theme.sizes.iconSm),
+              color: theme.colors.primary,
+            ),
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            Text(
+              monthLabel,
+              style: context.uiText.bodyStrong.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
-        SizedBox(width: context.sp(theme.spacing.xs)),
-        Text(
-          monthLabel,
-          style: context.uiText.bodyStrong.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        SizedBox(width: context.sp(theme.spacing.xs)),
         if (!isToday)
           UiButton(
             label: 'Today',
@@ -651,24 +655,33 @@ class AppWorkspaceCalendarBar extends StatelessWidget {
             leadingIcon: Icons.my_location_rounded,
             onPressed: onJumpToday,
           ),
+      ],
+    );
 
-        UiToggleGroup<bool>(
-          value: isMonthView,
-          size: UiSize.xs,
-          onChanged: onToggleView,
-          options: const <UiToggleOption<bool>>[
-            UiToggleOption<bool>(
-              value: false,
-              label: 'Week',
-              icon: Icons.view_week_outlined,
-            ),
-            UiToggleOption<bool>(
-              value: true,
-              label: 'Month',
-              icon: Icons.calendar_month_outlined,
-            ),
-          ],
+    final Widget toggle = UiToggleGroup<bool>(
+      value: isMonthView,
+      size: UiSize.xs,
+      onChanged: onToggleView,
+      options: const <UiToggleOption<bool>>[
+        UiToggleOption<bool>(
+          value: false,
+          label: 'Week',
+          icon: Icons.view_week_outlined,
         ),
+        UiToggleOption<bool>(
+          value: true,
+          label: 'Month',
+          icon: Icons.calendar_month_outlined,
+        ),
+      ],
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        Expanded(child: leftSide),
+        SizedBox(width: context.sp(theme.spacing.xs)),
+        toggle,
       ],
     );
   }

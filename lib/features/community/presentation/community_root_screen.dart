@@ -1005,7 +1005,7 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
             UiIconButton(
               icon: Icons.search_rounded,
               size: UiSize.xs,
-              tooltip: 'Search hejournal.in',
+              tooltip: 'Search alphajournal',
               onPressed: _openSearchPage,
             ),
             UiIconButton(

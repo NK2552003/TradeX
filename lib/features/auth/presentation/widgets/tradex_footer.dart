@@ -2,7 +2,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 
-/// Reusable comprehensive footer for hejournal.in landing and pricing pages.
+/// Reusable comprehensive footer for alphajournal landing and pricing pages.
 ///
 /// Features:
 /// 1. Brand column with live NSE/BSE operational status badge & social links.
@@ -193,7 +193,7 @@ class TradeXFooter extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'hejournal.in © ${DateTime.now().year}. All rights reserved.',
+                    'alphajournal © ${DateTime.now().year}. All rights reserved.',
                     style: context.uiText.caption.copyWith(
                       color: colors.foregroundSubtle,
                       fontSize: 12,
@@ -237,7 +237,7 @@ class TradeXFooter extends StatelessWidget {
               runSpacing: context.sp(theme.spacing.sm),
               children: <Widget>[
                 Text(
-                  'hejournal.in © ${DateTime.now().year}. All rights reserved.',
+                  'alphajournal © ${DateTime.now().year}. All rights reserved.',
                   style: context.uiText.caption.copyWith(
                     color: colors.foregroundSubtle,
                     fontSize: 12,
@@ -290,7 +290,7 @@ class TradeXFooter extends StatelessWidget {
             ),
           ),
           child: Text(
-            'Disclaimer: Trading in financial markets (Equities, Futures, Options, Commodities, and Currencies) involves significant risk of capital loss and may not be suitable for all investors. hejournal.in is a quantitative trading journal, market analytics, and AI-assistive software platform. hejournal.in is not a SEBI-registered investment advisor or research analyst. Historical backtests, simulation curves, and AI insights are strictly for educational, disciplined trade tracking, and self-directed quantitative analysis purposes.',
+            'Disclaimer: Trading in financial markets (Equities, Futures, Options, Commodities, and Currencies) involves significant risk of capital loss and may not be suitable for all investors. alphajournal is a quantitative trading journal, market analytics, and AI-assistive software platform. alphajournal is not a SEBI-registered investment advisor or research analyst. Historical backtests, simulation curves, and AI insights are strictly for educational, disciplined trade tracking, and self-directed quantitative analysis purposes.',
             style: context.uiText.caption.copyWith(
               color: colors.foregroundSubtle,
               fontSize: 11,
@@ -317,7 +317,7 @@ class TradeXFooter extends StatelessWidget {
             const AppLogoMark(size: 24),
             SizedBox(width: context.sp(theme.spacing.sm)),
             Text(
-              'hejournal.in',
+              'alphajournal',
               style: context.uiText.bodyStrong.copyWith(
                 fontSize: 18,
                 letterSpacing: -0.3,
@@ -606,19 +606,19 @@ class TradeXFooter extends StatelessWidget {
       title: broker,
       category: 'BROKER INTEGRATION',
       content:
-          '$description\n\nTradeX connects via secure OAuth 2.0 and API token authentication. Review broker permissions before connecting an account. hejournal.in never requests fund withdrawal permissions or trading account ownership.',
+          '$description\n\nalphajournal connects via secure OAuth 2.0 and API token authentication. Review broker permissions before connecting an account. alphajournal never requests fund withdrawal permissions or trading account ownership.',
     );
   }
 
   void _showPrivacyPolicy(BuildContext context) {
     _showInfoModal(
       context,
-      title: 'hejournal.in Privacy Policy',
+      title: 'alphajournal Privacy Policy',
       category: 'LEGAL & PRIVACY',
       content:
           '1. Information We Collect: Account registration details (email, handle), encrypted API keys for broker sync, and quantitative journal entries.\n\n'
           '2. How We Use Data: To compute trade metrics, calculate win rate statistics, render AI setup detection, and generate capital gains tax summaries.\n\n'
-          '3. Non-Custodial Guarantee: hejournal.in never holds trading funds or acts as a broker. We never sell, monetize, or front-run user trading journals or strategy notes.\n\n'
+          '3. Non-Custodial Guarantee: alphajournal never holds trading funds or acts as a broker. We never sell, monetize, or front-run user trading journals or strategy notes.\n\n'
           '4. Data Retention & Deletion: You can export your full trade database in CSV/JSON or permanently delete your account and encrypted keys at any time.',
     );
   }
@@ -629,8 +629,8 @@ class TradeXFooter extends StatelessWidget {
       title: 'Terms of Service',
       category: 'LEGAL TERMS',
       content:
-          'Welcome to hejournal.in. By accessing or using our platform, you agree to these Terms.\n\n'
-          '1. Self-Directed Trading: hejournal.in provides quantitative journaling, market analytics, and AI assistants. All trade execution decisions are solely the responsibility of the user.\n\n'
+          'Welcome to alphajournal. By accessing or using our platform, you agree to these Terms.\n\n'
+          '1. Self-Directed Trading: alphajournal provides quantitative journaling, market analytics, and AI assistants. All trade execution decisions are solely the responsibility of the user.\n\n'
           '2. Subscription & Billing: Paid plans are billed on a monthly or annual recurring cycle with transparent INR ₹ pricing. Cancel anytime from your billing portal.\n\n'
           '3. Affiliate Program: Affiliates earn tiered commissions by referring verified active traders. Commission fraud or spam will result in immediate termination.',
     );
@@ -643,8 +643,8 @@ class TradeXFooter extends StatelessWidget {
       category: 'ENTERPRISE SECURITY',
       content:
           '• Account privacy: Manage the visibility of your notes, strategies, and journal entries.\n\n'
-          '• Zero Custody: hejournal.in operates in read-only / execution-audit mode without withdrawal permissions.\n\n'
-          '• Transport security: Use secure HTTPS connections when accessing hejournal.in.\n\n'
+          '• Zero Custody: alphajournal operates in read-only / execution-audit mode without withdrawal permissions.\n\n'
+          '• Transport security: Use secure HTTPS connections when accessing alphajournal.\n\n'
           '• Automated SOC-2 Compliant Cloud Backups: Redundant backups with 99.99% uptime guarantee.',
     );
   }
@@ -655,7 +655,7 @@ class TradeXFooter extends StatelessWidget {
       title: 'SEBI Compliance & Risk Notes',
       category: 'REGULATORY COMPLIANCE',
       content:
-          'hejournal.in is a quantitative trading software and analytics tool. hejournal.in is NOT a SEBI-registered Investment Advisor (RIA) or Research Analyst (RA).\n\n'
+          'alphajournal is a quantitative trading software and analytics tool. alphajournal is NOT a SEBI-registered Investment Advisor (RIA) or Research Analyst (RA).\n\n'
           'All historical performance metrics, backtests, AI insights, and community strategies are for self-directed study and execution discipline only. Trading derivatives (Futures & Options) involves substantial financial risk.',
     );
   }

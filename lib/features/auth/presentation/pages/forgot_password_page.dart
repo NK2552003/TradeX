@@ -288,7 +288,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                // Unified Header inside Card: Back Button, Logo, hejournal.in & Step Badge
+                                // Unified Header inside Card: Back Button, Logo, alphajournal & Step Badge
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
@@ -315,7 +315,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                               ),
                                             ),
                                             Text(
-                                              'hejournal.in',
+                                              'alphajournal',
                                               style: context.uiText.bodyStrong
                                                   .copyWith(
                                                     fontSize: 16,
@@ -683,7 +683,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             SizedBox(width: context.sp(theme.spacing.xs)),
                             Flexible(
                               child: Text(
-                                'Manage your account and privacy settings in hejournal.in',
+                                'Manage your account and privacy settings in alphajournal',
                                 overflow: TextOverflow.ellipsis,
                                 style: context.uiText.caption.copyWith(
                                   color: colors.foregroundSubtle,

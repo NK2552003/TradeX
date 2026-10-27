@@ -423,7 +423,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
             right: context.sp(theme.spacing.xl),
             bottom: context.sp(theme.spacing.lg),
           ),
-          child: const Center(child: AppLogo(size: 24, tagline: 'TRADEX')),
+          child: const Center(child: AppLogo(size: 24, tagline: 'ALPHAJOURNAL')),
         ),
 
         // Carousel
@@ -509,7 +509,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                     curve: Curves.easeInOutCubic,
                   );
                 },
-                child: const AppLogo(size: 20, tagline: 'TRADEX'),
+                child: const AppLogo(size: 20, tagline: 'ALPHAJOURNAL'),
               ),
             ),
 
@@ -564,9 +564,9 @@ class _GetStartedPageState extends State<GetStartedPage> {
                 ),
               ),
 
-            // Right: Primary + GET TRADEX CTA Button
+            // Right: Primary alphajournal CTA Button
             UiButton(
-              label: '+ GET TRADEX',
+              label: '+ GET ALPHAJOURNAL',
               variant: UiVariant.primary,
               intent: UiIntent.primary,
               size: UiSize.sm,
@@ -600,7 +600,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'hejournal.in Intelligence v1.0',
+                'alphajournal Intelligence v1.0',
                 style: context.uiText.caption.copyWith(
                   fontWeight: FontWeight.w500,
                   fontSize: 12.0,
@@ -854,7 +854,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: context.sz(640)),
           child: Text(
-            'Choose the workspace that matches what you do. Trade with more discipline, or grow the hejournal.in community as an affiliate.',
+            'Choose the workspace that matches what you do. Trade with more discipline, or grow the alphajournal community as an affiliate.',
             textAlign: TextAlign.center,
             style: context.uiText.body.copyWith(
               color: colors.foregroundMuted,
@@ -913,7 +913,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
                   badgeIntent: UiIntent.success,
                   title: 'Affiliate',
                   subtitle:
-                      'For partners who introduce serious traders to hejournal.in and want transparent referrals, commissions, and campaign reporting.',
+                      'For partners who introduce serious traders to alphajournal and want transparent referrals, commissions, and campaign reporting.',
                   features: const <String>[
                     'Share Trackable Links Across Your Audience and Community',
                     'Earn Up to 30% Recurring Commission on Referred Traders',
@@ -1203,7 +1203,7 @@ class _GetStartedPageState extends State<GetStartedPage> {
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: context.sz(620)),
           child: Text(
-            'Everything you need to know about hejournal.in, quantitative journaling, Indian broker connections, security, and AI capabilities.',
+            'Everything you need to know about alphajournal, quantitative journaling, Indian broker connections, security, and AI capabilities.',
             textAlign: TextAlign.center,
             style: context.uiText.body.copyWith(
               color: colors.foregroundMuted,

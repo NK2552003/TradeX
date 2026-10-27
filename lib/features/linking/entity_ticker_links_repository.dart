@@ -5,7 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 
 /// Represents a persistent link between a market ticker symbol and an entity
-/// across hejournal.in (trader note, trade journal entry, strategy playbook,
+/// across alphajournal (trader note, trade journal entry, strategy playbook,
 /// community post, or direct message).
 ///
 /// Because market tickers undergo daily quotes, price updates, splits, and
@@ -88,7 +88,7 @@ class EntityTickerLink {
 }
 
 /// Repository and service for recording, querying, and observing ticker links
-/// across all hejournal.in surfaces (Notes, Journal, Strategies, Community, Messages).
+/// across all alphajournal surfaces (Notes, Journal, Strategies, Community, Messages).
 ///
 /// Ensures every linked ticker is stored directly to the `entity_ticker_links`
 /// table so that daily ticker data updates and symbol modifications do not cause

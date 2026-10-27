@@ -229,7 +229,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               mainAxisSize: MainAxisSize.min,
                               children: <Widget>[
-                                // Unified Header inside Card: Back Button, Logo & hejournal.in
+                                // Unified Header inside Card: Back Button, Logo & alphajournal
                                 Row(
                                   children: <Widget>[
                                     UiIconButton(
@@ -246,7 +246,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                                       width: context.sp(theme.spacing.xs),
                                     ),
                                     Text(
-                                      'hejournal.in',
+                                      'alphajournal',
                                       style: context.uiText.bodyStrong.copyWith(
                                         fontSize: 16,
                                         letterSpacing: -0.2,
@@ -402,7 +402,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                             SizedBox(width: context.sp(theme.spacing.xs)),
                             Flexible(
                               child: Text(
-                                'Manage your account and privacy settings in hejournal.in',
+                                'Manage your account and privacy settings in alphajournal',
                                 overflow: TextOverflow.ellipsis,
                                 style: context.uiText.caption.copyWith(
                                   color: colors.foregroundSubtle,

@@ -335,7 +335,7 @@ class CommunityPremiumCard extends StatelessWidget {
             onPressed: () {
               UiToast.show(
                 context,
-                title: 'hejournal.in Pro',
+                title: 'alphajournal Pro',
                 message: 'Opening subscription tier upgrades...',
                 intent: UiIntent.primary,
               );
@@ -735,7 +735,7 @@ class CommunityDisclaimerCard extends StatelessWidget {
           ),
           SizedBox(height: context.sp(theme.spacing.xs)),
           Text(
-            'hejournal.in Community posts, charts, trade setups, and comments are strictly for educational purposes and do not constitute financial advice or investment recommendations under SEBI/SEC regulations.',
+            'alphajournal Community posts, charts, trade setups, and comments are strictly for educational purposes and do not constitute financial advice or investment recommendations under SEBI/SEC regulations.',
             style: context.uiText.caption.copyWith(
               color: theme.colors.foregroundSubtle,
               fontSize: context.fs(11),
@@ -791,7 +791,7 @@ class CommunityFooterLinks extends StatelessWidget {
       'Accessibility',
       'Ads Info',
       'More…',
-      '© 2026 hejournal.in Corp.',
+      '© 2026 alphajournal Corp.',
     ];
 
     return Wrap(

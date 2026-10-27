@@ -1083,9 +1083,9 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
   String _getTraderHeadline(CommunityAuthor author) {
     if (author.bio != null && author.bio!.isNotEmpty) return author.bio!;
     if (author.userRole == UserRole.userAdmin) {
-      return 'hejournal.in Official Desk · Lead Market Strategist';
+      return 'alphajournal Official Desk · Lead Market Strategist';
     }
     final cleanHandle = author.handle.replaceFirst(RegExp(r'^@'), '').trim();
-    return '@$cleanHandle · Quantitative Trader · hejournal.in Community';
+    return '@$cleanHandle · Quantitative Trader · alphajournal Community';
   }
 }

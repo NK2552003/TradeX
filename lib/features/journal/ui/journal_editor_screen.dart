@@ -987,7 +987,7 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
         UiToast.warning(
           context,
           title: 'Dictation is not available',
-          message: 'Check the microphone permission for hejournal.in.',
+          message: 'Check the microphone permission for alphajournal.',
         );
       }
       return;

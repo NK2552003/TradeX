@@ -3174,7 +3174,7 @@ $$;
 
 REVOKE ALL ON FUNCTION public.handle_new_user_signup() FROM PUBLIC,anon,authenticated;
 INSERT INTO public.affiliate_assets(title,format,body,published) VALUES
-('Introduce your trading workspace','Social caption','Plan trades, record your reasoning, and review performance with TradeX. Explore: {link}
+('Introduce your trading workspace','Social caption','Plan trades, record your reasoning, and review performance with alphajournal. Explore: {link}
 Affiliate disclosure: I may earn a commission from qualifying subscriptions.',true),
 ('A better weekly review','Newsletter','Bring your trading notes, strategies, and research into one workspace. Get started: {link}
 Affiliate disclosure: I may receive a commission. Trading involves risk.',true),

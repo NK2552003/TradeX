@@ -1,4 +1,4 @@
-/// Settings feature for hejournal.in
+/// Settings feature for alphajournal
 library;
 
 // Models

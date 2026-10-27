@@ -28,7 +28,7 @@ enum CommunityPostCardVariant {
   boxed,
 }
 
-/// The signature Twitter/Threads-grade post card for hejournal.in (hejournal.in).
+/// The signature Twitter/Threads-grade post card for alphajournal (alphajournal).
 ///
 /// Features a Hybrid layout:
 /// - In [CommunityPostCardVariant.feed]: flat timeline with a continuous vertical thread-line

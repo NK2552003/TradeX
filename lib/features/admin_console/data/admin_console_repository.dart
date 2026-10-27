@@ -189,7 +189,7 @@ class AdminConsoleRepository {
           ? 'CIRCUIT_BREAKER_TRIPPED'
           : 'DESK_EXECUTION_RESUMED',
       targetType: 'desk_circuit_breaker',
-      targetLabel: 'hejournal.in Institutional Desk',
+      targetLabel: 'alphajournal Institutional Desk',
       severity: state == 'halted' ? 'critical' : 'warning',
       details: reason?.trim().isNotEmpty == true
           ? reason!.trim()
@@ -417,7 +417,7 @@ class AdminConsoleRepository {
                     '',
                   ),
                   displayName: r['display_name']?.toString() ?? 'Trader',
-                  email: r['email']?.toString() ?? 'trader@hejournal.in',
+                  email: r['email']?.toString() ?? 'trader@alphajournal.in',
                   subscriptionTier: tier,
                   monthlySubscriptionInr: mrr,
                   journalsCount: journalCounts[uid] ?? 0,
@@ -1324,8 +1324,8 @@ class AdminConsoleRepository {
       AdminConsumerAccount(
         userId: 'f040d8c1-c063-45f4-b963-beb1a7f9fc9f',
         handle: 'admin',
-        displayName: 'hejournal.in System Admin',
-        email: 'admin@hejournal.in',
+        displayName: 'alphajournal System Admin',
+        email: 'admin@alphajournal.in',
         subscriptionTier: 'Enterprise',
         monthlySubscriptionInr: 999.0,
         journalsCount: 7,
@@ -1540,7 +1540,7 @@ class AdminConsoleRepository {
         category: 'risk_control',
         action: 'DESK_RISK_POLICY_VERIFIED',
         targetType: 'desk_risk_configs',
-        targetLabel: 'hejournal.in Institutional Alpha Desk',
+        targetLabel: 'alphajournal Institutional Alpha Desk',
         severity: 'info',
         ipAddress: '103.21.244.18 (Mumbai-DC1)',
         sha256Hash:

@@ -216,7 +216,7 @@ class _LoginPageState extends State<LoginPage> {
                                                         ),
                                                       ),
                                                       Text(
-                                                        'hejournal.in',
+                                                        'alphajournal',
                                                         style: context
                                                             .uiText
                                                             .bodyStrong
@@ -267,7 +267,7 @@ class _LoginPageState extends State<LoginPage> {
                                                   ),
                                                 ),
                                                 Text(
-                                                  'Login to your hejournal.in account',
+                                                  'Login to your alphajournal account',
                                                   textAlign: TextAlign.left,
                                                   style: context.uiText.body
                                                       .copyWith(
@@ -610,7 +610,7 @@ class _LoginPageState extends State<LoginPage> {
       builder: (context) => UiDialog(
         title: title,
         content: Text(
-          'hejournal.in compliance, security, privacy policy, and user service agreement rules apply.',
+          'alphajournal compliance, security, privacy policy, and user service agreement rules apply.',
           style: context.uiText.body,
         ),
         actions: [

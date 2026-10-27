@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 
-/// User roles in hejournal.in platform.
+/// User roles in alphajournal platform.
 enum UserRole {
   customer(
     id: 'customer',

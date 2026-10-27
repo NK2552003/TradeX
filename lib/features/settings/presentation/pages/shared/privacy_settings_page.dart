@@ -437,7 +437,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                   AppSettingCard(
                     title: 'Show Active / Online Status',
                     description:
-                        'Let accounts you message see when you are currently online and active on hejournal.in.',
+                        'Let accounts you message see when you are currently online and active on alphajournal.',
                     icon: Icons.circle,
                     control: UiSwitch(
                       value: _settings.showActivityStatus,

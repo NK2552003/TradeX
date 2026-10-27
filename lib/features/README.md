@@ -1,6 +1,6 @@
 # Feature folders
 
-This folder contains the main hejournal.in feature slices expected by the project documentation.
+This folder contains the main alphajournal feature slices expected by the project documentation.
 
 - auth
 - journal

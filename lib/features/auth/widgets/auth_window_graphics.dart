@@ -3,7 +3,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 
-/// Which slice of hejournal.in the showcase panel previews. Every scene is
+/// Which slice of alphajournal the showcase panel previews. Every scene is
 /// built entirely out of real `app-ui` domain cards and charts — there are
 /// no illustrations, icons-as-art, or image/SVG assets anywhere here.
 enum AuthScene {
@@ -14,7 +14,7 @@ enum AuthScene {
 
 /// Live "window" preview shown beside the auth forms on wide screens.
 ///
-/// Every element inside is a genuine hejournal.in component (`AppStatCard`,
+/// Every element inside is a genuine alphajournal component (`AppStatCard`,
 /// `AppTickerCard`, `UiAreaChartCard`, `AppAiInsightCard`, `AppTradeCard`,
 /// `AppPostCard`) wired to the same [DemoDataSource] the signed-in app reads —
 /// the goal is that this panel reads like an actual screenshot of the product,
@@ -23,7 +23,7 @@ class AuthWindowGraphics extends StatefulWidget {
   const AuthWindowGraphics({
     super.key,
     this.role = UserRole.customer,
-    this.title = 'hejournal.in',
+    this.title = 'alphajournal',
     this.scene = AuthScene.social,
     this.height,
     this.compact = false,

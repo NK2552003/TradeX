@@ -138,7 +138,7 @@ class CommunityAdvisorDisclosureSheet extends StatelessWidget {
                 ),
                 _InfoRow(
                   label: 'Compliance Officer',
-                  value: 'compliance@hejournal.in',
+                  value: 'compliance@alphajournal.in',
                 ),
               ],
             ),
@@ -156,7 +156,7 @@ class CommunityAdvisorDisclosureSheet extends StatelessWidget {
           Text(
             '1. Securities investments are subject to market risks. Read all scheme and offer documents carefully.\n'
             '2. The analyst or their associates may have personal or financial interest in the securities recommended above.\n'
-            '3. Past performance does not guarantee future results. hejournal.in and the analyst do not offer guaranteed returns.\n'
+            '3. Past performance does not guarantee future results. alphajournal and the analyst do not offer guaranteed returns.\n'
             '4. Research reports are prepared for general circulation and do not account for individual investor objectives.',
             style: context.uiText.caption.copyWith(
               color: colors.foregroundMuted,

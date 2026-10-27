@@ -97,7 +97,7 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
   bool _isMonthView = false;
 
   /// Whether to filter content strictly to the selected date. When false, shows all recent records.
-  bool _filterByDate = true;
+  bool _filterByDate = false;
 
   /// Notes section visibility filter: 'private', 'public', 'all'.
   String _notesFilter = 'private';
@@ -298,16 +298,11 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
         onOpenLink: widget.onOpenRef,
         onClose: (AppNote? saved) {
           _closeEditor();
-          if (saved != null && widget.onOpenRef != null) {
-            widget.onOpenRef!(
-              AppLinkRef(
-                kind: AppLinkKind.note,
-                id: saved.id,
-                title: saved.title.trim().isEmpty
-                    ? 'Untitled note'
-                    : saved.title.trim(),
-              ),
-            );
+          if (saved != null) {
+            setState(() {
+              _selectedDay = AppTokens.dateOnly(saved.updatedAt);
+              _filterByDate = false;
+            });
           }
         },
       );
@@ -338,14 +333,11 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
         onOpenLink: widget.onOpenRef,
         onClose: (AppTrade? saved) {
           _closeEditor();
-          if (saved != null && widget.onOpenRef != null) {
-            widget.onOpenRef!(
-              AppLinkRef(
-                kind: AppLinkKind.journal,
-                id: saved.id,
-                title: saved.displayTitle,
-              ),
-            );
+          if (saved != null) {
+            setState(() {
+              _selectedDay = AppTokens.dateOnly(saved.sortDate);
+              _filterByDate = false;
+            });
           }
         },
       );
@@ -376,16 +368,13 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
         onOpenLink: widget.onOpenRef,
         onClose: (AppStrategy? saved) {
           _closeEditor();
-          if (saved != null && widget.onOpenRef != null) {
-            widget.onOpenRef!(
-              AppLinkRef(
-                kind: AppLinkKind.strategy,
-                id: saved.id,
-                title: saved.name.trim().isEmpty
-                    ? 'Untitled strategy'
-                    : saved.name.trim(),
-              ),
-            );
+          if (saved != null) {
+            setState(() {
+              if (saved.updatedAt != null) {
+                _selectedDay = AppTokens.dateOnly(saved.updatedAt!);
+              }
+              _filterByDate = false;
+            });
           }
         },
       );
@@ -712,6 +701,30 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
               AppFadeIn(child: _buildAnalyticsPanel(context)),
               SizedBox(height: sectionGap),
 
+              // ── Date Scope Filter Bar ────────────────────────────────
+              UiToggleGroup<bool>(
+                value: _filterByDate,
+                expand: true,
+                size: UiSize.sm,
+                onChanged: (bool value) =>
+                    setState(() => _filterByDate = value),
+                options: <UiToggleOption<bool>>[
+                  UiToggleOption<bool>(
+                    value: true,
+                    label: _isToday
+                        ? 'Scope to Today'
+                        : 'Scope to ${AppTokens.shortDate(_selectedDay)}',
+                    icon: Icons.calendar_today_rounded,
+                  ),
+                  const UiToggleOption<bool>(
+                    value: false,
+                    label: 'Show all records',
+                    icon: Icons.grid_view_rounded,
+                  ),
+                ],
+              ),
+              SizedBox(height: sectionGap),
+
               // ── Notes Section ────────────────────────────────────────
               _buildNotesSection(context),
               SizedBox(height: sectionGap),
@@ -840,7 +853,6 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
   // ─── Notes section ──────────────────────────────────────────────────
 
   Widget _buildNotesSection(BuildContext context) {
-    final UiTheme theme = context.ui;
     final List<AppNote> notes = _displayNotes;
     final String dayLabel = _isToday
         ? 'Today'
@@ -859,136 +871,117 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
                     '${_allNotes.length} total notes · $_publicNoteCount published',
                 });
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        // ── Date Scope Full-Width Segmented Toggle ─────────────────────
-        UiToggleGroup<bool>(
-          value: _filterByDate,
-          expand: true,
-          size: UiSize.sm,
-          onChanged: (bool value) => setState(() => _filterByDate = value),
-          options: <UiToggleOption<bool>>[
-            UiToggleOption<bool>(
-              value: true,
-              label: _isToday ? 'Scope to Today' : 'Scope to $dayLabel',
-              icon: Icons.calendar_today_rounded,
-            ),
-            const UiToggleOption<bool>(
-              value: false,
-              label: 'Show all',
-              icon: Icons.grid_view_rounded,
-            ),
-          ],
-        ),
-        SizedBox(height: context.sp(theme.spacing.md)),
-
-        AppWorkspaceSectionCarousel(
-          title: 'Notes',
-          icon: Icons.edit_note_rounded,
-          subtitle: subtitle,
-          trailing: UiToggleGroup<String>(
-            value: _notesFilter,
-            size: UiSize.xs,
-            onChanged: (String value) {
-              if (value == 'all' && _notesFilter == 'all') {
-                widget.onOpenFeature('notes');
-              } else {
-                setState(() => _notesFilter = value);
-              }
-            },
-            options: const <UiToggleOption<String>>[
-              UiToggleOption<String>(
-                value: 'private',
-                label: 'Private',
-                icon: Icons.lock_outline_rounded,
-              ),
-              UiToggleOption<String>(
-                value: 'public',
-                label: 'Public',
-                icon: Icons.public_rounded,
-              ),
-              UiToggleOption<String>(
-                value: 'all',
-                label: 'View all',
-                icon: Icons.grid_view_rounded,
-              ),
-            ],
+    return AppWorkspaceSectionCarousel(
+      title: 'Notes',
+      icon: Icons.edit_note_rounded,
+      subtitle: subtitle,
+      trailing: UiToggleGroup<String>(
+        value: _notesFilter,
+        size: UiSize.xs,
+        onChanged: (String value) {
+          if (value == 'all' && _notesFilter == 'all') {
+            widget.onOpenFeature('notes');
+          } else {
+            setState(() => _notesFilter = value);
+          }
+        },
+        options: const <UiToggleOption<String>>[
+          UiToggleOption<String>(
+            value: 'private',
+            label: 'Private',
+            icon: Icons.lock_outline_rounded,
           ),
-          emptyPlaceholder: UiEmptyState(
-            title: _searchQuery.isNotEmpty
-                ? 'No notes match "$_searchQuery"'
-                : (_filterByDate
-                      ? (_isToday ? 'No notes today' : 'No notes on $dayLabel')
-                      : switch (_notesFilter) {
-                          'public' => 'No published notes',
-                          'private' => 'No private notes',
-                          _ => 'No notes yet',
-                        }),
-            message: _searchQuery.isNotEmpty
-                ? 'Try searching with different keywords or clear the search query.'
-                : (_filterByDate
-                      ? (_isToday
-                            ? 'Capture market observations or analysis for today.'
-                            : 'Pick another day on the calendar or create a new note.')
-                      : switch (_notesFilter) {
-                          'public' =>
-                            'Publish a note to share your research with the community.',
-                          'private' =>
-                            'Create your first private note to capture market observations.',
-                          _ =>
-                            'Create your first note to build your trading playbook.',
-                        }),
-            icon: _searchQuery.isNotEmpty
-                ? Icons.search_off_rounded
-                : Icons.edit_note_rounded,
-            action: _isToday && _searchQuery.isEmpty
+          UiToggleOption<String>(
+            value: 'public',
+            label: 'Public',
+            icon: Icons.public_rounded,
+          ),
+          UiToggleOption<String>(
+            value: 'all',
+            label: 'View all',
+            icon: Icons.grid_view_rounded,
+          ),
+        ],
+      ),
+      emptyPlaceholder: UiEmptyState(
+        title: _searchQuery.isNotEmpty
+            ? 'No notes match "$_searchQuery"'
+            : (_filterByDate
+                  ? (_isToday ? 'No notes today' : 'No notes on $dayLabel')
+                  : switch (_notesFilter) {
+                      'public' => 'No published notes',
+                      'private' => 'No private notes',
+                      _ => 'No notes yet',
+                    }),
+        message: _searchQuery.isNotEmpty
+            ? 'Try searching with different keywords or clear the search query.'
+            : (_filterByDate
+                  ? (_isToday
+                        ? 'Capture market observations or analysis for today.'
+                        : 'Pick another day on the calendar or create a new note.')
+                  : switch (_notesFilter) {
+                      'public' =>
+                        'Publish a note to share your research with the community.',
+                      'private' =>
+                        'Create your first private note to capture market observations.',
+                      _ =>
+                        'Create your first note to build your trading playbook.',
+                    }),
+        icon: _searchQuery.isNotEmpty
+            ? Icons.search_off_rounded
+            : Icons.edit_note_rounded,
+        action: _searchQuery.isEmpty && _filterByDate && _allNotes.isNotEmpty
+            ? UiButton(
+                label: 'Show all notes (${_allNotes.length})',
+                variant: UiVariant.soft,
+                leadingIcon: Icons.grid_view_rounded,
+                onPressed: () => setState(() => _filterByDate = false),
+              )
+            : (_isToday && _searchQuery.isEmpty
                 ? UiButton(
                     label: 'New note',
                     leadingIcon: Icons.add_rounded,
                     onPressed: _handleNewNote,
                   )
+                : null),
+      ),
+      maxCards: 6,
+      cards: <Widget>[
+        for (final AppNote note in notes)
+          AppNoteCard(
+            key: ValueKey<String>(note.id),
+            note: note,
+            density: AppNoteDensity.comfortable,
+            onTap: () => _openNote(note),
+            extraBadges: _postService.isLinked(AppLinkKind.note, note.id)
+                ? <Widget>[
+                    UiBadge(
+                      label: 'Post',
+                      icon: Icons.share_rounded,
+                      size: UiSize.xs,
+                      intent: UiIntent.primary,
+                      onTap: () =>
+                          _openLinkedPost(AppLinkKind.note, note.id),
+                    ),
+                  ]
+                : const <Widget>[],
+            footerEngagement:
+                _postService.isLinked(AppLinkKind.note, note.id)
+                ? Builder(
+                    builder: (BuildContext ctx) {
+                      final AppPostLinkInfo? link = _postService
+                          .getPrimaryLink(AppLinkKind.note, note.id);
+                      return AppDeskEngagementRow(
+                        isLinked: true,
+                        likes: link?.likesCount ?? 0,
+                        comments: link?.commentsCount ?? 0,
+                        onTap: () =>
+                            _openLinkedPost(AppLinkKind.note, note.id),
+                      );
+                    },
+                  )
                 : null,
           ),
-          maxCards: 6,
-          cards: <Widget>[
-            for (final AppNote note in notes)
-              AppNoteCard(
-                key: ValueKey<String>(note.id),
-                note: note,
-                density: AppNoteDensity.comfortable,
-                onTap: () => _openNote(note),
-                extraBadges: _postService.isLinked(AppLinkKind.note, note.id)
-                    ? <Widget>[
-                        UiBadge(
-                          label: 'Post',
-                          icon: Icons.share_rounded,
-                          size: UiSize.xs,
-                          intent: UiIntent.primary,
-                          onTap: () =>
-                              _openLinkedPost(AppLinkKind.note, note.id),
-                        ),
-                      ]
-                    : const <Widget>[],
-                footerEngagement:
-                    _postService.isLinked(AppLinkKind.note, note.id)
-                    ? Builder(
-                        builder: (BuildContext ctx) {
-                          final AppPostLinkInfo? link = _postService
-                              .getPrimaryLink(AppLinkKind.note, note.id);
-                          return AppDeskEngagementRow(
-                            isLinked: true,
-                            likes: link?.likesCount ?? 0,
-                            comments: link?.commentsCount ?? 0,
-                            onTap: () =>
-                                _openLinkedPost(AppLinkKind.note, note.id),
-                          );
-                        },
-                      )
-                    : null,
-              ),
-          ],
-        ),
       ],
     );
   }
@@ -1044,13 +1037,20 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
         icon: _searchQuery.isNotEmpty
             ? Icons.search_off_rounded
             : Icons.event_busy_rounded,
-        action: _isToday && _searchQuery.isEmpty
+        action: _searchQuery.isEmpty && _filterByDate && _entries.isNotEmpty
             ? UiButton(
-                label: 'New trade',
-                leadingIcon: Icons.add_chart_rounded,
-                onPressed: _handleNewTrade,
+                label: 'Show all entries (${_entries.length})',
+                variant: UiVariant.soft,
+                leadingIcon: Icons.grid_view_rounded,
+                onPressed: () => setState(() => _filterByDate = false),
               )
-            : null,
+            : (_isToday && _searchQuery.isEmpty
+                ? UiButton(
+                    label: 'New trade',
+                    leadingIcon: Icons.add_chart_rounded,
+                    onPressed: _handleNewTrade,
+                  )
+                : null),
       ),
       maxCards: 6,
       cards: <Widget>[
@@ -1146,13 +1146,20 @@ class WorkspaceScreenState extends State<WorkspaceScreen> {
         icon: _searchQuery.isNotEmpty
             ? Icons.search_off_rounded
             : Icons.account_tree_outlined,
-        action: _isToday && _searchQuery.isEmpty
+        action: _searchQuery.isEmpty && _filterByDate && _playbooks.isNotEmpty
             ? UiButton(
-                label: 'New playbook',
-                leadingIcon: Icons.add_rounded,
-                onPressed: _handleNewPlaybook,
+                label: 'Show all playbooks (${_playbooks.length})',
+                variant: UiVariant.soft,
+                leadingIcon: Icons.grid_view_rounded,
+                onPressed: () => setState(() => _filterByDate = false),
               )
-            : null,
+            : (_isToday && _searchQuery.isEmpty
+                ? UiButton(
+                    label: 'New playbook',
+                    leadingIcon: Icons.add_rounded,
+                    onPressed: _handleNewPlaybook,
+                  )
+                : null),
       ),
       maxCards: 6,
       cards: <Widget>[

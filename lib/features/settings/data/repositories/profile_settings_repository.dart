@@ -618,7 +618,7 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
       userHandle: _profile.handle.isNotEmpty ? _profile.handle : 'trader',
       userEmail: _profile.email.isNotEmpty
           ? _profile.email
-          : 'trader@hejournal.in',
+          : 'trader@alphajournal.in',
       userRole: userRole,
       reason: reason ?? 'User requested account deletion',
       feedback: feedback,

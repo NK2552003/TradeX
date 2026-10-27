@@ -843,7 +843,7 @@ class CommunityNotificationItem {
     CommunityNotificationType.follow => 'followed you',
     CommunityNotificationType.mention => 'mentioned you',
     CommunityNotificationType.signal => 'published a new signal',
-    CommunityNotificationType.system => 'hejournal.in System Alert',
+    CommunityNotificationType.system => 'alphajournal System Alert',
     CommunityNotificationType.security => 'Security Alert',
     CommunityNotificationType.tradeExecution => 'Trade Execution',
     CommunityNotificationType.marginAlert => 'Margin Alert',

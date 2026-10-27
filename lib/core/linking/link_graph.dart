@@ -1,7 +1,7 @@
 /// The relationship layer between trader notes, journal entries and strategy
 /// playbooks.
 ///
-/// hejournal.in stores every edge on **both** ends: a note lists the journal entries
+/// alphajournal stores every edge on **both** ends: a note lists the journal entries
 /// it discusses, and those entries list the note back. That is redundant on
 /// purpose. A single-sided edge is one failed write away from disappearing, and
 /// a trader who cannot get from a losing trade back to the plan that produced it
@@ -32,8 +32,8 @@ class AppDeepLink {
 
   static const String scheme = 'tradex';
   static const Set<String> _webHosts = <String>{
-    'hejournal.in',
-    'www.hejournal.in',
+    'alphajournal.in',
+    'www.alphajournal.in',
   };
 
   /// The canonical URL for one record.
@@ -79,7 +79,7 @@ class AppDeepLink {
   }
 
   /// The record a URL points at, or null if this is not a `tradex://` or
-  /// shared hejournal.in web link (`https://hejournal.in/p/...`, `https://hejournal.in/post/...`)
+  /// shared alphajournal web link (`https://alphajournal.in/p/...`, `https://alphajournal.in/post/...`)
   /// the app understands.
   static ({AppLinkKind kind, String id})? target(Uri uri) {
     if (uri.scheme == scheme) {

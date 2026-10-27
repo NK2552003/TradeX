@@ -585,7 +585,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       default:
         UiToast.show(
           context,
-          title: 'hejournal.in Guide',
+          title: 'alphajournal Guide',
           message:
               'Welcome to ${AppConstants.appName}. Use ⌘K to quickly search and jump across tools.',
           intent: UiIntent.info,
@@ -1754,9 +1754,9 @@ class _AppScaffoldState extends State<AppScaffold> {
             tier: tier,
             workspaceName: _effectiveRole == UserRole.customer
                 ? switch (tier) {
-                    AppTier.free => 'hejournal.in Basic',
-                    AppTier.premium => 'hejournal.in Pro',
-                    AppTier.enterprise => 'hejournal.in Business',
+                    AppTier.free => 'alphajournal Basic',
+                    AppTier.premium => 'alphajournal Pro',
+                    AppTier.enterprise => 'alphajournal Business',
                   }
                 : navigation.workspaceName,
             tierLabel: _effectiveRole == UserRole.customer

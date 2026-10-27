@@ -287,8 +287,8 @@ class UnifiedAiService {
           url,
           headers: {
             'Authorization': 'Bearer $apiKey',
-            'HTTP-Referer': 'https://hejournal.in',
-            'X-Title': 'hejournal.in Institutional AI',
+            'HTTP-Referer': 'https://alphajournal.in',
+            'X-Title': 'alphajournal Institutional AI',
             'Content-Type': 'application/json',
           },
           body: body,
@@ -325,8 +325,8 @@ class UnifiedAiService {
     final request = http.Request('POST', url)
       ..headers.addAll({
         'Authorization': 'Bearer $apiKey',
-        'HTTP-Referer': 'https://hejournal.in',
-        'X-Title': 'hejournal.in Institutional AI',
+        'HTTP-Referer': 'https://alphajournal.in',
+        'X-Title': 'alphajournal Institutional AI',
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream',
       })
@@ -573,7 +573,7 @@ class UnifiedAiService {
     };
 
     return '''
-You are hejournal.in Institutional AI Assistant, an elite market intelligence engine for serious traders.
+You are alphajournal Institutional AI Assistant, an elite market intelligence engine for serious traders.
 Persona mode: $lensDesc
 
 Formatting and Response Directives:

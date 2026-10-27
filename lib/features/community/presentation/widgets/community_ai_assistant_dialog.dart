@@ -1850,7 +1850,7 @@ class _CommunityAiFloatingBarState extends State<CommunityAiFloatingBar> {
             // 1. AI Action Segment (Top)
             Tooltip(
               message:
-                  'hejournal.in AI Terminal (${_telemetryMessages[_telemetryIndex]})',
+                  'alphajournal AI Terminal (${_telemetryMessages[_telemetryIndex]})',
               child: MouseRegion(
                 onEnter: (_) => setState(() => _isAiHovered = true),
                 onExit: (_) => setState(() => _isAiHovered = false),
@@ -1964,7 +1964,7 @@ class _CommunityAiFloatingBarState extends State<CommunityAiFloatingBar> {
 
     return Tooltip(
       message:
-          'hejournal.in AI Terminal (${_telemetryMessages[_telemetryIndex]})',
+          'alphajournal AI Terminal (${_telemetryMessages[_telemetryIndex]})',
       child: MouseRegion(
         onEnter: (_) => setState(() => _isAiHovered = true),
         onExit: (_) => setState(() => _isAiHovered = false),
@@ -2319,7 +2319,7 @@ class _CommunityAiFullViewOverlayState
                 Row(
                   children: <Widget>[
                     Text(
-                      'hejournal.in Alpha Terminal',
+                      'alphajournal Alpha Terminal',
                       style: context.uiText.bodyStrong.copyWith(
                         fontWeight: FontWeight.w800,
                         fontSize: context.fs(14.5),
@@ -2750,7 +2750,7 @@ class _CommunityAiFullViewOverlayState
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              'Connected to hejournal.in Alpha Gateway • Tick Latency: 12ms',
+              'Connected to alphajournal Alpha Gateway • Tick Latency: 12ms',
               style: context.uiText.caption.copyWith(
                 fontSize: context.fs(10.5),
                 color: theme.colors.foregroundMuted,
@@ -3009,7 +3009,7 @@ class _CommunityAiQuickPromptDialogState
       final aiRes = await UnifiedAiService.instance.complete(
         prompt: q,
         systemPrompt:
-            'You are hejournal.in Community Trading Assistant. Persona: ${persona.label}. Focus on high-signal technical analysis, key structural levels, order flow, and risk parameters. Deliver actionable bullet points and concise tables when relevant.',
+            'You are alphajournal Community Trading Assistant. Persona: ${persona.label}. Focus on high-signal technical analysis, key structural levels, order flow, and risk parameters. Deliver actionable bullet points and concise tables when relevant.',
       );
       if (aiRes.trim().isNotEmpty) {
         body = aiRes.trim();
@@ -3104,7 +3104,7 @@ class _CommunityAiQuickPromptDialogState
     final CommunityRepository repo = widget.repository ?? CommunityRepository();
     repo.createPost(
       body:
-          '🤖 **AI Copilot Intelligence [${_selectedPersona.label}]**:\n\n$content\n\n#hejournal.in #AICopilot #${_selectedPersona.shortLabel}',
+          '🤖 **AI Copilot Intelligence [${_selectedPersona.label}]**:\n\n$content\n\n#alphajournal #AICopilot #${_selectedPersona.shortLabel}',
       author: _resolveCurrentAuthor(repo),
       tags: <String>['AICopilot', _selectedPersona.shortLabel, 'Alpha'],
     );
@@ -3599,7 +3599,7 @@ class CommunityAiMarketPulseDialog extends StatelessWidget {
           '• Leading Sectors: Nifty Metal (+2.45%), Nifty Auto (+1.82%)\n'
           '• Most Discussed: NIFTY 50 (78% Bullish), RELIANCE (82% Bullish)\n'
           '• Smart Money Delta: FII Net Long +₹1,420 Cr absorbing retail supply.\n\n'
-          '#MarketPulse #Sentiment #hejournal.in #InstitutionalEdge',
+          '#MarketPulse #Sentiment #alphajournal #InstitutionalEdge',
       author: _resolveCurrentAuthor(repo),
       tags: const <String>['MarketPulse', 'Sentiment', 'InstitutionalEdge'],
     );

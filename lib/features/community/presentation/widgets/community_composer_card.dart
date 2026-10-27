@@ -30,7 +30,7 @@ enum ComposerMode { post, tradeSetup, chart, poll, attachment }
 // CommunityComposerCard
 // ---------------------------------------------------------------------------
 
-/// A responsive, multi-step Bloomberg/Twitter Pro-grade composer card for hejournal.in.
+/// A responsive, multi-step Bloomberg/Twitter Pro-grade composer card for alphajournal.
 ///
 /// Features:
 /// - Multiple creation modes: Quick Post, Structured Trade Setup, Chart & Vision, Poll, Workspace Attachment.

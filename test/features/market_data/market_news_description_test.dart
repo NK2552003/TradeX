@@ -66,7 +66,7 @@ void main() {
         headline: 'NIFTY Breaks All-Time High on Strong Institutional Inflows',
         summary:
             'Domestic and foreign institutional investors poured aggressive liquidity into banking and energy sectors pushing the index to record highs.',
-        source: 'hejournal.in Market Desk',
+        source: 'alphajournal Market Desk',
         publishedAt: DateTime.now(),
         category: 'Macro',
       );

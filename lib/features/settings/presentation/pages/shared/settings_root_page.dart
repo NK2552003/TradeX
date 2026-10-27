@@ -532,7 +532,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                       'Revise affiliate application',
                     AffiliateApplicationStatus.suspended =>
                       'Affiliate access status',
-                    _ => 'Become a hejournal.in Affiliate',
+                    _ => 'Become a alphajournal Affiliate',
                   },
                   subtitle:
                       'Complete the partner application and keep all trader tools',
@@ -554,7 +554,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                         });
                       },
                     ),
-                    'hejournal.in Affiliate Program',
+                    'alphajournal Affiliate Program',
                     Icons.handshake_outlined,
                   ),
                 ),

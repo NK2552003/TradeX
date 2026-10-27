@@ -67,7 +67,7 @@ class InvoiceDetailPage extends StatelessWidget {
                     final exported = await MarkdownPdfExporter.exportAndShare(
                       title: 'Invoice ${invoice.id}',
                       markdown:
-                          '# hejournal.in receipt\n\nInvoice: ${invoice.id}\n\nStatus: ${invoice.status}\n\n${billedToName ?? ""}\n\n${billedToEmail ?? ""}\n\n$_exportSummary',
+                          '# alphajournal receipt\n\nInvoice: ${invoice.id}\n\nStatus: ${invoice.status}\n\n${billedToName ?? ""}\n\n${billedToEmail ?? ""}\n\n$_exportSummary',
                     );
                     if (!exported && context.mounted) {
                       UiToast.show(
@@ -134,7 +134,7 @@ class InvoiceDetailPage extends StatelessWidget {
     final Widget from = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(issuer?.name ?? 'hejournal.in', style: context.uiText.subheading),
+        Text(issuer?.name ?? 'alphajournal', style: context.uiText.subheading),
         if (issuer != null)
           for (final String line in <String>[
             ...issuer.addressLines,

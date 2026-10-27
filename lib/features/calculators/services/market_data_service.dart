@@ -307,7 +307,7 @@ class MarketDataService {
             uri,
             headers: const <String, String>{
               'Accept': 'application/json',
-              'User-Agent': 'Mozilla/5.0 hejournal.in/1.0',
+              'User-Agent': 'Mozilla/5.0 alphajournal/1.0',
             },
           )
           .timeout(_requestTimeout);

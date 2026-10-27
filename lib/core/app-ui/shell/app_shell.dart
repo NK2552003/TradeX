@@ -1054,8 +1054,8 @@ class AppSidebar extends StatelessWidget {
                   (trader?.tier == AppTier.enterprise
                       ? 'Institutional Desk'
                       : (trader?.tier == AppTier.premium
-                            ? 'hejournal.in Pro Terminal'
-                            : 'hejournal.in Desk')),
+                            ? 'alphajournal Pro Terminal'
+                            : 'alphajournal Desk')),
               tierLabel:
                   tierLabel ??
                   (trader?.tier == AppTier.enterprise

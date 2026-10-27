@@ -72,7 +72,7 @@ class ShareToConversationDialog extends StatefulWidget {
     );
   }
 
-  /// Universal share menu sheet providing options to send via hejournal.in chat,
+  /// Universal share menu sheet providing options to send via alphajournal chat,
   /// copy public web link, or export as PDF.
   static Future<void> showShareMenu(
     BuildContext context, {
@@ -145,7 +145,7 @@ class ShareToConversationDialog extends StatefulWidget {
               _buildShareAction(
                 ctx,
                 icon: Icons.send_rounded,
-                title: 'Send via hejournal.in Messages',
+                title: 'Send via alphajournal Messages',
                 subtitle: 'Share privately into trader conversation',
                 onTap: () {
                   Navigator.of(ctx).pop();

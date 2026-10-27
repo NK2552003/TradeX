@@ -378,7 +378,7 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Text(
-                  'hejournal.in AI Copilot',
+                  'alphajournal AI Copilot',
                   style: context.uiText.heading.copyWith(
                     fontWeight: FontWeight.w700,
                     fontSize: context.fs(15),

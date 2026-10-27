@@ -24,8 +24,8 @@ enum _NotesCollection { mine, public }
 
 /// The notes destination, for every role.
 ///
-/// Fully responsive writing desk notebook matching hejournal.in design standards.
-/// Uses pre-built hejournal.in components, dynamic real-time data from repositories,
+/// Fully responsive writing desk notebook matching alphajournal design standards.
+/// Uses pre-built alphajournal components, dynamic real-time data from repositories,
 /// interactive category tabs, ticker and playbook filters, and spotlight guide keys.
 class NotesScreen extends StatefulWidget {
   const NotesScreen({

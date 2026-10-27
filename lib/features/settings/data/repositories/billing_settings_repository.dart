@@ -353,7 +353,7 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
           currency: 'INR',
           status: 'paid',
           issuedAt: summary.renewedAt.subtract(Duration(days: i * stride)),
-          pdfUrl: 'https://hejournal.in/invoices/${_invoiceRef(i, stride)}.pdf',
+          pdfUrl: 'https://alphajournal.in/invoices/${_invoiceRef(i, stride)}.pdf',
           issuer: _issuer,
           taxPercent: _taxPercent,
           paymentMethodLabel: card == null
@@ -381,13 +381,13 @@ class BillingSettingsRepositoryImpl implements BillingSettingsRepository {
   /// here rather than in the receipt layout so the document cannot claim a
   /// company or a tax rate the charge was not made under.
   static const InvoiceIssuer _issuer = InvoiceIssuer(
-    name: 'hejournal.in',
+    name: 'alphajournal',
     addressLines: <String>[
       '4th Floor, Prestige Trade Tower',
       '46 Palace Road, Bengaluru 560001',
       'Karnataka, India',
     ],
-    supportEmail: 'billing@hejournal.in',
+    supportEmail: 'billing@alphajournal.in',
     taxId: '29AABCT1332L1ZT',
     taxLabel: 'GST',
   );

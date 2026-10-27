@@ -1,4 +1,4 @@
--- TradeX Master Demo Seed Script for Testing & Local Development
+-- alphajournal Master Demo Seed Script for Testing & Local Development
 -- Populates demo profiles, journal entries, quant strategies, strategy versions, watchlists, watchlist notes, community posts/comments, chat messages, trading preferences/checklists, and affiliate partner profiles.
 
 BEGIN;
@@ -697,7 +697,7 @@ INSERT INTO organizations (
 VALUES
 (
   'e0000000-0000-0000-0000-000000000001',
-  'TradeX Institutional Alpha',
+  'alphajournal Institutional Alpha',
   'tradex-institutional-alpha',
   '00000000-0000-0000-0000-000000000001',
   '{"logo_url": null, "primary_color": "#00F0FF"}'::jsonb

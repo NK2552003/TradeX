@@ -1,6 +1,6 @@
-# hejournal.in India publication pack
+# alphajournal India publication pack
 
-This folder contains **15 editable Word documents** for an India-first hejournal.in launch. The documents are drafts for business, product, tax, and legal approval. They are not evidence that planned payment rails or advertised features are live. `generate_documents.py` is the editable source and uses the third-party `python-docx` library.
+This folder contains **15 editable Word documents** for an India-first alphajournal launch. The documents are drafts for business, product, tax, and legal approval. They are not evidence that planned payment rails or advertised features are live. `generate_documents.py` is the editable source and uses the third-party `python-docx` library.
 
 ## Contents
 
@@ -59,4 +59,4 @@ Official India and platform references reviewed on 26 October 2026:
 
 Use the bundled Codex Python runtime with `python-docx` to run `generate_documents.py`; then render and inspect every DOCX page before distribution. The generator overwrites the 15 numbered Word files, so update its source rather than editing generated files alone.
 
-Technical setup and release status: [Billing and publication handoff](../HEJOURNAL_BILLING_AND_PUBLICATION.md).
+Technical setup and release status: [Billing and publication handoff](../ALPHAJOURNAL_BILLING_AND_PUBLICATION.md).

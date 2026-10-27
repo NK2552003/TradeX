@@ -342,7 +342,7 @@ void main() {
     final article = CommunityNewsItem(
       id: 'news-panel-test',
       headline: 'Market update for panel testing',
-      source: 'TradeX Wire',
+      source: 'alphajournal Wire',
       publishedAt: DateTime(2026, 10, 26),
       summary: 'A public market update.',
     );

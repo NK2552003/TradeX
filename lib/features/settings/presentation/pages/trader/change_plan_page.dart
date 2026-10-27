@@ -364,7 +364,7 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                             context,
                             title: payable ? 'Plan Active' : 'Plan Changed',
                             message:
-                                'You are now on hejournal.in ${plan.name}.',
+                                'You are now on alphajournal ${plan.name}.',
                             intent: UiIntent.success,
                           );
                           closeSettingsSubpage(context);

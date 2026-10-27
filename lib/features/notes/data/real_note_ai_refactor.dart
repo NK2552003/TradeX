@@ -17,7 +17,7 @@ class RealNoteAiRefactor implements NoteAiRefactor {
     if (cleanText.isEmpty) return selectedText;
 
     const systemPrompt = '''
-You are hejournal.in Copilot, an elite quantitative financial analyst and disciplined trading performance coach.
+You are alphajournal Copilot, an elite quantitative financial analyst and disciplined trading performance coach.
 Your task is to refine, enhance, or restructure the trader's note content according to their instructions.
 Guidelines:
 - Return ONLY the clean, formatted Markdown output without conversational preambles or chat greetings.

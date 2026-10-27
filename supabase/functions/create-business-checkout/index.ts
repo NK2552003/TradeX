@@ -88,7 +88,7 @@ Deno.serve(async (request) => {
       total_count: cycle === 'annual' ? 10 : 120,
       customer_notify: true,
       notify_info: { notify_email: user.email },
-      notes: { user_id: user.id, product: 'hejournal_business' },
+      notes: { user_id: user.id, product: 'alphajournal_business' },
     }),
   });
   if (!created.ok) return reply(502, { error: 'Payment provider could not start checkout.' });

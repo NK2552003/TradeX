@@ -208,12 +208,12 @@ class AffiliateWorkspaceRepository {
   ) => [
     {
       'id': 'ast-1',
-      'title': 'hejournal.in Journal & Community Promotion Card',
+      'title': 'alphajournal Journal & Community Promotion Card',
       'category': 'banner_social',
-      'headline': 'Level Up Your Trading with hejournal.in Journal',
+      'headline': 'Level Up Your Trading with alphajournal Journal',
       'body':
           'Track your trades, analyze win rates, and share setups with India\'s elite trading community.',
-      'call_to_action': 'Start Free on hejournal.in',
+      'call_to_action': 'Start Free on alphajournal',
       'landing_path': '/r/$code',
       'tags': ['Social', 'Banner', 'Instagram', 'Twitter'],
       'published': true,
@@ -224,7 +224,7 @@ class AffiliateWorkspaceRepository {
       'category': 'link_custom',
       'headline': 'Exclusive 20% Discount Link',
       'body':
-          'Get instant access to hejournal.in Pro analytics and AI Copilot.',
+          'Get instant access to alphajournal Pro analytics and AI Copilot.',
       'call_to_action': 'Claim Partner Access',
       'landing_path': '/r/$slug',
       'tags': ['Link', 'CustomSlug', 'FastOnboarding'],
@@ -336,7 +336,7 @@ class AffiliateWorkspaceRepository {
               'currency': 'INR',
               'status': 'pending',
               'payout_method': 'upi',
-              'notes': 'Requested from hejournal.in Partner Portal',
+              'notes': 'Requested from alphajournal Partner Portal',
             });
             return;
           }
@@ -620,7 +620,7 @@ class AffiliateWorkspaceRepository {
       'settlement_cycle': 'Bi-weekly IMPS / UPI (Min ₹1,000)',
       'perks': [
         '20% recurring INR revenue share on all referred traders',
-        'Complimentary hejournal.in Pro workspace (₹2,499/mo value)',
+        'Complimentary alphajournal Pro workspace (₹2,499/mo value)',
         'Verified Partner badge on Community posts & strategies',
         'Co-branded referral landing page with creator avatar',
       ],
@@ -685,7 +685,7 @@ class AffiliateWorkspaceRepository {
       'summary':
           '5% statutory TDS applies under Section 194H of the Income Tax Act; GST-registered partners may submit GSTIN.',
       'body':
-          'In accordance with Section 194H of the Indian Income Tax Act, 1961, hejournal.in deducts 5% TDS on gross affiliate commission payouts where applicable and issues quarterly Form 16A certificates against your verified 10-character PAN. Partners with a valid 15-character GSTIN may enable GST invoicing in Affiliate Settings.',
+          'In accordance with Section 194H of the Indian Income Tax Act, 1961, alphajournal deducts 5% TDS on gross affiliate commission payouts where applicable and issues quarterly Form 16A certificates against your verified 10-character PAN. Partners with a valid 15-character GSTIN may enable GST invoicing in Affiliate Settings.',
       'mandatory': true,
       'sort_order': 2,
     },
@@ -712,7 +712,7 @@ class AffiliateWorkspaceRepository {
       'summary':
           'Mandatory affiliate disclosure and prohibition on guaranteed return claims or unregistered investment advice.',
       'body':
-          'Partners must clearly disclose that their link is a commercial referral link in accordance with ASCI Guidelines for Influencer Advertising in Digital Media and SEBI circulars. Partners must never promise guaranteed trading profits, assured returns, or represent hejournal.in software tools as SEBI-registered portfolio management or advisory tips.',
+          'Partners must clearly disclose that their link is a commercial referral link in accordance with ASCI Guidelines for Influencer Advertising in Digital Media and SEBI circulars. Partners must never promise guaranteed trading profits, assured returns, or represent alphajournal software tools as SEBI-registered portfolio management or advisory tips.',
       'mandatory': true,
       'sort_order': 4,
     },
@@ -723,9 +723,9 @@ class AffiliateWorkspaceRepository {
       'title': 'Prohibition of Self-Referrals, Brand Bidding & Coupon Spoofing',
       'category': 'conduct',
       'summary':
-          'Self-referrals, paid search bidding on hejournal.in brand keywords, and misleading coupon pages are strictly prohibited.',
+          'Self-referrals, paid search bidding on alphajournal brand keywords, and misleading coupon pages are strictly prohibited.',
       'body':
-          'Accounts found referring their own trading seats, running Google/Meta paid ads targeting "hejournal.in" brand terms without written authorization, or injecting unauthorized tracking scripts will have pending commissions forfeited and partner access suspended by the Institutional Desk Administrator.',
+          'Accounts found referring their own trading seats, running Google/Meta paid ads targeting "alphajournal" brand terms without written authorization, or injecting unauthorized tracking scripts will have pending commissions forfeited and partner access suspended by the Institutional Desk Administrator.',
       'mandatory': true,
       'sort_order': 5,
     },
@@ -870,7 +870,7 @@ class AffiliateWorkspaceRepository {
             'Introduce Your Indian Trading Workspace (SEBI/ASCI Compliant)',
         'format': 'Social caption',
         'body':
-            'Plan NSE/BSE setups, log execution discipline, and review R-multiples in ₹ INR with hejournal.in. Explore my workspace: {link}\n\nDisclosure: Referral partner link — I may earn a commission on qualifying subscriptions. Educational software only; not SEBI-registered investment advice.',
+            'Plan NSE/BSE setups, log execution discipline, and review R-multiples in ₹ INR with alphajournal. Explore my workspace: {link}\n\nDisclosure: Referral partner link — I may earn a commission on qualifying subscriptions. Educational software only; not SEBI-registered investment advice.',
         'published': true,
       },
       {
@@ -878,7 +878,7 @@ class AffiliateWorkspaceRepository {
         'title': 'Weekend NIFTY & BankNIFTY Review Newsletter',
         'format': 'Newsletter',
         'body':
-            'Bring your F&O journal, strategy playbooks, and pre-market notes into one unified Indian desk. Start here: {link}\n\nAffiliate disclosure: I may receive a referral commission from hejournal.in. Securities market investments are subject to market risks.',
+            'Bring your F&O journal, strategy playbooks, and pre-market notes into one unified Indian desk. Start here: {link}\n\nAffiliate disclosure: I may receive a referral commission from alphajournal. Securities market investments are subject to market risks.',
         'published': true,
       },
       {
@@ -886,7 +886,7 @@ class AffiliateWorkspaceRepository {
         'title': 'YouTube Description & Pin Comment Starter',
         'format': 'Video',
         'body':
-            'Tools used in today’s market breakdown: {link}\n\nPartner disclosure: This is a hejournal.in partner link. I may earn a commission at no extra cost to you. Trading in equities and derivatives involves substantial risk.',
+            'Tools used in today’s market breakdown: {link}\n\nPartner disclosure: This is a alphajournal partner link. I may earn a commission at no extra cost to you. Trading in equities and derivatives involves substantial risk.',
         'published': true,
       },
     ],

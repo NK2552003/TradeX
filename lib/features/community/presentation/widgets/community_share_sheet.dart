@@ -135,10 +135,10 @@ class CommunityShareSheet extends StatelessWidget {
           context,
           icon: Icons.link_rounded,
           title: 'Copy Link to Post',
-          subtitle: 'https://hejournal.in/post/${post.id}',
+          subtitle: 'https://alphajournal.in/post/${post.id}',
           onTap: () {
             Clipboard.setData(
-              ClipboardData(text: 'https://hejournal.in/post/${post.id}'),
+              ClipboardData(text: 'https://alphajournal.in/post/${post.id}'),
             );
             Navigator.of(context).pop();
             UiToast.show(
@@ -259,5 +259,5 @@ class CommunityShareSheet extends StatelessWidget {
   }
 
   static String _shareText(CommunityPost post) =>
-      '${post.body}\n\nShared from hejournal.in • @${post.author.handle}';
+      '${post.body}\n\nShared from alphajournal • @${post.author.handle}';
 }

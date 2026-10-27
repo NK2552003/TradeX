@@ -62,7 +62,7 @@ class CommunityNotificationCard extends StatelessWidget {
                         text:
                             notification.actor?.displayName ??
                             notification.title ??
-                            'hejournal.in System',
+                            'alphajournal System',
                         style: context.uiText.bodyStrong.copyWith(
                           fontWeight: FontWeight.w700,
                           color: theme.colors.foreground,

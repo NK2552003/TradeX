@@ -540,7 +540,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                 : (isAdmin
                     ? 'Chief Risk Officer & Proprietary Desk Overseer. Managing firm-wide risk boundaries, capital allocation matrices, and trading engine infrastructure.'
                     : (isAffiliate
-                        ? 'Official hejournal.in Partner & trading educator. Sharing trade setups, execution blueprints, and member discounts.'
+                        ? 'Official alphajournal Partner & trading educator. Sharing trade setups, execution blueprints, and member discounts.'
                         : ''))));
 
     final String targetAuthorId = widget.author?.id.isNotEmpty == true
@@ -883,8 +883,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                       size: UiSize.md,
                                       onPressed: () {
                                         final link = isAffiliate
-                                            ? 'https://hejournal.in/join/${widget.referralCode ?? _cleanHandle}'
-                                            : 'https://hejournal.in/@$_cleanHandle';
+                                            ? 'https://alphajournal.in/join/${widget.referralCode ?? _cleanHandle}'
+                                            : 'https://alphajournal.in/@$_cleanHandle';
                                         Clipboard.setData(
                                           ClipboardData(text: link),
                                         );
@@ -1197,7 +1197,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                   _MetaItem(
                                     icon: Icons.link_rounded,
                                     text:
-                                        'hejournal.in/join/${widget.referralCode ?? _cleanHandle}',
+                                        'alphajournal/join/${widget.referralCode ?? _cleanHandle}',
                                     isLink: true,
                                   )
                                 else if (effectiveWebsite != null &&
@@ -3533,14 +3533,14 @@ class _AffiliateCampaignsPreview extends StatelessWidget {
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
               Text(
-                'Exclusive hejournal.in Community Discount 🎉',
+                'Exclusive alphajournal Community Discount 🎉',
                 style: context.uiText.heading.copyWith(
                   fontSize: context.fs(16),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Get 20% OFF all hejournal.in Pro & Team annual memberships. Includes access to my verified trade journals, setup notes, and private strategy templates.',
+                'Get 20% OFF all alphajournal Pro & Team annual memberships. Includes access to my verified trade journals, setup notes, and private strategy templates.',
                 style: context.uiText.body.copyWith(
                   height: 1.45,
                   fontSize: context.fs(13.5),
@@ -3641,7 +3641,7 @@ class _AffiliateCampaignsPreview extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'In this 35-minute workshop, I break down my exact execution rules, risk management plan, and why hejournal.in orderflow charts give an unfair edge.',
+                'In this 35-minute workshop, I break down my exact execution rules, risk management plan, and why alphajournal orderflow charts give an unfair edge.',
                 style: context.uiText.body.copyWith(height: 1.4),
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
@@ -3730,7 +3730,7 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'https://hejournal.in/join/$referralCode',
+                        'https://alphajournal.in/join/$referralCode',
                         style: context.uiText.bodyStrong.copyWith(
                           color: theme.colors.primary,
                           fontWeight: FontWeight.w600,
@@ -3746,13 +3746,13 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                       onPressed: () {
                         Clipboard.setData(
                           ClipboardData(
-                            text: 'https://hejournal.in/join/$referralCode',
+                            text: 'https://alphajournal.in/join/$referralCode',
                           ),
                         );
                         UiToast.show(
                           context,
                           title: 'Link copied',
-                          message: 'https://hejournal.in/join/$referralCode',
+                          message: 'https://alphajournal.in/join/$referralCode',
                           intent: UiIntent.success,
                         );
                       },
@@ -3810,7 +3810,7 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                 stepNumber: '1',
                 title: 'Create Your Free Account',
                 description:
-                    'Sign up on hejournal.in in under 60 seconds with your email, mobile number, or Google auth.',
+                    'Sign up on alphajournal in under 60 seconds with your email, mobile number, or Google auth.',
                 statusText: 'Step 1',
                 statusIntent: UiIntent.primary,
               ),
@@ -4078,7 +4078,7 @@ class _AffiliateCommunityOverviewPreview extends StatelessWidget {
                 timeAgo: '3 days ago',
                 rating: 5,
                 comment:
-                    'Clear, zero-noise technical analysis. The private weekend workshops and hejournal.in orderflow charts give immense clarity before market open.',
+                    'Clear, zero-noise technical analysis. The private weekend workshops and alphajournal orderflow charts give immense clarity before market open.',
               ),
             ],
           ),

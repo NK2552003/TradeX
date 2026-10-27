@@ -5,7 +5,7 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 
-/// Modal dialog that formats a post / trade setup into a branded hejournal.in graphic card
+/// Modal dialog that formats a post / trade setup into a branded alphajournal graphic card
 /// for easy social sharing and exporting.
 class CommunityCardShareDialog extends StatelessWidget {
   const CommunityCardShareDialog({super.key, required this.post});
@@ -89,7 +89,7 @@ class CommunityCardShareDialog extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Author + hejournal.in Branding
+                    // Author + alphajournal Branding
                     Row(
                       children: [
                         UiAvatar(
@@ -127,7 +127,7 @@ class CommunityCardShareDialog extends StatelessWidget {
                             borderRadius: BorderRadius.circular(context.sz(4)),
                           ),
                           child: Text(
-                            'TRADEX',
+                            'ALPHAJOURNAL',
                             style: context.uiText.label.copyWith(
                               color: colors.primary,
                               fontWeight: FontWeight.w800,
@@ -196,14 +196,14 @@ class CommunityCardShareDialog extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'hejournal.in/post/${post.id}',
+                          'alphajournal/post/${post.id}',
                           style: context.uiText.label.copyWith(
                             color: colors.foregroundSubtle,
                             fontSize: 10,
                           ),
                         ),
                         Text(
-                          'Verified on hejournal.in',
+                          'Verified on alphajournal',
                           style: context.uiText.label.copyWith(
                             color: colors.foregroundSubtle,
                             fontSize: 10,
@@ -242,7 +242,7 @@ class CommunityCardShareDialog extends StatelessWidget {
                       variant: UiVariant.primary,
                       onPressed: () {
                         Clipboard.setData(
-                          ClipboardData(text: 'https://hejournal.in/p/${post.id}'),
+                          ClipboardData(text: 'https://alphajournal.in/p/${post.id}'),
                         );
                         Navigator.of(context).pop();
                         UiToast.show(

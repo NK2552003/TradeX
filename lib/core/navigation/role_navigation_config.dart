@@ -228,7 +228,7 @@ class RoleNavigationConfig {
 
   static const RoleNavigationConfig _trader = RoleNavigationConfig(
     role: UserRole.customer,
-    workspaceName: 'hejournal.in Pro Terminal',
+    workspaceName: 'alphajournal Pro Terminal',
     workspaceLabel: 'Active Trader',
     upgradeSectionId: 'settings_billing',
     notificationTargets: <String, String>{

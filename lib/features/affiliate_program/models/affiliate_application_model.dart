@@ -23,7 +23,7 @@ enum AffiliateApplicationStatus {
 }
 
 /// Backend-ready payload for both new affiliate registrations and existing
-/// hejournal.in customers applying to add the affiliate capability to their account.
+/// alphajournal customers applying to add the affiliate capability to their account.
 class AffiliateApplicationModel {
   const AffiliateApplicationModel({
     required this.id,

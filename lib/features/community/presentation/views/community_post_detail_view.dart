@@ -1375,7 +1375,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
           SizedBox(width: context.sp(theme.spacing.xs)),
           Expanded(
             child: Text(
-              'hejournal.in Community posts are for educational purposes. Always manage position sizing and risk parameters.',
+              'alphajournal Community posts are for educational purposes. Always manage position sizing and risk parameters.',
               style: context.uiText.caption.copyWith(
                 color: theme.colors.foregroundSubtle,
                 fontSize: context.fs(10),

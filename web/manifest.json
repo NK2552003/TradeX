@@ -1,11 +1,11 @@
 {
-    "name": "TradeX",
-    "short_name": "TradeX",
+    "name": "alphajournal",
+    "short_name": "alphajournal",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "TradeX Flutter project.",
+    "description": "alphajournal Flutter project.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

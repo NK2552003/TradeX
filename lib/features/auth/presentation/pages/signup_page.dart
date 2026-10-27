@@ -223,7 +223,7 @@ class _SignupPageState extends State<SignupPage> {
                                                       ),
                                                     ),
                                                     Text(
-                                                      'hejournal.in',
+                                                      'alphajournal',
                                                       style: context
                                                           .uiText
                                                           .bodyStrong
@@ -683,7 +683,7 @@ class _SignupPageState extends State<SignupPage> {
       builder: (context) => UiDialog(
         title: title,
         content: Text(
-          'hejournal.in terms, customer privacy protection, and financial regulatory rules.',
+          'alphajournal terms, customer privacy protection, and financial regulatory rules.',
           style: context.uiText.body,
         ),
         actions: [

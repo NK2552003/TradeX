@@ -5,7 +5,7 @@ import '../models/app_models.dart';
 import '../motion/app_motion.dart';
 
 /// Universal desk record card component — the unified card pattern for
-/// Notes, Journal trades, and Strategy playbooks across hejournal.in.
+/// Notes, Journal trades, and Strategy playbooks across alphajournal.
 ///
 /// Implements the two-part vertical flex layout:
 /// - Top: Eyebrow header (accent dot + uppercase category + trailing action),

@@ -583,7 +583,7 @@ class _AuthLoadingScreen extends StatelessWidget {
             const AppLogoMark(size: 40, progress: 1.0),
             SizedBox(height: context.sp(theme.spacing.lg)),
             Text(
-              'hejournal.in',
+              'alphajournal',
               style: context.uiText.display.copyWith(
                 fontSize: 32,
                 color: colors.foreground,

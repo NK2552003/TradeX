@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:tradex/core/app-ui/theme/app_tokens.dart';
 
-/// Single subscription plan model for hejournal.in pricing catalogue.
+/// Single subscription plan model for alphajournal pricing catalogue.
 @immutable
 class PricingPlanModel {
   const PricingPlanModel({

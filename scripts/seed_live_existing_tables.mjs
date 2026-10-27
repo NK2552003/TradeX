@@ -22,7 +22,7 @@ async function seed() {
   const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'admin@tradex.ai', password: 'Admin@TradeX2026!' })
+    body: JSON.stringify({ email: 'admin@tradex.ai', password: 'Admin@alphajournal2026!' })
   });
   const { access_token, user } = await authRes.json();
   const headers = {
@@ -188,7 +188,7 @@ async function seed() {
     {
       id: 'e0000001-0000-0000-0000-000000000003',
       title: 'Trading Psychology & Emotional Discipline Rules',
-      content: '- No revenge trading after 2 consecutive stop-losses.\n- If daily drawdown hits ₹10,000, terminal goes off.\n- Never convert an intraday scalp into an overnight delivery.\n- Review your TradeX journal every Sunday evening.',
+      content: '- No revenge trading after 2 consecutive stop-losses.\n- If daily drawdown hits ₹10,000, terminal goes off.\n- Never convert an intraday scalp into an overnight delivery.\n- Review your alphajournal journal every Sunday evening.',
       tags: ['Mindset', 'Discipline', 'RiskManagement'],
       is_public: true
     },

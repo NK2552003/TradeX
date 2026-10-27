@@ -1,5 +1,5 @@
 {
-  "brand": "TradeX",
+  "brand": "alphajournal",
   "title": "The Foundation for your Trading System",
   "description": "AI analysis, quantitative journaling, market intelligence, and community in one workspace. Built for precision, clarity, and disciplined execution.",
   "signin_label": "Sign in",
@@ -9,7 +9,7 @@
   "roles_title": "Choose Your Workspace",
   "pricing_title": "Plans for Your Trading Workspace",
   "faq_title": "Frequently Asked Questions",
-  "footer": "TradeX · A workspace for disciplined traders. Market information is provided for research; it is not investment advice.",
+  "footer": "alphajournal · A workspace for disciplined traders. Market information is provided for research; it is not investment advice.",
   "retry_label": "Try again",
   "error_title": "Unable to load page content",
   "features": [
@@ -58,7 +58,7 @@
     {
       "id": "landing_roles",
       "category": "general",
-      "question": "Who can join TradeX?",
+      "question": "Who can join alphajournal?",
       "answer": "Traders can create a trading workspace. Affiliates can apply for a partner workspace."
     }
   ]

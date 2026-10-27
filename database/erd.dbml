@@ -1,4 +1,4 @@
-Project TradeX {
+Project alphajournal {
   database_type: "PostgreSQL"
   Note: '''
     Supabase/Postgres schema, aligned to database/schema.sql.

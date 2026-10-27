@@ -3,7 +3,7 @@ import 'package:tradex/features/auth/models/auth_user_role.dart';
 /// Account status state.
 enum ProfileStatus { active, suspended, pendingApproval }
 
-/// Data model representing a user profile in hejournal.in platform.
+/// Data model representing a user profile in alphajournal platform.
 class UserProfileModel {
   const UserProfileModel({
     required this.id,

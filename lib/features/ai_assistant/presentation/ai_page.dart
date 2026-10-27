@@ -21,7 +21,7 @@ class _AiPageState extends State<AiPage> {
       id: 'msg_001',
       role: AppAiRole.assistant,
       body:
-          'Hello Nitish! I am your hejournal.in AI Copilot. Ask me about your journal performance, active setups, or risk parameters.',
+          'Hello Nitish! I am your alphajournal AI Copilot. Ask me about your journal performance, active setups, or risk parameters.',
       sentAt: DateTime.now().subtract(const Duration(minutes: 5)),
     ),
   ];

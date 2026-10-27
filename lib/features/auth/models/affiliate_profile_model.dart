@@ -1,4 +1,4 @@
-/// Data model representing an affiliate profile & earnings in hejournal.in.
+/// Data model representing an affiliate profile & earnings in alphajournal.
 class AffiliateProfileModel {
   const AffiliateProfileModel({
     required this.id,

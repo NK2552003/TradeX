@@ -1,7 +1,7 @@
-# TradeX Customer Subscription & Monetization Go-Live Implementation Plan
+# alphajournal Customer Subscription & Monetization Go-Live Implementation Plan
 
 > **Document Status**: Production Blueprint (Customer & Affiliate Live Scope)  
-> **Target Release**: TradeX v1.0 Production Go-Live  
+> **Target Release**: alphajournal v1.0 Production Go-Live  
 > **Primary Currency**: Indian Rupee (INR ₹)  
 > **Target Platforms**: Flutter Mobile (iOS & Android), Flutter Web, macOS/Windows Desktop  
 > **Scope Strictness**: Strictly limited to features **actually displayed and implemented** in the Customer (Trader) and Affiliate workspaces. Unimplemented concepts (e.g. live tick broker WebSocket bridges, Level 2 depth feeds, automated broker circuit breakers, 8-panel TradingView multi-monitors, and institutional desk consoles) are completely excluded.
@@ -24,13 +24,13 @@
 
 ## 1. Customer-Facing Architecture & Screen Mapping
 
-TradeX provides two primary user workspaces defined in [`RoleNavigationConfig`](lib/core/navigation/role_navigation_config.dart) and rendered in [`AppScaffold`](lib/core/widgets/app_scaffold.dart):
+alphajournal provides two primary user workspaces defined in [`RoleNavigationConfig`](lib/core/navigation/role_navigation_config.dart) and rendered in [`AppScaffold`](lib/core/widgets/app_scaffold.dart):
 1. **Trader Workspace (`UserRole.customer`)**: Focuses on quantitative trade journaling, markdown research notes, strategy playbooks, financial calculators, community feeds, direct messaging, AI copilot assistants, and market intelligence snapshots.
 2. **Affiliate Partner Workspace (`UserRole.affiliate`)**: Focuses on UTM campaign tracking, referral analytics, media kit assets, and commission payouts in INR.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                 TradeX Client (Flutter)                                     │
+│                                 alphajournal Client (Flutter)                                     │
 ├─────────────────────────────────────────────────────────────┬───────────────────────────────┤
 │                     Trader Workspace                        │      Affiliate Workspace      │
 │  • Writing Desk (Journal, Notes, Strategies)                │  • Partner Hub (Overview)     │
@@ -79,7 +79,7 @@ TradeX provides two primary user workspaces defined in [`RoleNavigationConfig`](
 
 ## 2. Dual-Rail Payment Tech Stack for Flutter (INR ₹)
 
-Because digital features (unlimited journaling, AI copilot credits, PDF exports) are unlocked inside a mobile application, TradeX must follow platform guidelines while optimizing fees on Web.
+Because digital features (unlimited journaling, AI copilot credits, PDF exports) are unlocked inside a mobile application, alphajournal must follow platform guidelines while optimizing fees on Web.
 
 | Platform / Form Factor | Payment Tech Stack | Payment Instruments | Platform Fee | Legal / App Store Compliance |
 | :--- | :--- | :--- | :--- | :--- |
@@ -91,20 +91,20 @@ Because digital features (unlimited journaling, AI copilot credits, PDF exports)
 ### Technical Architecture
 - **Unified User Identifier**: The user's Supabase Auth UUID (`auth.uid()`) is passed to RevenueCat as `appUserID` and to Razorpay as `notes[user_id]`.
 - **Receipt Validation**: RevenueCat validates StoreKit/Google Play receipts on its servers and triggers the Supabase webhook. Razorpay validates webhooks via HMAC SHA-256 signature verification.
-- **GST Invoicing**: For Indian web checkouts, Razorpay itemizes 18% GST (9% CGST + 9% SGST or 18% IGST) with TradeX's GSTIN and SAC code 998431, storing the invoice record in Supabase `invoices`.
+- **GST Invoicing**: For Indian web checkouts, Razorpay itemizes 18% GST (9% CGST + 9% SGST or 18% IGST) with alphajournal's GSTIN and SAC code 998431, storing the invoice record in Supabase `invoices`.
 
 ---
 
 ## 3. Implemented Trader Tiers & Concrete Limitations (INR ₹)
 
-Based on the actual code in [`BillingSettingsPage`](lib/features/settings/presentation/pages/trader/billing_settings_page.dart), [`ChangePlanPage`](lib/features/settings/presentation/pages/trader/change_plan_page.dart), and [`TraderAffiliatePerksPage`](lib/features/settings/presentation/pages/trader/trader_affiliate_perks_page.dart), customer monetization is cleanly divided into two live self-serve plans: **TradeX Basic (Free)** and **TradeX Pro (Premium)**.
+Based on the actual code in [`BillingSettingsPage`](lib/features/settings/presentation/pages/trader/billing_settings_page.dart), [`ChangePlanPage`](lib/features/settings/presentation/pages/trader/change_plan_page.dart), and [`TraderAffiliatePerksPage`](lib/features/settings/presentation/pages/trader/trader_affiliate_perks_page.dart), customer monetization is cleanly divided into two live self-serve plans: **alphajournal Basic (Free)** and **alphajournal Pro (Premium)**.
 
 ### Pricing Structure
 
 | Plan | Monthly Billing | Annual Billing (Billed Yearly) | Effective Monthly | Savings |
 | :--- | :--- | :--- | :--- | :--- |
-| **TradeX Free** | **₹0** | **₹0** | ₹0 | N/A |
-| **TradeX Pro** | **₹2,499 / mo** | **₹23,988 / yr** | **₹1,999 / mo** | **20% (Save ₹6,000/yr)** |
+| **alphajournal Free** | **₹0** | **₹0** | ₹0 | N/A |
+| **alphajournal Pro** | **₹2,499 / mo** | **₹23,988 / yr** | **₹1,999 / mo** | **20% (Save ₹6,000/yr)** |
 
 *Prices in Indian Rupees (₹). 18% GST itemized transparently at checkout.*
 
@@ -112,7 +112,7 @@ Based on the actual code in [`BillingSettingsPage`](lib/features/settings/presen
 
 ### Exact Limitations Matrix Across Live Screens
 
-| Feature / Capability | TradeX Free (₹0) | TradeX Pro (₹2,499/mo) | Concrete Implementation & Enforcement Point |
+| Feature / Capability | alphajournal Free (₹0) | alphajournal Pro (₹2,499/mo) | Concrete Implementation & Enforcement Point |
 | :--- | :--- | :--- | :--- |
 | **Trade Journal Logging** | **100 entries / month** | **Unlimited entries** | Metered in `BillingSettingsPage._meters`; database trigger on `journal_entries` blocks insert if count ≥ 100 for `free` tier. |
 | **AI Copilot Queries** | **20 queries / month**<br>*(Throttled to 2/day)* | **500 queries / month** | Checked atomically in PostgreSQL function `check_and_deduct_ai_quota`; returns HTTP 429 when quota exceeded. |
@@ -143,7 +143,7 @@ The Affiliate Program is fully built in the UI across [`TraderAffiliatePerksPage
 ├───────────────────────────────┼─────────────────────────────────────────────┤
 │ • 15% recurring revshare      │ • 30% lifetime recurring revshare           │
 │ • Max 5 UTM tracking links    │   (₹749.70 / mo per Pro subscriber)         │
-│ • Standard slug: /r/CODE      │ • Free TradeX Pro tier (refer 3 active)     │
+│ • Standard slug: /r/CODE      │ • Free alphajournal Pro tier (refer 3 active)     │
 │ • Min payout: ₹1,000 INR      │ • Unlimited UTM campaigns in Campaign Studio│
 │ • Monthly payout processing   │ • Custom vanity slug: tradex.ai/r/my-brand  │
 │                               │ • Instant Payouts via UPI / Bank NEFT       │
@@ -176,7 +176,7 @@ The AI Assistant is centralized through a single authenticated HTTP streaming tr
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│                                TradeX Flutter App                                │
+│                                alphajournal Flutter App                                │
 │   • Chat prompt or Creation Target (Note, Journal, Strategy, Post, Chart)       │
 │   • Calls HttpAiChatTransport.stream(...) with Supabase JWT                      │
 └────────────────────────────────────────┬─────────────────────────────────────────┘
@@ -201,13 +201,13 @@ The AI Assistant is centralized through a single authenticated HTTP streaming tr
 ### Rate Limiting & Gating Summary
 - **Free Tier**: Max 2 queries / day, capped at 20 queries / month.
 - **Pro Tier**: 500 queries / month (no daily throttle).
-- **HTTP 429 Error Handling**: Client displays `UiDialog` with "AI Assistant Quota Reached — Upgrade to TradeX Pro for 500 monthly queries".
+- **HTTP 429 Error Handling**: Client displays `UiDialog` with "AI Assistant Quota Reached — Upgrade to alphajournal Pro for 500 monthly queries".
 
 ---
 
 ## 6. Image Linking, Storage & Markdown Pipeline
 
-TradeX has an integrated image attachment system across the Writing Desk ([`NoteAttachments`](lib/features/notes/data/note_attachments.dart), [`JournalAttachments`](lib/features/journal/data/journal_attachments.dart), [`StrategyAttachments`](lib/features/strategies/data/strategy_attachments.dart)) and Community ([`CommunityRepository`](lib/features/community/data/community_repository.dart)).
+alphajournal has an integrated image attachment system across the Writing Desk ([`NoteAttachments`](lib/features/notes/data/note_attachments.dart), [`JournalAttachments`](lib/features/journal/data/journal_attachments.dart), [`StrategyAttachments`](lib/features/strategies/data/strategy_attachments.dart)) and Community ([`CommunityRepository`](lib/features/community/data/community_repository.dart)).
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -261,7 +261,7 @@ TradeX has an integrated image attachment system across the Writing Desk ([`Note
 
 ## 7. Systematic Plan to Remove Hardcoded Data & Mocks
 
-To make TradeX live, all mock/seed remnants must be replaced with live Supabase database and payment queries.
+To make alphajournal live, all mock/seed remnants must be replaced with live Supabase database and payment queries.
 
 ### Detailed Refactoring Table
 
@@ -717,7 +717,7 @@ UiButton(
       UiToast.show(
         context,
         title: payable ? 'Plan Activated' : 'Plan Updated',
-        message: 'You are now on TradeX ${plan.name}.',
+        message: 'You are now on alphajournal ${plan.name}.',
         intent: UiIntent.success,
       );
       closeSettingsSubpage(context);

@@ -3826,7 +3826,7 @@ class CommunityRepository extends ChangeNotifier {
       displayName: 'Marco Silva',
       userRole: UserRole.affiliate,
       bio:
-          'Official hejournal.in Partner & trading educator. Sharing setups, execution blueprints, and exclusive member discounts. 50K+ community members.',
+          'Official alphajournal Partner & trading educator. Sharing setups, execution blueprints, and exclusive member discounts. 50K+ community members.',
       tier: AppTier.enterprise,
       verified: true,
       isFollowing: false,
@@ -3889,7 +3889,7 @@ class CommunityRepository extends ChangeNotifier {
     _tradexWire = const CommunityAuthor(
       id: 'usr_tradex_wire',
       handle: 'tradex_wire',
-      displayName: 'hejournal.in Market Wire',
+      displayName: 'alphajournal Market Wire',
       userRole: UserRole.customer,
       bio:
           'Official market news desk: earnings beats, macro data, FII flows, and sector rotation alerts — all in real time.',
@@ -4174,7 +4174,7 @@ class CommunityRepository extends ChangeNotifier {
       author: _marcoSilva,
       repostedBy: 'Alex Vance',
       body:
-          '🚀 New module just dropped for hejournal.in members: "Earnings Season Playbook" — how I trade pre-earnings IV expansion and post-earnings crush. 47 real trades, video walkthroughs, Q&A session this weekend.\n\nUse code TRADEX-MARCO-2026 for 30% off.',
+          '🚀 New module just dropped for alphajournal members: "Earnings Season Playbook" — how I trade pre-earnings IV expansion and post-earnings crush. 47 real trades, video walkthroughs, Q&A session this weekend.\n\nUse code TRADEX-MARCO-2026 for 30% off.',
       createdAt: now.subtract(const Duration(hours: 8)),
       tickers: const <String>['AAPL', 'MSFT', 'NVDA'],
       tags: const <String>['Education', 'EarningsSeason', 'OptionsStrategy'],
@@ -4537,7 +4537,7 @@ class CommunityRepository extends ChangeNotifier {
         createdAt: now.subtract(const Duration(minutes: 1)),
         title: 'Security Alert',
         body:
-            "Someone's trying to log into your hejournal.in account. Let us know if it's you.",
+            "Someone's trying to log into your alphajournal account. Let us know if it's you.",
         read: false,
       ),
       CommunityNotificationItem(
@@ -4546,7 +4546,7 @@ class CommunityRepository extends ChangeNotifier {
         createdAt: now.subtract(const Duration(minutes: 2)),
         title: 'Security Alert',
         body:
-            "Someone's trying to log into your hejournal.in account. Let us know if it's you.",
+            "Someone's trying to log into your alphajournal account. Let us know if it's you.",
         read: false,
       ),
       CommunityNotificationItem(

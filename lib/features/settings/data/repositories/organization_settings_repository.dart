@@ -47,7 +47,7 @@ class OrganizationSettingsRepositoryImpl
   ];
 
   OrgBranding _branding = const OrgBranding(
-    displayName: 'hejournal.in Institutional Alpha',
+    displayName: 'alphajournal Institutional Alpha',
     logoUrl: null,
     primaryColor: '#00F0FF',
   );
@@ -205,7 +205,7 @@ class OrganizationSettingsRepositoryImpl
           final settings = data['settings'] as Map<String, dynamic>? ?? {};
           _branding = OrgBranding(
             displayName:
-                data['name'] as String? ?? 'hejournal.in Institutional',
+                data['name'] as String? ?? 'alphajournal Institutional',
             logoUrl: settings['logo_url'] as String?,
             primaryColor: settings['primary_color'] as String? ?? '#00F0FF',
           );

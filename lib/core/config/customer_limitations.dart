@@ -97,7 +97,7 @@ class CustomerTierQuota {
   static CustomerTierQuota _baselineForTier(AppTier tier) => switch (tier) {
     AppTier.free => const CustomerTierQuota(
       tier: AppTier.free,
-      planName: 'hejournal.in Basic',
+      planName: 'alphajournal Basic',
       monthlyPriceInr: 0,
       maxNotes: 25,
       maxTrades: 100,
@@ -109,7 +109,7 @@ class CustomerTierQuota {
     ),
     AppTier.premium => const CustomerTierQuota(
       tier: AppTier.premium,
-      planName: 'hejournal.in Pro',
+      planName: 'alphajournal Pro',
       monthlyPriceInr: 2499,
       maxNotes: 500,
       maxTrades: 5000,
@@ -121,7 +121,7 @@ class CustomerTierQuota {
     ),
     AppTier.enterprise => const CustomerTierQuota(
       tier: AppTier.enterprise,
-      planName: 'hejournal.in Business',
+      planName: 'alphajournal Business',
       monthlyPriceInr: 999,
       maxNotes: 10000,
       maxTrades: 50000,
@@ -704,7 +704,7 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                                     featureTitle:
                                         'Customer Plan & Limits (INR)',
                                     reason:
-                                        'Manage your hejournal.in subscription tier and workspace quotas in Indian Rupees (₹).',
+                                        'Manage your alphajournal subscription tier and workspace quotas in Indian Rupees (₹).',
                                   ),
                             ),
                         ],

@@ -161,30 +161,30 @@ void main() {
   });
 
   group('Customer Deep Links & Shared Web Links', () {
-    test('parses internal and shared hejournal.in links', () {
+    test('parses internal and shared alphajournal links', () {
       final noteRef = AppDeepLink.tryParseUrl(
-        'https://hejournal.in/p/notes/note_001',
+        'https://alphajournal.in/p/notes/note_001',
       );
       expect(noteRef, isNotNull);
       expect(noteRef!.kind, AppLinkKind.note);
       expect(noteRef.id, 'note_001');
 
       final journalRef = AppDeepLink.tryParseUrl(
-        'https://hejournal.in/p/journal/trd_nifty50_0',
+        'https://alphajournal.in/p/journal/trd_nifty50_0',
       );
       expect(journalRef, isNotNull);
       expect(journalRef!.kind, AppLinkKind.journal);
       expect(journalRef.id, 'trd_nifty50_0');
 
       final strategyRef = AppDeepLink.tryParseUrl(
-        'https://hejournal.in/p/strategies/stg_2',
+        'https://alphajournal.in/p/strategies/stg_2',
       );
       expect(strategyRef, isNotNull);
       expect(strategyRef!.kind, AppLinkKind.strategy);
       expect(strategyRef.id, 'stg_2');
 
       final postRef = AppDeepLink.tryParseUrl(
-        'https://hejournal.in/post/post_a1',
+        'https://alphajournal.in/post/post_a1',
       );
       expect(postRef, isNotNull);
       expect(postRef!.kind, AppLinkKind.communityPost);

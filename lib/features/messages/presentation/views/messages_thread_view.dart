@@ -966,7 +966,7 @@ class _ProfileHeroCard extends StatelessWidget {
                   SizedBox(width: context.sp(theme.spacing.xxs)),
                   Flexible(
                     child: Text(
-                      'Direct messages are stored by hejournal.in. Do not share sensitive credentials.',
+                      'Direct messages are stored by alphajournal. Do not share sensitive credentials.',
                       textAlign: TextAlign.center,
                       style: context.uiText.caption.copyWith(
                         color: colors.foregroundSubtle,

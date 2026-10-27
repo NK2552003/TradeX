@@ -178,7 +178,7 @@
       "id": "faq_data",
       "category": "features",
       "question": "Is market data real-time?",
-      "answer": "Coverage and delay depend on the connected data provider. hejournal.in does not currently promise tick-by-tick depth or exchange-grade low latency."
+      "answer": "Coverage and delay depend on the connected data provider. alphajournal does not currently promise tick-by-tick depth or exchange-grade low latency."
     },
     {
       "id": "faq_tax",

@@ -191,7 +191,7 @@ class _NotePreviewScreenState extends State<NotePreviewScreen> {
   }
 
   Future<void> _shareNote() async {
-    final String shareUrl = 'https://hejournal.in/p/notes/${_note.id}';
+    final String shareUrl = 'https://alphajournal.in/p/notes/${_note.id}';
     final AppLinkRef ref = AppLinkRef(
       kind: AppLinkKind.note,
       id: _note.id,

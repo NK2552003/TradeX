@@ -382,7 +382,7 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
       _guard(() => _repo.toggleFavorite(_entry.id));
 
   Future<void> _shareTrade() async {
-    final String shareUrl = 'https://hejournal.in/p/journal/${_entry.id}';
+    final String shareUrl = 'https://alphajournal.in/p/journal/${_entry.id}';
     final AppLinkRef ref = AppLinkRef(
       kind: AppLinkKind.journal,
       id: _entry.id,

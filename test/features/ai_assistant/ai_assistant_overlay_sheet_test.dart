@@ -53,7 +53,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Header components
-      expect(find.text('TradeX AI Copilot'), findsOneWidget);
+      expect(find.text('alphajournal AI Copilot'), findsOneWidget);
       expect(find.textContaining('ORB-15 Momentum Strategy'), findsOneWidget);
       expect(find.textContaining('Breakout rules & risk sizing'), findsOneWidget);
 

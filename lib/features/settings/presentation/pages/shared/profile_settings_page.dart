@@ -1003,7 +1003,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                                 child: UiInput(
                                   value: _websiteController.text,
                                   hintText:
-                                      'e.g. hejournal.in/@${_profile?.handle ?? "trader"}',
+                                      'e.g. alphajournal/@${_profile?.handle ?? "trader"}',
                                   leadingIcon: Icons.link_rounded,
                                   onChanged: (v) => _websiteController.text = v,
                                 ),
@@ -1032,7 +1032,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                                 child: UiInput(
                                   value: _websiteController.text,
                                   hintText:
-                                      'e.g. hejournal.in/@${_profile?.handle ?? "trader"}',
+                                      'e.g. alphajournal/@${_profile?.handle ?? "trader"}',
                                   leadingIcon: Icons.link_rounded,
                                   onChanged: (v) => _websiteController.text = v,
                                 ),
@@ -1969,7 +1969,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                               UiField(
                                 label: 'Custom Referral Code',
                                 helper:
-                                    'Used in your direct signup links (e.g. hejournal.in/join/CODE)',
+                                    'Used in your direct signup links (e.g. alphajournal/join/CODE)',
                                 child: UiInput(
                                   value: _referralCodeController.text,
                                   hintText: 'TRADEX-PARTNER-2026',
@@ -2024,7 +2024,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                               child: UiField(
                                 label: 'Custom Referral Code',
                                 helper:
-                                    'Used in your direct signup links (e.g. hejournal.in/join/CODE)',
+                                    'Used in your direct signup links (e.g. alphajournal/join/CODE)',
                                 child: UiInput(
                                   value: _referralCodeController.text,
                                   hintText: 'TRADEX-PARTNER-2026',

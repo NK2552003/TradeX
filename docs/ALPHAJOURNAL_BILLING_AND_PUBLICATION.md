@@ -1,4 +1,4 @@
-# hejournal.in billing, moderation, and publication handoff
+# alphajournal billing, moderation, and publication handoff
 
 ## Current implementation
 

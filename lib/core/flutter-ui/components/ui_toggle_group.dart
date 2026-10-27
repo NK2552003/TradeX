@@ -142,6 +142,8 @@ class UiToggleGroup<T> extends StatelessWidget {
               iconOnly: iconOnly,
               first: i == 0,
               last: i == options.length - 1,
+              isExpanded: effectiveExpand,
+              vertical: vertical,
               onTap:
                   enabled &&
                       options[i].enabled &&
@@ -246,16 +248,9 @@ class UiToggleGroup<T> extends StatelessWidget {
             scrollWhenTight &&
             variant != UiToggleGroupVariant.pill &&
             hasBoundedWidth) {
-          // The minimum width is what keeps this invisible when it is not needed:
-          // the track still fills the box it was given, segments still hug the
-          // leading edge, and the viewport only starts scrolling once the segments
-          // genuinely need more room than the box has.
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: constraints.maxWidth),
-              child: result,
-            ),
+            child: result,
           );
         }
         return result;
@@ -274,6 +269,8 @@ class _UiToggleButton<T> extends StatelessWidget {
     required this.iconOnly,
     required this.first,
     required this.last,
+    required this.isExpanded,
+    required this.vertical,
     required this.onTap,
     this.groupIntent,
   });
@@ -286,6 +283,8 @@ class _UiToggleButton<T> extends StatelessWidget {
   final bool iconOnly;
   final bool first;
   final bool last;
+  final bool isExpanded;
+  final bool vertical;
   final UiIntent? groupIntent;
   final VoidCallback? onTap;
 
@@ -305,9 +304,30 @@ class _UiToggleButton<T> extends StatelessWidget {
       UiToggleGroupVariant.underline => c.foreground,
       _ => tint != null ? tint.onColor(context) : c.foreground,
     };
-    final BorderRadius radius = context.radius(
-      variant == UiToggleGroupVariant.pill ? theme.radii.pill : theme.radii.md,
-    );
+
+    final BorderRadius? buttonRadius;
+    if (variant == UiToggleGroupVariant.underline) {
+      buttonRadius = null;
+    } else if (variant == UiToggleGroupVariant.pill) {
+      buttonRadius = context.radius(theme.radii.pill);
+    } else if (isExpanded || variant == UiToggleGroupVariant.joined) {
+      final Radius cr = Radius.circular(context.sz(size.radius(context)));
+      if (first && last) {
+        buttonRadius = BorderRadius.all(cr);
+      } else if (first) {
+        buttonRadius = vertical
+            ? BorderRadius.vertical(top: cr)
+            : BorderRadius.horizontal(left: cr);
+      } else if (last) {
+        buttonRadius = vertical
+            ? BorderRadius.vertical(bottom: cr)
+            : BorderRadius.horizontal(right: cr);
+      } else {
+        buttonRadius = BorderRadius.zero;
+      }
+    } else {
+      buttonRadius = context.radius(size.radius(context));
+    }
 
     return UiInteractive(
       enabled: enabled,
@@ -315,7 +335,7 @@ class _UiToggleButton<T> extends StatelessWidget {
       selected: selected,
       tooltip: option.tooltip ?? (iconOnly ? option.label : null),
       semanticLabel: option.label,
-      borderRadius: radius,
+      borderRadius: buttonRadius,
       builder: (BuildContext ctx, UiInteractiveState s) => AnimatedContainer(
         duration: theme.motion.fast,
         curve: theme.motion.curve,
@@ -337,9 +357,7 @@ class _UiToggleButton<T> extends StatelessWidget {
               : selected
               ? activeBg
               : (s.hovered ? c.surfaceHover : const Color(0x00000000)),
-          borderRadius: variant == UiToggleGroupVariant.underline
-              ? null
-              : radius,
+          borderRadius: buttonRadius,
           border: variant == UiToggleGroupVariant.pill
               ? Border.all(
                   color: selected ? activeBg : c.border,
@@ -359,7 +377,9 @@ class _UiToggleButton<T> extends StatelessWidget {
               ? theme.shadows.sm
               : null,
         ),
-        foregroundDecoration: s.focused ? uiFocusRing(ctx, radius) : null,
+        foregroundDecoration: s.focused
+            ? uiFocusRing(ctx, buttonRadius ?? BorderRadius.zero)
+            : null,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,

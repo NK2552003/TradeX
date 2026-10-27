@@ -251,7 +251,7 @@ void main() {
           type: CommunityNotificationType.security,
           createdAt: now.subtract(const Duration(minutes: 1)),
           title: 'Security Alert',
-          body: "Someone's trying to log into TradeX. Let us know if it's you.",
+          body: "Someone's trying to log into alphajournal. Let us know if it's you.",
           read: false,
         ),
         CommunityNotificationItem(
@@ -319,7 +319,7 @@ void main() {
       expect(find.text('This month'), findsOneWidget);
 
       // Check Security Notification matching screenshot
-      expect(find.textContaining("Someone's trying to log into TradeX"), findsOneWidget);
+      expect(find.textContaining("Someone's trying to log into alphajournal"), findsOneWidget);
 
       // Check Follow Notification with "Follow Back" button
       expect(find.text('Follow Back'), findsOneWidget);

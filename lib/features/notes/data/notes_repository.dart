@@ -879,7 +879,7 @@ class NotesRepositoryImpl implements NotesRepository {
 
 /// The single place a screen reaches the repository.
 ///
-/// Deliberately not a provider framework — hejournal.in has no Riverpod and no
+/// Deliberately not a provider framework — alphajournal has no Riverpod and no
 /// router, so features resolve their dependencies through a static accessor and
 /// hold state in `StatefulWidget`s. Tests (and, later, the Supabase wiring)
 /// replace the instance through [override].

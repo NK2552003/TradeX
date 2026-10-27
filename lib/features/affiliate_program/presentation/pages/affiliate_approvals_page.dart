@@ -88,7 +88,7 @@ class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
                   : 'Applicant keeps customer access',
               message: approve
                   ? '${application.fullName} will gain the Affiliate Partner workspace while keeping all customer/trader capabilities.'
-                  : '${application.fullName} will not gain partner tools. Their normal hejournal.in account remains active.',
+                  : '${application.fullName} will not gain partner tools. Their normal alphajournal account remains active.',
               intent: approve ? UiIntent.success : UiIntent.warning,
             ),
             SizedBox(height: dialogContext.sp(dialogContext.ui.spacing.md)),
@@ -319,7 +319,7 @@ class _AffiliateApprovalsPageState extends State<AffiliateApprovalsPage> {
                 child: UiTextarea(
                   controller: bodyCtrl,
                   hintText:
-                      'Track NSE/BSE F&O setups in INR on hejournal.in: {{referral_url}}',
+                      'Track NSE/BSE F&O setups in INR on alphajournal: {{referral_url}}',
                   minLines: 3,
                   maxLines: 5,
                 ),

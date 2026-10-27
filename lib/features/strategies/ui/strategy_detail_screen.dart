@@ -515,7 +515,7 @@ class _StrategyDetailScreenState extends State<StrategyDetailScreen> {
   }
 
   Future<void> _shareStrategy() async {
-    final String shareUrl = 'https://hejournal.in/p/strategies/${_strategy.id}';
+    final String shareUrl = 'https://alphajournal.in/p/strategies/${_strategy.id}';
     final AppLinkRef ref = AppLinkRef(
       kind: AppLinkKind.strategy,
       id: _strategy.id,

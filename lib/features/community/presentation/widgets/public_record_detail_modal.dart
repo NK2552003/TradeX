@@ -311,7 +311,7 @@ class _PublicRecordDetailModalState extends State<PublicRecordDetailModal> {
 
   void _copyShareLink() {
     final url =
-        'https://hejournal.in/community/${widget.ref.kind.name}/${widget.ref.id}';
+        'https://alphajournal.in/community/${widget.ref.kind.name}/${widget.ref.id}';
     Clipboard.setData(ClipboardData(text: url));
     UiToast.success(
       context,

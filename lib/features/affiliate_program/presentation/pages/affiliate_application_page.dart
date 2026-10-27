@@ -550,7 +550,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Unified Header inside Card: Back Button, Logo, hejournal.in & Step Badge
+                          // Unified Header inside Card: Back Button, Logo, alphajournal & Step Badge
                           Wrap(
                             alignment: WrapAlignment.spaceBetween,
                             crossAxisAlignment: WrapCrossAlignment.center,
@@ -712,7 +712,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                       SizedBox(width: context.sp(theme.spacing.xs)),
                       Flexible(
                         child: Text(
-                          'Manage your account and privacy settings in hejournal.in',
+                          'Manage your account and privacy settings in alphajournal',
                           overflow: TextOverflow.ellipsis,
                           style: context.uiText.caption.copyWith(
                             color: colors.foregroundSubtle,
@@ -864,7 +864,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
         ),
         SizedBox(height: context.sp(theme.spacing.xxs)),
         Text(
-          'Tell reviewers where and how you plan to introduce hejournal.in.',
+          'Tell reviewers where and how you plan to introduce alphajournal.',
           style: context.uiText.caption.copyWith(
             color: theme.colors.foregroundMuted,
           ),
@@ -1118,7 +1118,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
         const UiCallout(
           title: 'Review and access policy',
           message:
-              'Submitting does not grant immediate Partner Hub access. An administrator must approve the application first. You can continue using hejournal.in as a customer/trader while it is pending.',
+              'Submitting does not grant immediate Partner Hub access. An administrator must approve the application first. You can continue using alphajournal as a customer/trader while it is pending.',
           intent: UiIntent.warning,
         ),
         SizedBox(height: context.sp(theme.spacing.md)),
@@ -1126,7 +1126,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
           value: _termsAccepted,
           asCard: true,
           label:
-              'I confirm these details are accurate and accept the hejournal.in Affiliate Program terms.',
+              'I confirm these details are accurate and accept the alphajournal Affiliate Program terms.',
           description:
               'I understand that approval can be refused or suspended for policy violations.',
           onChanged: (bool value) => setState(() => _termsAccepted = value),
@@ -1252,7 +1252,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                     const AppLogoMark(size: 20),
                     SizedBox(width: context.sp(theme.spacing.xs)),
                     Text(
-                      'hejournal.in',
+                      'alphajournal',
                       style: context.uiText.bodyStrong.copyWith(
                         fontSize: 16,
                         letterSpacing: -0.2,
@@ -1352,7 +1352,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                                       AffiliateApplicationStatus.approved &&
                                   widget.onOpenPartnerHub != null
                               ? 'Open Partner Hub'
-                              : 'Continue to hejournal.in',
+                              : 'Continue to alphajournal',
                           trailingIcon: Icons.arrow_forward_rounded,
                           variant: UiVariant.primary,
                           intent: UiIntent.primary,
@@ -1380,7 +1380,7 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
                     SizedBox(width: context.sp(theme.spacing.xs)),
                     Flexible(
                       child: Text(
-                        'Manage your account and privacy settings in hejournal.in',
+                        'Manage your account and privacy settings in alphajournal',
                         textAlign: TextAlign.center,
                         style: context.uiText.caption.copyWith(
                           color: colors.foregroundSubtle,
