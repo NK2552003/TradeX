@@ -67,10 +67,17 @@ abstract class JournalRepository {
   /// A journal entry's attachments belong to the journal, not to the notes
   /// bucket: a trader who deletes a note must not lose the screenshot that
   /// proves what a trade looked like.
-  Future<String> uploadAttachment(String entryId, File file);
+  Future<String> uploadAttachment(
+    String entryId,
+    File file, {
+    String? filename,
+  });
+
+  /// Deletes an attachment from private storage and purges its tracking record.
+  Future<void> deleteAttachment(String storagePath);
 
   /// Turns a stored reference back into something the preview can load. Local
-  /// paths come back unchanged; a Supabase implementation returns a signed or public URL.
+  /// paths come back unchanged; private journal attachments resolve to 1-hour signed URLs.
   Future<String> resolveAttachmentUrl(String ref);
 
   /// Calculated summary metrics across all currently held entries.
@@ -235,7 +242,7 @@ class JournalRepositoryImpl implements JournalRepository {
 
       final res = await client
           .from('journal_entries')
-          .select('*, strategies(id, title)')
+          .select('*, strategies(id, title, name)')
           .eq('user_id', targetUserId)
           .order('opened_at', ascending: false);
 
@@ -282,10 +289,19 @@ class JournalRepositoryImpl implements JournalRepository {
     final List<dynamic>? linkedNotes = row['linked_note_ids'] as List<dynamic>?;
     final List<dynamic>? tagsList = row['tags'] as List<dynamic>?;
 
-    String? strategyName = row['strategy_name'] as String?;
-    if (strategyName == null && row['strategies'] is Map) {
-      final sMap = row['strategies'] as Map;
-      strategyName = (sMap['title'] ?? sMap['name'])?.toString();
+    String? strategyName =
+        (row['strategy_name'] ?? row['strategy']) as String?;
+    if (strategyName == null) {
+      if (row['strategies'] is Map) {
+        final sMap = row['strategies'] as Map;
+        strategyName = (sMap['title'] ?? sMap['name'])?.toString();
+      } else if (row['strategies'] is List &&
+          (row['strategies'] as List).isNotEmpty) {
+        final first = (row['strategies'] as List).first;
+        if (first is Map) {
+          strategyName = (first['title'] ?? first['name'])?.toString();
+        }
+      }
     }
 
     final AppOutcome outcome = switch (outcomeStr) {
@@ -403,6 +419,14 @@ class JournalRepositoryImpl implements JournalRepository {
         trade.strategyId!.isNotEmpty &&
         _isUuid(trade.strategyId)) {
       row['strategy_id'] = trade.strategyId;
+    } else {
+      row['strategy_id'] = null;
+    }
+
+    if (trade.strategy != null && trade.strategy!.isNotEmpty) {
+      row['strategy_name'] = trade.strategy;
+    } else {
+      row['strategy_name'] = null;
     }
 
     if (trade.outcome != AppOutcome.open) {
@@ -478,7 +502,7 @@ class JournalRepositoryImpl implements JournalRepository {
       final client = SupabaseConfig.client!;
       final res = await client
           .from('journal_entries')
-          .select('*, strategies(id, title)')
+          .select('*, strategies(id, title, name)')
           .eq('is_public', true)
           .order('opened_at', ascending: false)
           .limit(50);
@@ -502,7 +526,7 @@ class JournalRepositoryImpl implements JournalRepository {
         final client = SupabaseConfig.client!;
         final res = await client
             .from('journal_entries')
-            .select('*, strategies(id, title)')
+            .select('*, strategies(id, title, name)')
             .eq('id', id)
             .maybeSingle();
         if (res != null) {
@@ -551,7 +575,7 @@ class JournalRepositoryImpl implements JournalRepository {
         final res = await client
             .from('journal_entries')
             .insert(row)
-            .select('*, strategies(id, title)')
+            .select('*, strategies(id, title, name)')
             .single();
 
         saved = _mapRowToTrade(res);
@@ -607,7 +631,7 @@ class JournalRepositoryImpl implements JournalRepository {
             .update(row)
             .eq('id', entry.id)
             .eq('user_id', targetUserId)
-            .select('*, strategies(id, title)')
+            .select('*, strategies(id, title, name)')
             .single();
 
         saved = _mapRowToTrade(res);
@@ -673,6 +697,22 @@ class JournalRepositoryImpl implements JournalRepository {
 
     if (SupabaseConfig.isConfigured && _isUuid(id)) {
       try {
+        final client = SupabaseConfig.client!;
+
+        // Purge storage attachments for this journal entry
+        try {
+          final folder = '${owned.userId}/$id';
+          final files = await client.storage
+              .from('journal-attachments')
+              .list(path: folder);
+          if (files.isNotEmpty) {
+            final filePaths = files.map((f) => '$folder/${f.name}').toList();
+            await client.storage.from('journal-attachments').remove(filePaths);
+          }
+        } catch (storageErr) {
+          debugPrint('[JournalRepository] attachment purge warning: $storageErr');
+        }
+
         await OwnedRecordWriter().delete('journal_entries', id);
       } catch (e) {
         debugPrint('[JournalRepository] delete error: $e');
@@ -796,16 +836,39 @@ class JournalRepositoryImpl implements JournalRepository {
     final owned = await getById(entryId);
     if (owned == null) throw StateError('This record is no longer available.');
     RecordAccess.requireOwner(owned.userId);
+
+    String? resolvedName = strategyName;
+    final validStrategyId =
+        strategyId != null && strategyId.isNotEmpty && _isUuid(strategyId)
+            ? strategyId
+            : null;
+
     if (SupabaseConfig.isConfigured && _isUuid(entryId)) {
       try {
         final client = SupabaseConfig.client!;
-        final validStrategyId =
-            strategyId != null && strategyId.isNotEmpty && _isUuid(strategyId)
-            ? strategyId
-            : null;
+
+        // If strategyId was provided but name was omitted, fetch title / name from strategies
+        if (validStrategyId != null && (resolvedName == null || resolvedName.isEmpty)) {
+          try {
+            final stratRow = await client
+                .from('strategies')
+                .select('id, title, name')
+                .eq('id', validStrategyId)
+                .maybeSingle();
+            if (stratRow != null) {
+              resolvedName = (stratRow['title'] ?? stratRow['name'])?.toString();
+            }
+          } catch (_) {}
+        }
+
+        final updatePayload = <String, dynamic>{
+          'strategy_id': validStrategyId,
+          'strategy_name': validStrategyId != null ? resolvedName : null,
+        };
+
         await client
             .from('journal_entries')
-            .update({'strategy_id': validStrategyId})
+            .update(updatePayload)
             .eq('id', entryId)
             .eq('user_id', _resolveUserId())
             .select('id')
@@ -816,16 +879,29 @@ class JournalRepositoryImpl implements JournalRepository {
       }
     }
     return _mutate(entryId, (AppTrade entry) {
-      if (strategyId == null || strategyId.isEmpty) {
+      if (validStrategyId == null) {
         return entry.copyWith(clearStrategy: true);
       }
-      return entry.copyWith(strategyId: strategyId, strategy: strategyName);
+      return entry.copyWith(
+        strategyId: validStrategyId,
+        strategy: resolvedName ?? strategyName,
+      );
     });
   }
 
   @override
-  Future<String> uploadAttachment(String entryId, File file) async {
+  Future<String> uploadAttachment(
+    String entryId,
+    File file, {
+    String? filename,
+  }) async {
     RecordAccess.requireService();
+    final currentUserId = _resolveUserId();
+    if (currentUserId.isEmpty) {
+      throw StateError(
+        'Unauthorized: user must be authenticated to upload attachments.',
+      );
+    }
     if (SupabaseConfig.isConfigured) {
       final owner = await getById(entryId);
       if (owner == null) {
@@ -836,16 +912,42 @@ class JournalRepositoryImpl implements JournalRepository {
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final ext = file.path.contains('.') ? file.path.split('.').last : 'png';
-        final storagePath =
-            '${_resolveUserId()}/$entryId/${const Uuid().v4()}.$ext';
+        final rawExt = file.path.contains('.') ? file.path.split('.').last : 'png';
+        final ext = rawExt.toLowerCase().trim();
+        final fileName = filename ?? file.path.split(Platform.pathSeparator).last;
+        final storagePath = '$currentUserId/$entryId/${const Uuid().v4()}.$ext';
+
         await client.storage
             .from('journal-attachments')
             .upload(
               storagePath,
               file,
-              fileOptions: const FileOptions(upsert: true),
+              fileOptions: FileOptions(
+                contentType: _resolveMimeType(ext),
+                upsert: true,
+              ),
             );
+
+        final length = await file.length().catchError((_) => 0);
+        await client
+            .from('journal_entry_attachments')
+            .insert({
+              'id': const Uuid().v4(),
+              'entry_id': entryId,
+              'user_id': currentUserId,
+              'storage_path': storagePath,
+              'filename': fileName,
+              'mime_type': _resolveMimeType(ext),
+              'byte_size': length,
+              'is_image': _isImageExtension(ext),
+            })
+            .catchError((e) {
+              debugPrint(
+                '[JournalRepository] journal_entry_attachments insert warning: $e',
+              );
+              return <String, dynamic>{};
+            });
+
         return storagePath;
       } catch (e) {
         debugPrint('[JournalRepository] uploadAttachment error: $e');
@@ -857,18 +959,139 @@ class JournalRepositoryImpl implements JournalRepository {
 
   @override
   Future<String> resolveAttachmentUrl(String ref) async {
-    if (!SupabaseConfig.isConfigured ||
-        ref.startsWith('https://') ||
-        ref.startsWith('http://') ||
-        ref.startsWith('/') ||
+    // 1. Pass through local files or raw data URIs
+    if (ref.startsWith('/') ||
         ref.contains(':\\') ||
         ref.startsWith('file:') ||
         ref.startsWith('data:')) {
       return ref;
     }
-    return SupabaseConfig.client!.storage
-        .from('journal-attachments')
-        .createSignedUrl(ref, 600);
+
+    // 2. Extract the relative storage path inside journal-attachments bucket
+    String storagePath = ref.trim();
+
+    if (storagePath.startsWith('https://') || storagePath.startsWith('http://')) {
+      final uri = Uri.tryParse(storagePath);
+      if (uri != null) {
+        final pathSegments = uri.pathSegments;
+        final bucketIdx = pathSegments.indexOf('journal-attachments');
+        if (bucketIdx != -1 && bucketIdx < pathSegments.length - 1) {
+          storagePath = pathSegments.sublist(bucketIdx + 1).join('/');
+        } else {
+          // 3rd party external URL, e.g. unsplash or external CDN
+          return ref;
+        }
+      }
+    }
+
+    // Strip leading bucket name or slashes
+    if (storagePath.startsWith('journal-attachments/')) {
+      storagePath = storagePath.substring('journal-attachments/'.length);
+    }
+    while (storagePath.startsWith('/')) {
+      storagePath = storagePath.substring(1);
+    }
+
+    // Strip query string if any was appended
+    if (storagePath.contains('?')) {
+      storagePath = storagePath.split('?').first;
+    }
+
+    // 3. Authorization check: Private bucket belongs strictly to owner folder
+    final currentUserId = _resolveUserId();
+    final pathSegments = storagePath.split('/');
+    if (pathSegments.isNotEmpty) {
+      final ownerId = pathSegments.first;
+      if (_isUuid(ownerId) && ownerId != currentUserId) {
+        throw StateError(
+          'Unauthorized: access denied to private attachment belonging to another user.',
+        );
+      }
+    }
+
+    if (!SupabaseConfig.isConfigured) {
+      return ref;
+    }
+
+    if (currentUserId.isEmpty) {
+      throw StateError(
+        'Unauthorized: unauthenticated access to private journal attachments is forbidden.',
+      );
+    }
+
+    // 4. Generate 1-hour (3600s) expiring signed access URL
+    try {
+      return await SupabaseConfig.client!.storage
+          .from('journal-attachments')
+          .createSignedUrl(storagePath, 3600);
+    } catch (e) {
+      debugPrint('[JournalRepository] resolveAttachmentUrl createSignedUrl error: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> deleteAttachment(String storagePath) async {
+    RecordAccess.requireService();
+    final currentUserId = _resolveUserId();
+    if (currentUserId.isEmpty) {
+      throw StateError('Unauthorized: user must be authenticated.');
+    }
+
+    String cleanPath = storagePath.trim();
+    if (cleanPath.startsWith('journal-attachments/')) {
+      cleanPath = cleanPath.substring('journal-attachments/'.length);
+    }
+    while (cleanPath.startsWith('/')) {
+      cleanPath = cleanPath.substring(1);
+    }
+    if (cleanPath.contains('?')) {
+      cleanPath = cleanPath.split('?').first;
+    }
+
+    final segments = cleanPath.split('/');
+    if (segments.isNotEmpty && segments.first != currentUserId) {
+      throw StateError(
+        'Unauthorized: cannot delete another user\'s attachment.',
+      );
+    }
+
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        // Purge tracking record from database
+        await client
+            .from('journal_entry_attachments')
+            .delete()
+            .eq('storage_path', cleanPath)
+            .eq('user_id', currentUserId);
+
+        // Remove object from private storage bucket
+        await client.storage
+            .from('journal-attachments')
+            .remove([cleanPath]);
+      } catch (e) {
+        debugPrint('[JournalRepository] deleteAttachment error: $e');
+        rethrow;
+      }
+    }
+  }
+
+  static String _resolveMimeType(String ext) {
+    return switch (ext.toLowerCase()) {
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'gif' => 'image/gif',
+      'csv' => 'text/csv',
+      'pdf' => 'application/pdf',
+      _ => 'application/octet-stream',
+    };
+  }
+
+  static bool _isImageExtension(String ext) {
+    return const <String>{'png', 'jpg', 'jpeg', 'webp', 'gif'}
+        .contains(ext.toLowerCase());
   }
 }
 
