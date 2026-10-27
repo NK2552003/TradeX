@@ -941,6 +941,7 @@ CREATE OR REPLACE FUNCTION public.handle_new_user_signup()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_role TEXT;
@@ -951,10 +952,12 @@ DECLARE
   v_referred_by_code TEXT;
   v_referrer_id UUID;
 BEGIN
-  v_role := COALESCE(NEW.raw_user_meta_data->>'role', 'customer');
+  -- Self-signup is strictly restricted to customer role with free tier.
+  -- Metadata role, admin_key, and tier are deliberately ignored to prevent privilege escalation.
+  v_role := 'customer';
+  v_admin_key := NULL;
   v_handle := COALESCE(NEW.raw_user_meta_data->>'handle', LOWER(SPLIT_PART(NEW.email, '@', 1)));
   v_display_name := COALESCE(NEW.raw_user_meta_data->>'display_name', SPLIT_PART(NEW.email, '@', 1));
-  v_admin_key := NEW.raw_user_meta_data->>'admin_key';
   v_referral_code := COALESCE(NEW.raw_user_meta_data->>'referral_code', 'REF-' || UPPER(SUBSTRING(gen_random_uuid()::text FROM 1 FOR 8)));
   v_referred_by_code := NEW.raw_user_meta_data->>'referred_by_code';
 
@@ -980,7 +983,7 @@ BEGIN
     v_admin_key,
     v_referral_code,
     v_referred_by_code,
-    CASE WHEN v_role = 'user_admin' THEN 'enterprise' ELSE 'free' END
+    'free'
   );
 
   IF v_role = 'affiliate' THEN

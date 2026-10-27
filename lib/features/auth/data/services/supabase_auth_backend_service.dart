@@ -106,10 +106,9 @@ class SupabaseAuthBackendService implements AuthRepository {
         password: password,
         data: {
           'handle': cleanHandle,
-          'role': role == UserRole.affiliate ? UserRole.customer.id : role.id,
+          'role': UserRole.customer.id,
           'affiliate_application_requested': role == UserRole.affiliate,
           'display_name': cleanHandle.replaceAll('@', ''),
-          'admin_key': role == UserRole.userAdmin ? adminKey?.trim() : null,
           'referred_by_code': effectiveReferral,
           'utm_campaign': attribution?['campaign'],
         },
