@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
-import 'package:tradex/core/supabase/supabase_config.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
