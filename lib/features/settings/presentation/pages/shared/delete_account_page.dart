@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/app-ui/app_ui.dart'
+    show AppSettingCard, AppSettingsSectionBlock, AppTokens;
+import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/settings/data/repositories/privacy_repository.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
@@ -29,20 +31,11 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
   String _selectedReason = 'Taking a break from trading';
   final TextEditingController _feedbackController = TextEditingController();
 
-  /// Condition controlling when and how associated user data is purged after account deletion:
-  /// - 'immediate_purge': Immediately cascade-delete all personal & workspace data upon account deletion
-  /// - 'after_30_day_grace': Lock account now and permanently delete all data after 30-day recovery window
-  /// - 'purge_personal_keep_tax_ledger': Purge personal/workspace data immediately, anonymize & retain statutory INR GST/TDS ledger
   String _dataPurgeCondition = 'immediate_purge';
 
-  bool _purgeWritingDesk = true;
-  bool _purgeCommunityMessages = true;
-  bool _purgeAiWorkspace = true;
-  bool _purgeAffiliateCampaigns = true;
-  final bool _exportBeforeDelete = true;
   bool _acknowledgedCondition = false;
   bool _exportingArchive = false;
-  bool _archiveReady = false;
+  bool _archiveRequested = false;
 
   List<String> get _reasons => switch (widget.userRole) {
     UserRole.affiliate => const <String>[
@@ -53,9 +46,9 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       'Other reason',
     ],
     UserRole.userAdmin => const <String>[
-      'Dissolving or migrating institutional desk',
-      'Transferring desk ownership to another administrator',
-      'Regulatory or compliance restructuring',
+      'Closing my administrator account',
+      'Transferring administration to another person',
+      'No longer managing the platform',
       'Privacy or data erasure request',
       'Other reason',
     ],
@@ -71,7 +64,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
 
   String get _roleTitle => switch (widget.userRole) {
     UserRole.affiliate => 'Delete Affiliate Partner Account & Data',
-    UserRole.userAdmin => 'Delete Institutional Admin Account & Data',
+    UserRole.userAdmin => 'Delete Administrator Account & Data',
     UserRole.customer => 'Delete Trader Account & Data',
   };
 
@@ -96,18 +89,23 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       if (!mounted) return;
       setState(() {
         _exportingArchive = false;
-        _archiveReady = true;
+        _archiveRequested = true;
       });
       UiToast.show(
         context,
-        title: 'Pre-Deletion Data Archive Prepared',
+        title: 'Data export requested',
         message:
-            'Your JSON/CSV archive (journals, notes, strategies & INR ledger) has been queued for download.',
+            'Your export request is queued. Check its status in Privacy settings before requesting account deletion.',
         intent: UiIntent.success,
       );
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() => _exportingArchive = false);
+      UiToast.error(
+        context,
+        title: 'Export request could not be saved',
+        message: error.toString().replaceFirst('Bad state: ', ''),
+      );
     }
   }
 
@@ -117,7 +115,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
         context,
         title: 'Confirm Data Deletion Condition',
         message:
-            'Please acknowledge the post-deletion data purge condition checkbox before continuing.',
+            'Please acknowledge the account lock and administrator review before continuing.',
         intent: UiIntent.warning,
       );
       return;
@@ -125,6 +123,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
 
     final confirmTextController = TextEditingController();
     bool isDeleting = false;
+    String? deletionError;
 
     showDialog<void>(
       context: context,
@@ -135,25 +134,23 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
           final spacing = context.sp(context.ui.spacing.sm);
 
           return UiDialog(
-            title: 'Confirm Account & Conditional Data Purge',
+            title: 'Confirm account deletion request',
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 UiCallout(
                   title: _dataPurgeCondition == 'after_30_day_grace'
-                      ? 'Condition: 30-Day Grace Window Before Permanent Data Purge'
-                      : _dataPurgeCondition == 'purge_personal_keep_tax_ledger'
-                      ? 'Condition: Immediate Personal Data Purge + Statutory INR Tax Retention'
-                      : 'Condition: Immediate Cascade Data Purge Upon Account Deletion',
+                      ? 'Request deletion after 30 days'
+                      : 'Request deletion after administrator review',
                   message: _dataPurgeCondition == 'after_30_day_grace'
-                      ? 'Your account will be locked immediately and all selected data domains will be permanently purged in 30 days unless cancelled.'
-                      : 'All selected data domains (journals, notes, strategies, community posts, AI history, and campaigns) will be purged immediately once confirmed.',
+                      ? 'Your account will be locked. An administrator can process permanent deletion after 30 days. Contact an administrator before processing if you want to cancel.'
+                      : 'Your account will be locked and your deletion preferences sent to an administrator for review. This step submits a request.',
                   intent: UiIntent.danger,
                 ),
                 SizedBox(height: spacing * 1.5),
                 Text(
-                  'To verify your intent and execute this data deletion condition, type DELETE in uppercase below.',
+                  'To submit the deletion request, type DELETE below.',
                   style: context.uiText.body,
                 ),
                 SizedBox(height: spacing),
@@ -168,6 +165,14 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                     },
                   ),
                 ),
+                if (deletionError != null) ...[
+                  const UiGap.v(12),
+                  UiCallout(
+                    title: 'Request could not be saved',
+                    message: deletionError!,
+                    intent: UiIntent.danger,
+                  ),
+                ],
               ],
             ),
             actions: [
@@ -177,42 +182,53 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                 onPressed: () => Navigator.of(ctx).pop(),
               ),
               UiButton(
-                label: _dataPurgeCondition == 'after_30_day_grace'
-                    ? 'Delete Account & Schedule Purge'
-                    : 'Delete Account & Purge Data Now',
+                label: 'Submit deletion request',
                 intent: UiIntent.danger,
                 variant: UiVariant.destructive,
                 loading: isDeleting,
                 disabled: !isMatch,
                 onPressed: () async {
-                  setDialogState(() => isDeleting = true);
-                  final req = await _repo.requestAccountDeletion(
-                    reason: _selectedReason,
-                    feedback: _feedbackController.text.trim(),
-                    dataPurgeCondition: _dataPurgeCondition,
-                    purgeJournalsNotesStrategies: _purgeWritingDesk,
-                    purgeCommunityMessages: _purgeCommunityMessages,
-                    purgeAiWorkspace: _purgeAiWorkspace,
-                    purgeAffiliateCampaigns: _purgeAffiliateCampaigns,
-                    exportBeforeDelete: _exportBeforeDelete,
-                    userRole: widget.userRole.dbValue,
-                  );
-                  if (ctx.mounted) {
-                    Navigator.of(ctx).pop();
-                  }
-                  if (mounted) {
-                    UiToast.show(
-                      this.context,
-                      title: req.status == 'data_purged'
-                          ? 'Account Deleted & Data Purged'
-                          : 'Account Deletion & 30-Day Purge Scheduled',
-                      message: req.status == 'data_purged'
-                          ? 'Your account and selected workspace data have been permanently purged.'
-                          : 'Your account is locked and scheduled for permanent data purge on ${AppTokens.shortDate(req.scheduledPurgeAt)}.',
-                      intent: UiIntent.warning,
+                  setDialogState(() {
+                    isDeleting = true;
+                    deletionError = null;
+                  });
+                  try {
+                    final req = await _repo.requestAccountDeletion(
+                      reason: _selectedReason,
+                      feedback: _feedbackController.text.trim(),
+                      dataPurgeCondition: _dataPurgeCondition,
+                      purgeJournalsNotesStrategies: true,
+                      purgeCommunityMessages: true,
+                      purgeAiWorkspace: true,
+                      purgeAffiliateCampaigns: true,
+                      exportBeforeDelete: _archiveRequested,
+                      userRole: widget.userRole.dbValue,
                     );
-                    widget.onAccountDeleted?.call();
-                    Navigator.of(this.context).maybePop();
+                    if (ctx.mounted) {
+                      Navigator.of(ctx).pop();
+                    }
+                    if (mounted) {
+                      UiToast.show(
+                        this.context,
+                        title: 'Deletion request submitted',
+                        message: req.status == 'grace_period'
+                            ? 'Your account is locked. An administrator can process deletion after ${AppTokens.shortDate(req.scheduledPurgeAt)}.'
+                            : 'Your account is locked and the request is available for administrator review.',
+                        intent: UiIntent.warning,
+                      );
+                      widget.onAccountDeleted?.call();
+                      Navigator.of(this.context).maybePop();
+                    }
+                  } catch (error) {
+                    if (ctx.mounted) {
+                      setDialogState(() {
+                        isDeleting = false;
+                        deletionError = error.toString().replaceFirst(
+                          'Bad state: ',
+                          '',
+                        );
+                      });
+                    }
                   }
                 },
               ),
@@ -220,7 +236,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
           );
         },
       ),
-    );
+    ).whenComplete(confirmTextController.dispose);
   }
 
   @override
@@ -251,19 +267,19 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
               UiCallout(
                 title: _roleTitle,
                 message: widget.userRole == UserRole.affiliate
-                    ? 'Deleting your Affiliate Partner account revokes your custom referral links (/r/:slug), pauses active campaigns, and purges your workspace data according to the condition you select below.'
+                    ? 'Submitting a request locks your account and partner workspace. An administrator reviews the request before permanently removing your account and its linked data.'
                     : widget.userRole == UserRole.userAdmin
-                    ? 'Deleting your Institutional Desk Administrator account revokes desk governance access, deactivates seat supervision, and purges your personal workspace data according to the condition you select below.'
-                    : 'Deleting your Trader account cancels active subscriptions, revokes workspace access, and purges your journals, strategies, notes, and social activity according to the condition you select below.',
+                    ? 'Another administrator must change your role before you can request deletion. This protects the platform from losing its administrator.'
+                    : 'Submitting a request locks your account for administrator review. Permanent removal deletes its linked data. Any active provider subscription must be cancelled separately before deletion.',
                 intent: UiIntent.danger,
               ),
               SizedBox(height: context.sp(theme.spacing.lg)),
 
-              // Step 1: Post-Deletion Data Purge Condition (Required by User Request)
+              // Deletion timing is reviewed and enforced by the server.
               AppSettingsSectionBlock(
-                title: '1. Condition to Delete Data After Deleting Account',
+                title: '1. Deletion timing',
                 description:
-                    'Choose the exact condition under which your personal, trading, community, and affiliate data is purged.',
+                    'Choose when an administrator may process permanent account deletion.',
                 children: [
                   UiCard(
                     child: Column(
@@ -279,30 +295,19 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                           options: const [
                             UiOption<String>(
                               value: 'immediate_purge',
-                              label:
-                                  'Condition A: Delete All Data Immediately After Account Deletion',
+                              label: 'Request deletion after review',
                               description:
-                                  'Executes an immediate cascade purge of your journals, notes, strategies, watchlists, community posts, messages, and AI history the moment account deletion is confirmed.',
+                                  'Lock the account now and add it to the administrator review queue. Deletion happens only when an administrator processes the request.',
                               icon: Icons.delete_forever_rounded,
-                              badge: 'IMMEDIATE PURGE',
+                              badge: 'ADMIN REVIEW',
                             ),
                             UiOption<String>(
                               value: 'after_30_day_grace',
-                              label:
-                                  'Condition B: Delete All Data After 30-Day Recovery Grace Period',
+                              label: 'Wait 30 days before deletion',
                               description:
-                                  'Immediately deactivates your account and locks public visibility, then permanently purges all data if you do not sign back in within 30 days.',
+                                  'Lock the account now and require a 30-day waiting period. Contact an administrator to cancel the request before it is processed.',
                               icon: Icons.timer_outlined,
                               badge: '30-DAY GRACE',
-                            ),
-                            UiOption<String>(
-                              value: 'purge_personal_keep_tax_ledger',
-                              label:
-                                  'Condition C: Purge Personal & Trading Data Immediately · Retain Statutory INR Tax Ledger',
-                              description:
-                                  'Immediately deletes all personal profile, journals, strategies, chats, and campaigns while anonymizing statutory Indian GST & Form 16A TDS payout invoices required under Income Tax law.',
-                              icon: Icons.account_balance_outlined,
-                              badge: 'TAX COMPLIANT',
                             ),
                           ],
                         ),
@@ -313,60 +318,16 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
               ),
               SizedBox(height: context.sp(theme.spacing.lg)),
 
-              // Step 2: Granular Data Scope Selection
               AppSettingsSectionBlock(
-                title: '2. Data Domains Bound to Deletion Condition',
+                title: '2. Data included',
                 description:
-                    'Select the specific data repositories to purge when your deletion condition triggers.',
-                children: [
-                  UiCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        UiCheckbox(
-                          value: _purgeWritingDesk,
-                          onChanged: (v) =>
-                              setState(() => _purgeWritingDesk = v),
-                          label:
-                              'Purge Trading Journals, Strategy Playbooks, Trader Notes & Watchlists',
-                          description:
-                              'Deletes all execution logs, chart screenshots, R-multiple analytics, and private checklist rules.',
-                        ),
-                        UiDivider(),
-                        UiCheckbox(
-                          value: _purgeCommunityMessages,
-                          onChanged: (v) =>
-                              setState(() => _purgeCommunityMessages = v),
-                          label:
-                              'Purge Community Posts, Comments, Likes & Direct Messages',
-                          description:
-                              'Removes your published trade setups, social comments, follower links, and chat history.',
-                        ),
-                        UiDivider(),
-                        UiCheckbox(
-                          value: _purgeAiWorkspace,
-                          onChanged: (v) =>
-                              setState(() => _purgeAiWorkspace = v),
-                          label:
-                              'Purge AI Copilot Threads, Chart Setups & Prompt History',
-                          description:
-                              'Deletes all saved AI assistant conversations, technical evaluations, and quota logs.',
-                        ),
-                        if (widget.userRole == UserRole.affiliate ||
-                            widget.userRole == UserRole.userAdmin) ...[
-                          UiDivider(),
-                          UiCheckbox(
-                            value: _purgeAffiliateCampaigns,
-                            onChanged: (v) =>
-                                setState(() => _purgeAffiliateCampaigns = v),
-                            label:
-                                'Purge Affiliate Referral Campaigns, Custom Slugs & Attribution Links',
-                            description:
-                                'Releases your custom /r/:slug URL and deletes UTM campaign tracking links.',
-                          ),
-                        ],
-                      ],
-                    ),
+                    'Full account deletion removes account-owned notes, journals, strategies, community content, messages, AI history, affiliate records and uploaded files.',
+                children: const [
+                  UiCallout(
+                    title: 'Keep a copy of anything you need',
+                    message:
+                        'Export your records before submitting. Administrator activity and deletion receipts are retained. For changes to individual records, use their own delete controls.',
+                    intent: UiIntent.warning,
                   ),
                 ],
               ),
@@ -374,27 +335,27 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
 
               // Step 3: Pre-Deletion Data Archive & Reason
               AppSettingsSectionBlock(
-                title: '3. Pre-Deletion Archive & Exit Feedback',
+                title: '3. Export and feedback',
                 description:
-                    'Optionally export your workspace archive before your data deletion condition executes.',
+                    'Request an export and wait for it to be available in Privacy settings before submitting deletion.',
                 children: [
                   AppSettingCard(
-                    title: 'Export Full Workspace Archive (JSON / CSV)',
-                    description: _archiveReady
-                        ? 'Archive prepared and queued for your registered email.'
-                        : 'Download a copy of your trades, notes, strategies, and INR tax statements before deletion.',
+                    title: 'Request a data export',
+                    description: _archiveRequested
+                        ? 'Export requested. Check its status in Privacy settings.'
+                        : 'Queue an export of your account data before requesting deletion.',
                     icon: Icons.folder_zip_outlined,
                     control: UiButton(
-                      label: _archiveReady
-                          ? 'Archive Ready'
-                          : 'Prepare Archive',
-                      leadingIcon: _archiveReady
+                      label: _archiveRequested
+                          ? 'Export requested'
+                          : 'Request export',
+                      leadingIcon: _archiveRequested
                           ? Icons.check_circle_outline_rounded
                           : Icons.download_rounded,
                       size: UiSize.sm,
                       variant: UiVariant.outline,
                       loading: _exportingArchive,
-                      onPressed: _archiveReady ? null : _triggerDataArchive,
+                      onPressed: _archiveRequested ? null : _triggerDataArchive,
                     ),
                   ),
                   UiCard(
@@ -416,12 +377,11 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                         ),
                         SizedBox(height: context.sp(theme.spacing.md)),
                         UiField(
-                          label:
-                              'Additional Feedback or Compliance Notes (Optional)',
+                          label: 'Additional feedback (optional)',
                           child: UiTextarea(
                             value: _feedbackController.text,
                             hintText:
-                                'Let our engineering or compliance desk know if you need any specific assistance...',
+                                'Tell the administrator about any help you need...',
                             minLines: 3,
                             maxLines: 5,
                             onChanged: (v) => _feedbackController.text = v,
@@ -433,7 +393,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                           onChanged: (v) =>
                               setState(() => _acknowledgedCondition = v),
                           label:
-                              'I understand that my account will be deleted and my selected data domains will be purged once my chosen condition is met.',
+                              'I understand that this request locks my account and that an administrator can permanently delete it and its linked data after review.',
                         ),
                       ],
                     ),
@@ -459,11 +419,13 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                   SizedBox(
                     width: isMobile ? double.infinity : null,
                     child: UiButton(
-                      label: 'Proceed to Delete Account & Data',
+                      label: 'Review deletion request',
                       intent: UiIntent.danger,
                       variant: UiVariant.destructive,
                       leadingIcon: Icons.delete_forever_rounded,
-                      onPressed: _showConfirmationDialog,
+                      onPressed: widget.userRole == UserRole.userAdmin
+                          ? null
+                          : _showConfirmationDialog,
                     ),
                   ),
                 ],

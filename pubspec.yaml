@@ -101,7 +101,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - .env
+    - assets/config/client.env
     - assets/data/
     - assets/data/history/
     - assets/data/screeners/

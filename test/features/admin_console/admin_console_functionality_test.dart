@@ -1,144 +1,216 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/core/navigation/role_navigation_config.dart';
-import 'package:tradex/core/widgets/app_scaffold.dart';
-import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_analytics_page.dart';
+import 'package:tradex/features/admin_console/models/admin_records.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_overview_page.dart';
-import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_overview_page.dart';
+import 'package:tradex/features/admin_console/presentation/pages/admin_records_page.dart';
+import 'package:tradex/features/admin_console/presentation/pages/admin_settings_page.dart';
+import 'package:tradex/features/admin_console/presentation/pages/admin_user_detail_page.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
+import '../../helpers/admin_repository_fixture.dart';
+import '../../helpers/workspace_design_harness.dart';
+import 'admin_affiliate_interaction_audit_test.dart' show tapLabel, enterField;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  GoogleFonts.config.allowRuntimeFetching = false;
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  setUp(() {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
+  testWidgets('admin requires authentication without sample metrics', (
+    tester,
+  ) async {
+    await pumpWorkspace(tester, const AdminOverviewPage());
+    expect(
+      find.text('Sign in with an administrator account to continue.'),
+      findsOneWidget,
+    );
+    expect(find.byType(UiMetricCard), findsNothing);
   });
 
-  Future<void> settle(WidgetTester tester) async {
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pump();
-  }
+  testWidgets('overview uses server totals and reloads its period', (
+    tester,
+  ) async {
+    final repository = AdminRepositoryFixture();
+    await pumpWorkspace(tester, AdminOverviewPage(repository: repository));
+    expect(find.text('137'), findsOneWidget);
+    expect(find.text('124'), findsOneWidget);
+    expect(find.text('Content and account totals'), findsOneWidget);
+    await tapLabel(tester, '7 days');
+    await settleWorkspace(tester);
+    expect(repository.overviewDays, 7);
+    expect(find.text('Last 7 days'), findsWidgets);
+  });
 
-  group('Admin Console & Analytics Functional Verification', () {
-    test('AdminConsoleRepository fallbackSnapshot returns valid non-empty snapshot', () {
-      final repo = AdminConsoleRepository.instance;
-      final snap = repo.fallbackSnapshot('1M');
-      expect(snap.allocatedCapitalInr, greaterThan(0));
-      expect(snap.points, isNotEmpty);
-      expect(snap.divisions, isNotEmpty);
-      expect(snap.subscriptionMrrInr, greaterThan(0));
-      expect(snap.affiliateGeneratedArrInr, greaterThan(0));
-    });
+  test('admin navigation covers user-specific administration', () {
+    final config = RoleNavigationConfig.forRole(UserRole.userAdmin);
+    final ids = config.destinations.map((entry) => entry.id).toSet();
+    expect(
+      ids,
+      containsAll([
+        'org_team',
+        'affiliate_reviews',
+        'org_publishing',
+        'admin_comments',
+        'admin_subscriptions',
+        'admin_notes',
+        'admin_journal',
+        'admin_strategies',
+        'admin_messages',
+        'admin_ai',
+        'org_audit',
+        'org_analytics',
+        'admin_deletions',
+      ]),
+    );
+    expect(
+      ids.intersection({
+        'notes',
+        'strategies',
+        'journal',
+        'community',
+        'org_risk',
+      }),
+      isEmpty,
+    );
+  });
 
-    testWidgets('AdminOverviewPage (Desk Console) renders fully populated and not empty', (
-      WidgetTester tester,
-    ) async {
-      tester.view.physicalSize = const Size(1440, 1080);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(
-        const MaterialApp(home: Scaffold(body: AdminOverviewPage())),
+  testWidgets('user details scope every resource to the selected account', (
+    tester,
+  ) async {
+    final repository = AdminRepositoryFixture();
+    await pumpWorkspace(
+      tester,
+      AdminRecordsPage(resource: AdminResource.users, repository: repository),
+    );
+    await tapLabel(tester, 'Details');
+    for (final tab in [
+      'Posts',
+      'Notes',
+      'Journal',
+      'Strategies',
+      'Messages',
+      'AI',
+      'Activity',
+    ]) {
+      final item = find.descendant(
+        of: find.byType(UiTabs).first,
+        matching: find.text(tab),
       );
-      await settle(tester);
+      await tester.ensureVisible(item);
+      await tester.tap(item);
+      await settleWorkspace(tester);
+      expect(repository.queries.last['userId'], AdminRepositoryFixture.userId);
+    }
+  });
 
-      expect(find.byType(UiSkeleton), findsNothing);
-      expect(find.text('Institutional Desk Console'), findsOneWidget);
-      expect(find.text('Allocated Desk Capital'), findsOneWidget);
-      expect(find.text('Intraday Desk Net P&L'), findsOneWidget);
-      expect(find.byType(UiAreaChart), findsOneWidget);
-      expect(find.byType(UiDonutChart), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
+  testWidgets('permission form validates and persists independent limits', (
+    tester,
+  ) async {
+    final repository = AdminRepositoryFixture();
+    await pumpWorkspace(
+      tester,
+      AdminUserDetailPage(
+        userId: AdminRepositoryFixture.userId,
+        repository: repository,
+        onBack: () {},
+        initialTab: 'Permissions',
+      ),
+    );
+    await enterField(tester, 'Posts per day', '-1');
+    await tapLabel(tester, 'Save permissions and limits');
+    expect(
+      find.text('Posts per day must be a whole number from 0 to 1000000.'),
+      findsOneWidget,
+    );
+    expect(repository.changes, isEmpty);
+    await enterField(tester, 'Posts per day', '2');
+    await enterField(tester, 'AI requests per day', '0');
+    await tapLabel(tester, 'Save permissions and limits');
+    await enterField(
+      tester,
+      'Reason for this change',
+      'Temporary publishing limits',
+    );
+    await tapLabel(tester, 'Confirm');
+    final values = repository.changes.single['value'] as Map;
+    expect(values['limits'], {'posts_per_day': 2, 'ai_queries_per_day': 0});
+    expect(repository.changes.single['userId'], AdminRepositoryFixture.userId);
+  });
 
-    testWidgets('AdminAnalyticsPage renders fully populated charts and leaderboard table', (
-      WidgetTester tester,
-    ) async {
-      tester.view.physicalSize = const Size(1440, 1080);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('subscription override is expiring and separate from billing', (
+    tester,
+  ) async {
+    final repository = AdminRepositoryFixture();
+    await pumpWorkspace(
+      tester,
+      AdminUserDetailPage(
+        userId: AdminRepositoryFixture.userId,
+        repository: repository,
+        onBack: () {},
+        initialTab: 'Subscription',
+      ),
+    );
+    final select = find.byType(UiSelect<String>);
+    tester.widget<UiSelect<String>>(select).onChanged!('premium');
+    await settleWorkspace(tester);
+    await enterField(tester, 'Access duration (days)', '10');
+    await tapLabel(tester, 'Save access override');
+    await enterField(
+      tester,
+      'Reason for this change',
+      'Support courtesy access',
+    );
+    await tapLabel(tester, 'Confirm');
+    final values = repository.changes.single['value'] as Map;
+    expect(values['tier'], 'premium');
+    expect(
+      DateTime.parse(values['expires_at'] as String).isAfter(DateTime.now()),
+      isTrue,
+    );
+    expect(find.text('Use billing subscription'), findsOneWidget);
+  });
 
-      await tester.pumpWidget(
-        const MaterialApp(home: Scaffold(body: AdminAnalyticsPage())),
-      );
-      await settle(tester);
+  testWidgets('post moderation saves its record and returns to the list', (
+    tester,
+  ) async {
+    final repository = AdminRepositoryFixture();
+    await pumpWorkspace(
+      tester,
+      AdminRecordsPage(resource: AdminResource.posts, repository: repository),
+    );
+    await tapLabel(tester, 'Details');
+    expect(find.text('31'), findsOneWidget);
+    await tapLabel(tester, 'Approve');
+    await enterField(tester, 'Reason for this change', 'Content reviewed');
+    await tapLabel(tester, 'Confirm');
+    expect(repository.changes.single['action'], 'moderate_post');
+    expect(
+      repository.changes.single['recordId'],
+      AdminRepositoryFixture.recordId,
+    );
+    expect(find.text('Approve'), findsNothing);
+    await tapLabel(tester, 'Back');
+    expect(find.text('Approved'), findsOneWidget);
+  });
 
-      expect(find.byType(UiSkeleton), findsNothing);
-      expect(find.text('Organization & Desk Analytics (INR ₹)'), findsOneWidget);
-      expect(find.byType(UiAreaChart), findsOneWidget);
-      expect(find.byType(UiBarChart), findsOneWidget);
-      expect(find.byType(UiBarList), findsOneWidget);
-      expect(find.byType(UiDonutChart), findsOneWidget);
-      expect(find.text('Proprietary Trader Scorecard Leaderboard (INR ₹)'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
-
-    test('Strict Role Separation: Admin navigation excludes trader-only notes and strategies', () {
-      final adminConfig = RoleNavigationConfig.forRole(UserRole.userAdmin);
-      final allAdminIds = adminConfig.destinations.map((e) => e.id).toSet();
-      expect(allAdminIds.contains('notes'), isFalse);
-      expect(allAdminIds.contains('strategies'), isFalse);
-      expect(allAdminIds.contains('journal'), isFalse);
-      expect(allAdminIds.contains('community'), isFalse);
-      expect(adminConfig.notificationTargets.containsKey('Notes'), isFalse);
-      expect(adminConfig.notificationTargets.containsKey('Community'), isFalse);
-    });
-
-    test('Strict Role Separation: Affiliate navigation excludes trader-only notes, strategies, and community', () {
-      final affConfig = RoleNavigationConfig.forRole(UserRole.affiliate);
-      final allAffIds = affConfig.destinations.map((e) => e.id).toSet();
-      expect(allAffIds.contains('notes'), isFalse);
-      expect(allAffIds.contains('strategies'), isFalse);
-      expect(allAffIds.contains('journal'), isFalse);
-      expect(allAffIds.contains('community'), isFalse);
-      expect(affConfig.notificationTargets.containsKey('Notes'), isFalse);
-      expect(affConfig.notificationTargets.containsKey('Community'), isFalse);
-    });
-
-    testWidgets('AppScaffold correctly routes workspace destination for Admin and Affiliate', (
-      WidgetTester tester,
-    ) async {
-      tester.view.physicalSize = const Size(1440, 1080);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      // 1. Admin with initialDestination 'workspace' lands on Institutional Desk Console
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: AppScaffold(
-            userRole: UserRole.userAdmin,
-            initialDestination: 'workspace',
-          ),
-        ),
-      );
-      await settle(tester);
-      expect(find.byType(AdminOverviewPage), findsOneWidget);
-      expect(find.text('Institutional Desk Console'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-
-      // 2. Affiliate with initialDestination 'workspace' lands on Partner Hub
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: AppScaffold(
-            userRole: UserRole.affiliate,
-            initialDestination: 'workspace',
-          ),
-        ),
-      );
-      await settle(tester);
-      expect(find.byType(AffiliateOverviewPage), findsOneWidget);
-      expect(find.text('Affiliate Partner Hub'), findsWidgets);
-      expect(tester.takeException(), isNull);
-    });
+  testWidgets('settings errors preserve unsaved choices for retry', (
+    tester,
+  ) async {
+    final repository = AdminRepositoryFixture()..failWrites = true;
+    await pumpWorkspace(tester, AdminSettingsPage(repository: repository));
+    final toggle = find.byWidgetPredicate(
+      (w) => w is UiSwitch && w.label == 'Use AI',
+    );
+    tester.widget<UiSwitch>(toggle).onChanged!(false);
+    await settleWorkspace(tester);
+    await tapLabel(tester, 'Save app settings');
+    await enterField(tester, 'Reason for this change', 'Provider maintenance');
+    await enterField(tester, 'Type SAVE to confirm', 'SAVE');
+    await tapLabel(tester, 'Confirm');
+    expect(find.text('Server rejected the change'), findsOneWidget);
+    expect(repository.changes, isEmpty);
+    repository.failWrites = false;
+    await tapLabel(tester, 'Confirm');
+    expect(repository.platformFeatures['ai'], false);
   });
 }

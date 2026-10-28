@@ -4,6 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/env_config.dart';
+import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/data/app_session.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Centralized, production-grade AI intelligence service with multi-provider
 /// fallback: OpenRouter (free models prioritized) -> Gemini -> OpenAI -> Claude -> Dynamic Engine.
@@ -49,6 +52,15 @@ class UnifiedAiService {
     double temperature = 0.3,
     int maxTokens = 2048,
   }) async {
+    if (SupabaseConfig.isConfigured) {
+      return _completeOnServer({
+        'prompt': prompt,
+        'kind': 'completion',
+        'system_prompt': ?systemPrompt,
+        'temperature': temperature,
+        'max_tokens': maxTokens,
+      });
+    }
     final client = _clientFactory();
     try {
       // 1. OpenRouter (Primary)
@@ -146,7 +158,36 @@ class UnifiedAiService {
     required List<AppAiMessage> messages,
     required String persona,
     String? systemPrompt,
+    String? threadId,
+    String requestKind = 'chat',
   }) async* {
+    if (SupabaseConfig.isConfigured) {
+      final history = messages
+          .where(
+            (m) => !m.pending && m.error == null && m.body.trim().isNotEmpty,
+          )
+          .toList();
+      final prompt = history.lastWhere((m) => m.role == AppAiRole.user).body;
+      yield await _completeOnServer({
+        'kind': requestKind,
+        'prompt': prompt,
+        'persona': persona,
+        'thread_id': ?threadId,
+        'system_prompt': systemPrompt ?? buildPersonaSystemPrompt(persona),
+        'messages': [
+          for (final message in history.skip(
+            (history.length - 40).clamp(0, history.length),
+          ))
+            {
+              'role': message.role == AppAiRole.assistant
+                  ? 'assistant'
+                  : 'user',
+              'content': message.body,
+            },
+        ],
+      });
+      return;
+    }
     final client = _clientFactory();
     final effectiveSystemPrompt =
         systemPrompt ?? buildPersonaSystemPrompt(persona);
@@ -259,6 +300,41 @@ class UnifiedAiService {
   // ---------------------------------------------------------------------------
   // Provider Implementations
   // ---------------------------------------------------------------------------
+
+  Future<String> _completeOnServer(Map<String, dynamic> body) async {
+    final client = SupabaseConfig.client!;
+    final actor = client.auth.currentUser?.id;
+    if (actor == null) throw StateError('Sign in to use AI.');
+    try {
+      final response = await client.functions.invoke('ai-gateway', body: body);
+      if (client.auth.currentUser?.id != actor) {
+        throw StateError('Your account changed. Please retry.');
+      }
+      final data = response.data;
+      if (response.status != 200 || data is! Map || data['text'] is! String) {
+        throw StateError(
+          data is Map
+              ? '${data['error'] ?? 'AI request failed.'}'
+              : 'AI request failed.',
+        );
+      }
+      final usage = data['usage'];
+      if (usage is Map &&
+          usage['user_id'] == actor &&
+          usage['ai_queries_used'] is num) {
+        AppSession.instance.aiQueriesUsed.value =
+            (usage['ai_queries_used'] as num).toInt();
+      }
+      return data['text'] as String;
+    } on FunctionException catch (error) {
+      final details = error.details;
+      throw StateError(
+        details is Map
+            ? '${details['error'] ?? 'AI request failed.'}'
+            : 'AI service is unavailable. Please retry.',
+      );
+    }
+  }
 
   Future<String?> _callOpenRouter({
     required http.Client client,

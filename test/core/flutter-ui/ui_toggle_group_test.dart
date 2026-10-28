@@ -128,137 +128,157 @@ void main() {
         ),
       );
 
-      final containers = tester.widgetList<AnimatedContainer>(
-        find.byType(AnimatedContainer),
-      ).toList();
+      final containers = tester
+          .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+          .toList();
       expect(containers.length, 2);
 
       // Item 1: Left rounded, right square
-      final b1 = (containers[0].decoration as BoxDecoration).borderRadius as BorderRadius;
+      final b1 =
+          (containers[0].decoration as BoxDecoration).borderRadius
+              as BorderRadius;
       expect(b1.topLeft.x, greaterThan(0));
       expect(b1.bottomLeft.x, greaterThan(0));
       expect(b1.topRight.x, equals(0));
       expect(b1.bottomRight.x, equals(0));
 
       // Item 2: Right rounded, left square
-      final b2 = (containers[1].decoration as BoxDecoration).borderRadius as BorderRadius;
+      final b2 =
+          (containers[1].decoration as BoxDecoration).borderRadius
+              as BorderRadius;
       expect(b2.topLeft.x, equals(0));
       expect(b2.bottomLeft.x, equals(0));
       expect(b2.topRight.x, greaterThan(0));
       expect(b2.bottomRight.x, greaterThan(0));
     });
 
-    testWidgets('3 items expanded: item 1 left, item 2 square (zero), item 3 right', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: SizedBox(
-                width: 300,
-                child: UiToggleGroup<int>(
-                  value: 1,
-                  expand: true,
-                  options: const <UiToggleOption<int>>[
-                    UiToggleOption<int>(value: 1, label: 'One'),
-                    UiToggleOption<int>(value: 2, label: 'Two'),
-                    UiToggleOption<int>(value: 3, label: 'Three'),
-                  ],
-                  onChanged: (_) {},
+    testWidgets(
+      '3 items expanded: item 1 left, item 2 square (zero), item 3 right',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 300,
+                  child: UiToggleGroup<int>(
+                    value: 1,
+                    expand: true,
+                    options: const <UiToggleOption<int>>[
+                      UiToggleOption<int>(value: 1, label: 'One'),
+                      UiToggleOption<int>(value: 2, label: 'Two'),
+                      UiToggleOption<int>(value: 3, label: 'Three'),
+                    ],
+                    onChanged: (_) {},
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      final containers = tester.widgetList<AnimatedContainer>(
-        find.byType(AnimatedContainer),
-      ).toList();
-      expect(containers.length, 3);
+        final containers = tester
+            .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+            .toList();
+        expect(containers.length, 3);
 
-      // Item 1: Left rounded, right square
-      final b1 = (containers[0].decoration as BoxDecoration).borderRadius as BorderRadius;
-      expect(b1.topLeft.x, greaterThan(0));
-      expect(b1.bottomLeft.x, greaterThan(0));
-      expect(b1.topRight.x, equals(0));
-      expect(b1.bottomRight.x, equals(0));
+        // Item 1: Left rounded, right square
+        final b1 =
+            (containers[0].decoration as BoxDecoration).borderRadius
+                as BorderRadius;
+        expect(b1.topLeft.x, greaterThan(0));
+        expect(b1.bottomLeft.x, greaterThan(0));
+        expect(b1.topRight.x, equals(0));
+        expect(b1.bottomRight.x, equals(0));
 
-      // Item 2: All corners square (0)
-      final b2 = (containers[1].decoration as BoxDecoration).borderRadius as BorderRadius;
-      expect(b2.topLeft.x, equals(0));
-      expect(b2.bottomLeft.x, equals(0));
-      expect(b2.topRight.x, equals(0));
-      expect(b2.bottomRight.x, equals(0));
+        // Item 2: All corners square (0)
+        final b2 =
+            (containers[1].decoration as BoxDecoration).borderRadius
+                as BorderRadius;
+        expect(b2.topLeft.x, equals(0));
+        expect(b2.bottomLeft.x, equals(0));
+        expect(b2.topRight.x, equals(0));
+        expect(b2.bottomRight.x, equals(0));
 
-      // Item 3: Right rounded, left square
-      final b3 = (containers[2].decoration as BoxDecoration).borderRadius as BorderRadius;
-      expect(b3.topLeft.x, equals(0));
-      expect(b3.bottomLeft.x, equals(0));
-      expect(b3.topRight.x, greaterThan(0));
-      expect(b3.bottomRight.x, greaterThan(0));
-    });
+        // Item 3: Right rounded, left square
+        final b3 =
+            (containers[2].decoration as BoxDecoration).borderRadius
+                as BorderRadius;
+        expect(b3.topLeft.x, equals(0));
+        expect(b3.bottomLeft.x, equals(0));
+        expect(b3.topRight.x, greaterThan(0));
+        expect(b3.bottomRight.x, greaterThan(0));
+      },
+    );
 
-    testWidgets('4 items expanded: item 1 left, items 2 & 3 square, item 4 right', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: SizedBox(
-                width: 400,
-                child: UiToggleGroup<int>(
-                  value: 1,
-                  expand: true,
-                  options: const <UiToggleOption<int>>[
-                    UiToggleOption<int>(value: 1, label: 'One'),
-                    UiToggleOption<int>(value: 2, label: 'Two'),
-                    UiToggleOption<int>(value: 3, label: 'Three'),
-                    UiToggleOption<int>(value: 4, label: 'Four'),
-                  ],
-                  onChanged: (_) {},
+    testWidgets(
+      '4 items expanded: item 1 left, items 2 & 3 square, item 4 right',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 400,
+                  child: UiToggleGroup<int>(
+                    value: 1,
+                    expand: true,
+                    options: const <UiToggleOption<int>>[
+                      UiToggleOption<int>(value: 1, label: 'One'),
+                      UiToggleOption<int>(value: 2, label: 'Two'),
+                      UiToggleOption<int>(value: 3, label: 'Three'),
+                      UiToggleOption<int>(value: 4, label: 'Four'),
+                    ],
+                    onChanged: (_) {},
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      final containers = tester.widgetList<AnimatedContainer>(
-        find.byType(AnimatedContainer),
-      ).toList();
-      expect(containers.length, 4);
+        final containers = tester
+            .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+            .toList();
+        expect(containers.length, 4);
 
-      // Item 1
-      final b1 = (containers[0].decoration as BoxDecoration).borderRadius as BorderRadius;
-      expect(b1.topLeft.x, greaterThan(0));
-      expect(b1.bottomLeft.x, greaterThan(0));
-      expect(b1.topRight.x, equals(0));
-      expect(b1.bottomRight.x, equals(0));
+        // Item 1
+        final b1 =
+            (containers[0].decoration as BoxDecoration).borderRadius
+                as BorderRadius;
+        expect(b1.topLeft.x, greaterThan(0));
+        expect(b1.bottomLeft.x, greaterThan(0));
+        expect(b1.topRight.x, equals(0));
+        expect(b1.bottomRight.x, equals(0));
 
-      // Item 2
-      final b2 = (containers[1].decoration as BoxDecoration).borderRadius as BorderRadius;
-      expect(b2.topLeft.x, equals(0));
-      expect(b2.bottomLeft.x, equals(0));
-      expect(b2.topRight.x, equals(0));
-      expect(b2.bottomRight.x, equals(0));
+        // Item 2
+        final b2 =
+            (containers[1].decoration as BoxDecoration).borderRadius
+                as BorderRadius;
+        expect(b2.topLeft.x, equals(0));
+        expect(b2.bottomLeft.x, equals(0));
+        expect(b2.topRight.x, equals(0));
+        expect(b2.bottomRight.x, equals(0));
 
-      // Item 3
-      final b3 = (containers[2].decoration as BoxDecoration).borderRadius as BorderRadius;
-      expect(b3.topLeft.x, equals(0));
-      expect(b3.bottomLeft.x, equals(0));
-      expect(b3.topRight.x, equals(0));
-      expect(b3.bottomRight.x, equals(0));
+        // Item 3
+        final b3 =
+            (containers[2].decoration as BoxDecoration).borderRadius
+                as BorderRadius;
+        expect(b3.topLeft.x, equals(0));
+        expect(b3.bottomLeft.x, equals(0));
+        expect(b3.topRight.x, equals(0));
+        expect(b3.bottomRight.x, equals(0));
 
-      // Item 4
-      final b4 = (containers[3].decoration as BoxDecoration).borderRadius as BorderRadius;
-      expect(b4.topLeft.x, equals(0));
-      expect(b4.bottomLeft.x, equals(0));
-      expect(b4.topRight.x, greaterThan(0));
-      expect(b4.bottomRight.x, greaterThan(0));
-    });
+        // Item 4
+        final b4 =
+            (containers[3].decoration as BoxDecoration).borderRadius
+                as BorderRadius;
+        expect(b4.topLeft.x, equals(0));
+        expect(b4.bottomLeft.x, equals(0));
+        expect(b4.topRight.x, greaterThan(0));
+        expect(b4.bottomRight.x, greaterThan(0));
+      },
+    );
   });
 
   group('AppTokens timezone-safe date methods', () {

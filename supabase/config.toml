@@ -1,0 +1,7 @@
+# Require a user JWT at the gateway and independently validate it with Auth
+# before checking the caller's current account role and permissions.
+[functions.admin-delete-user]
+verify_jwt = true
+
+[functions.ai-gateway]
+verify_jwt = true

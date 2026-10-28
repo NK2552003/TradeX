@@ -14,6 +14,7 @@ class UiAsyncView<T> extends StatelessWidget {
   const UiAsyncView({
     super.key,
     this.builder,
+    this.dataBuilder,
     this.state,
     this.data,
     this.loading = false,
@@ -30,6 +31,7 @@ class UiAsyncView<T> extends StatelessWidget {
   });
 
   final dynamic builder;
+  final Widget Function(BuildContext context, T data)? dataBuilder;
   final dynamic state;
   final T? data;
   final bool loading;
@@ -121,6 +123,9 @@ class UiAsyncView<T> extends StatelessWidget {
         icon: emptyIcon,
         action: emptyAction,
       );
+    }
+    if (dataBuilder != null && resolvedData != null) {
+      return dataBuilder!(context, resolvedData);
     }
     if (builder != null) {
       if (builder is Widget Function(BuildContext)) {

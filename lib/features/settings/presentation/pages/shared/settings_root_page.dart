@@ -5,9 +5,8 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
+import 'package:tradex/features/admin_console/presentation/pages/admin_settings_page.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
-import 'package:tradex/features/settings/presentation/pages/admin/desk_risk_page.dart';
-import 'package:tradex/features/settings/presentation/pages/admin/organization_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/affiliate/affiliate_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/account_security_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/appearance_settings_page.dart';
@@ -185,8 +184,12 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
         onOpenMarketing: widget.onOpenMarketing,
         onSwitchToTrader: widget.onSwitchToTrader,
       ),
-      'organization' => const OrganizationSettingsPage(),
-      'desk_risk' => const DeskRiskPage(),
+      'platform' when widget.userRole == UserRole.userAdmin =>
+        const AdminSettingsPage(),
+      'organization' when widget.userRole == UserRole.userAdmin =>
+        const AdminSettingsPage(),
+      'desk_risk' when widget.userRole == UserRole.userAdmin =>
+        const AdminSettingsPage(),
       'notifications' => const NotificationsSettingsPage(),
       'privacy' => PrivacySettingsPage(
         userRole: widget.userRole,
@@ -323,37 +326,31 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
             'id': 'profile',
             'title': 'Admin Profile',
             'icon': Icons.person_outline_rounded,
-            'subtitle': 'Administrator credentials and desk division',
+            'subtitle': 'Administrator profile and contact information',
           },
           {
-            'id': 'organization',
-            'title': 'Desk Workspace & Team',
-            'icon': Icons.corporate_fare_rounded,
-            'subtitle': 'Desk branding, seats, member directory, roles',
-          },
-          {
-            'id': 'desk_risk',
-            'title': 'Desk Risk & Compliance',
-            'icon': Icons.shield_outlined,
-            'subtitle': 'Firm drawdown circuit breakers and capital limits',
+            'id': 'platform',
+            'title': 'App settings',
+            'icon': Icons.tune,
+            'subtitle': 'Feature availability and administration policy',
           },
           {
             'id': 'security',
             'title': 'Admin Security & Auth',
             'icon': Icons.lock_outline_rounded,
-            'subtitle': 'Root credential security and auth keys',
+            'subtitle': 'Password, sign-in methods and sessions',
           },
           {
             'id': 'notifications',
-            'title': 'Desk Alerts & Audit',
+            'title': 'Notifications',
             'icon': Icons.notifications_none_rounded,
-            'subtitle': 'Risk breach alerts, member join requests',
+            'subtitle': 'Notification preferences and quiet hours',
           },
           {
             'id': 'privacy',
-            'title': 'Privacy & Audit Export',
+            'title': 'Privacy & Data',
             'icon': Icons.security_rounded,
-            'subtitle': 'Compliance archiving and log export',
+            'subtitle': 'Your account privacy and data',
           },
           {
             'id': 'appearance',
@@ -363,9 +360,9 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
           },
           {
             'id': 'help',
-            'title': 'Institutional Support',
+            'title': 'Help & Support',
             'icon': Icons.help_outline_rounded,
-            'subtitle': 'Priority desk support and SLA hotline',
+            'subtitle': 'Product help and contact information',
           },
         ];
     }
@@ -462,7 +459,7 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
                     ? 'Avatar, bio, and trading experience'
                     : (widget.userRole == UserRole.affiliate
                           ? 'Creator alias and promotional bio'
-                          : 'Administrator credentials and desk division'),
+                          : 'Administrator profile and contact information'),
                 icon: Icons.person_outline_rounded,
                 onTap: () => _navigateToSubpage(
                   ProfileSettingsPage(
@@ -563,28 +560,16 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
             SizedBox(height: context.sp(theme.spacing.lg)),
           ] else if (widget.userRole == UserRole.userAdmin) ...[
             AppSettingsSectionBlock(
-              title: 'Institutional Workspace & Governance',
+              title: 'Platform administration',
               children: [
                 SettingsNavRow(
-                  title: 'Organization Workspace & Team',
-                  subtitle: 'Desk branding, seats, roles, and trader directory',
-                  icon: Icons.corporate_fare_rounded,
-                  badgeLabel: '25 SEATS',
+                  title: 'App settings',
+                  subtitle: 'Manage platform feature availability',
+                  icon: Icons.tune,
                   onTap: () => _navigateToSubpage(
-                    const OrganizationSettingsPage(),
-                    'Organization Settings',
-                    Icons.corporate_fare_rounded,
-                  ),
-                ),
-                SettingsNavRow(
-                  title: 'Desk Risk & Compliance Policies',
-                  subtitle: 'Firm drawdown limits and pre-trade gates',
-                  icon: Icons.shield_outlined,
-                  badgeLabel: 'RISK GATES',
-                  onTap: () => _navigateToSubpage(
-                    const DeskRiskPage(),
-                    'Desk Risk Policies',
-                    Icons.shield_outlined,
+                    const AdminSettingsPage(),
+                    'App settings',
+                    Icons.tune,
                   ),
                 ),
               ],

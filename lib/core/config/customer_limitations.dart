@@ -177,12 +177,13 @@ class CustomerLimitations {
     if (SupabaseConfig.isConfigured && usage == null) return false;
     if (!context.mounted) return false;
     final CustomerTierQuota quota = currentQuota;
-    if ((usage?.notesUsed ?? currentNoteCount) < quota.maxNotes) return true;
+    final limit = usage?.notesLimit ?? quota.maxNotes;
+    if ((usage?.notesUsed ?? currentNoteCount) < limit) return true;
     await showPlanUpgradeDialog(
       context,
-      featureTitle: 'Note Limit Reached (${quota.maxNotes} Notes)',
+      featureTitle: 'Note Limit Reached ($limit Notes)',
       reason:
-          'Your ${quota.planName} plan includes up to ${quota.maxNotes} research notes. Paid upgrades are unavailable until verified checkout is connected.',
+          'Your ${quota.planName} plan includes up to $limit research notes. Contact support to review your account allowance.',
     );
     return false;
   }
@@ -215,12 +216,13 @@ class CustomerLimitations {
     if (SupabaseConfig.isConfigured && usage == null) return false;
     if (!context.mounted) return false;
     final CustomerTierQuota quota = currentQuota;
-    if ((usage?.tradesUsed ?? currentTradeCount) < quota.maxTrades) return true;
+    final limit = usage?.tradesLimit ?? quota.maxTrades;
+    if ((usage?.tradesUsed ?? currentTradeCount) < limit) return true;
     await showPlanUpgradeDialog(
       context,
-      featureTitle: 'Journal Quota Reached (${quota.maxTrades} Trades)',
+      featureTitle: 'Journal Quota Reached ($limit Trades)',
       reason:
-          'Your ${quota.planName} plan supports up to ${quota.maxTrades} logged trades. Paid upgrades are unavailable until verified checkout is connected.',
+          'Your ${quota.planName} plan supports up to $limit logged trades. Contact support to review your account allowance.',
     );
     return false;
   }
@@ -237,16 +239,15 @@ class CustomerLimitations {
     if (SupabaseConfig.isConfigured && usage == null) return false;
     if (!context.mounted) return false;
     final CustomerTierQuota quota = currentQuota;
-    if ((usage?.livePlaybooksUsed ?? currentLiveStrategyCount) <
-        quota.maxLiveStrategies) {
+    final limit = usage?.livePlaybooksLimit ?? quota.maxLiveStrategies;
+    if ((usage?.livePlaybooksUsed ?? currentLiveStrategyCount) < limit) {
       return true;
     }
     await showPlanUpgradeDialog(
       context,
-      featureTitle:
-          'Active Playbook Limit Reached (${quota.maxLiveStrategies} Live)',
+      featureTitle: 'Active Playbook Limit Reached ($limit Live)',
       reason:
-          'Your ${quota.planName} plan allows up to ${quota.maxLiveStrategies} live playbooks. Paid upgrades are unavailable until verified checkout is connected.',
+          'Your ${quota.planName} plan allows up to $limit live playbooks. Contact support to review your account allowance.',
     );
     return false;
   }
@@ -630,9 +631,12 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                           ),
                           UiBadge(
                             label:
-                                'Notes ${notesUsed ?? '—'}/${quota.maxNotes}',
+                                'Notes ${notesUsed ?? '—'}/${(_accountUsage?.notesLimit ?? quota.maxNotes)}',
                             intent:
-                                notesUsed != null && notesUsed >= quota.maxNotes
+                                notesUsed != null &&
+                                    notesUsed >=
+                                        (_accountUsage?.notesLimit ??
+                                            quota.maxNotes)
                                 ? UiIntent.danger
                                 : UiIntent.info,
                             variant: UiBadgeVariant.soft,
@@ -640,10 +644,12 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                           ),
                           UiBadge(
                             label:
-                                'Trades ${tradesUsed ?? '—'}/${quota.maxTrades}',
+                                'Trades ${tradesUsed ?? '—'}/${(_accountUsage?.tradesLimit ?? quota.maxTrades)}',
                             intent:
                                 tradesUsed != null &&
-                                    tradesUsed >= quota.maxTrades
+                                    tradesUsed >=
+                                        (_accountUsage?.tradesLimit ??
+                                            quota.maxTrades)
                                 ? UiIntent.danger
                                 : UiIntent.info,
                             variant: UiBadgeVariant.soft,
@@ -651,10 +657,12 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                           ),
                           UiBadge(
                             label:
-                                'Live Playbooks ${playbooksUsed ?? '—'}/${quota.maxLiveStrategies}',
+                                'Live Playbooks ${playbooksUsed ?? '—'}/${(_accountUsage?.livePlaybooksLimit ?? quota.maxLiveStrategies)}',
                             intent:
                                 playbooksUsed != null &&
-                                    playbooksUsed >= quota.maxLiveStrategies
+                                    playbooksUsed >=
+                                        (_accountUsage?.livePlaybooksLimit ??
+                                            quota.maxLiveStrategies)
                                 ? UiIntent.warning
                                 : UiIntent.success,
                             variant: UiBadgeVariant.soft,
@@ -662,11 +670,12 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                           ),
                           UiBadge(
                             label:
-                                'AI Copilot ${aiUsedForAccount ?? '—'}/${quota.maxAiQueriesPerMonth}',
+                                'AI Copilot ${aiUsedForAccount ?? '—'}/${(_accountUsage?.aiQueriesLimit ?? quota.maxAiQueriesPerMonth)}',
                             intent:
                                 aiUsedForAccount != null &&
                                     aiUsedForAccount >=
-                                        quota.maxAiQueriesPerMonth
+                                        (_accountUsage?.aiQueriesLimit ??
+                                            quota.maxAiQueriesPerMonth)
                                 ? UiIntent.danger
                                 : UiIntent.primary,
                             variant: UiBadgeVariant.soft,
