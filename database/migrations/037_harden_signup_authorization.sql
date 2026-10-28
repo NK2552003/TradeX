@@ -97,7 +97,9 @@ AS $$
 BEGIN
   IF current_user IN ('authenticated', 'anon') THEN
     IF TG_OP = 'INSERT' THEN
-      IF NEW.role <> 'customer' OR NEW.admin_key IS NOT NULL OR NEW.subscription_tier NOT IN ('free', 'pro') THEN
+      IF NEW.role <> 'customer'
+         OR NEW.admin_key IS NOT NULL
+         OR (NEW.subscription_tier <> 'free' AND NOT public.is_user_admin()) THEN
         RAISE EXCEPTION 'Role and entitlement assignment is server managed';
       END IF;
     ELSIF NEW.role IS DISTINCT FROM OLD.role OR NEW.admin_key IS DISTINCT FROM OLD.admin_key THEN

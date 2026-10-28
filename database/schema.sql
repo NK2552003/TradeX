@@ -3058,13 +3058,18 @@ LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $$
 BEGIN
  IF current_user IN ('authenticated','anon') THEN
   IF TG_OP='INSERT' THEN
-   IF NEW.role<>'customer' OR NEW.admin_key IS NOT NULL THEN RAISE EXCEPTION 'Role assignment is server managed'; END IF;
+   IF NEW.role <> 'customer'
+      OR NEW.admin_key IS NOT NULL
+      OR (NEW.subscription_tier <> 'free' AND NOT public.is_user_admin()) THEN
+    RAISE EXCEPTION 'Role and entitlement assignment is server managed';
+   END IF;
   ELSIF NEW.role IS DISTINCT FROM OLD.role OR NEW.admin_key IS DISTINCT FROM OLD.admin_key THEN RAISE EXCEPTION 'Role assignment is server managed'; END IF;
  END IF;
  RETURN NEW;
 END;
 $$;
 REVOKE ALL ON FUNCTION public.affiliate_guard_profile_role() FROM PUBLIC,anon,authenticated;
+DROP TRIGGER IF EXISTS affiliate_guard_profile_role ON public.profiles;
 CREATE TRIGGER affiliate_guard_profile_role BEFORE INSERT OR UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.affiliate_guard_profile_role();
 
 CREATE OR REPLACE FUNCTION public.handle_new_user_signup()
