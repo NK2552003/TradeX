@@ -252,7 +252,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       // 2. Persistent Local Storage Fallback (offline mode / local mock store)
       final storedProfile = await AuthSessionStorage.getStoredProfile();
       if (storedProfile != null) {
-        if (!SupabaseConfig.isConfigured ||
+        if ((!SupabaseConfig.isConfigured && CustomerDataPolicy.allowDemo) ||
             SupabaseConfig.client?.auth.currentUser != null) {
           final affProfile =
               await AuthSessionStorage.getStoredAffiliateProfile();

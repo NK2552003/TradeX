@@ -45,7 +45,6 @@ fresh project and an upgraded project stop agreeing.
 | `024_market_screener_snapshots.sql` | complete screener payloads linked to ranked categories, authenticated read policy |
 | `025_entity_ticker_links.sql` | `entity_ticker_links`, persistent relational ticker reference table across Notes, Journal, Strategies, Community, and Messages with daily sync stability and stored RPCs |
 | `026_affiliate_workspace.sql` | partner campaigns/assets, read RPC, payout reservation/settlement, attribution, secured application reviews; see [affiliate handoff](../backend_handoff/16-Affiliate_Workspace/README.md) |
-| `038_community_ownership_and_block_rules.sql` | community post/comment RLS hardening for blocked users, author-enforced update/delete policies, and profiles column alignment |
 
 Two steps in that list are not additive and are worth reading before you run
 them: 010 rewrites `strategies.content` from JSONB to TEXT (a playbook is
