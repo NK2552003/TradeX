@@ -37,6 +37,7 @@ class JournalAttachments {
     final String ref = await JournalRepositoryScope.repository.uploadAttachment(
       entryId,
       staged,
+      filename: filename,
     );
     return NoteAttachments.markdownFor(
       ref: ref,
@@ -44,6 +45,10 @@ class JournalAttachments {
       isImage: NoteAttachments.isImageFile(staged.path),
     );
   }
+
+  /// Removes an attachment from the private bucket and clears its entry attachment record.
+  static Future<void> delete(String storagePath) =>
+      JournalRepositoryScope.repository.deleteAttachment(storagePath);
 
   /// Wire into `RichMarkdownPreview.imageResolver`.
   static Widget resolve(BuildContext context, Uri uri) =>
