@@ -1119,10 +1119,12 @@ class LiveRoomParticipant {
       userId: map['user_id']?.toString() ?? '',
       displayName:
           profile?['display_name'] as String? ??
+          profile?['handle'] as String? ??
           profile?['username'] as String? ??
           map['display_name'] as String? ??
           'Trader',
       handle:
+          profile?['handle'] as String? ??
           profile?['username'] as String? ??
           map['handle'] as String? ??
           'trader',
@@ -1210,6 +1212,7 @@ class LiveRoomMessage {
       senderId: map['sender_id']?.toString() ?? '',
       senderName:
           profile?['display_name'] as String? ??
+          profile?['handle'] as String? ??
           profile?['username'] as String? ??
           map['sender_name'] as String? ??
           'Trader',
@@ -1265,6 +1268,7 @@ class LiveRoomQuestion {
       authorId: map['author_id']?.toString() ?? '',
       authorName:
           profile?['display_name'] as String? ??
+          profile?['handle'] as String? ??
           profile?['username'] as String? ??
           map['author_name'] as String? ??
           'Trader',

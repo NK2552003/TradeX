@@ -45,17 +45,6 @@ fresh project and an upgraded project stop agreeing.
 | `024_market_screener_snapshots.sql` | complete screener payloads linked to ranked categories, authenticated read policy |
 | `025_entity_ticker_links.sql` | `entity_ticker_links`, persistent relational ticker reference table across Notes, Journal, Strategies, Community, and Messages with daily sync stability and stored RPCs |
 | `026_affiliate_workspace.sql` | partner campaigns/assets, read RPC, payout reservation/settlement, attribution, secured application reviews; see [affiliate handoff](../backend_handoff/16-Affiliate_Workspace/README.md) |
-| `027_admin_affiliate_inr_deletion_production.sql` | production admin console, 100% INR affiliate enhancements, dynamic tiers, and conditional account purge |
-| `028_sync_all_supabase_tables.sql` | sync all tables, triggers, and foreign keys |
-| `029_storage_buckets_setup.sql` | storage bucket configuration and RLS policies |
-| `030_community_polls_and_activity.sql` | community polls and activity streams |
-| `031_notifications_system.sql` | in-app notifications and preferences |
-| `032_community_reactions.sql` | post and comment reaction counters |
-| `033_profile_trading_fields.sql` | profile trading fields and validation |
-| `034_public_pricing_and_community_review.sql` | public pricing catalogue and review flow |
-| `035_community_comment_reactions.sql` | comment reaction persistence |
-| `036_billing_providers_and_user_quota.sql` | billing providers, user quota limits |
-| `037_harden_signup_authorization.sql` | hardened signup trigger defaults, zero trust for self-signup metadata, fail-closed role guard |
 
 Two steps in that list are not additive and are worth reading before you run
 them: 010 rewrites `strategies.content` from JSONB to TEXT (a playbook is

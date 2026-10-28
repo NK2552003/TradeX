@@ -52,6 +52,29 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
   bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
 
+  Future<Set<String>> _fetchBlockedUserIds(
+    SupabaseClient client,
+    String currentUserId,
+  ) async {
+    final blockedIds = <String>{};
+    if (currentUserId.isEmpty) return blockedIds;
+    try {
+      final blockedRes = await client
+          .from('blocks')
+          .select('blocked_id')
+          .eq('blocker_id', currentUserId);
+      for (final b in (blockedRes as List)) {
+        final id = b['blocked_id']?.toString();
+        if (id != null && id.isNotEmpty && id != currentUserId) {
+          blockedIds.add(id);
+        }
+      }
+    } catch (e) {
+      debugPrint('[SupabasePostRepository] Failed to fetch blocked user IDs: ');
+    }
+    return blockedIds;
+  }
+
   @override
   Future<List<AppPost>> getPosts() async {
     if (SupabaseConfig.isConfigured) {
@@ -59,16 +82,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
         final client = SupabaseConfig.client!;
         final currentUserId = _resolveUserId();
 
-        final Set<String> blockedIds = <String>{};
-        try {
-          final blockedRes = await client
-              .from('blocks')
-              .select('blocked_id')
-              .eq('blocker_id', currentUserId);
-          blockedIds.addAll(
-            (blockedRes as List).map((b) => b['blocked_id'].toString()),
-          );
-        } catch (_) {}
+        final blockedIds = await _fetchBlockedUserIds(client, currentUserId);
 
         final res = await client
             .from('community_posts')
@@ -319,6 +333,9 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
     if (SupabaseConfig.isConfigured && _isUuid(postId)) {
       try {
         final client = SupabaseConfig.client!;
+        final currentUserId = _resolveUserId();
+        final blockedIds = await _fetchBlockedUserIds(client, currentUserId);
+
         final res = await client
             .from('community_comments')
             .select(
@@ -327,7 +344,11 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
             .eq('post_id', postId)
             .order('created_at', ascending: true);
 
-        return (res as List).map((row) {
+        final filtered = (res as List)
+            .where((row) => !blockedIds.contains(row['author_id']?.toString()))
+            .toList();
+
+        return filtered.map((row) {
           final profile = row['profiles'] as Map<String, dynamic>?;
           final handle =
               (profile?['handle'] ?? profile?['username']) as String? ??
