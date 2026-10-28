@@ -269,7 +269,11 @@ class CommunityRepository extends ChangeNotifier {
         debugPrint('[CommunityRepository] Error fetching followers: $e');
       }
 
-      _blockedUsers.clear();
+      final currentRefreshEpoch = _blockRefreshEpoch;
+      final tempOutgoing = <String>{};
+      final tempIncoming = <String>{};
+      var blockFetchFailed = false;
+
       try {
         final blockedRes = await client
             .from('blocks')
@@ -277,9 +281,12 @@ class CommunityRepository extends ChangeNotifier {
             .eq('blocker_id', targetUserId);
         for (final item in blockedRes as List) {
           final id = item['blocked_id']?.toString();
-          if (id != null && id.isNotEmpty) _blockedUsers.add(id);
+          if (id != null && id.isNotEmpty && id != targetUserId) {
+            tempOutgoing.add(id);
+          }
         }
       } catch (e) {
+        blockFetchFailed = true;
         debugPrint('[CommunityRepository] Error fetching blocked users: $e');
       }
 
@@ -290,10 +297,20 @@ class CommunityRepository extends ChangeNotifier {
             .eq('blocked_id', targetUserId);
         for (final item in blockerRes as List) {
           final id = item['blocker_id']?.toString();
-          if (id != null && id.isNotEmpty) _blockedUsers.add(id);
+          if (id != null && id.isNotEmpty && id != targetUserId) {
+            tempIncoming.add(id);
+          }
         }
       } catch (e) {
+        blockFetchFailed = true;
         debugPrint('[CommunityRepository] Error fetching blockers: $e');
+      }
+
+      // Preserve previous block state if either query fails or if a newer mutation occurred
+      if (!blockFetchFailed && currentRefreshEpoch == _blockRefreshEpoch) {
+        _outgoingBlockedUserIds = tempOutgoing;
+        _incomingBlockedUserIds = tempIncoming;
+        _blockedUsers = {..._outgoingBlockedUserIds, ..._incomingBlockedUserIds};
       }
 
       final res = await client
@@ -314,35 +331,10 @@ class CommunityRepository extends ChangeNotifier {
           continue;
         }
 
-        final author = CommunityAuthor(
-          id: authorId,
-          handle:
-              (authorProfile?['handle'] ?? authorProfile?['username'])
-                  as String? ??
-              'trader',
-          displayName:
-              authorProfile?['display_name'] as String? ??
-              authorProfile?['handle'] as String? ??
-              authorProfile?['username'] as String? ??
-              'Trader',
-          userRole: _parseUserRole(authorProfile?['role'] as String?),
-          avatarUrl: authorProfile?['avatar_url'] as String?,
-          bio: authorProfile?['bio'] as String?,
-          verified: authorProfile?['verified'] as bool? ?? false,
+        final author = mapProfileToCommunityAuthor(
+          authorId: authorId,
+          authorProfile: authorProfile,
           isFollowing: _followedAuthorIds.contains(authorId),
-          followers: (authorProfile?['followers_count'] as num?)?.toInt() ?? 0,
-          following: (authorProfile?['following_count'] as num?)?.toInt() ?? 0,
-          winRate: (authorProfile?['win_rate'] as num?)?.toDouble(),
-          tradingStyle:
-              (authorProfile?['top_strategy'] ??
-                      authorProfile?['trading_style'])
-                  as String?,
-          primaryMarket: authorProfile?['primary_market'] as String?,
-          avgHoldDuration: authorProfile?['avg_hold_duration'] as String?,
-          riskMantra: authorProfile?['risk_mantra'] as String?,
-          location: authorProfile?['location'] as String?,
-          website: authorProfile?['website'] as String?,
-          postsCount: (authorProfile?['posts_count'] as num?)?.toInt() ?? 0,
         );
 
         CommunityTradeSetup? setup;
@@ -790,12 +782,44 @@ class CommunityRepository extends ChangeNotifier {
     }
   }
 
-  UserRole _parseUserRole(String? roleStr) {
+  UserRole _parseUserRole(String? roleStr) => parseUserRoleStatic(roleStr);
+
+  static UserRole parseUserRoleStatic(String? roleStr) {
     if (roleStr == null) return UserRole.customer;
     final lower = roleStr.toLowerCase();
     if (lower.contains('admin')) return UserRole.userAdmin;
     if (lower.contains('affiliate')) return UserRole.affiliate;
     return UserRole.customer;
+  }
+
+  static CommunityAuthor mapProfileToCommunityAuthor({
+    required String authorId,
+    required Map<String, dynamic>? authorProfile,
+    bool isFollowing = false,
+  }) {
+    return CommunityAuthor(
+      id: authorId,
+      handle: (authorProfile?['handle'] ?? authorProfile?['username']) as String? ?? 'trader',
+      displayName: authorProfile?['display_name'] as String? ??
+          authorProfile?['handle'] as String? ??
+          authorProfile?['username'] as String? ??
+          'Trader',
+      userRole: parseUserRoleStatic(authorProfile?['role'] as String?),
+      avatarUrl: authorProfile?['avatar_url'] as String?,
+      bio: authorProfile?['bio'] as String?,
+      verified: authorProfile?['verified'] as bool? ?? false,
+      isFollowing: isFollowing,
+      followers: (authorProfile?['followers_count'] as num?)?.toInt() ?? 0,
+      following: (authorProfile?['following_count'] as num?)?.toInt() ?? 0,
+      winRate: (authorProfile?['win_rate'] as num?)?.toDouble(),
+      tradingStyle: (authorProfile?['top_strategy'] ?? authorProfile?['trading_style']) as String?,
+      primaryMarket: authorProfile?['primary_market'] as String?,
+      avgHoldDuration: authorProfile?['avg_hold_duration'] as String?,
+      riskMantra: authorProfile?['risk_mantra'] as String?,
+      location: authorProfile?['location'] as String?,
+      website: authorProfile?['website'] as String?,
+      postsCount: (authorProfile?['posts_count'] as num?)?.toInt() ?? 0,
+    );
   }
 
   bool _disposed = false;
@@ -877,7 +901,10 @@ class CommunityRepository extends ChangeNotifier {
       <AppWritingPostAttachment>[];
 
   final Set<String> _mutedUsers = <String>{};
-  final Set<String> _blockedUsers = <String>{};
+  Set<String> _outgoingBlockedUserIds = <String>{};
+  Set<String> _incomingBlockedUserIds = <String>{};
+  Set<String> _blockedUsers = <String>{};
+  int _blockRefreshEpoch = 0;
   final Set<String> _followedAuthorIds = <String>{};
   final Set<String> _followerAuthorIds = <String>{};
   final List<String> _customFeedTabs = <String>['Crypto', 'Options'];
@@ -1056,7 +1083,7 @@ class CommunityRepository extends ChangeNotifier {
 
   List<CommunityBlockEntry> loadBlockedUsers() {
     final now = DateTime.now();
-    return _blockedUsers
+    return _outgoingBlockedUserIds
         .map((id) => CommunityBlockEntry(userId: id, blockedAt: now))
         .toList();
   }
@@ -2262,13 +2289,14 @@ class CommunityRepository extends ChangeNotifier {
     final actor =
         SupabaseConfig.client?.auth.currentUser?.id ?? currentAuthor.id;
     final existing = _commentsByPost[postId];
-    final comment = existing?.cast<CommunityComment?>().firstWhere(
-          (c) => c?.id == commentId,
-          orElse: () => null,
-        );
+
+    // Recursively locate the comment anywhere in the tree (top-level or reply)
+    final comment = existing != null ? _findCommentRecursive(existing, commentId) : null;
+
     if (comment != null && comment.author.id != actor) {
       throw StateError('Only the author can delete this comment.');
     }
+
     if (SupabaseConfig.isConfigured) {
       await OwnedRecordWriter().delete(
         'community_comments',
@@ -2278,25 +2306,69 @@ class CommunityRepository extends ChangeNotifier {
     } else if (comment == null) {
       throw StateError('This comment is no longer available.');
     }
-    if (existing != null) {
-      final updated = existing.where((c) => c.id != commentId).toList();
-      _commentsByPost =
-          Map<String, List<CommunityComment>>.from(_commentsByPost)
-            ..[postId] = updated;
-      _forYouPosts = _decrementComments(_forYouPosts, postId);
-      _followingPosts = _decrementComments(_followingPosts, postId);
-      _signalPosts = _decrementComments(_signalPosts, postId);
-      notifyListeners();
+
+    if (existing != null && comment != null) {
+      final removed = [false];
+      final updated = _removeCommentRecursive(existing, commentId, removed);
+      if (removed[0]) {
+        final removedCount = _countCommentAndDescendants(comment);
+        _commentsByPost =
+            Map<String, List<CommunityComment>>.from(_commentsByPost)
+              ..[postId] = updated;
+        _forYouPosts = _decrementCommentsBy(_forYouPosts, postId, removedCount);
+        _followingPosts = _decrementCommentsBy(_followingPosts, postId, removedCount);
+        _signalPosts = _decrementCommentsBy(_signalPosts, postId, removedCount);
+        _bookmarkedPosts = _decrementCommentsBy(_bookmarkedPosts, postId, removedCount);
+        notifyListeners();
+      }
     }
   }
 
-  List<CommunityPost> _decrementComments(
+  static CommunityComment? _findCommentRecursive(
+    List<CommunityComment> list,
+    String targetId,
+  ) {
+    for (final c in list) {
+      if (c.id == targetId) return c;
+      final found = _findCommentRecursive(c.replies, targetId);
+      if (found != null) return found;
+    }
+    return null;
+  }
+
+  static List<CommunityComment> _removeCommentRecursive(
+    List<CommunityComment> list,
+    String targetId,
+    List<bool> removed,
+  ) {
+    final result = <CommunityComment>[];
+    for (final c in list) {
+      if (c.id == targetId) {
+        removed[0] = true;
+        continue;
+      }
+      final updatedReplies = _removeCommentRecursive(c.replies, targetId, removed);
+      result.add(c.copyWith(replies: updatedReplies));
+    }
+    return result;
+  }
+
+  static int _countCommentAndDescendants(CommunityComment comment) {
+    var count = 1;
+    for (final r in comment.replies) {
+      count += _countCommentAndDescendants(r);
+    }
+    return count;
+  }
+
+  List<CommunityPost> _decrementCommentsBy(
     List<CommunityPost> list,
     String postId,
+    int count,
   ) => list
       .map(
         (p) => p.id == postId
-            ? p.copyWith(comments: (p.comments > 0 ? p.comments - 1 : 0))
+            ? p.copyWith(comments: (p.comments >= count ? p.comments - count : 0))
             : p,
       )
       .toList();
@@ -2681,20 +2753,34 @@ class CommunityRepository extends ChangeNotifier {
   /// Body: { "user_id": String }
   /// Returns: { "blocked": true }
   Future<void> blockUser(String userId) async {
-    _blockedUsers.add(userId);
+    final priorOutgoing = Set<String>.from(_outgoingBlockedUserIds);
+    _blockRefreshEpoch++;
+    _outgoingBlockedUserIds.add(userId);
+    _blockedUsers = {..._outgoingBlockedUserIds, ..._incomingBlockedUserIds};
     notifyListeners();
+
     if (SupabaseConfig.isConfigured && _isUuid(userId)) {
-      try {
-        final client = SupabaseConfig.client!;
-        final targetUserId = _resolveUserId();
-        if (targetUserId.isNotEmpty) {
+      final targetUserId = _resolveUserId();
+      if (targetUserId.isEmpty && !CustomerDataPolicy.allowDemo) {
+        _outgoingBlockedUserIds = priorOutgoing;
+        _blockedUsers = {..._outgoingBlockedUserIds, ..._incomingBlockedUserIds};
+        notifyListeners();
+        throw StateError('Cannot block user without an authenticated identity.');
+      }
+      if (targetUserId.isNotEmpty) {
+        try {
+          final client = SupabaseConfig.client!;
           await client.from('blocks').upsert({
             'blocker_id': targetUserId,
             'blocked_id': userId,
           });
+        } catch (e, stack) {
+          debugPrint('[CommunityRepository] blockUser error: $e');
+          _outgoingBlockedUserIds = priorOutgoing;
+          _blockedUsers = {..._outgoingBlockedUserIds, ..._incomingBlockedUserIds};
+          notifyListeners();
+          Error.throwWithStackTrace(e, stack);
         }
-      } catch (e) {
-        debugPrint('[CommunityRepository] blockUser error: $e');
       }
     }
   }
@@ -2703,21 +2789,36 @@ class CommunityRepository extends ChangeNotifier {
   /// Body: { "user_id": String }
   /// Returns: { "blocked": false }
   Future<void> unblockUser(String userId) async {
-    _blockedUsers.remove(userId);
+    final priorOutgoing = Set<String>.from(_outgoingBlockedUserIds);
+    _blockRefreshEpoch++;
+    _outgoingBlockedUserIds.remove(userId);
+    // Unblocking an outgoing block must NOT erase an independent incoming block
+    _blockedUsers = {..._outgoingBlockedUserIds, ..._incomingBlockedUserIds};
     notifyListeners();
+
     if (SupabaseConfig.isConfigured && _isUuid(userId)) {
-      try {
-        final client = SupabaseConfig.client!;
-        final targetUserId = _resolveUserId();
-        if (targetUserId.isNotEmpty) {
+      final targetUserId = _resolveUserId();
+      if (targetUserId.isEmpty && !CustomerDataPolicy.allowDemo) {
+        _outgoingBlockedUserIds = priorOutgoing;
+        _blockedUsers = {..._outgoingBlockedUserIds, ..._incomingBlockedUserIds};
+        notifyListeners();
+        throw StateError('Cannot unblock user without an authenticated identity.');
+      }
+      if (targetUserId.isNotEmpty) {
+        try {
+          final client = SupabaseConfig.client!;
           await client
               .from('blocks')
               .delete()
               .eq('blocker_id', targetUserId)
               .eq('blocked_id', userId);
+        } catch (e, stack) {
+          debugPrint('[CommunityRepository] unblockUser error: $e');
+          _outgoingBlockedUserIds = priorOutgoing;
+          _blockedUsers = {..._outgoingBlockedUserIds, ..._incomingBlockedUserIds};
+          notifyListeners();
+          Error.throwWithStackTrace(e, stack);
         }
-      } catch (e) {
-        debugPrint('[CommunityRepository] unblockUser error: $e');
       }
     }
   }
@@ -2784,26 +2885,10 @@ class CommunityRepository extends ChangeNotifier {
             authorId != SupabaseConfig.client?.auth.currentUser?.id) {
           return null;
         }
-        final author = CommunityAuthor(
-          id: authorId,
-          handle:
-              (authorProfile?['handle'] ?? authorProfile?['username'])
-                  as String? ??
-              'trader',
-          displayName:
-              authorProfile?['display_name'] as String? ??
-              authorProfile?['handle'] as String? ??
-              authorProfile?['username'] as String? ??
-              'Trader',
-          userRole: _parseUserRole(authorProfile?['role'] as String?),
-          avatarUrl: authorProfile?['avatar_url'] as String?,
-          bio: authorProfile?['bio'] as String?,
-          verified: authorProfile?['verified'] as bool? ?? false,
-          followers: (authorProfile?['followers_count'] as num?)?.toInt() ?? 0,
-          following: (authorProfile?['following_count'] as num?)?.toInt() ?? 0,
-          winRate: (authorProfile?['win_rate'] as num?)?.toDouble(),
-          tradingStyle: authorProfile?['trading_style'] as String?,
-          postsCount: (authorProfile?['posts_count'] as num?)?.toInt() ?? 0,
+        final author = mapProfileToCommunityAuthor(
+          authorId: authorId,
+          authorProfile: authorProfile,
+          isFollowing: _followedAuthorIds.contains(authorId),
         );
         CommunityTradeSetup? setup;
         final rawSetups = row['community_post_trade_setups'];

@@ -178,16 +178,27 @@ class CommunityPostOptionsSheet extends StatelessWidget {
             icon: Icons.block_flipped,
             title: 'Block @${post.author.handle}',
             isDestructive: true,
-            onTap: () {
+            onTap: () async {
               Navigator.of(context).pop();
-              repository.blockUser(post.author.id);
-              UiToast.show(
-                context,
-                title: 'Hidden for this session',
-                message:
-                    'Posts from @${post.author.handle} are hidden in this session.',
-                intent: UiIntent.danger,
-              );
+              try {
+                await repository.blockUser(post.author.id);
+                if (!context.mounted) return;
+                UiToast.show(
+                  context,
+                  title: 'User Blocked',
+                  message:
+                      'Posts from @${post.author.handle} are hidden.',
+                  intent: UiIntent.danger,
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                UiToast.show(
+                  context,
+                  title: 'Action Failed',
+                  message: 'Failed to block user: $e',
+                  intent: UiIntent.danger,
+                );
+              }
             },
           ),
           UiDivider(),

@@ -52,6 +52,29 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
 
   bool _isUuid(String? id) => id != null && _uuidRegex.hasMatch(id);
 
+  Future<Set<String>> _fetchBlockedUserIds(
+    SupabaseClient client,
+    String currentUserId,
+  ) async {
+    final blockedIds = <String>{};
+    if (currentUserId.isEmpty) return blockedIds;
+    try {
+      final blockedRes = await client
+          .from('blocks')
+          .select('blocked_id')
+          .eq('blocker_id', currentUserId);
+      for (final b in (blockedRes as List)) {
+        final id = b['blocked_id']?.toString();
+        if (id != null && id.isNotEmpty && id != currentUserId) {
+          blockedIds.add(id);
+        }
+      }
+    } catch (e) {
+      debugPrint('[SupabasePostRepository] Failed to fetch blocked user IDs: ');
+    }
+    return blockedIds;
+  }
+
   @override
   Future<List<AppPost>> getPosts() async {
     if (SupabaseConfig.isConfigured) {
@@ -59,26 +82,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
         final client = SupabaseConfig.client!;
         final currentUserId = _resolveUserId();
 
-        final Set<String> blockedIds = <String>{};
-        try {
-          final blockedRes = await client
-              .from('blocks')
-              .select('blocked_id')
-              .eq('blocker_id', currentUserId);
-          blockedIds.addAll(
-            (blockedRes as List).map((b) => b['blocked_id'].toString()),
-          );
-        } catch (_) {}
-
-        try {
-          final blockerRes = await client
-              .from('blocks')
-              .select('blocker_id')
-              .eq('blocked_id', currentUserId);
-          blockedIds.addAll(
-            (blockerRes as List).map((b) => b['blocker_id'].toString()),
-          );
-        } catch (_) {}
+        final blockedIds = await _fetchBlockedUserIds(client, currentUserId);
 
         final res = await client
             .from('community_posts')
@@ -330,26 +334,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
       try {
         final client = SupabaseConfig.client!;
         final currentUserId = _resolveUserId();
-        final Set<String> blockedIds = <String>{};
-        try {
-          final b1 = await client
-              .from('blocks')
-              .select('blocked_id')
-              .eq('blocker_id', currentUserId);
-          blockedIds.addAll(
-            (b1 as List).map((b) => b['blocked_id'].toString()),
-          );
-        } catch (_) {}
-
-        try {
-          final b2 = await client
-              .from('blocks')
-              .select('blocker_id')
-              .eq('blocked_id', currentUserId);
-          blockedIds.addAll(
-            (b2 as List).map((b) => b['blocker_id'].toString()),
-          );
-        } catch (_) {}
+        final blockedIds = await _fetchBlockedUserIds(client, currentUserId);
 
         final res = await client
             .from('community_comments')
