@@ -223,4 +223,74 @@ void main() {
       );
     });
   });
+
+  group('CodeRabbit Review #38: copyWith, attachStrategy resolution, and storage deletion', () {
+    test('AppTrade.copyWith clears strategy name while preserving strategyId when clearStrategyName is true', () {
+      final trade = AppTrade(
+        id: 't-1',
+        ticker: 'AAPL',
+        side: AppSide.long,
+        entry: 150.0,
+        exit: null,
+        openedAt: DateTime.now(),
+        outcome: AppOutcome.open,
+        strategyId: 'strat-123',
+        strategy: 'Breakout System',
+      );
+
+      final updated = trade.copyWith(
+        strategyId: 'strat-456',
+        clearStrategyName: true,
+      );
+
+      expect(updated.strategyId, equals('strat-456'));
+      expect(updated.strategy, isNull);
+    });
+
+    test('AppTrade.copyWith clears both strategy and strategyId when clearStrategy is true', () {
+      final trade = AppTrade(
+        id: 't-2',
+        ticker: 'MSFT',
+        side: AppSide.long,
+        entry: 300.0,
+        exit: null,
+        openedAt: DateTime.now(),
+        outcome: AppOutcome.open,
+        strategyId: 'strat-123',
+        strategy: 'Momentum Scalp',
+      );
+
+      final cleared = trade.copyWith(clearStrategy: true);
+
+      expect(cleared.strategyId, isNull);
+      expect(cleared.strategy, isNull);
+    });
+
+    test('attachStrategy with null strategyName clears prior local strategy name while updating strategyId', () async {
+      final repo = JournalRepositoryImpl.instance;
+      final created = await repo.create(AppTrade(
+        id: 'trade-reg-null-strat-name',
+        ticker: 'GOOGL',
+        side: AppSide.long,
+        entry: 180.0,
+        exit: null,
+        openedAt: DateTime.now(),
+        outcome: AppOutcome.open,
+        strategyId: 'strat-old',
+        strategy: 'Old Strategy Name',
+      ));
+
+      expect(created.strategy, equals('Old Strategy Name'));
+
+      // Attaching with a valid strategy ID but null name (e.g. strategy had no title/name)
+      final attached = await repo.attachStrategy(
+        created.id,
+        'e4f5a6b7-1234-5678-9abc-def012345678',
+        strategyName: null,
+      );
+
+      expect(attached.strategyId, equals('e4f5a6b7-1234-5678-9abc-def012345678'));
+      expect(attached.strategy, isNull);
+    });
+  });
 }

@@ -1186,6 +1186,76 @@ CREATE TRIGGER trg_trader_notes_strategy_mirror
   FOR EACH ROW EXECUTE FUNCTION sync_strategy_mirrors();
 
 -- ---------------------------------------------------------------------------
+-- Strategy Title/Name & Journal Strategy Name Synchronization
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.sync_strategy_title_and_name()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.title IS DISTINCT FROM OLD.title OR OLD.title IS NULL THEN
+    NEW.name := NEW.title;
+  ELSIF NEW.name IS DISTINCT FROM OLD.name THEN
+    NEW.title := NEW.name;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sync_strategy_title_and_name ON public.strategies;
+CREATE TRIGGER trg_sync_strategy_title_and_name
+  BEFORE INSERT OR UPDATE OF title, name ON public.strategies
+  FOR EACH ROW
+  EXECUTE FUNCTION public.sync_strategy_title_and_name();
+
+CREATE OR REPLACE FUNCTION public.sync_journal_entry_strategy_name()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.strategy_id IS NOT NULL THEN
+    SELECT COALESCE(s.title, s.name) INTO NEW.strategy_name
+    FROM public.strategies s
+    WHERE s.id = NEW.strategy_id;
+  ELSE
+    NEW.strategy_name := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sync_journal_entry_strategy_name ON public.journal_entries;
+CREATE TRIGGER trg_sync_journal_entry_strategy_name
+  BEFORE INSERT OR UPDATE OF strategy_id ON public.journal_entries
+  FOR EACH ROW
+  EXECUTE FUNCTION public.sync_journal_entry_strategy_name();
+
+CREATE OR REPLACE FUNCTION public.propagate_strategy_name_to_journal_entries()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE public.journal_entries
+  SET strategy_name = COALESCE(NEW.title, NEW.name)
+  WHERE strategy_id = NEW.id
+    AND strategy_name IS DISTINCT FROM COALESCE(NEW.title, NEW.name);
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+REVOKE ALL ON FUNCTION public.propagate_strategy_name_to_journal_entries() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_propagate_strategy_name ON public.strategies;
+CREATE TRIGGER trg_propagate_strategy_name
+  AFTER UPDATE OF title, name ON public.strategies
+  FOR EACH ROW
+  EXECUTE FUNCTION public.propagate_strategy_name_to_journal_entries();
+
+-- Backfills
+UPDATE public.strategies SET name = title WHERE name IS NULL OR name = '';
+UPDATE public.journal_entries j
+SET strategy_name = s.title
+FROM public.strategies s
+WHERE j.strategy_id = s.id
+  AND (j.strategy_name IS NULL OR j.strategy_name = '');
+
+
+-- ---------------------------------------------------------------------------
 -- Derived reads. Nothing below stores anything.
 -- Rationale: migrations/012_linked_notes_reads.sql
 -- ---------------------------------------------------------------------------

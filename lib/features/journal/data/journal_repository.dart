@@ -699,18 +699,17 @@ class JournalRepositoryImpl implements JournalRepository {
       try {
         final client = SupabaseConfig.client!;
 
-        // Purge storage attachments for this journal entry
-        try {
-          final folder = '${owned.userId}/$id';
-          final files = await client.storage
-              .from('journal-attachments')
-              .list(path: folder);
-          if (files.isNotEmpty) {
-            final filePaths = files.map((f) => '$folder/${f.name}').toList();
-            await client.storage.from('journal-attachments').remove(filePaths);
-          }
-        } catch (storageErr) {
-          debugPrint('[JournalRepository] attachment purge warning: $storageErr');
+        // Note: Storage cleanup and database deletion are not atomic in Supabase.
+        // We purge storage first; if listing or removing attachments fails, the
+        // error propagates out immediately so the database row and local cache
+        // are preserved for retry.
+        final folder = '${owned.userId}/$id';
+        final files = await client.storage
+            .from('journal-attachments')
+            .list(path: folder);
+        if (files.isNotEmpty) {
+          final filePaths = files.map((f) => '$folder/${f.name}').toList();
+          await client.storage.from('journal-attachments').remove(filePaths);
         }
 
         await OwnedRecordWriter().delete('journal_entries', id);
@@ -866,13 +865,15 @@ class JournalRepositoryImpl implements JournalRepository {
           'strategy_name': validStrategyId != null ? resolvedName : null,
         };
 
-        await client
+        final updatedRow = await client
             .from('journal_entries')
             .update(updatePayload)
             .eq('id', entryId)
             .eq('user_id', _resolveUserId())
-            .select('id')
+            .select('id, strategy_name')
             .single();
+
+        resolvedName = updatedRow['strategy_name']?.toString();
       } catch (e) {
         debugPrint('[JournalRepository] attachStrategy error: $e');
         rethrow;
@@ -882,10 +883,18 @@ class JournalRepositoryImpl implements JournalRepository {
       if (validStrategyId == null) {
         return entry.copyWith(clearStrategy: true);
       }
-      return entry.copyWith(
-        strategyId: validStrategyId,
-        strategy: resolvedName ?? strategyName,
-      );
+      if (resolvedName != null && resolvedName.isNotEmpty) {
+        return entry.copyWith(
+          strategyId: validStrategyId,
+          strategy: resolvedName,
+        );
+      } else {
+        // Persisted name is null/empty, but strategyId is valid: clear previous local strategy name while retaining strategyId
+        return entry.copyWith(
+          strategyId: validStrategyId,
+          clearStrategyName: true,
+        );
+      }
     });
   }
 

@@ -74,6 +74,26 @@ CREATE TRIGGER trg_sync_journal_entry_strategy_name
   FOR EACH ROW
   EXECUTE FUNCTION public.sync_journal_entry_strategy_name();
 
+-- Propagate strategy renames to referencing journal entries
+CREATE OR REPLACE FUNCTION public.propagate_strategy_name_to_journal_entries()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE public.journal_entries
+  SET strategy_name = COALESCE(NEW.title, NEW.name)
+  WHERE strategy_id = NEW.id
+    AND strategy_name IS DISTINCT FROM COALESCE(NEW.title, NEW.name);
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+REVOKE ALL ON FUNCTION public.propagate_strategy_name_to_journal_entries() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_propagate_strategy_name ON public.strategies;
+CREATE TRIGGER trg_propagate_strategy_name
+  AFTER UPDATE OF title, name ON public.strategies
+  FOR EACH ROW
+  EXECUTE FUNCTION public.propagate_strategy_name_to_journal_entries();
+
 -- 3. Journal Entry Attachments: Table & RLS verification
 CREATE TABLE IF NOT EXISTS public.journal_entry_attachments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
