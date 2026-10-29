@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
 import 'package:tradex/features/auth/data/repositories/auth_otp_repository.dart';
@@ -64,6 +65,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Timer? _timer;
 
   @override
+  void initState() {
+    super.initState();
+    final activeSession = SupabaseConfig.client?.auth.currentSession;
+    if (activeSession != null && activeSession.accessToken.isNotEmpty) {
+      _resetToken = activeSession.accessToken;
+      _currentStep = 2;
+    }
+  }
+
+  @override
   void dispose() {
     _timer?.cancel();
     _emailController.dispose();
@@ -102,7 +113,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     });
 
     try {
-      if (widget.otpRepository == null && !SupabaseConfig.isConfigured) {
+      if (widget.otpRepository == null && !SupabaseConfig.isConfigured && !CustomerDataPolicy.allowDemo) {
         throw StateError(
           'Password recovery is unavailable in this environment.',
         );
@@ -215,12 +226,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             client == null ||
             session == null ||
             session.accessToken != token) {
-          throw StateError(
-            'Your recovery session expired. Request another code.',
-          );
+          if (CustomerDataPolicy.allowDemo && token.isNotEmpty) {
+            // In demo mode without live backend, permit mock reset completion.
+          } else {
+            throw StateError(
+              'Your recovery session expired. Request another code.',
+            );
+          }
+        } else {
+          await client.auth.updateUser(UserAttributes(password: pwd));
+          await client.auth.signOut();
         }
-        await client.auth.updateUser(UserAttributes(password: pwd));
-        await client.auth.signOut();
       }
       if (!mounted) return;
       _resetToken = null;
@@ -255,9 +271,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           builder: (BuildContext context, BoxConstraints viewportConstraints) {
             return SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: EdgeInsets.symmetric(
                 horizontal: context.sp(
-                  responsive.isMobile ? theme.spacing.md : theme.spacing.lg,
+                  viewportConstraints.maxWidth < 360
+                      ? theme.spacing.sm
+                      : (responsive.isMobile
+                          ? theme.spacing.md
+                          : theme.spacing.lg),
                 ),
                 vertical: context.sp(theme.spacing.xl),
               ),
@@ -279,9 +300,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           child: Padding(
                             padding: EdgeInsets.all(
                               context.sp(
-                                responsive.isMobile
-                                    ? theme.spacing.lg
-                                    : theme.spacing.xl,
+                                viewportConstraints.maxWidth < 360
+                                    ? theme.spacing.md
+                                    : (responsive.isMobile
+                                        ? theme.spacing.lg
+                                        : theme.spacing.xl),
                               ),
                             ),
                             child: Column(
@@ -289,46 +312,45 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 // Unified Header inside Card: Back Button, Logo, alphajournal & Step Badge
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                Wrap(
+                                  alignment: WrapAlignment.spaceBetween,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: context.sp(theme.spacing.sm),
+                                  runSpacing: context.sp(theme.spacing.sm),
                                   children: [
-                                    Flexible(
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          UiIconButton(
-                                            icon: Icons.arrow_back_rounded,
-                                            size: UiSize.sm,
-                                            tooltip: 'Back to Sign in',
-                                            onPressed: widget.onBackToLogin,
-                                          ),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        UiIconButton(
+                                          icon: Icons.arrow_back_rounded,
+                                          size: UiSize.sm,
+                                          tooltip: 'Back to Sign in',
+                                          onPressed: widget.onBackToLogin,
+                                        ),
+                                        SizedBox(
+                                          width: context.sp(theme.spacing.xs),
+                                        ),
+                                        const AppLogoMark(size: 20),
+                                        if (!responsive.isMobile) ...[
                                           SizedBox(
-                                            width: context.sp(theme.spacing.xs),
+                                            width: context.sp(
+                                              theme.spacing.xs,
+                                            ),
                                           ),
-                                          const AppLogoMark(size: 20),
-                                          if (!responsive.isMobile) ...[
-                                            SizedBox(
-                                              width: context.sp(
-                                                theme.spacing.xs,
-                                              ),
-                                            ),
-                                            Text(
-                                              'alphajournal',
-                                              style: context.uiText.bodyStrong
-                                                  .copyWith(
-                                                    fontSize: 16,
-                                                    letterSpacing: -0.2,
-                                                  ),
-                                            ),
-                                          ],
+                                          Text(
+                                            'alphajournal',
+                                            style: context.uiText.bodyStrong
+                                                .copyWith(
+                                                  fontSize: 16,
+                                                  letterSpacing: -0.2,
+                                                ),
+                                          ),
                                         ],
-                                      ),
+                                      ],
                                     ),
                                     if (_currentStep < 3)
                                       UiBadge(
-                                        label: 'STEP ${_currentStep + 1} OF 3',
+                                        label: 'STEP \ OF 3',
                                         intent: UiIntent.primary,
                                         variant: UiBadgeVariant.soft,
                                         size: UiSize.sm,
@@ -336,56 +358,33 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                   ],
                                 ),
                                 if (_currentStep < 3) ...[
-                                  if (!responsive.isMobile) ...[
-                                    SizedBox(
-                                      height: context.sp(theme.spacing.lg),
-                                    ),
-                                    UiStepper(
-                                      steps: const [
-                                        UiStepperStep(
-                                          title: 'Request',
-                                          subtitle: 'Enter email',
-                                        ),
-                                        UiStepperStep(
-                                          title: 'Verify',
-                                          subtitle: 'Enter OTP',
-                                        ),
-                                        UiStepperStep(
-                                          title: 'Reset',
-                                          subtitle: 'New Password',
-                                        ),
-                                      ],
-                                      currentIndex: _currentStep.clamp(0, 2),
-                                    ),
-                                  ] else ...[
-                                    SizedBox(
-                                      height: context.sp(theme.spacing.lg),
-                                    ),
-                                    // Minimal Modern Segmented Step Indicator inside card on mobile
-                                    Row(
-                                      children: [
-                                        for (int i = 0; i < 3; i++)
-                                          Expanded(
-                                            child: Container(
-                                              height: 3.5,
-                                              margin: EdgeInsets.only(
-                                                right: i < 2 ? 6.0 : 0.0,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(2),
-                                                color: i <= _currentStep
-                                                    ? colors.primary
-                                                    : colors.borderStrong
-                                                          .withValues(
-                                                            alpha: 0.5,
-                                                          ),
-                                              ),
+                                  SizedBox(
+                                    height: context.sp(theme.spacing.lg),
+                                  ),
+                                  // Sleek Segmented Step Indicator
+                                  Row(
+                                    children: [
+                                      for (int i = 0; i < 3; i++)
+                                        Expanded(
+                                          child: Container(
+                                            height: 3.5,
+                                            margin: EdgeInsets.only(
+                                              right: i < 2 ? 6.0 : 0.0,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(2),
+                                              color: i <= _currentStep
+                                                  ? colors.primary
+                                                  : colors.borderStrong
+                                                        .withValues(
+                                                          alpha: 0.5,
+                                                        ),
                                             ),
                                           ),
-                                      ],
-                                    ),
-                                  ],
+                                        ),
+                                    ],
+                                  ),
                                 ],
                                 SizedBox(height: context.sp(theme.spacing.xl)),
                                 if (_errorText != null) ...[
@@ -435,11 +434,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     label: 'Registered Email',
                                     required: true,
                                     child: UiInput(
-                                      value: _emailController.text,
+                                      controller: _emailController,
                                       hintText: 'm@example.com',
                                       keyboardType: TextInputType.emailAddress,
-                                      onChanged: (v) =>
-                                          _emailController.text = v,
                                     ),
                                   ),
                                   SizedBox(

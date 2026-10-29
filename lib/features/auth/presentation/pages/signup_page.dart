@@ -150,12 +150,17 @@ class _SignupPageState extends State<SignupPage> {
                 context,
               ).copyWith(scrollbars: false),
               child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Center(
                     child: Padding(
                       padding: EdgeInsets.symmetric(
-                        horizontal: context.sp(theme.spacing.md),
+                        horizontal: constraints.maxWidth < 360
+                            ? context.sp(theme.spacing.sm)
+                            : context.sp(theme.spacing.md),
                         vertical: context.sp(theme.spacing.xl),
                       ),
                       child: ConstrainedBox(
@@ -176,9 +181,11 @@ class _SignupPageState extends State<SignupPage> {
                                       child: Padding(
                                         padding: EdgeInsets.all(
                                           context.sp(
-                                            responsive.isMobile
-                                                ? theme.spacing.lg
-                                                : theme.spacing.xl,
+                                            constraints.maxWidth < 360
+                                                ? theme.spacing.md
+                                                : (responsive.isMobile
+                                                    ? theme.spacing.lg
+                                                    : theme.spacing.xl),
                                           ),
                                         ),
                                         child: Column(
@@ -217,21 +224,23 @@ class _SignupPageState extends State<SignupPage> {
                                                       ),
                                                     ),
                                                     const AppLogoMark(size: 20),
-                                                    SizedBox(
-                                                      width: context.sp(
-                                                        theme.spacing.xs,
+                                                    if (!responsive.isMobile) ...[
+                                                      SizedBox(
+                                                        width: context.sp(
+                                                          theme.spacing.xs,
+                                                        ),
                                                       ),
-                                                    ),
-                                                    Text(
-                                                      'alphajournal',
-                                                      style: context
-                                                          .uiText
-                                                          .bodyStrong
-                                                          .copyWith(
-                                                            fontSize: 16,
-                                                            letterSpacing: -0.2,
-                                                          ),
-                                                    ),
+                                                      Text(
+                                                        'alphajournal',
+                                                        style: context
+                                                            .uiText
+                                                            .bodyStrong
+                                                            .copyWith(
+                                                              fontSize: 16,
+                                                              letterSpacing: -0.2,
+                                                            ),
+                                                      ),
+                                                    ],
                                                   ],
                                                 ),
                                                 RoleSelectorTab(
@@ -566,7 +575,9 @@ class _SignupPageState extends State<SignupPage> {
                             // Terms of Service & Privacy Policy Footer
                             Padding(
                               padding: EdgeInsets.symmetric(
-                                horizontal: context.sp(theme.spacing.md),
+                                horizontal: constraints.maxWidth < 360
+                                    ? context.sp(theme.spacing.sm)
+                                    : context.sp(theme.spacing.md),
                               ),
                               child: Text.rich(
                                 TextSpan(
