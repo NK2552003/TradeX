@@ -595,7 +595,7 @@ class JournalRepositoryImpl implements JournalRepository {
       saved = draft
           .copyWith(
             id: assignedId,
-            userId: targetUserId,
+            userId: targetUserId.isNotEmpty ? targetUserId : draft.userId,
             updatedAt: DateTime.now(),
           )
           .withDerivedCounts();

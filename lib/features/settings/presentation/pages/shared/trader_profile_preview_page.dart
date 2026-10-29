@@ -2747,27 +2747,39 @@ class _PublicJournalPreview extends StatelessWidget {
                   Row(
                     children: <Widget>[
                       Icon(
-                        Icons.verified_user_outlined,
-                        color: theme.colors.bullish,
+                        isCurrentUser
+                            ? Icons.auto_stories_outlined
+                            : Icons.verified_user_outlined,
+                        color: isCurrentUser
+                            ? theme.colors.primary
+                            : theme.colors.bullish,
                         size: context.sz(20),
                       ),
                       SizedBox(width: context.sp(theme.spacing.xs)),
                       Expanded(
                         child: Text(
-                          'Verified Public Execution Log',
+                          isCurrentUser
+                              ? 'Personal Trading Execution Journal'
+                              : 'Verified Public Execution Log',
                           style: context.uiText.bodyStrong,
                         ),
                       ),
                       UiBadge(
-                        label: 'AUDITED BROKER FEED',
-                        intent: UiIntent.bullish,
+                        label: isCurrentUser
+                            ? 'ALL EXECUTIONS (OWNER)'
+                            : 'AUDITED BROKER FEED',
+                        intent: isCurrentUser
+                            ? UiIntent.primary
+                            : UiIntent.bullish,
                         size: UiSize.xs,
                       ),
                     ],
                   ),
                   SizedBox(height: context.sp(theme.spacing.sm)),
                   Text(
-                    'Every trade shown below is cryptographically hashed against broker fill timestamps. Private personal executions remain confidential.',
+                    isCurrentUser
+                        ? 'Showing all logged trades including both public verified logs and private executions.'
+                        : 'Every trade shown below is cryptographically hashed against broker fill timestamps. Private personal executions remain confidential.',
                     style: context.uiText.caption.copyWith(
                       color: theme.colors.foregroundMuted,
                     ),
@@ -2778,7 +2790,7 @@ class _PublicJournalPreview extends StatelessWidget {
                     runSpacing: context.sp(theme.spacing.xs),
                     children: <Widget>[
                       _JournalStat(
-                        title: 'Public Trades',
+                        title: isCurrentUser ? 'Total Trades' : 'Public Trades',
                         val: '$totalLogged Logged',
                       ),
                       _JournalStat(
@@ -2873,6 +2885,7 @@ class _PublicJournalPreview extends StatelessWidget {
                             : 'No execution notes recorded.'),
                   tags: trade.tags,
                   onOpenRef: onOpenRef,
+                  isCurrentUser: isCurrentUser,
                 ),
               );
             }),
@@ -2933,6 +2946,7 @@ class _JournalTradeCard extends StatelessWidget {
     this.tradeId,
     this.trade,
     this.onOpenRef,
+    this.isCurrentUser = false,
   });
 
   final String ticker;
@@ -2951,6 +2965,7 @@ class _JournalTradeCard extends StatelessWidget {
   final String? tradeId;
   final AppTrade? trade;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final bool isCurrentUser;
 
   void _openActualTrade(BuildContext context) {
     final id = trade?.id ?? tradeId ?? ticker;
@@ -3025,6 +3040,14 @@ class _JournalTradeCard extends StatelessWidget {
                 intent: side == 'LONG' ? UiIntent.bullish : UiIntent.bearish,
                 size: UiSize.xs,
               ),
+              if (isCurrentUser && trade != null) ...<Widget>[
+                const SizedBox(width: 6),
+                UiBadge(
+                  label: trade!.isPublic ? 'PUBLIC' : 'PRIVATE',
+                  intent: trade!.isPublic ? UiIntent.primary : UiIntent.neutral,
+                  size: UiSize.xs,
+                ),
+              ],
               const SizedBox(width: 8),
               Text(
                 ticker,
@@ -3033,10 +3056,13 @@ class _JournalTradeCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
-                '· $setup',
-                style: context.uiText.caption.copyWith(
-                  color: theme.colors.foregroundMuted,
+              Flexible(
+                child: Text(
+                  '· $setup',
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
                 ),
               ),
               const Spacer(),
