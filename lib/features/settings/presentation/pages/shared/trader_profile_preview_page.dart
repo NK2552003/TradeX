@@ -2693,7 +2693,7 @@ class _PublicJournalPreview extends StatelessWidget {
                 .toList()
             : ((authorId != null && authorId!.isNotEmpty)
                 ? allTrades.where((t) => t.userId == authorId).toList()
-                : allTrades);
+                : const <AppTrade>[]);
 
         final String cleanH =
             (handle ?? '').replaceFirst(RegExp(r'^@+'), '').trim();
@@ -3165,7 +3165,7 @@ class _NotesPlaybooksPreview extends StatelessWidget {
                 .toList()
             : ((authorId != null && authorId!.isNotEmpty)
                 ? allNotes.where((n) => n.userId == authorId).toList()
-                : allNotes);
+                : const <AppNote>[]);
 
         final String cleanH =
             (handle ?? '').replaceFirst(RegExp(r'^@+'), '').trim();
@@ -3384,7 +3384,7 @@ class _StrategiesPreview extends StatelessWidget {
                 .toList()
             : ((authorId != null && authorId!.isNotEmpty)
                 ? allStrategies.where((s) => s.userId == authorId).toList()
-                : allStrategies);
+                : const <AppStrategy>[]);
 
         final String cleanH =
             (handle ?? '').replaceFirst(RegExp(r'^@+'), '').trim();

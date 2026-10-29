@@ -226,5 +226,48 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'does not leak public strategies when public profile has no author ID',
+      (WidgetTester tester) async {
+        await tester.binding.setSurfaceSize(const Size(1280, 900));
+
+        final now = DateTime.now();
+
+        // Create a public strategy belonging to someone else
+        final someoneElseStrategy = AppStrategy(
+          id: 'someone-else-strat-1',
+          name: 'Someone Else Strategy',
+          userId: 'user-xyz-999',
+          content: 'Secret sauce of another trader.',
+          status: AppStrategyStatus.live,
+          createdAt: now,
+          updatedAt: now,
+          isPublic: true,
+        );
+        await StrategiesRepositoryScope.repository.create(someoneElseStrategy);
+
+        // View public profile with no author and no authorId
+        await tester.pumpWidget(
+          _wrap(
+            const TraderProfilePreviewPage(
+              displayName: 'Unknown Trader',
+              handle: 'unknown_trader',
+              userRole: UserRole.customer,
+              isCurrentUser: false,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Switch to Strategies tab
+        await tester.tap(find.text('Strategies'));
+        await tester.pumpAndSettle();
+
+        // Verify someone else's strategy is NOT shown, and empty state is displayed
+        expect(find.text('Someone Else Strategy'), findsNothing);
+        expect(find.text('No public playbooks'), findsOneWidget);
+      },
+    );
   });
 }
