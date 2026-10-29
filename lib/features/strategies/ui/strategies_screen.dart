@@ -247,7 +247,7 @@ class StrategiesScreenState extends State<StrategiesScreen> {
   }
 
   AppStrategy? get _active {
-    if (_linkedRecord?.id == _activeId) return _linkedRecord;
+    if (_linkedRecord != null && _linkedRecord!.id == _activeId) return _linkedRecord;
     final AppStrategy? draft = _draft;
     if (draft != null) return draft;
     final String? id = _activeId;
