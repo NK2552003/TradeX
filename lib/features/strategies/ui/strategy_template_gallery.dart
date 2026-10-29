@@ -51,7 +51,7 @@ class _StrategyTemplateGallery extends StatelessWidget {
                         in StrategyTemplates.all)
                       SizedBox(
                         width: width,
-                        height: columns == 2 ? context.sz(140) : null,
+                        height: columns == 2 ? context.sz(175) : null,
                         child: _TemplateTile(
                           template: template,
                           fixedHeight: columns == 2,
