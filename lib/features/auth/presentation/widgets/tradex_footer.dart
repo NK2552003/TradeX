@@ -520,7 +520,7 @@ class TradeXFooter extends StatelessWidget {
       title: 'DOCUMENTATION & LEGAL',
       actions: <_FooterLinkAction>[
         _FooterLinkAction(
-          'Security & Client Encryption',
+          'Security & Compliance',
           () => _showSecurity(context),
         ),
         _FooterLinkAction('Privacy Policy', () => _showPrivacyPolicy(context)),
@@ -639,13 +639,14 @@ class TradeXFooter extends StatelessWidget {
   void _showSecurity(BuildContext context) {
     _showInfoModal(
       context,
-      title: 'Security & Encryption Architecture',
+      title: 'Security & Compliance Architecture',
       category: 'ENTERPRISE SECURITY',
       content:
-          '• Account privacy: Manage the visibility of your notes, strategies, and journal entries.\n\n'
-          '• Zero Custody: alphajournal operates in read-only / execution-audit mode without withdrawal permissions.\n\n'
-          '• Transport security: Use secure HTTPS connections when accessing alphajournal.\n\n'
-          '• Automated SOC-2 Compliant Cloud Backups: Redundant backups with 99.99% uptime guarantee.',
+          '• Data Protection: All data in transit is protected using modern TLS encryption protocols.\n\n'
+          '• Tenant Isolation: Strict database Row Level Security (RLS) ensures users can only access their authorized records.\n\n'
+          '• Account Privacy: Manage the visibility of your notes, strategies, and journal entries.\n\n'
+          '• Zero Custody: alphajournal operates in read-only / execution-audit mode without withdrawal permissions or custody of funds.\n\n'
+          '• Infrastructure: Cloud-hosted database and authentication with automated backups and continuous monitoring.',
     );
   }
 
