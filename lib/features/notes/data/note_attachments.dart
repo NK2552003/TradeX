@@ -181,11 +181,18 @@ class NoteAttachments {
     final String? ref = refOf(uri);
     String source = uri.toString();
     if (ref != null) {
-      source =
-          _cached(_cacheKey(ref, using)) ??
-          await (using ?? NotesRepositoryScope.repository.resolveAttachmentUrl)(
-            ref,
-          );
+      final cached = _cached(_cacheKey(ref, using));
+      if (cached != null) {
+        source = cached;
+      } else {
+        try {
+          source = await (using ??
+              NotesRepositoryScope.repository.resolveAttachmentUrl)(ref);
+        } catch (_) {
+          // Skip unresolvable/unauthorized attachments so PDF export continues gracefully.
+          return null;
+        }
+      }
       if (source.isEmpty) return null;
       _remember(_cacheKey(ref, using), source);
     }

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/ai/unified_ai_service.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/env_config.dart';
@@ -28,6 +29,7 @@ class RealNoteAiRefactor implements NoteAiRefactor {
     }
 
     // 2. Invoke deployed note-ai-refactor Edge Function
+    var canFallbackToClientAi = false;
     if (SupabaseConfig.isConfigured) {
       try {
         final payload = <String, dynamic>{
@@ -62,16 +64,46 @@ class RealNoteAiRefactor implements NoteAiRefactor {
             'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
           );
         }
-      } catch (e) {
-        if (e is StateError) rethrow;
+        if (res.status != 200) {
+          throw StateError(
+            'AI refactoring request failed (${res.status}).',
+          );
+        }
+      } on FunctionException catch (fe) {
         debugPrint(
-          '[RealNoteAiRefactor] Edge function note-ai-refactor call error: $e',
+          '[RealNoteAiRefactor] Edge function FunctionException: status=${fe.status}, details=${fe.details}',
         );
+        if (fe.status == 401) {
+          throw StateError('Sign in required to use AI note refactoring.');
+        }
+        if (fe.status == 429) {
+          throw StateError(
+            'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
+          );
+        }
+        if (fe.details is Map && (fe.details as Map)['error'] != null) {
+          throw StateError((fe.details as Map)['error'].toString());
+        }
+        if (fe.status != null && fe.status! > 0) {
+          throw StateError(
+            'AI refactoring request failed (${fe.status}): ${fe.reasonPhrase ?? 'Service error'}',
+          );
+        }
+        canFallbackToClientAi = true;
+      } on StateError {
+        rethrow;
+      } catch (e) {
+        debugPrint(
+          '[RealNoteAiRefactor] Edge function transport error: $e',
+        );
+        canFallbackToClientAi = true;
       }
+    } else {
+      canFallbackToClientAi = true;
     }
 
-    // 3. Fallback to client-side AI providers if configured
-    if (EnvConfig.hasAiKey) {
+    // 3. Fallback to client-side AI providers if allowed and configured
+    if (canFallbackToClientAi && EnvConfig.hasAiKey) {
       const systemPrompt = '''
 You are alphajournal Copilot, an elite quantitative financial analyst and disciplined trading performance coach.
 Your task is to refine, enhance, or restructure the trader's note content according to their instructions.

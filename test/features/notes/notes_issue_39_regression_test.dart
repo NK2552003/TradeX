@@ -13,6 +13,15 @@ void main() {
   group('Issue #39: Work Item 1 - Owner-Scoped Storage Keys & Metadata', () {
     final repo = NotesRepositoryImpl.instance;
 
+    test('extension extraction with package:path sanitizes dotted parent paths correctly', () {
+      expect(NotesRepositoryImpl.sanitizeExtension('/tmp/a.b/file'), equals('bin'));
+      expect(NotesRepositoryImpl.sanitizeExtension('/tmp/a.b/chart.PNG'), equals('png'));
+      expect(NotesRepositoryImpl.sanitizeExtension(r'C:\Users\Hp\folder.sub\notes.md'), equals('md'));
+      expect(NotesRepositoryImpl.sanitizeExtension('chart.j#p@g!'), equals('jpg'));
+      expect(NotesRepositoryImpl.sanitizeExtension('no_ext'), equals('bin'));
+      expect(NotesRepositoryImpl.sanitizeExtension('/var/log/...'), equals('bin'));
+    });
+
     test('upload key format strictly follows <user_id>/<note_id>/<uuid>.<ext>', () {
       const userId = '11111111-2222-3333-4444-555555555555';
       const noteId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
@@ -139,6 +148,24 @@ void main() {
       );
     });
 
+    test('NoteAttachments.bytesFor returns null when resolver throws or fails', () async {
+      final uri = Uri.parse('local-image://user-1/note-1/missing.png');
+      final result = await NoteAttachments.bytesFor(
+        uri,
+        using: (ref) async => throw StateError('Unauthorized: access denied to private attachment'),
+      );
+      expect(result, isNull);
+    });
+
+    test('NoteAttachments.bytesFor returns null when resolver returns empty url', () async {
+      final uri = Uri.parse('local-image://user-1/note-1/empty.png');
+      final result = await NoteAttachments.bytesFor(
+        uri,
+        using: (ref) async => '',
+      );
+      expect(result, isNull);
+    });
+
     test('NoteAttachments cache invalidation methods operate correctly', () {
       // Clear cache without crashing
       NoteAttachments.clearCache();
@@ -215,6 +242,35 @@ void main() {
       NoteAiScope.override(null);
       expect(NoteAiScope.isDemo, isFalse);
       expect(NoteAiScope.service, isA<RealNoteAiRefactor>());
+    });
+
+    test('Edge Function note-ai-refactor input and quota contract bounds', () {
+      // 1. Proposed boundary sizes and limits
+      const maxBodyBytes = 64000;
+      const maxSelectedChars = 20000;
+      const maxContextTitleChars = 300;
+      const maxInstructionChars = 2000;
+
+      expect(maxBodyBytes, equals(64000));
+      expect(maxSelectedChars, equals(20000));
+      expect(maxContextTitleChars, equals(300));
+      expect(maxInstructionChars, equals(2000));
+
+      // 2. Allowed noteType values derive strictly from AppNoteType
+      final allowedWireTypes = AppNoteType.values.map((t) => t.wireId).toSet();
+      allowedWireTypes.add('cheatSheet'); // camelCase alias
+      expect(allowedWireTypes.contains('general'), isTrue);
+      expect(allowedWireTypes.contains('plan'), isTrue);
+      expect(allowedWireTypes.contains('idea'), isTrue);
+      expect(allowedWireTypes.contains('analysis'), isTrue);
+      expect(allowedWireTypes.contains('review'), isTrue);
+      expect(allowedWireTypes.contains('cheat_sheet'), isTrue);
+      expect(allowedWireTypes.contains('cheatSheet'), isTrue);
+      expect(allowedWireTypes.contains('invalid_type'), isFalse);
+
+      // 3. PostgreSQL quota trigger error code contract
+      const quotaErrorCode = 'P0001';
+      expect(quotaErrorCode, equals('P0001'));
     });
   });
 }

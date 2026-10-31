@@ -7,6 +7,67 @@ const headers = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+const MAX_BODY_BYTES = 64_000;
+const MAX_SELECTED_TEXT_CHARS = 20_000;
+const MAX_INSTRUCTION_CHARS = 2_000;
+const MAX_CONTEXT_TITLE_CHARS = 300;
+
+const VALID_NOTE_TYPES = new Set([
+  'general',
+  'analysis',
+  'plan',
+  'review',
+  'idea',
+  'cheat_sheet',
+  'cheatSheet',
+]);
+
+class PayloadTooLargeError extends Error {
+  constructor(message = 'Request payload exceeds limit.') {
+    super(message);
+    this.name = 'PayloadTooLargeError';
+  }
+}
+
+async function readBodyWithLimit(request: Request, maxBytes: number): Promise<string> {
+  const contentLength = request.headers.get('content-length');
+  if (contentLength && parseInt(contentLength, 10) > maxBytes) {
+    throw new PayloadTooLargeError(`Request body exceeds ${maxBytes} bytes limit.`);
+  }
+
+  if (!request.body) {
+    return '';
+  }
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        totalBytes += value.byteLength;
+        if (totalBytes > maxBytes) {
+          throw new PayloadTooLargeError(`Request body exceeds ${maxBytes} bytes limit.`);
+        }
+        chunks.push(value);
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const concatenated = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    concatenated.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(concatenated);
+}
+
 function reply(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), { status, headers });
 }
@@ -39,26 +100,92 @@ Deno.serve(async (request) => {
     return reply(401, { error: 'Signed-in account required.' });
   }
 
-  let selectedText: string;
-  let contextTitle: string | undefined;
-  let instruction: string | undefined;
-  let noteType: string;
-
+  // 1. Bound and stream request body before parsing
+  let rawBody: string;
   try {
-    const body = await request.json() as Record<string, unknown>;
-    selectedText = String(body.selectedText ?? '').trim();
-    contextTitle = body.contextTitle ? String(body.contextTitle).trim() : undefined;
-    instruction = body.instruction ? String(body.instruction).trim() : undefined;
-    noteType = String(body.noteType ?? 'general');
+    rawBody = await readBodyWithLimit(request, MAX_BODY_BYTES);
+  } catch (err) {
+    if (err instanceof PayloadTooLargeError) {
+      return reply(413, { error: err.message });
+    }
+    return reply(400, { error: 'Failed to read request body.' });
+  }
+
+  // 2. Validate JSON structure
+  let body: Record<string, unknown>;
+  try {
+    body = JSON.parse(rawBody || '{}');
   } catch {
     return reply(400, { error: 'Invalid JSON payload.' });
   }
 
-  if (!selectedText) {
-    return reply(400, { error: 'selectedText is required.' });
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return reply(400, { error: 'Request body must be a JSON object.' });
   }
 
-  // Enforce per-user quota & record invocation in ai_insight_requests
+  // 3. Validate selectedText field and bound character length
+  if (!('selectedText' in body) || body.selectedText === null || body.selectedText === undefined) {
+    return reply(400, { error: 'selectedText is required.' });
+  }
+  if (typeof body.selectedText !== 'string') {
+    return reply(400, { error: 'selectedText must be a string.' });
+  }
+  const cleanSelectedText = body.selectedText.trim();
+  if (cleanSelectedText.length === 0) {
+    return reply(400, { error: 'selectedText cannot be blank.' });
+  }
+  if (cleanSelectedText.length > MAX_SELECTED_TEXT_CHARS) {
+    return reply(413, {
+      error: `selectedText exceeds maximum length of ${MAX_SELECTED_TEXT_CHARS} characters.`,
+    });
+  }
+
+  // 4. Validate optional contextTitle field
+  let contextTitle: string | undefined;
+  if ('contextTitle' in body && body.contextTitle !== null && body.contextTitle !== undefined) {
+    if (typeof body.contextTitle !== 'string') {
+      return reply(400, { error: 'contextTitle must be a string if provided.' });
+    }
+    const cleanTitle = body.contextTitle.trim();
+    if (cleanTitle.length > MAX_CONTEXT_TITLE_CHARS) {
+      return reply(413, {
+        error: `contextTitle exceeds maximum length of ${MAX_CONTEXT_TITLE_CHARS} characters.`,
+      });
+    }
+    contextTitle = cleanTitle.length > 0 ? cleanTitle : undefined;
+  }
+
+  // 5. Validate optional instruction field
+  let instruction: string | undefined;
+  if ('instruction' in body && body.instruction !== null && body.instruction !== undefined) {
+    if (typeof body.instruction !== 'string') {
+      return reply(400, { error: 'instruction must be a string if provided.' });
+    }
+    const cleanInstruction = body.instruction.trim();
+    if (cleanInstruction.length > MAX_INSTRUCTION_CHARS) {
+      return reply(413, {
+        error: `instruction exceeds maximum length of ${MAX_INSTRUCTION_CHARS} characters.`,
+      });
+    }
+    instruction = cleanInstruction.length > 0 ? cleanInstruction : undefined;
+  }
+
+  // 6. Validate optional noteType field against domain enum contract
+  let noteType = 'general';
+  if ('noteType' in body && body.noteType !== null && body.noteType !== undefined) {
+    if (typeof body.noteType !== 'string') {
+      return reply(400, { error: 'noteType must be a string if provided.' });
+    }
+    const normalizedType = body.noteType.trim();
+    if (!VALID_NOTE_TYPES.has(normalizedType)) {
+      return reply(400, {
+        error: `Invalid noteType '${normalizedType}'. Supported values: ${Array.from(VALID_NOTE_TYPES).join(', ')}.`,
+      });
+    }
+    noteType = normalizedType === 'cheatSheet' ? 'cheat_sheet' : normalizedType;
+  }
+
+  // 7. Enforce per-user quota & record invocation atomically in ai_insight_requests
   const service = createClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
@@ -70,10 +197,23 @@ Deno.serve(async (request) => {
   });
 
   if (quotaError) {
-    return reply(429, { error: quotaError.message || 'AI monthly quota exceeded.' });
+    // P0001 is the SQLSTATE raised by enforce_published_customer_quota trigger
+    if (quotaError.code === 'P0001' || quotaError.message?.toLowerCase().includes('quota')) {
+      return reply(429, {
+        error: 'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
+      });
+    }
+    console.error('[note-ai-refactor] Database insertion failure:', {
+      code: quotaError.code,
+      hint: quotaError.hint,
+      message: quotaError.message,
+    });
+    return reply(500, {
+      error: 'Failed to record AI request. Please try again later.',
+    });
   }
 
-  // LLM invocation via Gemini or OpenRouter
+  // 8. LLM invocation via Gemini or OpenRouter with headers and timeout signals
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
 
@@ -92,7 +232,7 @@ Guidelines:
 
 Selected Note Passage:
 """
-${selectedText}
+${cleanSelectedText}
 """`;
 
   let enhancedText: string | null = null;
@@ -100,10 +240,13 @@ ${selectedText}
   if (geminiApiKey) {
     try {
       const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': geminiApiKey,
+          },
           body: JSON.stringify({
             contents: [
               {
@@ -116,12 +259,15 @@ ${selectedText}
               maxOutputTokens: 2048,
             },
           }),
+          signal: AbortSignal.timeout(20_000),
         }
       );
       if (geminiRes.ok) {
         const json = await geminiRes.json();
         const candidate = json.candidates?.[0]?.content?.parts?.[0]?.text;
         if (candidate) enhancedText = candidate.trim();
+      } else {
+        console.error('Gemini error response status:', geminiRes.status);
       }
     } catch (e) {
       console.error('Gemini call error:', e);
@@ -145,11 +291,14 @@ ${selectedText}
           temperature: 0.3,
           max_tokens: 2048,
         }),
+        signal: AbortSignal.timeout(20_000),
       });
       if (openRouterRes.ok) {
         const json = await openRouterRes.json();
         const choice = json.choices?.[0]?.message?.content;
         if (choice) enhancedText = choice.trim();
+      } else {
+        console.error('OpenRouter error response status:', openRouterRes.status);
       }
     } catch (e) {
       console.error('OpenRouter call error:', e);
@@ -169,4 +318,3 @@ ${selectedText}
 
   return reply(200, { enhanced: enhancedText });
 });
-

@@ -11,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
+import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'note_attachments.dart';
 
@@ -796,6 +797,17 @@ class NotesRepositoryImpl implements NotesRepository {
     });
   }
 
+  /// Sanitizes file extension using package:path, stripping leading dot,
+  /// restricting to `[a-z0-9]`, and defaulting to 'bin' if empty or invalid.
+  static String sanitizeExtension(String filePath) {
+    final extWithoutDot = p
+        .extension(filePath)
+        .replaceFirst(RegExp(r'^\.'), '')
+        .toLowerCase();
+    final sanitizedExt = extWithoutDot.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    return sanitizedExt.isNotEmpty ? sanitizedExt : 'bin';
+  }
+
   @override
   Future<String> uploadAttachment(String noteId, File file) async {
     RecordAccess.requireService();
@@ -816,9 +828,8 @@ class NotesRepositoryImpl implements NotesRepository {
     if (SupabaseConfig.isConfigured && _isUuid(noteId)) {
       try {
         final client = SupabaseConfig.client!;
-        final rawExt = file.path.contains('.') ? file.path.split('.').last : 'png';
-        final ext = rawExt.toLowerCase().trim();
-        final fileName = file.path.split(Platform.pathSeparator).last;
+        final ext = sanitizeExtension(file.path);
+        final fileName = p.basename(file.path);
         final storagePath = '$currentUserId/$noteId/${const Uuid().v4()}.$ext';
         final length = await file.length().catchError((_) => 0);
 
