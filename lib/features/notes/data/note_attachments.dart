@@ -54,6 +54,32 @@ class NoteAttachments {
     );
   }
 
+  /// Clears all cached signed URLs. Called on logout or account switch.
+  static void clearCache() => _resolved.clear();
+
+  /// Invalidates cache entries referencing [ref].
+  static void invalidate(String ref) {
+    _resolved.removeWhere((k, _) => k.contains(ref));
+  }
+
+  /// Invalidates all cached attachments for a given note.
+  static void invalidateForNote(String noteId) {
+    _resolved.removeWhere((k, _) => k.contains(noteId));
+  }
+
+  /// Deletes an attachment from private storage and purges cache.
+  static Future<void> delete(
+    String storagePath, {
+    Future<void> Function(String)? using,
+  }) async {
+    invalidate(storagePath);
+    if (using != null) {
+      await using(storagePath);
+    } else {
+      await NotesRepositoryScope.repository.deleteAttachment(storagePath);
+    }
+  }
+
   /// Copies [source] into the app's own attachments directory under a name that
   /// cannot collide and contains no spaces. Pickers hand back paths inside a
   /// cache the OS may purge at will; a note that outlives the session needs its
@@ -186,7 +212,7 @@ class NoteAttachments {
       if (await file.exists()) {
         final String canonical = await file.resolveSymbolicLinks();
         if (p.isWithin(boundary, canonical)) {
-          return file.readAsBytes();
+          return await file.readAsBytes();
         }
       }
       // Check if staged filename matches in note_attachments directory
@@ -195,7 +221,7 @@ class NoteAttachments {
       if (await fallback.exists()) {
         final String canonical = await fallback.resolveSymbolicLinks();
         if (p.isWithin(boundary, canonical)) {
-          return fallback.readAsBytes();
+          return await fallback.readAsBytes();
         }
       }
       return null;
