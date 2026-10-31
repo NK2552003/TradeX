@@ -11,7 +11,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
+import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
+import 'note_attachments.dart';
 
 /// Everything the notes feature needs from storage.
 ///
@@ -52,6 +54,9 @@ abstract class NotesRepository {
   /// Stores an attachment and returns the storage reference to embed in the
   /// markdown body (`![alt](ref)`).
   Future<String> uploadAttachment(String noteId, File file);
+
+  /// Deletes an attachment from private storage and purges its tracking record.
+  Future<void> deleteAttachment(String storagePath);
 
   /// Turns a stored reference back into something the preview can load. Local
   /// file paths come back unchanged; a Supabase implementation returns a signed
@@ -111,6 +116,7 @@ class NotesRepositoryImpl implements NotesRepository {
       _favoriteNoteIds.clear();
       _commentsByNoteId.clear();
       _initialized = false;
+      NoteAttachments.clearCache();
       _cacheActor = actor;
     }
     if (_initialized) return;
@@ -197,6 +203,7 @@ class NotesRepositoryImpl implements NotesRepository {
           _commentsByNoteId.remove(deletedId);
           _likedNoteIds.remove(deletedId);
           _favoriteNoteIds.remove(deletedId);
+          NoteAttachments.invalidateForNote(deletedId);
           unawaited(
             EntityTickerLinksRepository.instance.removeLinks(
               entityType: 'note',
@@ -616,6 +623,7 @@ class NotesRepositoryImpl implements NotesRepository {
     _commentsByNoteId.remove(id);
     _likedNoteIds.remove(id);
     _favoriteNoteIds.remove(id);
+    NoteAttachments.invalidateForNote(id);
     _publish();
     unawaited(
       EntityTickerLinksRepository.instance.removeLinks(
@@ -789,9 +797,26 @@ class NotesRepositoryImpl implements NotesRepository {
     });
   }
 
+  /// Sanitizes file extension using package:path, stripping leading dot,
+  /// restricting to `[a-z0-9]`, and defaulting to 'bin' if empty or invalid.
+  static String sanitizeExtension(String filePath) {
+    final extWithoutDot = p
+        .extension(filePath)
+        .replaceFirst(RegExp(r'^\.'), '')
+        .toLowerCase();
+    final sanitizedExt = extWithoutDot.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    return sanitizedExt.isNotEmpty ? sanitizedExt : 'bin';
+  }
+
   @override
   Future<String> uploadAttachment(String noteId, File file) async {
     RecordAccess.requireService();
+    final currentUserId = _resolveUserId();
+    if (currentUserId.isEmpty) {
+      throw StateError(
+        'Unauthorized: user must be authenticated to upload attachments.',
+      );
+    }
     if (SupabaseConfig.isConfigured) {
       final owner = await getById(noteId);
       if (owner == null) {
@@ -799,35 +824,45 @@ class NotesRepositoryImpl implements NotesRepository {
       }
       RecordAccess.requireOwner(owner.userId);
     }
+
     if (SupabaseConfig.isConfigured && _isUuid(noteId)) {
       try {
         final client = SupabaseConfig.client!;
-        final ext = file.path.contains('.') ? file.path.split('.').last : 'png';
-        final fileName = '${const Uuid().v4()}.$ext';
-        final storagePath = '${_resolveUserId()}/$noteId/$fileName';
+        final ext = sanitizeExtension(file.path);
+        final fileName = p.basename(file.path);
+        final storagePath = '$currentUserId/$noteId/${const Uuid().v4()}.$ext';
+        final length = await file.length().catchError((_) => 0);
+
+        if (length > 10485760) {
+          throw ArgumentError('Attachment file size exceeds the 10 MB limit.');
+        }
+
+        final mimeType = _resolveMimeType(ext);
+        final isImage = NoteAttachments.isImageFile(file.path);
 
         await client.storage
             .from('note-attachments')
             .upload(
               storagePath,
               file,
-              fileOptions: const FileOptions(
+              fileOptions: FileOptions(
+                contentType: mimeType,
                 cacheControl: '3600',
                 upsert: true,
               ),
             );
 
-        final length = await file.length().catchError((_) => 0);
         await client
             .from('trader_note_attachments')
             .insert({
               'id': const Uuid().v4(),
               'note_id': noteId,
-              'user_id': _resolveUserId(),
+              'user_id': currentUserId,
               'storage_path': storagePath,
               'filename': fileName,
+              'mime_type': mimeType,
               'byte_size': length,
-              'is_image': true,
+              'is_image': isImage,
             })
             .catchError((e) {
               debugPrint(
@@ -839,40 +874,158 @@ class NotesRepositoryImpl implements NotesRepository {
         return storagePath;
       } catch (e) {
         debugPrint('[NotesRepository] uploadAttachment cloud error: $e');
-        // Graceful fallback to staged local file path if cloud storage bucket is not yet provisioned.
-        // This ensures the trader's draft note retains their screenshot without crashing.
-        return file.path;
+        rethrow;
       }
     }
     return file.path;
   }
 
   @override
+  Future<void> deleteAttachment(String storagePath) async {
+    RecordAccess.requireService();
+    final currentUserId = _resolveUserId();
+    if (currentUserId.isEmpty) {
+      throw StateError('Unauthorized: user must be authenticated.');
+    }
+
+    String cleanPath = storagePath.trim();
+    if (cleanPath.startsWith('note-attachments/')) {
+      cleanPath = cleanPath.substring('note-attachments/'.length);
+    }
+    while (cleanPath.startsWith('/')) {
+      cleanPath = cleanPath.substring(1);
+    }
+    if (cleanPath.contains('?')) {
+      cleanPath = cleanPath.split('?').first;
+    }
+
+    final segments = cleanPath.split('/');
+    if (segments.isNotEmpty && _isUuid(segments.first)) {
+      if (segments.first != currentUserId) {
+        throw StateError(
+          'Unauthorized: cannot delete attachments belonging to another user.',
+        );
+      }
+    }
+
+    NoteAttachments.invalidate(cleanPath);
+
+    if (SupabaseConfig.isConfigured) {
+      final client = SupabaseConfig.client!;
+      await client.storage.from('note-attachments').remove([cleanPath]);
+      await client
+          .from('trader_note_attachments')
+          .delete()
+          .eq('storage_path', cleanPath)
+          .eq('user_id', currentUserId)
+          .catchError((_) => null);
+    }
+  }
+
+  @override
   Future<String> resolveAttachmentUrl(String ref) async {
-    if (!SupabaseConfig.isConfigured ||
-        ref.startsWith('https://') ||
-        ref.startsWith('http://') ||
-        ref.startsWith('/') ||
+    // 1. Pass through local files or raw data URIs
+    if (ref.startsWith('/') ||
         ref.contains(':\\') ||
         ref.startsWith('file:') ||
         ref.startsWith('data:')) {
       return ref;
     }
+
+    // 2. Extract relative storage path inside note-attachments bucket
+    String storagePath = ref.trim();
+
+    if (storagePath.startsWith('https://') || storagePath.startsWith('http://')) {
+      final uri = Uri.tryParse(storagePath);
+      if (uri != null) {
+        final pathSegments = uri.pathSegments;
+        final bucketIdx = pathSegments.indexOf('note-attachments');
+        if (bucketIdx != -1 && bucketIdx < pathSegments.length - 1) {
+          storagePath = pathSegments.sublist(bucketIdx + 1).join('/');
+        } else {
+          // 3rd party external URL, e.g. unsplash or external CDN
+          return ref;
+        }
+      }
+    }
+
+    // Strip leading bucket name or slashes
+    if (storagePath.startsWith('note-attachments/')) {
+      storagePath = storagePath.substring('note-attachments/'.length);
+    }
+    while (storagePath.startsWith('/')) {
+      storagePath = storagePath.substring(1);
+    }
+
+    // Strip query string if any was appended
+    if (storagePath.contains('?')) {
+      storagePath = storagePath.split('?').first;
+    }
+
+    // 3. Authorization check: Private note attachments belong strictly to owner folder
+    final currentUserId = _resolveUserId();
+    final pathSegments = storagePath.split('/');
+    if (pathSegments.length >= 2) {
+      final ownerId = pathSegments[0];
+      final noteId = pathSegments[1];
+
+      // If owner does not match current user, check if note is public
+      if (ownerId != currentUserId) {
+        final note = await getById(noteId);
+        final isPublic = note?.isPublic ?? false;
+        if (!isPublic) {
+          throw StateError(
+            'Unauthorized: access denied to private attachment belonging to another user.',
+          );
+        }
+      }
+    } else if (pathSegments.length == 1 && _isUuid(pathSegments.first)) {
+      if (pathSegments.first != currentUserId) {
+        throw StateError(
+          'Unauthorized: access denied to private attachment belonging to another user.',
+        );
+      }
+    }
+
+    if (!SupabaseConfig.isConfigured) {
+      return ref;
+    }
+
+    // 4. Generate 1-hour (3600s) expiring signed access URL
     try {
       return await SupabaseConfig.client!.storage
           .from('note-attachments')
-          .createSignedUrl(ref, 3600);
+          .createSignedUrl(storagePath, 3600);
     } catch (e) {
       debugPrint(
-        '[NotesRepository] createSignedUrl failed: $e, trying public url',
+        '[NotesRepository] resolveAttachmentUrl createSignedUrl error: $e',
       );
-      try {
-        final publicUrl = SupabaseConfig.client!.storage
-            .from('note-attachments')
-            .getPublicUrl(ref);
-        if (publicUrl.isNotEmpty) return publicUrl;
-      } catch (_) {}
-      return ref;
+      rethrow;
+    }
+  }
+
+  static String _resolveMimeType(String ext) {
+    switch (ext.toLowerCase().trim()) {
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'webp':
+        return 'image/webp';
+      case 'gif':
+        return 'image/gif';
+      case 'pdf':
+        return 'application/pdf';
+      case 'md':
+      case 'markdown':
+        return 'text/markdown';
+      case 'txt':
+        return 'text/plain';
+      case 'csv':
+        return 'text/csv';
+      default:
+        return 'application/octet-stream';
     }
   }
 }

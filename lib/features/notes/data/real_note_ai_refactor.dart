@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/ai/unified_ai_service.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/env_config.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'note_ai_refactor.dart';
 
 class RealNoteAiRefactor implements NoteAiRefactor {
@@ -16,7 +19,92 @@ class RealNoteAiRefactor implements NoteAiRefactor {
     final cleanText = selectedText.trim();
     if (cleanText.isEmpty) return selectedText;
 
-    const systemPrompt = '''
+    // 1. Authenticated session check
+    if (SupabaseConfig.isConfigured) {
+      final session = SupabaseConfig.client?.auth.currentSession;
+      final user = SupabaseConfig.client?.auth.currentUser;
+      if (session == null || user == null || session.accessToken.isEmpty) {
+        throw StateError('Sign in required to use AI note refactoring.');
+      }
+    }
+
+    // 2. Invoke deployed note-ai-refactor Edge Function
+    var canFallbackToClientAi = false;
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final payload = <String, dynamic>{
+          'selectedText': cleanText,
+          'noteType': noteType.wireId,
+        };
+        if (contextTitle != null) payload['contextTitle'] = contextTitle;
+        if (instruction != null) payload['instruction'] = instruction;
+
+        final res = await SupabaseConfig.client!.functions.invoke(
+          'note-ai-refactor',
+          body: payload,
+        );
+        if (res.status == 200 && res.data is Map) {
+          final data = res.data as Map;
+          final enhanced = data['enhanced']?.toString().trim();
+          if (enhanced != null && enhanced.isNotEmpty) {
+            return enhanced;
+          }
+        }
+        if (res.data is Map) {
+          final data = res.data as Map;
+          if (data['error'] != null) {
+            throw StateError(data['error'].toString());
+          }
+        }
+        if (res.status == 401) {
+          throw StateError('Sign in required to use AI note refactoring.');
+        }
+        if (res.status == 429) {
+          throw StateError(
+            'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
+          );
+        }
+        if (res.status != 200) {
+          throw StateError(
+            'AI refactoring request failed (${res.status}).',
+          );
+        }
+      } on FunctionException catch (fe) {
+        debugPrint(
+          '[RealNoteAiRefactor] Edge function FunctionException: status=${fe.status}, details=${fe.details}',
+        );
+        if (fe.status == 401) {
+          throw StateError('Sign in required to use AI note refactoring.');
+        }
+        if (fe.status == 429) {
+          throw StateError(
+            'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
+          );
+        }
+        if (fe.details is Map && (fe.details as Map)['error'] != null) {
+          throw StateError((fe.details as Map)['error'].toString());
+        }
+        if (fe.status > 0) {
+          throw StateError(
+            'AI refactoring request failed (${fe.status}): ${fe.reasonPhrase ?? 'Service error'}',
+          );
+        }
+        canFallbackToClientAi = true;
+      } on StateError {
+        rethrow;
+      } catch (e) {
+        debugPrint(
+          '[RealNoteAiRefactor] Edge function transport error: $e',
+        );
+        canFallbackToClientAi = true;
+      }
+    } else {
+      canFallbackToClientAi = true;
+    }
+
+    // 3. Fallback to client-side AI providers if allowed and configured
+    if (canFallbackToClientAi && EnvConfig.hasAiKey) {
+      const systemPrompt = '''
 You are alphajournal Copilot, an elite quantitative financial analyst and disciplined trading performance coach.
 Your task is to refine, enhance, or restructure the trader's note content according to their instructions.
 Guidelines:
@@ -26,8 +114,7 @@ Guidelines:
 - Adhere strictly to the requested instruction.
 ''';
 
-    final prompt =
-        '''
+      final prompt = '''
 Context:
 - Note Title: ${contextTitle ?? 'Trading Note'}
 - Note Type: ${noteType.label}
@@ -39,132 +126,26 @@ $cleanText
 """
 ''';
 
-    try {
-      final enhanced = await UnifiedAiService.instance.complete(
-        prompt: prompt,
-        systemPrompt: systemPrompt,
-      );
-      if (enhanced.trim().isNotEmpty) {
-        return enhanced.trim();
+      try {
+        final enhanced = await UnifiedAiService.instance.complete(
+          prompt: prompt,
+          systemPrompt: systemPrompt,
+        );
+        if (enhanced.trim().isNotEmpty) {
+          return enhanced.trim();
+        }
+      } catch (e) {
+        debugPrint('[RealNoteAiRefactor] Client AI provider error: $e');
       }
-    } catch (e) {
-      debugPrint(
-        '[RealNoteAiRefactor] AI error: $e. Using local dynamic fallback.',
-      );
     }
 
-    // Dynamic trading fallback
-    return _generateDynamicAnalysis(
-      selectedText: cleanText,
-      noteType: noteType,
-      contextTitle: contextTitle,
-      instruction: instruction,
+    // 4. Do not silently return local regex output as simulated AI.
+    // Instead throw a descriptive StateError when the authenticated service is unreachable.
+    throw StateError(
+      'AI refactoring service is currently unavailable. Please verify your connection or try again later.',
     );
   }
-
-  String _generateDynamicAnalysis({
-    required String selectedText,
-    required AppNoteType noteType,
-    String? contextTitle,
-    String? instruction,
-  }) {
-    final lines = selectedText
-        .split('\n')
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty)
-        .toList();
-    if (lines.isEmpty) return selectedText;
-
-    final ask = (instruction ?? '').toLowerCase();
-
-    // 1. Checklist request
-    if (ask.contains('checklist') || ask.contains('check list')) {
-      return lines
-          .map((l) => '- [ ] ${_sentence(l).replaceAll(RegExp(r'\.$'), '')}')
-          .join('\n');
-    }
-
-    // 2. Critique / Invalidation analysis
-    if (ask.contains('critique') ||
-        ask.contains('invalidate') ||
-        ask.contains('risk')) {
-      final buffer = StringBuffer();
-      buffer.writeln('### Technical Assessment & Thesis Critique');
-      buffer.writeln();
-      buffer.writeln(_tidy(lines));
-      buffer.writeln();
-      buffer.writeln('#### Invalidation Conditions & Risk Triggers');
-      for (final line in lines) {
-        if (RegExp(r'\d+').hasMatch(line)) {
-          final preview = line.length > 60
-              ? '${line.substring(0, 57)}...'
-              : line;
-          buffer.writeln(
-            '- [ ] Adverse break beyond key structural level identified in: *"$preview"*',
-          );
-        }
-      }
-      buffer.writeln(
-        '- [ ] Volume fails to confirm breakout on 15m/1H candle close',
-      );
-      buffer.writeln(
-        '- [ ] Volatility index (VIX/India VIX) spikes above comfort threshold',
-      );
-      buffer.writeln(
-        '- [ ] Risk-to-reward degrades below minimum 1:2 threshold',
-      );
-      return buffer.toString();
-    }
-
-    // 3. Trade Plan request
-    if (ask.contains('plan') || noteType == AppNoteType.plan) {
-      final buffer = StringBuffer();
-      final title = contextTitle?.trim().isNotEmpty ?? false
-          ? contextTitle!.trim()
-          : 'Systematic Execution Plan';
-      buffer.writeln('## $title');
-      buffer.writeln();
-      buffer.writeln('**Core Thesis:** ${_sentence(lines.first)}');
-      buffer.writeln();
-      buffer.writeln('| Execution Step | Parameter / Observation | Protocol |');
-      buffer.writeln('| :--- | :--- | :--- |');
-      for (int i = 0; i < lines.length; i++) {
-        final l = lines[i];
-        final clean = l.replaceAll('|', '-');
-        buffer.writeln('| Step ${i + 1} | $clean | Verified before trigger |');
-      }
-      buffer.writeln();
-      buffer.writeln('### Pre-Trade Verification Checklist');
-      for (final l in lines) {
-        buffer.writeln(
-          '- [ ] Confirmed ${_sentence(l).replaceAll(RegExp(r'\.$'), '')}',
-        );
-      }
-      return buffer.toString();
-    }
-
-    // 4. Summary request
-    if (ask.contains('summar')) {
-      if (lines.length == 1) return _tidy(lines);
-      final bullets = lines.skip(1).map((l) => '- ${_sentence(l)}').join('\n');
-      return '> **Executive Summary:** ${_sentence(lines.first)}\n\n$bullets';
-    }
-
-    // Default: format prose cleanly and preserve markdown
-    return _tidy(lines);
-  }
-
-  String _tidy(List<String> lines) => lines
-      .map((String l) => _looksLikeMarkup(l) ? l : _sentence(l))
-      .join('\n\n');
-
-  bool _looksLikeMarkup(String line) =>
-      RegExp(r'^(#{1,6} |[-*+] |\d+[.)] |> |\||```|\$\$)').hasMatch(line);
-
-  String _sentence(String line) {
-    final String trimmed = line.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (trimmed.isEmpty) return trimmed;
-    final String capped = trimmed[0].toUpperCase() + trimmed.substring(1);
-    return RegExp(r'[.!?:;]$').hasMatch(capped) ? capped : '$capped.';
-  }
 }
+
+/// Alias for Edge Note AI Refactor per backend hand-off contract
+typedef EdgeNoteAiRefactor = RealNoteAiRefactor;
