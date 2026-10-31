@@ -16,6 +16,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
     required this.isAuthor,
     this.onDelete,
     this.onEdit,
+    this.onQuote,
   });
 
   final CommunityPost post;
@@ -23,6 +24,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
   final bool isAuthor;
   final VoidCallback? onDelete;
   final VoidCallback? onEdit;
+  final ValueChanged<CommunityPost>? onQuote;
 
   static Future<void> show(
     BuildContext context, {
@@ -31,6 +33,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
     required bool isAuthor,
     VoidCallback? onDelete,
     VoidCallback? onEdit,
+    ValueChanged<CommunityPost>? onQuote,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -59,6 +62,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
             isAuthor: isAuthor,
             onDelete: onDelete,
             onEdit: onEdit,
+            onQuote: onQuote,
           ),
         ),
       ),
@@ -153,26 +157,52 @@ class CommunityPostOptionsSheet extends StatelessWidget {
           // Viewer Options
           _optionRow(
             context,
-            icon: Icons.visibility_off_outlined,
-            title: 'Not Interested in this post',
-            onTap: null,
+            icon: Icons.format_quote_rounded,
+            title: 'Quote Post',
+            onTap: () {
+              Navigator.of(context).pop();
+              onQuote?.call(post);
+            },
           ),
           _optionRow(
             context,
-            icon: Icons.volume_off_outlined,
-            title: 'Mute @${post.author.handle}',
-            onTap: () {
-              Navigator.of(context).pop();
-              repository.muteUser(post.author.id);
-              UiToast.show(
-                context,
-                title: 'Muted for this session',
-                message:
-                    'You will no longer see posts from @${post.author.handle}.',
-                intent: UiIntent.info,
-              );
-            },
+            icon: Icons.visibility_off_outlined,
+            title: 'Not Interested in this post',
+            subtitle: 'Unavailable in preview',
+            isUnavailable: true,
+            onTap: null,
           ),
+          () {
+            final isMuted = repository.mutedUsers.contains(post.author.id);
+            return _optionRow(
+              context,
+              icon: isMuted ? Icons.volume_up_outlined : Icons.volume_off_outlined,
+              title: isMuted
+                  ? 'Unmute @${post.author.handle}'
+                  : 'Mute @${post.author.handle}',
+              onTap: () {
+                Navigator.of(context).pop();
+                if (isMuted) {
+                  repository.unmuteUser(post.author.id);
+                  UiToast.show(
+                    context,
+                    title: 'Unmuted',
+                    message: '@${post.author.handle} has been unmuted.',
+                    intent: UiIntent.info,
+                  );
+                } else {
+                  repository.muteUser(post.author.id);
+                  UiToast.show(
+                    context,
+                    title: 'Muted for this session',
+                    message:
+                        'You will no longer see posts from @${post.author.handle}.',
+                    intent: UiIntent.info,
+                  );
+                }
+              },
+            );
+          }(),
           _optionRow(
             context,
             icon: Icons.block_flipped,
@@ -225,14 +255,18 @@ class CommunityPostOptionsSheet extends StatelessWidget {
     BuildContext context, {
     required IconData icon,
     required String title,
+    String? subtitle,
     VoidCallback? onTap,
     bool isDestructive = false,
+    bool isUnavailable = false,
   }) {
     final UiTheme theme = context.ui;
-    final color = isDestructive ? theme.colors.danger : theme.colors.foreground;
+    final color = isUnavailable
+        ? theme.colors.foregroundMuted.withValues(alpha: 0.5)
+        : (isDestructive ? theme.colors.danger : theme.colors.foreground);
 
     return InkWell(
-      onTap: onTap,
+      onTap: isUnavailable ? null : onTap,
       borderRadius: context.radius(theme.radii.md),
       child: Padding(
         padding: EdgeInsets.symmetric(
@@ -244,14 +278,37 @@ class CommunityPostOptionsSheet extends StatelessWidget {
             Icon(icon, size: context.sz(20), color: color),
             SizedBox(width: context.sp(theme.spacing.md)),
             Expanded(
-              child: Text(
-                title,
-                style: context.uiText.bodyStrong.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: context.uiText.bodyStrong.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    SizedBox(height: context.sp(theme.spacing.xxs)),
+                    Text(
+                      subtitle,
+                      style: context.uiText.caption.copyWith(
+                        color: theme.colors.foregroundMuted.withValues(alpha: 0.6),
+                        fontSize: context.fs(11),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
+            if (isUnavailable)
+              UiBadge(
+                label: 'Unavailable',
+                size: UiSize.xs,
+                intent: UiIntent.neutral,
+                variant: UiBadgeVariant.soft,
+              ),
           ],
         ),
       ),

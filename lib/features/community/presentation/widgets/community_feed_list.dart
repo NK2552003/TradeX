@@ -24,6 +24,7 @@ class CommunityFeedList extends StatelessWidget {
     this.onAuthorTap,
     this.onTagTap,
     this.onOpenRef,
+    this.onQuote,
     this.onRefresh,
     this.padding,
     this.emptyState,
@@ -41,6 +42,7 @@ class CommunityFeedList extends StatelessWidget {
   final ValueChanged<CommunityAuthor>? onAuthorTap;
   final ValueChanged<String>? onTagTap;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final ValueChanged<CommunityPost>? onQuote;
   final Future<void> Function()? onRefresh;
   final EdgeInsetsGeometry? padding;
   final Widget? emptyState;
@@ -99,6 +101,7 @@ class CommunityFeedList extends StatelessWidget {
               onAuthorTap: onAuthorTap,
               onTagTap: onTagTap,
               onOpenRef: onOpenRef,
+              onQuote: onQuote,
             ),
           ],
         );

@@ -99,27 +99,29 @@ class CommunityRepostDialog extends StatelessWidget {
                       : theme.colors.foreground,
                 ),
                 SizedBox(width: context.sp(theme.spacing.md)),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      post.reposted ? 'Undo Repost' : 'Repost',
-                      style: context.uiText.bodyStrong.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: post.reposted
-                            ? theme.colors.success
-                            : theme.colors.foreground,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        post.reposted ? 'Undo Repost' : 'Repost',
+                        style: context.uiText.bodyStrong.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: post.reposted
+                              ? theme.colors.success
+                              : theme.colors.foreground,
+                        ),
                       ),
-                    ),
-                    Text(
-                      post.reposted
-                          ? 'Remove this post from your profile'
-                          : 'Instantly share this setup to your followers',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
+                      Text(
+                        post.reposted
+                            ? 'Remove this post from your profile'
+                            : 'Instantly share this setup to your followers',
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -145,23 +147,25 @@ class CommunityRepostDialog extends StatelessWidget {
                   color: theme.colors.foreground,
                 ),
                 SizedBox(width: context.sp(theme.spacing.md)),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Quote Post',
-                      style: context.uiText.bodyStrong.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colors.foreground,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Quote Post',
+                        style: context.uiText.bodyStrong.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colors.foreground,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Add your own commentary or analysis before sharing',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
+                      Text(
+                        'Add your own commentary or analysis before sharing',
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.foregroundMuted,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),

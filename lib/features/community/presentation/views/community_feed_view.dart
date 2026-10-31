@@ -110,7 +110,18 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   void _onDataChanged() => setState(() {});
 
   Future<void> _refresh() async {
-    await widget.repository.fetchFromSupabase();
+    try {
+      await widget.repository.fetchFromSupabase();
+    } catch (e) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Refresh failed',
+          message: '$e',
+        );
+      }
+      return;
+    }
     if (mounted && widget.repository.refreshError != null) {
       UiToast.error(
         context,
@@ -321,6 +332,49 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     }).toList();
   }
 
+  void _openComposerWithQuote(BuildContext context, CommunityPost post) {
+    final isMobile = context.uiRes.isMobile;
+    if (isMobile) {
+      final UiTheme theme = context.ui;
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        barrierColor: theme.colors.overlay,
+        builder: (BuildContext ctx) => CommunityDensityScope(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+            child: SingleChildScrollView(
+              child: CommunityComposerCard(
+                author: widget.currentUser,
+                repository: widget.repository,
+                quotedPost: post,
+                isDrawerTile: true,
+                onPostCreated: () => Navigator.of(ctx).pop(),
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      showSettingsSideSheet<void>(
+        context,
+        title: 'Quote Post',
+        subtitle: 'Share your perspective on this post',
+        desktopWidthRatio: 0.52,
+        maxWidth: 720,
+        minDesktopWidth: 540,
+        scrollable: true,
+        child: CommunityComposerCard(
+          author: widget.currentUser,
+          repository: widget.repository,
+          quotedPost: post,
+          onPostCreated: () => Navigator.of(context).pop(),
+        ),
+      );
+    }
+  }
+
   void _openComposer(BuildContext context, [ComposerMode mode = ComposerMode.post]) {
     final isMobile = context.uiRes.isMobile;
     if (isMobile) {
@@ -487,6 +541,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       onAuthorTap: widget.onAuthorTap,
       onOpenRef: widget.onOpenRef,
       onTagTap: widget.onTagTap,
+      onQuote: (post) => _openComposerWithQuote(context, post),
       onRefresh: _refresh,
     );
 
@@ -736,6 +791,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
           onTagTap: widget.onTagTap,
+          onQuote: (post) => _openComposerWithQuote(context, post),
           onRefresh: _refresh,
           emptyState: const CommunityEmptyState(
             icon: Icons.person_add_outlined,
@@ -779,6 +835,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
           onTagTap: widget.onTagTap,
+          onQuote: (post) => _openComposerWithQuote(context, post),
           onRefresh: _refresh,
           emptyState: const CommunityEmptyState(
             icon: Icons.candlestick_chart_rounded,
@@ -928,6 +985,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
           onTagTap: widget.onTagTap,
+          onQuote: (post) => _openComposerWithQuote(context, post),
           onRefresh: _refresh,
           emptyState: const CommunityEmptyState(
             icon: Icons.currency_bitcoin_rounded,
@@ -975,6 +1033,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           onAuthorTap: widget.onAuthorTap,
           onOpenRef: widget.onOpenRef,
           onTagTap: widget.onTagTap,
+          onQuote: (post) => _openComposerWithQuote(context, post),
           onRefresh: _refresh,
           emptyState: const CommunityEmptyState(
             icon: Icons.show_chart_rounded,
