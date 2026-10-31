@@ -108,6 +108,17 @@ WITH CHECK (
   auth.uid() = (SELECT s.user_id FROM strategies s WHERE s.id = strategy_versions.strategy_id)
 );
 
+DROP POLICY IF EXISTS strategy_versions_public_read ON strategy_versions;
+CREATE POLICY strategy_versions_public_read ON strategy_versions
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM strategies s
+    WHERE s.id = strategy_versions.strategy_id
+      AND s.visibility = 'public'
+  )
+);
+
 -- journal entries
 DROP POLICY IF EXISTS journal_entries_own_all ON journal_entries;
 CREATE POLICY journal_entries_own_all ON journal_entries FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);

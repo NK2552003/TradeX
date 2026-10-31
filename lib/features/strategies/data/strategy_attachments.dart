@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 
 import '../../notes/data/note_attachments.dart';
 import 'strategies_repository.dart';
@@ -22,8 +23,36 @@ import 'strategies_repository.dart';
 class StrategyAttachments {
   const StrategyAttachments._();
 
-  static Future<String> _url(String ref) =>
-      StrategiesRepositoryScope.repository.resolveAttachmentUrl(ref);
+  static final Map<String, ({String url, DateTime expires})> _resolved = {};
+
+  static String _cacheKey(String ref) =>
+      '${SupabaseConfig.client?.auth.currentUser?.id ?? 'signedout'}:$ref';
+
+  static String? _cached(String key) {
+    final entry = _resolved[key];
+    if (entry == null || !entry.expires.isAfter(DateTime.now())) {
+      _resolved.remove(key);
+      return null;
+    }
+    return entry.url;
+  }
+
+  static void _remember(String key, String url) {
+    if (_resolved.length >= 512) _resolved.clear();
+    _resolved[key] = (
+      url: url,
+      expires: DateTime.now().add(const Duration(minutes: 5)),
+    );
+  }
+
+  static Future<String> _url(String ref) async {
+    final key = _cacheKey(ref);
+    final cached = _cached(key);
+    if (cached != null) return cached;
+    final url = await StrategiesRepositoryScope.repository.resolveAttachmentUrl(ref);
+    if (url.isNotEmpty) _remember(key, url);
+    return url;
+  }
 
   /// Copies [source] out of the OS cache, stores it against [strategyId] and
   /// returns the markdown to drop at the cursor.
@@ -50,6 +79,24 @@ class StrategyAttachments {
       NoteAttachments.resolve(context, uri, using: _url);
 
   /// Wire into `MarkdownPdfExporter.exportAndShare`'s `imageResolver`.
-  static Future<Uint8List?> bytesFor(Uri uri) =>
-      NoteAttachments.bytesFor(uri, using: _url);
+  static Future<Uint8List?> bytesFor(Uri uri) async {
+    try {
+      return await NoteAttachments.bytesFor(uri, using: _url);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Invalidates cached URLs across all strategy attachments.
+  static void clearCache() => _resolved.clear();
+
+  /// Invalidates cached URL for a specific attachment [ref].
+  static void invalidate(String ref) {
+    _resolved.removeWhere((key, _) => key.endsWith(':$ref') || key.contains(ref));
+  }
+
+  /// Invalidates all cached attachments for a specific strategy [strategyId].
+  static void invalidateForStrategy(String strategyId) {
+    _resolved.removeWhere((key, _) => key.contains('/$strategyId/'));
+  }
 }

@@ -12,6 +12,10 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/linking/entity_ticker_links_repository.dart';
 import 'package:uuid/uuid.dart';
+import 'package:path/path.dart' as p;
+import '../../notes/data/note_attachments.dart';
+import 'strategy_attachments.dart';
+
 
 /// Everything the strategies feature needs from storage.
 abstract class StrategiesRepository {
@@ -66,6 +70,9 @@ abstract class StrategiesRepository {
 
   /// Turns a stored reference back into something the preview can load.
   Future<String> resolveAttachmentUrl(String ref);
+
+  /// Deletes an attachment from private storage and purges its tracking record.
+  Future<void> deleteAttachment(String storagePath);
 }
 
 /// Live Supabase-backed implementation with real-time sync and offline resilience.
@@ -73,6 +80,42 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
   StrategiesRepositoryImpl._();
 
   static final StrategiesRepositoryImpl instance = StrategiesRepositoryImpl._();
+
+  /// Sanitizes file extension using package:path, stripping leading dot,
+  /// restricting to `[a-z0-9]`, and defaulting to 'bin' if empty or invalid.
+  static String sanitizeExtension(String filePath) {
+    final extWithoutDot = p
+        .extension(filePath)
+        .replaceFirst(RegExp(r'^\.'), '')
+        .toLowerCase();
+    final sanitizedExt = extWithoutDot.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    return sanitizedExt.isNotEmpty ? sanitizedExt : 'bin';
+  }
+
+  static String _resolveMimeType(String ext) {
+    switch (ext.toLowerCase()) {
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'webp':
+        return 'image/webp';
+      case 'gif':
+        return 'image/gif';
+      case 'pdf':
+        return 'application/pdf';
+      case 'md':
+      case 'markdown':
+        return 'text/markdown';
+      case 'txt':
+        return 'text/plain';
+      case 'csv':
+        return 'text/csv';
+      default:
+        return 'application/octet-stream';
+    }
+  }
 
   static final RegExp _uuidRegex = RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -582,7 +625,8 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     final DateTime now = DateTime.now();
 
     AppStrategy saved = draft;
-    final targetUserId = _resolveUserId();
+    final resolvedUid = _resolveUserId();
+    final targetUserId = (SupabaseConfig.isConfigured || draft.userId.isEmpty) ? resolvedUid : draft.userId;
     final String assignedId = _isUuid(draft.id) ? draft.id : const Uuid().v4();
 
     if (SupabaseConfig.isConfigured) {
@@ -670,6 +714,9 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         final targetUserId = _resolveUserId();
         final row = _mapStrategyToRow(saved, targetUserId);
         row.remove('id');
+        // Do not overwrite trigger-maintained mirror columns during regular updates
+        row.remove('linked_note_ids');
+        row.remove('linked_journal_ids');
         row['updated_at'] = DateTime.now().toIso8601String();
 
         final res = await client
@@ -816,6 +863,15 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
   @override
   Future<List<AppStrategyVersion>> versions(String strategyId) async {
     await _init();
+    final strategy = await getById(strategyId);
+    if (strategy != null) {
+      final currentUserId = _resolveUserId();
+      if (strategy.userId != currentUserId && !strategy.isPublic) {
+        throw StateError(
+          'Unauthorized: access denied to private strategy versions.',
+        );
+      }
+    }
     if (SupabaseConfig.isConfigured && _isUuid(strategyId)) {
       try {
         final client = SupabaseConfig.client!;
@@ -1014,22 +1070,22 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     final owned = await getById(strategyId);
     if (owned == null) throw StateError('This record is no longer available.');
     RecordAccess.requireOwner(owned.userId);
-    if (SupabaseConfig.isConfigured && _isUuid(strategyId)) {
+    if (SupabaseConfig.isConfigured && _isUuid(strategyId) && _isUuid(noteId)) {
       try {
         final client = SupabaseConfig.client!;
-        final strategy = await getById(strategyId);
-        if (strategy != null && !strategy.linkedNoteIds.contains(noteId)) {
-          final updated = <String>[...strategy.linkedNoteIds, noteId];
-          await client
-              .from('strategies')
-              .update({'linked_note_ids': updated})
-              .eq('id', strategyId)
-              .eq('user_id', _resolveUserId())
-              .select('id')
-              .single();
-        }
+        // Authoritative mutation path: set strategy_id on the child note.
+        // The database trigger trg_trader_notes_strategy_mirror automatically
+        // recalculates strategies.linked_note_ids atomically.
+        await client
+            .from('trader_notes')
+            .update({
+              'strategy_id': strategyId,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('id', noteId)
+            .eq('user_id', _resolveUserId());
       } catch (e) {
-        debugPrint('[StrategiesRepository] linkNote error: $e');
+        debugPrint('[StrategiesRepository] linkNote authoritative error: $e');
         rethrow;
       }
     }
@@ -1045,24 +1101,23 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     final owned = await getById(strategyId);
     if (owned == null) throw StateError('This record is no longer available.');
     RecordAccess.requireOwner(owned.userId);
-    if (SupabaseConfig.isConfigured && _isUuid(strategyId)) {
+    if (SupabaseConfig.isConfigured && _isUuid(strategyId) && _isUuid(noteId)) {
       try {
         final client = SupabaseConfig.client!;
-        final strategy = await getById(strategyId);
-        if (strategy != null) {
-          final updated = strategy.linkedNoteIds
-              .where((String id) => id != noteId)
-              .toList(growable: false);
-          await client
-              .from('strategies')
-              .update({'linked_note_ids': updated})
-              .eq('id', strategyId)
-              .eq('user_id', _resolveUserId())
-              .select('id')
-              .single();
-        }
+        // Authoritative mutation path: clear strategy_id on the child note.
+        // The database trigger trg_trader_notes_strategy_mirror automatically
+        // recalculates strategies.linked_note_ids atomically.
+        await client
+            .from('trader_notes')
+            .update({
+              'strategy_id': null,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('id', noteId)
+            .eq('strategy_id', strategyId)
+            .eq('user_id', _resolveUserId());
       } catch (e) {
-        debugPrint('[StrategiesRepository] unlinkNote error: $e');
+        debugPrint('[StrategiesRepository] unlinkNote authoritative error: $e');
         rethrow;
       }
     }
@@ -1082,22 +1137,22 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     final owned = await getById(strategyId);
     if (owned == null) throw StateError('This record is no longer available.');
     RecordAccess.requireOwner(owned.userId);
-    if (SupabaseConfig.isConfigured && _isUuid(strategyId)) {
+    if (SupabaseConfig.isConfigured && _isUuid(strategyId) && _isUuid(entryId)) {
       try {
         final client = SupabaseConfig.client!;
-        final strategy = await getById(strategyId);
-        if (strategy != null && !strategy.linkedJournalIds.contains(entryId)) {
-          final updated = <String>[...strategy.linkedJournalIds, entryId];
-          await client
-              .from('strategies')
-              .update({'linked_journal_ids': updated})
-              .eq('id', strategyId)
-              .eq('user_id', _resolveUserId())
-              .select('id')
-              .single();
-        }
+        // Authoritative mutation path: set strategy_id on the child journal entry.
+        // The database trigger trg_journal_entries_strategy_mirror automatically
+        // recalculates strategies.linked_journal_ids atomically.
+        await client
+            .from('journal_entries')
+            .update({
+              'strategy_id': strategyId,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('id', entryId)
+            .eq('user_id', _resolveUserId());
       } catch (e) {
-        debugPrint('[StrategiesRepository] linkJournal error: $e');
+        debugPrint('[StrategiesRepository] linkJournal authoritative error: $e');
         rethrow;
       }
     }
@@ -1115,24 +1170,23 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
     final owned = await getById(strategyId);
     if (owned == null) throw StateError('This record is no longer available.');
     RecordAccess.requireOwner(owned.userId);
-    if (SupabaseConfig.isConfigured && _isUuid(strategyId)) {
+    if (SupabaseConfig.isConfigured && _isUuid(strategyId) && _isUuid(entryId)) {
       try {
         final client = SupabaseConfig.client!;
-        final strategy = await getById(strategyId);
-        if (strategy != null) {
-          final updated = strategy.linkedJournalIds
-              .where((String id) => id != entryId)
-              .toList(growable: false);
-          await client
-              .from('strategies')
-              .update({'linked_journal_ids': updated})
-              .eq('id', strategyId)
-              .eq('user_id', _resolveUserId())
-              .select('id')
-              .single();
-        }
+        // Authoritative mutation path: clear strategy_id on the child journal entry.
+        // The database trigger trg_journal_entries_strategy_mirror automatically
+        // recalculates strategies.linked_journal_ids atomically.
+        await client
+            .from('journal_entries')
+            .update({
+              'strategy_id': null,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('id', entryId)
+            .eq('strategy_id', strategyId)
+            .eq('user_id', _resolveUserId());
       } catch (e) {
-        debugPrint('[StrategiesRepository] unlinkJournal error: $e');
+        debugPrint('[StrategiesRepository] unlinkJournal authoritative error: $e');
         rethrow;
       }
     }
@@ -1149,6 +1203,12 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
   @override
   Future<String> uploadAttachment(String strategyId, File file) async {
     RecordAccess.requireService();
+    final currentUserId = _resolveUserId();
+    if (currentUserId.isEmpty) {
+      throw StateError(
+        'Unauthorized: user must be authenticated to upload attachments.',
+      );
+    }
     if (SupabaseConfig.isConfigured) {
       final owner = await getById(strategyId);
       if (owner == null) {
@@ -1156,54 +1216,182 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       }
       RecordAccess.requireOwner(owner.userId);
     }
-    if (SupabaseConfig.isConfigured) {
+
+    if (SupabaseConfig.isConfigured && _isUuid(strategyId)) {
       try {
         final client = SupabaseConfig.client!;
-        final ext = file.path.contains('.') ? file.path.split('.').last : 'png';
+        final ext = sanitizeExtension(file.path);
+        final fileName = p.basename(file.path);
         final storagePath =
-            '${_resolveUserId()}/$strategyId/${const Uuid().v4()}.$ext';
+            '$currentUserId/$strategyId/${const Uuid().v4()}.$ext';
+        final length = await file.length().catchError((_) => 0);
+
+        if (length > 10485760) {
+          throw ArgumentError('Attachment file size exceeds the 10 MB limit.');
+        }
+
+        final mimeType = _resolveMimeType(ext);
+        final isImage = NoteAttachments.isImageFile(file.path);
+
         await client.storage
             .from('strategy-attachments')
             .upload(
               storagePath,
               file,
-              fileOptions: const FileOptions(upsert: true),
+              fileOptions: FileOptions(
+                contentType: mimeType,
+                cacheControl: '3600',
+                upsert: true,
+              ),
             );
+
+        await client
+            .from('strategy_attachments')
+            .insert({
+              'strategy_id': strategyId,
+              'user_id': currentUserId,
+              'storage_path': storagePath,
+              'filename': fileName,
+              'mime_type': mimeType,
+              'byte_size': length,
+              'is_image': isImage,
+            })
+            .catchError((e) {
+              debugPrint(
+                '[StrategiesRepository] strategy_attachments insert warning: $e',
+              );
+              return <String, dynamic>{};
+            });
+
         return storagePath;
       } catch (e) {
         debugPrint('[StrategiesRepository] uploadAttachment cloud error: $e');
-        return file.path;
+        rethrow;
       }
     }
     return file.path;
   }
 
   @override
+  Future<void> deleteAttachment(String storagePath) async {
+    RecordAccess.requireService();
+    final currentUserId = _resolveUserId();
+    if (currentUserId.isEmpty) {
+      throw StateError('Unauthorized: user must be authenticated.');
+    }
+
+    String cleanPath = storagePath.trim();
+    if (cleanPath.startsWith('strategy-attachments/')) {
+      cleanPath = cleanPath.substring('strategy-attachments/'.length);
+    }
+    while (cleanPath.startsWith('/')) {
+      cleanPath = cleanPath.substring(1);
+    }
+    if (cleanPath.contains('?')) {
+      cleanPath = cleanPath.split('?').first;
+    }
+
+    final segments = cleanPath.split('/');
+    if (segments.isNotEmpty && _isUuid(segments.first)) {
+      if (segments.first != currentUserId) {
+        throw StateError(
+          'Unauthorized: cannot delete attachments belonging to another user.',
+        );
+      }
+    }
+
+    StrategyAttachments.invalidate(cleanPath);
+
+    if (SupabaseConfig.isConfigured) {
+      final client = SupabaseConfig.client!;
+      await client.storage.from('strategy-attachments').remove([cleanPath]);
+      await client
+          .from('strategy_attachments')
+          .delete()
+          .eq('storage_path', cleanPath)
+          .eq('user_id', currentUserId)
+          .catchError((_) => null);
+    }
+  }
+
+  @override
   Future<String> resolveAttachmentUrl(String ref) async {
-    if (!SupabaseConfig.isConfigured ||
-        ref.startsWith('https://') ||
-        ref.startsWith('http://') ||
-        ref.startsWith('/') ||
+    // 1. Pass through local files or raw data URIs
+    if (ref.startsWith('/') ||
         ref.contains(':\\') ||
         ref.startsWith('file:') ||
         ref.startsWith('data:')) {
       return ref;
     }
+
+    // 2. Extract relative storage path inside strategy-attachments bucket
+    String storagePath = ref.trim();
+
+    if (storagePath.startsWith('https://') ||
+        storagePath.startsWith('http://')) {
+      final uri = Uri.tryParse(storagePath);
+      if (uri != null) {
+        final pathSegments = uri.pathSegments;
+        final bucketIdx = pathSegments.indexOf('strategy-attachments');
+        if (bucketIdx != -1 && bucketIdx < pathSegments.length - 1) {
+          storagePath = pathSegments.sublist(bucketIdx + 1).join('/');
+        } else {
+          // 3rd party external URL, e.g. unsplash or external CDN
+          return ref;
+        }
+      }
+    }
+
+    // Strip leading bucket name or slashes
+    if (storagePath.startsWith('strategy-attachments/')) {
+      storagePath = storagePath.substring('strategy-attachments/'.length);
+    }
+    while (storagePath.startsWith('/')) {
+      storagePath = storagePath.substring(1);
+    }
+
+    // Strip query string if any was appended
+    if (storagePath.contains('?')) {
+      storagePath = storagePath.split('?').first;
+    }
+
+    // 3. Authorization check: Private strategy attachments belong strictly to owner folder
+    final currentUserId = _resolveUserId();
+    final pathSegments = storagePath.split('/');
+    if (pathSegments.length >= 2) {
+      final ownerId = pathSegments[0];
+      final strategyId = pathSegments[1];
+
+      // If owner does not match current user, check if strategy is public
+      if (ownerId != currentUserId) {
+        final strategy = await getById(strategyId);
+        final isPublic = strategy?.isPublic ?? false;
+        if (!isPublic) {
+          throw StateError(
+            'Unauthorized: access denied to private attachment belonging to another user.',
+          );
+        }
+      }
+    } else if (pathSegments.length == 1 && _isUuid(pathSegments.first)) {
+      if (pathSegments.first != currentUserId) {
+        throw StateError(
+          'Unauthorized: access denied to private attachment belonging to another user.',
+        );
+      }
+    }
+
+    if (!SupabaseConfig.isConfigured) {
+      return ref;
+    }
+
+    // 4. Generate 1-hour (3600s) expiring signed access URL
     try {
       return await SupabaseConfig.client!.storage
           .from('strategy-attachments')
-          .createSignedUrl(ref, 3600);
+          .createSignedUrl(storagePath, 3600);
     } catch (e) {
-      debugPrint(
-        '[StrategiesRepository] createSignedUrl error: $e, trying public url',
-      );
-      try {
-        final publicUrl = SupabaseConfig.client!.storage
-            .from('strategy-attachments')
-            .getPublicUrl(ref);
-        if (publicUrl.isNotEmpty) return publicUrl;
-      } catch (_) {}
-      return ref;
+      debugPrint('[StrategiesRepository] createSignedUrl error: $e');
+      rethrow;
     }
   }
 }
