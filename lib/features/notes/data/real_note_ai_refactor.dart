@@ -84,7 +84,7 @@ class RealNoteAiRefactor implements NoteAiRefactor {
         if (fe.details is Map && (fe.details as Map)['error'] != null) {
           throw StateError((fe.details as Map)['error'].toString());
         }
-        if (fe.status != null && fe.status! > 0) {
+        if (fe.status > 0) {
           throw StateError(
             'AI refactoring request failed (${fe.status}): ${fe.reasonPhrase ?? 'Service error'}',
           );
