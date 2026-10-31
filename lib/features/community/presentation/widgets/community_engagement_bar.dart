@@ -332,8 +332,8 @@ class CommunityEngagementButton extends StatelessWidget {
               vertical: 4,
             ),
             constraints: isMobile
-                ? const BoxConstraints(minHeight: 38)
-                : const BoxConstraints(minHeight: 32),
+                ? const BoxConstraints(minHeight: 44, minWidth: 44)
+                : const BoxConstraints(minHeight: 36, minWidth: 36),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: isHovered

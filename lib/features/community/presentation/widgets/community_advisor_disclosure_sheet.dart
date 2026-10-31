@@ -16,12 +16,12 @@ class CommunityAdvisorDisclosureSheet extends StatelessWidget {
     final fallback =
         author ??
         const CommunityAuthor(
-          id: 'advisor_default',
-          displayName: 'Rajesh Sharma, CMT',
-          handle: 'rajesh_cmt',
-          verified: true,
-          userRole: UserRole.userAdmin,
-          primaryMarket: 'NSE / BSE Derivatives',
+          id: 'unverified_member',
+          displayName: 'Community Trader',
+          handle: 'trader',
+          verified: false,
+          userRole: UserRole.customer,
+          primaryMarket: 'Equity & Derivatives',
         );
 
     return showModalBottomSheet<void>(
@@ -90,18 +90,22 @@ class CommunityAdvisorDisclosureSheet extends StatelessWidget {
                             ),
                           ),
                         ),
-                        SizedBox(width: context.sp(4)),
-                        Icon(
-                          Icons.verified,
-                          color: colors.primary,
-                          size: context.sz(16),
-                        ),
+                        if (author.verified) ...[
+                          SizedBox(width: context.sp(4)),
+                          Icon(
+                            Icons.verified,
+                            color: colors.primary,
+                            size: context.sz(16),
+                          ),
+                        ],
                       ],
                     ),
                     Text(
-                      'SEBI Registered Research Analyst (RA)',
+                      author.verified
+                          ? 'Verified Profile (Identity Confirmed)'
+                          : 'Community Member (Unverified Advisor Status)',
                       style: context.uiText.label.copyWith(
-                        color: colors.success,
+                        color: author.verified ? colors.success : colors.foregroundMuted,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -127,18 +131,21 @@ class CommunityAdvisorDisclosureSheet extends StatelessWidget {
             ),
             child: Column(
               children: [
-                _InfoRow(label: 'Registration Number', value: 'Not verified'),
                 _InfoRow(
-                  label: 'Regulatory Body',
-                  value: 'SEBI (Securities & Exchange Board of India)',
+                  label: 'SEBI Registration',
+                  value: 'Not on file / Unregistered',
                 ),
                 _InfoRow(
-                  label: 'Validity Period',
-                  value: 'Valid thru Oct 2028',
+                  label: 'Regulatory Status',
+                  value: 'Self-directed trader (Educational only)',
                 ),
                 _InfoRow(
-                  label: 'Compliance Officer',
-                  value: 'compliance@alphajournal.in',
+                  label: 'Advisory Authorization',
+                  value: 'None (No financial advice allowed)',
+                ),
+                _InfoRow(
+                  label: 'Platform Identity',
+                  value: author.verified ? 'Verified' : 'Standard member',
                 ),
               ],
             ),
