@@ -25,10 +25,11 @@ assert.ok(
   `Expected at least 2 AbortSignal.timeout(20_000) calls, found ${timeoutCount}`
 );
 
-// Verify P0001 quota mapping
+// Verify P0001 quota mapping requires both P0001 and quota message
 assert.ok(
-  edgeFileContent.includes("quotaError.code === 'P0001'"),
-  'Must explicitly check for PostgreSQL error code P0001 for quota exhaustion'
+  edgeFileContent.includes("quotaError.code === 'P0001'") &&
+  edgeFileContent.includes("quotaError.message?.toLowerCase().includes('quota')"),
+  'Must explicitly check both SQLSTATE P0001 and quota message to identify quota exhaustion'
 );
 
 // Verify 500 generic error response for non-quota DB failure
@@ -339,7 +340,11 @@ function validatePayload(body) {
 // 4. Test Quota trigger vs Database Error Separation
 function handleQuotaResult(quotaError) {
   if (quotaError) {
-    if (quotaError.code === 'P0001' || quotaError.message?.toLowerCase().includes('quota')) {
+    const isQuotaExceeded =
+      quotaError.code === 'P0001' &&
+      Boolean(quotaError.message?.toLowerCase().includes('quota'));
+
+    if (isQuotaExceeded) {
       return {
         status: 429,
         error: 'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
@@ -354,7 +359,7 @@ function handleQuotaResult(quotaError) {
 }
 
 {
-  // Quota trigger exception: code P0001
+  // Quota trigger exception: code P0001 with quota message
   const quotaRes = handleQuotaResult({
     code: 'P0001',
     message: 'Subscription free quota reached (10 of 10)',
@@ -365,6 +370,21 @@ function handleQuotaResult(quotaError) {
     'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.'
   );
   console.log('✓ P0001 trigger exception mapped to 429 generic quota message');
+}
+
+{
+  // Unrelated P0001 exception (e.g. custom trigger exception unrelated to quota)
+  const unrelatedP0001 = handleQuotaResult({
+    code: 'P0001',
+    message: 'User profile is locked or inactive',
+  });
+  assert.equal(unrelatedP0001.status, 500);
+  assert.equal(
+    unrelatedP0001.error,
+    'Failed to record AI request. Please try again later.'
+  );
+  assert.ok(!unrelatedP0001.error.includes('profile is locked'));
+  console.log('✓ Unrelated P0001 error mapped to 500 without leaking database error');
 }
 
 {

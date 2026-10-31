@@ -197,8 +197,12 @@ Deno.serve(async (request) => {
   });
 
   if (quotaError) {
-    // P0001 is the SQLSTATE raised by enforce_published_customer_quota trigger
-    if (quotaError.code === 'P0001' || quotaError.message?.toLowerCase().includes('quota')) {
+    // Return 429 only when the error has SQLSTATE P0001 and its message indicates quota exhaustion
+    const isQuotaExceeded =
+      quotaError.code === 'P0001' &&
+      Boolean(quotaError.message?.toLowerCase().includes('quota'));
+
+    if (isQuotaExceeded) {
       return reply(429, {
         error: 'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
       });
