@@ -143,14 +143,6 @@ class CommunityRepository extends ChangeNotifier {
                   fetchFromSupabase();
                 },
               )
-              .onPostgresChanges(
-                event: PostgresChangeEvent.all,
-                schema: 'public',
-                table: 'community_live_rooms',
-                callback: (PostgresChangePayload payload) {
-                  fetchLiveRooms();
-                },
-              )
             ..subscribe();
     } catch (e) {
       debugPrint('[CommunityRepository] Realtime subscription error: $e');
@@ -727,66 +719,8 @@ class CommunityRepository extends ChangeNotifier {
   }
 
   Future<void> fetchLiveRooms() async {
-    if (!SupabaseConfig.isConfigured) return;
-    try {
-      final client = SupabaseConfig.client!;
-      final targetUserId = _resolveUserId();
-
-      final Set<String> remindedRoomIds = <String>{};
-      try {
-        final remRes = await client
-            .from('community_live_room_reminders')
-            .select('room_id')
-            .eq('user_id', targetUserId);
-        for (final item in remRes as List) {
-          final id = item['room_id']?.toString();
-          if (id != null) remindedRoomIds.add(id);
-        }
-      } catch (e) {
-        debugPrint('[CommunityRepository] Error fetching room reminders: $e');
-      }
-
-      final res = await client
-          .from('community_live_rooms')
-          .select(
-            '*, profiles:host_id(id, handle, display_name, avatar_url, bio, role)',
-          )
-          .order('created_at', ascending: false);
-
-      final List<LiveAudioRoom> rooms = [];
-      for (final item in res as List) {
-        final row = item as Map<String, dynamic>;
-        final hostProfile = row['profiles'] as Map<String, dynamic>?;
-        final hostId = row['host_id']?.toString() ?? '';
-        final rawHandle =
-            (hostProfile?['handle'] ?? hostProfile?['username']) as String? ??
-            'host';
-        final handle = rawHandle.startsWith('@')
-            ? rawHandle.substring(1)
-            : rawHandle;
-        final host = CommunityAuthor(
-          id: hostId,
-          handle: handle,
-          displayName: hostProfile?['display_name'] as String? ?? handle,
-          userRole: _parseUserRole(hostProfile?['role'] as String?),
-          avatarUrl: hostProfile?['avatar_url'] as String?,
-          bio: hostProfile?['bio'] as String?,
-          verified: hostProfile?['verified'] as bool? ?? false,
-        );
-
-        final roomId = row['id']?.toString() ?? '';
-        final room = LiveAudioRoom.fromMap(
-          row,
-          host: host,
-        ).copyWith(hasReminder: remindedRoomIds.contains(roomId));
-        rooms.add(room);
-      }
-
-      _liveRooms = rooms;
-      notifyListeners();
-    } catch (e) {
-      debugPrint('[CommunityRepository] fetchLiveRooms error: $e');
-    }
+    // Live Audio Spaces are currently disabled in production.
+    _liveRooms = <LiveAudioRoom>[];
   }
 
   UserRole _parseUserRole(String? roleStr) => parseUserRoleStatic(roleStr);

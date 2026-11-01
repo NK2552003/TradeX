@@ -688,8 +688,22 @@ class _AppScaffoldState extends State<AppScaffold> {
     return true;
   }
 
-  bool _canReach(String id) =>
-      _shellDestinations.containsKey(id) || _navigation.allows(id);
+  bool _canReach(String id) {
+    if ((id == 'admin_console' || id.startsWith('admin_')) &&
+        _effectiveRole != UserRole.userAdmin &&
+        !_hasEverOwnedAdminRole) {
+      return false;
+    }
+    if (id.startsWith('affiliate_') &&
+        id != 'affiliate_application' &&
+        _effectiveRole != UserRole.affiliate &&
+        _effectiveRole != UserRole.userAdmin &&
+        !_hasEverOwnedAffiliateRole &&
+        !_hasEverOwnedAdminRole) {
+      return false;
+    }
+    return _shellDestinations.containsKey(id) || _navigation.allows(id);
+  }
 
   void _openAffiliateApplication() => _go('affiliate_application');
 

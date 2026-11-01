@@ -92,9 +92,17 @@ class _PositionSizeCalculatorScreenState
     return AppCalculatorLayout(
       actions: [
         UiButton(
+          label: 'History',
+          leadingIcon: Icons.history_rounded,
+          variant: UiVariant.ghost,
+          size: UiSize.sm,
+          onPressed: () => showCalculatorHistorySheet(context),
+        ),
+        UiButton(
           label: 'Log Trade',
           leadingIcon: Icons.book_outlined,
           variant: UiVariant.soft,
+          size: UiSize.sm,
           onPressed: r.quantity > 0
               ? () => openCalculatorJournalDraft(
                   context,
@@ -102,6 +110,8 @@ class _PositionSizeCalculatorScreenState
                   entry: _entry,
                   stopLoss: _sl,
                   quantity: r.quantity.toDouble(),
+                  calculatorId: 'position_size',
+                  calculatorName: 'Position Size',
                 )
               : null,
         ),

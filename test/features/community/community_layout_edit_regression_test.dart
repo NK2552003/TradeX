@@ -568,7 +568,9 @@ void main() {
     });
   }
   for (final width in [320.0, 390.0]) {
-    testWidgets('live space cards fit $width px', (tester) async {
+    testWidgets('community feed tabs fit $width px with Live Spaces disabled', (
+      tester,
+    ) async {
       viewport(tester, width);
       await tester.pumpWidget(
         MaterialApp(
@@ -581,12 +583,10 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 300));
-      await tester.tap(find.text('Live Spaces').first);
+      expect(find.text('Live Spaces'), findsNothing);
+      await tester.tap(find.text('Following').first);
       await tester.pump(const Duration(milliseconds: 600));
       await tester.pump(const Duration(milliseconds: 600));
-      expect(tester.takeException(), isNull);
-      await tester.dragFrom(Offset(width / 2, 700), const Offset(0, -550));
-      await tester.pump(const Duration(milliseconds: 300));
       expect(tester.takeException(), isNull);
     });
   }

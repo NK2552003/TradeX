@@ -85,17 +85,30 @@ class _RiskRewardCalculatorScreenState
     return AppCalculatorLayout(
       actions: [
         UiButton(
+          label: 'History',
+          leadingIcon: Icons.history_rounded,
+          variant: UiVariant.ghost,
+          size: UiSize.sm,
+          onPressed: () => showCalculatorHistorySheet(context),
+        ),
+        UiButton(
           label: 'Log Trade',
           leadingIcon: Icons.book_outlined,
           variant: UiVariant.soft,
+          size: UiSize.sm,
           onPressed: r.risk > 0 && _riskAmount.isFinite && _riskAmount > 0
               ? () => openCalculatorJournalDraft(
                   context,
                   symbol: _symbol,
                   entry: _entry,
                   stopLoss: _sl,
-                  quantity: (_riskAmount / r.risk).floorToDouble(),
+                  quantity: (_riskAmount / r.risk).floorToDouble().clamp(
+                    1,
+                    10000000,
+                  ),
                   target: _target,
+                  calculatorId: 'risk_reward',
+                  calculatorName: 'Risk / Reward',
                 )
               : null,
         ),

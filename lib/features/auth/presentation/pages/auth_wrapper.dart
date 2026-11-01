@@ -1,5 +1,6 @@
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/linking/link_graph.dart';
+import 'package:tradex/core/navigation/customer_routes.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -81,11 +82,22 @@ class _AuthWrapperState extends State<AuthWrapper> {
       _ => widget.initialStage,
     };
 
+    final String currentHost = Uri.base.host.toLowerCase();
+    final UserRole? subdomainRole = CustomerRoute.requiredRoleForSubdomain(
+      currentHost,
+    );
+    final bool isAdminDestination =
+        widget.initialDestination == 'admin_console' ||
+        (widget.initialDestination?.startsWith('admin_') ?? false);
+
     final UserRole initialRole = switch (preview) {
       'affiliate' => UserRole.affiliate,
       'admin' => UserRole.userAdmin,
       'application' => UserRole.affiliate,
-      _ => UserRole.customer,
+      _ =>
+        isAdminDestination
+            ? UserRole.userAdmin
+            : (subdomainRole ?? UserRole.customer),
     };
 
     _sessionState = AuthSessionState(
@@ -552,6 +564,70 @@ class _AuthWrapperState extends State<AuthWrapper> {
               );
 
             case AuthStage.authenticated:
+              final String host = Uri.base.host.toLowerCase();
+              final bool isAdminUser =
+                  _sessionState.role == UserRole.userAdmin ||
+                  activeProfile?.role == UserRole.userAdmin ||
+                  (activeProfile?.adminKey?.trim().isNotEmpty ?? false);
+              final bool isAffiliateUser =
+                  isAdminUser ||
+                  _sessionState.role == UserRole.affiliate ||
+                  activeProfile?.role == UserRole.affiliate ||
+                  (_sessionState.affiliateProfile != null);
+              final String requestedDest =
+                  widget.initialDestination ?? _initialAppDestination;
+
+              if ((host.startsWith('admin.') ||
+                      requestedDest == 'admin_console' ||
+                      requestedDest.startsWith('admin_')) &&
+                  !isAdminUser) {
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 460),
+                    child: UiEmptyState(
+                      icon: Icons.admin_panel_settings_outlined,
+                      title: 'Administrator Access Required',
+                      message:
+                          'The Admin Console (admin.alphajournal.in) is restricted to verified institutional administrators. Please sign in with an authorized Admin account and Admin Key.',
+                      action: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          UiButton(
+                            label: 'Sign In as Admin',
+                            variant: UiVariant.solid,
+                            intent: UiIntent.primary,
+                            onPressed: () {
+                              _handleLogout();
+                              setState(() {
+                                _sessionState = _sessionState.copyWith(
+                                  stage: AuthStage.login,
+                                  role: UserRole.userAdmin,
+                                );
+                              });
+                            },
+                          ),
+                          const SizedBox(width: 12),
+                          UiButton(
+                            label: 'Open Trader Workspace',
+                            variant: UiVariant.outline,
+                            onPressed: () {
+                              widget.onDestinationChanged?.call('workspace');
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final String safeInitialDestination =
+                  (requestedDest.startsWith('affiliate_') &&
+                      requestedDest != 'affiliate_application' &&
+                      !isAffiliateUser)
+                  ? 'affiliate_application'
+                  : requestedDest;
+
               return AppScaffold(
                 userRole: _sessionState.role,
                 userId: activeProfile?.id ?? _sessionState.userId,
@@ -561,8 +637,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                   activeProfile?.subscriptionTier ?? '',
                 ),
                 userEmail: activeProfile?.email ?? _sessionState.email,
-                initialDestination:
-                    widget.initialDestination ?? _initialAppDestination,
+                initialDestination: safeInitialDestination,
                 initialOpenRequest: widget.openRequest,
                 onDestinationChanged: widget.onDestinationChanged,
                 onOpenRecord: widget.onOpenRecord,

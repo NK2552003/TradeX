@@ -85,12 +85,6 @@ class _CommunitySidebarState extends State<CommunitySidebar> {
           ),
           UiGap.v(gap),
         ],
-        if (widget.repository.liveRooms.isNotEmpty)
-          CommunityLiveRoomWidget(
-            room: widget.repository.liveRooms.first,
-            repository: widget.repository,
-          ),
-        UiGap.v(gap),
         deferred((_) => const CommunityPremiumCard(), 200),
         deferred((_) => const MarketMoversPanel(), 650),
         deferred(
