@@ -42,6 +42,11 @@ class UnifiedAiService {
     'gemini-flash-latest',
   ];
 
+  static const List<String> kOpenAiModels = <String>[
+    'gpt-4.1-mini',
+    'gpt-4o-mini',
+  ];
+
   /// Complete a single text prompt using multi-provider fallback.
   Future<String> complete({
     required String prompt,
@@ -51,7 +56,27 @@ class UnifiedAiService {
   }) async {
     final client = _clientFactory();
     try {
-      // 1. OpenRouter (Primary)
+      // 1. OpenAI (Primary configured provider)
+      final openaiKey = _openaiApiKey() ?? '';
+      if (openaiKey.isNotEmpty) {
+        try {
+          final res = await _callOpenAi(
+            client: client,
+            apiKey: openaiKey,
+            prompt: prompt,
+            systemPrompt: systemPrompt,
+            temperature: temperature,
+            maxTokens: maxTokens,
+          );
+          if (res != null && res.trim().isNotEmpty) {
+            return _cleanResponseText(res);
+          }
+        } catch (e) {
+          debugPrint('[UnifiedAiService] OpenAI complete fallback: $e');
+        }
+      }
+
+      // 2. OpenRouter Fallback
       final openRouterKey = _openrouterApiKey() ?? '';
       if (openRouterKey.isNotEmpty) {
         try {
@@ -71,7 +96,7 @@ class UnifiedAiService {
         }
       }
 
-      // 2. Google Gemini Fallback
+      // 3. Google Gemini Fallback
       final geminiKey = _geminiApiKey() ?? '';
       if (geminiKey.isNotEmpty) {
         try {
@@ -88,26 +113,6 @@ class UnifiedAiService {
           }
         } catch (e) {
           debugPrint('[UnifiedAiService] Gemini complete fallback: $e');
-        }
-      }
-
-      // 3. ChatGPT / OpenAI Fallback
-      final openaiKey = _openaiApiKey() ?? '';
-      if (openaiKey.isNotEmpty) {
-        try {
-          final res = await _callOpenAi(
-            client: client,
-            apiKey: openaiKey,
-            prompt: prompt,
-            systemPrompt: systemPrompt,
-            temperature: temperature,
-            maxTokens: maxTokens,
-          );
-          if (res != null && res.trim().isNotEmpty) {
-            return _cleanResponseText(res);
-          }
-        } catch (e) {
-          debugPrint('[UnifiedAiService] OpenAI complete fallback: $e');
         }
       }
 
@@ -157,7 +162,33 @@ class UnifiedAiService {
         ? userMessages.last.body
         : 'Analyze current market trends and provide high-signal trade setups.';
 
-    // 1. OpenRouter Streaming (Primary)
+    // 1. OpenAI Streaming (Primary configured provider)
+    final openaiKey = _openaiApiKey() ?? '';
+    if (openaiKey.isNotEmpty) {
+      bool streamedAny = false;
+      try {
+        final streamResult = _streamOpenAi(
+          client: client,
+          apiKey: openaiKey,
+          messages: userMessages,
+          systemPrompt: effectiveSystemPrompt,
+        );
+        await for (final chunk in streamResult) {
+          if (chunk.isNotEmpty) {
+            streamedAny = true;
+            yield chunk;
+          }
+        }
+        if (streamedAny) {
+          client.close();
+          return;
+        }
+      } catch (e) {
+        debugPrint('[UnifiedAiService] OpenAI stream failed: $e. Falling back.');
+      }
+    }
+
+    // 2. OpenRouter Streaming Fallback
     final openRouterKey = _openrouterApiKey() ?? '';
     if (openRouterKey.isNotEmpty) {
       bool streamedAny = false;
@@ -185,7 +216,7 @@ class UnifiedAiService {
       }
     }
 
-    // 2. Gemini Fallback
+    // 3. Gemini Fallback
     final geminiKey = _geminiApiKey() ?? '';
     if (geminiKey.isNotEmpty) {
       try {
@@ -203,26 +234,6 @@ class UnifiedAiService {
         }
       } catch (e) {
         debugPrint('[UnifiedAiService] Gemini stream fallback: $e');
-      }
-    }
-
-    // 3. OpenAI Fallback
-    final openaiKey = _openaiApiKey() ?? '';
-    if (openaiKey.isNotEmpty) {
-      try {
-        final openaiReply = await _callOpenAi(
-          client: client,
-          apiKey: openaiKey,
-          prompt: lastPrompt,
-          systemPrompt: effectiveSystemPrompt,
-        );
-        if (openaiReply != null && openaiReply.trim().isNotEmpty) {
-          yield* _chunkAndStream(openaiReply);
-          client.close();
-          return;
-        }
-      } catch (e) {
-        debugPrint('[UnifiedAiService] OpenAI stream fallback: $e');
       }
     }
 
@@ -448,7 +459,7 @@ class UnifiedAiService {
     int maxTokens = 2048,
   }) async {
     final url = Uri.parse('https://api.openai.com/v1/chat/completions');
-    for (final model in ['gpt-4o-mini', 'gpt-4o']) {
+    for (final model in kOpenAiModels) {
       try {
         final res = await client
             .post(
@@ -480,6 +491,76 @@ class UnifiedAiService {
       } catch (_) {}
     }
     return null;
+  }
+
+  Stream<String> _streamOpenAi({
+    required http.Client client,
+    required String apiKey,
+    required List<AppAiMessage> messages,
+    String? systemPrompt,
+    double temperature = 0.3,
+    int maxTokens = 2048,
+  }) async* {
+    final url = Uri.parse('https://api.openai.com/v1/chat/completions');
+    final formattedMessages = <Map<String, dynamic>>[
+      if (systemPrompt != null && systemPrompt.trim().isNotEmpty)
+        {'role': 'system', 'content': systemPrompt.trim()},
+      for (final m in messages.take(15))
+        {
+          'role': m.role == AppAiRole.user ? 'user' : 'assistant',
+          'content': m.body,
+        },
+    ];
+
+    for (final model in kOpenAiModels) {
+      try {
+        final request = http.Request('POST', url)
+          ..headers.addAll({
+            'Authorization': 'Bearer $apiKey',
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream',
+          })
+          ..body = jsonEncode({
+            'model': model,
+            'messages': formattedMessages,
+            'stream': true,
+            'temperature': temperature,
+            'max_tokens': maxTokens,
+          });
+
+        final streamedResponse = await client.send(request);
+        if (streamedResponse.statusCode != 200) {
+          continue;
+        }
+
+        final lineStream = streamedResponse.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter());
+
+        bool streamedAny = false;
+        await for (final line in lineStream) {
+          final trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          final payload = trimmed.substring(5).trim();
+          if (payload == '[DONE]') break;
+          try {
+            final decoded = jsonDecode(payload) as Map<String, dynamic>;
+            final choices = decoded['choices'] as List?;
+            if (choices != null && choices.isNotEmpty) {
+              final delta = choices[0]['delta'] as Map<String, dynamic>?;
+              final content = delta?['content']?.toString();
+              if (content != null && content.isNotEmpty) {
+                streamedAny = true;
+                yield content;
+              }
+            }
+          } catch (_) {}
+        }
+        if (streamedAny) return;
+      } catch (e) {
+        debugPrint('[UnifiedAiService] OpenAI streaming ($model) failed: $e');
+      }
+    }
   }
 
   Future<String?> _callClaude({
@@ -555,6 +636,11 @@ class UnifiedAiService {
       caseSensitive: false,
     );
     cleaned = cleaned.replaceAll(thinkRegex, '').trim();
+    if (cleaned.startsWith('```markdown') && cleaned.endsWith('```')) {
+      cleaned = cleaned.substring(11, cleaned.length - 3).trim();
+    } else if (cleaned.startsWith('```') && cleaned.endsWith('```')) {
+      cleaned = cleaned.substring(3, cleaned.length - 3).trim();
+    }
     return cleaned;
   }
 

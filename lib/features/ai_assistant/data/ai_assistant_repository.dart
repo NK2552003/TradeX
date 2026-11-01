@@ -801,7 +801,7 @@ class AiAssistantRepository extends ChangeNotifier {
         .length;
     final AppNote note = await NotesRepositoryScope.repository.create(
       AppNote(
-        id: 'note_ai_${_uid()}',
+        id: const Uuid().v4(),
         title: draft.title,
         content: draft.body,
         createdAt: DateTime.now(),
@@ -856,7 +856,7 @@ class AiAssistantRepository extends ChangeNotifier {
 
     final AppTrade trade = await JournalRepositoryScope.repository.create(
       AppTrade(
-        id: 'trade_ai_${_uid()}',
+        id: const Uuid().v4(),
         ticker: ticker,
         side: draft.side,
         openedAt: DateTime.now(),
@@ -900,7 +900,7 @@ class AiAssistantRepository extends ChangeNotifier {
         .length;
     final AppStrategy strat = await StrategiesRepositoryScope.repository.create(
       AppStrategy(
-        id: 'strat_ai_${_uid()}',
+        id: const Uuid().v4(),
         name: draft.title,
         summary: draft.summary?.trim().isNotEmpty == true
             ? draft.summary!
@@ -1168,7 +1168,6 @@ class AiAssistantRepository extends ChangeNotifier {
     icon: kind.icon,
   );
 
-  String _uid() => DateTime.now().microsecondsSinceEpoch.toRadixString(36);
 
   void _notify() {
     if (_disposed) return;

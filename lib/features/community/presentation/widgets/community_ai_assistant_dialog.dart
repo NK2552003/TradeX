@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:uuid/uuid.dart';
 import 'package:tradex/core/ai/unified_ai_service.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/ai_assistant/data/ai_assistant_repository.dart';
@@ -511,7 +512,7 @@ class _CommunityAiAssistantDialogState
 
     try {
       final AppNote note = AppNote(
-        id: 'note_ai_${DateTime.now().millisecondsSinceEpoch}',
+        id: const Uuid().v4(),
         title: '${setup.symbol} ${setup.pattern} Analysis',
         content:
             '# ${setup.symbol} ${setup.pattern}\n\n'
@@ -551,7 +552,7 @@ class _CommunityAiAssistantDialogState
 
     try {
       final AppTrade trade = AppTrade(
-        id: 'trade_ai_${DateTime.now().millisecondsSinceEpoch}',
+        id: const Uuid().v4(),
         ticker: setup.symbol,
         side: setup.direction.toLowerCase() == 'long'
             ? AppSide.long
@@ -589,7 +590,7 @@ class _CommunityAiAssistantDialogState
 
     try {
       final AppStrategy strategy = AppStrategy(
-        id: 'strat_ai_${DateTime.now().millisecondsSinceEpoch}',
+        id: const Uuid().v4(),
         name: '${setup.symbol} ${setup.pattern} Playbook',
         summary:
             'Automated execution playbook derived from ${setup.pattern} setups.',
