@@ -72,6 +72,8 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
   @override
   void initState() {
     super.initState();
+    widget.repository.recordDetailExpand(widget.post.id);
+    widget.repository.recordView(widget.post.id);
     widget.repository.addListener(_onDataChanged);
   }
 

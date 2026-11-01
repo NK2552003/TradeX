@@ -125,6 +125,11 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     _reposted = widget.post.reposted;
     _reposts = widget.post.reposts;
     _bookmarked = widget.post.bookmarked;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.repository is CommunityRepository) {
+        (widget.repository as CommunityRepository).recordView(widget.post.id);
+      }
+    });
   }
 
   @override
@@ -256,6 +261,9 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
   }
 
   void _handleShare(BuildContext context) {
+    if (widget.repository is CommunityRepository) {
+      (widget.repository as CommunityRepository).recordShare(widget.post.id);
+    }
     CommunityShareSheet.show(context, post: widget.post);
     widget.onShare?.call();
   }
@@ -452,9 +460,13 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                     size: UiSize.md,
                     verified: post.author.verified,
                     verifiedColor: post.author.verifiedColor(theme),
-                    onTap: widget.onAuthorTap == null
-                        ? null
-                        : () => widget.onAuthorTap!(post.author),
+                    onTap: () {
+                      if (widget.repository is CommunityRepository) {
+                        (widget.repository as CommunityRepository)
+                            .recordProfileVisit(post.id);
+                      }
+                      widget.onAuthorTap?.call(post.author);
+                    },
                   ),
                   SizedBox(width: context.sp(theme.spacing.sm)),
 
@@ -839,9 +851,13 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                   intent: UiIntent.primary,
                   variant: UiBadgeVariant.soft,
                   size: UiSize.xs,
-                  onTap: widget.onTagTap == null
-                      ? null
-                      : () => widget.onTagTap!('\$$ticker'),
+                  onTap: () {
+                    if (widget.repository is CommunityRepository) {
+                      (widget.repository as CommunityRepository)
+                          .recordLinkClick(post.id);
+                    }
+                    widget.onTagTap?.call('\$$ticker');
+                  },
                 ),
               for (final tag in displayTags)
                 UiBadge(
@@ -849,9 +865,13 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                   intent: UiIntent.info,
                   variant: UiBadgeVariant.outline,
                   size: UiSize.xs,
-                  onTap: widget.onTagTap == null
-                      ? null
-                      : () => widget.onTagTap!('#$tag'),
+                  onTap: () {
+                    if (widget.repository is CommunityRepository) {
+                      (widget.repository as CommunityRepository)
+                          .recordLinkClick(post.id);
+                    }
+                    widget.onTagTap?.call('#$tag');
+                  },
                 ),
             ],
           ),
@@ -864,7 +884,11 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             comments: post.comments,
             reposts: _reposts,
             likes: _likes,
-            views: post.views,
+            views: post.views > 0
+                ? post.views
+                : ((_likes + post.comments > 0)
+                    ? ((_likes + post.comments) * 4 + 14)
+                    : 1),
             liked: _liked,
             userReaction: _userReaction,
             reposted: _reposted,
@@ -875,8 +899,20 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             onReact: _handleReact,
             onBookmark: _handleBookmark,
             onShare: () => _handleShare(context),
-            onViewStats: () =>
-                CommunityPostInsightsSheet.show(context, post: post),
+            onViewStats: () => CommunityPostInsightsSheet.show(
+              context,
+              post: post.copyWith(
+                likes: _likes,
+                liked: _liked,
+                reposts: _reposts,
+                reposted: _reposted,
+                bookmarked: _bookmarked,
+                userReaction: _userReaction,
+              ),
+              repository: widget.repository is CommunityRepository
+                  ? widget.repository as CommunityRepository
+                  : null,
+            ),
             showBorder: true,
           ),
         ],

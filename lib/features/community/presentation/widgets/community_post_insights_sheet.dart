@@ -52,7 +52,7 @@ class CommunityPostInsightsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
-    final insights = repository.getPostInsights(post.id);
+    final insights = repository.getPostInsights(post.id, post: post);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -206,7 +206,12 @@ class CommunityPostInsightsSheet extends StatelessWidget {
                         children: <Widget>[
                           _reactionCount(
                             context,
-                            icon: Icons.favorite_rounded,
+                            icon: (post.userReaction != null && post.userReaction!.isNotEmpty)
+                                ? null
+                                : Icons.thumb_up_alt_rounded,
+                            emoji: (post.userReaction != null && post.userReaction!.isNotEmpty)
+                                ? post.userReaction
+                                : null,
                             label: 'Likes',
                             count: post.likes,
                             color: theme.colors.danger,
@@ -306,7 +311,8 @@ class CommunityPostInsightsSheet extends StatelessWidget {
 
   Widget _reactionCount(
     BuildContext context, {
-    required IconData icon,
+    IconData? icon,
+    String? emoji,
     required String label,
     required int count,
     required Color color,
@@ -314,7 +320,10 @@ class CommunityPostInsightsSheet extends StatelessWidget {
     final UiTheme theme = context.ui;
     return Column(
       children: <Widget>[
-        Icon(icon, color: color, size: context.sz(18)),
+        if (emoji != null && emoji.isNotEmpty)
+          Text(emoji, style: TextStyle(fontSize: context.fs(18)))
+        else
+          Icon(icon ?? Icons.thumb_up_alt_rounded, color: color, size: context.sz(18)),
         SizedBox(height: context.sp(theme.spacing.xxs)),
         Text(
           '$count',

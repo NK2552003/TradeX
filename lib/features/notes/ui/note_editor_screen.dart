@@ -663,10 +663,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       if (result == null || result.files.isEmpty) return;
       final PlatformFile pickedFile = result.files.first;
       final String name = pickedFile.name;
-      final Uint8List? bytes = pickedFile.bytes ??
-          (!kIsWeb && pickedFile.path != null
-              ? await File(pickedFile.path!).readAsBytes()
-              : null);
+      Uint8List? bytes = pickedFile.bytes;
+      if (bytes == null && !kIsWeb) {
+        final String? filePath = pickedFile.path;
+        if (filePath != null) {
+          bytes = await File(filePath).readAsBytes();
+        }
+      }
       if (bytes == null) {
         throw StateError('Could not read file data.');
       }
