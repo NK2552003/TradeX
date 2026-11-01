@@ -5,7 +5,7 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import '../data/yahoo_finance_service.dart';
 import '../models/market_snapshot.dart';
 
-/// Single sector item for the Sector Visual Breakdown card and Heatmap.
+/// Single sector item for the Sector Visual Breakdown card and Heatmap with freshness tracking.
 class SectorPerformanceItem {
   const SectorPerformanceItem({
     required this.name,
@@ -13,6 +13,9 @@ class SectorPerformanceItem {
     required this.ytdReturn,
     required this.dayReturn,
     required this.key,
+    this.isLive = false,
+    this.timestamp,
+    this.source = 'Offline Snapshot',
   });
 
   final String name;
@@ -20,6 +23,9 @@ class SectorPerformanceItem {
   final double ytdReturn;
   final double dayReturn;
   final String key;
+  final bool isLive;
+  final DateTime? timestamp;
+  final String source;
 
   bool get isPositive => dayReturn >= 0;
   bool get isYtdPositive => ytdReturn >= 0;

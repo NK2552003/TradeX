@@ -5,7 +5,7 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import '../models/market_snapshot.dart';
 import '../data/yahoo_finance_service.dart';
 
-/// Single live market item for the Yahoo Finance Market Ribbon.
+/// Single market item for the Market Ribbon with freshness tracking.
 class YahooMarketItem {
   const YahooMarketItem({
     required this.symbol,
@@ -15,6 +15,9 @@ class YahooMarketItem {
     required this.changePercent,
     required this.spark,
     this.category = 'US Markets',
+    this.isLive = false,
+    this.timestamp,
+    this.source = 'Offline Snapshot',
   });
 
   final String symbol;
@@ -24,6 +27,9 @@ class YahooMarketItem {
   final double changePercent;
   final List<double> spark;
   final String category;
+  final bool isLive;
+  final DateTime? timestamp;
+  final String source;
 
   bool get isPositive => changePercent >= 0;
 
@@ -33,6 +39,9 @@ class YahooMarketItem {
     double? changePercent,
     List<double>? spark,
     String? category,
+    bool? isLive,
+    DateTime? timestamp,
+    String? source,
   }) =>
       YahooMarketItem(
         symbol: symbol,
@@ -42,6 +51,9 @@ class YahooMarketItem {
         changePercent: changePercent ?? this.changePercent,
         spark: spark ?? this.spark,
         category: category ?? this.category,
+        isLive: isLive ?? this.isLive,
+        timestamp: timestamp ?? this.timestamp,
+        source: source ?? this.source,
       );
 }
 
