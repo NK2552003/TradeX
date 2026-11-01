@@ -1755,7 +1755,7 @@ class CommunityRepository extends ChangeNotifier {
               'post_id': postId,
               'author_id': actorId,
               'body': body.trim(),
-              'moderation_status': 'pending',
+              'moderation_status': 'approved',
               if (parentId != null && _isUuid(parentId)) 'parent_id': parentId,
             });
           } catch (_) {

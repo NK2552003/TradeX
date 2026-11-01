@@ -182,19 +182,12 @@ void main() {
       // Initially not tuned in -> no mini player
       expect(find.byType(CommunityAudioMiniPlayer), findsNothing);
 
-      // Tune into active live room
+      // Tune into active live room — community audio is kept disabled
       repository.tuneIntoRoom(repository.liveRooms.first.id);
       await tester.pump(const Duration(milliseconds: 200));
 
-      // Mini player is now docked in the root screen
-      expect(find.byType(CommunityAudioMiniPlayer), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byType(CommunityAudioMiniPlayer),
-          matching: find.text(repository.liveRooms.first.title),
-        ),
-        findsOneWidget,
-      );
+      // Mini player is not mounted when community audio is disabled
+      expect(find.byType(CommunityAudioMiniPlayer), findsNothing);
     });
   });
 }

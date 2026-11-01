@@ -5,7 +5,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show listEquals, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
@@ -664,7 +664,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       final PlatformFile pickedFile = result.files.first;
       final String name = pickedFile.name;
       final Uint8List? bytes = pickedFile.bytes ??
-          (pickedFile.path != null ? await File(pickedFile.path!).readAsBytes() : null);
+          (!kIsWeb && pickedFile.path != null
+              ? await File(pickedFile.path!).readAsBytes()
+              : null);
       if (bytes == null) {
         throw StateError('Could not read file data.');
       }

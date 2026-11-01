@@ -48,7 +48,10 @@ class MessageBubble extends StatelessWidget {
 
     final UiTheme theme = context.ui;
     final bool me = message.fromMe;
-    final double maxWidth = MediaQuery.sizeOf(context).width * maxWidthFraction;
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final double maxWidth = screenWidth > 640
+        ? 440.0
+        : screenWidth * maxWidthFraction;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -287,7 +290,10 @@ class MessageBubble extends StatelessWidget {
   Widget _sharedRef(BuildContext context, AppLinkRef ref) {
     final UiTheme theme = context.ui;
     return ConstrainedBox(
-      constraints: BoxConstraints(minWidth: context.sz(240)),
+      constraints: BoxConstraints(
+        minWidth: context.sz(200),
+        maxWidth: context.sz(260),
+      ),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: theme.colors.surface,
@@ -359,8 +365,8 @@ class MessageBubble extends StatelessWidget {
     ];
     return ConstrainedBox(
       constraints: BoxConstraints(
-        minWidth: context.sz(240),
-        maxWidth: context.sz(320),
+        minWidth: context.sz(200),
+        maxWidth: context.sz(260),
       ),
       child: Container(
         padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
@@ -433,43 +439,53 @@ class MessageBubble extends StatelessWidget {
       onTap: onOpenAttachment == null
           ? null
           : () => onOpenAttachment!(attachment),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          ClipRRect(
-            borderRadius: context.radius(theme.radii.md),
-            child: AspectRatio(
-              aspectRatio: 16 / 10,
-              child: Image.network(
-                attachment.thumbnailUrl!,
-                fit: BoxFit.cover,
-                loadingBuilder:
-                    (
-                      BuildContext ctx,
-                      Widget child,
-                      ImageChunkEvent? progress,
-                    ) {
-                      if (progress == null) return child;
-                      return _mediaFallback(context, loading: true);
-                    },
-                errorBuilder: (BuildContext ctx, Object e, StackTrace? s) =>
-                    _mediaFallback(context),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: context.sz(260),
+          maxHeight: context.sz(180),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ClipRRect(
+              borderRadius: context.radius(theme.radii.md),
+              child: SizedBox(
+                width: context.sz(260),
+                height: context.sz(140),
+                child: Image.network(
+                  attachment.thumbnailUrl!,
+                  fit: BoxFit.cover,
+                  loadingBuilder:
+                      (
+                        BuildContext ctx,
+                        Widget child,
+                        ImageChunkEvent? progress,
+                      ) {
+                        if (progress == null) return child;
+                        return _mediaFallback(context, loading: true);
+                      },
+                  errorBuilder: (BuildContext ctx, Object e, StackTrace? s) =>
+                      _mediaFallback(context),
+                ),
               ),
             ),
-          ),
-          if (attachment.subtitle != null) ...<Widget>[
-            SizedBox(height: context.sp(theme.spacing.xs)),
-            Text(
-              attachment.subtitle!,
-              style: context.uiText.caption.copyWith(
-                color: message.fromMe
-                    ? theme.colors.onPrimary.withValues(alpha: 0.8)
-                    : theme.colors.foregroundMuted,
+            if (attachment.subtitle != null) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.xxs)),
+              Text(
+                attachment.subtitle!,
+                style: context.uiText.caption.copyWith(
+                  color: message.fromMe
+                      ? theme.colors.onPrimary.withValues(alpha: 0.8)
+                      : theme.colors.foregroundMuted,
+                  fontSize: context.fs(11),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -505,7 +521,10 @@ class MessageBubble extends StatelessWidget {
           ? null
           : () => onOpenAttachment!(attachment),
       child: ConstrainedBox(
-        constraints: BoxConstraints(minWidth: context.sz(220)),
+        constraints: BoxConstraints(
+          minWidth: context.sz(200),
+          maxWidth: context.sz(260),
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[

@@ -206,7 +206,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
         try {
           res = await client
               .from('community_posts')
-              .insert({...row, 'moderation_status': 'pending'})
+              .insert({...row, 'moderation_status': 'approved'})
               .select(
                 '*, profiles!community_posts_author_id_fkey(handle, display_name, avatar_url)',
               )
@@ -251,7 +251,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
           tickers: ticker != null ? [ticker] : const [],
           imageUrl: imageUrl,
           moderationStatus:
-              res['moderation_status']?.toString() ?? 'pending',
+              res['moderation_status']?.toString() ?? 'approved',
         );
       } catch (e) {
         debugPrint('[SupabasePostRepository] createPost error: $e');
@@ -323,7 +323,7 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
             'post_id': postId,
             'author_id': userId,
             'body': commentText.trim(),
-            'moderation_status': 'pending',
+            'moderation_status': 'approved',
           });
         } catch (_) {
           await client.from('community_comments').insert({

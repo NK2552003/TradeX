@@ -591,7 +591,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final buttons = find.byType(CommunityEngagementButton);
-      expect(buttons, findsNWidgets(7));
+      expect(buttons, findsNWidgets(6));
 
       final double firstMetricY = tester.getCenter(buttons.at(0)).dy;
       for (int index = 1; index < 4; index++) {

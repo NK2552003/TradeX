@@ -824,7 +824,7 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Like',
+                                      comment.liked ? 'Liked' : 'Like',
                                       style: context.uiText.caption.copyWith(
                                         color: comment.liked
                                             ? theme.colors.primary

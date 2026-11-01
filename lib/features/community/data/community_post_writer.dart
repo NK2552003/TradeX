@@ -37,14 +37,15 @@ class CommunityPostWriter {
             : 'standard',
         'tickers': post.tickers,
         'tags': post.tags,
-        'is_public': false,
-        'visibility': 'private',
+        'is_public': post.isPublic,
+        'visibility': post.isPublic ? 'public' : 'private',
+        'moderation_status': 'approved',
       };
 
       try {
         await client
             .from('community_posts')
-            .insert({...row, 'moderation_status': 'pending'})
+            .insert({...row, 'moderation_status': 'approved'})
             .select('id')
             .single();
       } catch (_) {

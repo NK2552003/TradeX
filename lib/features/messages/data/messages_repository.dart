@@ -1,6 +1,7 @@
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/data/demo_data_source.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -806,6 +807,47 @@ class MessagesRepository extends ChangeNotifier {
     if (idx == -1 || _threads[idx].unread == 0) return;
     _threads[idx] = _threads[idx].copyWith(unread: 0);
     notifyListeners();
+  }
+
+  /// Uploads an attachment to Supabase Storage and returns its public URL.
+  Future<String> uploadAttachment({
+    required String threadId,
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final ext = filename.contains('.')
+            ? filename.split('.').last.toLowerCase().trim()
+            : 'png';
+        final storagePath = 'chat/$threadId/${const Uuid().v4()}.$ext';
+
+        await client.storage.from('community-attachments').uploadBinary(
+          storagePath,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: ext == 'png'
+                ? 'image/png'
+                : (ext == 'jpg' || ext == 'jpeg')
+                    ? 'image/jpeg'
+                    : ext == 'pdf'
+                        ? 'application/pdf'
+                        : 'application/octet-stream',
+            cacheControl: '3600',
+            upsert: true,
+          ),
+        );
+
+        return client.storage
+            .from('community-attachments')
+            .getPublicUrl(storagePath);
+      } catch (e) {
+        debugPrint('[MessagesRepository] uploadAttachment error: $e');
+        rethrow;
+      }
+    }
+    return 'data:image/png;base64,${base64Encode(bytes)}';
   }
 
   /// Toggles a per-message emoji reaction for the signed-in trader.

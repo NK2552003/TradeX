@@ -1,4 +1,8 @@
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
@@ -98,24 +102,108 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
     }
   }
 
-  void _sendAttachment(MessageAttachmentKind kind) {
-    // A real client would open a picker; here we synthesise a representative
-    // attachment for the chosen kind so the bubble variants are exercised.
-    widget.repository.sendMessage(
-      widget.threadId,
-      attachment: MessageAttachment(
-        id: 'att_${DateTime.now().microsecondsSinceEpoch}',
-        kind: kind,
-        title: kind.label,
-        subtitle: 'Shared from your device',
-        sizeLabel: kind == MessageAttachmentKind.voice ? '0:12' : null,
-        thumbnailUrl:
-            (kind == MessageAttachmentKind.image ||
-                kind == MessageAttachmentKind.chart)
-            ? 'https://picsum.photos/seed/${DateTime.now().microsecondsSinceEpoch}/400/300'
-            : null,
-      ),
-    );
+  Future<void> _sendAttachment(MessageAttachmentKind kind) async {
+    try {
+      if (kind == MessageAttachmentKind.image ||
+          kind == MessageAttachmentKind.chart) {
+        final ImagePicker picker = ImagePicker();
+        final XFile? picked = await picker.pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 90,
+        );
+        if (picked == null || !mounted) return;
+
+        UiToastScope.maybeOf(context)?.show(
+          UiToastData(
+            title: 'Uploading media...',
+            message: 'Uploading image to conversation',
+            intent: UiIntent.info,
+          ),
+        );
+
+        final Uint8List bytes = await picked.readAsBytes();
+        final String publicUrl = await widget.repository.uploadAttachment(
+          threadId: widget.threadId,
+          bytes: bytes,
+          filename: picked.name,
+        );
+
+        widget.repository.sendMessage(
+          widget.threadId,
+          attachment: MessageAttachment(
+            id: 'att_${DateTime.now().microsecondsSinceEpoch}',
+            kind: kind,
+            title: picked.name,
+            subtitle: kind == MessageAttachmentKind.chart
+                ? 'Technical Chart'
+                : 'Shared Photo',
+            thumbnailUrl: publicUrl,
+            url: publicUrl,
+          ),
+        );
+      } else if (kind == MessageAttachmentKind.document) {
+        final FilePickerResult? result = await FilePicker.platform.pickFiles(
+          withData: true,
+        );
+        if (result == null || result.files.isEmpty || !mounted) return;
+
+        final PlatformFile pickedFile = result.files.first;
+        final Uint8List? bytes = pickedFile.bytes;
+        if (bytes == null) {
+          throw StateError('Could not read file data');
+        }
+
+        UiToastScope.maybeOf(context)?.show(
+          UiToastData(
+            title: 'Uploading document...',
+            message: 'Uploading ${pickedFile.name}',
+            intent: UiIntent.info,
+          ),
+        );
+
+        final String publicUrl = await widget.repository.uploadAttachment(
+          threadId: widget.threadId,
+          bytes: bytes,
+          filename: pickedFile.name,
+        );
+
+        widget.repository.sendMessage(
+          widget.threadId,
+          attachment: MessageAttachment(
+            id: 'att_${DateTime.now().microsecondsSinceEpoch}',
+            kind: MessageAttachmentKind.document,
+            title: pickedFile.name,
+            subtitle: '${(bytes.length / 1024).toStringAsFixed(1)} KB',
+            sizeLabel: '${(bytes.length / 1024).toStringAsFixed(1)} KB',
+            url: publicUrl,
+          ),
+        );
+      } else if (kind == MessageAttachmentKind.tradeSetup) {
+        widget.repository.sendMessage(
+          widget.threadId,
+          attachment: MessageAttachment(
+            id: 'att_${DateTime.now().microsecondsSinceEpoch}',
+            kind: MessageAttachmentKind.tradeSetup,
+            title: 'NIFTY 50 Setup',
+            subtitle: 'Bullish Flag Breakout',
+            direction: 'long',
+            entry: 24350.0,
+            stop: 24200.0,
+            target: 24800.0,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        UiToastScope.maybeOf(context)?.show(
+          UiToastData(
+            title: 'Could not send attachment',
+            message: '$e',
+            intent: UiIntent.danger,
+          ),
+        );
+      }
+    }
   }
 
   void _sendVoice(String duration) {

@@ -5,7 +5,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show listEquals, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show FilteringTextInputFormatter, TextInputFormatter;
@@ -929,7 +929,9 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
       final PlatformFile pickedFile = result.files.first;
       final String name = pickedFile.name;
       final Uint8List? bytes = pickedFile.bytes ??
-          (pickedFile.path != null ? await File(pickedFile.path!).readAsBytes() : null);
+          (!kIsWeb && pickedFile.path != null
+              ? await File(pickedFile.path!).readAsBytes()
+              : null);
       if (bytes == null) {
         throw StateError('Could not read file data.');
       }

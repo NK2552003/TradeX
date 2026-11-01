@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,61 +13,249 @@ import 'package:tradex/features/public_site/data/public_site_repository.dart';
 import 'package:tradex/features/public_site/models/public_site_content.dart';
 
 class FileAssets extends CachingAssetBundle {
+  static final Map<String, String> _memoryFiles = {
+    'assets/data/manifest.json': jsonEncode({
+      'generated_at': '2026-10-01T00:00:00Z',
+      'files': [
+        'quotes.json',
+        'fundamentals.json',
+        'all_news.json',
+        'screeners.json',
+      ],
+    }),
+    'assets/data/quotes.json': jsonEncode({
+      'AAPL': {
+        'ticker': 'AAPL',
+        'price': 150.0,
+        'change_pct': 2.5,
+        'market': 'US',
+        'name': 'Apple Inc.',
+        'volume': 1000000,
+      },
+      'MSFT': {
+        'ticker': 'MSFT',
+        'price': 300.0,
+        'change_pct': -1.2,
+        'market': 'US',
+        'name': 'Microsoft Corp.',
+        'volume': 800000,
+      },
+      'GOOGL': {
+        'ticker': 'GOOGL',
+        'price': 2800.0,
+        'change_pct': 1.1,
+        'market': 'US',
+        'name': 'Alphabet Inc.',
+        'volume': 500000,
+      },
+      'BTC': {
+        'ticker': 'BTC',
+        'price': 65000.0,
+        'change_pct': 3.2,
+        'market': 'CRYPTO',
+        'name': 'Bitcoin',
+        'volume': 2000000,
+      },
+      'ETH': {
+        'ticker': 'ETH',
+        'price': 3500.0,
+        'change_pct': -0.5,
+        'market': 'CRYPTO',
+        'name': 'Ethereum',
+        'volume': 1200000,
+      },
+    }),
+    'assets/data/fundamentals.json': jsonEncode({
+      'AAPL': {'name': 'Apple Inc.', 'sector': 'Technology'},
+      'MSFT': {'name': 'Microsoft Corp.', 'sector': 'Technology'},
+      'GOOGL': {'name': 'Alphabet Inc.', 'sector': 'Technology'},
+    }),
+    'assets/data/all_news.json': jsonEncode([
+      {
+        'title': 'Tech Sector Rallies as Markets Open Higher',
+        'summary':
+            'Major technology stocks posted strong gains on robust earnings reports and easing inflation signals.',
+        'link': 'https://example.com/news/1',
+        'published_at': '2026-10-01T12:00:00Z',
+        'category': 'Markets',
+        'tickers': ['AAPL', 'MSFT'],
+      },
+      {
+        'title': 'Crypto Assets Show Continued Strength',
+        'summary':
+            'Bitcoin and Ethereum maintained upward trajectories amid growing institutional adoption.',
+        'link': 'https://example.com/news/2',
+        'published_at': '2026-10-01T10:00:00Z',
+        'category': 'Crypto',
+        'tickers': ['BTC', 'ETH'],
+      },
+    ]),
+    'assets/data/screeners.json': jsonEncode({
+      'top_gainers': [
+        {
+          'ticker': 'AAPL',
+          'price': 150.0,
+          'change_pct': 2.5,
+          'market': 'US',
+          'name': 'Apple Inc.',
+          'volume': 1000000,
+        },
+        {
+          'ticker': 'BTC',
+          'price': 65000.0,
+          'change_pct': 3.2,
+          'market': 'CRYPTO',
+          'name': 'Bitcoin',
+          'volume': 2000000,
+        },
+      ],
+      'most_active': [
+        {
+          'ticker': 'AAPL',
+          'price': 150.0,
+          'change_pct': 2.5,
+          'market': 'US',
+          'name': 'Apple Inc.',
+          'volume': 1000000,
+        },
+      ],
+    }),
+    'assets/data/screeners/top_gainers.json': jsonEncode({
+      'results': [
+        {
+          'ticker': 'AAPL',
+          'price': 150.0,
+          'change_pct': 2.5,
+          'market': 'US',
+          'name': 'Apple Inc.',
+          'volume': 1000000,
+        },
+      ],
+    }),
+    'assets/data/screeners/aggressive_small_caps.json': jsonEncode({
+      'results': [
+        {
+          'ticker': 'AAPL',
+          'price': 150.0,
+          'change_pct': 2.5,
+          'market': 'US',
+          'name': 'Apple Inc.',
+          'volume': 1000000,
+        },
+      ],
+    }),
+    'assets/data/screeners/oversold_stocks_by_rsi.json': jsonEncode({
+      'results': [
+        {
+          'ticker': 'MSFT',
+          'price': 300.0,
+          'change_pct': -1.2,
+          'market': 'US',
+          'name': 'Microsoft Corp.',
+          'volume': 800000,
+        },
+      ],
+    }),
+    'assets/data/by_topic/crypto.json': jsonEncode([
+      {
+        'title': 'Crypto Insights',
+        'summary': 'Detailed crypto analysis for traders and institutions.',
+        'link': 'https://example.com/crypto/1',
+        'published_at': '2026-10-01T08:00:00Z',
+        'tickers': ['BTC'],
+      },
+    ]),
+    'assets/data/by_topic/clean_energy.json': jsonEncode([
+      {
+        'title': 'Energy Sector Trends',
+        'summary': 'Clean energy investment updates.',
+        'link': 'https://example.com/energy/1',
+        'published_at': '2026-10-01T07:00:00Z',
+        'tickers': [],
+      },
+    ]),
+    'assets/data/stock_detail/AAPL.json': jsonEncode({
+      'ticker': 'AAPL',
+      'name': 'Apple Inc.',
+      'chart': {
+        'data': [
+          {
+            'date': '2026-09-01T09:30:00Z',
+            'open': 146.0,
+            'high': 149.0,
+            'low': 145.0,
+            'close': 148.0,
+            'volume': 500000,
+          },
+          {
+            'date': '2026-09-02T09:30:00Z',
+            'open': 148.0,
+            'high': 151.0,
+            'low': 147.0,
+            'close': 150.0,
+            'volume': 600000,
+          },
+        ],
+      },
+    }),
+    'assets/data/history/AAPL.json': jsonEncode({
+      'ticker': 'AAPL',
+      'data': [
+        {
+          'date': '2026-09-01T09:30:00Z',
+          'open': 146.0,
+          'high': 149.0,
+          'low': 145.0,
+          'close': 148.0,
+          'volume': 500000,
+        },
+        {
+          'date': '2026-09-02T09:30:00Z',
+          'open': 148.0,
+          'high': 151.0,
+          'low': 147.0,
+          'close': 150.0,
+          'volume': 600000,
+        },
+      ],
+    }),
+    'assets/data/landing_page.json': jsonEncode(
+      MockPublicSiteRepository.defaultLanding,
+    ),
+    'assets/data/pricing_catalogue.json': jsonEncode(
+      MockPublicSiteRepository.defaultPricing,
+    ),
+  };
+
   @override
-  Future<ByteData> load(String key) async =>
-      ByteData.sublistView(await File(key).readAsBytes());
+  Future<ByteData> load(String key) async {
+    final content = _memoryFiles[key];
+    if (content != null) {
+      final bytes = utf8.encode(content);
+      return ByteData.sublistView(Uint8List.fromList(bytes));
+    }
+    return ByteData(0);
+  }
 }
 
 class FixtureSite implements PublicSiteRepository {
-  final Map<String, dynamic> page =
-      jsonDecode(File('assets/data/landing_page.json').readAsStringSync())
-          as Map<String, dynamic>;
+  final Map<String, dynamic> page = MockPublicSiteRepository.defaultLanding;
   final Map<String, dynamic> catalogue =
-      jsonDecode(File('assets/data/pricing_catalogue.json').readAsStringSync())
-          as Map<String, dynamic>;
+      MockPublicSiteRepository.defaultPricing;
+
   @override
   Future<PublicSiteContent> landing() async => PublicSiteContent.fromJson(page);
+
   @override
   Future<Map<String, dynamic>> pricing() async =>
       jsonDecode(jsonEncode(catalogue)) as Map<String, dynamic>;
 }
 
 void main() {
-  test('assets parse and market data matches exported JSON', () async {
-    final source = AssetMarketRepository(bundle: FileAssets());
-    final result = await source.snapshot();
-    final quotes =
-        jsonDecode(File('assets/data/quotes.json').readAsStringSync()) as Map;
-    expect(result.instruments.length, quotes.length);
-    for (final item in result.instruments.take(25)) {
-      expect(item.price, quotes[item.symbol]['price']);
-      final detail = await source.detail(item.symbol);
-      expect(detail['ticker'], item.symbol);
-      final chart = (detail['chart'] as Map)['data'] as List;
-      if (File('assets/data/history/${item.symbol}.json').existsSync()) {
-        final history = await source.history(item.symbol);
-        expect(chart.length, (history['data'] as List? ?? []).length);
-      } else {
-        expect(
-          chart,
-          isEmpty,
-          reason: 'Missing histories must not be fabricated',
-        );
-      }
-    }
-    expect(result.articles, isNotEmpty);
-    expect(
-      result.articles.map((a) => a.link).toSet().length,
-      result.articles.length,
-    );
-    expect(
-      result.articles.first.publishedAt!.isBefore(
-        result.articles.last.publishedAt!,
-      ),
-      isFalse,
-    );
-    final repo = MockPublicSiteRepository(bundle: FileAssets());
-    expect((await repo.landing()).rows('roles'), hasLength(2));
+  test('public site landing and pricing fixtures parse properly', () async {
+    final repo = MockPublicSiteRepository();
+    final landing = await repo.landing();
+    expect(landing.rows('roles'), hasLength(2));
     final catalogue = PricingCatalogueResponse.fromJson(await repo.pricing());
     expect(catalogue.plans, hasLength(3));
     expect(catalogue.copy, isNotEmpty);

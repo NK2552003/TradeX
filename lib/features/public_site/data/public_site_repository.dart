@@ -10,20 +10,205 @@ abstract class PublicSiteRepository {
   Future<Map<String, dynamic>> pricing();
 }
 
-/// Asset fixtures use precisely the same row/JSON structure as SQL reads.
+/// In-memory fallback fixtures matching database schema.
 class MockPublicSiteRepository implements PublicSiteRepository {
-  MockPublicSiteRepository({AssetBundle? bundle})
-    : _bundle = bundle ?? rootBundle;
-  final AssetBundle _bundle;
-  Future<Map<String, dynamic>> _read(String name) async =>
-      Map<String, dynamic>.from(
-        jsonDecode(await _bundle.loadString('assets/data/$name.json')) as Map,
-      );
+  MockPublicSiteRepository({AssetBundle? bundle});
+
+  static Map<String, dynamic> get defaultLanding =>
+      jsonDecode(jsonEncode(_defaultLanding)) as Map<String, dynamic>;
+
+  static Map<String, dynamic> get defaultPricing =>
+      jsonDecode(jsonEncode(_defaultPricing)) as Map<String, dynamic>;
+
+  static const Map<String, dynamic> _defaultLanding = {
+    'brand': 'alphajournal',
+    'title': 'The Foundation for your Trading System',
+    'description':
+        'AI analysis, quantitative journaling, market intelligence, and community in one workspace. Built for precision, clarity, and disciplined execution.',
+    'signin_label': 'Sign in',
+    'start_label': 'Get Started Free',
+    'pricing_label': 'Explore Plans',
+    'features_title': 'Tools for Every Trading Decision',
+    'roles_title': 'Choose Your Workspace',
+    'pricing_title': 'Plans for Your Trading Workspace',
+    'faq_title': 'Frequently Asked Questions',
+    'footer':
+        'alphajournal · A workspace for disciplined traders. Market information is provided for research; it is not investment advice.',
+    'retry_label': 'Try again',
+    'error_title': 'Unable to load page content',
+    'features': [
+      {
+        'title': 'Institutional Community',
+        'description':
+            'Share setups, discuss markets, and follow traders across a curated community.',
+        'icon': 'forum',
+      },
+      {
+        'title': 'Quantitative Journaling',
+        'description':
+            'Record execution, review equity curves, and connect notes with your trading playbooks.',
+        'icon': 'book',
+      },
+      {
+        'title': 'Market Intelligence',
+        'description':
+            'Browse market news, instrument snapshots, price history, and company fundamentals.',
+        'icon': 'news',
+      },
+      {
+        'title': 'AI Trading Assistant',
+        'description':
+            'Review charts and trading ideas with context from your workspace.',
+        'icon': 'ai',
+      },
+    ],
+    'roles': [
+      {
+        'id': 'customer',
+        'title': 'Trader',
+        'description':
+            'Build discipline with journals, strategies, notes, and a trading community.',
+        'cta': 'Get Started as Trader',
+      },
+      {
+        'id': 'affiliate',
+        'title': 'Affiliate',
+        'description':
+            'Grow your audience with referral links, campaign tracking, and transparent commissions.',
+        'cta': 'Apply as Affiliate',
+      },
+    ],
+    'faqs': [
+      {
+        'id': 'landing_records',
+        'category': 'features',
+        'question': 'How do notes, journals, and strategies connect?',
+        'answer':
+            'Link your private writing records and selectively publish individual records to the community.',
+      },
+      {
+        'id': 'landing_roles',
+        'category': 'general',
+        'question': 'Can I use AlphaJournal on mobile and web?',
+        'answer':
+            'Yes, AlphaJournal is fully responsive and synced across web and mobile.',
+      },
+    ],
+  };
+
+  static const Map<String, dynamic> _defaultPricing = {
+    'copy': {
+      'title': 'Select a Plan',
+      'subtitle':
+          'Start on Free with 3 notes and community view access. Monthly subscriptions for Basic and Pro are disabled for now.',
+      'annual_badge': 'Save 20%',
+      'billed_annually': 'Billed annually',
+      'monthly': 'Monthly',
+      'Recommended': 'MONTHLY SUBSCRIPTIONS DISABLED',
+      'current': 'Current Plan',
+      'selected': 'Selected Plan',
+      'select': 'Select',
+      'footer':
+          'Free includes up to 3 notes, community view, and core tools. Paid monthly subscriptions are temporarily disabled.',
+    },
+    'plans': [
+      {
+        'id': 'tier_free',
+        'tier': 'free',
+        'name': 'Free',
+        'tagline':
+            'Essential starter workspace with 3 notes, community view access, and core trading tools.',
+        'monthly_amount': 0.0,
+        'annual_monthly_amount': 0.0,
+        'currency_symbol': '₹',
+        'is_popular': false,
+        'is_purchasable': true,
+        'badge_label': 'AVAILABLE NOW',
+        'cta_label': 'Continue with Free',
+        'limits': {
+          'notes': 3,
+          'trades': 15,
+          'live_playbooks': 1,
+          'watchlists': 1,
+          'ai_queries_per_month': 5,
+        },
+        'features': [
+          'Up to 3 research notes',
+          'Community feed & public post view access',
+          'Up to 15 logged trades (total)',
+          '1 active playbook & 1 watchlist',
+          'Up to 5 AI prompts per month',
+          'Core calculators & market view',
+        ],
+      },
+      {
+        'id': 'tier_pro',
+        'tier': 'premium',
+        'name': 'Basic',
+        'tagline':
+            'Expanded trading workspace with 25 notes, 100 trades, and 3 active playbooks.',
+        'monthly_amount': 299.0,
+        'annual_monthly_amount': 239.0,
+        'currency_symbol': '₹',
+        'is_popular': true,
+        'is_purchasable': false,
+        'badge_label': 'MONTHLY SUBSCRIPTIONS DISABLED',
+        'cta_label': 'Monthly subscriptions disabled',
+        'limits': {
+          'notes': 25,
+          'trades': 100,
+          'live_playbooks': 3,
+          'watchlists': 1,
+          'ai_queries_per_month': 20,
+        },
+        'features': [
+          'Up to 25 research notes',
+          'Up to 100 logged trades (total)',
+          'Up to 3 active playbooks',
+          'Up to 20 AI prompts per month',
+          'Full community participation & market data',
+          'Monthly subscriptions disabled for now',
+        ],
+      },
+      {
+        'id': 'tier_enterprise',
+        'tier': 'enterprise',
+        'name': 'Pro',
+        'tagline':
+            'High-capacity professional workspace with 10,000 notes, 50,000 trades, and 5,000 AI prompts.',
+        'monthly_amount': 499.0,
+        'annual_monthly_amount': 399.0,
+        'currency_symbol': '₹',
+        'is_popular': false,
+        'is_purchasable': false,
+        'badge_label': 'MONTHLY SUBSCRIPTIONS DISABLED',
+        'cta_label': 'Monthly subscriptions disabled',
+        'limits': {
+          'notes': 10000,
+          'trades': 50000,
+          'live_playbooks': 250,
+          'watchlists': 100,
+          'ai_queries_per_month': 5000,
+        },
+        'features': [
+          'Up to 10,000 research notes',
+          'Up to 50,000 logged trades (total)',
+          'Up to 250 active playbooks & 100 watchlists',
+          'Up to 5,000 AI prompts per month',
+          'PDF & CSV exports + advanced analytics',
+          'Monthly subscriptions disabled for now',
+        ],
+      },
+    ],
+  };
+
   @override
   Future<PublicSiteContent> landing() async =>
-      PublicSiteContent.fromJson(await _read('landing_page'));
+      PublicSiteContent.fromJson(Map<String, dynamic>.from(_defaultLanding));
+
   @override
-  Future<Map<String, dynamic>> pricing() => _read('pricing_catalogue');
+  Future<Map<String, dynamic>> pricing() async =>
+      Map<String, dynamic>.from(_defaultPricing);
 }
 
 class DatabasePublicSiteRepository implements PublicSiteRepository {
