@@ -158,41 +158,54 @@ class AppPostCard extends StatelessWidget {
           SizedBox(height: context.sp(theme.spacing.md)),
           UiDivider(),
           SizedBox(height: context.sp(theme.spacing.xs)),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: context.sp(theme.spacing.xs),
+            runSpacing: context.sp(theme.spacing.xs),
             children: <Widget>[
-              _action(
-                context,
-                icon: post.liked ? Icons.favorite : Icons.favorite_border,
-                label: AppTokens.count(post.likes),
-                tooltip: post.liked ? 'Unlike' : 'Like',
-                active: post.liked,
-                onTap: onLike,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  _action(
+                    context,
+                    icon: post.liked ? Icons.favorite : Icons.favorite_border,
+                    label: AppTokens.count(post.likes),
+                    tooltip: post.liked ? 'Unlike' : 'Like',
+                    active: post.liked,
+                    onTap: onLike,
+                  ),
+                  _action(
+                    context,
+                    icon: Icons.mode_comment_outlined,
+                    label: AppTokens.count(post.comments),
+                    tooltip: 'Reply',
+                    onTap: onComment,
+                  ),
+                  _action(
+                    context,
+                    icon: Icons.remove_red_eye_outlined,
+                    label: AppTokens.count(post.views),
+                    tooltip: 'Views',
+                  ),
+                ],
               ),
-              _action(
-                context,
-                icon: Icons.mode_comment_outlined,
-                label: AppTokens.count(post.comments),
-                tooltip: 'Reply',
-                onTap: onComment,
-              ),
-              _action(
-                context,
-                icon: Icons.remove_red_eye_outlined,
-                label: AppTokens.count(post.views),
-                tooltip: 'Views',
-              ),
-              const Spacer(),
-              UiIconButton(
-                icon: post.saved ? Icons.bookmark : Icons.bookmark_border,
-                size: UiSize.sm,
-                tooltip: 'Save',
-                onPressed: onSave,
-              ),
-              UiIconButton(
-                icon: Icons.ios_share,
-                size: UiSize.sm,
-                tooltip: 'Share',
-                onPressed: onShare,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  UiIconButton(
+                    icon: post.saved ? Icons.bookmark : Icons.bookmark_border,
+                    size: UiSize.sm,
+                    tooltip: 'Save',
+                    onPressed: onSave,
+                  ),
+                  UiIconButton(
+                    icon: Icons.ios_share,
+                    size: UiSize.sm,
+                    tooltip: 'Share',
+                    onPressed: onShare,
+                  ),
+                ],
               ),
             ],
           ),

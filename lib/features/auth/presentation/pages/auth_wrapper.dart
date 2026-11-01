@@ -81,12 +81,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
       debug: kDebugMode,
     );
 
-    final AuthStage initialStage = switch (preview) {
+    final AuthStage resolvedStage = switch (preview) {
       'application' => AuthStage.affiliateApplication,
       'pricing' || 'subscription' => AuthStage.subscription,
       'customer' || 'affiliate' || 'admin' => AuthStage.authenticated,
       _ => widget.initialStage,
     };
+    final AuthStage initialStage = (kIsWeb && resolvedStage == AuthStage.splash)
+        ? AuthStage.login
+        : resolvedStage;
 
     final String currentHost = Uri.base.host.toLowerCase();
     final UserRole? subdomainRole = CustomerRoute.requiredRoleForSubdomain(
@@ -114,9 +117,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
       displayName: preview == null ? '' : 'Design Preview',
     );
 
-    if (preview != null) {
-      _isAuthLoading = false;
+    if (preview != null || kIsWeb) {
+      _isAuthLoading = preview == null;
       _splashCompleted = true;
+      if (preview == null) {
+        _setupAuthStateListener();
+        _restoreActiveSession();
+      }
     } else {
       _isAuthLoading = true;
       _setupAuthStateListener();
@@ -184,7 +191,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   void _resolveTo(AuthStage stage) {
     _pendingResolvedStage = stage;
-    if (_splashCompleted || widget.initialStage != AuthStage.splash) {
+    if (_splashCompleted || widget.initialStage != AuthStage.splash || kIsWeb) {
       _applyPendingStage();
     }
   }
@@ -462,8 +469,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     // Route Guard Splash / Loading State:
     // Shows the animated brand splash screen while restoring session or on cold launch.
-    if ((_isAuthLoading && !_splashCompleted) ||
-        _sessionState.stage == AuthStage.splash) {
+    // On web, the kinetic HTML splash screen in index.html is used; in-app splash is disabled.
+    if (!kIsWeb &&
+        ((_isAuthLoading && !_splashCompleted) ||
+            _sessionState.stage == AuthStage.splash)) {
       return ColoredBox(
         color: colors.background,
         child: SplashScreen(
@@ -475,7 +484,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     if (_isAuthLoading) {
       return ColoredBox(
         color: colors.background,
-        child: const _AuthLoadingScreen(),
+        child: kIsWeb ? const SizedBox.shrink() : const _AuthLoadingScreen(),
       );
     }
 

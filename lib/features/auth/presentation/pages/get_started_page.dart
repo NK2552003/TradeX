@@ -540,18 +540,20 @@ class _GetStartedPageState extends State<GetStartedPage> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Left: Brand Logo (UMD Style bold tracking-tight)
-            MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  _scrollController.animateTo(
-                    0.0,
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.easeInOutCubic,
-                  );
-                },
-                child: const AppLogo(size: 20, tagline: 'ALPHAJOURNAL'),
+            Flexible(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    _scrollController.animateTo(
+                      0.0,
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeInOutCubic,
+                    );
+                  },
+                  child: const AppLogo(size: 20, tagline: 'ALPHAJOURNAL'),
+                ),
               ),
             ),
 

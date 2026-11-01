@@ -27,9 +27,9 @@ on:
       - main
       - feature/admin
     paths:
-      - 'assets/data/**'
-      - 'scripts/sync_market_data_to_supabase.mjs'
+      - 'scripts/**'
       - '.github/workflows/supabase-market-sync.yml'
+      - 'database/schema.sql'
 
 permissions:
   contents: read
@@ -48,21 +48,31 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Run Supabase Market & News Sync Pipeline
+      - name: Install Python Market Sync Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install requests urllib3
+
+      - name: Run Supabase Database Cleaning & 200-Ticker Market Sync Pipeline
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_ADMIN_EMAIL: ${{ secrets.SUPABASE_ADMIN_EMAIL }}
           SUPABASE_ADMIN_PASSWORD: ${{ secrets.SUPABASE_ADMIN_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SYNC_SCOPE: ${{ github.event.inputs.sync_scope || 'all' }}
           FETCH_LIVE: ${{ github.event.inputs.fetch_live == 'false' && 'false' || 'true' }}
         run: |
-          node scripts/sync_market_data_to_supabase.mjs \
-            --scope="${SYNC_SCOPE}" \
-            --live="${FETCH_LIVE}"
+          python3 scripts/sync_market_pipeline.py || node scripts/sync_market_data_to_supabase.mjs

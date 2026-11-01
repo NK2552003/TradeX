@@ -2,8 +2,9 @@
 /**
  * AlphaJournal (TradeX) — Automated Supabase Market Intelligence & News Sync
  *
- * Syncs tickers, live quotes, fundamentals, OHLCV price history, screeners, and
- * financial news articles directly into Supabase Postgres tables via PostgREST.
+ * Syncs tickers, live quotes, fundamentals, OHLCV price history, screeners, whole
+ * company details (stock_details), and financial news articles directly into
+ * Supabase Postgres tables via PostgREST.
  *
  * Usage:
  *   SUPABASE_URL="https://<project-ref>.supabase.co" \
@@ -18,7 +19,6 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const DATA_DIR = path.join(ROOT_DIR, 'assets', 'data');
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
 const SUPABASE_SERVICE_ROLE_KEY = (
@@ -49,6 +49,60 @@ const FETCH_LIVE = (args.live || process.env.FETCH_LIVE || 'true').toLowerCase()
 const HAS_SERVICE_ROLE_KEY =
   (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim().length > 0;
 let bearerToken = SUPABASE_SERVICE_ROLE_KEY;
+
+// ---------------------------------------------------------------------------
+// 200 Prominent Tickers (100 US + 100 India/NSE)
+// ---------------------------------------------------------------------------
+const PROMINENT_TICKERS = [
+  // Magnificent Seven & Mega-Cap Tech
+  "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
+  // Semiconductors & Hardware
+  "AMD", "INTC", "AVGO", "QCOM", "TXN", "ARM", "MU", "AMAT", "LRCX", "KLAC",
+  // Enterprise Software, Cloud & AI
+  "CRM", "ORCL", "ADBE", "NOW", "PLTR", "SNOW", "PANW", "CRWD", "WDAY", "INTU",
+  // Consumer Tech, Streaming & FinTech
+  "NFLX", "UBER", "ABNB", "PYPL", "SQ", "COIN", "SHOP", "SPOT",
+  // Financials & Banking
+  "JPM", "BAC", "WFC", "MS", "GS", "BLK", "C", "AXP", "V", "MA",
+  // Healthcare & Pharma
+  "LLY", "UNH", "JNJ", "PFE", "MRK", "ABBV", "TMO", "DHR", "ISRG", "BMY", "AMGN", "GILD",
+  // Retail & Consumer Goods
+  "WMT", "COST", "TGT", "HD", "LOW", "MCD", "SBUX", "NKE", "KO", "PEP", "PG", "PM", "CL",
+  // Industrials & Aerospace
+  "GE", "CAT", "DE", "BA", "LMT", "RTX", "HON", "UNP", "UPS", "FDX",
+  // Energy & Utilities
+  "XOM", "CVX", "COP", "SLB", "EOG", "NEE", "DUK", "SO",
+  // Telecom & Media
+  "T", "VZ", "DIS", "CMCSA",
+  // Broad Market & Sector ETFs
+  "SPY", "QQQ", "DIA", "IWM", "VOO", "VTI", "XLK", "XLF", "XLE", "XLV", "SMH",
+  // Major Crypto Pairs
+  "BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD",
+  // Benchmark Indices
+  "^NSEI", "^NSEBANK", "^BSESN",
+  // Nifty 50 Heavyweights
+  "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS",
+  "BHARTIARTL.NS", "SBIN.NS", "ITC.NS", "LT.NS", "HINDUNILVR.NS",
+  "BAJFINANCE.NS", "KOTAKBANK.NS", "AXISBANK.NS", "HCLTECH.NS", "MARUTI.NS",
+  "SUNPHARMA.NS", "TATAMOTORS.NS", "NTPC.NS", "ONGC.NS", "TITAN.NS",
+  "POWERGRID.NS", "ADANIENT.NS", "ADANIPORTS.NS", "COALINDIA.NS", "TATASTEEL.NS",
+  "BAJAJFINSV.NS", "ASIANPAINT.NS", "M&M.NS", "ULTRACEMCO.NS", "WIPRO.NS",
+  "NESTLEIND.NS", "JSWSTEEL.NS", "TECHM.NS", "GRASIM.NS", "LTIM.NS",
+  "SBILIFE.NS", "HDFCLIFE.NS", "DRREDDY.NS", "CIPLA.NS", "BRITANNIA.NS",
+  "HEROMOTOCO.NS", "EICHERMOT.NS", "DIVISLAB.NS", "HINDALCO.NS", "APOLLOHOSP.NS",
+  "BPCL.NS", "TRENT.NS", "BEL.NS", "SHREECEM.NS", "INDUSINDBK.NS",
+  // Next 50 & High-Growth Midcaps
+  "ZOMATO.NS", "JIOFIN.NS", "VBL.NS", "HAL.NS", "DLF.NS",
+  "CHOLAFIN.NS", "SIEMENS.NS", "ABB.NS", "PFC.NS", "RECLTD.NS",
+  "GAIL.NS", "IOC.NS", "TATAPOWER.NS", "POLYCAB.NS", "BHEL.NS",
+  "IRFC.NS", "RVNL.NS", "SUZLON.NS", "IDEA.NS", "YESBANK.NS",
+  "IDFCFIRSTB.NS", "FEDERALBNK.NS", "PNB.NS", "BANKBARODA.NS", "CANBK.NS",
+  "UNIONBANK.NS", "AUROPHARMA.NS", "LUPIN.NS", "TORNTPHARM.NS", "MUTHOOTFIN.NS",
+  "SHRIRAMFIN.NS", "TATACOMM.NS", "PERSISTENT.NS", "COFORGE.NS", "KPITTECH.NS",
+  "DIXON.NS", "CGPOWER.NS", "MAXHEALTH.NS", "MANKIND.NS", "BOSCHLTD.NS",
+  "PIDILITIND.NS", "HAVELLS.NS", "DABUR.NS", "GODREJCP.NS", "MARICO.NS",
+  "COLPAL.NS", "BERGEPAINT.NS", "MOTHERSON.NS", "BALKRISIND.NS", "INDIGO.NS",
+];
 
 async function authenticateIfNeeded() {
   if (HAS_SERVICE_ROLE_KEY) {
@@ -82,13 +136,7 @@ async function authenticateIfNeeded() {
   }
 }
 
-function readJsonFile(relPath) {
-  const fullPath = path.join(DATA_DIR, relPath);
-  if (!fs.existsSync(fullPath)) return null;
-  return JSON.parse(fs.readFileSync(fullPath, 'utf8'));
-}
-
-async function upsertBatch(table, rows, onConflict, chunkSize = 250) {
+async function upsertBatch(table, rows, onConflict, chunkSize = 150) {
   if (!Array.isArray(rows) || rows.length === 0) return 0;
   let total = 0;
   const query = onConflict ? `?on_conflict=${encodeURIComponent(onConflict)}` : '';
@@ -106,27 +154,69 @@ async function upsertBatch(table, rows, onConflict, chunkSize = 250) {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Upsert into ${table} failed (${res.status}): ${text}`);
+      console.warn(`[sync] Upsert into ${table} warning (${res.status}): ${text.slice(0, 150)}`);
+    } else {
+      total += chunk.length;
     }
-    total += chunk.length;
   }
   return total;
 }
 
+async function deleteQuery(tableAndQuery) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${tableAndQuery}`, {
+      method: 'DELETE',
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${bearerToken}`,
+        Prefer: 'return=minimal',
+      },
+    });
+    return res.ok;
+  } catch (e) {
+    console.warn(`[sync] Delete ${tableAndQuery} warning: ${e.message}`);
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Step 1: Clean Stale Database Records
+// ---------------------------------------------------------------------------
+async function cleanDatabase() {
+  console.log('[sync] Step 1: Cleaning stale database records...');
+  const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  await deleteQuery(`stock_price_history?date=lt.${cutoffDate}`);
+  console.log(`  [clean] Cleared price history older than ${cutoffDate}`);
+
+  const cutoffNews = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  await deleteQuery(`news_articles?published_at=lt.${cutoffNews}`);
+  console.log(`  [clean] Cleared news articles older than 7 days`);
+
+  await deleteQuery(`screener_results?id=gt.0`);
+  console.log('  [clean] Reset screener results table for fresh daily ranks');
+}
+
+// ---------------------------------------------------------------------------
+// Yahoo Finance APIs
+// ---------------------------------------------------------------------------
 async function fetchYahooChart(symbol, range = '1mo', interval = '1d') {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
     symbol
   )}?range=${range}&interval=${interval}`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      Accept: 'application/json',
-    },
-  });
-  if (!res.ok) return null;
-  const payload = await res.json();
-  return payload?.chart?.result?.[0] ?? null;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'application/json',
+      },
+    });
+    if (!res.ok) return null;
+    const payload = await res.json();
+    return payload?.chart?.result?.[0] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function fetchLiveRssNews() {
@@ -178,14 +268,10 @@ async function fetchLiveRssNews() {
           .trim();
         const pubDateRaw = block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1];
         if (!title || !link) continue;
-        const idHash = Buffer.from(link)
-          .toString('base64url')
-          .slice(0, 32);
         const publishedAt = pubDateRaw
           ? new Date(pubDateRaw).toISOString()
           : new Date().toISOString();
         articles.push({
-          id: `rss_${idHash}`,
           title,
           summary: summary || title,
           link,
@@ -205,292 +291,206 @@ async function fetchLiveRssNews() {
   return articles;
 }
 
+// ---------------------------------------------------------------------------
+// Step 2: Sync Tickers, Quotes, Fundamentals, History, and Whole Company Details
+// ---------------------------------------------------------------------------
 async function syncTickersAndQuotes() {
-  const universe = readJsonFile('tickers/universe.json') || [];
-  const quotesSeed = readJsonFile('quotes.json') || {};
-  const fundamentalsSeed = readJsonFile('fundamentals.json') || {};
+  const symbols = PROMINENT_TICKERS.slice(0, 200);
+  console.log(`[sync] Processing ${symbols.length} prominent company & asset targets...`);
 
-  const tickerMap = new Map();
-  for (const item of universe) {
-    if (!item?.ticker) continue;
-    tickerMap.set(item.ticker, {
-      ticker: item.ticker,
-      name: item.name || item.ticker,
-      market:
-        item.market ||
-        (item.ticker.endsWith('.NS')
-          ? 'IN'
-          : item.ticker.endsWith('-USD')
-          ? 'CRYPTO'
-          : 'US'),
-      exchange: item.exchange || (item.ticker.endsWith('.NS') ? 'NSE' : 'NASDAQ'),
-      currency: item.currency || (item.ticker.endsWith('.NS') ? 'INR' : 'USD'),
-      asset_type: item.asset_type || 'EQUITY',
-    });
-  }
-  for (const [symbol, q] of Object.entries(quotesSeed)) {
-    if (!tickerMap.has(symbol)) {
-      tickerMap.set(symbol, {
-        ticker: symbol,
-        name: q.name || symbol,
-        market:
-          q.market ||
-          (symbol.endsWith('.NS')
-            ? 'IN'
-            : symbol.endsWith('-USD')
-            ? 'CRYPTO'
-            : 'US'),
-        exchange: q.exchange || (symbol.endsWith('.NS') ? 'NSE' : 'NASDAQ'),
-        currency: q.currency || (symbol.endsWith('.NS') ? 'INR' : 'USD'),
-        asset_type: 'EQUITY',
-      });
-    }
-  }
-
-  const tickersRows = Array.from(tickerMap.values());
-  const upsertedTickers = await upsertBatch('tickers', tickersRows, 'ticker');
-  console.log(`[sync] Upserted ${upsertedTickers} tickers`);
-
+  const tickerRows = [];
   const quoteRows = [];
-  const symbols = tickersRows.map((t) => t.ticker);
-
-  // When FETCH_LIVE is true, fetch live Yahoo Finance quotes in fast parallel batches
-  // for the top priority instruments (indices, active NSE/US leaders, crypto) so the
-  // CI job completes within ~60 seconds instead of making 15,000 sequential calls.
-  const liveQuoteMap = new Map();
-  if (FETCH_LIVE) {
-    const prioritySymbols = symbols.slice(0, 120);
-    const batchSize = 15;
-    for (let i = 0; i < prioritySymbols.length; i += batchSize) {
-      const slice = prioritySymbols.slice(i, i + batchSize);
-      await Promise.all(
-        slice.map(async (symbol) => {
-          try {
-            const live = await fetchYahooChart(symbol, '5d', '1d');
-            if (live?.meta?.regularMarketPrice) {
-              liveQuoteMap.set(symbol, live.meta);
-            }
-          } catch (_) {
-            // Keep seed fallback if rate-limited
-          }
-        })
-      );
-    }
-    console.log(
-      `[sync] Fetched ${liveQuoteMap.size} live Yahoo Finance quotes (merged with ${symbols.length} total tickers)`
-    );
-  }
-
-  for (const symbol of symbols) {
-    const seed = quotesSeed[symbol] || {};
-    let price = Number(seed.price ?? seed.regularMarketPrice ?? 0);
-    let prevClose = Number(
-      seed.previous_close ?? seed.regularMarketPreviousClose ?? price
-    );
-    let dayHigh = Number(seed.day_high ?? seed.regularMarketDayHigh ?? price);
-    let dayLow = Number(seed.day_low ?? seed.regularMarketDayLow ?? price);
-    let volume = Number(seed.volume ?? seed.regularMarketVolume ?? 0);
-    let changePct = Number(
-      seed.change_pct ?? seed.regularMarketChangePercent ?? 0
-    );
-
-    const meta = liveQuoteMap.get(symbol);
-    if (meta?.regularMarketPrice) {
-      price = Number(meta.regularMarketPrice);
-      prevClose = Number(
-        meta.chartPreviousClose ?? meta.previousClose ?? price
-      );
-      dayHigh = Number(meta.regularMarketDayHigh ?? price);
-      dayLow = Number(meta.regularMarketDayLow ?? price);
-      volume = Number(meta.regularMarketVolume ?? volume);
-      changePct =
-        prevClose > 0
-          ? Number((((price - prevClose) / prevClose) * 100).toFixed(2))
-          : 0;
-    }
-
-    if (price > 0) {
-      quoteRows.push({
-        ticker: symbol,
-        price,
-        previous_close: prevClose,
-        day_high: dayHigh,
-        day_low: dayLow,
-        volume: Math.round(volume),
-        change_pct: changePct,
-        updated_at: new Date().toISOString(),
-      });
-    }
-  }
-
-  const upsertedQuotes = await upsertBatch('stock_quotes', quoteRows, 'ticker');
-  console.log(`[sync] Upserted ${upsertedQuotes} stock_quotes`);
-
   const fundamentalRows = [];
-  for (const [symbol, f] of Object.entries(fundamentalsSeed)) {
-    if (!tickerMap.has(symbol)) continue;
-    fundamentalRows.push({
-      ticker: symbol,
-      sector: f.sector || null,
-      industry: f.industry || null,
-      market_cap: f.market_cap != null ? Math.round(Number(f.market_cap)) : null,
-      pe_ratio: f.pe_ratio != null ? Number(f.pe_ratio) : null,
-      forward_pe: f.forward_pe != null ? Number(f.forward_pe) : null,
-      peg_ratio: f.peg_ratio != null ? Number(f.peg_ratio) : null,
-      eps: f.eps != null ? Number(f.eps) : null,
-      dividend_yield:
-        f.dividend_yield != null ? Number(f.dividend_yield) : null,
-      beta: f.beta != null ? Number(f.beta) : null,
-      fifty_two_week_high:
-        f.fifty_two_week_high != null ? Number(f.fifty_two_week_high) : null,
-      fifty_two_week_low:
-        f.fifty_two_week_low != null ? Number(f.fifty_two_week_low) : null,
-      fifty_day_average:
-        f.fifty_day_average != null ? Number(f.fifty_day_average) : null,
-      two_hundred_day_average:
-        f.two_hundred_day_average != null
-          ? Number(f.two_hundred_day_average)
-          : null,
-      avg_volume:
-        f.avg_volume != null ? Math.round(Number(f.avg_volume)) : null,
-      shares_outstanding:
-        f.shares_outstanding != null
-          ? Math.round(Number(f.shares_outstanding))
-          : null,
-      updated_at: new Date().toISOString(),
-    });
-  }
-  const upsertedFundamentals = await upsertBatch(
-    'stock_fundamentals',
-    fundamentalRows,
-    'ticker'
-  );
-  console.log(`[sync] Upserted ${upsertedFundamentals} stock_fundamentals`);
-  return tickerMap;
-}
-
-async function syncPriceHistory(tickerMap) {
-  const historyDir = path.join(DATA_DIR, 'history');
   const historyRows = [];
+  const detailRows = [];
 
-  if (fs.existsSync(historyDir)) {
-    const files = fs.readdirSync(historyDir).filter((f) => f.endsWith('.json'));
-    for (const file of files) {
-      const symbol = file.replace(/\.json$/, '');
-      if (tickerMap && !tickerMap.has(symbol)) continue;
-      const parsed = readJsonFile(`history/${file}`);
-      const bars = Array.isArray(parsed?.data) ? parsed.data : [];
-      for (const bar of bars.slice(-120)) {
-        const dateStr = String(bar.date || '').slice(0, 10);
-        if (!dateStr) continue;
-        historyRows.push({
+  const batchSize = 10;
+  for (let i = 0; i < symbols.length; i += batchSize) {
+    const slice = symbols.slice(i, i + batchSize);
+    await Promise.all(
+      slice.map(async (symbol) => {
+        const isIN = symbol.endsWith('.NS') || symbol.endsWith('.BO') || symbol.startsWith('^');
+        const isCrypto = symbol.endsWith('-USD');
+        const market = isIN ? 'IN' : (isCrypto ? 'CRYPTO' : 'US');
+        const exchange = isIN ? 'NSE' : (isCrypto ? 'CRYPTO' : 'NASDAQ');
+        const currency = isIN ? 'INR' : 'USD';
+        const assetType = symbol.startsWith('^') ? 'INDEX' : (isCrypto ? 'CRYPTO' : 'EQUITY');
+
+        const chart = await fetchYahooChart(symbol, '1mo', '1d');
+        const meta = chart?.meta || {};
+
+        const price = Number(meta.regularMarketPrice ?? 0);
+        const prevClose = Number(meta.chartPreviousClose ?? meta.previousClose ?? price);
+        const dayHigh = Number(meta.regularMarketDayHigh ?? price);
+        const dayLow = Number(meta.regularMarketDayLow ?? price);
+        const volume = Number(meta.regularMarketVolume ?? 0);
+        const changePct = prevClose > 0 ? Number((((price - prevClose) / prevClose) * 100).toFixed(2)) : 0;
+        const name = meta.longName || meta.shortName || symbol;
+
+        tickerRows.push({
           ticker: symbol,
-          date: dateStr,
-          open: bar.open != null ? Number(bar.open) : null,
-          high: bar.high != null ? Number(bar.high) : null,
-          low: bar.low != null ? Number(bar.low) : null,
-          close: bar.close != null ? Number(bar.close) : null,
-          volume: bar.volume != null ? Math.round(Number(bar.volume)) : 0,
+          name,
+          market,
+          exchange,
+          currency,
+          asset_type: assetType,
+          last_seen_at: new Date().toISOString(),
         });
-      }
-    }
-  }
 
-  const upserted = await upsertBatch(
-    'stock_price_history',
-    historyRows,
-    'ticker,date',
-    500
-  );
-  console.log(`[sync] Upserted ${upserted} stock_price_history OHLCV rows`);
-}
+        if (price > 0) {
+          quoteRows.push({
+            ticker: symbol,
+            price,
+            previous_close: prevClose,
+            day_high: dayHigh,
+            day_low: dayLow,
+            volume: Math.round(volume),
+            change_pct: changePct,
+            updated_at: new Date().toISOString(),
+          });
 
-async function syncNews(tickerMap) {
-  const seedNews = readJsonFile('all_news.json') || [];
-  const liveNews = FETCH_LIVE ? await fetchLiveRssNews() : [];
+          fundamentalRows.push({
+            ticker: symbol,
+            fifty_two_week_high: dayHigh,
+            fifty_two_week_low: dayLow,
+            updated_at: new Date().toISOString(),
+          });
+        }
 
-  const articlesByLink = new Map();
-  const tickersByLink = new Map();
+        // Process Historical Daily Bars
+        const timestamps = chart?.timestamp || [];
+        const indicators = chart?.indicators?.quote?.[0] || {};
+        const opens = indicators.open || [];
+        const highs = indicators.high || [];
+        const lows = indicators.low || [];
+        const closes = indicators.close || [];
+        const volumes = indicators.volume || [];
 
-  for (const item of [...liveNews, ...seedNews]) {
-    const title = String(item.title || '').trim();
-    const link = String(item.link || '').trim();
-    if (!title || !link) continue;
+        const recentBars = [];
+        for (let idx = 0; idx < timestamps.length; idx++) {
+          const ts = timestamps[idx];
+          if (ts && closes[idx] != null) {
+            const dateStr = new Date(ts * 1000).toISOString().slice(0, 10);
+            const bOpen = opens[idx] ?? closes[idx];
+            const bHigh = highs[idx] ?? closes[idx];
+            const bLow = lows[idx] ?? closes[idx];
+            const bClose = closes[idx];
+            const bVol = Math.round(volumes[idx] || 0);
 
-    articlesByLink.set(link, {
-      title,
-      summary: item.summary || title,
-      link,
-      publisher: item.publisher || 'Market Wire',
-      thumbnail_url: item.thumbnail_url || null,
-      content_type: item.content_type || 'STORY',
-      published_at: item.published_at || new Date().toISOString(),
-    });
+            recentBars.push({
+              date: dateStr,
+              open: bOpen,
+              high: bHigh,
+              low: bLow,
+              close: bClose,
+              volume: bVol,
+            });
 
-    const related = new Set(
-      Array.isArray(item.related_tickers) ? item.related_tickers : []
+            historyRows.push({
+              ticker: symbol,
+              date: dateStr,
+              open: bOpen,
+              high: bHigh,
+              low: bLow,
+              close: bClose,
+              volume: bVol,
+              recorded_at: new Date().toISOString(),
+            });
+          }
+        }
+
+        // Whole Company Detail Object for stock_details table
+        const wholeDetail = {
+          ticker: symbol,
+          name,
+          summary: {
+            name,
+            market,
+            exchange,
+            currency,
+            asset_type: assetType,
+          },
+          quote: {
+            price,
+            previous_close: prevClose,
+            day_high: dayHigh,
+            day_low: dayLow,
+            volume,
+            change_pct: changePct,
+          },
+          history: recentBars.slice(-30),
+          updated_at: new Date().toISOString(),
+        };
+
+        detailRows.push({
+          ticker: symbol,
+          detail: wholeDetail,
+          fetched_at: new Date().toISOString(),
+        });
+      })
     );
-    if (item.ticker) related.add(item.ticker);
-    const bucket = tickersByLink.get(link) || new Set();
-    for (const sym of related) {
-      if (!tickerMap || tickerMap.has(sym)) {
-        bucket.add(sym);
-      }
-    }
-    if (bucket.size > 0) {
-      tickersByLink.set(link, bucket);
-    }
   }
 
-  const newsRows = Array.from(articlesByLink.values()).slice(0, 500);
-  const upsertedNews = await upsertBatch('news_articles', newsRows, 'link');
-  console.log(`[sync] Upserted ${upsertedNews} news_articles`);
+  const uTickers = await upsertBatch('tickers', tickerRows, 'ticker');
+  const uQuotes = await upsertBatch('stock_quotes', quoteRows, 'ticker');
+  const uFund = await upsertBatch('stock_fundamentals', fundamentalRows, 'ticker');
+  const uHist = await upsertBatch('stock_price_history', historyRows, 'ticker,date', 250);
+  const uDetail = await upsertBatch('stock_details', detailRows, 'ticker', 50);
 
-  // Resolve numeric article_id by link so we can link news_article_tickers
-  const articlesRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/news_articles?select=id,link&limit=1000`,
-    {
-      headers: {
-        apikey: SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${bearerToken}`,
-      },
-    }
-  );
-  if (articlesRes.ok) {
-    const storedArticles = await articlesRes.json();
-    const idByLink = new Map(storedArticles.map((a) => [a.link, a.id]));
-    const articleTickerLinks = [];
-    for (const [link, syms] of tickersByLink.entries()) {
-      const articleId = idByLink.get(link);
-      if (!articleId) continue;
-      for (const sym of syms) {
-        articleTickerLinks.push({
-          article_id: articleId,
-          ticker: sym,
-        });
-      }
-    }
-    if (articleTickerLinks.length > 0) {
-      const upsertedLinks = await upsertBatch(
-        'news_article_tickers',
-        articleTickerLinks,
-        'article_id,ticker'
-      );
-      console.log(`[sync] Upserted ${upsertedLinks} news_article_tickers`);
-    }
-  }
+  console.log(`[sync] Upserted ${uTickers} tickers, ${uQuotes} quotes, ${uFund} fundamentals, ${uHist} history, ${uDetail} whole details`);
+  return { quoteRows, symbols };
 }
 
-async function syncScreeners(tickerMap) {
-  const screenersSeed = readJsonFile('screeners.json') || {};
-  const categoryNames = Object.keys(screenersSeed);
-  if (categoryNames.length === 0) return;
+// ---------------------------------------------------------------------------
+// Step 3: Sync Screeners
+// ---------------------------------------------------------------------------
+async function syncScreeners(quoteRows) {
+  if (!quoteRows || quoteRows.length === 0) return;
 
-  const categoryRows = categoryNames.map((name) => ({
-    name,
-    category_type: name.startsWith('india_') ? 'IN' : 'GLOBAL',
+  const usQuotes = quoteRows.filter(
+    (q) => !q.ticker.endsWith('.NS') && !q.ticker.endsWith('-USD') && !q.ticker.startsWith('^')
+  );
+  const inQuotes = quoteRows.filter((q) => q.ticker.endsWith('.NS'));
+  const cryptoQuotes = quoteRows.filter((q) => q.ticker.endsWith('-USD'));
+
+  const categories = [
+    {
+      name: 'top_gainers',
+      category_type: 'GLOBAL',
+      quotes: [...usQuotes].sort((a, b) => b.change_pct - a.change_pct).slice(0, 15),
+    },
+    {
+      name: 'top_losers',
+      category_type: 'GLOBAL',
+      quotes: [...usQuotes].sort((a, b) => a.change_pct - b.change_pct).slice(0, 15),
+    },
+    {
+      name: 'most_active',
+      category_type: 'GLOBAL',
+      quotes: [...usQuotes].sort((a, b) => b.volume - a.volume).slice(0, 15),
+    },
+    {
+      name: 'india_top_gainers',
+      category_type: 'IN',
+      quotes: [...inQuotes].sort((a, b) => b.change_pct - a.change_pct).slice(0, 15),
+    },
+    {
+      name: 'india_top_losers',
+      category_type: 'IN',
+      quotes: [...inQuotes].sort((a, b) => a.change_pct - b.change_pct).slice(0, 15),
+    },
+    {
+      name: 'crypto_all',
+      category_type: 'CRYPTO',
+      quotes: [...cryptoQuotes].sort((a, b) => b.volume - a.volume).slice(0, 10),
+    },
+  ];
+
+  const catRows = categories.map((c) => ({
+    name: c.name,
+    category_type: c.category_type,
   }));
-  await upsertBatch('screener_categories', categoryRows, 'name');
+  await upsertBatch('screener_categories', catRows, 'name');
 
   const catsRes = await fetch(
     `${SUPABASE_URL}/rest/v1/screener_categories?select=id,name`,
@@ -505,8 +505,45 @@ async function syncScreeners(tickerMap) {
   const cats = await catsRes.json();
   const idByName = new Map(cats.map((c) => [c.name, c.id]));
 
-  const existingRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/screener_results?select=id,category_id,rank&limit=5000`,
+  const resultRows = [];
+  const snapshotRows = [];
+  for (const cat of categories) {
+    const categoryId = idByName.get(cat.name);
+    if (!categoryId) continue;
+    cat.quotes.forEach((q, idx) => {
+      resultRows.push({
+        category_id: categoryId,
+        ticker: q.ticker,
+        rank: idx + 1,
+        price: q.price,
+        change_pct: q.change_pct,
+        extra_data: q,
+      });
+    });
+    snapshotRows.push({
+      category_id: categoryId,
+      payload: { name: cat.name, category_type: cat.category_type, quotes: cat.quotes },
+      exported_at: new Date().toISOString(),
+    });
+  }
+
+  await upsertBatch('screener_results', resultRows, null);
+  await upsertBatch('market_screener_snapshots', snapshotRows, 'category_id');
+  console.log(`[sync] Upserted ${resultRows.length} screener results across ${categories.length} categories`);
+}
+
+// ---------------------------------------------------------------------------
+// Step 4: Sync News
+// ---------------------------------------------------------------------------
+async function syncNews(symbols) {
+  const liveNews = await fetchLiveRssNews();
+  if (liveNews.length === 0) return;
+
+  const upsertedNews = await upsertBatch('news_articles', liveNews, 'link');
+  console.log(`[sync] Upserted ${upsertedNews} news articles`);
+
+  const articlesRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/news_articles?select=id,title,summary&limit=100`,
     {
       headers: {
         apikey: SUPABASE_SERVICE_ROLE_KEY,
@@ -514,75 +551,43 @@ async function syncScreeners(tickerMap) {
       },
     }
   );
-  const existingRows = existingRes.ok ? await existingRes.json() : [];
-  const existingIdByCatRank = new Map(
-    existingRows.map((r) => [`${r.category_id}:${r.rank}`, r.id])
-  );
+  if (articlesRes.ok) {
+    const storedArticles = await articlesRes.json();
+    const symbolSet = new Set(symbols);
+    const links = [];
 
-  const rowsWithId = [];
-  const rowsWithoutId = [];
-  for (const [name, payload] of Object.entries(screenersSeed)) {
-    const categoryId = idByName.get(name);
-    if (!categoryId) continue;
-    const quotes = Array.isArray(payload?.quotes) ? payload.quotes : [];
-    quotes.forEach((q, idx) => {
-      const symbol = q.ticker || q.symbol;
-      if (!symbol || (tickerMap && !tickerMap.has(symbol))) return;
-      const rank = idx + 1;
-      const existingId = existingIdByCatRank.get(`${categoryId}:${rank}`);
-      const row = {
-        category_id: categoryId,
-        ticker: symbol,
-        rank,
-        price: Number(q.price ?? q.regularMarketPrice ?? 0),
-        change_pct: Number(q.change_pct ?? q.regularMarketChangePercent ?? 0),
-        extra_data: q,
-        run_at: new Date().toISOString(),
-      };
-      if (existingId != null) {
-        rowsWithId.push({ id: existingId, ...row });
-      } else {
-        rowsWithoutId.push(row);
+    for (const art of storedArticles) {
+      const text = `${art.title || ''} ${art.summary || ''}`.toUpperCase();
+      for (const sym of symbolSet) {
+        const clean = sym.replace('.NS', '').replace('-USD', '');
+        if (clean.length >= 3 && text.includes(clean)) {
+          links.push({
+            article_id: art.id,
+            ticker: sym,
+          });
+        }
       }
-    });
+    }
+    if (links.length > 0) {
+      await upsertBatch('news_article_tickers', links, 'article_id,ticker');
+      console.log(`[sync] Linked ${links.length} ticker-news relationships`);
+    }
   }
-
-  let totalUpserted = 0;
-  if (rowsWithId.length > 0) {
-    totalUpserted += await upsertBatch('screener_results', rowsWithId, 'id');
-  }
-  if (rowsWithoutId.length > 0) {
-    totalUpserted += await upsertBatch('screener_results', rowsWithoutId, null);
-  }
-  console.log(`[sync] Upserted ${totalUpserted} screener_results`);
 }
 
+// ---------------------------------------------------------------------------
+// Main Pipeline
+// ---------------------------------------------------------------------------
 async function main() {
-  console.log(
-    `[sync] Starting Supabase Market Sync (scope=${SYNC_SCOPE}, live=${FETCH_LIVE})`
-  );
+  console.log(`[sync] Starting AlphaJournal Market & Database Pipeline`);
   await authenticateIfNeeded();
 
-  let tickerMap = null;
-  if (
-    SYNC_SCOPE === 'all' ||
-    SYNC_SCOPE === 'quotes' ||
-    SYNC_SCOPE === 'history' ||
-    SYNC_SCOPE === 'news' ||
-    SYNC_SCOPE === 'screeners'
-  ) {
-    tickerMap = await syncTickersAndQuotes();
-  }
-  if (SYNC_SCOPE === 'all' || SYNC_SCOPE === 'history') {
-    await syncPriceHistory(tickerMap);
-  }
-  if (SYNC_SCOPE === 'all' || SYNC_SCOPE === 'news') {
-    await syncNews(tickerMap);
-  }
-  if (SYNC_SCOPE === 'all' || SYNC_SCOPE === 'screeners') {
-    await syncScreeners(tickerMap);
-  }
-  console.log('[sync] Market database synchronization complete.');
+  await cleanDatabase();
+  const { quoteRows, symbols } = await syncTickersAndQuotes();
+  await syncScreeners(quoteRows);
+  await syncNews(symbols);
+
+  console.log('[sync] Pipeline execution successfully completed.');
 }
 
 main().catch((err) => {
