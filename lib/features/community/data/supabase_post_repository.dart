@@ -93,9 +93,16 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
             .or('is_public.eq.true,author_id.eq.$currentUserId')
             .order('created_at', ascending: false);
 
-        final filtered = (res as List)
-            .where((row) => !blockedIds.contains(row['author_id']?.toString()))
-            .toList();
+        final filtered = (res as List).where((row) {
+          final authorId = row['author_id']?.toString();
+          if (blockedIds.contains(authorId)) return false;
+          final moderationStatus =
+              row['moderation_status']?.toString().toLowerCase() ?? 'approved';
+          if (moderationStatus != 'approved' && authorId != currentUserId) {
+            return false;
+          }
+          return true;
+        }).toList();
 
         return filtered.map((row) {
           final profile = row['profiles'] as Map<String, dynamic>?;
@@ -154,6 +161,8 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
             comments: (row['comments_count'] as num?)?.toInt() ?? 0,
             tickers: tickers,
             imageUrl: postImageUrl,
+            moderationStatus:
+                row['moderation_status']?.toString() ?? 'approved',
           );
         }).toList();
       } catch (e) {
@@ -241,6 +250,8 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
           comments: 0,
           tickers: ticker != null ? [ticker] : const [],
           imageUrl: imageUrl,
+          moderationStatus:
+              res['moderation_status']?.toString() ?? 'pending',
         );
       } catch (e) {
         debugPrint('[SupabasePostRepository] createPost error: $e');

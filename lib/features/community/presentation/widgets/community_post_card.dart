@@ -526,6 +526,44 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
           ),
         ],
 
+        // Pending Moderation Status Banner
+        if (post.isPendingApproval) ...<Widget>[
+          Container(
+            margin: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.sm),
+              vertical: context.sp(theme.spacing.xs),
+            ),
+            decoration: BoxDecoration(
+              color: theme.colors.warning.withValues(alpha: 0.12),
+              borderRadius: context.radius(theme.radii.sm),
+              border: Border.all(
+                color: theme.colors.warning.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                UiBadge(
+                  label: 'Pending Approval',
+                  intent: UiIntent.warning,
+                  variant: UiBadgeVariant.soft,
+                ),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                Expanded(
+                  child: Text(
+                    'Visible only to you until approved by moderators',
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                      fontSize: context.sz(11),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
         // Author Header or Compact Timestamp Strip
         if (widget.showAuthorHeader)
           CommunityAuthorHeader(
