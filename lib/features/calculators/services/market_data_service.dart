@@ -1,3 +1,4 @@
+import 'package:tradex/core/config/supabase_config.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -19,7 +20,8 @@ class MarketQuote {
     required this.changePercent,
     required this.isLive,
     required this.timestamp,
-    this.source = 'Yahoo Finance v8',
+    this.source = 'Backend Quote Proxy',
+    this.freshness = 'live',
   });
 
   final String symbol;
@@ -35,6 +37,7 @@ class MarketQuote {
   final bool isLive;
   final DateTime timestamp;
   final String source;
+  final String freshness;
 
   /// Yesterday's or last session's trading range.
   double get range => high - low;
@@ -57,6 +60,7 @@ class MarketQuote {
     bool? isLive,
     DateTime? timestamp,
     String? source,
+    String? freshness,
   }) {
     return MarketQuote(
       symbol: symbol ?? this.symbol,
@@ -72,6 +76,7 @@ class MarketQuote {
       isLive: isLive ?? this.isLive,
       timestamp: timestamp ?? this.timestamp,
       source: source ?? this.source,
+      freshness: freshness ?? this.freshness,
     );
   }
 
@@ -99,8 +104,9 @@ class MarketQuote {
       fiftyTwoWeekLow: l52,
       changePercent: prevClose == 0 ? 0 : (price - prevClose) / prevClose * 100,
       isLive: false,
-      timestamp: DateTime.now(),
+      timestamp: DateTime.parse('2026-09-04T00:00:00Z'),
       source: 'Verified Offline Preset',
+      freshness: 'snapshot',
     );
   }
 
@@ -250,6 +256,7 @@ class MarketDataService {
   final http.Client _client;
 
   final Map<String, MarketQuote> _quoteCache = <String, MarketQuote>{};
+  final Map<String, Future<MarketQuote>> _inFlight = <String, Future<MarketQuote>>{};
   MacroBenchmarks _macroBenchmarks = MacroBenchmarks.fallback;
 
   static const Duration _quoteTtl = Duration(minutes: 2);
@@ -281,88 +288,58 @@ class MarketDataService {
       }
     }
 
-    if (kIsWeb) {
-      // In web browser runtime, direct cross-origin requests to Yahoo Finance
-      // are blocked by browser CORS security (Same-Origin Policy).
-      // We serve the synchronized verified market feed to eliminate
-      // browser console errors and guarantee instantaneous, reliable response.
-      final MarketQuote webQuote = MarketQuote.fallback(key).copyWith(
-        isLive: true,
-        source: 'Live Market Feed (Web)',
-        timestamp: DateTime.now(),
-      );
-      _quoteCache[key] = webQuote;
-      return webQuote;
+    if (_inFlight.containsKey(key)) {
+      return await _inFlight[key]!;
     }
 
+    final Future<MarketQuote> future = _fetchQuoteInternal(key, ticker);
+    _inFlight[key] = future;
     try {
-      final Uri uri = Uri.https(
-        'query1.finance.yahoo.com',
-        '/v8/finance/chart/$ticker',
-        <String, String>{'interval': '1d', 'range': '1d'},
-      );
+      final MarketQuote result = await future;
+      _quoteCache[key] = result;
+      return result;
+    } finally {
+      _inFlight.remove(key);
+    }
+  }
 
-      final http.Response response = await _client
-          .get(
-            uri,
-            headers: const <String, String>{
-              'Accept': 'application/json',
-              'User-Agent': 'Mozilla/5.0 alphajournal/1.0',
-            },
-          )
-          .timeout(_requestTimeout);
+  Future<MarketQuote> _fetchQuoteInternal(String key, String ticker) async {
+    // 1. Try Supabase Edge Function Backend Proxy if configured
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final res = await client.functions.invoke(
+          'market-quote-proxy',
+          body: {
+            'action': 'quotes',
+            'symbols': [ticker],
+          },
+        ).timeout(_requestTimeout);
 
-      if (response.statusCode == 200) {
-        final dynamic decoded = jsonDecode(response.body);
-        final dynamic result = decoded?['chart']?['result']?[0];
-        if (result is Map) {
-          final dynamic meta = result['meta'];
-          final dynamic indicators = result['indicators']?['quote']?[0];
+        if (res.status == 200 && res.data is Map) {
+          final quotesMap = res.data['quotes'];
+          if (quotesMap is Map && quotesMap[ticker] is Map) {
+            final q = quotesMap[ticker] as Map;
+            final double price = (q['price'] as num?)?.toDouble() ?? 0.0;
+            final double prevClose = (q['previousClose'] as num?)?.toDouble() ?? price;
+            final double open = (q['open'] as num?)?.toDouble() ?? prevClose;
+            final double high = (q['high'] as num?)?.toDouble() ?? price;
+            final double low = (q['low'] as num?)?.toDouble() ?? price;
+            final double h52 = (q['fiftyTwoWeekHigh'] as num?)?.toDouble() ?? price;
+            final double l52 = (q['fiftyTwoWeekLow'] as num?)?.toDouble() ?? price;
+            final double pct = (q['changePercent'] as num?)?.toDouble() ??
+                (prevClose == 0 ? 0.0 : (price - prevClose) / prevClose * 100);
+            final String name = (q['name'] as String?) ?? key;
+            final bool isLive = q['isLive'] as bool? ?? false;
+            final DateTime timestamp = q['timestamp'] != null
+                ? DateTime.tryParse(q['timestamp'].toString()) ?? DateTime.now()
+                : DateTime.now();
+            final String source = (q['source'] as String?) ?? 'Market Quote Proxy';
+            final String freshness = (q['freshness'] as String?) ?? (isLive ? 'live' : 'snapshot');
 
-          if (meta is Map) {
-            final double price =
-                (meta['regularMarketPrice'] as num?)?.toDouble() ??
-                (meta['chartPreviousClose'] as num?)?.toDouble() ??
-                0.0;
-            final double prevClose =
-                (meta['chartPreviousClose'] as num?)?.toDouble() ?? price;
-            final double h52 =
-                (meta['fiftyTwoWeekHigh'] as num?)?.toDouble() ?? price;
-            final double l52 =
-                (meta['fiftyTwoWeekLow'] as num?)?.toDouble() ?? price;
-
-            double open = prevClose;
-            double high = price;
-            double low = price;
-
-            if (indicators is Map) {
-              final dynamic opens = indicators['open'];
-              final dynamic highs = indicators['high'];
-              final dynamic lows = indicators['low'];
-
-              if (opens is List && opens.isNotEmpty && opens.first is num) {
-                open = (opens.first as num).toDouble();
-              }
-              if (highs is List && highs.isNotEmpty && highs.first is num) {
-                high = (highs.first as num).toDouble();
-              }
-              if (lows is List && lows.isNotEmpty && lows.first is num) {
-                low = (lows.first as num).toDouble();
-              }
-            }
-
-            final String longName =
-                (meta['longName'] as String?) ??
-                (meta['shortName'] as String?) ??
-                key;
-
-            final double pct = prevClose == 0
-                ? 0
-                : (price - prevClose) / prevClose * 100;
-
-            final MarketQuote quote = MarketQuote(
+            return MarketQuote(
               symbol: key,
-              name: longName,
+              name: name,
               price: price,
               previousClose: prevClose,
               open: open,
@@ -371,21 +348,110 @@ class MarketDataService {
               fiftyTwoWeekHigh: h52,
               fiftyTwoWeekLow: l52,
               changePercent: pct,
-              isLive: true,
-              timestamp: DateTime.now(),
-              source: 'Yahoo Finance v8',
+              isLive: isLive,
+              timestamp: timestamp,
+              source: source,
+              freshness: freshness,
             );
-
-            _quoteCache[key] = quote;
-            return quote;
           }
         }
+      } catch (e) {
+        debugPrint('[MarketDataService] Proxy invoke error: $e');
       }
-    } catch (_) {
-      // Silent offline fallback ensures zero disruption or console noise.
     }
 
-    // Offline fallback
+    // 2. Direct HTTP call only on non-web native platforms without CORS restrictions
+    if (!kIsWeb) {
+      try {
+        final Uri uri = Uri.https(
+          'query1.finance.yahoo.com',
+          '/v8/finance/chart/$ticker',
+          <String, String>{'interval': '1d', 'range': '1d'},
+        );
+
+        final http.Response response = await _client
+            .get(
+              uri,
+              headers: const <String, String>{
+                'Accept': 'application/json',
+                'User-Agent': 'TradeX/1.0',
+              },
+            )
+            .timeout(_requestTimeout);
+
+        if (response.statusCode == 200) {
+          final dynamic decoded = jsonDecode(response.body);
+          final dynamic result = decoded?['chart']?['result']?[0];
+          if (result is Map) {
+            final dynamic meta = result['meta'];
+            final dynamic indicators = result['indicators']?['quote']?[0];
+
+            if (meta is Map) {
+              final double price =
+                  (meta['regularMarketPrice'] as num?)?.toDouble() ??
+                  (meta['chartPreviousClose'] as num?)?.toDouble() ??
+                  0.0;
+              final double prevClose =
+                  (meta['chartPreviousClose'] as num?)?.toDouble() ?? price;
+              final double h52 =
+                  (meta['fiftyTwoWeekHigh'] as num?)?.toDouble() ?? price;
+              final double l52 =
+                  (meta['fiftyTwoWeekLow'] as num?)?.toDouble() ?? price;
+
+              double open = prevClose;
+              double high = price;
+              double low = price;
+
+              if (indicators is Map) {
+                final dynamic opens = indicators['open'];
+                final dynamic highs = indicators['high'];
+                final dynamic lows = indicators['low'];
+
+                if (opens is List && opens.isNotEmpty && opens.first is num) {
+                  open = (opens.first as num).toDouble();
+                }
+                if (highs is List && highs.isNotEmpty && highs.first is num) {
+                  high = (highs.first as num).toDouble();
+                }
+                if (lows is List && lows.isNotEmpty && lows.first is num) {
+                  low = (lows.first as num).toDouble();
+                }
+              }
+
+              final String longName =
+                  (meta['longName'] as String?) ??
+                  (meta['shortName'] as String?) ??
+                  key;
+
+              final double pct = prevClose == 0
+                  ? 0
+                  : (price - prevClose) / prevClose * 100;
+
+              return MarketQuote(
+                symbol: key,
+                name: longName,
+                price: price,
+                previousClose: prevClose,
+                open: open,
+                high: high,
+                low: low,
+                fiftyTwoWeekHigh: h52,
+                fiftyTwoWeekLow: l52,
+                changePercent: pct,
+                isLive: true,
+                timestamp: DateTime.now(),
+                source: 'Direct Market Feed',
+                freshness: 'live',
+              );
+            }
+          }
+        }
+      } catch (_) {
+        // Fall back gracefully
+      }
+    }
+
+    // 3. Fallback to cached or verified offline preset (truthfully marked as snapshot)
     return _quoteCache[key] ?? MarketQuote.fallback(key);
   }
 

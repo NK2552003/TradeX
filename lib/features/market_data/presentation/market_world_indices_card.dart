@@ -5,7 +5,7 @@ import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import '../models/market_snapshot.dart';
 import '../data/yahoo_finance_service.dart';
 
-/// Item representing a single index row in World Indices and Assets tables.
+/// Item representing a single index row in World Indices and Assets tables with freshness tracking.
 class MarketIndexItem {
   const MarketIndexItem({
     required this.symbol,
@@ -13,6 +13,9 @@ class MarketIndexItem {
     required this.price,
     required this.changePercent,
     required this.spark,
+    this.isLive = false,
+    this.timestamp,
+    this.source = 'Offline Snapshot',
   });
 
   final String symbol;
@@ -20,6 +23,9 @@ class MarketIndexItem {
   final double price;
   final double changePercent;
   final List<double> spark;
+  final bool isLive;
+  final DateTime? timestamp;
+  final String source;
 
   bool get isPositive => changePercent >= 0;
 
@@ -29,6 +35,9 @@ class MarketIndexItem {
     double? price,
     double? changePercent,
     List<double>? spark,
+    bool? isLive,
+    DateTime? timestamp,
+    String? source,
   }) =>
       MarketIndexItem(
         symbol: symbol ?? this.symbol,
@@ -36,6 +45,9 @@ class MarketIndexItem {
         price: price ?? this.price,
         changePercent: changePercent ?? this.changePercent,
         spark: spark ?? this.spark,
+        isLive: isLive ?? this.isLive,
+        timestamp: timestamp ?? this.timestamp,
+        source: source ?? this.source,
       );
 }
 
