@@ -138,6 +138,7 @@ class SupabaseAuthBackendService implements AuthRepository {
       final authResponse = await client.auth.signUp(
         email: cleanEmail,
         password: password,
+        emailRedirectTo: kIsWeb ? Uri.base.origin : 'tradex://auth/callback',
         data: {
           'handle': cleanHandle,
           'role': UserRole.customer.id,
@@ -457,7 +458,12 @@ class SupabaseAuthBackendService implements AuthRepository {
     }
 
     try {
-      await SupabaseConfig.client!.auth.resetPasswordForEmail(cleanEmail);
+      await SupabaseConfig.client!.auth.resetPasswordForEmail(
+        cleanEmail,
+        redirectTo: kIsWeb
+            ? '${Uri.base.origin}/auth/forgot-password'
+            : 'tradex://auth/callback',
+      );
       return AuthResult.success(
         profile:
             _currentUserProfile ??

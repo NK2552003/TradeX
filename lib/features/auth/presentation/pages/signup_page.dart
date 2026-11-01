@@ -687,15 +687,7 @@ class _SignupPageState extends State<SignupPage> {
       final launched = await client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: kIsWeb
-            ? Uri.base
-                  .replace(
-                    queryParameters: {
-                      if (Uri.base.queryParameters['public'] == 'true')
-                        'public': 'true',
-                    },
-                    fragment: '',
-                  )
-                  .toString()
+            ? Uri.base.origin
             : 'tradex://auth/callback',
       );
       if (!launched) {

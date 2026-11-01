@@ -34,9 +34,18 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
     try {
       final cleanEmail = identifier.trim().toLowerCase();
       if (purpose == OtpPurpose.signupVerification) {
-        await activeClient.auth.resend(type: OtpType.signup, email: cleanEmail);
+        await activeClient.auth.resend(
+          type: OtpType.signup,
+          email: cleanEmail,
+          emailRedirectTo: kIsWeb ? Uri.base.origin : 'tradex://auth/callback',
+        );
       } else if (purpose == OtpPurpose.passwordReset) {
-        await activeClient.auth.resetPasswordForEmail(cleanEmail);
+        await activeClient.auth.resetPasswordForEmail(
+          cleanEmail,
+          redirectTo: kIsWeb
+              ? '${Uri.base.origin}/auth/forgot-password'
+              : 'tradex://auth/callback',
+        );
       }
     } on AuthException catch (e) {
       debugPrint(
