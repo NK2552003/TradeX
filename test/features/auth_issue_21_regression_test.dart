@@ -13,7 +13,7 @@ import 'package:tradex/features/auth/presentation/pages/signup_page.dart';
 import 'package:tradex/features/auth/presentation/widgets/tradex_footer.dart';
 import 'package:tradex/features/auth/widgets/role_selector_tab.dart';
 
-class _FakeAuthRepository implements AuthRepository {
+class _FakeAuthRepository extends AuthRepository {
   _FakeAuthRepository({this.profileRole = UserRole.customer});
 
   final UserRole profileRole;

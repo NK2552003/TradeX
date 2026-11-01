@@ -46,6 +46,7 @@ class _LoginPageState extends State<LoginPage> {
   );
 
   bool _isLoading = false;
+  bool _isSignupOpen = true;
   String? _errorText;
 
   @override
@@ -53,6 +54,14 @@ class _LoginPageState extends State<LoginPage> {
     super.initState();
     _selectedRole = widget.initialRole;
     _repository = widget.authRepository ?? AuthBackendService.instance;
+    _checkSignupCapacity();
+  }
+
+  Future<void> _checkSignupCapacity() async {
+    final open = await _repository.isSignupOpen();
+    if (mounted) {
+      setState(() => _isSignupOpen = open);
+    }
   }
 
   @override
@@ -441,39 +450,48 @@ class _LoginPageState extends State<LoginPage> {
                                               ),
                                             ),
 
-                                            // Switch to Signup Link
-                                            Wrap(
-                                              alignment: WrapAlignment.center,
-                                              children: [
-                                                Text(
-                                                  "Don't have an account? ",
-                                                  style: context.uiText.body
-                                                      .copyWith(
-                                                        color: colors
-                                                            .foregroundMuted,
-                                                        fontSize: 13,
-                                                      ),
-                                                ),
-                                                GestureDetector(
-                                                  onTap: () =>
-                                                      widget.onNavigateToSignup(
-                                                        _selectedRole,
-                                                      ),
-                                                  child: Text(
-                                                    'Sign up',
-                                                    style: context
-                                                        .uiText
-                                                        .bodyStrong
+                                            // Switch to Signup Link (hidden/disabled once 100-user cap is reached)
+                                            if (_isSignupOpen)
+                                              Wrap(
+                                                alignment: WrapAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    "Don't have an account? ",
+                                                    style: context.uiText.body
                                                         .copyWith(
-                                                          color: colors.primary,
-                                                          fontWeight:
-                                                              FontWeight.bold,
+                                                          color: colors
+                                                              .foregroundMuted,
                                                           fontSize: 13,
                                                         ),
                                                   ),
-                                                ),
-                                              ],
-                                            ),
+                                                  GestureDetector(
+                                                    onTap: () =>
+                                                        widget.onNavigateToSignup(
+                                                          _selectedRole,
+                                                        ),
+                                                    child: Text(
+                                                      'Sign up',
+                                                      style: context
+                                                          .uiText
+                                                          .bodyStrong
+                                                          .copyWith(
+                                                            color:
+                                                                colors.primary,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 13,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              )
+                                            else
+                                              UiCallout(
+                                                title: 'Registration Closed',
+                                                message:
+                                                    'Maximum capacity of ${AuthRepository.maxRegisteredUsersCap} active users reached. Only existing registered users can sign in.',
+                                                intent: UiIntent.warning,
+                                              ),
                                           ],
                                         ),
                                       ),

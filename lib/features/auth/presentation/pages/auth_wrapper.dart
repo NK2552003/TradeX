@@ -439,8 +439,20 @@ class _AuthWrapperState extends State<AuthWrapper> {
             case AuthStage.onboarding:
               return AppBlurFade(
                 child: GetStartedPage(
-                  onGetStarted: (role) {
+                  onGetStarted: (role) async {
                     AuthSessionStorage.markOnboardingCompleted();
+                    final open = await _authRepository.isSignupOpen();
+                    if (!context.mounted) return;
+                    if (!open) {
+                      UiToast.warning(
+                        context,
+                        title: 'Registration Capacity Reached',
+                        message:
+                            'Maximum capacity of ${AuthRepository.maxRegisteredUsersCap} users reached. Please sign in with an existing account.',
+                      );
+                      _navigateToStage(AuthStage.login, role: role);
+                      return;
+                    }
                     _navigateToStage(AuthStage.signup, role: role);
                   },
                   onSignIn: () {

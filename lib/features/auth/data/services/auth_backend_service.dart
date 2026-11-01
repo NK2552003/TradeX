@@ -41,6 +41,19 @@ class AuthBackendService implements AuthRepository {
   }
 
   @override
+  Future<int> getRegisteredUserCount() async {
+    return _profilesById.values
+        .where((p) => p.role != UserRole.userAdmin)
+        .length;
+  }
+
+  @override
+  Future<bool> isSignupOpen() async {
+    final count = await getRegisteredUserCount();
+    return count < AuthRepository.maxRegisteredUsersCap;
+  }
+
+  @override
   Future<AuthResult> signUp({
     required UserRole role,
     required String handle,
@@ -49,6 +62,12 @@ class AuthBackendService implements AuthRepository {
     String? referralCode,
     String? adminKey,
   }) async {
+    if (!await isSignupOpen()) {
+      return AuthResult.failure(
+        'Platform capacity reached (${AuthRepository.maxRegisteredUsersCap} users). New user registration is currently closed.',
+        errorCode: 'signup_capacity_reached',
+      );
+    }
     // 1. Sanitize & Normalize Inputs
     final cleanHandle = handle.trim().startsWith('@')
         ? handle.trim()

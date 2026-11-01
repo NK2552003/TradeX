@@ -35,6 +35,32 @@ class SupabaseAuthBackendService implements AuthRepository {
   }
 
   @override
+  Future<int> getRegisteredUserCount() async {
+    if (!SupabaseConfig.isConfigured) {
+      return AuthBackendService.instance.getRegisteredUserCount();
+    }
+    try {
+      final client = SupabaseConfig.client;
+      if (client == null) return 0;
+      final rows = await client
+          .from('profiles')
+          .select('id')
+          .neq('role', 'user_admin')
+          .limit(AuthRepository.maxRegisteredUsersCap + 5);
+      return (rows as List).length;
+    } catch (e) {
+      debugPrint('[SupabaseAuthBackendService] getRegisteredUserCount error: $e');
+      return 0;
+    }
+  }
+
+  @override
+  Future<bool> isSignupOpen() async {
+    final count = await getRegisteredUserCount();
+    return count < AuthRepository.maxRegisteredUsersCap;
+  }
+
+  @override
   Future<AuthResult> signUp({
     required UserRole role,
     required String handle,
@@ -70,6 +96,14 @@ class SupabaseAuthBackendService implements AuthRepository {
       return AuthResult.failure(
         'Administrator accounts are provisioned privately. Use Admin sign in.',
         errorCode: 'admin_signup_disabled',
+      );
+    }
+
+    // 3. Enforce 100-user registration capacity limit
+    if (!await isSignupOpen()) {
+      return AuthResult.failure(
+        'Platform capacity reached (${AuthRepository.maxRegisteredUsersCap} users). New user registration is currently disabled.',
+        errorCode: 'signup_capacity_reached',
       );
     }
 
