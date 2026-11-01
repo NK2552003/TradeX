@@ -218,7 +218,7 @@ class UiButton extends StatelessWidget {
                     alignment: alignment!,
                     child: _content(ctx, st, compactLabel, fullWidth),
                   )
-                : _content(ctx, st, compactLabel, fullWidth),
+                : Center(child: _content(ctx, st, compactLabel, fullWidth)),
           ),
         );
       },
@@ -333,7 +333,7 @@ class UiButton extends StatelessWidget {
 
     return ClipRect(
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
         mainAxisAlignment: effectiveMainAxisAlignment,
         children: <Widget>[
           if (lead != null) ...<Widget>[lead, SizedBox(width: gap)],

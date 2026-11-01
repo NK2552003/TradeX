@@ -91,7 +91,6 @@ class CustomerRoute {
       if (host.startsWith('app.')) {
         return const CustomerRoute(
           destination: 'workspace',
-          stage: AuthStage.login,
         );
       }
       return const CustomerRoute();

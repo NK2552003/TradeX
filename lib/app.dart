@@ -48,9 +48,11 @@ class _TradeXAppState extends State<TradeXApp> {
           pageBuilder: (context, state) => _routePage(context, state),
         ),
     ],
-    errorBuilder: (context, state) => const UiEmptyState(
-      title: 'Page not found',
-      message: 'Check the link and try again.',
+    errorBuilder: (context, state) => const Scaffold(
+      body: UiEmptyState(
+        title: 'Page not found',
+        message: 'Check the link and try again.',
+      ),
     ),
   );
 
@@ -59,11 +61,13 @@ class _TradeXAppState extends State<TradeXApp> {
     if (!route.valid) {
       return NoTransitionPage(
         key: state.pageKey,
-        child: UiEmptyState(
-          title: 'Page not found',
-          action: UiButton(
-            label: 'Go to workspace',
-            onPressed: () => _router.go('/workspace'),
+        child: Scaffold(
+          body: UiEmptyState(
+            title: 'Page not found',
+            action: UiButton(
+              label: 'Go to workspace',
+              onPressed: () => _router.go('/workspace'),
+            ),
           ),
         ),
       );
@@ -103,10 +107,13 @@ class _TradeXAppState extends State<TradeXApp> {
               AuthStage.signup => '/auth/signup',
               AuthStage.forgotPassword => '/auth/forgot-password',
               AuthStage.onboarding => '/',
-              AuthStage.authenticated
-                  when state.uri.path.startsWith('/auth/') =>
-                CustomerRoute.afterAuthentication(state.uri)?.$1.toString() ??
-                    '/workspace',
+              AuthStage.authenticated =>
+                (state.uri.path.startsWith('/auth/') ||
+                 state.uri.path == '/' ||
+                 state.uri.queryParameters.containsKey('code'))
+                    ? (CustomerRoute.afterAuthentication(state.uri)?.$1.toString() ??
+                        '/${route.destination ?? 'workspace'}')
+                    : null,
               _ => null,
             };
             if (path != null && path != state.uri.path) {
@@ -184,8 +191,17 @@ class _TradeXAppState extends State<TradeXApp> {
               theme: UiTheme.light(spacing: spacing).toThemeData(),
               darkTheme: UiTheme.dark(spacing: spacing).toThemeData(),
               themeMode: _themeController.value,
-              builder: (context, child) =>
-                  UiToastScope(child: child ?? const SizedBox.shrink()),
+              builder: (context, child) => UiToastScope(
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: DefaultTextStyle.merge(
+                    style: const TextStyle(
+                      decoration: TextDecoration.none,
+                    ),
+                    child: child ?? const SizedBox.shrink(),
+                  ),
+                ),
+              ),
               routerConfig: _router,
             ),
           );

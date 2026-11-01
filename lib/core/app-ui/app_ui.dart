@@ -15,6 +15,7 @@ export 'models/app_models.dart';
 export 'models/app_models_extra.dart';
 export '../sharing/app_post_attachment.dart';
 export 'brand/app_logo.dart';
+export 'brand/google_logo.dart';
 
 // Cards
 export 'cards/watchlist_cards.dart';

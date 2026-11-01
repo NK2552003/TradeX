@@ -493,6 +493,7 @@ class _SignupPageState extends State<SignupPage> {
                                               variant: UiVariant.primary,
                                               intent: _selectedRole.badgeIntent,
                                               size: UiSize.lg,
+                                              expand: true,
                                               onPressed:
                                                   (_isLoading || !_isSignupOpen)
                                                   ? null
@@ -521,9 +522,9 @@ class _SignupPageState extends State<SignupPage> {
                                                 variant: UiVariant.outline,
                                                 intent: UiIntent.neutral,
                                                 size: UiSize.lg,
-                                                leading: const Icon(
-                                                  Icons.g_mobiledata,
-                                                  size: 24,
+                                                expand: true,
+                                                leading: const GoogleLogoMark(
+                                                  size: 20,
                                                 ),
                                                 onPressed: () =>
                                                     _showSocialToast('Google'),
@@ -624,9 +625,8 @@ class _SignupPageState extends State<SignupPage> {
                                           'Terms of Service',
                                           style: context.uiText.caption
                                               .copyWith(
-                                                color: colors.foregroundMuted,
-                                                decoration:
-                                                    TextDecoration.underline,
+                                                color: colors.primary,
+                                                fontWeight: FontWeight.w500,
                                                 fontSize: 11.5,
                                               ),
                                         ),
@@ -643,9 +643,8 @@ class _SignupPageState extends State<SignupPage> {
                                           'Privacy Policy',
                                           style: context.uiText.caption
                                               .copyWith(
-                                                color: colors.foregroundMuted,
-                                                decoration:
-                                                    TextDecoration.underline,
+                                                color: colors.primary,
+                                                fontWeight: FontWeight.w500,
                                                 fontSize: 11.5,
                                               ),
                                         ),

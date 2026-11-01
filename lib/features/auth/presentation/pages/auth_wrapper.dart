@@ -15,6 +15,7 @@ import 'package:tradex/features/auth/data/repositories/auth_repository.dart';
 import 'package:tradex/features/auth/data/services/auth_backend_service.dart';
 import 'package:tradex/features/auth/data/services/auth_session_storage.dart';
 import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
+import 'package:tradex/features/auth/models/affiliate_profile_model.dart';
 import 'package:tradex/features/auth/models/auth_state.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/auth/models/otp_purpose.dart';
@@ -61,6 +62,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
   late AuthSessionState _sessionState;
   late final AuthRepository _authRepository;
   bool _isAuthLoading = true;
+  bool _splashCompleted = false;
+  AuthStage? _pendingResolvedStage;
+  UserProfileModel? _authenticatedProfile;
+  AffiliateProfileModel? _authenticatedAffProfile;
+  UserRole? _authenticatedRole;
   String _initialAppDestination = 'workspace';
   StreamSubscription<AuthState>? _authSubscription;
 
@@ -110,10 +116,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     if (preview != null) {
       _isAuthLoading = false;
+      _splashCompleted = true;
     } else {
       _isAuthLoading = true;
       _setupAuthStateListener();
       _restoreActiveSession();
+      Future.delayed(const Duration(milliseconds: 1800), () {
+        if (mounted && !_splashCompleted) {
+          _onSplashFinish();
+        }
+      });
     }
   }
 
@@ -170,14 +182,61 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
   }
 
+  void _resolveTo(AuthStage stage) {
+    _pendingResolvedStage = stage;
+    if (_splashCompleted || widget.initialStage != AuthStage.splash) {
+      _applyPendingStage();
+    }
+  }
+
+  void _onSplashFinish() {
+    _splashCompleted = true;
+    if (_pendingResolvedStage != null) {
+      _applyPendingStage();
+    }
+  }
+
+  void _applyPendingStage() {
+    if (!mounted) return;
+    final stage = _pendingResolvedStage ?? AuthStage.login;
+    setState(() {
+      _isAuthLoading = false;
+      if (stage == AuthStage.authenticated && _authenticatedProfile != null) {
+        _sessionState = _sessionState.copyWith(
+          stage: AuthStage.authenticated,
+          userId: _authenticatedProfile!.id,
+          email: _authenticatedProfile!.email,
+          displayName: _authenticatedProfile!.displayName,
+          role: _authenticatedRole ?? _sessionState.role,
+          profile: _authenticatedProfile,
+          affiliateProfile: _authenticatedAffProfile,
+        );
+      } else {
+        _sessionState = _sessionState.copyWith(stage: stage);
+      }
+    });
+    if (stage == AuthStage.authenticated) {
+      widget.onStageChanged?.call(AuthStage.authenticated);
+    }
+  }
+
   Future<void> _restoreActiveSession() async {
     try {
+      // 0. On Web, if URL contains OAuth callback code or access token, exchange it first:
+      if (kIsWeb && SupabaseConfig.isConfigured) {
+        final uri = Uri.base;
+        if (uri.queryParameters.containsKey('code') ||
+            (uri.fragment.isNotEmpty && uri.fragment.contains('access_token='))) {
+          try {
+            await SupabaseConfig.client?.auth.getSessionFromUrl(uri);
+          } catch (e) {
+            debugPrint('[AuthWrapper] getSessionFromUrl error: $e');
+          }
+        }
+      }
+
       // 1. Live Supabase Session Check
       if (SupabaseConfig.isConfigured) {
-        final signedInId = SupabaseConfig.client?.auth.currentUser?.id;
-        if (signedInId != null) {
-          unawaited(RevenueCatBilling.identify(signedInId));
-        }
         final client = SupabaseConfig.client;
         if (client != null) {
           final session = client.auth.currentSession;
@@ -191,30 +250,19 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 if (refreshRes.session == null) {
                   // Expired token could not be refreshed -> redirect to login
                   await AuthSessionStorage.clearSession();
-                  if (mounted) {
-                    setState(() {
-                      _isAuthLoading = false;
-                      _sessionState = _sessionState.copyWith(
-                        stage: AuthStage.login,
-                      );
-                    });
-                  }
+                  _resolveTo(AuthStage.login);
                   return;
                 }
               } catch (e) {
                 debugPrint('[AuthWrapper] Token refresh failed: $e');
                 await AuthSessionStorage.clearSession();
-                if (mounted) {
-                  setState(() {
-                    _isAuthLoading = false;
-                    _sessionState = _sessionState.copyWith(
-                      stage: AuthStage.login,
-                    );
-                  });
-                }
+                _resolveTo(AuthStage.login);
                 return;
               }
             }
+
+            final signedInId = user.id;
+            unawaited(RevenueCatBilling.identify(signedInId));
 
             // Valid active Supabase session confirmed: fetch profile
             UserProfileModel? profile = await _authRepository.getProfile(
@@ -222,50 +270,82 @@ class _AuthWrapperState extends State<AuthWrapper> {
             );
             profile ??= await AuthSessionStorage.getStoredProfile();
 
-            if (profile != null && mounted) {
-              final affProfile = profile.role == UserRole.affiliate
-                  ? await _authRepository.getAffiliateProfile(user.id)
-                  : await AuthSessionStorage.getStoredAffiliateProfile();
+            // Auto-synthesize fallback profile if needed so user is NEVER logged out on reload:
+            if (profile == null) {
+              final userMeta = user.userMetadata ?? <String, dynamic>{};
+              final fullName = (userMeta['full_name'] as String?) ??
+                  (userMeta['name'] as String?) ??
+                  (user.email?.split('@').first ?? 'Trader');
+              final avatar = (userMeta['avatar_url'] as String?) ??
+                  (userMeta['picture'] as String?);
+              final email = user.email ?? '';
+              final rawHandle = (userMeta['user_name'] as String?) ??
+                  (email.isNotEmpty
+                      ? email.split('@').first
+                      : 'trader_${user.id.substring(0, 6)}');
+              final handle =
+                  rawHandle.startsWith('@') ? rawHandle : '@$rawHandle';
 
-              // Synchronize process-wide services
-              SupabaseAuthBackendService.instance.setCurrentProfile(
-                profile,
-                affiliateProfile: affProfile,
-              );
-              AuthBackendService.instance.setCurrentProfile(
-                profile,
-                affiliateProfile: affProfile,
-              );
-
-              // Update persistent session storage
-              await AuthSessionStorage.saveSession(
-                profile: profile,
-                affiliateProfile: affProfile,
-                token: client.auth.currentSession?.accessToken,
+              profile = UserProfileModel(
+                id: user.id,
+                email: email,
+                displayName: fullName,
+                handle: handle,
+                role: UserRole.customer,
+                avatarUrl: avatar,
+                createdAt: DateTime.now(),
               );
 
-              final workspaceRole = await AuthSessionStorage.workspaceRoleFor(
-                profile,
-              );
-              final lastDest = await AuthSessionStorage.getLastDestination();
-              if (lastDest != null && lastDest.isNotEmpty) {
-                _initialAppDestination = lastDest;
+              try {
+                await client.from('profiles').upsert({
+                  'id': user.id,
+                  'email': email,
+                  'display_name': fullName,
+                  'handle': handle,
+                  'role': 'customer',
+                  'avatar_url': avatar,
+                  'updated_at': DateTime.now().toIso8601String(),
+                });
+              } catch (e) {
+                debugPrint('[AuthWrapper] Auto-upsert profile warning: $e');
               }
-
-              setState(() {
-                _isAuthLoading = false;
-                _sessionState = _sessionState.copyWith(
-                  stage: AuthStage.authenticated,
-                  userId: profile!.id,
-                  email: profile.email,
-                  displayName: profile.displayName,
-                  role: workspaceRole,
-                  profile: profile,
-                  affiliateProfile: affProfile,
-                );
-              });
-              return;
             }
+
+            final affProfile = profile.role == UserRole.affiliate
+                ? await _authRepository.getAffiliateProfile(user.id)
+                : await AuthSessionStorage.getStoredAffiliateProfile();
+
+            // Synchronize process-wide services
+            SupabaseAuthBackendService.instance.setCurrentProfile(
+              profile,
+              affiliateProfile: affProfile,
+            );
+            AuthBackendService.instance.setCurrentProfile(
+              profile,
+              affiliateProfile: affProfile,
+            );
+
+            // Update persistent session storage
+            await AuthSessionStorage.saveSession(
+              profile: profile,
+              affiliateProfile: affProfile,
+              token: client.auth.currentSession?.accessToken,
+            );
+
+            final workspaceRole = await AuthSessionStorage.workspaceRoleFor(
+              profile,
+            );
+            final lastDest = await AuthSessionStorage.getLastDestination();
+            if (lastDest != null && lastDest.isNotEmpty) {
+              _initialAppDestination = lastDest;
+            }
+
+            _authenticatedProfile = profile;
+            _authenticatedAffProfile = affProfile;
+            _authenticatedRole = workspaceRole;
+
+            _resolveTo(AuthStage.authenticated);
+            return;
           }
         }
       }
@@ -273,8 +353,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
       // 2. Persistent Local Storage Fallback (offline mode / local mock store)
       final storedProfile = await AuthSessionStorage.getStoredProfile();
       if (storedProfile != null) {
-        if ((!SupabaseConfig.isConfigured && CustomerDataPolicy.allowDemo) ||
-            SupabaseConfig.client?.auth.currentUser != null) {
+        final token = await AuthSessionStorage.getStoredToken();
+        if (token != null ||
+            (!SupabaseConfig.isConfigured && CustomerDataPolicy.allowDemo)) {
           final affProfile =
               await AuthSessionStorage.getStoredAffiliateProfile();
 
@@ -295,47 +376,28 @@ class _AuthWrapperState extends State<AuthWrapper> {
             _initialAppDestination = lastDest;
           }
 
-          if (mounted) {
-            setState(() {
-              _isAuthLoading = false;
-              _sessionState = _sessionState.copyWith(
-                stage: AuthStage.authenticated,
-                userId: storedProfile.id,
-                email: storedProfile.email,
-                displayName: storedProfile.displayName,
-                role: workspaceRole,
-                profile: storedProfile,
-                affiliateProfile: affProfile,
-              );
-            });
-            return;
-          }
+          _authenticatedProfile = storedProfile;
+          _authenticatedAffProfile = affProfile;
+          _authenticatedRole = workspaceRole;
+
+          _resolveTo(AuthStage.authenticated);
+          return;
         }
       }
 
       // 3. No active or valid session found -> redirect to login (or onboarding on fresh install)
       final hasSeenOnboarding =
           await AuthSessionStorage.hasCompletedOnboarding();
-      if (mounted) {
-        setState(() {
-          _isAuthLoading = false;
-          _sessionState = _sessionState.copyWith(
-            stage: widget.initialStage != AuthStage.splash
-                ? widget.initialStage
-                : hasSeenOnboarding
-                ? AuthStage.login
-                : AuthStage.onboarding,
-          );
-        });
-      }
+      final targetStage = widget.initialStage != AuthStage.splash
+          ? widget.initialStage
+          : hasSeenOnboarding
+              ? AuthStage.login
+              : AuthStage.onboarding;
+
+      _resolveTo(targetStage);
     } catch (e) {
       debugPrint('[AuthWrapper] _restoreActiveSession caught error: $e');
-      if (mounted) {
-        setState(() {
-          _isAuthLoading = false;
-          _sessionState = _sessionState.copyWith(stage: AuthStage.login);
-        });
-      }
+      _resolveTo(AuthStage.login);
     }
   }
 
@@ -344,6 +406,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialStage != widget.initialStage &&
         widget.initialStage != AuthStage.splash &&
+        _sessionState.stage != AuthStage.authenticated &&
         !_isAuthLoading) {
       _sessionState = _sessionState.copyWith(stage: widget.initialStage);
     }
@@ -397,21 +460,22 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Widget build(BuildContext context) {
     final colors = context.uiColors;
 
-    // Route Guard Loading State:
-    // Prevents flashing the login page while persistent session is being restored.
+    // Route Guard Splash / Loading State:
+    // Shows the animated brand splash screen while restoring session or on cold launch.
+    if ((_isAuthLoading && !_splashCompleted) ||
+        _sessionState.stage == AuthStage.splash) {
+      return ColoredBox(
+        color: colors.background,
+        child: SplashScreen(
+          onFinish: _onSplashFinish,
+        ),
+      );
+    }
+
     if (_isAuthLoading) {
       return ColoredBox(
         color: colors.background,
         child: const _AuthLoadingScreen(),
-      );
-    }
-
-    if (_sessionState.stage == AuthStage.splash) {
-      return ColoredBox(
-        color: colors.background,
-        child: SplashScreen(
-          onFinish: () => _navigateToStage(AuthStage.onboarding),
-        ),
       );
     }
 

@@ -250,9 +250,15 @@ class _LoginPageState extends State<LoginPage> {
                                                 ),
                                                 RoleSelectorTab(
                                                   selectedRole: _selectedRole,
-                                                  roles: const <UserRole>[
+                                                  roles: <UserRole>[
                                                     UserRole.customer,
                                                     UserRole.affiliate,
+                                                    if (widget.initialRole ==
+                                                            UserRole
+                                                                .userAdmin ||
+                                                        _selectedRole ==
+                                                            UserRole.userAdmin)
+                                                      UserRole.userAdmin,
                                                   ],
                                                   onRoleChanged: (role) =>
                                                       setState(
@@ -411,6 +417,7 @@ class _LoginPageState extends State<LoginPage> {
                                               variant: UiVariant.primary,
                                               intent: _selectedRole.badgeIntent,
                                               size: UiSize.lg,
+                                              expand: true,
                                               onPressed: _isLoading
                                                   ? null
                                                   : _handleSubmit,
@@ -437,9 +444,9 @@ class _LoginPageState extends State<LoginPage> {
                                               variant: UiVariant.outline,
                                               intent: UiIntent.neutral,
                                               size: UiSize.lg,
-                                              leading: const Icon(
-                                                Icons.g_mobiledata,
-                                                size: 24,
+                                              expand: true,
+                                              leading: const GoogleLogoMark(
+                                                size: 20,
                                               ),
                                               onPressed: () =>
                                                   _showSocialToast('Google'),
@@ -548,9 +555,8 @@ class _LoginPageState extends State<LoginPage> {
                                           'Terms of Service',
                                           style: context.uiText.caption
                                               .copyWith(
-                                                color: colors.foregroundMuted,
-                                                decoration:
-                                                    TextDecoration.underline,
+                                                color: colors.primary,
+                                                fontWeight: FontWeight.w500,
                                                 fontSize: 11.5,
                                               ),
                                         ),
@@ -567,9 +573,8 @@ class _LoginPageState extends State<LoginPage> {
                                           'Privacy Policy',
                                           style: context.uiText.caption
                                               .copyWith(
-                                                color: colors.foregroundMuted,
-                                                decoration:
-                                                    TextDecoration.underline,
+                                                color: colors.primary,
+                                                fontWeight: FontWeight.w500,
                                                 fontSize: 11.5,
                                               ),
                                         ),

@@ -319,6 +319,7 @@ class UiTypography {
       fontWeight: weight,
       height: height,
       letterSpacing: tracking,
+      decoration: TextDecoration.none,
     );
     return UiTypography(
       fontFamily: fontFamily,
@@ -337,6 +338,7 @@ class UiTypography {
         fontSize: 14,
         fontWeight: FontWeight.w600,
         height: 1.3,
+        decoration: TextDecoration.none,
         fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
       ),
     );

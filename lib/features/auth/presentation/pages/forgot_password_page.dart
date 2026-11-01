@@ -449,6 +449,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     variant: UiVariant.primary,
                                     intent: UiIntent.primary,
                                     size: UiSize.lg,
+                                    expand: true,
                                     onPressed: _isLoading
                                         ? null
                                         : _handleSendResetLink,
@@ -548,6 +549,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     variant: UiVariant.primary,
                                     intent: UiIntent.primary,
                                     size: UiSize.lg,
+                                    expand: true,
                                     onPressed: _isLoading
                                         ? null
                                         : () => _handleVerifyOtp(),
@@ -613,6 +615,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     variant: UiVariant.primary,
                                     intent: UiIntent.primary,
                                     size: UiSize.lg,
+                                    expand: true,
                                     onPressed: _isLoading
                                         ? null
                                         : _handleResetPassword,
@@ -657,6 +660,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     variant: UiVariant.primary,
                                     intent: UiIntent.primary,
                                     size: UiSize.lg,
+                                    expand: true,
                                     onPressed: widget.onBackToLogin,
                                   ),
                                 ],

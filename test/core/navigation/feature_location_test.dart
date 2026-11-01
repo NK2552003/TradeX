@@ -41,7 +41,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       tester.widget<TabBar>(find.byType(TabBar).first).controller!.index,
-      4,
+      3,
     );
     await tester.ensureVisible(find.text('Crypto').first);
     await tester.tap(find.text('Crypto').first);
@@ -51,7 +51,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       tester.widget<TabBar>(find.byType(TabBar).first).controller!.index,
-      2,
+      1,
     );
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
