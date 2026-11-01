@@ -46,9 +46,15 @@ const args = Object.fromEntries(
 const SYNC_SCOPE = (args.scope || process.env.SYNC_SCOPE || 'all').toLowerCase();
 const FETCH_LIVE = (args.live || process.env.FETCH_LIVE || 'true').toLowerCase() !== 'false';
 
+const HAS_SERVICE_ROLE_KEY =
+  (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim().length > 0;
 let bearerToken = SUPABASE_SERVICE_ROLE_KEY;
 
 async function authenticateIfNeeded() {
+  if (HAS_SERVICE_ROLE_KEY) {
+    console.log('[sync] Using SUPABASE_SERVICE_ROLE_KEY for direct RLS bypass');
+    return;
+  }
   if (!SUPABASE_ADMIN_EMAIL || !SUPABASE_ADMIN_PASSWORD) {
     return;
   }
@@ -248,31 +254,59 @@ async function syncTickersAndQuotes() {
   const quoteRows = [];
   const symbols = tickersRows.map((t) => t.ticker);
 
+  // When FETCH_LIVE is true, fetch live Yahoo Finance quotes in fast parallel batches
+  // for the top priority instruments (indices, active NSE/US leaders, crypto) so the
+  // CI job completes within ~60 seconds instead of making 15,000 sequential calls.
+  const liveQuoteMap = new Map();
+  if (FETCH_LIVE) {
+    const prioritySymbols = symbols.slice(0, 120);
+    const batchSize = 15;
+    for (let i = 0; i < prioritySymbols.length; i += batchSize) {
+      const slice = prioritySymbols.slice(i, i + batchSize);
+      await Promise.all(
+        slice.map(async (symbol) => {
+          try {
+            const live = await fetchYahooChart(symbol, '5d', '1d');
+            if (live?.meta?.regularMarketPrice) {
+              liveQuoteMap.set(symbol, live.meta);
+            }
+          } catch (_) {
+            // Keep seed fallback if rate-limited
+          }
+        })
+      );
+    }
+    console.log(
+      `[sync] Fetched ${liveQuoteMap.size} live Yahoo Finance quotes (merged with ${symbols.length} total tickers)`
+    );
+  }
+
   for (const symbol of symbols) {
     const seed = quotesSeed[symbol] || {};
     let price = Number(seed.price ?? seed.regularMarketPrice ?? 0);
-    let prevClose = Number(seed.previous_close ?? seed.regularMarketPreviousClose ?? price);
+    let prevClose = Number(
+      seed.previous_close ?? seed.regularMarketPreviousClose ?? price
+    );
     let dayHigh = Number(seed.day_high ?? seed.regularMarketDayHigh ?? price);
     let dayLow = Number(seed.day_low ?? seed.regularMarketDayLow ?? price);
     let volume = Number(seed.volume ?? seed.regularMarketVolume ?? 0);
-    let changePct = Number(seed.change_pct ?? seed.regularMarketChangePercent ?? 0);
+    let changePct = Number(
+      seed.change_pct ?? seed.regularMarketChangePercent ?? 0
+    );
 
-    if (FETCH_LIVE) {
-      try {
-        const live = await fetchYahooChart(symbol, '5d', '1d');
-        const meta = live?.meta;
-        if (meta?.regularMarketPrice) {
-          price = Number(meta.regularMarketPrice);
-          prevClose = Number(meta.chartPreviousClose ?? meta.previousClose ?? price);
-          dayHigh = Number(meta.regularMarketDayHigh ?? price);
-          dayLow = Number(meta.regularMarketDayLow ?? price);
-          volume = Number(meta.regularMarketVolume ?? volume);
-          changePct =
-            prevClose > 0 ? Number((((price - prevClose) / prevClose) * 100).toFixed(2)) : 0;
-        }
-      } catch (_) {
-        // Keep seed fallback if rate-limited
-      }
+    const meta = liveQuoteMap.get(symbol);
+    if (meta?.regularMarketPrice) {
+      price = Number(meta.regularMarketPrice);
+      prevClose = Number(
+        meta.chartPreviousClose ?? meta.previousClose ?? price
+      );
+      dayHigh = Number(meta.regularMarketDayHigh ?? price);
+      dayLow = Number(meta.regularMarketDayLow ?? price);
+      volume = Number(meta.regularMarketVolume ?? volume);
+      changePct =
+        prevClose > 0
+          ? Number((((price - prevClose) / prevClose) * 100).toFixed(2))
+          : 0;
     }
 
     if (price > 0) {
@@ -302,16 +336,27 @@ async function syncTickersAndQuotes() {
       market_cap: f.market_cap != null ? Math.round(Number(f.market_cap)) : null,
       pe_ratio: f.pe_ratio != null ? Number(f.pe_ratio) : null,
       forward_pe: f.forward_pe != null ? Number(f.forward_pe) : null,
-      pb_ratio: f.pb_ratio != null ? Number(f.pb_ratio) : null,
-      dividend_yield: f.dividend_yield != null ? Number(f.dividend_yield) : null,
-      roe: f.roe != null ? Number(f.roe) : null,
-      profit_margins: f.profit_margins != null ? Number(f.profit_margins) : null,
+      peg_ratio: f.peg_ratio != null ? Number(f.peg_ratio) : null,
+      eps: f.eps != null ? Number(f.eps) : null,
+      dividend_yield:
+        f.dividend_yield != null ? Number(f.dividend_yield) : null,
       beta: f.beta != null ? Number(f.beta) : null,
       fifty_two_week_high:
         f.fifty_two_week_high != null ? Number(f.fifty_two_week_high) : null,
       fifty_two_week_low:
         f.fifty_two_week_low != null ? Number(f.fifty_two_week_low) : null,
-      summary: f.summary || null,
+      fifty_day_average:
+        f.fifty_day_average != null ? Number(f.fifty_day_average) : null,
+      two_hundred_day_average:
+        f.two_hundred_day_average != null
+          ? Number(f.two_hundred_day_average)
+          : null,
+      avg_volume:
+        f.avg_volume != null ? Math.round(Number(f.avg_volume)) : null,
+      shares_outstanding:
+        f.shares_outstanding != null
+          ? Math.round(Number(f.shares_outstanding))
+          : null,
       updated_at: new Date().toISOString(),
     });
   }
@@ -364,17 +409,15 @@ async function syncNews(tickerMap) {
   const seedNews = readJsonFile('all_news.json') || [];
   const liveNews = FETCH_LIVE ? await fetchLiveRssNews() : [];
 
-  const articlesById = new Map();
-  const articleTickerLinks = [];
+  const articlesByLink = new Map();
+  const tickersByLink = new Map();
 
   for (const item of [...liveNews, ...seedNews]) {
-    const id = String(item.id || '').trim();
     const title = String(item.title || '').trim();
     const link = String(item.link || '').trim();
-    if (!id || !title || !link) continue;
+    if (!title || !link) continue;
 
-    articlesById.set(id, {
-      id,
+    articlesByLink.set(link, {
       title,
       summary: item.summary || title,
       link,
@@ -384,30 +427,57 @@ async function syncNews(tickerMap) {
       published_at: item.published_at || new Date().toISOString(),
     });
 
-    const related = Array.isArray(item.related_tickers)
-      ? item.related_tickers
-      : [];
+    const related = new Set(
+      Array.isArray(item.related_tickers) ? item.related_tickers : []
+    );
+    if (item.ticker) related.add(item.ticker);
+    const bucket = tickersByLink.get(link) || new Set();
     for (const sym of related) {
       if (!tickerMap || tickerMap.has(sym)) {
+        bucket.add(sym);
+      }
+    }
+    if (bucket.size > 0) {
+      tickersByLink.set(link, bucket);
+    }
+  }
+
+  const newsRows = Array.from(articlesByLink.values()).slice(0, 500);
+  const upsertedNews = await upsertBatch('news_articles', newsRows, 'link');
+  console.log(`[sync] Upserted ${upsertedNews} news_articles`);
+
+  // Resolve numeric article_id by link so we can link news_article_tickers
+  const articlesRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/news_articles?select=id,link&limit=1000`,
+    {
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${bearerToken}`,
+      },
+    }
+  );
+  if (articlesRes.ok) {
+    const storedArticles = await articlesRes.json();
+    const idByLink = new Map(storedArticles.map((a) => [a.link, a.id]));
+    const articleTickerLinks = [];
+    for (const [link, syms] of tickersByLink.entries()) {
+      const articleId = idByLink.get(link);
+      if (!articleId) continue;
+      for (const sym of syms) {
         articleTickerLinks.push({
-          article_id: id,
+          article_id: articleId,
           ticker: sym,
         });
       }
     }
-  }
-
-  const newsRows = Array.from(articlesById.values());
-  const upsertedNews = await upsertBatch('news_articles', newsRows, 'id');
-  console.log(`[sync] Upserted ${upsertedNews} news_articles`);
-
-  if (articleTickerLinks.length > 0) {
-    const upsertedLinks = await upsertBatch(
-      'news_article_tickers',
-      articleTickerLinks,
-      'article_id,ticker'
-    );
-    console.log(`[sync] Upserted ${upsertedLinks} news_article_tickers`);
+    if (articleTickerLinks.length > 0) {
+      const upsertedLinks = await upsertBatch(
+        'news_article_tickers',
+        articleTickerLinks,
+        'article_id,ticker'
+      );
+      console.log(`[sync] Upserted ${upsertedLinks} news_article_tickers`);
+    }
   }
 }
 
@@ -435,7 +505,22 @@ async function syncScreeners(tickerMap) {
   const cats = await catsRes.json();
   const idByName = new Map(cats.map((c) => [c.name, c.id]));
 
-  const resultRows = [];
+  const existingRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/screener_results?select=id,category_id,rank&limit=5000`,
+    {
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${bearerToken}`,
+      },
+    }
+  );
+  const existingRows = existingRes.ok ? await existingRes.json() : [];
+  const existingIdByCatRank = new Map(
+    existingRows.map((r) => [`${r.category_id}:${r.rank}`, r.id])
+  );
+
+  const rowsWithId = [];
+  const rowsWithoutId = [];
   for (const [name, payload] of Object.entries(screenersSeed)) {
     const categoryId = idByName.get(name);
     if (!categoryId) continue;
@@ -443,26 +528,33 @@ async function syncScreeners(tickerMap) {
     quotes.forEach((q, idx) => {
       const symbol = q.ticker || q.symbol;
       if (!symbol || (tickerMap && !tickerMap.has(symbol))) return;
-      resultRows.push({
+      const rank = idx + 1;
+      const existingId = existingIdByCatRank.get(`${categoryId}:${rank}`);
+      const row = {
         category_id: categoryId,
         ticker: symbol,
-        rank: idx + 1,
+        rank,
         price: Number(q.price ?? q.regularMarketPrice ?? 0),
         change_pct: Number(q.change_pct ?? q.regularMarketChangePercent ?? 0),
         extra_data: q,
-        updated_at: new Date().toISOString(),
-      });
+        run_at: new Date().toISOString(),
+      };
+      if (existingId != null) {
+        rowsWithId.push({ id: existingId, ...row });
+      } else {
+        rowsWithoutId.push(row);
+      }
     });
   }
 
-  if (resultRows.length > 0) {
-    const upserted = await upsertBatch(
-      'screener_results',
-      resultRows,
-      'category_id,ticker'
-    );
-    console.log(`[sync] Upserted ${upserted} screener_results`);
+  let totalUpserted = 0;
+  if (rowsWithId.length > 0) {
+    totalUpserted += await upsertBatch('screener_results', rowsWithId, 'id');
   }
+  if (rowsWithoutId.length > 0) {
+    totalUpserted += await upsertBatch('screener_results', rowsWithoutId, null);
+  }
+  console.log(`[sync] Upserted ${totalUpserted} screener_results`);
 }
 
 async function main() {
