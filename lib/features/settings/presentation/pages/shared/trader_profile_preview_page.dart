@@ -703,6 +703,21 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
     if (isViewingSelf) {
       tabItems.add(
         UiTabItem(
+          label: 'Pending Approval',
+          icon: Icons.pending_actions_rounded,
+          content: _TraderPendingApprovalPostsPreview(
+            authorId: targetAuthorId,
+            handle: _cleanHandle,
+            repository: widget.repository,
+            author: widget.author,
+            onPostTap: widget.onPostTap,
+            onOpenRef: widget.onOpenRef,
+            verifiedColor: verifiedColor,
+          ),
+        ),
+      );
+      tabItems.add(
+        UiTabItem(
           label: 'Activity',
           icon: Icons.history_rounded,
           content: _TraderActivityHistoryPreview(
@@ -2265,6 +2280,12 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                                     color: theme.colors.foregroundMuted,
                                   ),
                                 ),
+                                if (widget.post?.isPendingApproval == true)
+                                  const UiBadge(
+                                    label: 'Pending Approval',
+                                    intent: UiIntent.warning,
+                                    variant: UiBadgeVariant.soft,
+                                  ),
                               ],
                             ),
                           ),
@@ -4923,6 +4944,132 @@ class _GridPatternPainter extends CustomPainter {
   @override
   bool shouldRepaint(_GridPatternPainter oldDelegate) =>
       oldDelegate.gridColor != gridColor;
+}
+
+// ---------------------------------------------------------------------------
+// Author-Only Pending Approval Posts Preview Tab
+// ---------------------------------------------------------------------------
+
+class _TraderPendingApprovalPostsPreview extends StatelessWidget {
+  const _TraderPendingApprovalPostsPreview({
+    this.authorId,
+    required this.handle,
+    this.repository,
+    this.author,
+    this.onPostTap,
+    this.onOpenRef,
+    required this.verifiedColor,
+  });
+
+  final String? authorId;
+  final String handle;
+  final CommunityRepository? repository;
+  final CommunityAuthor? author;
+  final ValueChanged<CommunityPost>? onPostTap;
+  final ValueChanged<AppLinkRef>? onOpenRef;
+  final Color verifiedColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    final repo = repository ?? CommunityRepository();
+
+    return ListenableBuilder(
+      listenable: repo,
+      builder: (context, _) {
+        final targetId = (authorId != null && authorId!.trim().isNotEmpty)
+            ? authorId!
+            : (author?.id.isNotEmpty == true
+                ? author!.id
+                : repo.currentAuthor.id);
+
+        final List<CommunityPost> pendingPosts =
+            repo.pendingPostsForAuthor(targetId);
+
+        if (pendingPosts.isEmpty) {
+          return Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.xl),
+              horizontal: context.sp(theme.spacing.md),
+            ),
+            child: const UiEmptyState(
+              icon: Icons.task_alt_rounded,
+              title: 'No pending posts',
+              message:
+                  'All your posts have been reviewed and approved. Newly created community posts will appear here while awaiting moderation approval.',
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                context.sp(theme.spacing.md),
+                context.sp(theme.spacing.xs),
+                context.sp(theme.spacing.md),
+                context.sp(theme.spacing.sm),
+              ),
+              child: const UiCallout(
+                title: 'Awaiting Moderation',
+                message:
+                    'These posts are in review and are only visible to you. Once approved by moderators, they will be published to the public community feed.',
+                intent: UiIntent.warning,
+              ),
+            ),
+            ...pendingPosts.map((CommunityPost post) {
+              final diff = DateTime.now().difference(post.createdAt);
+              final timeStr = diff.inMinutes < 60
+                  ? '${diff.inMinutes}m ago'
+                  : (diff.inHours < 24
+                      ? '${diff.inHours}h ago'
+                      : (diff.inDays == 1
+                          ? 'Yesterday'
+                          : '${diff.inDays}d ago'));
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _TwitterPostCard(
+                  post: post,
+                  displayName: post.author.displayName,
+                  handle: post.author.handle,
+                  avatarUrl: post.author.avatarUrl,
+                  verifiedColor: verifiedColor,
+                  isPinned: post.isPinned,
+                  timestamp: timeStr,
+                  body: post.body,
+                  tags: post.tags,
+                  likes: '${post.likes}',
+                  reposts: '${post.reposts}',
+                  replies: '${post.comments}',
+                  views: '${post.views}',
+                  setupSnapshot: post.tradeSetup != null
+                      ? _TradeSetupSnippet(
+                          ticker: post.tradeSetup!.ticker,
+                          side: post.tradeSetup!.side,
+                          entry: post.tradeSetup!.entry,
+                          exit: post.tradeSetup!.exit ?? '--',
+                          rMultiple: post.tradeSetup!.rMultiple ?? '--',
+                          pnl: post.tradeSetup!.pnl ?? '--',
+                          isWin: post.tradeSetup!.isWin ?? true,
+                          tradeId:
+                              'trd_${post.tradeSetup!.ticker.toLowerCase().replaceAll(' ', '_')}',
+                          onOpenRef: onOpenRef,
+                        )
+                      : null,
+                  onTap: onPostTap != null ? () => onPostTap!(post) : null,
+                  onOpenRef: onOpenRef,
+                  repository: repo,
+                  isAuthor: true,
+                ),
+              );
+            }),
+          ],
+        );
+      },
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

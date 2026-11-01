@@ -710,6 +710,7 @@ class AppPost {
     this.views = 0,
     this.liked = false,
     this.saved = false,
+    this.moderationStatus = 'approved',
   });
 
   final String id;
@@ -730,6 +731,10 @@ class AppPost {
   final int views;
   final bool liked;
   final bool saved;
+  final String moderationStatus;
+
+  /// Returns true when this post is awaiting moderator approval.
+  bool get isPendingApproval => moderationStatus.trim().toLowerCase() == 'pending';
 }
 
 abstract class AppPostAttachment {

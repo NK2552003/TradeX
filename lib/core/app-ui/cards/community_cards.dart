@@ -46,6 +46,14 @@ class AppPostCard extends StatelessWidget {
             onTap: onAuthorTap,
             trailingLabel: AppTokens.relativeTime(post.createdAt),
           ),
+          if (post.isPendingApproval) ...<Widget>[
+            SizedBox(height: context.sp(theme.spacing.xs)),
+            const UiBadge(
+              label: 'Pending Approval',
+              intent: UiIntent.warning,
+              variant: UiBadgeVariant.soft,
+            ),
+          ],
           SizedBox(height: context.sp(theme.spacing.md)),
           Text(post.body, style: context.uiText.body),
           if (post.tickers.isNotEmpty) ...<Widget>[

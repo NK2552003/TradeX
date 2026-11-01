@@ -1025,10 +1025,10 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       if (!mounted) return;
       UiToast.show(
         context,
-        title: _scheduledFor != null ? 'Scheduled!' : 'Published!',
+        title: _scheduledFor != null ? 'Scheduled!' : 'Submitted for Review',
         message: _scheduledFor != null
             ? 'Post scheduled for ${_scheduledFor!.hour.toString().padLeft(2, '0')}:${_scheduledFor!.minute.toString().padLeft(2, '0')}'
-            : 'Your setup is now live in the community feed.',
+            : 'Your post has been submitted and is pending approval.',
         intent: UiIntent.success,
       );
 

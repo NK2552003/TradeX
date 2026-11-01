@@ -331,6 +331,12 @@ class CommunityRepository extends ChangeNotifier {
           continue;
         }
 
+        final moderationStatus =
+            row['moderation_status']?.toString().toLowerCase() ?? 'approved';
+        if (moderationStatus != 'approved' && authorId != targetUserId) {
+          continue;
+        }
+
         final author = mapProfileToCommunityAuthor(
           authorId: authorId,
           authorProfile: authorProfile,
@@ -499,6 +505,7 @@ class CommunityRepository extends ChangeNotifier {
           userReaction: userPostReactions[postId],
           reposted: repostedPostIds.contains(postId),
           bookmarked: bookmarkedPostIds.contains(postId),
+          moderationStatus: row['moderation_status']?.toString() ?? 'approved',
         );
 
         allPosts.add(post);
@@ -926,6 +933,7 @@ class CommunityRepository extends ChangeNotifier {
       .where(
         (p) =>
             p.isPublic &&
+            (!p.isPendingApproval || p.author.id == currentAuthor.id) &&
             (p.scheduledFor == null ||
                 !p.scheduledFor!.isAfter(DateTime.now())) &&
             !_mutedUsers.contains(p.author.id) &&
@@ -936,6 +944,7 @@ class CommunityRepository extends ChangeNotifier {
       .where(
         (p) =>
             p.isPublic &&
+            (!p.isPendingApproval || p.author.id == currentAuthor.id) &&
             (p.scheduledFor == null ||
                 !p.scheduledFor!.isAfter(DateTime.now())) &&
             !_mutedUsers.contains(p.author.id) &&
@@ -946,6 +955,7 @@ class CommunityRepository extends ChangeNotifier {
       .where(
         (p) =>
             p.isPublic &&
+            (!p.isPendingApproval || p.author.id == currentAuthor.id) &&
             (p.scheduledFor == null ||
                 !p.scheduledFor!.isAfter(DateTime.now())) &&
             !_mutedUsers.contains(p.author.id) &&
@@ -1140,9 +1150,33 @@ class CommunityRepository extends ChangeNotifier {
           .replaceFirst('@', '')
           .trim();
       final matches = pAuthorId == cleanId || pAuthorHandle == cleanId;
-      return matches &&
-          (p.isPublic || p.author.id == currentAuthor.id) &&
-          seen.add(p.id);
+      final isSelf = pAuthorId == currentAuthor.id.toLowerCase().trim() ||
+          pAuthorHandle ==
+              currentAuthor.handle.toLowerCase().replaceFirst('@', '').trim();
+      final isApproved = !p.isPendingApproval;
+      final isAllowed = isSelf || (p.isPublic && isApproved);
+      return matches && isAllowed && seen.add(p.id);
+    }).toList();
+  }
+
+  /// Returns posts authored by [authorId] that are currently pending moderator approval.
+  List<CommunityPost> pendingPostsForAuthor(String authorId) {
+    if (authorId.trim().isEmpty) return const <CommunityPost>[];
+    final cleanId = authorId.toLowerCase().replaceFirst('@', '').trim();
+    final seen = <String>{};
+    final all = <CommunityPost>[
+      ..._forYouPosts,
+      ..._signalPosts,
+      ..._followingPosts,
+    ];
+    return all.where((p) {
+      final pAuthorId = p.author.id.toLowerCase().trim();
+      final pAuthorHandle = p.author.handle
+          .toLowerCase()
+          .replaceFirst('@', '')
+          .trim();
+      final matches = pAuthorId == cleanId || pAuthorHandle == cleanId;
+      return matches && p.isPendingApproval && seen.add(p.id);
     }).toList();
   }
 
@@ -2117,6 +2151,7 @@ class CommunityRepository extends ChangeNotifier {
       replyAudience: replyAudience,
       isDeskAlert: isDeskAlert,
       scheduledFor: scheduledFor,
+      moderationStatus: 'pending',
       views: 1,
     );
     _forYouPosts = <CommunityPost>[post, ..._forYouPosts];
@@ -2881,8 +2916,13 @@ class CommunityRepository extends ChangeNotifier {
         if (_blockedUsers.contains(authorId)) {
           return null;
         }
-        if (row['is_public'] != true &&
-            authorId != SupabaseConfig.client?.auth.currentUser?.id) {
+        final currentAuthId = SupabaseConfig.client?.auth.currentUser?.id;
+        final moderationStatus =
+            row['moderation_status']?.toString().toLowerCase() ?? 'approved';
+        if (moderationStatus != 'approved' && authorId != currentAuthId) {
+          return null;
+        }
+        if (row['is_public'] != true && authorId != currentAuthId) {
           return null;
         }
         final author = mapProfileToCommunityAuthor(
@@ -3036,6 +3076,7 @@ class CommunityRepository extends ChangeNotifier {
           comments: (row['comments_count'] as num?)?.toInt() ?? 0,
           reposts: (row['reposts_count'] as num?)?.toInt() ?? 0,
           views: (row['views_count'] as num?)?.toInt() ?? 0,
+          moderationStatus: row['moderation_status']?.toString() ?? 'approved',
         );
         _forYouPosts.insert(0, post);
         notifyListeners();
