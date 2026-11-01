@@ -5,5 +5,14 @@
   "assets": {
     "directory": "./build/web",
     "not_found_handling": "single-page-application"
-  }
+  },
+  "routes": [
+    { "pattern": "alphajournal.in", "custom_domain": true },
+    { "pattern": "www.alphajournal.in", "custom_domain": true },
+    { "pattern": "app.alphajournal.in", "custom_domain": true },
+    { "pattern": "community.alphajournal.in", "custom_domain": true },
+    { "pattern": "admin.alphajournal.in", "custom_domain": true },
+    { "pattern": "affiliate.alphajournal.in", "custom_domain": true }
+  ]
 }
+

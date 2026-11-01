@@ -1,0 +1,17 @@
+;;
+;; Domain:     alphajournal.in.
+;; Exported:   2026-11-01
+;;
+;; Import this file in Cloudflare Dashboard -> Websites -> alphajournal.in -> DNS -> Records -> Import
+;; IMPORTANT: Leave "Proxy imported DNS records" CHECKED when uploading!
+;;
+
+$ORIGIN alphajournal.in.
+$TTL 1
+
+alphajournal.in.            1   IN  CNAME   alphajournal.sid-kr-222003.workers.dev. ; cf_tags=cf-proxied:true
+www.alphajournal.in.        1   IN  CNAME   alphajournal.sid-kr-222003.workers.dev. ; cf_tags=cf-proxied:true
+app.alphajournal.in.        1   IN  CNAME   alphajournal.sid-kr-222003.workers.dev. ; cf_tags=cf-proxied:true
+community.alphajournal.in.  1   IN  CNAME   alphajournal.sid-kr-222003.workers.dev. ; cf_tags=cf-proxied:true
+admin.alphajournal.in.      1   IN  CNAME   alphajournal.sid-kr-222003.workers.dev. ; cf_tags=cf-proxied:true
+affiliate.alphajournal.in.  1   IN  CNAME   alphajournal.sid-kr-222003.workers.dev. ; cf_tags=cf-proxied:true
