@@ -4,7 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
+import 'package:tradex/features/admin_console/models/admin_records.dart';
+import '../../helpers/admin_repository_fixture.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_audit_log_page.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_risk_compliance_page.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_team_seats_page.dart';
@@ -27,7 +28,10 @@ Future<void> enterField(WidgetTester tester, String label, String value) async {
   final field = find
       .descendant(
         of: find.byWidgetPredicate(
-          (widget) => widget is UiField && widget.label == label,
+          (widget) =>
+              (widget is UiField && widget.label == label) ||
+              (widget is UiInput && widget.label == label) ||
+              (widget is UiTextarea && widget.label == label),
         ),
         matching: find.byType(TextField),
       )
@@ -46,68 +50,89 @@ void main() {
   });
   tearDown(() => CustomerDataPolicy.allowDemo = false);
   for (final width in [390.0, 1440.0]) {
-    testWidgets('seat form validates and persists at $width', (tester) async {
+    testWidgets('user suspension confirms identity and persists at $width', (
+      tester,
+    ) async {
+      final repository = AdminRepositoryFixture();
       await pumpWorkspace(
         tester,
-        const AdminTeamSeatsPage(),
+        AdminTeamSeatsPage(repository: repository),
         width: width,
         paneWidth: width,
       );
-      await tapLabel(tester, 'Provision Trader Seat');
-      await tapLabel(tester, 'Provision Seat');
-      expect(find.text('Check seat details'), findsOneWidget);
-      await enterField(tester, 'Trader Full Name', 'Scripted desk member');
-      await enterField(tester, 'Corporate Email', 'layout-$width@example.com');
-      await enterField(tester, 'Allocated Capital Limit (INR ₹)', '500000');
-      await captureWorkspace(tester, 'seat-dialog-${width.toInt()}');
-      await tapLabel(tester, 'Provision Seat');
-      expect(find.byType(UiDialog), findsNothing);
-      final seats = await AdminConsoleRepository.instance.listTraderSeats();
+      await tapLabel(tester, 'Details');
+      await tapLabel(tester, 'Suspend account');
+      await tapLabel(tester, 'Confirm');
       expect(
-        seats.any(
-          (seat) =>
-              seat.email == 'layout-$width@example.com' &&
-              seat.allocatedCapitalInr == 500000,
-        ),
-        isTrue,
+        find.text('Enter a reason between 3 and 2000 characters.'),
+        findsOneWidget,
       );
+      await enterField(tester, 'Reason for this change', 'Review required');
+      await enterField(
+        tester,
+        'Type review_trader to confirm',
+        'review_trader',
+      );
+      await captureWorkspace(tester, 'account-suspension-${width.toInt()}');
+      await tapLabel(tester, 'Confirm');
+      expect(repository.profile['status'], 'suspended');
+      expect(
+        repository.changes.single['userId'],
+        AdminRepositoryFixture.userId,
+      );
+      expect(find.text('Restore access'), findsOneWidget);
     });
-    testWidgets('risk review dialog and filters at $width', (tester) async {
+    testWidgets('deletion failure stays visible and can be retried at $width', (
+      tester,
+    ) async {
+      final repository = AdminRepositoryFixture()..failWrites = true;
+      repository.records[AdminResource.deletions]!.single['status'] = 'failed';
       await pumpWorkspace(
         tester,
-        const AdminRiskCompliancePage(),
+        AdminRiskCompliancePage(repository: repository),
         width: width,
         paneWidth: width,
       );
-      await tapLabel(tester, 'Approve');
-      expect(find.byType(UiDialog), findsOneWidget);
-      await captureWorkspace(tester, 'order-dialog-${width.toInt()}');
-      await tapLabel(tester, 'Cancel');
-      final approved = find.text('Approved').first;
-      await tester.ensureVisible(approved);
-      await tester.tap(approved);
-      await settleWorkspace(tester);
-      expect(tester.takeException(), isNull);
-      await scrollWorkspace(tester);
+      await tapLabel(tester, 'Details');
+      await tapLabel(tester, 'Retry account deletion');
+      await enterField(
+        tester,
+        'Reason for this change',
+        'Approved deletion request',
+      );
+      await enterField(
+        tester,
+        'Type review_trader to confirm',
+        'review_trader',
+      );
+      await tapLabel(tester, 'Confirm');
+      expect(find.text('Deletion failed; retry is available.'), findsOneWidget);
+      expect(repository.changes, isEmpty);
+      repository.failWrites = false;
+      await captureWorkspace(tester, 'deletion-retry-${width.toInt()}');
+      await tapLabel(tester, 'Confirm');
+      expect(find.text('Account deleted'), findsOneWidget);
+      expect(
+        repository.changes.single['recordId'],
+        AdminRepositoryFixture.recordId,
+      );
     });
-    testWidgets('audit timeline and proof dialog at $width', (tester) async {
+    testWidgets('activity opens the recorded actor and reason at $width', (
+      tester,
+    ) async {
+      final repository = AdminRepositoryFixture();
       await pumpWorkspace(
         tester,
-        const AdminAuditLogPage(),
+        AdminAuditLogPage(repository: repository),
         width: width,
         paneWidth: width,
       );
-      await tapLabel(tester, 'Timeline');
-      final timeline = find.byType(UiTimeline);
-      await tester.ensureVisible(timeline);
-      final item = find
-          .descendant(of: timeline, matching: find.byType(Text))
-          .first;
-      await tester.tap(item);
-      await settleWorkspace(tester);
-      expect(find.byType(UiDialog), findsOneWidget);
-      await captureWorkspace(tester, 'audit-proof-${width.toInt()}');
-      await tapLabel(tester, 'Done');
+      await tapLabel(tester, 'Details');
+      expect(find.text('Change information'), findsOneWidget);
+      expect(find.text('Review reason'), findsOneWidget);
+      await captureWorkspace(tester, 'activity-detail-${width.toInt()}');
+      await tapLabel(tester, 'Back');
+      expect(find.text('Activity history'), findsOneWidget);
     });
     testWidgets('campaign slug, copied payload and media at $width', (
       tester,

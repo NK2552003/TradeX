@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
 
-/// alphajournal brand mark: an upward arc rising out of three candlesticks.
-/// Painted in pure Dart so it scales, themes and animates with no asset.
+/// alphajournal brand mark: a dark slate journal cover with page block,
+/// bookmark ribbon, and luminous Greek alpha (α) glyph.
+/// Painted in pure Dart so it scales, themes and animates with no asset latency.
 class AppLogoMark extends StatelessWidget {
   const AppLogoMark({
     super.key,
@@ -31,8 +32,8 @@ class AppLogoMark extends StatelessWidget {
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
     final double dim = context.sz(size ?? 32);
-    final Color base = color ?? theme.colors.foreground;
-    final Color accent = accentColor ?? theme.colors.primary;
+    final Color base = color ?? const Color(0xFFFAF9F6);
+    final Color accent = accentColor ?? const Color(0xFF8B9FE8);
 
     final Widget mark = CustomPaint(
       size: Size.square(dim),
@@ -51,16 +52,16 @@ class AppLogoMark extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         borderRadius: context.radius(theme.radii.lg),
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: <Color>[
-            accent.withValues(alpha: 0.22),
-            accent.withValues(alpha: 0.05),
+            Color(0xFF1E1C1A),
+            Color(0xFF0D0C0B),
           ],
         ),
         border: Border.all(
-          color: accent.withValues(alpha: 0.35),
+          color: const Color(0xFFA8A29E).withValues(alpha: 0.28),
           width: theme.borders.hairline,
         ),
       ),
@@ -86,57 +87,112 @@ class _AppLogoPainter extends CustomPainter {
     final double h = size.height;
     if (w <= 0 || h <= 0) return;
 
-    final double stroke = math.max(1.4, w * 0.09);
+    final double coverAlpha = (progress * 1.8).clamp(0.0, 1.0);
+    if (coverAlpha <= 0) return;
 
-    // Three candlesticks of increasing height.
-    final List<double> heights = <double>[0.40, 0.62, 0.86];
-    final Paint candle = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = stroke;
+    // 1. Page block at bottom (cream pages peeking below the book cover).
+    final RRect pageBlock = RRect.fromRectAndCorners(
+      Rect.fromLTWH(w * 0.14, h * 0.72, w * 0.72, h * 0.18),
+      bottomLeft: Radius.circular(w * 0.10),
+      bottomRight: Radius.circular(w * 0.10),
+      topLeft: Radius.circular(w * 0.04),
+      topRight: Radius.circular(w * 0.04),
+    );
+    final Paint pagePaint = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(0, h * 0.72),
+        Offset(0, h * 0.90),
+        <Color>[
+          const Color(0xFFF5F5F4).withValues(alpha: coverAlpha),
+          const Color(0xFFD6D3D1).withValues(alpha: coverAlpha),
+        ],
+      );
+    canvas.drawRRect(pageBlock, pagePaint);
 
-    for (int i = 0; i < heights.length; i++) {
-      final double t = ((progress * 3) - i).clamp(0, 1);
-      if (t <= 0) continue;
-      final double x = w * (0.18 + i * 0.32);
-      final double full = h * heights[i];
-      final double top = h * 0.92 - full * t;
-      candle.color = i == heights.length - 1
-          ? accent.withValues(alpha: 0.95)
-          : base.withValues(alpha: 0.55);
-      canvas.drawLine(Offset(x, h * 0.92), Offset(x, top), candle);
+    // 2. Bookmark ribbon hanging from bottom-right of pages.
+    if (progress > 0.25) {
+      final double ribbonT = ((progress - 0.25) / 0.45).clamp(0.0, 1.0);
+      final double ribbonBottom = h * (0.78 + 0.18 * ribbonT);
+      final Path ribbon = Path()
+        ..moveTo(w * 0.61, h * 0.78)
+        ..lineTo(w * 0.73, h * 0.78)
+        ..lineTo(w * 0.73, ribbonBottom)
+        ..lineTo(w * 0.67, ribbonBottom - h * 0.04 * ribbonT)
+        ..lineTo(w * 0.61, ribbonBottom)
+        ..close();
+      final Paint ribbonPaint = Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(w * 0.61, h * 0.78),
+          Offset(w * 0.73, ribbonBottom),
+          <Color>[
+            accent.withValues(alpha: ribbonT),
+            const Color(0xFF4F63C4).withValues(alpha: ribbonT),
+          ],
+        );
+      canvas.drawPath(ribbon, ribbonPaint);
     }
 
-    // Upward arc sweeping over the candles.
-    final Path arc = Path()
-      ..moveTo(w * 0.10, h * 0.66)
-      ..cubicTo(w * 0.36, h * 0.62, w * 0.52, h * 0.42, w * 0.92, h * 0.12);
+    // 3. Dark slate journal cover with spine crease.
+    final RRect coverRect = RRect.fromRectAndCorners(
+      Rect.fromLTWH(w * 0.12, h * 0.08, w * 0.76, h * 0.70),
+      topLeft: Radius.circular(w * 0.09),
+      bottomLeft: Radius.circular(w * 0.09),
+      topRight: Radius.circular(w * 0.15),
+      bottomRight: Radius.circular(w * 0.15),
+    );
+    final Paint coverPaint = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(w * 0.12, h * 0.08),
+        Offset(w * 0.88, h * 0.78),
+        <Color>[
+          const Color(0xFF3A3734).withValues(alpha: coverAlpha),
+          const Color(0xFF22201E).withValues(alpha: coverAlpha),
+          const Color(0xFF151312).withValues(alpha: coverAlpha),
+        ],
+        const <double>[0.0, 0.55, 1.0],
+      );
+    canvas.drawRRect(coverRect, coverPaint);
 
-    final List<ui.PathMetric> metricsList = arc.computeMetrics().toList();
+    // Subtle cover rim & spine highlight.
+    final Paint rimPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(0.8, w * 0.025)
+      ..color = const Color(0xFFA8A29E).withValues(alpha: 0.35 * coverAlpha);
+    canvas.drawRRect(coverRect, rimPaint);
+
+    final Paint spineCrease = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(0.8, w * 0.02)
+      ..color = const Color(0xFF090807).withValues(alpha: 0.65 * coverAlpha);
+    canvas.drawLine(
+      Offset(w * 0.23, h * 0.09),
+      Offset(w * 0.23, h * 0.77),
+      spineCrease,
+    );
+
+    // 4. Luminous Greek Alpha (α) glyph on the cover.
+    final Path alphaGlyph = Path()
+      // Start at top-right of alpha, sweep down-left around the loop, then cross to bottom-right tail.
+      ..moveTo(w * 0.69, h * 0.29)
+      ..cubicTo(w * 0.61, h * 0.45, w * 0.54, h * 0.57, w * 0.44, h * 0.57)
+      ..cubicTo(w * 0.33, h * 0.57, w * 0.30, h * 0.48, w * 0.30, h * 0.42)
+      ..cubicTo(w * 0.30, h * 0.35, w * 0.35, h * 0.28, w * 0.45, h * 0.28)
+      ..cubicTo(w * 0.55, h * 0.28, w * 0.60, h * 0.38, w * 0.64, h * 0.48)
+      ..cubicTo(w * 0.67, h * 0.54, w * 0.70, h * 0.57, w * 0.75, h * 0.56);
+
+    final List<ui.PathMetric> metricsList = alphaGlyph.computeMetrics().toList();
     if (metricsList.isNotEmpty) {
       final ui.PathMetric metric = metricsList.first;
       final Path drawn = metric.extractPath(0, metric.length * progress);
-
       canvas.drawPath(
         drawn,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeCap = StrokeCap.round
-          ..strokeWidth = stroke * 0.85
-          ..color = accent,
+          ..strokeJoin = StrokeJoin.round
+          ..strokeWidth = math.max(1.6, w * 0.082)
+          ..color = base,
       );
-    }
-
-    // Arrow head at the arc tip.
-    if (progress > 0.85) {
-      final double a = ((progress - 0.85) / 0.15).clamp(0, 1);
-      final Paint head = Paint()..color = accent.withValues(alpha: a);
-      final Path tip = Path()
-        ..moveTo(w * 0.95, h * 0.09)
-        ..lineTo(w * 0.66, h * 0.14)
-        ..lineTo(w * 0.90, h * 0.38)
-        ..close();
-      canvas.drawPath(tip, head);
     }
   }
 
@@ -145,7 +201,7 @@ class _AppLogoPainter extends CustomPainter {
       old.progress != progress || old.base != base || old.accent != accent;
 }
 
-/// Wordmark: "Trader" in foreground, "Hub" in the brand color.
+/// Wordmark: "alpha" in foreground, "journal" in the brand color.
 class AppWordmark extends StatelessWidget {
   const AppWordmark({super.key, this.fontSize, this.color, this.accentColor});
 
@@ -167,9 +223,9 @@ class AppWordmark extends StatelessWidget {
       text: TextSpan(
         style: style,
         children: <TextSpan>[
-          const TextSpan(text: 'Trader'),
+          const TextSpan(text: 'alpha'),
           TextSpan(
-            text: 'Hub',
+            text: 'journal',
             style: style.copyWith(
               color: accentColor ?? context.uiColors.primary,
             ),

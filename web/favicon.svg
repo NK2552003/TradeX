@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="14" fill="#151312"/>
+  <path transform="translate(32 28) scale(0.1557) translate(-316 -270)" fill="#FAFAF9" fill-rule="evenodd" d="M325 170 L434 168 L436 184 C420 222 402 268 392 300 C386 332 402 366 424 348 C434 340 438 322 438 306 L426 306 C425 322 420 338 410 336 C398 334 392 314 384 290 C372 330 318 374 262 372 C214 372 190 336 194 290 C200 224 262 168 325 170 Z M332 194 C288 196 244 240 241 296 C239 328 252 347 273 347 C302 347 330 312 348 268 C362 232 360 206 332 194 Z"/>
+  <path d="M39 47 H47 V60 L43 57 L39 60 Z" fill="#6B7FD7"/>
+</svg>

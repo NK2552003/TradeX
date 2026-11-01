@@ -1,0 +1,68 @@
+name: Supabase Market & News Database Sync
+
+on:
+  schedule:
+    # Runs every 6 hours to refresh live market quotes, OHLCV history, screeners, and financial news
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      sync_scope:
+        description: 'Dataset scope to synchronize (all, quotes, history, news, screeners)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - quotes
+          - history
+          - news
+          - screeners
+      fetch_live:
+        description: 'Fetch live quotes & RSS market news before syncing to Supabase'
+        required: false
+        default: true
+        type: boolean
+  push:
+    branches:
+      - main
+      - feature/admin
+    paths:
+      - 'assets/data/**'
+      - 'scripts/sync_market_data_to_supabase.mjs'
+      - '.github/workflows/supabase-market-sync.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-market-sync
+  cancel-in-progress: true
+
+jobs:
+  sync-supabase-market-db:
+    name: Sync Market Assets, History & News to Supabase
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Supabase Market & News Sync Pipeline
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_ADMIN_EMAIL: ${{ secrets.SUPABASE_ADMIN_EMAIL }}
+          SUPABASE_ADMIN_PASSWORD: ${{ secrets.SUPABASE_ADMIN_PASSWORD }}
+          SYNC_SCOPE: ${{ inputs.sync_scope || 'all' }}
+          FETCH_LIVE: ${{ inputs.fetch_live != false && 'true' || 'false' }}
+        run: |
+          node scripts/sync_market_data_to_supabase.mjs \
+            --scope="${SYNC_SCOPE}" \
+            --live="${FETCH_LIVE}"

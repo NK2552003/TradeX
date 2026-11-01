@@ -1,14 +1,25 @@
 {
-    "name": "alphajournal",
+    "name": "alphajournal — Institutional Trading Journal & AI Playbooks",
     "short_name": "alphajournal",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "alphajournal Flutter project.",
+    "background_color": "#0D0C0B",
+    "theme_color": "#151312",
+    "description": "Log trades, write linked research notes, track strategy playbooks, and collaborate with verified traders on alphajournal.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "categories": [
+        "finance",
+        "productivity",
+        "business"
+    ],
     "icons": [
+        {
+            "src": "favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
         {
             "src": "icons/Icon-192.png",
             "sizes": "192x192",

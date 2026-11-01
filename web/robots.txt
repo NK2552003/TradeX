@@ -1,0 +1,17 @@
+# alphajournal robots.txt
+User-agent: *
+Allow: /
+Allow: /community_feed
+Allow: /market
+Allow: /affiliate_application
+Allow: /auth/login
+Allow: /auth/signup
+
+# Disallow private authenticated & administrative routes from search indexing
+Disallow: /admin_console
+Disallow: /settings
+Disallow: /messages
+Disallow: /billing_subscription
+
+Sitemap: https://alphajournal.in/sitemap.xml
+Sitemap: https://alphagournal.in/sitemap.xml

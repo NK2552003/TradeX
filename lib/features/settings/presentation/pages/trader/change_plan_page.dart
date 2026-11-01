@@ -809,7 +809,7 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
           Text(
             plan.tier == AppTier.free
                 ? 'Plan includes:'
-                : 'Everything in ${plan.tier == AppTier.premium ? 'Free' : 'Pro'}, plus:',
+                : 'Everything in ${plan.tier == AppTier.premium ? 'Free' : 'Basic'}, plus:',
             style: context.uiText.caption.copyWith(
               fontWeight: FontWeight.w600,
               color: colors.foreground,
@@ -987,7 +987,7 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                           flex: 2,
                           child: Center(
                             child: Text(
-                              'Pro',
+                              'Basic',
                               style: context.uiText.bodyStrong.copyWith(
                                 fontSize: 13,
                                 color: colors.primary,
@@ -999,7 +999,7 @@ class _ChangePlanPageState extends State<ChangePlanPage> {
                           flex: 2,
                           child: Center(
                             child: Text(
-                              'Enterprise',
+                              'Pro',
                               style: context.uiText.bodyStrong.copyWith(
                                 fontSize: 13,
                               ),

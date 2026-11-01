@@ -12,7 +12,6 @@ const captureWorkspaceUi = bool.fromEnvironment('CAPTURE_WORKSPACE_UI');
 const workspaceCaptureKey = ValueKey('workspace-design-capture');
 
 Future<void> loadWorkspaceFonts() async {
-  if (!captureWorkspaceUi) return;
   for (final family in ['NotoSans', 'NotoSansMono']) {
     final loader = FontLoader(family)
       ..addFont(rootBundle.load('assets/fonts/$family-Regular.ttf'))

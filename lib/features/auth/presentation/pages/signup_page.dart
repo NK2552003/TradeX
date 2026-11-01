@@ -43,6 +43,7 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController _referralCodeController = TextEditingController();
 
   bool _isLoading = false;
+  bool _isSignupOpen = true;
   String? _errorText;
 
   @override
@@ -53,6 +54,19 @@ class _SignupPageState extends State<SignupPage> {
         ? UserRole.customer
         : widget.initialRole;
     _repository = widget.authRepository ?? SupabaseAuthBackendService.instance;
+    _checkSignupCapacity();
+  }
+
+  Future<void> _checkSignupCapacity() async {
+    final open = await _repository.isSignupOpen();
+    if (!mounted) return;
+    setState(() {
+      _isSignupOpen = open;
+      if (!open) {
+        _errorText =
+            'Platform capacity reached (${AuthRepository.maxRegisteredUsersCap} users). New user registration is currently disabled.';
+      }
+    });
   }
 
   @override
@@ -66,6 +80,13 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   void _handleSubmit() async {
+    if (!_isSignupOpen) {
+      setState(
+        () => _errorText =
+            'Platform capacity reached (${AuthRepository.maxRegisteredUsersCap} users). New user registration is currently disabled.',
+      );
+      return;
+    }
     final handlerId = _handlerIdController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -464,45 +485,50 @@ class _SignupPageState extends State<SignupPage> {
 
                                             // Create Account Submit Button
                                             UiButton(
-                                              label: _isLoading
-                                                  ? 'Creating Account…'
-                                                  : 'Create Account',
+                                              label: !_isSignupOpen
+                                                  ? 'Registration Closed (100/100 Full)'
+                                                  : (_isLoading
+                                                        ? 'Creating Account…'
+                                                        : 'Create Account'),
                                               variant: UiVariant.primary,
                                               intent: _selectedRole.badgeIntent,
                                               size: UiSize.lg,
-                                              onPressed: _isLoading
+                                              onPressed:
+                                                  (_isLoading || !_isSignupOpen)
                                                   ? null
                                                   : _handleSubmit,
                                             ),
-                                            SizedBox(
-                                              height: context.sp(
-                                                theme.spacing.lg,
+                                            if (_isSignupOpen) ...[
+                                              SizedBox(
+                                                height: context.sp(
+                                                  theme.spacing.lg,
+                                                ),
                                               ),
-                                            ),
 
-                                            // Divider
-                                            const UiDivider(
-                                              label: 'Or continue with',
-                                            ),
-                                            SizedBox(
-                                              height: context.sp(
-                                                theme.spacing.md,
+                                              // Divider
+                                              const UiDivider(
+                                                label: 'Or continue with',
                                               ),
-                                            ),
+                                              SizedBox(
+                                                height: context.sp(
+                                                  theme.spacing.md,
+                                                ),
+                                              ),
 
-                                            // Social Authentication Buttons Grid
-                                            UiButton(
-                                              label: 'Sign up with Google',
-                                              variant: UiVariant.outline,
-                                              intent: UiIntent.neutral,
-                                              size: UiSize.lg,
-                                              leading: const Icon(
-                                                Icons.g_mobiledata,
-                                                size: 24,
+                                              // Social Authentication Buttons Grid
+                                              UiButton(
+                                                label: 'Sign up with Google',
+                                                variant: UiVariant.outline,
+                                                intent: UiIntent.neutral,
+                                                size: UiSize.lg,
+                                                leading: const Icon(
+                                                  Icons.g_mobiledata,
+                                                  size: 24,
+                                                ),
+                                                onPressed: () =>
+                                                    _showSocialToast('Google'),
                                               ),
-                                              onPressed: () =>
-                                                  _showSocialToast('Google'),
-                                            ),
+                                            ],
                                             SizedBox(
                                               height: context.sp(
                                                 theme.spacing.lg,

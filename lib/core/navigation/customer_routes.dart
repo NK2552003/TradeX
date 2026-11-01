@@ -17,6 +17,47 @@ class CustomerRoute {
   final AuthStage stage;
   final bool valid;
 
+  /// Returns the minimum role required when accessing the app from a dedicated
+  /// subdomain (`admin.*`, `affiliate.*`, `app.*`, `community.*`), or `null`
+  /// when any authenticated/public visitor may enter.
+  static UserRole? requiredRoleForSubdomain(String host) {
+    final normalized = host.trim().toLowerCase();
+    if (normalized.startsWith('admin.')) return UserRole.userAdmin;
+    if (normalized.startsWith('affiliate.')) return UserRole.affiliate;
+    return null;
+  }
+
+  /// Checks whether [role] (with optional [isApprovedAffiliate] and [isAdmin]
+  /// flags) is permitted to access [destination] on [host].
+  static bool canAccessDestination({
+    required String? destination,
+    required UserRole role,
+    String host = '',
+    bool isApprovedAffiliate = false,
+    bool isAdmin = false,
+  }) {
+    final normalizedHost = host.trim().toLowerCase();
+    final effectiveAdmin = isAdmin || role == UserRole.userAdmin;
+    final effectiveAffiliate =
+        effectiveAdmin || isApprovedAffiliate || role == UserRole.affiliate;
+
+    if (normalizedHost.startsWith('admin.') && !effectiveAdmin) {
+      return false;
+    }
+
+    if (destination == null || destination.isEmpty) return true;
+    if (destination == 'admin_console' || destination.startsWith('admin_')) {
+      return effectiveAdmin;
+    }
+    if (destination == 'affiliate_application') {
+      return true;
+    }
+    if (destination.startsWith('affiliate_')) {
+      return effectiveAffiliate;
+    }
+    return true;
+  }
+
   static CustomerRoute parse(Uri uri) {
     if (uri.scheme == 'tradex' &&
         uri.host == 'auth' &&
@@ -30,7 +71,31 @@ class CustomerRoute {
           : _record(target.kind, target.id, uri);
     }
     final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
-    if (segments.isEmpty) return const CustomerRoute();
+    if (segments.isEmpty) {
+      final host = uri.host.toLowerCase();
+      if (host.startsWith('community.')) {
+        return const CustomerRoute(destination: 'community_feed');
+      }
+      if (host.startsWith('admin.')) {
+        return const CustomerRoute(
+          destination: 'admin_console',
+          stage: AuthStage.login,
+        );
+      }
+      if (host.startsWith('affiliate.')) {
+        return const CustomerRoute(
+          destination: 'affiliate_application',
+          stage: AuthStage.login,
+        );
+      }
+      if (host.startsWith('app.')) {
+        return const CustomerRoute(
+          destination: 'workspace',
+          stage: AuthStage.login,
+        );
+      }
+      return const CustomerRoute();
+    }
     if (segments.length == 2 && segments.first == 'auth') {
       final stage = switch (segments[1]) {
         'login' => AuthStage.login,

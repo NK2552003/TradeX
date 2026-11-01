@@ -112,6 +112,55 @@ class YahooFinanceService {
       } catch (e) {
         debugPrint('[YahooFinanceService] Proxy fetchQuote error: $e');
       }
+
+      // 1b. Fallback to live Supabase stock_quotes & stock_price_history tables
+      try {
+        final client = SupabaseConfig.client!;
+        final row = await client
+            .from('stock_quotes')
+            .select('ticker, price, previous_close, change_pct, updated_at')
+            .eq('ticker', symbol)
+            .maybeSingle();
+        if (row != null && row['price'] is num) {
+          final double price = (row['price'] as num).toDouble();
+          final double prevClose =
+              (row['previous_close'] as num?)?.toDouble() ?? price;
+          final double change = price - prevClose;
+          final double changePct =
+              (row['change_pct'] as num?)?.toDouble() ??
+              (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
+          final histRows = await client
+              .from('stock_price_history')
+              .select('close')
+              .eq('ticker', symbol)
+              .order('date', ascending: true)
+              .limit(30);
+          final spark = (histRows as List)
+              .whereType<Map>()
+              .map((r) => (r['close'] as num?)?.toDouble())
+              .whereType<double>()
+              .where((v) => v.isFinite)
+              .toList();
+          final item = YahooMarketItem(
+            symbol: symbol,
+            name: displayName ?? symbol,
+            price: price,
+            change: change,
+            changePercent: changePct,
+            spark: spark.isNotEmpty ? spark : <double>[prevClose, price],
+            category: category,
+            isLive: true,
+            timestamp:
+                DateTime.tryParse('${row['updated_at']}') ?? DateTime.now(),
+            source: 'Supabase Live DB',
+          );
+          _quoteCache[cacheKey] = (
+            item: item,
+            expires: DateTime.now().add(_quoteTtl),
+          );
+          return item;
+        }
+      } catch (_) {}
     }
 
     // 2. Direct HTTP call on non-web native platforms only
@@ -233,6 +282,40 @@ class YahooFinanceService {
       } catch (e) {
         debugPrint('[YahooFinanceService] Proxy fetchIndexItem error: $e');
       }
+
+      // 1b. Fallback to live Supabase stock_quotes table
+      try {
+        final client = SupabaseConfig.client!;
+        final row = await client
+            .from('stock_quotes')
+            .select('ticker, price, previous_close, change_pct, updated_at')
+            .eq('ticker', symbol)
+            .maybeSingle();
+        if (row != null && row['price'] is num) {
+          final double price = (row['price'] as num).toDouble();
+          final double prevClose =
+              (row['previous_close'] as num?)?.toDouble() ?? price;
+          final double changePct =
+              (row['change_pct'] as num?)?.toDouble() ??
+              (prevClose == 0 ? 0.0 : ((price - prevClose) / prevClose) * 100);
+          final item = MarketIndexItem(
+            symbol: symbol,
+            name: name,
+            price: price,
+            changePercent: changePct,
+            spark: <double>[prevClose, price],
+            isLive: true,
+            timestamp:
+                DateTime.tryParse('${row['updated_at']}') ?? DateTime.now(),
+            source: 'Supabase Live DB',
+          );
+          _indexCache[symbol] = (
+            item: item,
+            expires: DateTime.now().add(_quoteTtl),
+          );
+          return item;
+        }
+      } catch (_) {}
     }
 
     // 2. Direct HTTP call on non-web native platforms only
@@ -453,6 +536,29 @@ class YahooFinanceService {
       } catch (e) {
         debugPrint('[YahooFinanceService] Proxy fetchLiveNews error: $e');
       }
+
+      // 1b. Fallback to live Supabase news_articles table
+      try {
+        final client = SupabaseConfig.client!;
+        final rows = await client
+            .from('news_articles')
+            .select(
+              'title, summary, link, publisher, thumbnail_url, content_type, published_at',
+            )
+            .order('published_at', ascending: false)
+            .limit(count);
+        if (rows.isNotEmpty) {
+          final articles = rows
+              .whereType<Map>()
+              .map((raw) => MarketArticle.fromJson(Map<String, dynamic>.from(raw)))
+              .toList();
+          _newsCache[cacheKey] = (
+            items: articles,
+            expires: DateTime.now().add(_newsTtl),
+          );
+          return articles;
+        }
+      } catch (_) {}
     }
 
     // 2. Direct HTTP call on non-web native platforms only

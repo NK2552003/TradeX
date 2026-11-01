@@ -1,211 +1,100 @@
 {
+  "copy": {
+    "title": "Select a Plan",
+    "subtitle": "Start on Free with 3 notes and community view access. Monthly subscriptions for Basic and Pro are disabled for now.",
+    "annual_badge": "Save 20%",
+    "billed_annually": "Billed annually",
+    "monthly": "Monthly",
+    "Recommended": "MONTHLY SUBSCRIPTIONS DISABLED",
+    "current": "Current Plan",
+    "selected": "Selected Plan",
+    "select": "Select",
+    "footer": "Free includes up to 3 notes, community view, and core tools. Paid monthly subscriptions are temporarily disabled."
+  },
   "plans": [
     {
       "id": "tier_free",
       "tier": "free",
       "name": "Free",
-      "subtitle": "Available now: research, journals, community and AI usage within limits",
+      "tagline": "Essential starter workspace with 3 notes, community view access, and core trading tools.",
       "monthly_amount": 0.0,
       "annual_monthly_amount": 0.0,
       "currency_symbol": "₹",
-      "features_summary": [
-        "Up to 25 research notes",
-        "Up to 100 logged trades (total)",
-        "Up to 3 active playbooks",
-        "Up to 20 AI prompts per month",
-        "Charts, market browsing and community features where available"
-      ],
-      "badge_label": "AVAILABLE",
-      "highlighted": false,
-      "is_current": false,
+      "is_popular": false,
+      "is_purchasable": true,
+      "badge_label": "AVAILABLE NOW",
       "cta_label": "Continue with Free",
       "limits": {
-        "notes": 25,
-        "trades": 100,
-        "live_playbooks": 3,
-        "ai_queries_per_month": 20
+        "notes": 3,
+        "trades": 15,
+        "live_playbooks": 1,
+        "watchlists": 1,
+        "ai_queries_per_month": 5
       },
-      "is_purchasable": true
+      "features": [
+        "Up to 3 research notes",
+        "Community feed & public post view access",
+        "Up to 15 logged trades (total)",
+        "1 active playbook & 1 watchlist",
+        "Up to 5 AI prompts per month",
+        "Core calculators & market view"
+      ]
     },
     {
       "id": "tier_pro",
       "tier": "premium",
-      "name": "Pro",
-      "subtitle": "Planned paid tier; checkout and activation are not yet available",
-      "monthly_amount": 2499.0,
-      "annual_monthly_amount": 1999.0,
+      "name": "Basic",
+      "tagline": "Expanded trading workspace with 25 notes, 100 trades, and 3 active playbooks.",
+      "monthly_amount": 299.0,
+      "annual_monthly_amount": 239.0,
       "currency_symbol": "₹",
-      "features_summary": [
-        "Up to 500 research notes",
-        "Up to 5,000 logged trades (total)",
-        "Up to 25 active playbooks",
-        "Up to 500 AI prompts per month",
-        "Charts, market browsing and community features where available",
-        "Paid activation pending verified checkout"
-      ],
-      "badge_label": "PLANNED · CHECKOUT UNAVAILABLE",
-      "highlighted": true,
-      "is_current": false,
-      "cta_label": "Checkout unavailable",
+      "is_popular": true,
+      "is_purchasable": false,
+      "badge_label": "MONTHLY SUBSCRIPTIONS DISABLED",
+      "cta_label": "Monthly subscriptions disabled",
       "limits": {
-        "notes": 500,
-        "trades": 5000,
-        "live_playbooks": 25,
-        "ai_queries_per_month": 500
+        "notes": 25,
+        "trades": 100,
+        "live_playbooks": 3,
+        "watchlists": 1,
+        "ai_queries_per_month": 20
       },
-      "is_purchasable": false
+      "features": [
+        "Up to 25 research notes",
+        "Up to 100 logged trades (total)",
+        "Up to 3 active playbooks",
+        "Up to 20 AI prompts per month",
+        "Full community participation & market data",
+        "Monthly subscriptions disabled for now"
+      ]
     },
     {
       "id": "tier_enterprise",
       "tier": "enterprise",
-      "name": "Business",
-      "subtitle": "Business workspace preview; ₹999 monthly or ₹11,988 yearly. Activation requires verified billing and admin setup.",
-      "monthly_amount": 999.0,
-      "annual_monthly_amount": 999.0,
+      "name": "Pro",
+      "tagline": "High-capacity professional workspace with 10,000 notes, 50,000 trades, and 5,000 AI prompts.",
+      "monthly_amount": 499.0,
+      "annual_monthly_amount": 399.0,
       "currency_symbol": "₹",
-      "features_summary": [
-        "Up to 10,000 research notes",
-        "Up to 50,000 logged trades (total)",
-        "Up to 250 active playbooks",
-        "Up to 5,000 AI prompts per month",
-        "Charts, market browsing and community features where available",
-        "Business activation pending verified desktop checkout"
-      ],
-      "badge_label": "PLANNED · CHECKOUT UNAVAILABLE",
-      "highlighted": false,
-      "is_current": false,
-      "cta_label": "Checkout unavailable",
+      "is_popular": false,
+      "is_purchasable": false,
+      "badge_label": "MONTHLY SUBSCRIPTIONS DISABLED",
+      "cta_label": "Monthly subscriptions disabled",
       "limits": {
         "notes": 10000,
         "trades": 50000,
         "live_playbooks": 250,
+        "watchlists": 100,
         "ai_queries_per_month": 5000
       },
-      "is_purchasable": false
-    }
-  ],
-  "categories": [
-    {
-      "id": "cat_limits",
-      "name": "Enforced workspace limits",
-      "rows": [
-        {
-          "id": "feat_notes",
-          "title": "Research notes",
-          "tooltip": "Maximum saved research notes. New-note actions check this limit.",
-          "free_value": "25 total",
-          "pro_value": "500 total",
-          "enterprise_value": "10,000 total",
-          "is_boolean": false
-        },
-        {
-          "id": "feat_trades",
-          "title": "Logged trades",
-          "tooltip": "Maximum saved journal trades. New-trade actions check this limit.",
-          "free_value": "100 total",
-          "pro_value": "5,000 total",
-          "enterprise_value": "50,000 total",
-          "is_boolean": false
-        },
-        {
-          "id": "feat_playbooks",
-          "title": "Active playbooks",
-          "tooltip": "Maximum active strategy playbooks. Creation actions check this limit.",
-          "free_value": "3 active",
-          "pro_value": "25 active",
-          "enterprise_value": "250 active",
-          "is_boolean": false
-        },
-        {
-          "id": "feat_ai",
-          "title": "AI prompts",
-          "tooltip": "Monthly server-side quota for AI requests.",
-          "free_value": "20 / month",
-          "pro_value": "500 / month",
-          "enterprise_value": "5,000 / month",
-          "is_boolean": false
-        }
-      ]
-    },
-    {
-      "id": "cat_access",
-      "name": "Current availability",
-      "rows": [
-        {
-          "id": "feat_charts",
-          "title": "Charts and market browsing",
-          "tooltip": "Available data depends on the configured provider and its coverage; real-time depth is not guaranteed.",
-          "free_value": "Available",
-          "pro_value": "Available",
-          "enterprise_value": "Available",
-          "is_boolean": false
-        },
-        {
-          "id": "feat_community",
-          "title": "Community and direct messages",
-          "tooltip": "Available to signed-in users, subject to moderation and account permissions.",
-          "free_value": "Available",
-          "pro_value": "Available",
-          "enterprise_value": "Available",
-          "is_boolean": false
-        },
-        {
-          "id": "feat_checkout",
-          "title": "Paid checkout and activation",
-          "tooltip": "A verified store checkout and server-confirmed entitlements have not been connected.",
-          "free_value": "Not needed",
-          "pro_value": "Not yet available",
-          "enterprise_value": "Not yet available",
-          "is_boolean": false
-        }
+      "features": [
+        "Up to 10,000 research notes",
+        "Up to 50,000 logged trades (total)",
+        "Up to 250 active playbooks & 100 watchlists",
+        "Up to 5,000 AI prompts per month",
+        "PDF & CSV exports + advanced analytics",
+        "Monthly subscriptions disabled for now"
       ]
     }
-  ],
-  "faqs": [
-    {
-      "id": "faq_billing",
-      "category": "billing",
-      "question": "Can I buy Pro or Business now?",
-      "answer": "Not yet. Paid checkout and verified activation are unavailable. The displayed paid tiers describe planned limits; no payment is collected in this app."
-    },
-    {
-      "id": "faq_limits",
-      "category": "features",
-      "question": "Which limits are checked today?",
-      "answer": "The app checks total saved notes, total logged trades, active playbooks, and the monthly server-side AI prompt quota at the relevant creation actions. Some other features are available but do not yet have tier-specific enforcement."
-    },
-    {
-      "id": "faq_data",
-      "category": "features",
-      "question": "Is market data real-time?",
-      "answer": "Coverage and delay depend on the connected data provider. alphajournal does not currently promise tick-by-tick depth or exchange-grade low latency."
-    },
-    {
-      "id": "faq_tax",
-      "category": "billing",
-      "question": "Are paid prices final, including taxes?",
-      "answer": "Business preview pricing is ₹999 per month or ₹11,988 per year. Applicable taxes and final terms must be shown before checkout is enabled."
-    }
-  ],
-  "annual_discount_percent": 20,
-  "annual_months_billed": 12,
-  "footer_disclaimer": "Prices are indicative INR plan previews. Paid checkout is unavailable. Market data coverage varies by provider.",
-  "copy": {
-    "badge": "Plans for every workspace",
-    "title": "Choose Your Trading Plan",
-    "description": "Current workspace limits and feature availability. Paid plans are previews until verified checkout is enabled.",
-    "monthly": "Monthly",
-    "annual": "Billed annually",
-    "current": "Current Plan",
-    "processing": "Processing…",
-    "matrix": "Compare Features Across Plans",
-    "faq": "Frequently Asked Questions",
-    "all": "All Questions",
-    "retry": "Try again",
-    "back": "Back",
-    "error": "Unable to load pricing",
-    "billing_suffix": "/month",
-    "annual_savings": "Pro annual savings; Business bills the same monthly equivalent",
-    "feature": "Feature"
-  }
+  ]
 }

@@ -72,6 +72,7 @@ class AiAssistantRepository extends ChangeNotifier {
   final String? Function() _identity;
   String? _actorId;
   StreamSubscription<dynamic>? _authSubscription;
+  int _loadSequence = 0;
 
   void _ensureActor() {
     final actor = _identity();
@@ -80,6 +81,7 @@ class AiAssistantRepository extends ChangeNotifier {
     _transport.cancel();
     _replyTimer?.cancel();
     _replySeq++;
+    _reservationSeq++;
     _generating = false;
     _reservingPrompt = false;
     _generationError = null;
@@ -97,16 +99,23 @@ class AiAssistantRepository extends ChangeNotifier {
 
   Future<void> _initSupabaseData() async {
     if (!SupabaseConfig.isConfigured) return;
+    final sequence = ++_loadSequence;
     try {
       final client = SupabaseConfig.client!;
       final userId = _identity();
       if (userId == null || userId.isEmpty) return;
+      bool isCurrentAccount() =>
+          !_disposed &&
+          sequence == _loadSequence &&
+          userId == _identity() &&
+          userId == client.auth.currentUser?.id;
 
       final threadsRes = await client
           .from('ai_threads')
           .select('*, ai_messages(*)')
           .eq('user_id', userId)
           .order('updated_at', ascending: false);
+      if (!isCurrentAccount()) return;
 
       final List<AiThread> loaded = [];
       for (final row in threadsRes as List) {
@@ -174,6 +183,7 @@ class AiAssistantRepository extends ChangeNotifier {
             .select('*')
             .order('generated_at', ascending: false)
             .limit(20);
+        if (!isCurrentAccount()) return;
         final List<AppAiInsight> insLoaded = [];
         for (final r in insRes as List) {
           final row = r as Map<String, dynamic>;
@@ -215,7 +225,7 @@ class AiAssistantRepository extends ChangeNotifier {
         }
       } catch (_) {}
 
-      notifyListeners();
+      if (isCurrentAccount()) _notify();
     } catch (e) {
       debugPrint('[AiAssistantRepository] _initSupabaseData error: $e');
     }
@@ -285,6 +295,7 @@ class AiAssistantRepository extends ChangeNotifier {
 
   bool _generating = false;
   bool _reservingPrompt = false;
+  int _reservationSeq = 0;
   Timer? _replyTimer;
 
   /// Monotonic token that invalidates a scheduled reply after stop / retry.
@@ -320,7 +331,7 @@ class AiAssistantRepository extends ChangeNotifier {
 
   AiPersona get persona => activeThread.persona;
 
-  bool get generating => _generating;
+  bool get generating => _generating || _reservingPrompt;
 
   bool get isActiveEmpty => activeThread.messages.isEmpty;
 
@@ -471,7 +482,7 @@ class AiAssistantRepository extends ChangeNotifier {
   // Chat
   // -------------------------------------------------------------------------
 
-  /// Appends the user's turn and schedules a simulated assistant reply.
+  /// Reserves the account allowance and starts the assistant response.
   ///
   /// @backend POST /ai/threads/{id}/messages — stream the assistant response.
   Future<void> sendPrompt(String rawText, {AiPersona? persona}) async {
@@ -481,88 +492,122 @@ class AiAssistantRepository extends ChangeNotifier {
     final String text = rawText.trim();
     if (text.isEmpty) return;
 
+    return _startAfterQuota(() {
+      final AiThread thread = activeThread;
+      final DateTime now = DateTime.now();
+      final AiPersona effective = persona ?? thread.persona;
+      final int stamp = now.microsecondsSinceEpoch;
+
+      final AppAiMessage userMsg = AppAiMessage(
+        id: 'm_${stamp}_u',
+        role: AppAiRole.user,
+        body: text,
+        sentAt: now,
+      );
+      final String pendingId = 'm_${stamp}_a';
+      final AppAiMessage pending = AppAiMessage(
+        id: pendingId,
+        role: AppAiRole.assistant,
+        body: '',
+        pending: true,
+        sentAt: now,
+      );
+      _replace(
+        thread.copyWith(
+          persona: effective,
+          messages: <AppAiMessage>[...thread.messages, userMsg, pending],
+          updatedAt: now,
+          title: thread.messages.isEmpty ? _titleFrom(text) : null,
+        ),
+      );
+      _generating = true;
+      _notify();
+      if (SupabaseConfig.isConfigured && !_serverPersistsTurns) {
+        unawaited(_persistUserTurn(thread.id, text, effective));
+      }
+      _scheduleReply(thread.id, pendingId, text, effective);
+    });
+  }
+
+  bool get _serverPersistsTurns =>
+      _transport is GeminiAiChatTransport && SupabaseConfig.isConfigured;
+
+  FutureOr<bool> _reservePrompt() {
+    // The authenticated gateway atomically reserves quota and persists both
+    // turns for the production transport, including regeneration.
+    if (_serverPersistsTurns) return true;
+    if (SupabaseConfig.isConfigured) return _reserveRemotePrompt();
+    final quota = CustomerLimitations.currentQuota;
+    if (AppSession.instance.aiQueriesUsed.value >= quota.maxAiQueriesPerMonth) {
+      throw StateError(
+        'Monthly AI quota reached (${quota.maxAiQueriesPerMonth}).',
+      );
+    }
+    AppSession.instance.recordAiQuery();
+    return true;
+  }
+
+  Future<bool> _reserveRemotePrompt() async {
+    final actor = _identity();
+    await CustomerTierQuota.refreshPublishedCatalogue();
+    final usage = await CustomerQuotaUsage.fetch();
+    if (usage.aiQueriesUsed >= usage.aiQueriesLimit) {
+      throw StateError('Monthly AI quota reached (${usage.aiQueriesLimit}).');
+    }
+    final client = SupabaseConfig.client;
+    if (actor != usage.userId || client?.auth.currentUser?.id != actor) {
+      throw StateError('Your account changed. Please retry.');
+    }
+    // The database trigger atomically checks the current user and monthly
+    // quota before this prompt is sent to the AI transport.
+    await client!.from('ai_insight_requests').insert({
+      'user_id': usage.userId,
+      'kind': 'copilot_prompt',
+    });
+    if (client.auth.currentUser?.id != actor) {
+      throw StateError('Your account changed. Please retry.');
+    }
+    AppSession.instance.aiQueriesUsed.value = usage.aiQueriesUsed + 1;
+    return true;
+  }
+
+  Future<void> _startAfterQuota(VoidCallback start) async {
+    if (_disposed || _reservingPrompt || _generating) return;
+    final sequence = ++_reservationSeq;
+    final actor = _actorId;
+    final threadId = _activeThreadId;
     _reservingPrompt = true;
     try {
-      if (SupabaseConfig.isConfigured) {
-        await CustomerTierQuota.refreshPublishedCatalogue();
-        final usage = await CustomerQuotaUsage.fetch();
-        final quota = CustomerTierQuota.forTier(usage.tier);
-        if (usage.aiQueriesUsed >= quota.maxAiQueriesPerMonth) {
-          throw StateError(
-            'Monthly AI quota reached (${quota.maxAiQueriesPerMonth}).',
-          );
-        }
-        final client = SupabaseConfig.client;
-        if (client?.auth.currentUser?.id != usage.userId) {
-          throw StateError('Your account changed. Please retry.');
-        }
-        // The database trigger atomically checks the current user and monthly
-        // quota before this prompt is sent to the AI transport.
-        await client!.from('ai_insight_requests').insert({
-          'user_id': usage.userId,
-          'kind': 'copilot_prompt',
-        });
-        AppSession.instance.aiQueriesUsed.value = usage.aiQueriesUsed + 1;
-      } else {
-        final quota = CustomerLimitations.currentQuota;
-        if (AppSession.instance.aiQueriesUsed.value >=
-            quota.maxAiQueriesPerMonth) {
-          throw StateError(
-            'Monthly AI quota reached (${quota.maxAiQueriesPerMonth}).',
-          );
-        }
-        AppSession.instance.recordAiQuery();
+      final reservation = _reservePrompt();
+      final reserved = reservation is Future<bool>
+          ? await reservation
+          : reservation;
+      if (_disposed) return;
+      _ensureActor();
+      if (!reserved ||
+          sequence != _reservationSeq ||
+          actor != _actorId ||
+          threadId != _activeThreadId) {
+        return;
       }
+      start();
     } catch (error) {
-      _generationError = error.toString().replaceFirst('Bad state: ', '');
-      _notify();
-      return;
+      if (!_disposed && sequence == _reservationSeq && actor == _identity()) {
+        _generationError = error.toString().replaceFirst('Bad state: ', '');
+        _notify();
+      }
     } finally {
-      _reservingPrompt = false;
+      if (sequence == _reservationSeq) {
+        _reservingPrompt = false;
+        _notify();
+      }
     }
-    if (_disposed) return;
-
-    final AiThread thread = activeThread;
-    final DateTime now = DateTime.now();
-    final AiPersona effective = persona ?? thread.persona;
-    final int stamp = now.microsecondsSinceEpoch;
-
-    final AppAiMessage userMsg = AppAiMessage(
-      id: 'm_${stamp}_u',
-      role: AppAiRole.user,
-      body: text,
-      sentAt: now,
-    );
-    final String pendingId = 'm_${stamp}_a';
-    final AppAiMessage pending = AppAiMessage(
-      id: pendingId,
-      role: AppAiRole.assistant,
-      body: '',
-      pending: true,
-      sentAt: now,
-    );
-
-    _replace(
-      thread.copyWith(
-        persona: effective,
-        messages: <AppAiMessage>[...thread.messages, userMsg, pending],
-        updatedAt: now,
-        // Title the thread from the first user message.
-        title: thread.messages.isEmpty ? _titleFrom(text) : null,
-      ),
-    );
-    _generating = true;
-    _notify();
-
-    if (SupabaseConfig.isConfigured) {
-      unawaited(_persistUserTurn(thread.id, text, effective));
-    }
-
-    _scheduleReply(thread.id, pendingId, text, effective);
   }
 
   /// Stops the in-flight generation and drops the pending bubble.
   void stop() {
+    _reservationSeq++;
+    _reservingPrompt = false;
     _transport.cancel();
     _replyTimer?.cancel();
     _replySeq++;
@@ -597,9 +642,9 @@ class AiAssistantRepository extends ChangeNotifier {
   /// Regenerates the answer for [assistantMessage] using its preceding prompt.
   ///
   /// @backend POST /ai/messages/{id}/regenerate
-  void regenerate(AppAiMessage assistantMessage) {
+  Future<void> regenerate(AppAiMessage assistantMessage) async {
     _ensureActor();
-    if (!serviceAvailable || _generating) return;
+    if (!serviceAvailable || _generating || _reservingPrompt) return;
     _generationError = null;
     if (assistantMessage.role != AppAiRole.assistant) return;
     final AiThread thread = activeThread;
@@ -614,25 +659,31 @@ class AiAssistantRepository extends ChangeNotifier {
     }
     if (u < 0) return;
 
-    final String userText = thread.messages[u].body;
-    final List<AppAiMessage> kept = thread.messages.sublist(0, u + 1);
-    final String pendingId = 'm_${DateTime.now().microsecondsSinceEpoch}_a';
-    final AppAiMessage pending = AppAiMessage(
-      id: pendingId,
-      role: AppAiRole.assistant,
-      body: '',
-      pending: true,
-      sentAt: DateTime.now(),
-    );
-    _replace(
-      thread.copyWith(
-        messages: <AppAiMessage>[...kept, pending],
-        updatedAt: DateTime.now(),
-      ),
-    );
-    _generating = true;
-    _notify();
-    _scheduleReply(thread.id, pendingId, userText, thread.persona);
+    return _startAfterQuota(() {
+      if (_transport case final GeminiAiChatTransport transport) {
+        transport.regenerateNext = true;
+      }
+
+      final String userText = thread.messages[u].body;
+      final List<AppAiMessage> kept = thread.messages.sublist(0, u + 1);
+      final String pendingId = 'm_${DateTime.now().microsecondsSinceEpoch}_a';
+      final AppAiMessage pending = AppAiMessage(
+        id: pendingId,
+        role: AppAiRole.assistant,
+        body: '',
+        pending: true,
+        sentAt: DateTime.now(),
+      );
+      _replace(
+        thread.copyWith(
+          messages: <AppAiMessage>[...kept, pending],
+          updatedAt: DateTime.now(),
+        ),
+      );
+      _generating = true;
+      _notify();
+      _scheduleReply(thread.id, pendingId, userText, thread.persona);
+    });
   }
 
   Future<void> _streamReply(
@@ -711,6 +762,7 @@ class AiAssistantRepository extends ChangeNotifier {
     if (!pending &&
         error == null &&
         SupabaseConfig.isConfigured &&
+        !_serverPersistsTurns &&
         body.trim().isNotEmpty) {
       unawaited(_persistAssistantTurn(threadId, body));
     }

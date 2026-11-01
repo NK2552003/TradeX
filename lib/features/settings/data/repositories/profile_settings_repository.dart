@@ -571,30 +571,32 @@ class ProfileSettingsRepositoryImpl implements ProfileSettingsRepository {
     final client = SupabaseConfig.client;
     final user = client?.auth.currentUser;
     if (SupabaseConfig.isConfigured && client != null && user != null) {
-      try {
-        await client.rpc(
-          'request_account_deletion_with_conditions',
-          params: {
-            'p_reason': reason ?? 'User requested account deletion',
-            'p_feedback': feedback,
-            'p_data_purge_condition': dataPurgeCondition,
-            'p_purge_writing': purgeJournalsNotesStrategies,
-            'p_purge_social': purgeCommunityMessages,
-            'p_purge_ai': purgeAiWorkspace,
-            'p_purge_affiliate': purgeAffiliateCampaigns,
-            'p_export_before_delete': exportBeforeDelete,
-          },
+      final result = await client.rpc(
+        'request_account_deletion_with_conditions',
+        params: {
+          'p_reason': reason ?? 'User requested account deletion',
+          'p_feedback': feedback,
+          'p_data_purge_condition': dataPurgeCondition,
+          'p_purge_writing': purgeJournalsNotesStrategies,
+          'p_purge_social': purgeCommunityMessages,
+          'p_purge_ai': purgeAiWorkspace,
+          'p_purge_affiliate': purgeAffiliateCampaigns,
+          'p_export_before_delete': exportBeforeDelete,
+        },
+      );
+      if (result is! Map ||
+          result['id'] is! String ||
+          result['user_id'] != user.id) {
+        throw StateError(
+          'The deletion request was not confirmed. Please retry.',
         );
-      } catch (_) {
-        try {
-          await client
-              .from('profiles')
-              .update({'status': 'pending_approval'})
-              .eq('id', user.id)
-              .select('id')
-              .single();
-        } catch (_) {}
       }
+      return AccountDeletionRequestModel.fromJson(
+        Map<String, dynamic>.from(result),
+      );
+    }
+    if (SupabaseConfig.isConfigured) {
+      throw StateError('Sign in to request account deletion.');
     }
 
     final bool immediate = dataPurgeCondition != 'after_30_day_grace';

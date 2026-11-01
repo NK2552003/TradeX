@@ -1,13 +1,24 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/market_data/models/market_snapshot.dart';
 
-/// Sole asset adapter for the finance kits. Symbols are kept exactly as exported.
-/// Supports both single consolidated JSON files and split multi-file JSON bundles
-/// with on-demand lazy loading and caching.
+/// Market intelligence repository.
+///
+/// In live application runtime (when no custom test [AssetBundle] is injected and
+/// [SupabaseConfig.isConfigured] is true), all quotes, fundamentals, price
+/// histories, news articles, and screeners are queried directly from the live
+/// Supabase database tables (`tickers`, `stock_quotes`, `stock_fundamentals`,
+/// `stock_price_history`, `news_articles`, `news_article_tickers`,
+/// `screener_categories`, `screener_results`) without reading any bundled files
+/// from `assets/data/`.
 class AssetMarketRepository {
-  AssetMarketRepository({AssetBundle? bundle}) : _bundle = bundle ?? rootBundle;
+  AssetMarketRepository({AssetBundle? bundle})
+    : _customBundle = bundle,
+      _bundle = bundle ?? rootBundle;
   static AssetMarketRepository shared = AssetMarketRepository();
+  final AssetBundle? _customBundle;
   final AssetBundle _bundle;
   final Map<String, Future<dynamic>> _cache = {};
   final Map<String, List<MarketArticle>> _topicCache = {};
@@ -15,10 +26,173 @@ class AssetMarketRepository {
   final Map<String, Map<String, dynamic>> _detailCache = {};
   final Map<String, List<double>> _sparkCache = {};
 
+  /// True when this repository should query live Supabase tables instead of
+  /// reading bundled JSON assets.
+  bool get usesDatabase => _customBundle == null && SupabaseConfig.isConfigured;
+
   Future<dynamic> read(String path) => _cache.putIfAbsent(
     path,
-    () async => jsonDecode(await _bundle.loadString('assets/data/$path.json')),
+    () async {
+      if (usesDatabase) {
+        return _readFromDatabase(path);
+      }
+      if (_customBundle == null) {
+        throw StateError('Market database is not configured.');
+      }
+      return jsonDecode(await _bundle.loadString('assets/data/$path.json'));
+    },
   );
+
+  Future<dynamic> _readFromDatabase(String path) async {
+    final SupabaseClient client = SupabaseConfig.client!;
+    if (path == 'tickers/universe') {
+      final rows = await client
+          .from('tickers')
+          .select('ticker, name, market, exchange, currency, asset_type')
+          .order('ticker', ascending: true)
+          .limit(2000);
+      return (rows as List)
+          .whereType<Map>()
+          .map((r) => Map<String, dynamic>.from(r))
+          .toList();
+    }
+    if (path == 'quotes') {
+      final rows = await client
+          .from('stock_quotes')
+          .select(
+            'ticker, price, previous_close, day_high, day_low, volume, change_pct, updated_at',
+          )
+          .limit(2000);
+      final tickersRows = await client
+          .from('tickers')
+          .select('ticker, name, market, currency')
+          .limit(2000);
+      final metaByTicker = <String, Map<String, dynamic>>{
+        for (final t in (tickersRows as List).whereType<Map>())
+          '${t['ticker']}': Map<String, dynamic>.from(t),
+      };
+      final map = <String, Map<String, dynamic>>{};
+      for (final raw in (rows as List).whereType<Map>()) {
+        final symbol = '${raw['ticker'] ?? ''}';
+        if (symbol.isEmpty) continue;
+        final meta = metaByTicker[symbol] ?? const <String, dynamic>{};
+        map[symbol] = <String, dynamic>{
+          ...meta,
+          ...Map<String, dynamic>.from(raw),
+          'ticker': symbol,
+          'name': meta['name'] ?? symbol,
+          'market':
+              meta['market'] ??
+              (symbol.endsWith('.NS')
+                  ? 'IN'
+                  : (symbol.endsWith('-USD') ? 'CRYPTO' : 'US')),
+          'currency':
+              meta['currency'] ?? (symbol.endsWith('.NS') ? 'INR' : 'USD'),
+        };
+      }
+      return map;
+    }
+    if (path == 'fundamentals') {
+      final rows = await client
+          .from('stock_fundamentals')
+          .select('*')
+          .limit(2000);
+      return <String, Map<String, dynamic>>{
+        for (final r in (rows as List).whereType<Map>())
+          if ('${r['ticker'] ?? ''}'.isNotEmpty)
+            '${r['ticker']}': Map<String, dynamic>.from(r),
+      };
+    }
+    if (path == 'all_news' || path == 'news') {
+      final rows = await client
+          .from('news_articles')
+          .select(
+            'id, title, summary, link, publisher, thumbnail_url, content_type, published_at',
+          )
+          .order('published_at', ascending: false)
+          .limit(250);
+      List<dynamic> tickerLinks = const <dynamic>[];
+      try {
+        tickerLinks = await client
+            .from('news_article_tickers')
+            .select('article_id, ticker')
+            .limit(2000);
+      } catch (_) {}
+      final tickersByArticle = <String, List<String>>{};
+      for (final link in tickerLinks.whereType<Map>()) {
+        final aid = '${link['article_id'] ?? ''}';
+        final t = '${link['ticker'] ?? ''}';
+        if (aid.isNotEmpty && t.isNotEmpty) {
+          (tickersByArticle[aid] ??= <String>[]).add(t);
+        }
+      }
+      return [
+        for (final raw in (rows as List).whereType<Map>())
+          <String, dynamic>{
+            ...Map<String, dynamic>.from(raw),
+            'related_tickers':
+                tickersByArticle['${raw['id']}'] ?? const <String>[],
+          },
+      ];
+    }
+    if (path == 'screeners') {
+      final cats = await client
+          .from('screener_categories')
+          .select('id, name, category_type')
+          .limit(100);
+      final results = await client
+          .from('screener_results')
+          .select('category_id, ticker, rank, price, change_pct, extra_data')
+          .order('rank', ascending: true)
+          .limit(2000);
+      final catNameById = <int, String>{
+        for (final c in (cats as List).whereType<Map>())
+          if (c['id'] is int && '${c['name'] ?? ''}'.isNotEmpty)
+            c['id'] as int: '${c['name']}',
+      };
+      final out = <String, Map<String, dynamic>>{};
+      for (final r in (results as List).whereType<Map>()) {
+        final catName = catNameById[r['category_id']];
+        if (catName == null) continue;
+        final bucket = out.putIfAbsent(
+          catName,
+          () => <String, dynamic>{'quotes': <Map<String, dynamic>>[]},
+        );
+        final list = bucket['quotes'] as List<Map<String, dynamic>>;
+        final extra = r['extra_data'] is Map
+            ? Map<String, dynamic>.from(r['extra_data'] as Map)
+            : <String, dynamic>{};
+        list.add(<String, dynamic>{
+          ...extra,
+          'ticker': r['ticker'],
+          'symbol': r['ticker'],
+          'price': r['price'] ?? extra['price'] ?? extra['regularMarketPrice'],
+          'change_pct':
+              r['change_pct'] ??
+              extra['change_pct'] ??
+              extra['regularMarketChangePercent'],
+        });
+      }
+      return out;
+    }
+    if (path.startsWith('history/')) {
+      final symbol = path.substring('history/'.length);
+      final rows = await client
+          .from('stock_price_history')
+          .select('date, open, high, low, close, volume')
+          .eq('ticker', symbol)
+          .order('date', ascending: true)
+          .limit(365);
+      return <String, dynamic>{
+        'ticker': symbol,
+        'data': [
+          for (final r in (rows as List).whereType<Map>())
+            Map<String, dynamic>.from(r),
+        ],
+      };
+    }
+    return null;
+  }
 
   /// Safe reader that catches missing file exceptions and returns null
   /// instead of throwing and crashing the entire application.
@@ -44,6 +218,15 @@ class AssetMarketRepository {
   }
 
   Future<MarketSnapshot> _loadSnapshot() async {
+    if (usesDatabase) {
+      return _loadDatabaseSnapshot();
+    }
+    if (_customBundle == null) {
+      return const MarketSnapshot(
+        instruments: <MarketInstrument>[],
+        articles: <MarketArticle>[],
+      );
+    }
     // 1. Load manifest first (or fallback)
     final manifestRaw = await safeRead('manifest');
     final manifest = Map<String, dynamic>.from(
@@ -287,11 +470,310 @@ class AssetMarketRepository {
     );
   }
 
-  /// Lazy loads instrument detail dossier from either split files ('stock_detail/$symbol.json')
-  /// or single file ('stock_detail.json') with graceful fallbacks.
+  Future<MarketSnapshot> _loadDatabaseSnapshot() async {
+    final values = await Future.wait<dynamic>([
+      safeRead('quotes'),
+      safeRead('fundamentals'),
+      safeRead('all_news'),
+      safeRead('screeners'),
+    ]);
+
+    final quotes = Map<String, dynamic>.from(
+      values[0] is Map ? values[0] as Map : <String, dynamic>{},
+    );
+    final fundamentals = Map<String, dynamic>.from(
+      values[1] is Map ? values[1] as Map : <String, dynamic>{},
+    );
+    final rawNews = values[2];
+    final screenerPayloads = Map<String, dynamic>.from(
+      values[3] is Map ? values[3] as Map : <String, dynamic>{},
+    );
+
+    final instruments =
+        quotes.values
+            .whereType<Map>()
+            .map((raw) {
+              final quote = Map<String, dynamic>.from(raw);
+              return MarketInstrument.fromJson(
+                quote,
+                Map<String, dynamic>.from(
+                  fundamentals[quote['ticker']] as Map? ?? <String, dynamic>{},
+                ),
+              );
+            })
+            .where((q) => q.price.isFinite)
+            .toList()
+          ..sort(
+            (a, b) => a.market == b.market
+                ? a.symbol.compareTo(b.symbol)
+                : a.market.compareTo(b.market),
+          );
+
+    // Fetch sparks in batch for top movers and active symbols from stock_price_history
+    final ranked = [...instruments]
+      ..sort((a, b) => b.changePercent.compareTo(a.changePercent));
+    final active = [...instruments]
+      ..sort((a, b) => b.volume.compareTo(a.volume));
+    final candidateSymbols = <String>{
+      for (final q in ranked.take(12)) q.symbol,
+      for (final q in ranked.reversed.take(12)) q.symbol,
+      for (final q in active.take(12)) q.symbol,
+    };
+
+    final sparks = <String, List<double>>{};
+    if (candidateSymbols.isNotEmpty) {
+      try {
+        final rows = await SupabaseConfig.client!
+            .from('stock_price_history')
+            .select('ticker, date, close')
+            .inFilter('ticker', candidateSymbols.toList())
+            .order('date', ascending: true)
+            .limit(2000);
+        for (final r in (rows as List).whereType<Map>()) {
+          final sym = '${r['ticker'] ?? ''}';
+          final close = (r['close'] as num?)?.toDouble();
+          if (sym.isNotEmpty && close != null && close.isFinite) {
+            (sparks[sym] ??= <double>[]).add(close);
+          }
+        }
+      } catch (_) {}
+    }
+
+    final enriched = instruments
+        .map(
+          (q) => sparks.containsKey(q.symbol)
+              ? q.withHistory(sparks[q.symbol]!)
+              : q,
+        )
+        .toList();
+
+    final seen = <String>{};
+    final List<MarketArticle> articles = <MarketArticle>[];
+    if (rawNews is List) {
+      for (final raw in rawNews.whereType<Map>()) {
+        final a = MarketArticle.fromJson(Map<String, dynamic>.from(raw));
+        if (a.title.isNotEmpty &&
+            seen.add(a.link.isEmpty ? a.title : a.link)) {
+          articles.add(a);
+        }
+      }
+      articles.sort(
+        (a, b) => (b.publishedAt ?? DateTime(1970)).compareTo(
+          a.publishedAt ?? DateTime(1970),
+        ),
+      );
+    }
+
+    const standardTopics = <String>[
+      'stock_market_general',
+      'magnificent_seven',
+      'banks_and_financials',
+      'enterprise_cloud',
+      'pharma_and_biotech',
+      'clean_energy',
+      'aerospace_and_defense',
+      'oil_and_gas',
+      'cybersecurity',
+      'housing',
+      'crypto',
+    ];
+    final topicMap = <String, List<MarketArticle>>{
+      for (final t in standardTopics) t: _filterArticlesByTopic(articles, t),
+    };
+
+    final screens = <String, List<MarketInstrument>>{};
+    if (screenerPayloads.isNotEmpty) {
+      for (final screen in flattenScreens(screenerPayloads).entries) {
+        screens[screen.key] = screen.value
+            .map((row) => screenInstrument(row, quotes, fundamentals))
+            .whereType<MarketInstrument>()
+            .toList();
+      }
+    }
+
+    if (!screens.containsKey('top_gainers') || screens['top_gainers']!.isEmpty) {
+      screens['top_gainers'] =
+          enriched.where((q) => q.changePercent > 0).toList()
+            ..sort((a, b) => b.changePercent.compareTo(a.changePercent));
+    }
+    if (!screens.containsKey('top_losers') || screens['top_losers']!.isEmpty) {
+      screens['top_losers'] =
+          enriched.where((q) => q.changePercent < 0).toList()
+            ..sort((a, b) => a.changePercent.compareTo(b.changePercent));
+    }
+    if (!screens.containsKey('most_active') || screens['most_active']!.isEmpty) {
+      screens['most_active'] = [...enriched]
+        ..sort((a, b) => b.volume.compareTo(a.volume));
+    }
+
+    final manifest = <String, dynamic>{
+      'generated_at': DateTime.now().toUtc().toIso8601String(),
+      'data_source': 'supabase_live',
+      'quote_count': enriched.length,
+      'detail_count': fundamentals.length,
+      'history_count': fundamentals.length,
+      'source_history_count': fundamentals.length,
+    };
+
+    return MarketSnapshot(
+      manifest: manifest,
+      screenerPayloads: screenerPayloads,
+      instruments: enriched,
+      screeners: {
+        for (final entry in screens.entries)
+          entry.key: entry.value
+              .map(
+                (q) => sparks.containsKey(q.symbol)
+                    ? q.withHistory(sparks[q.symbol]!)
+                    : q,
+              )
+              .toList(),
+      },
+      articles: articles,
+      topics: topicMap,
+    );
+  }
+
+  Future<Map<String, dynamic>> _loadDatabaseDetail(String symbol) async {
+    final SupabaseClient client = SupabaseConfig.client!;
+    final results = await Future.wait<dynamic>([
+      client.from('tickers').select('*').eq('ticker', symbol).maybeSingle(),
+      client
+          .from('stock_quotes')
+          .select('*')
+          .eq('ticker', symbol)
+          .maybeSingle(),
+      client
+          .from('stock_fundamentals')
+          .select('*')
+          .eq('ticker', symbol)
+          .maybeSingle(),
+      client
+          .from('stock_price_history')
+          .select('date, open, high, low, close, volume')
+          .eq('ticker', symbol)
+          .order('date', ascending: true)
+          .limit(365),
+      client
+          .from('analyst_recommendations')
+          .select('*')
+          .eq('ticker', symbol)
+          .limit(20),
+      client.from('holders').select('*').eq('ticker', symbol).limit(30),
+      client.from('dividends').select('*').eq('ticker', symbol).limit(30),
+      client.from('stock_splits').select('*').eq('ticker', symbol).limit(20),
+    ]);
+
+    final tickerRow = results[0] is Map
+        ? Map<String, dynamic>.from(results[0] as Map)
+        : <String, dynamic>{};
+    final quoteRow = results[1] is Map
+        ? Map<String, dynamic>.from(results[1] as Map)
+        : <String, dynamic>{};
+    final fundRow = results[2] is Map
+        ? Map<String, dynamic>.from(results[2] as Map)
+        : <String, dynamic>{};
+    final historyRows = (results[3] as List? ?? const <dynamic>[])
+        .whereType<Map>()
+        .map((r) => Map<String, dynamic>.from(r))
+        .toList();
+    final analystRows = (results[4] as List? ?? const <dynamic>[])
+        .whereType<Map>()
+        .map((r) => Map<String, dynamic>.from(r))
+        .toList();
+    final holderRows = (results[5] as List? ?? const <dynamic>[])
+        .whereType<Map>()
+        .map((r) => Map<String, dynamic>.from(r))
+        .toList();
+    final dividendRows = (results[6] as List? ?? const <dynamic>[])
+        .whereType<Map>()
+        .map((r) => Map<String, dynamic>.from(r))
+        .toList();
+    final splitRows = (results[7] as List? ?? const <dynamic>[])
+        .whereType<Map>()
+        .map((r) => Map<String, dynamic>.from(r))
+        .toList();
+
+    List<Map<String, dynamic>> companyNews = <Map<String, dynamic>>[];
+    try {
+      final allArticles = await safeRead('all_news');
+      if (allArticles is List) {
+        companyNews = allArticles
+            .whereType<Map>()
+            .where((a) {
+              final related = (a['related_tickers'] as List? ?? const <dynamic>[])
+                  .map((e) => '$e'.toUpperCase());
+              return related.contains(symbol.toUpperCase()) ||
+                  '${a['title'] ?? ''}'.toUpperCase().contains(
+                    symbol.toUpperCase(),
+                  );
+            })
+            .map((a) => Map<String, dynamic>.from(a))
+            .take(15)
+            .toList();
+      }
+    } catch (_) {}
+
+    final mergedQuote = <String, dynamic>{
+      ...tickerRow,
+      ...quoteRow,
+      'ticker': symbol,
+      'price': quoteRow['price'] ?? 0.0,
+      'name': tickerRow['name'] ?? fundRow['name'] ?? symbol,
+      'market':
+          tickerRow['market'] ??
+          (symbol.endsWith('.NS')
+              ? 'IN'
+              : (symbol.endsWith('-USD') ? 'CRYPTO' : 'US')),
+      'currency':
+          tickerRow['currency'] ?? (symbol.endsWith('.NS') ? 'INR' : 'USD'),
+    };
+
+    final mergedSummary = <String, dynamic>{
+      'name': tickerRow['name'] ?? symbol,
+      'market': mergedQuote['market'],
+      'exchange': tickerRow['exchange'],
+      'currency': mergedQuote['currency'],
+      ...fundRow,
+    };
+
+    final res = <String, dynamic>{
+      'ticker': symbol,
+      'market': mergedQuote['market'],
+      'quote': mergedQuote,
+      'summary': mergedSummary,
+      'chart': <String, dynamic>{'ticker': symbol, 'data': historyRows},
+      'news': companyNews,
+      'analyst_recommendations': analystRows,
+      'holders': <String, dynamic>{
+        'institutional': holderRows
+            .where((h) => '${h['holder_type']}'.contains('institution'))
+            .toList(),
+        'mutual_fund': holderRows
+            .where((h) => '${h['holder_type']}'.contains('mutual'))
+            .toList(),
+        'all': holderRows,
+      },
+      'dividends_and_splits': <String, dynamic>{
+        'dividends': dividendRows,
+        'splits': splitRows,
+      },
+      'options': const <String, dynamic>{'chains': <String, dynamic>{}},
+      'data_source': 'supabase_live',
+      'fetched_at': quoteRow['updated_at'] ?? fundRow['updated_at'],
+    };
+    _detailCache[symbol] = res;
+    return res;
+  }
+
+  /// Lazy loads instrument detail dossier from live Supabase tables (in app runtime)
+  /// or from split/consolidated JSON files when a test [AssetBundle] is injected.
   Future<Map<String, dynamic>> detail(String symbol) async {
     if (_detailCache.containsKey(symbol)) {
       return _detailCache[symbol]!;
+    }
+    if (usesDatabase) {
+      return _loadDatabaseDetail(symbol);
     }
 
     // 1. Multiple files mode: try stock_detail/$symbol.json

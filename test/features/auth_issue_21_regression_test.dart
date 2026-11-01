@@ -13,7 +13,7 @@ import 'package:tradex/features/auth/presentation/pages/signup_page.dart';
 import 'package:tradex/features/auth/presentation/widgets/tradex_footer.dart';
 import 'package:tradex/features/auth/widgets/role_selector_tab.dart';
 
-class _FakeAuthRepository implements AuthRepository {
+class _FakeAuthRepository extends AuthRepository {
   _FakeAuthRepository({this.profileRole = UserRole.customer});
 
   final UserRole profileRole;
@@ -118,7 +118,7 @@ void main() {
             LoginPage(
               initialRole: UserRole.customer,
               authRepository: _FakeAuthRepository(),
-              onLoginSuccess: (_, __) {},
+              onLoginSuccess: (_, _) {},
               onNavigateToSignup: (_) {},
               onNavigateToForgotPassword: () {},
               onNavigateBack: () {},
@@ -185,7 +185,7 @@ void main() {
             LoginPage(
               initialRole: UserRole.customer,
               authRepository: _FakeAuthRepository(),
-              onLoginSuccess: (_, __) {},
+              onLoginSuccess: (_, _) {},
               onNavigateToSignup: (_) {},
               onNavigateToForgotPassword: () {},
               onNavigateBack: () {},
@@ -313,7 +313,7 @@ void main() {
             LoginPage(
               initialRole: UserRole.customer,
               authRepository: _FakeAuthRepository(),
-              onLoginSuccess: (_, __) {},
+              onLoginSuccess: (_, _) {},
               onNavigateToSignup: (_) {},
               onNavigateToForgotPassword: () {},
               onNavigateBack: () {},
@@ -329,7 +329,7 @@ void main() {
             SignupPage(
               initialRole: UserRole.customer,
               authRepository: _FakeAuthRepository(),
-              onSignupSuccess: (_, __, {bool requiresVerification = false}) {},
+              onSignupSuccess: (_, _, {bool requiresVerification = false}) {},
               onNavigateToLogin: (_) {},
               onNavigateBack: () {},
             ),

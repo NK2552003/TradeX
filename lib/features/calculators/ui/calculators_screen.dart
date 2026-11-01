@@ -6,6 +6,7 @@ import '../../settings/presentation/widgets/settings_side_sheet.dart';
 import 'black_scholes_screen.dart';
 import 'brokerage_screen.dart';
 import 'cagr_screen.dart';
+import 'calculator_journal_draft.dart';
 import 'contract_value_screen.dart';
 import 'currency_screen.dart';
 import 'emi_screen.dart';
@@ -166,25 +167,51 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
               Positioned(
                 right: context.sp(theme.spacing.md),
                 bottom: context.sp(theme.spacing.md),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: context.radius(theme.radii.lg),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.28),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: context.radius(theme.radii.lg),
+                        boxShadow: <BoxShadow>[
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.28),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: UiIconButton(
-                    key: const ValueKey<String>('calculator_tools_fab'),
-                    icon: Icons.grid_view_rounded,
-                    tooltip: 'All Tools',
-                    variant: UiVariant.primary,
-                    size: UiSize.md,
-                    onPressed: () => _openToolsSidebar(context),
-                  ),
+                      child: UiIconButton(
+                        key: const ValueKey<String>('calculator_history_fab'),
+                        icon: Icons.history_rounded,
+                        tooltip: 'Trade & Calculation History',
+                        variant: UiVariant.secondary,
+                        size: UiSize.md,
+                        onPressed: () => showCalculatorHistorySheet(context),
+                      ),
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: context.radius(theme.radii.lg),
+                        boxShadow: <BoxShadow>[
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.28),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: UiIconButton(
+                        key: const ValueKey<String>('calculator_tools_fab'),
+                        icon: Icons.grid_view_rounded,
+                        tooltip: 'All Tools',
+                        variant: UiVariant.primary,
+                        size: UiSize.md,
+                        onPressed: () => _openToolsSidebar(context),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -260,6 +287,15 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
                     style: context.uiText.heading.copyWith(color: c.foreground),
                   ),
                 ),
+                UiButton(
+                  key: const ValueKey<String>('calculator_history_button'),
+                  label: 'History',
+                  leadingIcon: Icons.history_rounded,
+                  variant: UiVariant.soft,
+                  size: UiSize.xs,
+                  onPressed: () => showCalculatorHistorySheet(context),
+                ),
+                SizedBox(width: context.sp(theme.spacing.sm)),
                 Text(
                   '${visible.length} / ${kAllCalculators.length}',
                   style: uiOverline(context),

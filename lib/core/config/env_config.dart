@@ -7,16 +7,17 @@ class EnvConfig {
   static bool _isLoaded = false;
   static bool get isLoaded => _isLoaded;
 
-  /// Safely initialize environment variables from `.env` asset file.
+  /// Only allowlisted public settings are bundled. Provider secrets belong in
+  /// Supabase Edge Function secrets, never in an application asset.
   static Future<void> init() async {
     try {
-      await dotenv.load(fileName: '.env');
+      await dotenv.load(fileName: 'assets/config/client.env');
       _isLoaded = true;
-      debugPrint('[EnvConfig] Environment file (.env) successfully loaded.');
+      debugPrint('[EnvConfig] Public application configuration loaded.');
     } catch (e) {
       _isLoaded = false;
       debugPrint(
-        '[EnvConfig] Could not load .env file: $e. Falling back to compile-time env variables.',
+        '[EnvConfig] Could not load public configuration: $e. Using compile-time settings.',
       );
     }
   }

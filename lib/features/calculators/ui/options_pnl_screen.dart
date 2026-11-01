@@ -4,6 +4,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import '../calculator_registry.dart';
 import '../logic/options_calculators.dart';
 import '../services/market_data_service.dart';
+import 'calculator_journal_draft.dart';
 
 /// Options P&L — one leg, held to expiry, drawn as the hockey stick it is.
 ///
@@ -112,6 +113,35 @@ class _OptionsPnlCalculatorScreenState
     ];
 
     return AppCalculatorLayout(
+      actions: <Widget>[
+        UiButton(
+          label: 'History',
+          leadingIcon: Icons.history_rounded,
+          variant: UiVariant.ghost,
+          size: UiSize.sm,
+          onPressed: () => showCalculatorHistorySheet(context),
+        ),
+        UiButton(
+          label: 'Log Trade',
+          leadingIcon: Icons.book_outlined,
+          variant: UiVariant.soft,
+          size: UiSize.sm,
+          onPressed: qty > 0
+              ? () => openCalculatorJournalDraft(
+                  context,
+                  symbol: _symbol,
+                  entry: _premium,
+                  target: r.breakeven,
+                  quantity: qty,
+                  side: _isBuy ? AppSide.long : AppSide.short,
+                  calculatorId: 'options_pnl',
+                  calculatorName: 'Options P&L',
+                  notes:
+                      '$label · Strike ₹${_strike.toStringAsFixed(0)} · Breakeven ₹${r.breakeven.toStringAsFixed(1)}',
+                )
+              : null,
+        ),
+      ],
       meta: calculatorMetaById('options_pnl'),
       onBack: widget.onBack,
       headline: AppCalcHeadline(

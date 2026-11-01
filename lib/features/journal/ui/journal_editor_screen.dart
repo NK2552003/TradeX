@@ -622,9 +622,14 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
       return;
     }
     if (_saving) return;
-    final needsSave = _dirty;
+    final needsSave =
+        _dirty ||
+        (widget.detailsOnly &&
+            _entry.id.isEmpty &&
+            _ticker.text.trim().isNotEmpty &&
+            _entryValue > 0);
     final AppTrade? saved = needsSave
-        ? await _save(silent: true)
+        ? await _save(silent: !widget.detailsOnly)
         : (_entry.id.isEmpty ? null : _entry);
     if (needsSave && saved == null) return;
     if (mounted) widget.onClose(saved);

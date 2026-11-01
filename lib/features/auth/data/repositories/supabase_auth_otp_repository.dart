@@ -83,11 +83,22 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
         OtpPurpose.passwordReset => OtpType.recovery,
       };
 
-      final AuthResponse response = await activeClient.auth.verifyOTP(
-        email: cleanEmail,
-        token: code.trim(),
-        type: type,
-      );
+      AuthResponse response;
+      try {
+        response = await activeClient.auth.verifyOTP(
+          email: cleanEmail,
+          token: code.trim(),
+          type: type,
+        );
+      } on AuthException {
+        // Fallback to OtpType.email in case the project's Supabase email
+        // template issued a generic email OTP token rather than signup/recovery.
+        response = await activeClient.auth.verifyOTP(
+          email: cleanEmail,
+          token: code.trim(),
+          type: OtpType.email,
+        );
+      }
 
       if (response.user != null || response.session != null) {
         return OtpVerifyResult(

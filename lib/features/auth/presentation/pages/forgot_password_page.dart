@@ -350,7 +350,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     ),
                                     if (_currentStep < 3)
                                       UiBadge(
-                                        label: 'STEP \ OF 3',
+                                        label: 'STEP ${_currentStep + 1} OF 3',
                                         intent: UiIntent.primary,
                                         variant: UiBadgeVariant.soft,
                                         size: UiSize.sm,

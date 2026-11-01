@@ -3,7 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
 import 'package:tradex/features/affiliate_program/data/affiliate_application_repository.dart';
-import 'package:tradex/features/affiliate_program/data/affiliate_workspace_repository.dart';
+import 'package:tradex/features/admin_console/models/admin_records.dart';
+import '../../helpers/admin_repository_fixture.dart';
 import 'package:tradex/features/affiliate_program/models/affiliate_application_model.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_application_page.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_approvals_page.dart';
@@ -123,31 +124,37 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
-    testWidgets('approval review and media dialog at $width', (tester) async {
-      final repository = DesignApplicationRepository();
-      repository.application = repository.application.copyWith(
-        status: AffiliateApplicationStatus.pending,
-      );
+    testWidgets('approval detail records the decision and reason at $width', (
+      tester,
+    ) async {
+      final repository = AdminRepositoryFixture();
       await pumpWorkspace(
         tester,
-        AffiliateApprovalsPage(
-          repository: repository,
-          workspaceRepository: AffiliateWorkspaceRepository(demoOverride: true),
-        ),
+        AffiliateApprovalsPage(repository: repository),
         width: width,
         paneWidth: width,
       );
+      await tapLabel(tester, 'Details');
+      expect(find.text('9012'), findsOneWidget);
       await tapLabel(tester, 'Approve affiliate');
-      await captureWorkspace(tester, 'affiliate-approval-${width.toInt()}');
-      await tapLabel(tester, 'Approve access');
-      expect(
-        repository.application.status,
-        AffiliateApplicationStatus.approved,
+      await enterField(
+        tester,
+        'Reason for this change',
+        'Application reviewed and approved',
       );
-      await tapLabel(tester, 'Publish Media Kit Asset');
-      await captureWorkspace(tester, 'media-publish-${width.toInt()}');
-      await tapLabel(tester, 'Cancel');
-      expect(tester.takeException(), isNull);
+      await captureWorkspace(tester, 'affiliate-approval-${width.toInt()}');
+      await tapLabel(tester, 'Confirm');
+      expect(
+        repository.records[AdminResource.applications]!.single['status'],
+        'approved',
+      );
+      expect(
+        repository.changes.single['reason'],
+        'Application reviewed and approved',
+      );
+      expect(find.text('Approve affiliate'), findsNothing);
+      await tapLabel(tester, 'Manage this user');
+      expect(find.text('Account controls'), findsOneWidget);
     });
   }
   for (final status in [

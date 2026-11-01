@@ -98,7 +98,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
-    expect(find.byType(CommunityLiveRoomWidget), findsOneWidget);
+    expect(find.byType(CommunityLiveRoomWidget), findsNothing);
     expect(find.text('Subscribe to Premium'), findsOneWidget);
     for (
       var i = 0;

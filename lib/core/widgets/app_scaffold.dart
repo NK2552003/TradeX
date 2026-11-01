@@ -4,6 +4,9 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/app_constants.dart';
 import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/data/app_session.dart';
+import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/core/data/account_access_repository.dart';
+import 'package:tradex/core/widgets/account_access_gate.dart';
 import 'package:tradex/core/data/session_trader.dart';
 // Required unified primitive import for application layouts.
 // ignore: unnecessary_import
@@ -14,7 +17,9 @@ import 'package:tradex/features/admin_console/presentation/pages/admin_analytics
 import 'package:tradex/features/admin_console/presentation/pages/admin_audit_log_page.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_overview_page.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_publishing_page.dart';
-import 'package:tradex/features/admin_console/presentation/pages/admin_risk_compliance_page.dart';
+import 'package:tradex/features/admin_console/presentation/pages/admin_records_page.dart';
+import 'package:tradex/features/admin_console/presentation/pages/admin_settings_page.dart';
+import 'package:tradex/features/admin_console/models/admin_records.dart';
 import 'package:tradex/features/admin_console/presentation/pages/admin_team_seats_page.dart';
 import 'package:tradex/features/affiliate_program/affiliate_program.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_marketing_page.dart';
@@ -144,7 +149,10 @@ class _AppScaffoldState extends State<AppScaffold> {
   String _aiQuery = '';
 
   UserRole? _previewRoleOverride;
-  UserRole get _effectiveRole => _previewRoleOverride ?? widget.userRole;
+  AccountAccess? _liveAccess;
+  late final _accessRepository = AccountAccessRepository();
+  UserRole get _effectiveRole =>
+      _previewRoleOverride ?? _liveAccess?.role ?? widget.userRole;
 
   bool _hasEverOwnedAdminRole = false;
   bool _hasEverOwnedAffiliateRole = false;
@@ -155,6 +163,21 @@ class _AppScaffoldState extends State<AppScaffold> {
   );
 
   void _syncSessionEligibility([UserProfileModel? loadedProfile]) {
+    final live = _liveAccess;
+    if (live != null && !widget.showDevelopmentRoleSwitcher) {
+      _hasEverOwnedAdminRole = live.isActive && live.role == UserRole.userAdmin;
+      _hasEverOwnedAffiliateRole =
+          live.affiliateApproved && live.allows('affiliate');
+      _session.hasCustomProfileModeOverride = false;
+      _session.syncEligibility(
+        baseRole: _hasEverOwnedAdminRole
+            ? UserRole.userAdmin
+            : UserRole.customer,
+        isApprovedAffiliate: _hasEverOwnedAffiliateRole,
+        isAdmin: _hasEverOwnedAdminRole,
+      );
+      return;
+    }
     if (widget.userRole == UserRole.userAdmin ||
         loadedProfile?.role == UserRole.userAdmin ||
         (loadedProfile?.adminKey?.trim().isNotEmpty ?? false)) {
@@ -173,6 +196,20 @@ class _AppScaffoldState extends State<AppScaffold> {
       isApprovedAffiliate: _hasEverOwnedAffiliateRole,
       isAdmin: _hasEverOwnedAdminRole,
     );
+  }
+
+  void _applyLiveAccess(AccountAccess access) {
+    if (!mounted) return;
+    setState(() {
+      _liveAccess = access;
+      _session.changeTier(access.tier);
+      _syncSessionEligibility();
+      if (!_session.profileMode.value.supportsRole(_effectiveRole)) {
+        _previewRoleOverride = UserRole.customer;
+        _resetToOverview();
+      }
+      if (!access.isActive || !access.allows('ai')) _aiRepo.stop();
+    });
   }
 
   @override
@@ -651,8 +688,22 @@ class _AppScaffoldState extends State<AppScaffold> {
     return true;
   }
 
-  bool _canReach(String id) =>
-      _shellDestinations.containsKey(id) || _navigation.allows(id);
+  bool _canReach(String id) {
+    if ((id == 'admin_console' || id.startsWith('admin_')) &&
+        _effectiveRole != UserRole.userAdmin &&
+        !_hasEverOwnedAdminRole) {
+      return false;
+    }
+    if (id.startsWith('affiliate_') &&
+        id != 'affiliate_application' &&
+        _effectiveRole != UserRole.affiliate &&
+        _effectiveRole != UserRole.userAdmin &&
+        !_hasEverOwnedAffiliateRole &&
+        !_hasEverOwnedAdminRole) {
+      return false;
+    }
+    return _shellDestinations.containsKey(id) || _navigation.allows(id);
+  }
 
   void _openAffiliateApplication() => _go('affiliate_application');
 
@@ -1296,13 +1347,32 @@ class _AppScaffoldState extends State<AppScaffold> {
   Widget _adminPage() => switch (_selectedId) {
     'workspace' || 'overview' => AdminOverviewPage(onNavigate: _go),
     'org_team' => AdminTeamSeatsPage(onNavigate: _go),
-    'org_risk' => const AdminRiskCompliancePage(),
+    'org_risk' => const AdminSettingsPage(),
     'org_audit' => const AdminAuditLogPage(),
-    'org_analytics' => const AdminAnalyticsPage(),
+    'org_analytics' => AdminAnalyticsPage(onNavigate: _go),
     'affiliate_reviews' => const AffiliateApprovalsPage(),
     'org_publishing' => const AdminPublishingPage(),
-    'messages' => _messagesPage(),
-    'ai_copilot' => _aiAssistantPage(),
+    'admin_comments' => const AdminRecordsPage(
+      resource: AdminResource.comments,
+    ),
+    'admin_subscriptions' => const AdminRecordsPage(
+      resource: AdminResource.subscriptions,
+    ),
+    'admin_notes' => const AdminRecordsPage(resource: AdminResource.notes),
+    'admin_journal' => const AdminRecordsPage(resource: AdminResource.journal),
+    'admin_strategies' => const AdminRecordsPage(
+      resource: AdminResource.strategies,
+    ),
+    'admin_deletions' => const AdminRecordsPage(
+      resource: AdminResource.deletions,
+    ),
+    'admin_messages' ||
+    'messages' => const AdminRecordsPage(resource: AdminResource.messages),
+    'admin_ai' || 'ai_copilot' => const AdminRecordsPage(
+      resource: AdminResource.ai,
+      resources: [AdminResource.ai, AdminResource.aiRequests],
+      title: 'AI control',
+    ),
     _ => _unknownPage(),
   };
 
@@ -1679,15 +1749,28 @@ class _AppScaffoldState extends State<AppScaffold> {
   /// Listens to the session plan and multi-role profile bundle so changes in
   /// billing or role bundle repaint the workspace, dock and gates immediately.
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<AppTier>(
-    valueListenable: _session.tier,
-    builder: (BuildContext context, AppTier tier, Widget? _) =>
-        ValueListenableBuilder<UserProfileMode>(
-          valueListenable: _session.profileMode,
-          builder: (BuildContext context, UserProfileMode _, Widget? _) =>
-              _buildWorkspace(tier),
-        ),
-  );
+  Widget build(BuildContext context) =>
+      SupabaseConfig.isConfigured && !widget.showDevelopmentRoleSwitcher
+      ? AccountAccessGate(
+          key: ValueKey('access-${widget.userId}'),
+          repository: _accessRepository,
+          destination: _selectedId,
+          onAccess: _applyLiveAccess,
+          onLogout: widget.onLogout,
+          builder: _buildEntitledShell,
+        )
+      : _buildEntitledShell(context);
+
+  Widget _buildEntitledShell(BuildContext context) =>
+      ValueListenableBuilder<AppTier>(
+        valueListenable: _session.tier,
+        builder: (BuildContext context, AppTier tier, Widget? _) =>
+            ValueListenableBuilder<UserProfileMode>(
+              valueListenable: _session.profileMode,
+              builder: (BuildContext context, UserProfileMode _, Widget? _) =>
+                  _buildWorkspace(tier),
+            ),
+      );
 
   Widget _buildWorkspace(AppTier tier) {
     final RoleNavigationConfig navigation = _navigation;

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/navigation/customer_routes.dart';
 import 'package:tradex/features/auth/models/auth_state.dart';
+import 'package:tradex/features/auth/models/auth_user_role.dart';
 
 void main() {
   test('login retains a validated shared-record return route', () {
@@ -73,5 +74,48 @@ void main() {
     final route = CustomerRoute.parse(Uri.parse('tradex://note/test-note'));
     expect(route.destination, 'notes');
     expect(route.request!.id, 'test-note');
+  });
+  test('subdomain routing and role access guards enforce strict boundaries', () {
+    final adminRoute = CustomerRoute.parse(
+      Uri.parse('https://admin.alphajournal.in/'),
+    );
+    expect(adminRoute.destination, 'admin_console');
+    expect(adminRoute.stage, AuthStage.login);
+    expect(
+      CustomerRoute.requiredRoleForSubdomain('admin.alphajournal.in'),
+      UserRole.userAdmin,
+    );
+    expect(
+      CustomerRoute.canAccessDestination(
+        destination: 'admin_console',
+        role: UserRole.customer,
+        host: 'admin.alphajournal.in',
+      ),
+      isFalse,
+    );
+    expect(
+      CustomerRoute.canAccessDestination(
+        destination: 'admin_console',
+        role: UserRole.userAdmin,
+        host: 'admin.alphajournal.in',
+      ),
+      isTrue,
+    );
+    expect(
+      CustomerRoute.canAccessDestination(
+        destination: 'affiliate_overview',
+        role: UserRole.customer,
+        host: 'affiliate.alphajournal.in',
+      ),
+      isFalse,
+    );
+    expect(
+      CustomerRoute.canAccessDestination(
+        destination: 'affiliate_application',
+        role: UserRole.customer,
+        host: 'affiliate.alphajournal.in',
+      ),
+      isTrue,
+    );
   });
 }

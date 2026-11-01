@@ -143,12 +143,81 @@ class JournalRepositoryImpl implements JournalRepository {
       );
     }
 
+    await _loadLocalCache(preferences, actor);
+
     if (SupabaseConfig.isConfigured) {
       _initRealtime();
       await _fetchFromSupabase();
     } else {
       _publish();
     }
+  }
+
+  String _localCacheKey(String actor) =>
+      actor.isEmpty ? 'journal_entries_cache:guest' : 'journal_entries_cache:$actor';
+
+  Future<void> _loadLocalCache(
+    SharedPreferences preferences,
+    String actor,
+  ) async {
+    try {
+      final raw = preferences.getStringList(_localCacheKey(actor));
+      if (raw == null || raw.isEmpty) return;
+      for (final item in raw) {
+        final parts = item.split('||');
+        if (parts.length < 11) continue;
+        final id = parts[0];
+        if (_entries.any((e) => e.id == id)) continue;
+        final trade = AppTrade(
+          id: id,
+          userId: parts[1],
+          ticker: parts[2],
+          side: parts[3] == 'short' ? AppSide.short : AppSide.long,
+          entry: double.tryParse(parts[4]) ?? 0,
+          exit: parts[5].isEmpty ? null : double.tryParse(parts[5]),
+          stopLoss: parts[6].isEmpty ? null : double.tryParse(parts[6]),
+          target: parts[7].isEmpty ? null : double.tryParse(parts[7]),
+          size: double.tryParse(parts[8]) ?? 1,
+          pnl: double.tryParse(parts[9]) ?? 0,
+          openedAt: DateTime.tryParse(parts[10]) ?? DateTime.now(),
+          title: parts.length > 11 ? parts[11] : '',
+          notes: parts.length > 12 && parts[12].isNotEmpty ? parts[12] : null,
+          tags: parts.length > 13 && parts[13].isNotEmpty
+              ? parts[13].split(',')
+              : const <String>[],
+        ).withDerivedCounts();
+        _entries.add(trade);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveLocalCache() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final actor = _resolveUserId();
+      final serialized = _entries.take(100).map((t) {
+        final safeTitle = t.title.replaceAll('||', ' ');
+        final safeNotes = (t.notes ?? '').replaceAll('||', ' ');
+        final safeTags = t.tags.join(',');
+        return <String>[
+          t.id,
+          t.userId,
+          t.ticker,
+          t.side == AppSide.short ? 'short' : 'long',
+          t.entry.toString(),
+          t.exit?.toString() ?? '',
+          t.stopLoss?.toString() ?? '',
+          t.target?.toString() ?? '',
+          t.size.toString(),
+          t.pnl.toString(),
+          t.openedAt.toIso8601String(),
+          safeTitle,
+          safeNotes,
+          safeTags,
+        ].join('||');
+      }).toList();
+      await preferences.setStringList(_localCacheKey(actor), serialized);
+    } catch (_) {}
   }
 
   void _initRealtime() {
@@ -235,7 +304,6 @@ class JournalRepositoryImpl implements JournalRepository {
       final client = SupabaseConfig.client!;
       final targetUserId = _resolveUserId();
       if (targetUserId.isEmpty) {
-        _entries.clear();
         _publish();
         return;
       }
@@ -250,10 +318,17 @@ class JournalRepositoryImpl implements JournalRepository {
           .map((row) => _mapRowToTrade(row as Map<String, dynamic>))
           .toList();
 
+      final remoteIds = list.map((t) => t.id).toSet();
+      final localUnsynced = _entries
+          .where((t) => !remoteIds.contains(t.id))
+          .toList();
+
       _entries
         ..clear()
-        ..addAll(list);
+        ..addAll(list)
+        ..addAll(localUnsynced);
       _syncAllTickerLinks();
+      unawaited(_saveLocalCache());
       _publish();
     } catch (e) {
       debugPrint('[JournalRepository] _fetchFromSupabase error: $e');
@@ -603,6 +678,7 @@ class JournalRepositoryImpl implements JournalRepository {
 
     _entries.removeWhere((AppTrade t) => t.id == saved.id);
     _entries.insert(0, saved);
+    unawaited(_saveLocalCache());
     _publish();
     _recordTickerLinks(saved);
 
@@ -648,6 +724,7 @@ class JournalRepositoryImpl implements JournalRepository {
     } else {
       _entries[at] = saved;
     }
+    unawaited(_saveLocalCache());
     _publish();
     _recordTickerLinks(saved);
 
@@ -720,6 +797,7 @@ class JournalRepositoryImpl implements JournalRepository {
     }
 
     _entries.removeWhere((AppTrade t) => t.id == id);
+    unawaited(_saveLocalCache());
     _publish();
     unawaited(
       EntityTickerLinksRepository.instance.removeLinks(

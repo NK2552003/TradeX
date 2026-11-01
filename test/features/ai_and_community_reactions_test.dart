@@ -91,17 +91,17 @@ void main() {
       expect(reply, contains('Trade Execution Blueprint'));
     });
 
-    test('Note AI refactoring works through UnifiedAiService', () async {
+    test('Note AI refactoring rejects unauthenticated requests when no keys are configured', () async {
       const refactor = RealNoteAiRefactor();
-      final enhanced = await refactor.enhance(
-        selectedText: 'Watched NVDA hit 128 resistance today with heavy tape volume.',
-        noteType: AppNoteType.analysis,
-        contextTitle: 'NVDA Journal',
-        instruction: 'Turn into trading plan',
+      expect(
+        () async => await refactor.enhance(
+          selectedText: 'Watched NVDA hit 128 resistance today with heavy tape volume.',
+          noteType: AppNoteType.analysis,
+          contextTitle: 'NVDA Journal',
+          instruction: 'Turn into trading plan',
+        ),
+        throwsA(isA<StateError>()),
       );
-
-      expect(enhanced, isNotEmpty);
-      expect(enhanced, contains('NVDA'));
     });
   });
 

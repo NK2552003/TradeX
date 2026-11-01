@@ -4,6 +4,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import '../calculator_registry.dart';
 import '../logic/trading_calculators.dart';
 import '../services/market_data_service.dart';
+import 'calculator_journal_draft.dart';
 
 /// Profit and loss — one closed trade, and the exits it could have had.
 ///
@@ -104,6 +105,35 @@ class _PnlCalculatorScreenState extends State<PnlCalculatorScreen> {
     final double pad = (hi - lo) * 0.2 + 1;
 
     return AppCalculatorLayout(
+      actions: <Widget>[
+        UiButton(
+          label: 'History',
+          leadingIcon: Icons.history_rounded,
+          variant: UiVariant.ghost,
+          size: UiSize.sm,
+          onPressed: () => showCalculatorHistorySheet(context),
+        ),
+        UiButton(
+          label: 'Log Trade',
+          leadingIcon: Icons.book_outlined,
+          variant: UiVariant.soft,
+          size: UiSize.sm,
+          onPressed: _qty > 0
+              ? () => openCalculatorJournalDraft(
+                  context,
+                  symbol: _symbol,
+                  entry: _entry,
+                  exit: _exit,
+                  quantity: _qty,
+                  side: _isLong ? AppSide.long : AppSide.short,
+                  calculatorId: 'pnl',
+                  calculatorName: 'Profit & Loss',
+                  notes:
+                      'Net P&L: ${AppTokens.signedMoney(r.netPnl, decimals: 0)} (Charges: ₹${AppTokens.price(_charges)})',
+                )
+              : null,
+        ),
+      ],
       meta: calculatorMetaById('pnl'),
       onBack: widget.onBack,
       headline: AppCalcHeadline(

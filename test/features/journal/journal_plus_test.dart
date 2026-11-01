@@ -32,7 +32,6 @@ void main() {
 
     // Is JournalEditorScreen visible?
     final editor = find.byType(JournalEditorScreen);
-    print('JournalEditorScreen found: ${editor.evaluate().length}');
     expect(editor, findsOneWidget);
   });
 
@@ -58,7 +57,6 @@ void main() {
     await tester.pumpAndSettle();
 
     final editor = find.byType(StrategyEditorScreen);
-    print('StrategyEditorScreen found: ');
     expect(editor, findsOneWidget);
   });
 }

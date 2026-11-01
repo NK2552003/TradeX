@@ -5,6 +5,7 @@ import '../calculator_registry.dart';
 import '../logic/options_calculators.dart';
 import '../logic/trading_calculators.dart';
 import '../services/market_data_service.dart';
+import 'calculator_journal_draft.dart';
 
 /// Margin — the capital an exchange blocks to let you carry a contract, and
 /// what a hedge does to that number.
@@ -109,6 +110,33 @@ class _MarginCalculatorScreenState extends State<MarginCalculatorScreen> {
     }
 
     return AppCalculatorLayout(
+      actions: <Widget>[
+        UiButton(
+          label: 'History',
+          leadingIcon: Icons.history_rounded,
+          variant: UiVariant.ghost,
+          size: UiSize.sm,
+          onPressed: () => showCalculatorHistorySheet(context),
+        ),
+        UiButton(
+          label: 'Log Trade',
+          leadingIcon: Icons.book_outlined,
+          variant: UiVariant.soft,
+          size: UiSize.sm,
+          onPressed: _lots > 0 && _lotSize > 0
+              ? () => openCalculatorJournalDraft(
+                  context,
+                  symbol: _symbol == 'STOCK' ? 'RELIANCE' : _symbol,
+                  entry: _price,
+                  quantity: _lots * _lotSize,
+                  calculatorId: 'margin',
+                  calculatorName: 'Margin',
+                  notes:
+                      '$_lots lots (${_hedged ? 'Hedged' : 'Naked'}) · Margin blocked: ${AppTokens.lakhCrore(required)} (${m.leverage.toStringAsFixed(1)}× leverage)',
+                )
+              : null,
+        ),
+      ],
       meta: calculatorMetaById('margin'),
       onBack: widget.onBack,
       headline: AppCalcHeadline(

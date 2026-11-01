@@ -17,7 +17,6 @@ import 'package:tradex/features/community/presentation/views/community_post_deta
 import 'package:tradex/features/community/presentation/views/community_profile_view.dart';
 import 'package:tradex/features/community/presentation/views/community_search_page.dart';
 import 'package:tradex/features/community/presentation/widgets/community_ai_assistant_dialog.dart';
-import 'package:tradex/features/community/presentation/widgets/community_audio_mini_player.dart';
 import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
 import 'package:tradex/features/community/presentation/widgets/community_design.dart';
 import 'package:tradex/features/community/presentation/widgets/community_sidebar_widgets.dart';
@@ -671,14 +670,6 @@ class CommunityRootScreenState extends State<CommunityRootScreen>
                 )
               else
                 layout,
-              if (_repo.isTunedIntoLiveRoom)
-                Positioned(
-                  left: isMobile
-                      ? context.sp(theme.spacing.sm)
-                      : context.sp(theme.spacing.lg),
-                  bottom: floatingBottom + (isMobile ? context.sz(56) : 0),
-                  child: CommunityAudioMiniPlayer(repository: _repo),
-                ),
               Positioned(
                 right: floatingRight,
                 bottom: floatingBottom,

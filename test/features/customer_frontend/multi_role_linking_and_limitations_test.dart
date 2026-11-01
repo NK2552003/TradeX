@@ -4,6 +4,7 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/core/data/app_session.dart';
 import 'package:tradex/core/linking/link_graph.dart';
+import 'package:tradex/core/navigation/customer_routes.dart';
 import 'package:tradex/core/navigation/role_navigation_config.dart';
 import 'package:tradex/features/admin_console/data/admin_console_repository.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
@@ -194,6 +195,27 @@ void main() {
       expect(schemeRef, isNotNull);
       expect(schemeRef!.kind, AppLinkKind.ticker);
       expect(schemeRef.id, 'NIFTY50');
+
+      expect(
+        CustomerRoute.parse(Uri.parse('https://app.alphajournal.in/')).destination,
+        'workspace',
+      );
+      expect(
+        CustomerRoute.parse(Uri.parse('https://community.alphajournal.in/')).destination,
+        'community_feed',
+      );
+      expect(
+        CustomerRoute.parse(Uri.parse('https://admin.alphajournal.in/')).destination,
+        'admin_console',
+      );
+      expect(
+        CustomerRoute.parse(Uri.parse('https://affiliate.alphajournal.in/')).destination,
+        'affiliate_application',
+      );
+      expect(
+        CustomerRoute.parse(Uri.parse('https://app.alphagournal.in/')).destination,
+        'workspace',
+      );
     });
 
     test(
@@ -234,24 +256,27 @@ void main() {
   });
 
   group('Customer Subscription Quotas (INR) & Desk Risk Limitations', () {
-    test('INR subscription quotas scale across Basic, Pro, and Enterprise', () {
-      final basic = CustomerTierQuota.forTier(AppTier.free);
-      final pro = CustomerTierQuota.forTier(AppTier.premium);
-      final enterprise = CustomerTierQuota.forTier(AppTier.enterprise);
+    test('INR subscription quotas scale across Free, Basic, and Pro', () {
+      final free = CustomerTierQuota.forTier(AppTier.free);
+      final basic = CustomerTierQuota.forTier(AppTier.premium);
+      final pro = CustomerTierQuota.forTier(AppTier.enterprise);
 
-      expect(basic.monthlyPriceInr, 0);
+      expect(free.monthlyPriceInr, 0);
+      expect(free.maxNotes, 3);
+      expect(free.maxTrades, 15);
+      expect(free.maxLiveStrategies, 1);
+      expect(free.allowPdfExport, isFalse);
+
+      expect(basic.monthlyPriceInr, 299);
       expect(basic.maxNotes, 25);
       expect(basic.maxTrades, 100);
       expect(basic.maxLiveStrategies, 3);
       expect(basic.allowPdfExport, isFalse);
 
-      expect(pro.monthlyPriceInr, 2499);
-      expect(pro.maxNotes, 500);
-      expect(pro.maxTrades, 5000);
+      expect(pro.monthlyPriceInr, 499);
+      expect(pro.maxNotes, 10000);
+      expect(pro.maxTrades, 50000);
       expect(pro.allowPdfExport, isTrue);
-
-      expect(enterprise.monthlyPriceInr, 999);
-      expect(enterprise.maxTrades, 50000);
     });
 
     test(

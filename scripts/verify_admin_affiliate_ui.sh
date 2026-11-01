@@ -12,7 +12,9 @@ flutter test --no-pub --dart-define=CAPTURE_WORKSPACE_UI=true \
   test/core/workspace_card_layout_test.dart \
   test/core/flutter-ui/reusable_components_test.dart \
   test/features/ai_assistant/ai_assistant_redesign_test.dart \
+  test/features/ai_assistant/ai_streaming_test.dart \
   test/features/messages/messages_redesign_test.dart \
+  test/features/settings/deletion_request_flow_test.dart \
   2>&1 | tee "$report_dir/tests.log"
 git diff --check
 python3 scripts/workspace_ui_gallery.py

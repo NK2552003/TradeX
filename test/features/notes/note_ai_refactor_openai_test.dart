@@ -17,14 +17,11 @@ void main() {
     });
 
     test('UnifiedAiService lists gpt-4.1-mini as preferred primary OpenAI model', () {
-      expect(kOpenAiModels.first, equals('gpt-4.1-mini'));
-      expect(kOpenAiModels, contains('gpt-4o-mini'));
+      expect(UnifiedAiService.kOpenAiModels.first, equals('gpt-4.1-mini'));
+      expect(UnifiedAiService.kOpenAiModels, contains('gpt-4o-mini'));
     });
-  });
 
-  group('Issue #43: Valid RFC 4122 UUID Identifiers for Database Compatibility', () {
     test('all generated IDs for notes, trades, and strategies conform to valid UUIDv4', () {
-      const uuid = Uuid();
       final noteId = const Uuid().v4();
       final tradeId = const Uuid().v4();
       final strategyId = const Uuid().v4();

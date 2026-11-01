@@ -35,6 +35,32 @@ class SupabaseAuthBackendService implements AuthRepository {
   }
 
   @override
+  Future<int> getRegisteredUserCount() async {
+    if (!SupabaseConfig.isConfigured) {
+      return AuthBackendService.instance.getRegisteredUserCount();
+    }
+    try {
+      final client = SupabaseConfig.client;
+      if (client == null) return 0;
+      final rows = await client
+          .from('profiles')
+          .select('id')
+          .neq('role', 'user_admin')
+          .limit(AuthRepository.maxRegisteredUsersCap + 5);
+      return (rows as List).length;
+    } catch (e) {
+      debugPrint('[SupabaseAuthBackendService] getRegisteredUserCount error: $e');
+      return 0;
+    }
+  }
+
+  @override
+  Future<bool> isSignupOpen() async {
+    final count = await getRegisteredUserCount();
+    return count < AuthRepository.maxRegisteredUsersCap;
+  }
+
+  @override
   Future<AuthResult> signUp({
     required UserRole role,
     required String handle,
@@ -70,6 +96,14 @@ class SupabaseAuthBackendService implements AuthRepository {
       return AuthResult.failure(
         'Administrator accounts are provisioned privately. Use Admin sign in.',
         errorCode: 'admin_signup_disabled',
+      );
+    }
+
+    // 3. Enforce 100-user registration capacity limit
+    if (!await isSignupOpen()) {
+      return AuthResult.failure(
+        'Platform capacity reached (${AuthRepository.maxRegisteredUsersCap} users). New user registration is currently disabled.',
+        errorCode: 'signup_capacity_reached',
       );
     }
 
@@ -251,13 +285,17 @@ class SupabaseAuthBackendService implements AuthRepository {
 
       // 1. Resolve email by handle if input starts with @ or is not an email
       if (cleanInput.startsWith('@') || !cleanInput.contains('@')) {
-        final formattedHandle = cleanInput.startsWith('@')
-            ? cleanInput
-            : '@$cleanInput';
-        final profileRes = await client
+        final rawHandle = cleanInput.replaceAll('@', '');
+        final formattedHandle = '@$rawHandle';
+        var profileRes = await client
             .from('profiles')
             .select('email')
             .ilike('handle', formattedHandle)
+            .maybeSingle();
+        profileRes ??= await client
+            .from('profiles')
+            .select('email')
+            .ilike('handle', rawHandle)
             .maybeSingle();
 
         if (profileRes == null || profileRes['email'] == null) {
@@ -311,12 +349,28 @@ class SupabaseAuthBackendService implements AuthRepository {
         }
       }
 
-      // 4. Validate Admin Role Requirement
-      if (role == UserRole.userAdmin &&
-          userProfile.role != UserRole.userAdmin) {
-        return AuthResult.failure(
-          'Access Denied: Account lacks User Admin security clearance.',
-        );
+      // 4. Validate Admin Role Requirement & Security Clearance Key
+      if (role == UserRole.userAdmin) {
+        if (userProfile.role != UserRole.userAdmin) {
+          await client.auth.signOut();
+          return AuthResult.failure(
+            'Access Denied: Account lacks User Admin security clearance.',
+          );
+        }
+        final suppliedKey = adminKey?.trim() ?? '';
+        final expectedKey =
+            (userProfile.adminKey?.trim().isNotEmpty == true
+                ? userProfile.adminKey!.trim()
+                : (user.userMetadata?['admin_key'] as String?)?.trim()) ??
+            '';
+        if (suppliedKey.isEmpty ||
+            (expectedKey.isNotEmpty && suppliedKey != expectedKey)) {
+          await client.auth.signOut();
+          return AuthResult.failure(
+            'Invalid Admin Security Clearance Key for this administrator account.',
+          );
+        }
+        userProfile = userProfile.copyWith(adminKey: suppliedKey);
       }
 
       if (role == UserRole.affiliate) {

@@ -16,9 +16,11 @@ import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_o
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_payouts_page.dart';
 import 'package:tradex/features/affiliate_program/presentation/pages/affiliate_referrals_page.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
-import 'package:tradex/features/settings/presentation/pages/admin/desk_risk_page.dart';
-import 'package:tradex/features/settings/presentation/pages/admin/organization_settings_page.dart';
-import 'package:tradex/features/settings/presentation/pages/admin/team_roles_page.dart';
+import 'package:tradex/features/admin_console/presentation/pages/admin_records_page.dart';
+import 'package:tradex/features/admin_console/presentation/pages/admin_settings_page.dart';
+import 'package:tradex/features/admin_console/presentation/pages/admin_user_detail_page.dart';
+import 'package:tradex/features/admin_console/models/admin_records.dart';
+import '../../helpers/admin_repository_fixture.dart';
 import 'package:tradex/features/settings/presentation/pages/affiliate/affiliate_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/shared/settings_root_page.dart';
 import '../../helpers/workspace_design_harness.dart';
@@ -33,15 +35,35 @@ void main() {
   });
   tearDown(() => CustomerDataPolicy.allowDemo = false);
   final pages = <String, Widget Function()>{
-    'admin-overview': () => const AdminOverviewPage(),
-    'admin-analytics': () => const AdminAnalyticsPage(),
-    'admin-risk': () => const AdminRiskCompliancePage(),
-    'admin-audit': () => const AdminAuditLogPage(),
-    'admin-governance': () => const AdminTeamSeatsPage(),
-    'admin-approvals': () => const AffiliateApprovalsPage(),
-    'admin-organization': () => const OrganizationSettingsPage(),
-    'admin-team-roles': () => const TeamRolesPage(),
-    'admin-risk-settings': () => const DeskRiskPage(),
+    'admin-overview': () =>
+        AdminOverviewPage(repository: AdminRepositoryFixture()),
+    'admin-analytics': () =>
+        AdminAnalyticsPage(repository: AdminRepositoryFixture()),
+    'admin-risk': () =>
+        AdminRiskCompliancePage(repository: AdminRepositoryFixture()),
+    'admin-audit': () =>
+        AdminAuditLogPage(repository: AdminRepositoryFixture()),
+    'admin-governance': () =>
+        AdminTeamSeatsPage(repository: AdminRepositoryFixture()),
+    'admin-approvals': () =>
+        AffiliateApprovalsPage(repository: AdminRepositoryFixture()),
+    'admin-settings': () =>
+        AdminSettingsPage(repository: AdminRepositoryFixture()),
+    for (final resource in [
+      AdminResource.posts,
+      AdminResource.comments,
+      AdminResource.subscriptions,
+      AdminResource.notes,
+      AdminResource.journal,
+      AdminResource.strategies,
+      AdminResource.messages,
+      AdminResource.ai,
+      AdminResource.aiRequests,
+    ])
+      'admin-${resource.name}': () => AdminRecordsPage(
+        resource: resource,
+        repository: AdminRepositoryFixture(),
+      ),
     'affiliate-overview': () => const AffiliateOverviewPage(),
     'affiliate-referrals': () => const AffiliateReferralsPage(),
     'affiliate-campaigns': () => const AffiliateMarketingPage(),
@@ -75,26 +97,43 @@ void main() {
         await captureWorkspace(tester, '${page.key}-${target.name}-bottom');
       });
     }
-    testWidgets('all governance tabs at ${target.name}', (tester) async {
+    testWidgets('all user controls and records at ${target.name}', (
+      tester,
+    ) async {
       await pumpWorkspace(
         tester,
-        const AdminTeamSeatsPage(),
+        AdminUserDetailPage(
+          userId: AdminRepositoryFixture.userId,
+          repository: AdminRepositoryFixture(),
+          onBack: () {},
+        ),
         width: target.width,
         paneWidth: target.pane,
         textScale: target.scale,
         dark: target.dark,
       );
       for (final tab in [
-        'Consumers (',
-        'Desk Seats (',
-        'Affiliates (',
-        'Data Purge (',
+        'Permissions',
+        'Subscription',
+        'Affiliate',
+        'Posts',
+        'Notes',
+        'Journal',
+        'Strategies',
+        'Messages',
+        'AI',
+        'Activity',
       ]) {
-        final item = find.textContaining(tab).first;
+        final tabs = find.byType(UiTabs).first;
+        final item = find.descendant(of: tabs, matching: find.text(tab));
         await tester.ensureVisible(item);
         await tester.tap(item);
         await settleWorkspace(tester);
         expect(tester.takeException(), isNull);
+        await captureWorkspace(
+          tester,
+          'user-${tab.toLowerCase()}-${target.name}',
+        );
         await scrollWorkspace(tester);
       }
     });

@@ -1,14 +1,14 @@
 import 'dart:async';
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:tradex/core/ai/unified_ai_service.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/config/env_config.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'ai_chat_transport.dart';
 
 /// Production-grade AI Chat Transport:
-/// - When authenticated with Supabase: Streams via server-side 'ai-chat' Edge Function (using server-side OPEN_AI_KEY, gpt-4.1-mini, quota enforcement, and portfolio context authorization).
+/// - When authenticated with Supabase: Routes via UnifiedAiService ('ai-gateway' Edge Function) with atomic quota reservation, admin access enforcement, and server-side turn persistence.
 /// - Fallback: Multi-tier UnifiedAiService (OpenAI gpt-4.1-mini / gpt-4o-mini -> OpenRouter -> Gemini -> Claude -> Dynamic Engine).
 class GeminiAiChatTransport implements AiChatTransport {
   GeminiAiChatTransport({http.Client Function()? clientFactory})
@@ -18,9 +18,13 @@ class GeminiAiChatTransport implements AiChatTransport {
   StreamSubscription<dynamic>? _streamSub;
   StreamController<String>? _controller;
   http.Client? _activeHttpClient;
+  bool regenerateNext = false;
 
   @override
-  bool get available => true;
+  bool get available =>
+      SupabaseConfig.isConfigured ||
+      EnvConfig.hasAiKey ||
+      CustomerDataPolicy.allowDemo;
 
   @override
   void cancel() {
@@ -54,61 +58,14 @@ class GeminiAiChatTransport implements AiChatTransport {
     String persona,
     List<AppAiMessage> messages,
   ) async {
-    final session = SupabaseConfig.client?.auth.currentSession;
-    final user = SupabaseConfig.client?.auth.currentUser;
-
-    if (SupabaseConfig.isConfigured && session != null && session.accessToken.isNotEmpty && user != null) {
-      final client = _clientFactory();
-      _activeHttpClient = client;
-      try {
-        final lastMsg = messages.where((m) => m.role == AppAiRole.user).lastOrNull?.body ?? '';
-        final edgeUrl = Uri.parse('${SupabaseConfig.supabaseUrl.replaceAll(RegExp(r"/+\$"), "")}/functions/v1/ai-chat');
-        final request = http.Request('POST', edgeUrl)
-          ..headers.addAll({
-            'Authorization': 'Bearer ${session.accessToken}',
-            'Content-Type': 'application/json',
-            'Accept': 'text/event-stream',
-          })
-          ..body = jsonEncode({
-            'threadId': threadId,
-            'persona': persona,
-            'message': lastMsg,
-          });
-
-        final response = await client.send(request);
-        if (response.statusCode == 200) {
-          bool streamedAny = false;
-          final lineStream = response.stream.transform(utf8.decoder).transform(const LineSplitter());
-          await for (final line in lineStream) {
-            final trimmed = line.trim();
-            if (!trimmed.startsWith('data:')) continue;
-            final jsonStr = trimmed.substring(5).trim();
-            try {
-              final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-              final text = data['text']?.toString();
-              if (text != null && text.isNotEmpty) {
-                streamedAny = true;
-                if (!controller.isClosed) {
-                  controller.add(text);
-                }
-              }
-            } catch (_) {}
-          }
-          if (streamedAny && !controller.isClosed) {
-            controller.close();
-            return;
-          }
-        }
-      } catch (e) {
-        debugPrint('[GeminiAiChatTransport] Edge ai-chat streaming fallback: $e');
-      } finally {
-        _activeHttpClient = null;
-      }
-    }
-
-    // Fallback to UnifiedAiService (OpenAI gpt-4.1-mini -> OpenRouter -> Gemini -> Dynamic Engine)
     final aiService = UnifiedAiService(clientFactory: _clientFactory);
-    final sourceStream = aiService.stream(messages: messages, persona: persona);
+    final sourceStream = aiService.stream(
+      messages: messages,
+      persona: persona,
+      threadId: threadId,
+      requestKind: regenerateNext ? 'regenerate' : 'chat',
+    );
+    regenerateNext = false;
 
     _streamSub = sourceStream.listen(
       (chunk) {
@@ -118,6 +75,17 @@ class GeminiAiChatTransport implements AiChatTransport {
       },
       onError: (e) {
         if (!controller.isClosed) {
+          final msg = e.toString().toLowerCase();
+          if (SupabaseConfig.isConfigured &&
+              (msg.contains('sign in') ||
+                  msg.contains('quota') ||
+                  msg.contains('account changed') ||
+                  msg.contains('no longer available'))) {
+            controller.addError(e);
+            controller.close();
+            return;
+          }
+          // Provide dynamic fallback text on unhandled error
           controller.add(
             '\n\n${UnifiedAiService.generateLocalTradingAnalysis(prompt: messages.isNotEmpty ? messages.last.body : 'Market Analysis', persona: persona)}',
           );

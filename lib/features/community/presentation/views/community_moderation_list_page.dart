@@ -242,14 +242,14 @@ class _CommunityModerationListPageState
                   onPressed: () async {
                     try {
                       await widget.repository.unblockUser(entry.userId);
-                      if (!context.mounted) return;
+                      if (!mounted) return;
                       UiToast.show(
                         context,
                         title: 'Account Unblocked',
                         message: 'Unblocked ${entry.userId}',
                       );
                     } catch (e) {
-                      if (!context.mounted) return;
+                      if (!mounted) return;
                       UiToast.show(
                         context,
                         title: 'Action Failed',

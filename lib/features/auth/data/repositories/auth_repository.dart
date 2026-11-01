@@ -42,6 +42,17 @@ class AuthResult {
 
 /// Abstract AuthRepository defining backend interaction contract for authentication.
 abstract class AuthRepository {
+  /// Maximum number of non-admin user accounts permitted before new signups are
+  /// automatically disabled to protect platform capacity.
+  static const int maxRegisteredUsersCap = 100;
+
+  /// Returns true when total registered non-admin users is below
+  /// [maxRegisteredUsersCap] and new user signups are open.
+  Future<bool> isSignupOpen() async => true;
+
+  /// Returns the current count of registered non-admin users.
+  Future<int> getRegisteredUserCount() async => 0;
+
   /// Register a new user with role, handler ID, email, password, and optional partner code or admin key.
   Future<AuthResult> signUp({
     required UserRole role,

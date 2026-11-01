@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart' hide CommunityPostCard;
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
-import 'package:tradex/features/community/presentation/widgets/community_live_space_card.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
 import 'package:tradex/features/community/presentation/widgets/community_widgets.dart';
@@ -50,7 +49,6 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
 
   static const List<String> _subTabs = <String>[
     'For you',
-    'Live Spaces',
     'Following',
     'Signals & Setups',
     'Market News',
@@ -68,7 +66,6 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
 
   static const _routeTabs = [
     'for-you',
-    'live',
     'following',
     'signals',
     'news',
@@ -158,17 +155,15 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
             children: <Widget>[
               // Tab 0: For you
               _CommunityKeepAliveTab(child: _buildForYouTab()),
-              // Tab 1: Live Spaces
-              _CommunityKeepAliveTab(child: _buildLiveSpacesTab()),
-              // Tab 2: Following
+              // Tab 1: Following
               _CommunityKeepAliveTab(child: _buildFollowingTab()),
-              // Tab 3: Signals & Setups
+              // Tab 2: Signals & Setups
               _CommunityKeepAliveTab(child: _buildSignalsTab()),
-              // Tab 4: Market News
+              // Tab 3: Market News
               _CommunityKeepAliveTab(child: _buildNewsTab()),
-              // Tab 5: Crypto
+              // Tab 4: Crypto
               _CommunityKeepAliveTab(child: _buildCryptoTab()),
-              // Tab 6: Equities
+              // Tab 5: Equities
               _CommunityKeepAliveTab(child: _buildEquitiesTab()),
             ],
           ),
@@ -291,14 +286,6 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                   width: theme.borders.hairline,
                   color: theme.colors.border.withValues(alpha: 0.6),
                   margin: const EdgeInsets.symmetric(horizontal: 2),
-                ),
-                UiIconButton(
-                  icon: Icons.podcasts_rounded,
-                  size: UiSize.xs,
-                  tooltip: 'Live Spaces',
-                  onPressed: () {
-                    _subTabController.animateTo(1);
-                  },
                 ),
                 UiIconButton(
                   icon: Icons.add_rounded,
@@ -432,76 +419,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     final posts = _filter(widget.repository.forYouPosts);
     final double effectiveTop = topPadding ?? context.sp(theme.spacing.sm);
 
-    final liveRooms = widget.repository.liveRooms;
-    final LiveAudioRoom? featuredRoom = liveRooms.isNotEmpty
-        ? liveRooms.first
-        : null;
-
-    final Widget liveSpaceBanner = featuredRoom == null
-        ? const SizedBox.shrink()
-        : Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: context.sp(
-                isMobile ? theme.spacing.sm : theme.spacing.md,
-              ),
-              vertical: context.sp(theme.spacing.xxs),
-            ),
-            child: InkWell(
-              onTap: () {
-                CommunityLiveRoomSheet.show(
-                  context,
-                  roomId: featuredRoom.id,
-                  roomTitle: featuredRoom.title,
-                  hostName: featuredRoom.host.displayName,
-                  listenerCount: featuredRoom.listenerCount,
-                  pinnedSetup: featuredRoom.pinnedSetup,
-                  repository: widget.repository,
-                );
-              },
-              borderRadius: BorderRadius.circular(theme.radii.md),
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.sp(theme.spacing.sm),
-                  vertical: context.sp(theme.spacing.xs),
-                ),
-                decoration: BoxDecoration(
-                  color: theme.colors.danger.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(theme.radii.md),
-                  border: Border.all(
-                    color: theme.colors.danger.withValues(alpha: 0.25),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: context.sp(theme.spacing.xs),
-                      runSpacing: context.sp(theme.spacing.xs),
-                      children: [
-                        UiBadge(
-                          label: 'AUDIO PREVIEW',
-                          intent: UiIntent.danger,
-                          size: UiSize.xs,
-                        ),
-                        UiBadge(
-                          label: '${featuredRoom.listenerCount} listening',
-                          icon: Icons.headphones_rounded,
-                          size: UiSize.xs,
-                        ),
-                      ],
-                    ),
-                    UiGap.v(theme.spacing.xs),
-                    Text(
-                      '${featuredRoom.title} · ${featuredRoom.host.displayName}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.uiText.bodyStrong,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
+    const Widget liveSpaceBanner = SizedBox.shrink();
 
     final Widget composeHeader = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -576,193 +494,6 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       ),
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // Tab 1: Live Audio Spaces
-  // ---------------------------------------------------------------------------
-
-  Widget _buildLiveSpacesTab({double? topPadding}) {
-    final UiTheme theme = context.ui;
-    final isMobile = context.uiRes.isMobile;
-    final liveRooms = widget.repository.liveRooms;
-    final upcomingRooms = widget.repository.upcomingRooms;
-    final double effectiveTop = topPadding ?? context.sp(theme.spacing.sm);
-
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: context.sz(700)),
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-            effectiveTop,
-            context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-            context.sp(theme.spacing.xl),
-          ),
-          children: <Widget>[
-            // Header Hero Banner with Host Space button
-            Container(
-              padding: EdgeInsets.all(context.sp(theme.spacing.md)),
-              decoration: BoxDecoration(
-                color: theme.colors.surface,
-                borderRadius: BorderRadius.circular(theme.radii.lg),
-                border: Border.all(color: theme.colors.border),
-                gradient: LinearGradient(
-                  colors: <Color>[
-                    theme.colors.surface,
-                    theme.colors.danger.withValues(alpha: 0.05),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Container(
-                        padding: EdgeInsets.all(context.sp(theme.spacing.xs)),
-                        decoration: BoxDecoration(
-                          color: theme.colors.danger.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.podcasts_rounded,
-                          color: theme.colors.danger,
-                          size: context.sz(20),
-                        ),
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.xs)),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              'Live Audio Spaces & Floors',
-                              style: context.uiText.heading.copyWith(
-                                fontWeight: FontWeight.w800,
-                                fontSize: context.fs(16),
-                              ),
-                            ),
-                            Text(
-                              'Voice your market thesis, break down live order flow, or listen in on institutional setups.',
-                              style: context.uiText.caption.copyWith(
-                                color: theme.colors.foregroundMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: context.sp(theme.spacing.md)),
-                  UiButton(
-                    label: 'Host a Live Space',
-                    leadingIcon: Icons.podcasts_rounded,
-                    variant: UiVariant.solid,
-                    intent: UiIntent.primary,
-                    expandOnMobile: true,
-                    onPressed: () {
-                      CommunityHostLiveSpaceDialog.show(
-                        context,
-                        repository: widget.repository,
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: context.sp(theme.spacing.md)),
-
-            // HAPPENING NOW Section
-            Row(
-              children: <Widget>[
-                Container(
-                  width: context.sz(8),
-                  height: context.sz(8),
-                  decoration: BoxDecoration(
-                    color: theme.colors.danger,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Text(
-                  'HAPPENING NOW (${liveRooms.length})',
-                  style: context.uiText.label.copyWith(
-                    color: theme.colors.danger,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: context.sp(theme.spacing.xs)),
-
-            if (liveRooms.isEmpty)
-              UiEmptyState(
-                icon: Icons.podcasts_rounded,
-                title: 'No active spaces right now',
-                message:
-                    'Start your own live trading floor to discuss the market with peers.',
-                actionLabel: 'Host Space',
-                onActionPressed: () => CommunityHostLiveSpaceDialog.show(
-                  context,
-                  repository: widget.repository,
-                ),
-              )
-            else
-              ...liveRooms.map((room) => _buildLiveRoomCard(room)),
-
-            SizedBox(height: context.sp(theme.spacing.md)),
-
-            // SCHEDULED SPACES Section
-            Row(
-              children: <Widget>[
-                Icon(
-                  Icons.schedule_rounded,
-                  size: context.sz(14),
-                  color: theme.colors.foregroundMuted,
-                ),
-                SizedBox(width: context.sp(theme.spacing.xs)),
-                Text(
-                  'SCHEDULED SPACES (${upcomingRooms.length})',
-                  style: context.uiText.label.copyWith(
-                    color: theme.colors.foregroundMuted,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: context.sp(theme.spacing.xs)),
-
-            if (upcomingRooms.isEmpty)
-              UiEmptyState(
-                icon: Icons.event_available_rounded,
-                title: 'No upcoming scheduled spaces',
-                message:
-                    'Schedule a session in advance so traders can set reminders.',
-                actionLabel: 'Schedule a Space',
-                onActionPressed: () => CommunityHostLiveSpaceDialog.show(
-                  context,
-                  repository: widget.repository,
-                ),
-              )
-            else
-              ...upcomingRooms.map((room) => _buildUpcomingRoomCard(room)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLiveRoomCard(LiveAudioRoom room) => Padding(
-    padding: EdgeInsets.only(bottom: context.sp(context.ui.spacing.sm)),
-    child: CommunityLiveSpaceCard(room: room, repository: widget.repository),
-  );
-
-  Widget _buildUpcomingRoomCard(LiveAudioRoom room) => _buildLiveRoomCard(room);
 
   Widget _buildFollowingTab({double? topPadding}) {
     final UiTheme theme = context.ui;
