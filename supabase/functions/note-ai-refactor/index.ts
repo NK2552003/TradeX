@@ -217,7 +217,8 @@ Deno.serve(async (request) => {
     });
   }
 
-  // 8. LLM invocation via Gemini or OpenRouter with headers and timeout signals
+  // 8. LLM invocation via OpenAI, Gemini or OpenRouter with headers and timeout signals
+  const openAiApiKey = Deno.env.get('OPEN_AI_KEY') ?? Deno.env.get('OPENAI_API_KEY');
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
 
@@ -241,7 +242,43 @@ ${cleanSelectedText}
 
   let enhancedText: string | null = null;
 
-  if (geminiApiKey) {
+  if (!enhancedText && openAiApiKey) {
+    for (const model of ['gpt-4.1-mini', 'gpt-4o-mini']) {
+      try {
+        const openAiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${openAiApiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: prompt },
+            ],
+            temperature: 0.3,
+            max_tokens: 2048,
+          }),
+          signal: AbortSignal.timeout(20_000),
+        });
+        if (openAiRes.ok) {
+          const json = await openAiRes.json();
+          const choice = json.choices?.[0]?.message?.content;
+          if (choice) {
+            enhancedText = choice.trim();
+            break;
+          }
+        } else {
+          console.error(`OpenAI ${model} error response status:`, openAiRes.status);
+        }
+      } catch (e) {
+        console.error(`OpenAI ${model} call error:`, e);
+      }
+    }
+  }
+
+  if (!enhancedText && geminiApiKey) {
     try {
       const geminiRes = await fetch(
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
