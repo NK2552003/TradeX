@@ -1,254 +1,35 @@
 import 'dart:convert';
-import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:tradex/core/config/supabase_config.dart';
 import '../models/market_snapshot.dart';
 import '../presentation/market_sector_heatmap_card.dart';
 import '../presentation/market_world_indices_card.dart';
 import '../presentation/yahoo_market_ribbon.dart';
 
-/// Direct, unofficial Yahoo Finance API service for real-time market quotes,
-/// global indices, live sector performances, and news.
-/// Features dynamic rotatory mobile IP headers, mobile User-Agents, and multi-host rotation.
+/// Market intelligence service for real-time and snapshot quotes, global indices,
+/// sector performances, and news.
+///
+/// In browser/web runtimes and authenticated production deployments, requests
+/// are proxied through the secure backend `market-quote-proxy` Edge Function to
+/// eliminate CORS rejections, prevent browser rate-limit IP blocks, and keep
+/// provider credentials strictly server-side.
 class YahooFinanceService {
   YahooFinanceService({http.Client? client}) : _client = client ?? http.Client();
 
   static final YahooFinanceService instance = YahooFinanceService();
   final http.Client _client;
 
-  static final math.Random _random = math.Random();
+  // In-memory cache structures with TTL
+  final Map<String, ({YahooMarketItem item, DateTime expires})> _quoteCache = {};
+  final Map<String, ({MarketIndexItem item, DateTime expires})> _indexCache = {};
+  ({List<SectorPerformanceItem> items, DateTime expires})? _sectorCache;
+  final Map<String, ({List<MarketArticle> items, DateTime expires})> _newsCache = {};
 
-  /// Real-world mobile cellular & residential IP pool for header rotation.
-  static const List<String> _mobileIpPrefixes = [
-    '107.77', // AT&T Mobile
-    '70.192', // Verizon Wireless
-    '172.56', // T-Mobile US
-    '66.87',  // Sprint / T-Mobile
-    '80.229', // Vodafone UK
-    '49.32',  // Reliance Jio Mobile
-    '80.187', // Deutsche Telekom Mobile
-    '90.84',  // Orange Mobile FR
-    '24.114', // Rogers Wireless CA
-    '120.29', // Telstra Mobile AU
-    '185.220', // Swisscom Mobile
-    '223.190', // Bharti Airtel Mobile
-  ];
-
-  /// Pool of modern mobile and tablet browser User-Agents.
-  static const List<String> _mobileUserAgents = [
-    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1',
-    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.6778.73 Mobile/15E148 Safari/604.1',
-    'Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
-    'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.39 Mobile Safari/537.36',
-    'Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.39 Mobile Safari/537.36',
-    'Mozilla/5.0 (Linux; Android 13; SM-A536B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/25.0 Chrome/121.0.6167.101 Mobile Safari/537.36',
-  ];
-
-  static const List<String> _hosts = [
-    'query1.finance.yahoo.com',
-    'query2.finance.yahoo.com',
-  ];
-
-  String? _cachedCookie;
-  String? _cachedCrumb;
-  DateTime? _sessionExpiry;
-  Future<void>? _sessionFuture;
-
-  /// Ensures a valid cookie and crumb session for Yahoo Finance API requests.
-  Future<void> _ensureSession() async {
-    if (_cachedCrumb != null &&
-        _sessionExpiry != null &&
-        DateTime.now().isBefore(_sessionExpiry!)) {
-      return;
-    }
-    _sessionFuture ??= _initSession();
-    try {
-      await _sessionFuture;
-    } finally {
-      _sessionFuture = null;
-    }
-  }
-
-  Future<void> _initSession() async {
-    try {
-      final ua = _mobileUserAgents[_random.nextInt(_mobileUserAgents.length)];
-      final fcRes = await _client.get(
-        Uri.parse('https://fc.yahoo.com'),
-        headers: {
-          'User-Agent': ua,
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
-        },
-      ).timeout(const Duration(seconds: 4));
-
-      final setCookie = fcRes.headers['set-cookie'] ?? '';
-      final cookieParts = setCookie.split(RegExp(r',(?=[A-Za-z0-9_-]+=)'));
-      final cookies = <String>[];
-      for (final part in cookieParts) {
-        final first = part.split(';').first.trim();
-        if (first.isNotEmpty) cookies.add(first);
-      }
-      final cookieHeader =
-          cookies.isNotEmpty ? cookies.join('; ') : setCookie.split(';').first.trim();
-
-      final crumbRes = await _client.get(
-        Uri.parse('https://query2.finance.yahoo.com/v1/test/getcrumb'),
-        headers: {
-          'User-Agent': ua,
-          'Cookie': cookieHeader,
-          'Accept': 'text/plain, */*',
-        },
-      ).timeout(const Duration(seconds: 4));
-
-      if (crumbRes.statusCode == 200 &&
-          crumbRes.body.isNotEmpty &&
-          !crumbRes.body.contains('<')) {
-        _cachedCookie = cookieHeader;
-        _cachedCrumb = crumbRes.body.trim();
-        _sessionExpiry = DateTime.now().add(const Duration(hours: 1));
-      }
-    } catch (_) {}
-  }
-
-  /// Generates dynamic rotating headers with random mobile IP and mobile User-Agent.
-  Map<String, String> _rotatingHeaders() {
-    final prefix = _mobileIpPrefixes[_random.nextInt(_mobileIpPrefixes.length)];
-    final ip = '$prefix.${10 + _random.nextInt(200)}.${1 + _random.nextInt(250)}';
-    final ua = _mobileUserAgents[_random.nextInt(_mobileUserAgents.length)];
-    final isIos = ua.contains('iPhone') || ua.contains('iPad');
-
-    final headers = {
-      'Accept': 'application/json, text/plain, */*',
-      'User-Agent': ua,
-      'X-Forwarded-For': ip,
-      'X-Real-IP': ip,
-      'Client-IP': ip,
-      'CF-Connecting-IP': ip,
-      'True-Client-IP': ip,
-      'X-Client-IP': ip,
-      'Sec-Ch-Ua-Mobile': '?1',
-      'Sec-Ch-Ua-Platform': isIos ? '"iOS"' : '"Android"',
-      'Accept-Language': 'en-US,en;q=0.9',
-    };
-
-    if (_cachedCookie != null && _cachedCookie!.isNotEmpty) {
-      headers['Cookie'] = _cachedCookie!;
-    }
-
-    return headers;
-  }
-
-  /// Selects a random host for query rotation.
-  static String _randomHost() => _hosts[_random.nextInt(_hosts.length)];
-
-  /// Fetches real-time quote & sparkline from unofficial Yahoo Finance v8 chart API.
-  Future<YahooMarketItem?> fetchQuote(
-    String symbol, {
-    String? displayName,
-    String category = 'US Markets',
-  }) async {
-    try {
-      await _ensureSession();
-      final host = _randomHost();
-      final queryParams = {
-        'interval': '1d',
-        'range': '5d',
-        if (_cachedCrumb != null && _cachedCrumb!.isNotEmpty) 'crumb': _cachedCrumb!,
-      };
-      final uri = Uri.https(
-        host,
-        '/v8/finance/chart/$symbol',
-        queryParams,
-      );
-      final res = await _client
-          .get(uri, headers: _rotatingHeaders())
-          .timeout(const Duration(seconds: 4));
-
-      if (res.statusCode == 200) {
-        final dynamic decoded = jsonDecode(res.body);
-        final dynamic result = decoded?['chart']?['result']?[0];
-        if (result is Map) {
-          final meta = result['meta'] as Map?;
-          final indicators = result['indicators']?['quote']?[0] as Map?;
-          final price = (meta?['regularMarketPrice'] as num?)?.toDouble() ?? 0.0;
-          final prevClose =
-              (meta?['chartPreviousClose'] as num?)?.toDouble() ?? price;
-          final change = price - prevClose;
-          final changePct =
-              (meta?['regularMarketChangePercent'] as num?)?.toDouble() ??
-              (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
-          final closes = (indicators?['close'] as List?)
-                  ?.whereType<num>()
-                  .map((n) => n.toDouble())
-                  .where((v) => v.isFinite)
-                  .toList() ??
-              [];
-
-          return YahooMarketItem(
-            symbol: symbol,
-            name: displayName ?? (meta?['shortName'] as String?) ?? symbol,
-            price: price,
-            change: change,
-            changePercent: changePct,
-            spark: closes.isNotEmpty ? closes : [prevClose, price],
-            category: category,
-          );
-        }
-      }
-    } catch (_) {}
-    return null;
-  }
-
-  /// Fetches real-time index item for World Indices table (Image 2).
-  Future<MarketIndexItem?> fetchIndexItem(String symbol, String name) async {
-    try {
-      await _ensureSession();
-      final host = _randomHost();
-      final queryParams = {
-        'interval': '1d',
-        'range': '5d',
-        if (_cachedCrumb != null && _cachedCrumb!.isNotEmpty) 'crumb': _cachedCrumb!,
-      };
-      final uri = Uri.https(
-        host,
-        '/v8/finance/chart/$symbol',
-        queryParams,
-      );
-      final res = await _client
-          .get(uri, headers: _rotatingHeaders())
-          .timeout(const Duration(seconds: 4));
-
-      if (res.statusCode == 200) {
-        final dynamic decoded = jsonDecode(res.body);
-        final dynamic result = decoded?['chart']?['result']?[0];
-        if (result is Map) {
-          final meta = result['meta'] as Map?;
-          final indicators = result['indicators']?['quote']?[0] as Map?;
-          final price = (meta?['regularMarketPrice'] as num?)?.toDouble() ?? 0.0;
-          final prevClose =
-              (meta?['chartPreviousClose'] as num?)?.toDouble() ?? price;
-          final change = price - prevClose;
-          final changePct =
-              (meta?['regularMarketChangePercent'] as num?)?.toDouble() ??
-              (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
-          final closes = (indicators?['close'] as List?)
-                  ?.whereType<num>()
-                  .map((n) => n.toDouble())
-                  .where((v) => v.isFinite)
-                  .toList() ??
-              [];
-
-          return MarketIndexItem(
-            symbol: symbol,
-            name: name,
-            price: price,
-            changePercent: changePct,
-            spark: closes.isNotEmpty ? closes : [prevClose, price],
-          );
-        }
-      }
-    } catch (_) {}
-    return null;
-  }
+  static const Duration _quoteTtl = Duration(minutes: 1);
+  static const Duration _sectorTtl = Duration(minutes: 5);
+  static const Duration _newsTtl = Duration(minutes: 5);
+  static const Duration _requestTimeout = Duration(seconds: 5);
 
   /// S&P 500 Sector ETF definitions mapping to Image 3 sectors.
   static const List<(String, String, String, double)> kSectorMapping = [
@@ -265,28 +46,89 @@ class YahooFinanceService {
     ('Utilities', 'XLU', 'utilities', 1.90),
   ];
 
-  /// Fetches real-time sector performances from unofficial Yahoo Finance API (Image 3)
-  /// using rotatory mobile IP calls and calculating live day and YTD returns directly.
-  Future<List<SectorPerformanceItem>> fetchSectors() async {
-    final results = <SectorPerformanceItem>[];
-    await _ensureSession();
+  /// Fetches market quote & sparkline via backend proxy or clean platform channel.
+  Future<YahooMarketItem?> fetchQuote(
+    String symbol, {
+    String? displayName,
+    String category = 'US Markets',
+    bool forceRefresh = false,
+  }) async {
+    final cacheKey = '${category}_$symbol';
+    final cached = _quoteCache[cacheKey];
+    if (!forceRefresh && cached != null && cached.expires.isAfter(DateTime.now())) {
+      return cached.item;
+    }
 
-    for (final s in kSectorMapping) {
+    // 1. Try Supabase Edge Function Backend Proxy
+    if (SupabaseConfig.isConfigured) {
       try {
-        final host = _randomHost();
-        final queryParams = {
-          'interval': '1d',
-          'range': 'ytd',
-          if (_cachedCrumb != null && _cachedCrumb!.isNotEmpty) 'crumb': _cachedCrumb!,
-        };
+        final client = SupabaseConfig.client!;
+        final res = await client.functions.invoke(
+          'market-quote-proxy',
+          body: {
+            'action': 'quotes',
+            'symbols': [symbol],
+          },
+        ).timeout(_requestTimeout);
+
+        if (res.status == 200 && res.data is Map) {
+          final quotesMap = res.data['quotes'];
+          if (quotesMap is Map && quotesMap[symbol] is Map) {
+            final q = quotesMap[symbol] as Map;
+            final double price = (q['price'] as num?)?.toDouble() ?? 0.0;
+            final double prevClose = (q['previousClose'] as num?)?.toDouble() ?? price;
+            final double change = (q['change'] as num?)?.toDouble() ?? (price - prevClose);
+            final double changePct = (q['changePercent'] as num?)?.toDouble() ??
+                (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
+            final List<double> spark = (q['spark'] as List?)
+                    ?.whereType<num>()
+                    .map((n) => n.toDouble())
+                    .toList() ??
+                [prevClose, price];
+            final String name = displayName ?? (q['name'] as String?) ?? symbol;
+            final bool isLive = q['isLive'] as bool? ?? true;
+            final DateTime timestamp = q['timestamp'] != null
+                ? DateTime.tryParse(q['timestamp'].toString()) ?? DateTime.now()
+                : DateTime.now();
+            final String source = (q['source'] as String?) ?? 'Market Quote Proxy';
+
+            final item = YahooMarketItem(
+              symbol: symbol,
+              name: name,
+              price: price,
+              change: change,
+              changePercent: changePct,
+              spark: spark,
+              category: category,
+              isLive: isLive,
+              timestamp: timestamp,
+              source: source,
+            );
+
+            _quoteCache[cacheKey] = (item: item, expires: DateTime.now().add(_quoteTtl));
+            return item;
+          }
+        }
+      } catch (e) {
+        debugPrint('[YahooFinanceService] Proxy fetchQuote error: $e');
+      }
+    }
+
+    // 2. Direct HTTP call on non-web native platforms only
+    if (!kIsWeb) {
+      try {
         final uri = Uri.https(
-          host,
-          '/v8/finance/chart/${s.$2}',
-          queryParams,
+          'query1.finance.yahoo.com',
+          '/v8/finance/chart/$symbol',
+          {'interval': '1d', 'range': '5d'},
         );
-        final res = await _client
-            .get(uri, headers: _rotatingHeaders())
-            .timeout(const Duration(seconds: 4));
+        final res = await _client.get(
+          uri,
+          headers: const {
+            'Accept': 'application/json',
+            'User-Agent': 'TradeX/1.0',
+          },
+        ).timeout(_requestTimeout);
 
         if (res.statusCode == 200) {
           final dynamic decoded = jsonDecode(res.body);
@@ -295,9 +137,10 @@ class YahooFinanceService {
             final meta = result['meta'] as Map?;
             final indicators = result['indicators']?['quote']?[0] as Map?;
             final price = (meta?['regularMarketPrice'] as num?)?.toDouble() ?? 0.0;
-            final dayChangePct =
-                (meta?['regularMarketChangePercent'] as num?)?.toDouble() ?? 0.0;
-
+            final prevClose = (meta?['chartPreviousClose'] as num?)?.toDouble() ?? price;
+            final change = price - prevClose;
+            final changePct = (meta?['regularMarketChangePercent'] as num?)?.toDouble() ??
+                (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
             final closes = (indicators?['close'] as List?)
                     ?.whereType<num>()
                     .map((n) => n.toDouble())
@@ -305,103 +148,396 @@ class YahooFinanceService {
                     .toList() ??
                 [];
 
-            double ytdReturn = dayChangePct;
-            if (closes.isNotEmpty && price > 0) {
-              final startOfYearPrice = closes.first;
-              if (startOfYearPrice > 0) {
-                ytdReturn = ((price - startOfYearPrice) / startOfYearPrice) * 100;
-              }
-            }
-
-            results.add(
-              SectorPerformanceItem(
-                name: s.$1,
-                marketWeight: s.$4,
-                ytdReturn: ytdReturn,
-                dayReturn: dayChangePct,
-                key: s.$3,
-              ),
+            final item = YahooMarketItem(
+              symbol: symbol,
+              name: displayName ?? (meta?['shortName'] as String?) ?? symbol,
+              price: price,
+              change: change,
+              changePercent: changePct,
+              spark: closes.isNotEmpty ? closes : [prevClose, price],
+              category: category,
+              isLive: true,
+              timestamp: DateTime.now(),
+              source: 'Direct Market Feed',
             );
+
+            _quoteCache[cacheKey] = (item: item, expires: DateTime.now().add(_quoteTtl));
+            return item;
           }
         }
       } catch (_) {}
     }
-    return results;
+
+    // 3. Fallback to cached item if available
+    return cached?.item;
   }
 
-  /// Fetches real-time financial news from unofficial Yahoo Finance search API (Image 3)
-  /// using rotatory mobile IPs and rotating headers.
+  /// Fetches index item for World Indices and Assets tables via backend proxy.
+  Future<MarketIndexItem?> fetchIndexItem(
+    String symbol,
+    String name, {
+    bool forceRefresh = false,
+  }) async {
+    final cached = _indexCache[symbol];
+    if (!forceRefresh && cached != null && cached.expires.isAfter(DateTime.now())) {
+      return cached.item;
+    }
+
+    // 1. Try Supabase Edge Function Backend Proxy
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final res = await client.functions.invoke(
+          'market-quote-proxy',
+          body: {
+            'action': 'quotes',
+            'symbols': [symbol],
+          },
+        ).timeout(_requestTimeout);
+
+        if (res.status == 200 && res.data is Map) {
+          final quotesMap = res.data['quotes'];
+          if (quotesMap is Map && quotesMap[symbol] is Map) {
+            final q = quotesMap[symbol] as Map;
+            final double price = (q['price'] as num?)?.toDouble() ?? 0.0;
+            final double prevClose = (q['previousClose'] as num?)?.toDouble() ?? price;
+            final double change = (q['change'] as num?)?.toDouble() ?? (price - prevClose);
+            final double changePct = (q['changePercent'] as num?)?.toDouble() ??
+                (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
+            final List<double> spark = (q['spark'] as List?)
+                    ?.whereType<num>()
+                    .map((n) => n.toDouble())
+                    .toList() ??
+                [prevClose, price];
+            final bool isLive = q['isLive'] as bool? ?? true;
+            final DateTime timestamp = q['timestamp'] != null
+                ? DateTime.tryParse(q['timestamp'].toString()) ?? DateTime.now()
+                : DateTime.now();
+            final String source = (q['source'] as String?) ?? 'Market Quote Proxy';
+
+            final item = MarketIndexItem(
+              symbol: symbol,
+              name: name,
+              price: price,
+              changePercent: changePct,
+              spark: spark,
+              isLive: isLive,
+              timestamp: timestamp,
+              source: source,
+            );
+
+            _indexCache[symbol] = (item: item, expires: DateTime.now().add(_quoteTtl));
+            return item;
+          }
+        }
+      } catch (e) {
+        debugPrint('[YahooFinanceService] Proxy fetchIndexItem error: $e');
+      }
+    }
+
+    // 2. Direct HTTP call on non-web native platforms only
+    if (!kIsWeb) {
+      try {
+        final uri = Uri.https(
+          'query1.finance.yahoo.com',
+          '/v8/finance/chart/$symbol',
+          {'interval': '1d', 'range': '5d'},
+        );
+        final res = await _client.get(
+          uri,
+          headers: const {
+            'Accept': 'application/json',
+            'User-Agent': 'TradeX/1.0',
+          },
+        ).timeout(_requestTimeout);
+
+        if (res.statusCode == 200) {
+          final dynamic decoded = jsonDecode(res.body);
+          final dynamic result = decoded?['chart']?['result']?[0];
+          if (result is Map) {
+            final meta = result['meta'] as Map?;
+            final indicators = result['indicators']?['quote']?[0] as Map?;
+            final price = (meta?['regularMarketPrice'] as num?)?.toDouble() ?? 0.0;
+            final prevClose = (meta?['chartPreviousClose'] as num?)?.toDouble() ?? price;
+            final change = price - prevClose;
+            final changePct = (meta?['regularMarketChangePercent'] as num?)?.toDouble() ??
+                (prevClose == 0 ? 0.0 : (change / prevClose) * 100);
+            final closes = (indicators?['close'] as List?)
+                    ?.whereType<num>()
+                    .map((n) => n.toDouble())
+                    .where((v) => v.isFinite)
+                    .toList() ??
+                [];
+
+            final item = MarketIndexItem(
+              symbol: symbol,
+              name: name,
+              price: price,
+              changePercent: changePct,
+              spark: closes.isNotEmpty ? closes : [prevClose, price],
+              isLive: true,
+              timestamp: DateTime.now(),
+              source: 'Direct Market Feed',
+            );
+
+            _indexCache[symbol] = (item: item, expires: DateTime.now().add(_quoteTtl));
+            return item;
+          }
+        }
+      } catch (_) {}
+    }
+
+    return cached?.item;
+  }
+
+  /// Fetches sector performances via backend proxy or baseline calculation.
+  Future<List<SectorPerformanceItem>> fetchSectors({bool forceRefresh = false}) async {
+    final cached = _sectorCache;
+    if (!forceRefresh && cached != null && cached.expires.isAfter(DateTime.now())) {
+      return cached.items;
+    }
+
+    // 1. Try Supabase Edge Function Backend Proxy
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final res = await client.functions.invoke(
+          'market-quote-proxy',
+          body: {'action': 'sectors'},
+        ).timeout(_requestTimeout);
+
+        if (res.status == 200 && res.data is Map) {
+          final sectorsList = res.data['sectors'];
+          if (sectorsList is List && sectorsList.isNotEmpty) {
+            final items = sectorsList.map((raw) {
+              final map = raw as Map;
+              return SectorPerformanceItem(
+                name: map['name'] as String? ?? '',
+                marketWeight: (map['marketWeight'] as num?)?.toDouble() ?? 0.0,
+                ytdReturn: (map['ytdReturn'] as num?)?.toDouble() ?? 0.0,
+                dayReturn: (map['dayReturn'] as num?)?.toDouble() ?? 0.0,
+                key: map['key'] as String? ?? '',
+                isLive: map['isLive'] as bool? ?? true,
+                timestamp: DateTime.now(),
+                source: 'Market Quote Proxy',
+              );
+            }).toList();
+
+            _sectorCache = (items: items, expires: DateTime.now().add(_sectorTtl));
+            return items;
+          }
+        }
+      } catch (e) {
+        debugPrint('[YahooFinanceService] Proxy fetchSectors error: $e');
+      }
+    }
+
+    // 2. Direct HTTP call on non-web native platforms only
+    if (!kIsWeb) {
+      final results = <SectorPerformanceItem>[];
+      for (final s in kSectorMapping) {
+        try {
+          final uri = Uri.https(
+            'query1.finance.yahoo.com',
+            '/v8/finance/chart/${s.$2}',
+            {'interval': '1d', 'range': 'ytd'},
+          );
+          final res = await _client.get(
+            uri,
+            headers: const {
+              'Accept': 'application/json',
+              'User-Agent': 'TradeX/1.0',
+            },
+          ).timeout(const Duration(seconds: 3));
+
+          if (res.statusCode == 200) {
+            final dynamic decoded = jsonDecode(res.body);
+            final dynamic result = decoded?['chart']?['result']?[0];
+            if (result is Map) {
+              final meta = result['meta'] as Map?;
+              final indicators = result['indicators']?['quote']?[0] as Map?;
+              final price = (meta?['regularMarketPrice'] as num?)?.toDouble() ?? 0.0;
+              final dayChangePct =
+                  (meta?['regularMarketChangePercent'] as num?)?.toDouble() ?? 0.0;
+              final closes = (indicators?['close'] as List?)
+                      ?.whereType<num>()
+                      .map((n) => n.toDouble())
+                      .where((v) => v.isFinite)
+                      .toList() ??
+                  [];
+
+              double ytdReturn = dayChangePct;
+              if (closes.isNotEmpty && price > 0) {
+                final startOfYearPrice = closes.first;
+                if (startOfYearPrice > 0) {
+                  ytdReturn = ((price - startOfYearPrice) / startOfYearPrice) * 100;
+                }
+              }
+
+              results.add(
+                SectorPerformanceItem(
+                  name: s.$1,
+                  marketWeight: s.$4,
+                  ytdReturn: ytdReturn,
+                  dayReturn: dayChangePct,
+                  key: s.$3,
+                  isLive: true,
+                  timestamp: DateTime.now(),
+                  source: 'Direct Market Feed',
+                ),
+              );
+            }
+          }
+        } catch (_) {}
+      }
+      if (results.isNotEmpty) {
+        _sectorCache = (items: results, expires: DateTime.now().add(_sectorTtl));
+        return results;
+      }
+    }
+
+    // 3. Fallback to cached items if available
+    if (cached != null) {
+      return cached.items;
+    }
+
+    // 4. Return offline baseline sectors
+    return kSectorMapping.map((s) => SectorPerformanceItem(
+      name: s.$1,
+      marketWeight: s.$4,
+      ytdReturn: 0.0,
+      dayReturn: 0.0,
+      key: s.$3,
+      isLive: false,
+      timestamp: DateTime.parse('2026-09-04T00:00:00Z'),
+      source: 'Offline Baseline',
+    )).toList();
+  }
+
+  /// Fetches financial news via backend proxy or offline asset cache.
   Future<List<MarketArticle>> fetchLiveNews({
     String query = 'stock',
     int count = 25,
+    bool forceRefresh = false,
   }) async {
-    try {
-      await _ensureSession();
-      final host = _randomHost();
-      final uri = Uri.https(
-        host,
-        '/v1/finance/search',
-        {
-          'q': query,
-          'newsCount': '$count',
-          'quotesCount': '0',
-          'enableFuzzyQuery': 'false',
-        },
-      );
-      final res = await _client
-          .get(uri, headers: _rotatingHeaders())
-          .timeout(const Duration(seconds: 4));
+    final cacheKey = '${query}_$count';
+    final cached = _newsCache[cacheKey];
+    if (!forceRefresh && cached != null && cached.expires.isAfter(DateTime.now())) {
+      return cached.items;
+    }
 
-      if (res.statusCode == 200) {
-        final dynamic decoded = jsonDecode(res.body);
-        final dynamic newsList = decoded?['news'];
-        if (newsList is List) {
-          final articles = <MarketArticle>[];
-          for (final raw in newsList) {
-            if (raw is Map) {
-              final title = raw['title'] as String? ?? '';
-              final publisher = raw['publisher'] as String? ?? 'Yahoo Finance';
-              final link = raw['link'] as String? ?? '';
-              final pubTime = raw['providerPublishTime'] is num
-                  ? DateTime.fromMillisecondsSinceEpoch(
-                      (raw['providerPublishTime'] as num).toInt() * 1000,
-                    )
-                  : DateTime.now();
+    // 1. Try Supabase Edge Function Backend Proxy
+    if (SupabaseConfig.isConfigured) {
+      try {
+        final client = SupabaseConfig.client!;
+        final res = await client.functions.invoke(
+          'market-quote-proxy',
+          body: {
+            'action': 'news',
+            'query': query,
+            'count': count,
+          },
+        ).timeout(_requestTimeout);
 
-              String? thumb;
-              final thumbs = raw['thumbnail']?['resolutions'];
-              if (thumbs is List && thumbs.isNotEmpty) {
-                thumb = thumbs.first?['url'] as String?;
-              }
+        if (res.status == 200 && res.data is Map) {
+          final newsList = res.data['news'];
+          if (newsList is List && newsList.isNotEmpty) {
+            final articles = newsList
+                .map((raw) => MarketArticle.fromJson(Map<String, dynamic>.from(raw as Map)))
+                .toList();
 
-              final tickers = (raw['relatedTickers'] as List? ?? [])
-                  .whereType<String>()
-                  .toList();
+            _newsCache[cacheKey] = (items: articles, expires: DateTime.now().add(_newsTtl));
+            return articles;
+          }
+        }
+      } catch (e) {
+        debugPrint('[YahooFinanceService] Proxy fetchLiveNews error: $e');
+      }
+    }
 
-              // Generate descriptive 2-line summary based on live article context
-              final summary = tickers.isNotEmpty
-                  ? 'Latest real-time reporting on ${tickers.join(", ")} market developments, earnings, and financial outlook.'
-                  : 'Breaking market coverage from $publisher on equities, macro indicators, and industry shifts.';
+    // 2. Direct HTTP call on non-web native platforms only
+    if (!kIsWeb) {
+      try {
+        final uri = Uri.https(
+          'query1.finance.yahoo.com',
+          '/v1/finance/search',
+          {
+            'q': query,
+            'newsCount': '$count',
+            'quotesCount': '0',
+            'enableFuzzyQuery': 'false',
+          },
+        );
+        final res = await _client.get(
+          uri,
+          headers: const {
+            'Accept': 'application/json',
+            'User-Agent': 'TradeX/1.0',
+          },
+        ).timeout(_requestTimeout);
 
-              if (title.isNotEmpty) {
-                articles.add(
-                  MarketArticle.fromJson({
-                    'title': title,
-                    'summary': summary,
-                    'publisher': publisher,
-                    'link': link,
-                    'published_at': pubTime.toIso8601String(),
-                    'thumbnail_url': thumb,
-                    'related_tickers': tickers,
-                  }),
-                );
+        if (res.statusCode == 200) {
+          final dynamic decoded = jsonDecode(res.body);
+          final dynamic newsList = decoded?['news'];
+          if (newsList is List) {
+            final articles = <MarketArticle>[];
+            for (final raw in newsList) {
+              if (raw is Map) {
+                final title = raw['title'] as String? ?? '';
+                final publisher = raw['publisher'] as String? ?? 'Financial News';
+                final link = raw['link'] as String? ?? '';
+                final pubTime = raw['providerPublishTime'] is num
+                    ? DateTime.fromMillisecondsSinceEpoch(
+                        (raw['providerPublishTime'] as num).toInt() * 1000,
+                      )
+                    : DateTime.now();
+
+                String? thumb;
+                final thumbs = raw['thumbnail']?['resolutions'];
+                if (thumbs is List && thumbs.isNotEmpty) {
+                  thumb = thumbs.first?['url'] as String?;
+                }
+
+                final tickers = (raw['relatedTickers'] as List? ?? [])
+                    .whereType<String>()
+                    .toList();
+
+                final summary = tickers.isNotEmpty
+                    ? 'Latest reporting on ${tickers.join(", ")} market developments and earnings outlook.'
+                    : 'Market coverage from $publisher on equities and economic trends.';
+
+                if (title.isNotEmpty) {
+                  articles.add(
+                    MarketArticle.fromJson({
+                      'title': title,
+                      'summary': summary,
+                      'publisher': publisher,
+                      'link': link,
+                      'published_at': pubTime.toIso8601String(),
+                      'thumbnail_url': thumb,
+                      'related_tickers': tickers,
+                    }),
+                  );
+                }
               }
             }
+            if (articles.isNotEmpty) {
+              _newsCache[cacheKey] = (items: articles, expires: DateTime.now().add(_newsTtl));
+              return articles;
+            }
           }
-          if (articles.isNotEmpty) return articles;
         }
-      }
-    } catch (_) {}
-    return [];
+      } catch (_) {}
+    }
+
+    return cached?.items ?? [];
+  }
+
+  /// Clears in-memory quote and item caches.
+  void clearCache() {
+    _quoteCache.clear();
+    _indexCache.clear();
+    _sectorCache = null;
+    _newsCache.clear();
   }
 }

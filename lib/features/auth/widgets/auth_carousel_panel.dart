@@ -156,7 +156,6 @@ class _AuthCarouselPanelState extends State<AuthCarouselPanel> {
                     ),
                     child: Center(
                       child: SizedBox(
-                        height: 480,
                         width: double.infinity,
                         child: FittedBox(
                           fit: BoxFit.scaleDown,

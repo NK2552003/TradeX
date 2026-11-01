@@ -76,7 +76,12 @@ class EnvConfig {
   // --- AI API Keys ---
   static String get openrouterApiKey => _get('OPENROUTER_API_KEY');
   static String get geminiApiKey => _get('GEMINI_API_KEY');
-  static String get openaiApiKey => _get('OPENAI_API_KEY');
+  static String get openaiApiKey {
+    final key = _get('OPEN_AI_KEY');
+    if (key.isNotEmpty) return key;
+    return _get('OPENAI_API_KEY');
+  }
+  static String get trackingId => _get('TRACKING_ID');
   static String get claudeApiKey {
     final claude = _get('CLAUDE_API_KEY');
     if (claude.isNotEmpty) return claude;

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:tradex/core/config/customer_data_policy.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/features/auth/data/repositories/auth_otp_repository.dart';
 import 'package:tradex/features/auth/models/otp_purpose.dart';
@@ -21,10 +22,13 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
   }) async {
     final activeClient = client;
     if (activeClient == null || !SupabaseConfig.isConfigured) {
-      debugPrint(
-        '[SupabaseAuthOtpRepository] Supabase not configured. Using fallback.',
-      );
-      return _fallback.sendOtp(identifier: identifier, purpose: purpose);
+      if (CustomerDataPolicy.allowDemo) {
+        debugPrint(
+          '[SupabaseAuthOtpRepository] Supabase not configured. Using fallback in demo mode.',
+        );
+        return _fallback.sendOtp(identifier: identifier, purpose: purpose);
+      }
+      throw StateError('Authentication service is unconfigured. Please check connection.');
     }
 
     try {
@@ -41,7 +45,10 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
       rethrow;
     } catch (e) {
       debugPrint('[SupabaseAuthOtpRepository] sendOtp error: $e');
-      return _fallback.sendOtp(identifier: identifier, purpose: purpose);
+      if (CustomerDataPolicy.allowDemo) {
+        return _fallback.sendOtp(identifier: identifier, purpose: purpose);
+      }
+      throw StateError('Could not send verification code. Please check your network connection.');
     }
   }
 
@@ -53,13 +60,19 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
   }) async {
     final activeClient = client;
     if (activeClient == null || !SupabaseConfig.isConfigured) {
-      debugPrint(
-        '[SupabaseAuthOtpRepository] Supabase not configured. Using fallback.',
-      );
-      return _fallback.verifyOtp(
-        identifier: identifier,
-        purpose: purpose,
-        code: code,
+      if (CustomerDataPolicy.allowDemo) {
+        debugPrint(
+          '[SupabaseAuthOtpRepository] Supabase not configured. Using fallback in demo mode.',
+        );
+        return _fallback.verifyOtp(
+          identifier: identifier,
+          purpose: purpose,
+          code: code,
+        );
+      }
+      return const OtpVerifyResult(
+        success: false,
+        errorMessage: 'Authentication service is unavailable. Please check connection.',
       );
     }
 
@@ -95,11 +108,18 @@ class SupabaseAuthOtpRepository implements AuthOtpRepository {
       return OtpVerifyResult(success: false, errorMessage: e.message);
     } catch (e) {
       debugPrint('[SupabaseAuthOtpRepository] verifyOtp error: $e');
-      // If code is 6 digits during testing, fallback gracefully
-      return _fallback.verifyOtp(
-        identifier: identifier,
-        purpose: purpose,
-        code: code,
+      // Only permit mock OTP fallback during explicit isolated development demo mode.
+      if (CustomerDataPolicy.allowDemo) {
+        return _fallback.verifyOtp(
+          identifier: identifier,
+          purpose: purpose,
+          code: code,
+        );
+      }
+      // Fail closed: Never accept arbitrary codes on network or system errors in production.
+      return const OtpVerifyResult(
+        success: false,
+        errorMessage: 'Verification failed due to a network error. Please try again.',
       );
     }
   }

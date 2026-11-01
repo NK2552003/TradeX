@@ -45,6 +45,28 @@ class _CommunityBookmarksViewState extends State<CommunityBookmarksView> {
 
   void _onDataChanged() => setState(() {});
 
+  Future<void> _refresh() async {
+    try {
+      await widget.repository.fetchFromSupabase();
+    } catch (e) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Refresh failed',
+          message: '$e',
+        );
+      }
+      return;
+    }
+    if (mounted && widget.repository.refreshError != null) {
+      UiToast.error(
+        context,
+        title: 'Refresh failed',
+        message: widget.repository.refreshError!,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
@@ -70,10 +92,13 @@ class _CommunityBookmarksViewState extends State<CommunityBookmarksView> {
       return true;
     }).toList();
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(
-        context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
-      ),
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.all(
+          context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
+        ),
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -168,6 +193,7 @@ class _CommunityBookmarksViewState extends State<CommunityBookmarksView> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

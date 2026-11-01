@@ -117,7 +117,10 @@ class _LoginPageState extends State<LoginPage> {
       intent: UiIntent.success,
     );
 
-    widget.onLoginSuccess(_selectedRole, result.profile?.email ?? email);
+    final UserRole verifiedRole = result.profile?.role ??
+        (_selectedRole == UserRole.userAdmin ? UserRole.customer : _selectedRole);
+
+    widget.onLoginSuccess(verifiedRole, result.profile?.email ?? email);
   }
 
   @override
@@ -141,12 +144,17 @@ class _LoginPageState extends State<LoginPage> {
                 context,
               ).copyWith(scrollbars: false),
               child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Center(
                     child: Padding(
                       padding: EdgeInsets.symmetric(
-                        horizontal: context.sp(theme.spacing.md),
+                        horizontal: constraints.maxWidth < 360
+                            ? context.sp(theme.spacing.sm)
+                            : context.sp(theme.spacing.md),
                         vertical: context.sp(theme.spacing.xl),
                       ),
                       child: ConstrainedBox(
@@ -167,9 +175,11 @@ class _LoginPageState extends State<LoginPage> {
                                       child: Padding(
                                         padding: EdgeInsets.all(
                                           context.sp(
-                                            responsive.isMobile
-                                                ? theme.spacing.lg
-                                                : theme.spacing.xl,
+                                            constraints.maxWidth < 360
+                                                ? theme.spacing.md
+                                                : (responsive.isMobile
+                                                    ? theme.spacing.lg
+                                                    : theme.spacing.xl),
                                           ),
                                         ),
                                         child: Column(
@@ -231,6 +241,10 @@ class _LoginPageState extends State<LoginPage> {
                                                 ),
                                                 RoleSelectorTab(
                                                   selectedRole: _selectedRole,
+                                                  roles: const <UserRole>[
+                                                    UserRole.customer,
+                                                    UserRole.affiliate,
+                                                  ],
                                                   onRoleChanged: (role) =>
                                                       setState(
                                                         () => _selectedRole =
@@ -493,7 +507,9 @@ class _LoginPageState extends State<LoginPage> {
                             // Terms of Service & Privacy Policy Footer
                             Padding(
                               padding: EdgeInsets.symmetric(
-                                horizontal: context.sp(theme.spacing.md),
+                                horizontal: constraints.maxWidth < 360
+                            ? context.sp(theme.spacing.sm)
+                            : context.sp(theme.spacing.md),
                               ),
                               child: Text.rich(
                                 TextSpan(

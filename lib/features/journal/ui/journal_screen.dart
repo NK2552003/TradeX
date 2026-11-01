@@ -263,7 +263,7 @@ class JournalScreenState extends State<JournalScreen> {
   };
 
   AppTrade? get _active {
-    if (_linkedRecord?.id == _activeId) return _linkedRecord;
+    if (_linkedRecord != null && _linkedRecord!.id == _activeId) return _linkedRecord;
     final AppTrade? draft = _draft;
     if (draft != null) return draft;
     final String? id = _activeId;
@@ -788,7 +788,7 @@ class JournalScreenState extends State<JournalScreen> {
       );
     }
     final AppTrade? active = _active;
-
+    
     if (_view == _JournalView.editor && active != null) {
       return PopScope(
         canPop: false,

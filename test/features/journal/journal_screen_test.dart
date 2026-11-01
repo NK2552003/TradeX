@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradex/core/app-ui/app_ui.dart';
+import 'package:tradex/features/journal/data/journal_repository.dart';
 import 'package:tradex/features/journal/ui/journal_screen.dart';
 
 void main() {
@@ -85,6 +87,16 @@ void main() {
       tester.view.physicalSize = const Size(1280, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
+
+      await JournalRepositoryImpl.instance.create(AppTrade(
+        id: 'trade-table-test-1',
+        ticker: 'RELIANCE',
+        side: AppSide.long,
+        entry: 2500.0,
+        exit: null,
+        openedAt: DateTime.now(),
+        outcome: AppOutcome.open,
+      ));
 
       await tester.pumpWidget(
         const MaterialApp(home: Scaffold(body: JournalScreen())),

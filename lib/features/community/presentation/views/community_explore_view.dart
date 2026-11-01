@@ -64,6 +64,31 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
     _loadPublicRecords();
   }
 
+  Future<void> _refresh() async {
+    try {
+      await Future.wait([
+        widget.repository.fetchFromSupabase(),
+        _loadPublicRecords(),
+      ]);
+    } catch (e) {
+      if (mounted) {
+        UiToast.error(
+          context,
+          title: 'Refresh failed',
+          message: '$e',
+        );
+      }
+      return;
+    }
+    if (mounted && widget.repository.refreshError != null) {
+      UiToast.error(
+        context,
+        title: 'Refresh failed',
+        message: widget.repository.refreshError!,
+      );
+    }
+  }
+
   Future<void> _loadPublicRecords() async {
     try {
       final strategies = await StrategiesRepositoryScope.repository
@@ -128,8 +153,10 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
               )
               .toList(),
     };
-    return UiLazyList(
-      key: ValueKey('$_selectedCategory/$_effectiveQuery'),
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: UiLazyList(
+        key: ValueKey('$_selectedCategory/$_effectiveQuery'),
       maxWidth: context.sz(700),
       padding: EdgeInsets.all(
         context.sp(isMobile ? theme.spacing.sm : theme.spacing.md),
@@ -267,6 +294,7 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
           ),
         );
       },
+      ),
     );
   }
 

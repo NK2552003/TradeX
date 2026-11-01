@@ -440,7 +440,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('AUDIO PREVIEW'), findsOneWidget);
+      expect(find.text('SIMULATED AUDIO (BETA)'), findsOneWidget);
       expect(find.textContaining('Live Expiry Floor'), findsOneWidget);
     });
   });

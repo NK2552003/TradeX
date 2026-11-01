@@ -118,6 +118,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
       if (client != null) {
         _authSubscription = client.auth.onAuthStateChange.listen((data) {
           final event = data.event;
+          if (event == AuthChangeEvent.passwordRecovery) {
+            if (mounted) {
+              setState(() {
+                _sessionState =
+                    _sessionState.copyWith(stage: AuthStage.forgotPassword);
+              });
+              widget.onStageChanged?.call(AuthStage.forgotPassword);
+            }
+          }
           if (event == AuthChangeEvent.signedIn &&
               (_sessionState.stage == AuthStage.login ||
                   _sessionState.stage == AuthStage.signup ||
@@ -252,7 +261,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       // 2. Persistent Local Storage Fallback (offline mode / local mock store)
       final storedProfile = await AuthSessionStorage.getStoredProfile();
       if (storedProfile != null) {
-        if (!SupabaseConfig.isConfigured ||
+        if ((!SupabaseConfig.isConfigured && CustomerDataPolicy.allowDemo) ||
             SupabaseConfig.client?.auth.currentUser != null) {
           final affProfile =
               await AuthSessionStorage.getStoredAffiliateProfile();
@@ -437,9 +446,18 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 authRepository: _authRepository,
                 onLoginSuccess: (role, email) async {
                   await AuthSessionStorage.markOnboardingCompleted();
+                  final effectiveRole = (role == UserRole.userAdmin)
+                      ? (AuthBackendService.instance.currentUserProfile?.role ==
+                                  UserRole.userAdmin ||
+                              SupabaseAuthBackendService
+                                      .instance.currentUserProfile?.role ==
+                                  UserRole.userAdmin
+                          ? UserRole.userAdmin
+                          : UserRole.customer)
+                      : role;
                   _navigateToStage(
                     AuthStage.authenticated,
-                    role: role,
+                    role: effectiveRole,
                     email: email,
                   );
                 },

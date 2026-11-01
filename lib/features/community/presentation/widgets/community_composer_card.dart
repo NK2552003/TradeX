@@ -919,7 +919,18 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
               'Posting this attachment makes the complete attached record public. Review its content before sharing. Linked private records remain private.',
           confirmLabel: 'Publish and post',
         );
-        if (!accepted || !mounted) return;
+        if (!accepted || !mounted) {
+          if (mounted) {
+            setState(() => _submitting = false);
+            UiToast.info(
+              context,
+              title: 'Attachment kept private',
+              message:
+                  'The post was not published and your private record remains protected.',
+            );
+          }
+          return;
+        }
         final AppLinkRef src = _attachment!.source;
         try {
           switch (src.kind) {
@@ -1014,10 +1025,10 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
       if (!mounted) return;
       UiToast.show(
         context,
-        title: _scheduledFor != null ? 'Scheduled!' : 'Published!',
+        title: _scheduledFor != null ? 'Scheduled!' : 'Submitted for Review',
         message: _scheduledFor != null
             ? 'Post scheduled for ${_scheduledFor!.hour.toString().padLeft(2, '0')}:${_scheduledFor!.minute.toString().padLeft(2, '0')}'
-            : 'Your setup is now live in the community feed.',
+            : 'Your post has been submitted and is pending approval.',
         intent: UiIntent.success,
       );
 

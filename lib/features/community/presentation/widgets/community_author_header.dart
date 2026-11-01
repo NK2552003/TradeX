@@ -95,7 +95,7 @@ class CommunityAuthorHeader extends StatelessWidget {
         if (onMoreTap != null)
           UiIconButton(
             icon: Icons.more_horiz_rounded,
-            size: UiSize.xs,
+            size: context.uiRes.isMobile ? UiSize.md : UiSize.xs,
             tooltip: 'More options',
             onPressed: onMoreTap,
           )

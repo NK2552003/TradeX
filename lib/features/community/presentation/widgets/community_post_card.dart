@@ -18,6 +18,9 @@ import 'package:tradex/features/community/presentation/widgets/community_quote_c
 import 'package:tradex/features/community/presentation/widgets/community_repost_dialog.dart';
 import 'package:tradex/features/community/presentation/widgets/community_share_sheet.dart';
 import 'package:tradex/features/community/presentation/widgets/community_trade_setup_tile.dart';
+import 'package:tradex/features/community/presentation/widgets/community_composer_card.dart';
+import 'package:tradex/features/community/presentation/widgets/community_design.dart';
+import 'package:tradex/features/settings/presentation/widgets/settings_side_sheet.dart';
 
 /// Visual presentation variant for [CommunityPostCard].
 enum CommunityPostCardVariant {
@@ -178,6 +181,52 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     }
   }
 
+  void _openQuoteComposer(BuildContext context) {
+    if (widget.repository is CommunityRepository) {
+      final isMobile = context.uiRes.isMobile;
+      if (isMobile) {
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          barrierColor: context.uiColors.overlay,
+          builder: (BuildContext ctx) => CommunityDensityScope(
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+              ),
+              child: SingleChildScrollView(
+                child: CommunityComposerCard(
+                  author: widget.currentUser ?? widget.post.author,
+                  repository: widget.repository as CommunityRepository,
+                  quotedPost: widget.post,
+                  isDrawerTile: true,
+                  onPostCreated: () => Navigator.of(ctx).pop(),
+                ),
+              ),
+            ),
+          ),
+        );
+      } else {
+        showSettingsSideSheet<void>(
+          context,
+          title: 'Quote Post',
+          subtitle: 'Share your perspective on this post',
+          desktopWidthRatio: 0.52,
+          maxWidth: 720,
+          minDesktopWidth: 540,
+          scrollable: true,
+          child: CommunityComposerCard(
+            author: widget.currentUser ?? widget.post.author,
+            repository: widget.repository as CommunityRepository,
+            quotedPost: widget.post,
+            onPostCreated: () => Navigator.of(context).pop(),
+          ),
+        );
+      }
+    }
+  }
+
   void _handleRepost() {
     CommunityRepostDialog.show(
       context,
@@ -190,7 +239,11 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
         widget.onRepost?.call();
       },
       onQuote: () {
-        widget.onQuote?.call(widget.post);
+        if (widget.onQuote != null) {
+          widget.onQuote!(widget.post);
+        } else {
+          _openQuoteComposer(context);
+        }
       },
     );
   }
@@ -466,6 +519,44 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                     color: theme.colors.danger,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // Pending Moderation Status Banner
+        if (post.isPendingApproval) ...<Widget>[
+          Container(
+            margin: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.sm),
+              vertical: context.sp(theme.spacing.xs),
+            ),
+            decoration: BoxDecoration(
+              color: theme.colors.warning.withValues(alpha: 0.12),
+              borderRadius: context.radius(theme.radii.sm),
+              border: Border.all(
+                color: theme.colors.warning.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                UiBadge(
+                  label: 'Pending Approval',
+                  intent: UiIntent.warning,
+                  variant: UiBadgeVariant.soft,
+                ),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                Expanded(
+                  child: Text(
+                    'Visible only to you until approved by moderators',
+                    style: context.uiText.caption.copyWith(
+                      color: theme.colors.foregroundMuted,
+                      fontSize: context.sz(11),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

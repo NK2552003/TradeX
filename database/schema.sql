@@ -38,6 +38,11 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS top_strategy TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS risk_mantra TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS public_stats BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS notification_settings JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS win_rate NUMERIC;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS followers_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS following_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS posts_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS verified BOOLEAN NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS affiliate_profiles (
   id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -204,6 +209,7 @@ ALTER TABLE strategies ADD COLUMN IF NOT EXISTS checklist_total INTEGER NOT NULL
 ALTER TABLE strategies ADD COLUMN IF NOT EXISTS has_images BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE strategies ADD COLUMN IF NOT EXISTS has_code BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE strategies ADD COLUMN IF NOT EXISTS ai_summary TEXT;
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS name TEXT;
 
 CREATE TABLE IF NOT EXISTS strategy_versions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -323,6 +329,7 @@ ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS checklist_total INTEGER NOT
 ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS has_images BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS has_code BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS strategy_name TEXT;
 
 
 CREATE TABLE IF NOT EXISTS journal_entry_links (
@@ -941,6 +948,7 @@ CREATE OR REPLACE FUNCTION public.handle_new_user_signup()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_role TEXT;
@@ -951,10 +959,12 @@ DECLARE
   v_referred_by_code TEXT;
   v_referrer_id UUID;
 BEGIN
-  v_role := COALESCE(NEW.raw_user_meta_data->>'role', 'customer');
+  -- Self-signup is strictly restricted to customer role with free tier.
+  -- Metadata role, admin_key, and tier are deliberately ignored to prevent privilege escalation.
+  v_role := 'customer';
+  v_admin_key := NULL;
   v_handle := COALESCE(NEW.raw_user_meta_data->>'handle', LOWER(SPLIT_PART(NEW.email, '@', 1)));
   v_display_name := COALESCE(NEW.raw_user_meta_data->>'display_name', SPLIT_PART(NEW.email, '@', 1));
-  v_admin_key := NEW.raw_user_meta_data->>'admin_key';
   v_referral_code := COALESCE(NEW.raw_user_meta_data->>'referral_code', 'REF-' || UPPER(SUBSTRING(gen_random_uuid()::text FROM 1 FOR 8)));
   v_referred_by_code := NEW.raw_user_meta_data->>'referred_by_code';
 
@@ -980,7 +990,7 @@ BEGIN
     v_admin_key,
     v_referral_code,
     v_referred_by_code,
-    CASE WHEN v_role = 'user_admin' THEN 'enterprise' ELSE 'free' END
+    'free'
   );
 
   IF v_role = 'affiliate' THEN
@@ -1182,6 +1192,76 @@ DROP TRIGGER IF EXISTS trg_trader_notes_strategy_mirror ON trader_notes;
 CREATE TRIGGER trg_trader_notes_strategy_mirror
   AFTER INSERT OR DELETE OR UPDATE OF strategy_id ON trader_notes
   FOR EACH ROW EXECUTE FUNCTION sync_strategy_mirrors();
+
+-- ---------------------------------------------------------------------------
+-- Strategy Title/Name & Journal Strategy Name Synchronization
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.sync_strategy_title_and_name()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.title IS DISTINCT FROM OLD.title OR OLD.title IS NULL THEN
+    NEW.name := NEW.title;
+  ELSIF NEW.name IS DISTINCT FROM OLD.name THEN
+    NEW.title := NEW.name;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sync_strategy_title_and_name ON public.strategies;
+CREATE TRIGGER trg_sync_strategy_title_and_name
+  BEFORE INSERT OR UPDATE OF title, name ON public.strategies
+  FOR EACH ROW
+  EXECUTE FUNCTION public.sync_strategy_title_and_name();
+
+CREATE OR REPLACE FUNCTION public.sync_journal_entry_strategy_name()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.strategy_id IS NOT NULL THEN
+    SELECT COALESCE(s.title, s.name) INTO NEW.strategy_name
+    FROM public.strategies s
+    WHERE s.id = NEW.strategy_id;
+  ELSE
+    NEW.strategy_name := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sync_journal_entry_strategy_name ON public.journal_entries;
+CREATE TRIGGER trg_sync_journal_entry_strategy_name
+  BEFORE INSERT OR UPDATE OF strategy_id ON public.journal_entries
+  FOR EACH ROW
+  EXECUTE FUNCTION public.sync_journal_entry_strategy_name();
+
+CREATE OR REPLACE FUNCTION public.propagate_strategy_name_to_journal_entries()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE public.journal_entries
+  SET strategy_name = COALESCE(NEW.title, NEW.name)
+  WHERE strategy_id = NEW.id
+    AND strategy_name IS DISTINCT FROM COALESCE(NEW.title, NEW.name);
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+REVOKE ALL ON FUNCTION public.propagate_strategy_name_to_journal_entries() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_propagate_strategy_name ON public.strategies;
+CREATE TRIGGER trg_propagate_strategy_name
+  AFTER UPDATE OF title, name ON public.strategies
+  FOR EACH ROW
+  EXECUTE FUNCTION public.propagate_strategy_name_to_journal_entries();
+
+-- Backfills
+UPDATE public.strategies SET name = title WHERE name IS NULL OR name = '';
+UPDATE public.journal_entries j
+SET strategy_name = s.title
+FROM public.strategies s
+WHERE j.strategy_id = s.id
+  AND (j.strategy_name IS NULL OR j.strategy_name = '');
+
 
 -- ---------------------------------------------------------------------------
 -- Derived reads. Nothing below stores anything.
@@ -3055,13 +3135,18 @@ LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $$
 BEGIN
  IF current_user IN ('authenticated','anon') THEN
   IF TG_OP='INSERT' THEN
-   IF NEW.role<>'customer' OR NEW.admin_key IS NOT NULL THEN RAISE EXCEPTION 'Role assignment is server managed'; END IF;
+   IF NEW.role <> 'customer'
+      OR NEW.admin_key IS NOT NULL
+      OR (NEW.subscription_tier <> 'free' AND NOT public.is_user_admin()) THEN
+    RAISE EXCEPTION 'Role and entitlement assignment is server managed';
+   END IF;
   ELSIF NEW.role IS DISTINCT FROM OLD.role OR NEW.admin_key IS DISTINCT FROM OLD.admin_key THEN RAISE EXCEPTION 'Role assignment is server managed'; END IF;
  END IF;
  RETURN NEW;
 END;
 $$;
 REVOKE ALL ON FUNCTION public.affiliate_guard_profile_role() FROM PUBLIC,anon,authenticated;
+DROP TRIGGER IF EXISTS affiliate_guard_profile_role ON public.profiles;
 CREATE TRIGGER affiliate_guard_profile_role BEFORE INSERT OR UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.affiliate_guard_profile_role();
 
 CREATE OR REPLACE FUNCTION public.handle_new_user_signup()

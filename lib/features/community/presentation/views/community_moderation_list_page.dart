@@ -239,13 +239,24 @@ class _CommunityModerationListPageState
                   label: 'Unblock',
                   variant: UiVariant.outline,
                   size: UiSize.sm,
-                  onPressed: () {
-                    widget.repository.unblockUser(entry.userId);
-                    UiToast.show(
-                      context,
-                      title: 'Account Unblocked',
-                      message: 'Unblocked ${entry.userId}',
-                    );
+                  onPressed: () async {
+                    try {
+                      await widget.repository.unblockUser(entry.userId);
+                      if (!mounted) return;
+                      UiToast.show(
+                        context,
+                        title: 'Account Unblocked',
+                        message: 'Unblocked ${entry.userId}',
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      UiToast.show(
+                        context,
+                        title: 'Action Failed',
+                        message: 'Failed to unblock: $e',
+                        intent: UiIntent.danger,
+                      );
+                    }
                   },
                 ),
               ],

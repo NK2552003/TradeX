@@ -1418,7 +1418,7 @@ class _CommunityLiveRoomSheetState extends State<CommunityLiveRoomSheet>
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: <Widget>[
                   const UiBadge(
-                    label: 'AUDIO PREVIEW',
+                    label: 'SIMULATED AUDIO (BETA)',
                     intent: UiIntent.warning,
                     size: UiSize.xs,
                   ),

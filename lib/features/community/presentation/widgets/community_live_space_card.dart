@@ -33,9 +33,9 @@ class CommunityLiveSpaceCard extends StatelessWidget {
                 label: ended
                     ? 'ENDED'
                     : room.isLive
-                    ? 'AUDIO PREVIEW'
+                    ? 'SIMULATED AUDIO (BETA)'
                     : 'SCHEDULED',
-                intent: room.isLive ? UiIntent.danger : UiIntent.neutral,
+                intent: room.isLive ? UiIntent.warning : UiIntent.neutral,
                 size: UiSize.xs,
               ),
               UiBadge(

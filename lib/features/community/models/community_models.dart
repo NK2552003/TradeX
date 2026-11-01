@@ -470,6 +470,7 @@ class CommunityPost {
     this.isEdited = false,
     this.editedAt,
     this.scheduledFor,
+    this.moderationStatus = 'approved',
   });
 
   final String id;
@@ -529,6 +530,12 @@ class CommunityPost {
   /// If scheduled, the planned publish timestamp.
   final DateTime? scheduledFor;
 
+  /// Moderation review status ('approved', 'pending', 'rejected').
+  final String moderationStatus;
+
+  /// Returns true when this post is awaiting moderator approval.
+  bool get isPendingApproval => moderationStatus.trim().toLowerCase() == 'pending';
+
   List<String> get effectiveImageUrls {
     if (imageUrls.isNotEmpty) return imageUrls;
     if (imageUrl != null && imageUrl!.isNotEmpty) return <String>[imageUrl!];
@@ -565,6 +572,7 @@ class CommunityPost {
     List<String>? tags,
     CommunityTradeSetup? tradeSetup,
     bool clearTradeSetup = false,
+    String? moderationStatus,
   }) => CommunityPost(
     id: id,
     author: author,
@@ -602,6 +610,7 @@ class CommunityPost {
     isEdited: isEdited ?? this.isEdited,
     editedAt: editedAt ?? this.editedAt,
     scheduledFor: scheduledFor,
+    moderationStatus: moderationStatus ?? this.moderationStatus,
   );
 }
 
@@ -1119,10 +1128,12 @@ class LiveRoomParticipant {
       userId: map['user_id']?.toString() ?? '',
       displayName:
           profile?['display_name'] as String? ??
+          profile?['handle'] as String? ??
           profile?['username'] as String? ??
           map['display_name'] as String? ??
           'Trader',
       handle:
+          profile?['handle'] as String? ??
           profile?['username'] as String? ??
           map['handle'] as String? ??
           'trader',
@@ -1210,6 +1221,7 @@ class LiveRoomMessage {
       senderId: map['sender_id']?.toString() ?? '',
       senderName:
           profile?['display_name'] as String? ??
+          profile?['handle'] as String? ??
           profile?['username'] as String? ??
           map['sender_name'] as String? ??
           'Trader',
@@ -1265,6 +1277,7 @@ class LiveRoomQuestion {
       authorId: map['author_id']?.toString() ?? '',
       authorName:
           profile?['display_name'] as String? ??
+          profile?['handle'] as String? ??
           profile?['username'] as String? ??
           map['author_name'] as String? ??
           'Trader',

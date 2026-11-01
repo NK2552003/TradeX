@@ -2,19 +2,21 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:tradex/core/ai/unified_ai_service.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
-import 'package:tradex/core/config/supabase_config.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/config/supabase_config.dart';
 import 'ai_chat_transport.dart';
 
-/// Real AI Chat Transport with multi-tier fallback:
-/// OpenRouter (free models: openrouter/free, nemotron, etc.) -> Gemini -> OpenAI -> Claude -> Dynamic Engine.
+/// Production-grade AI Chat Transport:
+/// - When authenticated with Supabase: Routes via UnifiedAiService ('ai-gateway' Edge Function) with atomic quota reservation, admin access enforcement, and server-side turn persistence.
+/// - Fallback: Multi-tier UnifiedAiService (OpenAI gpt-4.1-mini / gpt-4o-mini -> OpenRouter -> Gemini -> Claude -> Dynamic Engine).
 class GeminiAiChatTransport implements AiChatTransport {
   GeminiAiChatTransport({http.Client Function()? clientFactory})
     : _clientFactory = clientFactory ?? http.Client.new;
 
   final http.Client Function() _clientFactory;
-  StreamSubscription<String>? _streamSub;
+  StreamSubscription<dynamic>? _streamSub;
   StreamController<String>? _controller;
+  http.Client? _activeHttpClient;
   bool regenerateNext = false;
 
   @override
@@ -25,6 +27,8 @@ class GeminiAiChatTransport implements AiChatTransport {
   void cancel() {
     _streamSub?.cancel();
     _streamSub = null;
+    _activeHttpClient?.close();
+    _activeHttpClient = null;
     if (_controller != null && !_controller!.isClosed) {
       _controller!.close();
     }
@@ -41,6 +45,16 @@ class GeminiAiChatTransport implements AiChatTransport {
     final controller = StreamController<String>();
     _controller = controller;
 
+    unawaited(_executeStream(controller, threadId, persona, messages));
+    return controller.stream;
+  }
+
+  Future<void> _executeStream(
+    StreamController<String> controller,
+    String threadId,
+    String persona,
+    List<AppAiMessage> messages,
+  ) async {
     final aiService = UnifiedAiService(clientFactory: _clientFactory);
     final sourceStream = aiService.stream(
       messages: messages,
@@ -77,7 +91,5 @@ class GeminiAiChatTransport implements AiChatTransport {
       },
       cancelOnError: false,
     );
-
-    return controller.stream;
   }
 }

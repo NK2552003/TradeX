@@ -5,7 +5,10 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 // Required unified primitive import for the profile preview surface.
 // ignore: unnecessary_import
 import 'package:tradex/core/flutter-ui/flutter_ui.dart';
+import 'package:tradex/core/config/record_access.dart';
 import 'package:tradex/core/config/supabase_config.dart';
+import 'package:tradex/features/strategies/data/strategies_repository.dart';
+import 'package:tradex/features/strategies/ui/strategy_detail_screen.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/community/data/community_repository.dart';
 import 'package:tradex/features/community/models/community_models.dart';
@@ -549,6 +552,10 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             ? SupabaseConfig.client!.auth.currentUser!.id
             : '');
 
+    final bool isSelf = widget.isCurrentUser ||
+        (targetAuthorId.isNotEmpty &&
+            targetAuthorId == SupabaseConfig.client?.auth.currentUser?.id);
+
     final List<UiTabItem> tabItems = switch (effectiveRole) {
       UserRole.userAdmin => <UiTabItem>[
         UiTabItem(
@@ -593,12 +600,23 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           ),
         ),
         UiTabItem(
-          label: 'Playbooks',
+          label: 'Strategies',
           icon: Icons.menu_book_outlined,
+          content: _StrategiesPreview(
+            authorId: targetAuthorId,
+            handle: _cleanHandle,
+            onOpenRef: widget.onOpenRef,
+            isCurrentUser: isSelf,
+          ),
+        ),
+        UiTabItem(
+          label: 'Notes',
+          icon: Icons.note_alt_outlined,
           content: _NotesPlaybooksPreview(
             authorId: targetAuthorId,
             handle: _cleanHandle,
             onOpenRef: widget.onOpenRef,
+            isCurrentUser: isSelf,
           ),
         ),
         const UiTabItem(
@@ -633,6 +651,17 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             authorId: targetAuthorId,
             handle: _cleanHandle,
             onOpenRef: widget.onOpenRef,
+            isCurrentUser: isSelf,
+          ),
+        ),
+        UiTabItem(
+          label: 'Strategies',
+          icon: Icons.menu_book_outlined,
+          content: _StrategiesPreview(
+            authorId: targetAuthorId,
+            handle: _cleanHandle,
+            onOpenRef: widget.onOpenRef,
+            isCurrentUser: isSelf,
           ),
         ),
         UiTabItem(
@@ -642,6 +671,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             authorId: targetAuthorId,
             handle: _cleanHandle,
             onOpenRef: widget.onOpenRef,
+            isCurrentUser: isSelf,
           ),
         ),
       ],
@@ -671,6 +701,21 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         (cachedHandle.isNotEmpty && cachedHandle == _cleanHandle.toLowerCase());
 
     if (isViewingSelf) {
+      tabItems.add(
+        UiTabItem(
+          label: 'Pending Approval',
+          icon: Icons.pending_actions_rounded,
+          content: _TraderPendingApprovalPostsPreview(
+            authorId: targetAuthorId,
+            handle: _cleanHandle,
+            repository: widget.repository,
+            author: widget.author,
+            onPostTap: widget.onPostTap,
+            onOpenRef: widget.onOpenRef,
+            verifiedColor: verifiedColor,
+          ),
+        ),
+      );
       tabItems.add(
         UiTabItem(
           label: 'Activity',
@@ -2235,6 +2280,12 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                                     color: theme.colors.foregroundMuted,
                                   ),
                                 ),
+                                if (widget.post?.isPendingApproval == true)
+                                  const UiBadge(
+                                    label: 'Pending Approval',
+                                    intent: UiIntent.warning,
+                                    variant: UiBadgeVariant.soft,
+                                  ),
                               ],
                             ),
                           ),
@@ -2635,6 +2686,7 @@ class _PublicJournalPreview extends StatelessWidget {
     this.authorId,
     this.handle,
     this.onOpenRef,
+    this.isCurrentUser = false,
   });
 
   final int selectedFilter;
@@ -2642,18 +2694,27 @@ class _PublicJournalPreview extends StatelessWidget {
   final String? authorId;
   final String? handle;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final bool isCurrentUser;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
 
     return StreamBuilder<List<AppTrade>>(
-      stream: JournalRepositoryScope.repository.watchPublic(),
+      stream: isCurrentUser
+          ? JournalRepositoryScope.repository.watchAll()
+          : JournalRepositoryScope.repository.watchPublic(),
       builder: (BuildContext context, AsyncSnapshot<List<AppTrade>> snapshot) {
         final List<AppTrade> allTrades = snapshot.data ?? <AppTrade>[];
-        final List<AppTrade> trades = (authorId != null && authorId!.isNotEmpty)
-            ? allTrades.where((t) => t.userId == authorId).toList()
-            : allTrades;
+        final List<AppTrade> trades = isCurrentUser
+            ? allTrades
+                .where((t) =>
+                    (authorId != null && authorId!.isNotEmpty && t.userId == authorId) ||
+                    RecordAccess.owns(t.userId))
+                .toList()
+            : ((authorId != null && authorId!.isNotEmpty)
+                ? allTrades.where((t) => t.userId == authorId).toList()
+                : const <AppTrade>[]);
 
         final String cleanH =
             (handle ?? '').replaceFirst(RegExp(r'^@+'), '').trim();
@@ -2665,11 +2726,13 @@ class _PublicJournalPreview extends StatelessWidget {
               horizontal: context.sp(theme.spacing.md),
             ),
             child: UiEmptyState(
-              icon: Icons.menu_book_outlined,
-              title: 'No public journal entries',
-              message: cleanH.isNotEmpty
-                  ? '@$cleanH has not shared any journal trades publicly yet.'
-                  : 'No verified trades shared publicly yet.',
+              icon: Icons.auto_stories_outlined,
+              title: isCurrentUser ? 'No journal entries yet' : 'No public journal entries',
+              message: isCurrentUser
+                  ? 'Log your trades and executions in the Journal section.'
+                  : (cleanH.isNotEmpty
+                      ? '@$cleanH has not shared any journal trades publicly yet.'
+                      : 'No verified trades shared publicly yet.'),
             ),
           );
         }
@@ -2705,27 +2768,39 @@ class _PublicJournalPreview extends StatelessWidget {
                   Row(
                     children: <Widget>[
                       Icon(
-                        Icons.verified_user_outlined,
-                        color: theme.colors.bullish,
+                        isCurrentUser
+                            ? Icons.auto_stories_outlined
+                            : Icons.verified_user_outlined,
+                        color: isCurrentUser
+                            ? theme.colors.primary
+                            : theme.colors.bullish,
                         size: context.sz(20),
                       ),
                       SizedBox(width: context.sp(theme.spacing.xs)),
                       Expanded(
                         child: Text(
-                          'Verified Public Execution Log',
+                          isCurrentUser
+                              ? 'Personal Trading Execution Journal'
+                              : 'Verified Public Execution Log',
                           style: context.uiText.bodyStrong,
                         ),
                       ),
                       UiBadge(
-                        label: 'AUDITED BROKER FEED',
-                        intent: UiIntent.bullish,
+                        label: isCurrentUser
+                            ? 'ALL EXECUTIONS (OWNER)'
+                            : 'AUDITED BROKER FEED',
+                        intent: isCurrentUser
+                            ? UiIntent.primary
+                            : UiIntent.bullish,
                         size: UiSize.xs,
                       ),
                     ],
                   ),
                   SizedBox(height: context.sp(theme.spacing.sm)),
                   Text(
-                    'Every trade shown below is cryptographically hashed against broker fill timestamps. Private personal executions remain confidential.',
+                    isCurrentUser
+                        ? 'Showing all logged trades including both public verified logs and private executions.'
+                        : 'Every trade shown below is cryptographically hashed against broker fill timestamps. Private personal executions remain confidential.',
                     style: context.uiText.caption.copyWith(
                       color: theme.colors.foregroundMuted,
                     ),
@@ -2736,7 +2811,7 @@ class _PublicJournalPreview extends StatelessWidget {
                     runSpacing: context.sp(theme.spacing.xs),
                     children: <Widget>[
                       _JournalStat(
-                        title: 'Public Trades',
+                        title: isCurrentUser ? 'Total Trades' : 'Public Trades',
                         val: '$totalLogged Logged',
                       ),
                       _JournalStat(
@@ -2831,6 +2906,7 @@ class _PublicJournalPreview extends StatelessWidget {
                             : 'No execution notes recorded.'),
                   tags: trade.tags,
                   onOpenRef: onOpenRef,
+                  isCurrentUser: isCurrentUser,
                 ),
               );
             }),
@@ -2891,6 +2967,7 @@ class _JournalTradeCard extends StatelessWidget {
     this.tradeId,
     this.trade,
     this.onOpenRef,
+    this.isCurrentUser = false,
   });
 
   final String ticker;
@@ -2909,6 +2986,7 @@ class _JournalTradeCard extends StatelessWidget {
   final String? tradeId;
   final AppTrade? trade;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final bool isCurrentUser;
 
   void _openActualTrade(BuildContext context) {
     final id = trade?.id ?? tradeId ?? ticker;
@@ -2983,6 +3061,14 @@ class _JournalTradeCard extends StatelessWidget {
                 intent: side == 'LONG' ? UiIntent.bullish : UiIntent.bearish,
                 size: UiSize.xs,
               ),
+              if (isCurrentUser && trade != null) ...<Widget>[
+                const SizedBox(width: 6),
+                UiBadge(
+                  label: trade!.isPublic ? 'PUBLIC' : 'PRIVATE',
+                  intent: trade!.isPublic ? UiIntent.primary : UiIntent.neutral,
+                  size: UiSize.xs,
+                ),
+              ],
               const SizedBox(width: 8),
               Text(
                 ticker,
@@ -2991,10 +3077,13 @@ class _JournalTradeCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
-                '· $setup',
-                style: context.uiText.caption.copyWith(
-                  color: theme.colors.foregroundMuted,
+              Flexible(
+                child: Text(
+                  '· $setup',
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
                 ),
               ),
               const Spacer(),
@@ -3067,23 +3156,37 @@ class _JournalTradeCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _NotesPlaybooksPreview extends StatelessWidget {
-  const _NotesPlaybooksPreview({this.authorId, this.handle, this.onOpenRef});
+  const _NotesPlaybooksPreview({
+    this.authorId,
+    this.handle,
+    this.onOpenRef,
+    this.isCurrentUser = false,
+  });
 
   final String? authorId;
   final String? handle;
   final ValueChanged<AppLinkRef>? onOpenRef;
+  final bool isCurrentUser;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
 
     return StreamBuilder<List<AppNote>>(
-      stream: NotesRepositoryScope.repository.watchPublic(),
+      stream: isCurrentUser
+          ? NotesRepositoryScope.repository.watchAll()
+          : NotesRepositoryScope.repository.watchPublic(),
       builder: (BuildContext context, AsyncSnapshot<List<AppNote>> snapshot) {
         final List<AppNote> allNotes = snapshot.data ?? <AppNote>[];
-        final List<AppNote> notes = (authorId != null && authorId!.isNotEmpty)
-            ? allNotes.where((n) => n.userId == authorId).toList()
-            : allNotes;
+        final List<AppNote> notes = isCurrentUser
+            ? allNotes
+                .where((n) =>
+                    (authorId != null && authorId!.isNotEmpty && n.userId == authorId) ||
+                    RecordAccess.owns(n.userId))
+                .toList()
+            : ((authorId != null && authorId!.isNotEmpty)
+                ? allNotes.where((n) => n.userId == authorId).toList()
+                : const <AppNote>[]);
 
         final String cleanH =
             (handle ?? '').replaceFirst(RegExp(r'^@+'), '').trim();
@@ -3096,10 +3199,12 @@ class _NotesPlaybooksPreview extends StatelessWidget {
             ),
             child: UiEmptyState(
               icon: Icons.note_alt_outlined,
-              title: 'No public notes',
-              message: cleanH.isNotEmpty
-                  ? '@$cleanH has not published any public research notes or playbooks.'
-                  : 'No public notes or playbooks shared yet.',
+              title: isCurrentUser ? 'No notes yet' : 'No public notes',
+              message: isCurrentUser
+                  ? 'Create research notes, market thoughts, and trade reviews in the Notes section.'
+                  : (cleanH.isNotEmpty
+                      ? '@$cleanH has not published any public research notes.'
+                      : 'No public notes shared yet.'),
             ),
           );
         }
@@ -3225,8 +3330,8 @@ class _NotePlaybookCard extends StatelessWidget {
                 ),
               ),
               UiBadge(
-                label: 'PUBLIC PLAYBOOK',
-                intent: UiIntent.primary,
+                label: isPublic ? 'PUBLIC NOTE' : 'PRIVATE NOTE',
+                intent: isPublic ? UiIntent.primary : UiIntent.neutral,
                 size: UiSize.xs,
               ),
             ],
@@ -3261,6 +3366,105 @@ class _NotePlaybookCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3b. Strategies & Playbooks Preview
+// ---------------------------------------------------------------------------
+
+class _StrategiesPreview extends StatelessWidget {
+  const _StrategiesPreview({
+    this.authorId,
+    this.handle,
+    this.onOpenRef,
+    this.isCurrentUser = false,
+  });
+
+  final String? authorId;
+  final String? handle;
+  final ValueChanged<AppLinkRef>? onOpenRef;
+  final bool isCurrentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+
+    return StreamBuilder<List<AppStrategy>>(
+      stream: isCurrentUser
+          ? StrategiesRepositoryScope.repository.watchAll()
+          : StrategiesRepositoryScope.repository.watchPublic(),
+      builder: (BuildContext context, AsyncSnapshot<List<AppStrategy>> snapshot) {
+        final List<AppStrategy> allStrategies = snapshot.data ?? <AppStrategy>[];
+        final List<AppStrategy> strategies = isCurrentUser
+            ? allStrategies
+                .where((s) =>
+                    (authorId != null && authorId!.isNotEmpty && s.userId == authorId) ||
+                    RecordAccess.owns(s.userId))
+                .toList()
+            : ((authorId != null && authorId!.isNotEmpty)
+                ? allStrategies.where((s) => s.userId == authorId).toList()
+                : const <AppStrategy>[]);
+
+        final String cleanH =
+            (handle ?? '').replaceFirst(RegExp(r'^@+'), '').trim();
+
+        if (strategies.isEmpty) {
+          return Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.xl),
+              horizontal: context.sp(theme.spacing.md),
+            ),
+            child: UiEmptyState(
+              icon: Icons.menu_book_outlined,
+              title: isCurrentUser ? 'No strategies yet' : 'No public playbooks',
+              message: isCurrentUser
+                  ? 'Build systematic setups and execution playbooks in the Strategies section.'
+                  : (cleanH.isNotEmpty
+                      ? '@$cleanH has not shared any public strategies or playbooks.'
+                      : 'No public strategies or playbooks shared yet.'),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: strategies.map((AppStrategy strategy) {
+            return Padding(
+              padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
+              child: PlaybookCard(
+                strategy: strategy,
+                onTap: () {
+                  if (onOpenRef != null) {
+                    if (ModalRoute.of(context)?.isCurrent == true &&
+                        Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop();
+                    }
+                    onOpenRef!(
+                      AppLinkRef(
+                        kind: AppLinkKind.strategy,
+                        id: strategy.id,
+                        title: strategy.name,
+                      ),
+                    );
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (ctx) => StrategyDetailScreen(
+                          strategy: strategy,
+                          onClose: () => Navigator.of(ctx).pop(),
+                          onEdit: () {},
+                        ),
+                      ),
+                    );
+                  }
+                },
+              ),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 }
@@ -4740,6 +4944,132 @@ class _GridPatternPainter extends CustomPainter {
   @override
   bool shouldRepaint(_GridPatternPainter oldDelegate) =>
       oldDelegate.gridColor != gridColor;
+}
+
+// ---------------------------------------------------------------------------
+// Author-Only Pending Approval Posts Preview Tab
+// ---------------------------------------------------------------------------
+
+class _TraderPendingApprovalPostsPreview extends StatelessWidget {
+  const _TraderPendingApprovalPostsPreview({
+    this.authorId,
+    required this.handle,
+    this.repository,
+    this.author,
+    this.onPostTap,
+    this.onOpenRef,
+    required this.verifiedColor,
+  });
+
+  final String? authorId;
+  final String handle;
+  final CommunityRepository? repository;
+  final CommunityAuthor? author;
+  final ValueChanged<CommunityPost>? onPostTap;
+  final ValueChanged<AppLinkRef>? onOpenRef;
+  final Color verifiedColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.ui;
+    final repo = repository ?? CommunityRepository();
+
+    return ListenableBuilder(
+      listenable: repo,
+      builder: (context, _) {
+        final targetId = (authorId != null && authorId!.trim().isNotEmpty)
+            ? authorId!
+            : (author?.id.isNotEmpty == true
+                ? author!.id
+                : repo.currentAuthor.id);
+
+        final List<CommunityPost> pendingPosts =
+            repo.pendingPostsForAuthor(targetId);
+
+        if (pendingPosts.isEmpty) {
+          return Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: context.sp(theme.spacing.xl),
+              horizontal: context.sp(theme.spacing.md),
+            ),
+            child: const UiEmptyState(
+              icon: Icons.task_alt_rounded,
+              title: 'No pending posts',
+              message:
+                  'All your posts have been reviewed and approved. Newly created community posts will appear here while awaiting moderation approval.',
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                context.sp(theme.spacing.md),
+                context.sp(theme.spacing.xs),
+                context.sp(theme.spacing.md),
+                context.sp(theme.spacing.sm),
+              ),
+              child: const UiCallout(
+                title: 'Awaiting Moderation',
+                message:
+                    'These posts are in review and are only visible to you. Once approved by moderators, they will be published to the public community feed.',
+                intent: UiIntent.warning,
+              ),
+            ),
+            ...pendingPosts.map((CommunityPost post) {
+              final diff = DateTime.now().difference(post.createdAt);
+              final timeStr = diff.inMinutes < 60
+                  ? '${diff.inMinutes}m ago'
+                  : (diff.inHours < 24
+                      ? '${diff.inHours}h ago'
+                      : (diff.inDays == 1
+                          ? 'Yesterday'
+                          : '${diff.inDays}d ago'));
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _TwitterPostCard(
+                  post: post,
+                  displayName: post.author.displayName,
+                  handle: post.author.handle,
+                  avatarUrl: post.author.avatarUrl,
+                  verifiedColor: verifiedColor,
+                  isPinned: post.isPinned,
+                  timestamp: timeStr,
+                  body: post.body,
+                  tags: post.tags,
+                  likes: '${post.likes}',
+                  reposts: '${post.reposts}',
+                  replies: '${post.comments}',
+                  views: '${post.views}',
+                  setupSnapshot: post.tradeSetup != null
+                      ? _TradeSetupSnippet(
+                          ticker: post.tradeSetup!.ticker,
+                          side: post.tradeSetup!.side,
+                          entry: post.tradeSetup!.entry,
+                          exit: post.tradeSetup!.exit ?? '--',
+                          rMultiple: post.tradeSetup!.rMultiple ?? '--',
+                          pnl: post.tradeSetup!.pnl ?? '--',
+                          isWin: post.tradeSetup!.isWin ?? true,
+                          tradeId:
+                              'trd_${post.tradeSetup!.ticker.toLowerCase().replaceAll(' ', '_')}',
+                          onOpenRef: onOpenRef,
+                        )
+                      : null,
+                  onTap: onPostTap != null ? () => onPostTap!(post) : null,
+                  onOpenRef: onOpenRef,
+                  repository: repo,
+                  isAuthor: true,
+                ),
+              );
+            }),
+          ],
+        );
+      },
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

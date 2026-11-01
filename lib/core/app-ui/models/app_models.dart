@@ -240,6 +240,7 @@ class AppTrade {
     double? rMultiple,
     AppOutcome? outcome,
     String? strategy,
+    bool clearStrategyName = false,
     List<String>? tags,
     String? notes,
     String? screenshotUrl,
@@ -275,7 +276,7 @@ class AppTrade {
     outcome: outcome ?? this.outcome,
     // Detaching a strategy needs its own flag: `strategyId: null` is
     // indistinguishable from "leave it alone" in a copyWith.
-    strategy: clearStrategy ? null : (strategy ?? this.strategy),
+    strategy: clearStrategy || clearStrategyName ? null : (strategy ?? this.strategy),
     tags: tags ?? this.tags,
     notes: notes ?? this.notes,
     screenshotUrl: screenshotUrl ?? this.screenshotUrl,
@@ -709,6 +710,7 @@ class AppPost {
     this.views = 0,
     this.liked = false,
     this.saved = false,
+    this.moderationStatus = 'approved',
   });
 
   final String id;
@@ -729,6 +731,10 @@ class AppPost {
   final int views;
   final bool liked;
   final bool saved;
+  final String moderationStatus;
+
+  /// Returns true when this post is awaiting moderator approval.
+  bool get isPendingApproval => moderationStatus.trim().toLowerCase() == 'pending';
 }
 
 abstract class AppPostAttachment {
