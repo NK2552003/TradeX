@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
@@ -60,6 +61,23 @@ void main() {
 
       expect(
         () async => await repo.uploadAttachment('note-id-123', tempFile),
+        throwsA(isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('Unauthorized: user must be authenticated'),
+        )),
+      );
+    });
+
+    test('uploadAttachment supports web-safe byte uploads without requiring File.path', () async {
+      final bytes = Uint8List.fromList([137, 80, 78, 71, 13, 10, 26, 10]); // PNG header
+      expect(
+        () async => await repo.uploadAttachment(
+          'note-id-123',
+          null,
+          bytes: bytes,
+          filename: 'web_chart.png',
+        ),
         throwsA(isA<StateError>().having(
           (e) => e.message,
           'message',

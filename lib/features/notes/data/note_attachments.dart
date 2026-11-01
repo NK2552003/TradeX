@@ -93,6 +93,26 @@ class NoteAttachments {
     );
   }
 
+  /// Uploads [bytes] directly and returns the markdown to drop at the cursor.
+  /// Works across all platforms including Web without staging to disk.
+  static Future<String> attachBytes({
+    required String noteId,
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    final String ref = await NotesRepositoryScope.repository.uploadAttachment(
+      noteId,
+      null,
+      bytes: bytes,
+      filename: filename,
+    );
+    return markdownFor(
+      ref: ref,
+      filename: filename,
+      isImage: isImageFile(filename),
+    );
+  }
+
   /// The markdown to drop at the cursor for a stored [ref].
   static String markdownFor({
     required String ref,

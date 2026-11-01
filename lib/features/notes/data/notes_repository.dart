@@ -53,7 +53,12 @@ abstract class NotesRepository {
 
   /// Stores an attachment and returns the storage reference to embed in the
   /// markdown body (`![alt](ref)`).
-  Future<String> uploadAttachment(String noteId, File file);
+  Future<String> uploadAttachment(
+    String noteId,
+    File? file, {
+    Uint8List? bytes,
+    String? filename,
+  });
 
   /// Deletes an attachment from private storage and purges its tracking record.
   Future<void> deleteAttachment(String storagePath);
@@ -809,7 +814,12 @@ class NotesRepositoryImpl implements NotesRepository {
   }
 
   @override
-  Future<String> uploadAttachment(String noteId, File file) async {
+  Future<String> uploadAttachment(
+    String noteId,
+    File? file, {
+    Uint8List? bytes,
+    String? filename,
+  }) async {
     RecordAccess.requireService();
     final currentUserId = _resolveUserId();
     if (currentUserId.isEmpty) {
@@ -825,26 +835,28 @@ class NotesRepositoryImpl implements NotesRepository {
       RecordAccess.requireOwner(owner.userId);
     }
 
+    final String rawFileName = filename ?? (file != null ? p.basename(file.path) : 'attachment.png');
+    final String ext = sanitizeExtension(rawFileName);
+    final Uint8List fileBytes = bytes ?? (file != null ? await file.readAsBytes() : Uint8List(0));
+    final int length = fileBytes.length;
+
+    if (length > 10485760) {
+      throw ArgumentError('Attachment file size exceeds the 10 MB limit.');
+    }
+
     if (SupabaseConfig.isConfigured && _isUuid(noteId)) {
       try {
         final client = SupabaseConfig.client!;
-        final ext = sanitizeExtension(file.path);
-        final fileName = p.basename(file.path);
         final storagePath = '$currentUserId/$noteId/${const Uuid().v4()}.$ext';
-        final length = await file.length().catchError((_) => 0);
-
-        if (length > 10485760) {
-          throw ArgumentError('Attachment file size exceeds the 10 MB limit.');
-        }
 
         final mimeType = _resolveMimeType(ext);
-        final isImage = NoteAttachments.isImageFile(file.path);
+        final isImage = NoteAttachments.isImageFile(rawFileName);
 
         await client.storage
             .from('note-attachments')
-            .upload(
+            .uploadBinary(
               storagePath,
-              file,
+              fileBytes,
               fileOptions: FileOptions(
                 contentType: mimeType,
                 cacheControl: '3600',
@@ -859,7 +871,7 @@ class NotesRepositoryImpl implements NotesRepository {
               'note_id': noteId,
               'user_id': currentUserId,
               'storage_path': storagePath,
-              'filename': fileName,
+              'filename': rawFileName,
               'mime_type': mimeType,
               'byte_size': length,
               'is_image': isImage,
@@ -877,7 +889,7 @@ class NotesRepositoryImpl implements NotesRepository {
         rethrow;
       }
     }
-    return file.path;
+    return file?.path ?? rawFileName;
   }
 
   @override

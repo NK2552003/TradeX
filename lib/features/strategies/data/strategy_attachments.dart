@@ -74,6 +74,26 @@ class StrategyAttachments {
     );
   }
 
+  /// Uploads [bytes] directly and returns the markdown to drop at the cursor.
+  /// Works across all platforms including Web without staging to disk.
+  static Future<String> attachBytes({
+    required String strategyId,
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    final String ref = await StrategiesRepositoryScope.repository.uploadAttachment(
+      strategyId,
+      null,
+      bytes: bytes,
+      filename: filename,
+    );
+    return NoteAttachments.markdownFor(
+      ref: ref,
+      filename: filename,
+      isImage: NoteAttachments.isImageFile(filename),
+    );
+  }
+
   /// Wire into `RichMarkdownPreview.imageResolver`.
   static Widget resolve(BuildContext context, Uri uri) =>
       NoteAttachments.resolve(context, uri, using: _url);

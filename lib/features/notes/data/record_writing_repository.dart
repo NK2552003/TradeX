@@ -1,5 +1,6 @@
 import 'package:tradex/core/config/record_access.dart';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/journal/data/journal_repository.dart';
@@ -19,7 +20,7 @@ class RecordWritingDocument {
   final AppLinkRef source;
   final AppNote note;
   final Future<AppNote> Function(AppNote draft) save;
-  final Future<String> Function(File file) upload;
+  final Future<String> Function(File? file, {Uint8List? bytes, String? filename}) upload;
   final Future<String> Function(String ref) resolveImage;
 }
 
@@ -53,7 +54,12 @@ class RecordWritingRepository {
             ),
           );
         },
-        upload: (file) => journal.uploadAttachment(id, file),
+        upload: (file, {bytes, filename}) => journal.uploadAttachment(
+          id,
+          file,
+          bytes: bytes,
+          filename: filename,
+        ),
         resolveImage: journal.resolveAttachmentUrl,
       );
     }
@@ -77,7 +83,12 @@ class RecordWritingRepository {
             ),
           );
         },
-        upload: (file) => strategies.uploadAttachment(id, file),
+        upload: (file, {bytes, filename}) => strategies.uploadAttachment(
+          id,
+          file,
+          bytes: bytes,
+          filename: filename,
+        ),
         resolveImage: strategies.resolveAttachmentUrl,
       );
     }

@@ -66,7 +66,12 @@ abstract class StrategiesRepository {
 
   /// Stores a diagram, chart or reference document against [strategyId] and
   /// returns the opaque reference the markdown body embeds.
-  Future<String> uploadAttachment(String strategyId, File file);
+  Future<String> uploadAttachment(
+    String strategyId,
+    File? file, {
+    Uint8List? bytes,
+    String? filename,
+  });
 
   /// Turns a stored reference back into something the preview can load.
   Future<String> resolveAttachmentUrl(String ref);
@@ -1201,7 +1206,12 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
   }
 
   @override
-  Future<String> uploadAttachment(String strategyId, File file) async {
+  Future<String> uploadAttachment(
+    String strategyId,
+    File? file, {
+    Uint8List? bytes,
+    String? filename,
+  }) async {
     RecordAccess.requireService();
     final currentUserId = _resolveUserId();
     if (currentUserId.isEmpty) {
@@ -1217,27 +1227,29 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
       RecordAccess.requireOwner(owner.userId);
     }
 
+    final String rawFileName = filename ?? (file != null ? p.basename(file.path) : 'attachment.png');
+    final String ext = sanitizeExtension(rawFileName);
+    final Uint8List fileBytes = bytes ?? (file != null ? await file.readAsBytes() : Uint8List(0));
+    final int length = fileBytes.length;
+
+    if (length > 10485760) {
+      throw ArgumentError('Attachment file size exceeds the 10 MB limit.');
+    }
+
     if (SupabaseConfig.isConfigured && _isUuid(strategyId)) {
       try {
         final client = SupabaseConfig.client!;
-        final ext = sanitizeExtension(file.path);
-        final fileName = p.basename(file.path);
         final storagePath =
             '$currentUserId/$strategyId/${const Uuid().v4()}.$ext';
-        final length = await file.length().catchError((_) => 0);
-
-        if (length > 10485760) {
-          throw ArgumentError('Attachment file size exceeds the 10 MB limit.');
-        }
 
         final mimeType = _resolveMimeType(ext);
-        final isImage = NoteAttachments.isImageFile(file.path);
+        final isImage = NoteAttachments.isImageFile(rawFileName);
 
         await client.storage
             .from('strategy-attachments')
-            .upload(
+            .uploadBinary(
               storagePath,
-              file,
+              fileBytes,
               fileOptions: FileOptions(
                 contentType: mimeType,
                 cacheControl: '3600',
@@ -1251,7 +1263,7 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
               'strategy_id': strategyId,
               'user_id': currentUserId,
               'storage_path': storagePath,
-              'filename': fileName,
+              'filename': rawFileName,
               'mime_type': mimeType,
               'byte_size': length,
               'is_image': isImage,
@@ -1269,7 +1281,7 @@ class StrategiesRepositoryImpl implements StrategiesRepository {
         rethrow;
       }
     }
-    return file.path;
+    return file?.path ?? rawFileName;
   }
 
   @override

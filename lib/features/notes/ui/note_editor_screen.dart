@@ -1,6 +1,8 @@
 import 'package:tradex/core/widgets/publication_confirmation.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show listEquals;
@@ -637,7 +639,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         imageQuality: 90,
       );
       if (picked == null) return;
-      await _attach(File(picked.path), filename: picked.name);
+      final Uint8List bytes = await picked.readAsBytes();
+      await _attachBytes(bytes, filename: picked.name);
     } catch (error) {
       if (!mounted) return;
       UiToast.error(
@@ -655,19 +658,25 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: <String>['md', 'txt', 'pdf', 'png', 'jpg', 'jpeg'],
+        withData: true,
       );
-      final String? path = result?.files.first.path;
-      if (path == null) return;
-      final String name = result!.files.first.name;
-      final String ext = p.extension(path).toLowerCase();
+      if (result == null || result.files.isEmpty) return;
+      final PlatformFile pickedFile = result.files.first;
+      final String name = pickedFile.name;
+      final Uint8List? bytes = pickedFile.bytes ??
+          (pickedFile.path != null ? await File(pickedFile.path!).readAsBytes() : null);
+      if (bytes == null) {
+        throw StateError('Could not read file data.');
+      }
+      final String ext = p.extension(name).toLowerCase();
       if (ext == '.md' || ext == '.txt') {
-        final String text = await File(path).readAsString();
+        final String text = utf8.decode(bytes);
         if (!mounted) return;
         _editorKey.currentState?.insertBlock('$text\n');
         UiToast.success(context, title: 'Imported $name');
         return;
       }
-      await _attach(File(path), filename: name);
+      await _attachBytes(bytes, filename: name);
       if (ext == '.pdf' && mounted) {
         UiToast.info(
           context,
@@ -687,23 +696,24 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   /// Attachments belong to a saved note, so a draft is written first — otherwise
   /// the file would be uploaded against an id that does not exist yet.
-  Future<void> _attach(File source, {required String filename}) async {
+  Future<void> _attachBytes(Uint8List bytes, {required String filename}) async {
     final AppNote? owner = _note.id.isEmpty ? await _save(silent: true) : _note;
     if (owner == null || !mounted) return;
     try {
-      final File staged = await NoteAttachments.stage(source);
       final String ref = widget.sourceDocument != null
-          ? await widget.sourceDocument!.upload(staged)
+          ? await widget.sourceDocument!.upload(null, bytes: bytes, filename: filename)
           : await NotesRepositoryScope.repository.uploadAttachment(
               owner.id,
-              staged,
+              null,
+              bytes: bytes,
+              filename: filename,
             );
       if (!mounted) return;
       _editorKey.currentState?.insertBlock(
         NoteAttachments.markdownFor(
           ref: ref,
           filename: filename,
-          isImage: NoteAttachments.isImageFile(staged.path),
+          isImage: NoteAttachments.isImageFile(filename),
         ),
       );
     } catch (error) {

@@ -6,6 +6,8 @@ import 'package:tradex/features/auth/data/services/supabase_auth_backend_service
 import 'dart:async';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
@@ -69,7 +71,8 @@ abstract class JournalRepository {
   /// proves what a trade looked like.
   Future<String> uploadAttachment(
     String entryId,
-    File file, {
+    File? file, {
+    Uint8List? bytes,
     String? filename,
   });
 
@@ -979,7 +982,8 @@ class JournalRepositoryImpl implements JournalRepository {
   @override
   Future<String> uploadAttachment(
     String entryId,
-    File file, {
+    File? file, {
+    Uint8List? bytes,
     String? filename,
   }) async {
     RecordAccess.requireService();
@@ -996,26 +1000,34 @@ class JournalRepositoryImpl implements JournalRepository {
       }
       RecordAccess.requireOwner(owner.userId);
     }
+
+    final Uint8List fileBytes = bytes ?? (file != null ? await file.readAsBytes() : Uint8List(0));
+    final String rawFileName = filename ?? (file != null ? p.basename(file.path) : 'attachment.png');
+    final rawExt = rawFileName.contains('.') ? rawFileName.split('.').last : 'png';
+    final ext = rawExt.toLowerCase().trim();
+
     if (SupabaseConfig.isConfigured) {
       try {
         final client = SupabaseConfig.client!;
-        final rawExt = file.path.contains('.') ? file.path.split('.').last : 'png';
-        final ext = rawExt.toLowerCase().trim();
-        final fileName = filename ?? file.path.split(Platform.pathSeparator).last;
         final storagePath = '$currentUserId/$entryId/${const Uuid().v4()}.$ext';
+        final length = fileBytes.length;
+
+        if (length > 10485760) {
+          throw ArgumentError('Attachment file size exceeds the 10 MB limit.');
+        }
 
         await client.storage
             .from('journal-attachments')
-            .upload(
+            .uploadBinary(
               storagePath,
-              file,
+              fileBytes,
               fileOptions: FileOptions(
                 contentType: _resolveMimeType(ext),
+                cacheControl: '3600',
                 upsert: true,
               ),
             );
 
-        final length = await file.length().catchError((_) => 0);
         await client
             .from('journal_entry_attachments')
             .insert({
@@ -1023,7 +1035,7 @@ class JournalRepositoryImpl implements JournalRepository {
               'entry_id': entryId,
               'user_id': currentUserId,
               'storage_path': storagePath,
-              'filename': fileName,
+              'filename': rawFileName,
               'mime_type': _resolveMimeType(ext),
               'byte_size': length,
               'is_image': _isImageExtension(ext),
@@ -1041,7 +1053,7 @@ class JournalRepositoryImpl implements JournalRepository {
         rethrow;
       }
     }
-    return file.path;
+    return file?.path ?? rawFileName;
   }
 
   @override

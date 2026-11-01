@@ -46,6 +46,26 @@ class JournalAttachments {
     );
   }
 
+  /// Uploads [bytes] directly and returns the markdown to drop at the cursor.
+  /// Works across all platforms including Web without staging to disk.
+  static Future<String> attachBytes({
+    required String entryId,
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    final String ref = await JournalRepositoryScope.repository.uploadAttachment(
+      entryId,
+      null,
+      bytes: bytes,
+      filename: filename,
+    );
+    return NoteAttachments.markdownFor(
+      ref: ref,
+      filename: filename,
+      isImage: NoteAttachments.isImageFile(filename),
+    );
+  }
+
   /// Removes an attachment from the private bucket and clears its entry attachment record.
   static Future<void> delete(String storagePath) =>
       JournalRepositoryScope.repository.deleteAttachment(storagePath);
