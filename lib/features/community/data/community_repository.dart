@@ -834,7 +834,7 @@ class CommunityRepository extends ChangeNotifier {
   String? marketDataError;
   MarketSnapshot? marketSnapshot;
   Future<void> loadMarketData({AssetMarketRepository? source}) =>
-      _marketLoad ??= _loadMarketData(source ?? AssetMarketRepository());
+      _marketLoad ??= _loadMarketData(source ?? AssetMarketRepository.shared);
   Future<void> _loadMarketData(AssetMarketRepository source) async {
     try {
       final snapshot = await source.snapshot();

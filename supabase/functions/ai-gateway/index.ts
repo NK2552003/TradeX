@@ -23,7 +23,7 @@ async function generate(
   const candidates = [
     { provider: 'openrouter', key: env('OPENROUTER_API_KEY'), model: env('OPENROUTER_MODEL') || 'openrouter/free', url: 'https://openrouter.ai/api/v1/chat/completions' },
     { provider: 'gemini', key: env('GEMINI_API_KEY'), model: env('GEMINI_MODEL') || 'gemini-2.5-flash', url: '' },
-    { provider: 'openai', key: env('OPENAI_API_KEY'), model: env('OPENAI_MODEL') || 'gpt-4.1-mini', url: 'https://api.openai.com/v1/chat/completions' },
+    { provider: 'openai', key: env('OPENAI_API_KEY') ?? env('OPEN_AI_KEY'), model: env('OPENAI_MODEL') || 'gpt-4.1-mini', url: 'https://api.openai.com/v1/chat/completions' },
     { provider: 'anthropic', key: env('CLAUDE_API_KEY'), model: env('CLAUDE_MODEL') || 'claude-sonnet-4-5', url: 'https://api.anthropic.com/v1/messages' },
   ];
   for (const candidate of candidates) {
@@ -81,7 +81,7 @@ export async function handleRequest(request: Request, dependencies: Dependencies
   const url = env('SUPABASE_URL');
   const anonKey = env('SUPABASE_ANON_KEY');
   const serviceKey = env('SUPABASE_SERVICE_ROLE_KEY') ?? env('SUPABASE_SECRET_KEY');
-  if (!url || !anonKey || !serviceKey || !['OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY', 'CLAUDE_API_KEY'].some((key) => env(key))) {
+  if (!url || !anonKey || !serviceKey || !['OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY', 'OPEN_AI_KEY', 'CLAUDE_API_KEY'].some((key) => env(key))) {
     return reply(503, { error: 'AI service is not configured.' });
   }
   let body: Record<string, unknown>;

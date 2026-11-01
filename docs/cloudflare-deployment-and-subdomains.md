@@ -126,14 +126,44 @@ Open your **Supabase Dashboard** (`https://supabase.com/dashboard/project/ylxwgk
   tradex://auth/callback
   ```
 
-### 2. Verify Supabase Edge Functions & AI Secrets
-Ensure the AI Edge Functions (`note-ai-refactor` and `ai-gateway`) are deployed and have their API keys set:
-```bash
-supabase functions deploy note-ai-refactor
-supabase functions deploy ai-gateway
-supabase secrets list
-```
-*(In the app, `RealNoteAiRefactor` uses the authenticated `note-ai-refactor` Edge Function for note & editor AI actions, with `UnifiedAiService` powering AI Copilot and inline selection tools).*
+### 2. Where to Put AI API Keys (Supabase Edge Function Secrets vs. Cloudflare Variables)
+
+Your current `.env` keys (`OPEN_AI_KEY` and `OPENROUTER_API_KEY`) have been verified against live OpenAI (`gpt-4o-mini`) and OpenRouter (`openrouter/free`) endpoints and are **100% active and working**.
+
+Here is **where each key belongs** in production:
+
+#### A. Supabase Edge Function Secrets (Primary & Recommended for Security)
+All server-side AI keys (`OPENAI_API_KEY` / `OPEN_AI_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`) **should be stored in Supabase Edge Function Secrets**, never exposed in public static files.
+
+1. **Via Supabase Dashboard**:
+   - Open `https://supabase.com/dashboard/project/ylxwgkhtwrizdmuhlhxs/functions/secrets` (**Project Settings -> Edge Functions -> Secrets**).
+   - Add the following secrets:
+     - `OPENAI_API_KEY` = *(your `OPEN_AI_KEY` value from `.env`)*
+     - `OPEN_AI_KEY` = *(your `OPEN_AI_KEY` value from `.env`)*
+     - `OPENROUTER_API_KEY` = *(your `OPENROUTER_API_KEY` value from `.env`)*
+2. **Or via Supabase CLI**:
+   ```bash
+   npx supabase login
+   npx supabase secrets set \
+     OPENAI_API_KEY="sk-proj-..." \
+     OPEN_AI_KEY="sk-proj-..." \
+     OPENROUTER_API_KEY="sk-or-v1-..." \
+     --project-ref ylxwgkhtwrizdmuhlhxs
+
+   # Deploy the Edge Functions so they pick up the latest code & secrets:
+   npx supabase functions deploy ai-gateway --project-ref ylxwgkhtwrizdmuhlhxs
+   npx supabase functions deploy note-ai-refactor --project-ref ylxwgkhtwrizdmuhlhxs
+   npx supabase functions deploy market-quote-proxy --project-ref ylxwgkhtwrizdmuhlhxs
+   ```
+
+#### B. Cloudflare Pages Environment Variables
+In **Cloudflare Dashboard -> Workers & Pages -> alphajournal -> Settings -> Environment variables**, put **public client configuration**:
+- `SUPABASE_URL` = `https://ylxwgkhtwrizdmuhlhxs.supabase.co`
+- `SUPABASE_ANON_KEY` = *(your anon key from `.env`)*
+- `SUPABASE_PUBLISHABLE_KEY` = *(your publishable key from `.env`)*
+- `ENVIRONMENT` = `production`
+
+> **Optional Client-Side Fallback**: [`UnifiedAiService`](../lib/core/ai/unified_ai_service.dart) and [`RealNoteAiRefactor`](../lib/features/notes/data/real_note_ai_refactor.dart) automatically try the Supabase Edge Functions (`note-ai-refactor` and `ai-gateway`) first. If the Edge Functions are not yet deployed or configured in Supabase, they gracefully fall back to client-side AI providers when compiled with `--dart-define=OPEN_AI_KEY=...` or `--dart-define=OPENROUTER_API_KEY=...`. Once your Supabase Edge Function secrets are set, you do **not** need AI keys in Cloudflare Pages.
 
 ### 3. Verify Live Database Pricing & Quotas
 The live Supabase database (`public.pricing_catalogues`, `public.profiles`, `public.subscriptions`, and `public.get_customer_quota_usage`) is already updated with:

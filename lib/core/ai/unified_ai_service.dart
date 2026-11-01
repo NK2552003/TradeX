@@ -56,15 +56,34 @@ class UnifiedAiService {
     String? systemPrompt,
     double temperature = 0.3,
     int maxTokens = 2048,
+    bool allowLocalFallback = true,
   }) async {
     if (SupabaseConfig.isConfigured) {
-      return _completeOnServer({
-        'prompt': prompt,
-        'kind': 'completion',
-        'system_prompt': ?systemPrompt,
-        'temperature': temperature,
-        'max_tokens': maxTokens,
-      });
+      try {
+        return await _completeOnServer({
+          'prompt': prompt,
+          'kind': 'completion',
+          'system_prompt': ?systemPrompt,
+          'temperature': temperature,
+          'max_tokens': maxTokens,
+        });
+      } on StateError catch (e) {
+        final msg = e.message.toLowerCase();
+        // Do not bypass auth, quota, or account status restrictions
+        if (msg.contains('sign in') ||
+            msg.contains('quota') ||
+            msg.contains('account changed') ||
+            msg.contains('no longer available')) {
+          rethrow;
+        }
+        debugPrint(
+          '[UnifiedAiService] Server ai-gateway unavailable ($e); falling back to client providers.',
+        );
+      } catch (e) {
+        debugPrint(
+          '[UnifiedAiService] Server ai-gateway transport error ($e); falling back to client providers.',
+        );
+      }
     }
     final client = _clientFactory();
     try {
@@ -151,6 +170,12 @@ class UnifiedAiService {
       client.close();
     }
 
+    if (!allowLocalFallback) {
+      throw StateError(
+        'AI service is currently unavailable. Please configure your AI provider keys or try again later.',
+      );
+    }
+
     // 5. High-Signal Dynamic Trading Engine Fallback
     return generateLocalTradingAnalysis(
       prompt: prompt,
@@ -173,25 +198,42 @@ class UnifiedAiService {
           )
           .toList();
       final prompt = history.lastWhere((m) => m.role == AppAiRole.user).body;
-      yield await _completeOnServer({
-        'kind': requestKind,
-        'prompt': prompt,
-        'persona': persona,
-        'thread_id': ?threadId,
-        'system_prompt': systemPrompt ?? buildPersonaSystemPrompt(persona),
-        'messages': [
-          for (final message in history.skip(
-            (history.length - 40).clamp(0, history.length),
-          ))
-            {
-              'role': message.role == AppAiRole.assistant
-                  ? 'assistant'
-                  : 'user',
-              'content': message.body,
-            },
-        ],
-      });
-      return;
+      try {
+        yield await _completeOnServer({
+          'kind': requestKind,
+          'prompt': prompt,
+          'persona': persona,
+          'thread_id': ?threadId,
+          'system_prompt': systemPrompt ?? buildPersonaSystemPrompt(persona),
+          'messages': [
+            for (final message in history.skip(
+              (history.length - 40).clamp(0, history.length),
+            ))
+              {
+                'role': message.role == AppAiRole.assistant
+                    ? 'assistant'
+                    : 'user',
+                'content': message.body,
+              },
+          ],
+        });
+        return;
+      } on StateError catch (e) {
+        final msg = e.message.toLowerCase();
+        if (msg.contains('sign in') ||
+            msg.contains('quota') ||
+            msg.contains('account changed') ||
+            msg.contains('no longer available')) {
+          rethrow;
+        }
+        debugPrint(
+          '[UnifiedAiService] Server ai-gateway stream unavailable ($e); falling back to client providers.',
+        );
+      } catch (e) {
+        debugPrint(
+          '[UnifiedAiService] Server ai-gateway stream transport error ($e); falling back to client providers.',
+        );
+      }
     }
     final client = _clientFactory();
     final effectiveSystemPrompt =

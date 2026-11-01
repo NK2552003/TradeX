@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:tradex/core/ai/unified_ai_service.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/config/customer_data_policy.dart';
+import 'package:tradex/core/config/env_config.dart';
 import 'package:tradex/core/config/supabase_config.dart';
 import 'ai_chat_transport.dart';
 
@@ -21,7 +22,9 @@ class GeminiAiChatTransport implements AiChatTransport {
 
   @override
   bool get available =>
-      SupabaseConfig.isConfigured || CustomerDataPolicy.allowDemo;
+      SupabaseConfig.isConfigured ||
+      EnvConfig.hasAiKey ||
+      CustomerDataPolicy.allowDemo;
 
   @override
   void cancel() {
@@ -72,7 +75,12 @@ class GeminiAiChatTransport implements AiChatTransport {
       },
       onError: (e) {
         if (!controller.isClosed) {
-          if (SupabaseConfig.isConfigured) {
+          final msg = e.toString().toLowerCase();
+          if (SupabaseConfig.isConfigured &&
+              (msg.contains('sign in') ||
+                  msg.contains('quota') ||
+                  msg.contains('account changed') ||
+                  msg.contains('no longer available'))) {
             controller.addError(e);
             controller.close();
             return;

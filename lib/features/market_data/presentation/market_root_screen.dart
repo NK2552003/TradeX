@@ -380,16 +380,25 @@ class _MarketRootScreenState extends State<MarketRootScreen> {
                                   ),
                                   UiGap.h(context.ui.spacing.xs),
                                   UiBadge(
-                                    label: 'SNAPSHOT',
+                                    label: snapshot.manifest['data_source'] ==
+                                            'supabase_live'
+                                        ? 'LIVE DATABASE'
+                                        : 'SNAPSHOT',
                                     variant: UiBadgeVariant.soft,
-                                    intent: UiIntent.primary,
+                                    intent: snapshot.manifest['data_source'] ==
+                                            'supabase_live'
+                                        ? UiIntent.success
+                                        : UiIntent.primary,
                                     size: UiSize.xs,
                                   ),
                                 ],
                               ),
                               UiGap.v(context.ui.spacing.xxs),
                               Text(
-                                'Snapshot ${marketSnapshotDate(snapshot.manifest)} · Analytics & Research',
+                                snapshot.manifest['data_source'] ==
+                                        'supabase_live'
+                                    ? 'Live Database · ${snapshot.instruments.length} Quotes & Analytics'
+                                    : 'Snapshot ${marketSnapshotDate(snapshot.manifest)} · Analytics & Research',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: context.uiText.caption.copyWith(

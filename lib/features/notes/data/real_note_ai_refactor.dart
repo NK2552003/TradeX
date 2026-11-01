@@ -50,12 +50,6 @@ class RealNoteAiRefactor implements NoteAiRefactor {
             return enhanced;
           }
         }
-        if (res.data is Map) {
-          final data = res.data as Map;
-          if (data['error'] != null) {
-            throw StateError(data['error'].toString());
-          }
-        }
         if (res.status == 401) {
           throw StateError('Sign in required to use AI note refactoring.');
         }
@@ -64,10 +58,17 @@ class RealNoteAiRefactor implements NoteAiRefactor {
             'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
           );
         }
-        if (res.status != 200) {
-          throw StateError(
-            'AI refactoring request failed (${res.status}).',
-          );
+        if (res.status == 404 || res.status == 502 || res.status == 503) {
+          canFallbackToClientAi = true;
+        } else {
+          if (res.data is Map && (res.data as Map)['error'] != null) {
+            throw StateError((res.data as Map)['error'].toString());
+          }
+          if (res.status != 200) {
+            throw StateError(
+              'AI refactoring request failed (${res.status}).',
+            );
+          }
         }
       } on FunctionException catch (fe) {
         debugPrint(
@@ -81,15 +82,19 @@ class RealNoteAiRefactor implements NoteAiRefactor {
             'AI monthly quota exceeded. Upgrade your plan for more refactoring requests.',
           );
         }
-        if (fe.details is Map && (fe.details as Map)['error'] != null) {
-          throw StateError((fe.details as Map)['error'].toString());
+        if (fe.status == 404 || fe.status == 502 || fe.status == 503 || fe.status == 0) {
+          canFallbackToClientAi = true;
+        } else {
+          if (fe.details is Map && (fe.details as Map)['error'] != null) {
+            throw StateError((fe.details as Map)['error'].toString());
+          }
+          if (fe.status > 0) {
+            throw StateError(
+              'AI refactoring request failed (${fe.status}): ${fe.reasonPhrase ?? 'Service error'}',
+            );
+          }
+          canFallbackToClientAi = true;
         }
-        if (fe.status > 0) {
-          throw StateError(
-            'AI refactoring request failed (${fe.status}): ${fe.reasonPhrase ?? 'Service error'}',
-          );
-        }
-        canFallbackToClientAi = true;
       } on StateError {
         rethrow;
       } catch (e) {
@@ -102,8 +107,9 @@ class RealNoteAiRefactor implements NoteAiRefactor {
       canFallbackToClientAi = true;
     }
 
-    // 3. Fallback to client-side AI providers if allowed and configured
-    if (canFallbackToClientAi && EnvConfig.hasAiKey) {
+    // 3. Fallback to UnifiedAiService (ai-gateway Edge Function or configured AI providers)
+    if (canFallbackToClientAi &&
+        (SupabaseConfig.isConfigured || EnvConfig.hasAiKey)) {
       const systemPrompt = '''
 You are alphajournal Copilot, an elite quantitative financial analyst and disciplined trading performance coach.
 Your task is to refine, enhance, or restructure the trader's note content according to their instructions.
@@ -130,6 +136,7 @@ $cleanText
         final enhanced = await UnifiedAiService.instance.complete(
           prompt: prompt,
           systemPrompt: systemPrompt,
+          allowLocalFallback: false,
         );
         if (enhanced.trim().isNotEmpty) {
           return enhanced.trim();
