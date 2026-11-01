@@ -1,46 +1,109 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 
-  <!-- iOS meta tags & icons -->
+  <!-- Primary SEO Meta Tags -->
+  <title>alphajournal — Institutional Trading Journal, AI Playbooks &amp; Market Community</title>
+  <meta name="title" content="alphajournal — Institutional Trading Journal, AI Playbooks &amp; Market Community">
+  <meta name="description" content="Log trades, write linked research notes, track strategy playbooks, and collaborate with verified traders on alphajournal. Available in Free, Basic (₹299/mo), and Pro (₹499/mo) tiers.">
+  <meta name="keywords" content="alphajournal, trading journal, trade analytics, AI trading assistant, trading notes, strategy playbooks, trading community, Indian stock market journal, crypto trade tracker">
+  <meta name="author" content="alphajournal">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="theme-color" content="#0D0C0B">
+  <link rel="canonical" href="https://alphajournal.in/">
+
+  <!-- Open Graph / Facebook / LinkedIn -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="alphajournal">
+  <meta property="og:url" content="https://alphajournal.in/">
+  <meta property="og:title" content="alphajournal — Institutional Trading Journal, AI Playbooks &amp; Market Community">
+  <meta property="og:description" content="Compound your trading edge with linked notes, structured execution journals, AI-assisted reviews, and a verified trader community.">
+  <meta property="og:image" content="https://alphajournal.in/icons/Icon-512.png">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
+  <meta property="og:locale" content="en_IN">
+
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://alphajournal.in/">
+  <meta name="twitter:title" content="alphajournal — Institutional Trading Journal &amp; AI Workspace">
+  <meta name="twitter:description" content="Compound your trading edge with linked notes, structured execution journals, AI-assisted reviews, and a verified trader community.">
+  <meta name="twitter:image" content="https://alphajournal.in/icons/Icon-512.png">
+
+  <!-- iOS & PWA Meta Tags -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="alphajournal">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>alphajournal</title>
+  <!-- Favicons -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="shortcut icon" href="favicon.ico">
   <link rel="manifest" href="manifest.json">
-</head>
-<body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://alphajournal.in/#website",
+        "url": "https://alphajournal.in/",
+        "name": "alphajournal",
+        "description": "Institutional trading journal, linked research notes, strategy playbooks, and verified trader community.",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://alphajournal.in/market/{search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://alphajournal.in/#app",
+        "name": "alphajournal",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web, iOS, Android, macOS, Windows",
+        "url": "https://app.alphajournal.in/",
+        "image": "https://alphajournal.in/icons/Icon-512.png",
+        "offers": [
+          {
+            "@type": "Offer",
+            "name": "Free",
+            "price": "0",
+            "priceCurrency": "INR",
+            "availability": "https://schema.org/InStock"
+          },
+          {
+            "@type": "Offer",
+            "name": "Basic",
+            "price": "299",
+            "priceCurrency": "INR",
+            "availability": "https://schema.org/PreOrder"
+          },
+          {
+            "@type": "Offer",
+            "name": "Pro",
+            "price": "499",
+            "priceCurrency": "INR",
+            "availability": "https://schema.org/PreOrder"
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body style="background-color: #0D0C0B; margin: 0;">
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

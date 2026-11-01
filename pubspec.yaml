@@ -102,6 +102,7 @@ flutter:
 
   assets:
     - assets/config/client.env
+    - assets/icon/
     - assets/data/
     - assets/data/history/
     - assets/data/screeners/

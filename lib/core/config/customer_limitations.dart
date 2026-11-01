@@ -97,8 +97,20 @@ class CustomerTierQuota {
   static CustomerTierQuota _baselineForTier(AppTier tier) => switch (tier) {
     AppTier.free => const CustomerTierQuota(
       tier: AppTier.free,
-      planName: 'alphajournal Basic',
+      planName: 'alphajournal Free',
       monthlyPriceInr: 0,
+      maxNotes: 3,
+      maxTrades: 15,
+      maxLiveStrategies: 1,
+      maxWatchlists: 1,
+      maxAiQueriesPerMonth: 5,
+      allowPdfExport: false,
+      allowAdvancedBacktest: false,
+    ),
+    AppTier.premium => const CustomerTierQuota(
+      tier: AppTier.premium,
+      planName: 'alphajournal Basic',
+      monthlyPriceInr: 299,
       maxNotes: 25,
       maxTrades: 100,
       maxLiveStrategies: 3,
@@ -107,22 +119,10 @@ class CustomerTierQuota {
       allowPdfExport: false,
       allowAdvancedBacktest: false,
     ),
-    AppTier.premium => const CustomerTierQuota(
-      tier: AppTier.premium,
-      planName: 'alphajournal Pro',
-      monthlyPriceInr: 2499,
-      maxNotes: 500,
-      maxTrades: 5000,
-      maxLiveStrategies: 25,
-      maxWatchlists: 20,
-      maxAiQueriesPerMonth: 500,
-      allowPdfExport: true,
-      allowAdvancedBacktest: true,
-    ),
     AppTier.enterprise => const CustomerTierQuota(
       tier: AppTier.enterprise,
-      planName: 'alphajournal Business',
-      monthlyPriceInr: 999,
+      planName: 'alphajournal Pro',
+      monthlyPriceInr: 499,
       maxNotes: 10000,
       maxTrades: 50000,
       maxLiveStrategies: 250,
@@ -702,8 +702,8 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                           if (tier != AppTier.enterprise)
                             UiButton(
                               label: tier == AppTier.free
-                                  ? 'Upgrade Plan (₹2,499)'
-                                  : 'Business (₹999)',
+                                  ? 'Basic (₹299)'
+                                  : 'Pro (₹499)',
                               size: UiSize.xs,
                               variant: UiVariant.soft,
                               intent: UiIntent.primary,
@@ -713,7 +713,7 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                                     featureTitle:
                                         'Customer Plan & Limits (INR)',
                                     reason:
-                                        'Manage your alphajournal subscription tier and workspace quotas in Indian Rupees (₹).',
+                                        'Manage your alphajournal subscription tier and workspace quotas in Indian Rupees (₹). Monthly subscriptions for Basic and Pro are disabled for now.',
                                   ),
                             ),
                         ],

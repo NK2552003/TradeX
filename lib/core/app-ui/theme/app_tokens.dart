@@ -72,8 +72,8 @@ class AppTokens {
 
   static String tierLabel(AppTier tier) => switch (tier) {
     AppTier.free => 'Free',
-    AppTier.premium => 'Premium',
-    AppTier.enterprise => 'Business',
+    AppTier.premium => 'Basic',
+    AppTier.enterprise => 'Pro',
   };
 
   static IconData tierIcon(AppTier tier) => switch (tier) {

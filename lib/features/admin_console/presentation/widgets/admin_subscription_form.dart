@@ -131,8 +131,8 @@ class _AdminSubscriptionFormState extends State<AdminSubscriptionForm> {
                 value: _tier,
                 options: const [
                   UiOption(value: 'free', label: 'Free'),
-                  UiOption(value: 'premium', label: 'Pro'),
-                  UiOption(value: 'enterprise', label: 'Enterprise'),
+                  UiOption(value: 'premium', label: 'Basic'),
+                  UiOption(value: 'enterprise', label: 'Pro'),
                 ],
                 onChanged: (value) => setState(() => _tier = value),
               ),

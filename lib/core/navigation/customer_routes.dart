@@ -30,7 +30,22 @@ class CustomerRoute {
           : _record(target.kind, target.id, uri);
     }
     final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
-    if (segments.isEmpty) return const CustomerRoute();
+    if (segments.isEmpty) {
+      final host = uri.host.toLowerCase();
+      if (host.startsWith('community.')) {
+        return const CustomerRoute(destination: 'community_feed');
+      }
+      if (host.startsWith('admin.')) {
+        return const CustomerRoute(destination: 'admin_console');
+      }
+      if (host.startsWith('affiliate.')) {
+        return const CustomerRoute(destination: 'affiliate_application');
+      }
+      if (host.startsWith('app.')) {
+        return const CustomerRoute(destination: 'workspace');
+      }
+      return const CustomerRoute();
+    }
     if (segments.length == 2 && segments.first == 'auth') {
       final stage = switch (segments[1]) {
         'login' => AuthStage.login,

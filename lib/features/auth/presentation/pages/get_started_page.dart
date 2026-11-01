@@ -425,94 +425,92 @@ class _GetStartedPageState extends State<GetStartedPage> {
           physics: const AlwaysScrollableScrollPhysics(),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(
-              child: Column(
-                children: [
-                  // Top section
-                  Padding(
-                    padding: EdgeInsets.only(
-                      top: context.sp(
-                        isLandscapeOrCompact
-                            ? theme.spacing.md
-                            : theme.spacing.xxl,
-                      ),
-                      left: horizontalPadding,
-                      right: horizontalPadding,
-                      bottom: context.sp(
-                        isLandscapeOrCompact
-                            ? theme.spacing.sm
-                            : theme.spacing.lg,
-                      ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Top section
+                Padding(
+                  padding: EdgeInsets.only(
+                    top: context.sp(
+                      isLandscapeOrCompact
+                          ? theme.spacing.md
+                          : theme.spacing.xxl,
                     ),
-                    child: const Center(
-                      child: AppLogo(size: 24, tagline: 'ALPHAJOURNAL'),
+                    left: horizontalPadding,
+                    right: horizontalPadding,
+                    bottom: context.sp(
+                      isLandscapeOrCompact
+                          ? theme.spacing.sm
+                          : theme.spacing.lg,
                     ),
                   ),
+                  child: const Center(
+                    child: AppLogo(size: 24, tagline: 'ALPHAJOURNAL'),
+                  ),
+                ),
 
-                  // Carousel
-                  if (isLandscapeOrCompact)
-                    SizedBox(
-                      height: context.sz(260),
-                      child: const AuthCarouselPanel(),
-                    )
-                  else
-                    const Expanded(child: AuthCarouselPanel()),
+                // Carousel
+                SizedBox(
+                  height: isLandscapeOrCompact
+                      ? context.sz(260)
+                      : (constraints.maxHeight * 0.56).clamp(280.0, 520.0),
+                  child: const AuthCarouselPanel(),
+                ),
 
-                  // Bottom Action buttons
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: horizontalPadding,
-                      vertical: context.sp(
-                        isLandscapeOrCompact
-                            ? theme.spacing.md
-                            : theme.spacing.xl,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: UiButton(
-                            label: 'Continue as Trader',
-                            variant: UiVariant.primary,
-                            intent: UiIntent.primary,
-                            size: UiSize.lg,
-                            onPressed: () =>
-                                widget.onGetStarted(UserRole.customer),
-                          ),
-                        ),
-                        SizedBox(height: context.sp(theme.spacing.md)),
-                        SizedBox(
-                          width: double.infinity,
-                          child: UiButton(
-                            label: 'Join as Affiliate',
-                            variant: UiVariant.outline,
-                            intent: UiIntent.primary,
-                            size: UiSize.lg,
-                            leadingIcon: Icons.handshake_outlined,
-                            onPressed: () =>
-                                widget.onGetStarted(UserRole.affiliate),
-                          ),
-                        ),
-                        SizedBox(height: context.sp(theme.spacing.sm)),
-                        SizedBox(
-                          width: double.infinity,
-                          child: UiButton(
-                            label: 'Already have an account? Sign in',
-                            variant: UiVariant.ghost,
-                            intent: UiIntent.neutral,
-                            size: UiSize.sm,
-                            leadingIcon: Icons.login_rounded,
-                            onPressed: widget.onSignIn,
-                          ),
-                        ),
-                      ],
+                // Bottom Action buttons
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                    vertical: context.sp(
+                      isLandscapeOrCompact
+                          ? theme.spacing.md
+                          : theme.spacing.xl,
                     ),
                   ),
-                ],
-              ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: UiButton(
+                          label: 'Continue as Trader',
+                          variant: UiVariant.primary,
+                          intent: UiIntent.primary,
+                          size: UiSize.lg,
+                          onPressed: () =>
+                              widget.onGetStarted(UserRole.customer),
+                        ),
+                      ),
+                      SizedBox(height: context.sp(theme.spacing.md)),
+                      SizedBox(
+                        width: double.infinity,
+                        child: UiButton(
+                          label: 'Join as Affiliate',
+                          variant: UiVariant.outline,
+                          intent: UiIntent.primary,
+                          size: UiSize.lg,
+                          leadingIcon: Icons.handshake_outlined,
+                          onPressed: () =>
+                              widget.onGetStarted(UserRole.affiliate),
+                        ),
+                      ),
+                      SizedBox(height: context.sp(theme.spacing.sm)),
+                      SizedBox(
+                        width: double.infinity,
+                        child: UiButton(
+                          label: 'Already have an account? Sign in',
+                          variant: UiVariant.ghost,
+                          intent: UiIntent.neutral,
+                          size: UiSize.sm,
+                          leadingIcon: Icons.login_rounded,
+                          onPressed: widget.onSignIn,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -557,8 +555,8 @@ class _GetStartedPageState extends State<GetStartedPage> {
               ),
             ),
 
-            // Center: Navigation Links (Desktop)
-            if (responsive.width >= 900)
+            // Center: Navigation Links (Desktop / Tablet >= 768)
+            if (responsive.width >= 768)
               Expanded(
                 child: Align(
                   alignment: Alignment.center,

@@ -4,8 +4,8 @@ import 'package:tradex/features/auth/models/user_profile_model.dart';
 
 /// Parses the tier string stored on the profile into the design-system enum.
 AppTier appTierFromId(String id) => switch (id.trim().toLowerCase()) {
-  'premium' || 'pro' => AppTier.premium,
-  'enterprise' || 'desk' => AppTier.enterprise,
+  'premium' || 'basic' => AppTier.premium,
+  'enterprise' || 'pro' || 'desk' => AppTier.enterprise,
   _ => AppTier.free,
 };
 

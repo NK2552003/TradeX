@@ -272,9 +272,12 @@ class _AffiliateApplicationPageState extends State<AffiliateApplicationPage> {
               label: 'Verify Mobile',
               intent: UiIntent.primary,
               onPressed: () {
-                if (otp.length != 6) {
+                if (otp.length != 6 ||
+                    !RegExp(r'^\d{6}$').hasMatch(otp) ||
+                    otp == '000000') {
                   setDialogState(
-                    () => otpError = 'Please enter a 6-digit numeric code.',
+                    () => otpError =
+                        'Please enter a valid 6-digit verification code.',
                   );
                   return;
                 }
