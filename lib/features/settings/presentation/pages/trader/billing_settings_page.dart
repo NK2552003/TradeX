@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/core/billing/revenuecat_billing.dart';
+import 'package:tradex/core/config/customer_limitations.dart';
 import 'package:tradex/features/auth/models/auth_user_role.dart';
 import 'package:tradex/features/settings/data/repositories/billing_settings_repository.dart';
 import 'package:tradex/features/settings/models/billing_models.dart';
@@ -251,45 +252,6 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
     return '$price · $next$coupon';
   }
 
-  /// Allowance meters for the plan. Seats only appear on a plan that has more
-  /// than one, so a single-trader account is not shown a desk meter.
-  List<Widget> _meters(SubscriptionSummary sub) => <Widget>[
-    if (sub.isMultiSeat)
-      UiProgressBar(
-        value: SubscriptionSummary.fraction(sub.seatsUsed, sub.maxSeats),
-        label: 'Desk seats (${sub.seatsUsed} of ${sub.maxSeats})',
-      ),
-    if (sub.maxNotes > 0)
-      UiProgressBar(
-        value: SubscriptionSummary.fraction(sub.notesUsed, sub.maxNotes),
-        label: 'Research notes (${sub.notesUsed} of ${sub.maxNotes} total)',
-      ),
-    if (sub.maxTradesPerMonth > 0)
-      UiProgressBar(
-        value: SubscriptionSummary.fraction(
-          sub.tradesLoggedThisMonth,
-          sub.maxTradesPerMonth,
-        ),
-        label:
-            'Journal entries (${sub.tradesLoggedThisMonth} of ${sub.maxTradesPerMonth} total)',
-      ),
-    if (sub.maxLivePlaybooks > 0)
-      UiProgressBar(
-        value: SubscriptionSummary.fraction(
-          sub.livePlaybooksUsed,
-          sub.maxLivePlaybooks,
-        ),
-        label:
-            'Active playbooks (${sub.livePlaybooksUsed} of ${sub.maxLivePlaybooks})',
-      ),
-    if (sub.maxAiTokens > 0)
-      UiProgressBar(
-        value: SubscriptionSummary.fraction(sub.aiTokensUsed, sub.maxAiTokens),
-        label:
-            'AI requests this month (${sub.aiTokensUsed} of ${sub.maxAiTokens})',
-      ),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final UiTheme theme = context.ui;
@@ -482,54 +444,17 @@ class _BillingSettingsPageState extends State<BillingSettingsPage> {
                         ),
                       ),
                     ],
-                    if (!isAffiliate) ...<Widget>[
-                      SizedBox(height: context.sp(theme.spacing.lg)),
-                      UiDivider(),
-                      SizedBox(height: context.sp(theme.spacing.md)),
-                      LayoutBuilder(
-                        builder:
-                            (BuildContext context, BoxConstraints constraints) {
-                              final List<Widget> meters = _meters(sub);
-                              if (constraints.maxWidth >= 600) {
-                                return Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    for (
-                                      int i = 0;
-                                      i < meters.length;
-                                      i++
-                                    ) ...<Widget>[
-                                      if (i > 0)
-                                        SizedBox(
-                                          width: context.sp(theme.spacing.lg),
-                                        ),
-                                      Expanded(child: meters[i]),
-                                    ],
-                                  ],
-                                );
-                              }
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: <Widget>[
-                                  for (
-                                    int i = 0;
-                                    i < meters.length;
-                                    i++
-                                  ) ...<Widget>[
-                                    if (i > 0)
-                                      SizedBox(
-                                        height: context.sp(theme.spacing.md),
-                                      ),
-                                    meters[i],
-                                  ],
-                                ],
-                              );
-                            },
-                      ),
-                    ],
                   ],
                 ),
               ),
+              if (!isAffiliate) ...<Widget>[
+                SizedBox(height: context.sp(theme.spacing.lg)),
+                CustomerLimitationsBanner(
+                  noteCount: sub.notesUsed,
+                  tradeCount: sub.tradesLoggedThisMonth,
+                  liveStrategyCount: sub.livePlaybooksUsed,
+                ),
+              ],
               SizedBox(height: context.sp(theme.spacing.lg)),
 
               if (!_verifiedBillingConnected)

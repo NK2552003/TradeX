@@ -603,122 +603,107 @@ class _CustomerLimitationsBannerState extends State<CustomerLimitationsBanner> {
                   ),
                   SizedBox(height: context.sp(theme.spacing.sm)),
                 ],
-                UiCard(
-                  variant: UiCardVariant.outlined,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.sp(theme.spacing.md),
-                    vertical: context.sp(theme.spacing.sm),
-                  ),
-                  child: Wrap(
-                    spacing: context.sp(theme.spacing.md),
-                    runSpacing: context.sp(theme.spacing.xs),
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    alignment: WrapAlignment.spaceBetween,
-                    children: <Widget>[
-                      Wrap(
-                        spacing: context.sp(theme.spacing.xs),
-                        runSpacing: context.sp(theme.spacing.xs),
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: <Widget>[
-                          UiBadge(
-                            label: '${quota.planName} (${quota.priceLabel})',
-                            intent: tier == AppTier.free
-                                ? UiIntent.neutral
-                                : (tier == AppTier.premium
-                                      ? UiIntent.primary
-                                      : UiIntent.warning),
-                            size: UiSize.xs,
-                          ),
-                          UiBadge(
-                            label:
-                                'Notes ${notesUsed ?? '—'}/${(_accountUsage?.notesLimit ?? quota.maxNotes)}',
-                            intent:
-                                notesUsed != null &&
-                                    notesUsed >=
-                                        (_accountUsage?.notesLimit ??
-                                            quota.maxNotes)
-                                ? UiIntent.danger
-                                : UiIntent.info,
-                            variant: UiBadgeVariant.soft,
-                            size: UiSize.xs,
-                          ),
-                          UiBadge(
-                            label:
-                                'Trades ${tradesUsed ?? '—'}/${(_accountUsage?.tradesLimit ?? quota.maxTrades)}',
-                            intent:
-                                tradesUsed != null &&
-                                    tradesUsed >=
-                                        (_accountUsage?.tradesLimit ??
-                                            quota.maxTrades)
-                                ? UiIntent.danger
-                                : UiIntent.info,
-                            variant: UiBadgeVariant.soft,
-                            size: UiSize.xs,
-                          ),
-                          UiBadge(
-                            label:
-                                'Live Playbooks ${playbooksUsed ?? '—'}/${(_accountUsage?.livePlaybooksLimit ?? quota.maxLiveStrategies)}',
-                            intent:
-                                playbooksUsed != null &&
-                                    playbooksUsed >=
-                                        (_accountUsage?.livePlaybooksLimit ??
-                                            quota.maxLiveStrategies)
-                                ? UiIntent.warning
-                                : UiIntent.success,
-                            variant: UiBadgeVariant.soft,
-                            size: UiSize.xs,
-                          ),
-                          UiBadge(
-                            label:
-                                'AI Copilot ${aiUsedForAccount ?? '—'}/${(_accountUsage?.aiQueriesLimit ?? quota.maxAiQueriesPerMonth)}',
-                            intent:
-                                aiUsedForAccount != null &&
-                                    aiUsedForAccount >=
-                                        (_accountUsage?.aiQueriesLimit ??
-                                            quota.maxAiQueriesPerMonth)
-                                ? UiIntent.danger
-                                : UiIntent.primary,
-                            variant: UiBadgeVariant.soft,
-                            size: UiSize.xs,
-                          ),
-                        ],
+                UiDataPanel(
+                  label: 'Customer Plan & Workspace Allowances',
+                  hint:
+                      '${quota.planName} Tier (${quota.priceLabel}) · Pre-trade Max: ${formatInrAmount(_riskConfig.maxPositionPerTrader)}',
+                  leadingIcon: Icons.account_balance_wallet_outlined,
+                  trailing: tier != AppTier.enterprise
+                      ? UiButton(
+                          label: tier == AppTier.free
+                              ? 'Upgrade Plan'
+                              : 'Manage Tier',
+                          size: UiSize.xs,
+                          variant: UiVariant.soft,
+                          intent: UiIntent.primary,
+                          leadingIcon: Icons.bolt_rounded,
+                          onPressed: () =>
+                              CustomerLimitations.showPlanUpgradeDialog(
+                                context,
+                                featureTitle: 'Customer Plan & Limits (INR)',
+                                reason:
+                                    'Manage your alphajournal subscription tier and workspace quotas in Indian Rupees (₹). Monthly subscriptions for Basic and Pro are disabled for now.',
+                              ),
+                        )
+                      : null,
+                  padding: EdgeInsets.zero,
+                  child: UiStatStrip(
+                    stats: <UiStat>[
+                      UiStat(
+                        icon: Icons.note_alt_outlined,
+                        label: 'Research Notes',
+                        value:
+                            '${notesUsed ?? 0} / ${_accountUsage?.notesLimit ?? quota.maxNotes}',
+                        hint: (notesUsed != null &&
+                                notesUsed >=
+                                    (_accountUsage?.notesLimit ??
+                                        quota.maxNotes))
+                            ? 'Limit reached · upgrade tier'
+                            : '${((_accountUsage?.notesLimit ?? quota.maxNotes) - (notesUsed ?? 0)).clamp(0, 99999)} notes available',
+                        intent: (notesUsed != null &&
+                                notesUsed >=
+                                    (_accountUsage?.notesLimit ??
+                                        quota.maxNotes))
+                            ? UiIntent.danger
+                            : UiIntent.primary,
                       ),
-                      Wrap(
-                        spacing: context.sp(theme.spacing.xs),
-                        runSpacing: context.sp(theme.spacing.xs),
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: <Widget>[
-                          UiBadge(
-                            label:
-                                'Max Position: ${formatInrAmount(_riskConfig.maxPositionPerTrader)} · Approval > ${formatInrAmount(_riskConfig.requireManagerApprovalAboveAmount)}',
-                            intent: isHalted
-                                ? UiIntent.danger
-                                : (isTripped
-                                      ? UiIntent.warning
-                                      : UiIntent.neutral),
-                            variant: UiBadgeVariant.outline,
-                            size: UiSize.xs,
-                          ),
-                          if (tier != AppTier.enterprise)
-                            UiButton(
-                              label: tier == AppTier.free
-                                  ? 'Basic (₹299)'
-                                  : 'Pro (₹499)',
-                              size: UiSize.xs,
-                              variant: UiVariant.soft,
-                              intent: UiIntent.primary,
-                              onPressed: () =>
-                                  CustomerLimitations.showPlanUpgradeDialog(
-                                    context,
-                                    featureTitle:
-                                        'Customer Plan & Limits (INR)',
-                                    reason:
-                                        'Manage your alphajournal subscription tier and workspace quotas in Indian Rupees (₹). Monthly subscriptions for Basic and Pro are disabled for now.',
-                                  ),
-                            ),
-                        ],
+                      UiStat(
+                        icon: Icons.candlestick_chart_outlined,
+                        label: 'Journal Trades',
+                        value:
+                            '${tradesUsed ?? 0} / ${_accountUsage?.tradesLimit ?? quota.maxTrades}',
+                        hint: (tradesUsed != null &&
+                                tradesUsed >=
+                                    (_accountUsage?.tradesLimit ??
+                                        quota.maxTrades))
+                            ? 'Monthly cap reached'
+                            : '${((_accountUsage?.tradesLimit ?? quota.maxTrades) - (tradesUsed ?? 0)).clamp(0, 99999)} entries remaining',
+                        intent: (tradesUsed != null &&
+                                tradesUsed >=
+                                    (_accountUsage?.tradesLimit ??
+                                        quota.maxTrades))
+                            ? UiIntent.danger
+                            : UiIntent.info,
+                      ),
+                      UiStat(
+                        icon: Icons.psychology_outlined,
+                        label: 'Live Playbooks',
+                        value:
+                            '${playbooksUsed ?? 0} / ${_accountUsage?.livePlaybooksLimit ?? quota.maxLiveStrategies}',
+                        hint: (playbooksUsed != null &&
+                                playbooksUsed >=
+                                    (_accountUsage?.livePlaybooksLimit ??
+                                        quota.maxLiveStrategies))
+                            ? 'Strategy limit reached'
+                            : '${((_accountUsage?.livePlaybooksLimit ?? quota.maxLiveStrategies) - (playbooksUsed ?? 0)).clamp(0, 99999)} active rules left',
+                        intent: (playbooksUsed != null &&
+                                playbooksUsed >=
+                                    (_accountUsage?.livePlaybooksLimit ??
+                                        quota.maxLiveStrategies))
+                            ? UiIntent.warning
+                            : UiIntent.success,
+                      ),
+                      UiStat(
+                        icon: Icons.auto_awesome_outlined,
+                        label: 'AI Copilot Queries',
+                        value:
+                            '${aiUsedForAccount ?? 0} / ${_accountUsage?.aiQueriesLimit ?? quota.maxAiQueriesPerMonth}',
+                        hint: (aiUsedForAccount != null &&
+                                aiUsedForAccount >=
+                                    (_accountUsage?.aiQueriesLimit ??
+                                        quota.maxAiQueriesPerMonth))
+                            ? 'Monthly credits exhausted'
+                            : '${((_accountUsage?.aiQueriesLimit ?? quota.maxAiQueriesPerMonth) - (aiUsedForAccount ?? 0)).clamp(0, 99999)} prompt credits',
+                        intent: (aiUsedForAccount != null &&
+                                aiUsedForAccount >=
+                                    (_accountUsage?.aiQueriesLimit ??
+                                        quota.maxAiQueriesPerMonth))
+                            ? UiIntent.danger
+                            : UiIntent.bullish,
                       ),
                     ],
+                    columns: context.uiRes.isMobile ? 2 : 4,
+                    density: UiDensity.comfortable,
                   ),
                 ),
               ],
