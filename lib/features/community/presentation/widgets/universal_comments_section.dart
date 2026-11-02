@@ -927,6 +927,8 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: _availableReactions.map((r) {
                                   final emoji = r['emoji']!;
                                   final label = r['label']!;
@@ -942,27 +944,26 @@ class _LinkedInCommentTileState extends State<_LinkedInCommentTile> {
                                           () => _showReactionPicker = false,
                                         );
                                       },
-                                      borderRadius: context.radius(
-                                        theme.radii.pill,
-                                      ),
+                                      borderRadius: BorderRadius.circular(14),
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 5,
-                                          vertical: 3,
-                                        ),
+                                        width: 26,
+                                        height: 26,
+                                        alignment: Alignment.center,
                                         decoration: BoxDecoration(
                                           color: isSelected
                                               ? theme.colors.primary.withValues(
                                                   alpha: 0.16,
                                                 )
                                               : Colors.transparent,
-                                          borderRadius: context.radius(
-                                            theme.radii.pill,
-                                          ),
+                                          shape: BoxShape.circle,
                                         ),
                                         child: Text(
                                           emoji,
-                                          style: const TextStyle(fontSize: 13),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            height: 1.0,
+                                          ),
+                                          textAlign: TextAlign.center,
                                         ),
                                       ),
                                     ),

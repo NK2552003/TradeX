@@ -75,7 +75,7 @@ class _CommunityEngagementBarState extends State<CommunityEngagementBar> {
                 ),
               ),
             Positioned(
-              width: 230,
+              width: 216,
               child: CompositedTransformFollower(
                 link: _layerLink,
                 showWhenUnlinked: false,
@@ -355,7 +355,7 @@ class _LinkedInReactionPillState extends State<_LinkedInReactionPill>
           child: Material(
             color: Colors.transparent,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               decoration: BoxDecoration(
                 color: theme.colors.surface,
                 borderRadius: BorderRadius.circular(24),
@@ -365,14 +365,15 @@ class _LinkedInReactionPillState extends State<_LinkedInReactionPill>
                 ),
                 boxShadow: <BoxShadow>[
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.25),
+                    color: Colors.black.withValues(alpha: 0.3),
                     blurRadius: 16,
                     offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: List.generate(_reactions.length, (int index) {
                   final r = _reactions[index];
                   final emoji = r['emoji']!;
@@ -385,34 +386,43 @@ class _LinkedInReactionPillState extends State<_LinkedInReactionPill>
                     onExit: (_) => setState(() => _hoveredIndex = null),
                     child: Tooltip(
                       message: label,
-                      verticalOffset: 22,
+                      verticalOffset: 24,
                       child: GestureDetector(
                         onTap: () => widget.onSelect(emoji),
                         behavior: HitTestBehavior.opaque,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 140),
-                          curve: Curves.easeOutCubic,
-                          transform: Matrix4.diagonal3Values(
-                            isHovered ? 1.35 : 1.0,
-                            isHovered ? 1.35 : 1.0,
-                            1.0,
-                          ),
-                          transformAlignment: Alignment.bottomCenter,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 5,
-                            vertical: 3,
-                          ),
-                          decoration: isSelected
-                              ? BoxDecoration(
-                                  color: theme.colors.primary.withValues(
-                                    alpha: 0.15,
-                                  ),
-                                  shape: BoxShape.circle,
-                                )
-                              : null,
-                          child: Text(
-                            emoji,
-                            style: const TextStyle(fontSize: 19),
+                        child: SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: Center(
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 140),
+                              curve: Curves.easeOutCubic,
+                              width: 34,
+                              height: 34,
+                              alignment: Alignment.center,
+                              transform: Matrix4.diagonal3Values(
+                                isHovered ? 1.35 : 1.0,
+                                isHovered ? 1.35 : 1.0,
+                                1.0,
+                              ),
+                              transformAlignment: Alignment.center,
+                              decoration: isSelected
+                                  ? BoxDecoration(
+                                      color: theme.colors.foreground.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      shape: BoxShape.circle,
+                                    )
+                                  : null,
+                              child: Text(
+                                emoji,
+                                style: const TextStyle(
+                                  fontSize: 19,
+                                  height: 1.0,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                           ),
                         ),
                       ),
