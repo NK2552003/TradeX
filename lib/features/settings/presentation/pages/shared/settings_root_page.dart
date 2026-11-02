@@ -17,7 +17,6 @@ import 'package:tradex/features/settings/presentation/pages/shared/privacy_setti
 import 'package:tradex/features/settings/presentation/pages/shared/profile_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/trader/billing_settings_page.dart';
 import 'package:tradex/features/settings/presentation/pages/trader/trader_affiliate_perks_page.dart';
-import 'package:tradex/features/settings/presentation/pages/trader/trading_preferences_page.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_nav_row.dart';
 import 'package:tradex/features/settings/presentation/widgets/settings_subpage_scope.dart';
 
@@ -196,7 +195,6 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
         onAccountDeleted: widget.onLogout,
       ),
       'appearance' => const AppearanceSettingsPage(),
-      'trading' => const TradingPreferencesPage(),
       'billing' => BillingSettingsPage(
         userRole: widget.userRole,
         onSubscriptionTierChanged: widget.onSubscriptionTierChanged,
@@ -235,12 +233,6 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
             'title': 'Email & Security',
             'icon': Icons.lock_outline_rounded,
             'subtitle': 'Password, connected accounts, and sessions',
-          },
-          {
-            'id': 'trading',
-            'title': 'Personal Trading Rules',
-            'icon': Icons.candlestick_chart_outlined,
-            'subtitle': 'Personal risk limits, checklist gates, watchlists',
           },
           {
             'id': 'billing',
@@ -581,18 +573,6 @@ class _SettingsRootPageState extends State<SettingsRootPage> {
           AppSettingsSectionBlock(
             title: 'Platform Preferences',
             children: [
-              if (widget.userRole == UserRole.customer)
-                SettingsNavRow(
-                  title: 'Personal Trading & Risk Rules',
-                  subtitle:
-                      'Personal position sizing %, checklist gates, watchlist defaults',
-                  icon: Icons.candlestick_chart_outlined,
-                  onTap: () => _navigateToSubpage(
-                    const TradingPreferencesPage(),
-                    'Personal Trading Rules',
-                    Icons.candlestick_chart_outlined,
-                  ),
-                ),
               SettingsNavRow(
                 title: 'Notifications & Alerts',
                 subtitle: widget.userRole == UserRole.affiliate

@@ -413,11 +413,6 @@ class RoleNavigationConfig {
                 icon: Icons.handshake_outlined,
               ),
               AppNavItem(
-                id: 'settings_trading',
-                label: 'Trading Rules',
-                icon: Icons.candlestick_chart_outlined,
-              ),
-              AppNavItem(
                 id: 'settings_billing',
                 label: 'Subscription & Billing',
                 icon: Icons.credit_card_outlined,
