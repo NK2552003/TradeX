@@ -428,7 +428,20 @@ class SupabasePostRepositoryImpl implements SupabasePostRepository {
     if (SupabaseConfig.isConfigured && _isUuid(postId)) {
       try {
         final client = SupabaseConfig.client!;
-        await client.rpc('increment_post_views', params: {'p_post_id': postId});
+        try {
+          await client.rpc('increment_post_views', params: {'p_post_id': postId});
+        } catch (_) {
+          final res = await client
+              .from('community_posts')
+              .select('views_count')
+              .eq('id', postId)
+              .maybeSingle();
+          final current = (res?['views_count'] as num?)?.toInt() ?? 0;
+          await client
+              .from('community_posts')
+              .update({'views_count': current + 1})
+              .eq('id', postId);
+        }
       } catch (e) {
         debugPrint('[SupabasePostRepository] incrementView error: $e');
       }

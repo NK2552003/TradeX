@@ -213,11 +213,21 @@ class MessagesRepository extends ChangeNotifier {
               (k) => k.name == kindStr,
               orElse: () => MessageAttachmentKind.image,
             );
+            var rawUrl = attMap['url'] as String?;
+            if (rawUrl != null &&
+                rawUrl.isNotEmpty &&
+                !rawUrl.startsWith('http') &&
+                !rawUrl.startsWith('data:')) {
+              rawUrl = client.storage
+                  .from('community-attachments')
+                  .getPublicUrl(rawUrl);
+            }
             attachment = MessageAttachment(
               id: attMap['id'] as String,
               kind: attKind,
               title: attMap['title'] as String? ?? '',
-              url: attMap['url'] as String?,
+              url: rawUrl,
+              thumbnailUrl: rawUrl,
             );
           }
 
@@ -821,7 +831,11 @@ class MessagesRepository extends ChangeNotifier {
         final ext = filename.contains('.')
             ? filename.split('.').last.toLowerCase().trim()
             : 'png';
-        final storagePath = 'chat/$threadId/${const Uuid().v4()}.$ext';
+        final actor = client.auth.currentUser?.id ?? _resolveUserId();
+        if (actor.isEmpty) {
+          throw StateError('Sign in required to upload an attachment.');
+        }
+        final storagePath = '$actor/chat/$threadId/${const Uuid().v4()}.$ext';
 
         await client.storage.from('community-attachments').uploadBinary(
           storagePath,

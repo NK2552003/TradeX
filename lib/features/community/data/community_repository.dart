@@ -3135,7 +3135,16 @@ class CommunityRepository extends ChangeNotifier {
       try {
         final client = SupabaseConfig.client;
         if (client != null) {
-          await client.rpc('increment_post_views', params: {'p_post_id': postId});
+          try {
+            await client.rpc('increment_post_views', params: {'p_post_id': postId});
+          } catch (_) {
+            // Fallback: direct increment on community_posts if RPC has legacy schema
+            final current = (loadPostById(postId)?.views ?? 0) + 1;
+            await client
+                .from('community_posts')
+                .update({'views_count': current})
+                .eq('id', postId);
+          }
         }
       } catch (e) {
         debugPrint('[CommunityRepository] recordView error: $e');

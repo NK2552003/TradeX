@@ -1496,10 +1496,10 @@ BEGIN
     ON CONFLICT (post_id, user_id) DO NOTHING;
 
     IF FOUND THEN
-      UPDATE posts SET views_count = views_count + 1 WHERE id = p_post_id;
+      UPDATE community_posts SET views_count = views_count + 1 WHERE id = p_post_id;
     END IF;
   ELSE
-    UPDATE posts SET views_count = views_count + 1 WHERE id = p_post_id;
+    UPDATE community_posts SET views_count = views_count + 1 WHERE id = p_post_id;
   END IF;
 END;
 $$;
