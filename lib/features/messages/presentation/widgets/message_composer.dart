@@ -7,11 +7,8 @@ import 'package:tradex/features/messages/models/messages_models.dart';
 
 /// The thread composer.
 ///
-/// Owns its text controller and focus, persists the draft back to the caller,
-/// and emits a fully-formed intent (text, an attachment or a shared record).
-/// The attach menu, quick-share suggestions and quick-reaction row are all fed
-/// from data — the attachment kinds come from [MessageAttachmentKind], the
-/// shareable records from [shareableRefs], the emoji from [quickReactions].
+/// Symmetrically balanced, modern messaging input dock with inline quick action
+/// pills for charts, trade setups, voice memos, and media attachments.
 class MessageComposer extends StatefulWidget {
   const MessageComposer({
     super.key,
@@ -46,17 +43,20 @@ class MessageComposer extends StatefulWidget {
   final bool autofocus;
 
   @override
-  State<MessageComposer> createState() => _MessageComposerState();
+  State<MessageComposer> createState() => MessageComposerState();
 }
 
-class _MessageComposerState extends State<MessageComposer> {
+class MessageComposerState extends State<MessageComposer>
+    with SingleTickerProviderStateMixin {
   late final TextEditingController _controller;
   final FocusNode _focus = FocusNode();
   bool _hasText = false;
   bool _showQuickBar = false;
+  final bool _showAttachmentPills = true;
   bool _isRecording = false;
   int _recordSeconds = 0;
   Timer? _recordTimer;
+  late final AnimationController _pulseController;
 
   @override
   void initState() {
@@ -64,12 +64,15 @@ class _MessageComposerState extends State<MessageComposer> {
     _controller = TextEditingController(text: widget.initialDraft);
     _hasText = widget.initialDraft.trim().isNotEmpty;
     _controller.addListener(_onChanged);
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
   }
 
   @override
   void didUpdateWidget(covariant MessageComposer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Switching threads swaps in that thread's saved draft.
     if (oldWidget.threadId != widget.threadId) {
       _controller.value = TextEditingValue(
         text: widget.initialDraft,
@@ -95,8 +98,11 @@ class _MessageComposerState extends State<MessageComposer> {
     _focus.requestFocus();
   }
 
+  void startRecording() => _startRecording();
+
   void _startRecording() {
     HapticFeedback.mediumImpact();
+    _pulseController.repeat(reverse: true);
     setState(() {
       _isRecording = true;
       _recordSeconds = 0;
@@ -113,6 +119,8 @@ class _MessageComposerState extends State<MessageComposer> {
 
   void _cancelRecording() {
     HapticFeedback.selectionClick();
+    _pulseController.stop();
+    _pulseController.reset();
     _recordTimer?.cancel();
     setState(() {
       _isRecording = false;
@@ -122,6 +130,8 @@ class _MessageComposerState extends State<MessageComposer> {
 
   void _sendVoiceRecording() {
     _recordTimer?.cancel();
+    _pulseController.stop();
+    _pulseController.reset();
     final int sec = _recordSeconds < 1 ? 3 : _recordSeconds;
     final int m = sec ~/ 60;
     final int s = sec % 60;
@@ -141,6 +151,7 @@ class _MessageComposerState extends State<MessageComposer> {
   @override
   void dispose() {
     _recordTimer?.cancel();
+    _pulseController.dispose();
     _controller.removeListener(_onChanged);
     _controller.dispose();
     _focus.dispose();
@@ -169,37 +180,207 @@ class _MessageComposerState extends State<MessageComposer> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
+              // 1. Reply to bar
               if (widget.replyTo != null && !_isRecording)
                 _replyBar(context, widget.replyTo!),
+
+              // 2. Quick reactions drawer
               if (_showQuickBar && !_isRecording) _quickBar(context),
+
+              // 3. Quick Feature Pills Row (Chart, Trade Setup, Photo, Doc, Voice)
+              if (_showAttachmentPills && !_isRecording && !_hasText)
+                _quickAttachmentPills(context),
+
+              // 4. Main Balanced Row
               if (_isRecording)
                 _recordingBar(context)
               else
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
+                    // Left Attach Button (40x40 circle)
                     _attachButton(context),
-                    SizedBox(width: context.sp(theme.spacing.xxs)),
+
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+
+                    // Centered Text Input Capsule
                     Expanded(
-                      child: UiInput(
-                        controller: _controller,
-                        focusNode: _focus,
-                        autofocus: widget.autofocus,
-                        hintText: 'Message…',
-                        minLines: 1,
-                        maxLines: 5,
-                        variant: UiInputVariant.filled,
-                        keyboardType: TextInputType.multiline,
-                        textInputAction: TextInputAction.newline,
-                        trailing: _emojiToggle(context),
+                      child: Container(
+                        constraints: BoxConstraints(
+                          minHeight: context.sz(40),
+                          maxHeight: context.sz(140),
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceMuted,
+                          borderRadius: BorderRadius.circular(context.sz(20)),
+                          border: Border.all(
+                            color: _focus.hasFocus
+                                ? colors.primary.withValues(alpha: 0.7)
+                                : colors.border.withValues(alpha: 0.6),
+                            width: _focus.hasFocus ? 1.5 : theme.borders.hairline,
+                          ),
+                        ),
+                        padding: EdgeInsets.only(
+                          left: context.sp(theme.spacing.sm),
+                          right: context.sp(theme.spacing.xxs),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: <Widget>[
+                            Expanded(
+                              child: TextField(
+                                controller: _controller,
+                                focusNode: _focus,
+                                autofocus: widget.autofocus,
+                                minLines: 1,
+                                maxLines: 5,
+                                style: context.uiText.body.copyWith(
+                                  color: colors.foreground,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Message…',
+                                  hintStyle: context.uiText.body.copyWith(
+                                    color: colors.foregroundMuted,
+                                  ),
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    vertical: context.sp(theme.spacing.xs),
+                                  ),
+                                ),
+                                keyboardType: TextInputType.multiline,
+                                textInputAction: TextInputAction.newline,
+                              ),
+                            ),
+                            _emojiToggle(context),
+                          ],
+                        ),
                       ),
                     ),
-                    SizedBox(width: context.sp(theme.spacing.xxs)),
-                    _sendButton(context),
+
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+
+                    // Right Send / Mic Action Button (40x40 circle)
+                    _actionButton(context),
                   ],
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _quickAttachmentPills(BuildContext context) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: context.sp(theme.spacing.xs)),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: <Widget>[
+            _quickPill(
+              context,
+              label: 'Chart',
+              icon: Icons.candlestick_chart_rounded,
+              color: colors.primary,
+              onTap: () => widget.onSendAttachment?.call(MessageAttachmentKind.chart),
+            ),
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            _quickPill(
+              context,
+              label: 'Trade Setup',
+              icon: Icons.trending_up_rounded,
+              color: colors.success,
+              onTap: () => widget.onSendAttachment?.call(MessageAttachmentKind.tradeSetup),
+            ),
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            _quickPill(
+              context,
+              label: 'Photo',
+              icon: Icons.image_outlined,
+              color: colors.warning,
+              onTap: () => widget.onSendAttachment?.call(MessageAttachmentKind.image),
+            ),
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            _quickPill(
+              context,
+              label: 'Document',
+              icon: Icons.description_outlined,
+              color: colors.info,
+              onTap: () => widget.onSendAttachment?.call(MessageAttachmentKind.document),
+            ),
+            SizedBox(width: context.sp(theme.spacing.xs)),
+            _quickPill(
+              context,
+              label: 'Voice Note',
+              icon: Icons.mic_rounded,
+              color: colors.destructive,
+              onTap: _startRecording,
+            ),
+            if (widget.shareableRefs.isNotEmpty) ...<Widget>[
+              SizedBox(width: context.sp(theme.spacing.xs)),
+              for (final AppLinkRef ref in widget.shareableRefs.take(2)) ...<Widget>[
+                _quickPill(
+                  context,
+                  label: ref.title,
+                  icon: ref.effectiveIcon,
+                  color: colors.foreground,
+                  onTap: () => widget.onSendRef?.call(ref),
+                ),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _quickPill(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    final theme = context.ui;
+    final colors = theme.colors;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.sp(theme.spacing.xs),
+          vertical: context.sz(5),
+        ),
+        decoration: BoxDecoration(
+          color: colors.surfaceMuted,
+          borderRadius: BorderRadius.circular(context.sz(14)),
+          border: Border.all(
+            color: colors.border.withValues(alpha: 0.8),
+            width: theme.borders.hairline,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: context.sz(14), color: color),
+            SizedBox(width: context.sp(theme.spacing.xxs)),
+            Text(
+              label,
+              style: context.uiText.caption.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: context.fs(11.5),
+                color: colors.foreground,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -212,38 +393,50 @@ class _MessageComposerState extends State<MessageComposer> {
     final int s = _recordSeconds % 60;
     final String timeStr = '$m:${s.toString().padLeft(2, '0')}';
 
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: context.sp(theme.spacing.xs),
-        vertical: context.sp(theme.spacing.xxs),
-      ),
-      child: Row(
-        children: <Widget>[
-          UiIconButton(
-            icon: Icons.delete_outline_rounded,
-            tooltip: 'Discard',
-            intent: UiIntent.danger,
-            size: UiSize.md,
-            onPressed: _cancelRecording,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        // Discard Button (40x40 circle)
+        GestureDetector(
+          onTap: _cancelRecording,
+          child: Container(
+            width: context.sz(40),
+            height: context.sz(40),
+            decoration: BoxDecoration(
+              color: colors.destructive.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.delete_outline_rounded,
+              color: colors.destructive,
+              size: context.sz(20),
+            ),
           ),
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          Expanded(
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: context.sp(theme.spacing.sm),
-                vertical: context.sp(theme.spacing.xs),
+        ),
+
+        SizedBox(width: context.sp(theme.spacing.xs)),
+
+        // Recording Studio Pill
+        Expanded(
+          child: Container(
+            height: context.sz(40),
+            padding: EdgeInsets.symmetric(
+              horizontal: context.sp(theme.spacing.sm),
+            ),
+            decoration: BoxDecoration(
+              color: colors.surfaceMuted,
+              borderRadius: BorderRadius.circular(context.sz(20)),
+              border: Border.all(
+                color: colors.destructive.withValues(alpha: 0.35),
+                width: 1.0,
               ),
-              decoration: BoxDecoration(
-                color: colors.surfaceMuted,
-                borderRadius: context.radius(theme.radii.lg),
-                border: Border.all(
-                  color: colors.destructive.withValues(alpha: 0.3),
-                  width: theme.borders.hairline,
-                ),
-              ),
-              child: Row(
-                children: <Widget>[
-                  Container(
+            ),
+            child: Row(
+              children: <Widget>[
+                // Pulsating red indicator dot
+                FadeTransition(
+                  opacity: _pulseController,
+                  child: Container(
                     width: context.sz(10),
                     height: context.sz(10),
                     decoration: BoxDecoration(
@@ -251,68 +444,111 @@ class _MessageComposerState extends State<MessageComposer> {
                       shape: BoxShape.circle,
                     ),
                   ),
-                  SizedBox(width: context.sp(theme.spacing.xs)),
-                  Text(
-                    timeStr,
-                    style: context.uiText.bodyStrong.copyWith(
-                      color: colors.destructive,
+                ),
+
+                SizedBox(width: context.sp(theme.spacing.xs)),
+
+                // Counter
+                Text(
+                  timeStr,
+                  style: context.uiText.bodyStrong.copyWith(
+                    color: colors.destructive,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+
+                SizedBox(width: context.sp(theme.spacing.sm)),
+
+                // Dynamic Oscillating Soundwave Bars
+                Expanded(
+                  child: SizedBox(
+                    height: context.sz(20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List<Widget>.generate(18, (int i) {
+                        final double h = 4.0 +
+                            ((i * 3 + _recordSeconds * 4) % 18).toDouble();
+                        return Container(
+                          width: context.sz(2.5),
+                          height: context.sz(h),
+                          decoration: BoxDecoration(
+                            color: colors.primary.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(context.sz(2)),
+                          ),
+                        );
+                      }),
                     ),
                   ),
-                  SizedBox(width: context.sp(theme.spacing.sm)),
-                  Expanded(
-                    child: SizedBox(
-                      height: context.sz(18),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: List<Widget>.generate(16, (int i) {
-                          final double h =
-                              4.0 + ((i + _recordSeconds) % 5) * 3.0;
-                          return Container(
-                            width: context.sz(2.5),
-                            height: context.sz(h),
-                            decoration: BoxDecoration(
-                              color: colors.primary.withValues(alpha: 0.6),
-                              borderRadius: BorderRadius.circular(
-                                context.sz(2),
-                              ),
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          SizedBox(width: context.sp(theme.spacing.xs)),
-          UiIconButton(
-            icon: Icons.send_rounded,
-            tooltip: 'Send voice note',
-            variant: UiVariant.solid,
-            intent: UiIntent.primary,
-            size: UiSize.md,
-            onPressed: _sendVoiceRecording,
+        ),
+
+        SizedBox(width: context.sp(theme.spacing.xs)),
+
+        // Send Voice Button (40x40 circle)
+        GestureDetector(
+          onTap: _sendVoiceRecording,
+          child: Container(
+            width: context.sz(40),
+            height: context.sz(40),
+            decoration: BoxDecoration(
+              color: colors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.arrow_upward_rounded,
+              color: colors.onPrimary,
+              size: context.sz(20),
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _attachButton(BuildContext context) {
+    final theme = context.ui;
+    final colors = theme.colors;
+
     return UiDropdownMenu(
       alignRight: false,
       items: <UiMenuItem>[
-        const UiMenuItem.section('Attach'),
-        for (final MessageAttachmentKind kind in MessageAttachmentKind.values)
-          UiMenuItem(
-            label: kind.label,
-            icon: kind.icon,
-            onPressed: () => widget.onSendAttachment?.call(kind),
-          ),
+        const UiMenuItem.section('Attach to message'),
+        UiMenuItem(
+          label: 'Technical Chart',
+          icon: Icons.candlestick_chart_rounded,
+          description: 'Share live candlestick setup',
+          onPressed: () => widget.onSendAttachment?.call(MessageAttachmentKind.chart),
+        ),
+        UiMenuItem(
+          label: 'Trade Setup',
+          icon: Icons.trending_up_rounded,
+          description: 'Entry, stop loss & profit target',
+          onPressed: () => widget.onSendAttachment?.call(MessageAttachmentKind.tradeSetup),
+        ),
+        UiMenuItem(
+          label: 'Photo / Image',
+          icon: Icons.image_outlined,
+          description: 'Upload from device photo library',
+          onPressed: () => widget.onSendAttachment?.call(MessageAttachmentKind.image),
+        ),
+        UiMenuItem(
+          label: 'Document',
+          icon: Icons.description_outlined,
+          description: 'PDF or analysis reports',
+          onPressed: () => widget.onSendAttachment?.call(MessageAttachmentKind.document),
+        ),
+        UiMenuItem(
+          label: 'Voice Note',
+          icon: Icons.mic_none_rounded,
+          description: 'Record an audio note',
+          onPressed: _startRecording,
+        ),
         if (widget.shareableRefs.isNotEmpty) ...<UiMenuItem>[
           const UiMenuItem.divider(),
-          const UiMenuItem.section('Share a record'),
+          const UiMenuItem.section('Share Desk Record'),
           for (final AppLinkRef ref in widget.shareableRefs)
             UiMenuItem(
               label: ref.title,
@@ -322,42 +558,104 @@ class _MessageComposerState extends State<MessageComposer> {
             ),
         ],
       ],
-      child: UiIconButton(
-        icon: Icons.add_circle_outline_rounded,
-        tooltip: 'Attach or share',
-        size: UiSize.md,
+      child: Tooltip(
+        message: 'Attach or share',
+        child: Container(
+          width: context.sz(40),
+          height: context.sz(40),
+          decoration: BoxDecoration(
+            color: colors.surfaceMuted,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: colors.border.withValues(alpha: 0.8),
+              width: theme.borders.hairline,
+            ),
+          ),
+          child: Icon(
+            Icons.add_rounded,
+            color: colors.foreground,
+            size: context.sz(20),
+          ),
+        ),
       ),
     );
   }
 
   Widget _emojiToggle(BuildContext context) {
-    return UiIconButton(
-      icon: _showQuickBar
-          ? Icons.keyboard_arrow_down_rounded
-          : Icons.mood_outlined,
-      tooltip: 'Quick reactions',
-      size: UiSize.sm,
-      onPressed: () => setState(() => _showQuickBar = !_showQuickBar),
+    final theme = context.ui;
+    final colors = theme.colors;
+
+    return Tooltip(
+      message: 'Quick reactions',
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _showQuickBar = !_showQuickBar);
+        },
+        child: Container(
+          width: context.sz(32),
+          height: context.sz(32),
+          alignment: Alignment.center,
+          child: Icon(
+            _showQuickBar
+                ? Icons.keyboard_arrow_down_rounded
+                : Icons.sentiment_satisfied_alt_outlined,
+            size: context.sz(20),
+            color: _showQuickBar ? colors.primary : colors.foregroundMuted,
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _sendButton(BuildContext context) {
+  Widget _actionButton(BuildContext context) {
+    final theme = context.ui;
+    final colors = theme.colors;
+
     if (_hasText) {
-      return UiIconButton(
-        icon: Icons.send_rounded,
-        tooltip: 'Send',
-        variant: UiVariant.solid,
-        intent: UiIntent.primary,
-        size: UiSize.md,
-        onPressed: _send,
+      return Tooltip(
+        message: 'Send',
+        child: GestureDetector(
+          onTap: _send,
+          child: Container(
+            width: context.sz(40),
+            height: context.sz(40),
+            decoration: BoxDecoration(
+              color: colors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.arrow_upward_rounded,
+              color: colors.onPrimary,
+              size: context.sz(20),
+            ),
+          ),
+        ),
       );
     }
-    // Nothing typed → a mic affordance. Tapping it activates live voice note recording.
-    return UiIconButton(
-      icon: Icons.mic_none_rounded,
-      tooltip: 'Record voice note',
-      size: UiSize.md,
-      onPressed: _startRecording,
+
+    return Tooltip(
+      message: 'Record voice note',
+      child: GestureDetector(
+        onTap: _startRecording,
+        child: Container(
+          width: context.sz(40),
+          height: context.sz(40),
+          decoration: BoxDecoration(
+            color: colors.surfaceMuted,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: colors.border.withValues(alpha: 0.8),
+              width: theme.borders.hairline,
+            ),
+          ),
+          child: Icon(
+            Icons.mic_rounded,
+            color: colors.foreground,
+            size: context.sz(20),
+          ),
+        ),
+      ),
     );
   }
 

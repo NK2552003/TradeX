@@ -7,6 +7,8 @@ import 'package:tradex/core/app-ui/app_ui.dart';
 import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/messages/models/messages_models.dart';
 import 'package:tradex/features/messages/presentation/overlays/message_actions_sheet.dart';
+import 'package:tradex/features/messages/presentation/overlays/message_share_chart_dialog.dart';
+import 'package:tradex/features/messages/presentation/overlays/message_trade_setup_dialog.dart';
 import 'package:tradex/features/messages/presentation/overlays/share_to_conversation_dialog.dart';
 import 'package:tradex/features/messages/presentation/widgets/messages_widgets.dart';
 
@@ -104,8 +106,23 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
 
   Future<void> _sendAttachment(MessageAttachmentKind kind) async {
     try {
-      if (kind == MessageAttachmentKind.image ||
-          kind == MessageAttachmentKind.chart) {
+      if (kind == MessageAttachmentKind.chart) {
+        final MessageAttachment? att = await MessageShareChartDialog.show(context);
+        if (att == null || !mounted) return;
+        widget.repository.sendMessage(
+          widget.threadId,
+          attachment: att,
+        );
+        return;
+      } else if (kind == MessageAttachmentKind.tradeSetup) {
+        final MessageAttachment? att = await MessageTradeSetupDialog.show(context);
+        if (att == null || !mounted) return;
+        widget.repository.sendMessage(
+          widget.threadId,
+          attachment: att,
+        );
+        return;
+      } else if (kind == MessageAttachmentKind.image) {
         final ImagePicker picker = ImagePicker();
         final XFile? picked = await picker.pickImage(
           source: ImageSource.gallery,
@@ -132,15 +149,14 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
           widget.threadId,
           attachment: MessageAttachment(
             id: 'att_${DateTime.now().microsecondsSinceEpoch}',
-            kind: kind,
+            kind: MessageAttachmentKind.image,
             title: picked.name,
-            subtitle: kind == MessageAttachmentKind.chart
-                ? 'Technical Chart'
-                : 'Shared Photo',
+            subtitle: 'Shared Photo',
             thumbnailUrl: publicUrl,
             url: publicUrl,
           ),
         );
+        return;
       } else if (kind == MessageAttachmentKind.document) {
         final FilePickerResult? result = await FilePicker.platform.pickFiles(
           withData: true,
@@ -178,20 +194,7 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
             url: publicUrl,
           ),
         );
-      } else if (kind == MessageAttachmentKind.tradeSetup) {
-        widget.repository.sendMessage(
-          widget.threadId,
-          attachment: MessageAttachment(
-            id: 'att_${DateTime.now().microsecondsSinceEpoch}',
-            kind: MessageAttachmentKind.tradeSetup,
-            title: 'NIFTY 50 Setup',
-            subtitle: 'Bullish Flag Breakout',
-            direction: 'long',
-            entry: 24350.0,
-            stop: 24200.0,
-            target: 24800.0,
-          ),
-        );
+        return;
       }
     } catch (e) {
       if (mounted) {
@@ -212,8 +215,8 @@ class _MessagesThreadViewState extends State<MessagesThreadView> {
       attachment: MessageAttachment(
         id: 'att_${DateTime.now().microsecondsSinceEpoch}',
         kind: MessageAttachmentKind.voice,
-        title: 'Voice note',
-        subtitle: 'Recorded audio note',
+        title: 'Voice Note',
+        subtitle: 'Audio message ($duration)',
         sizeLabel: duration,
       ),
     );

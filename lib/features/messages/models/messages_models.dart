@@ -125,6 +125,10 @@ class MessageAttachment {
     this.entry,
     this.stop,
     this.target,
+    this.candles = const <UiCandle>[],
+    this.chartType,
+    this.timeframe,
+    this.note,
   });
 
   final String id;
@@ -142,6 +146,13 @@ class MessageAttachment {
   final double? entry;
   final double? stop;
   final double? target;
+
+  /// Interactive financial chart fields, used when [kind] is [MessageAttachmentKind.chart]
+  /// or when [kind] is [MessageAttachmentKind.tradeSetup] with attached candles.
+  final List<UiCandle> candles;
+  final String? chartType;
+  final String? timeframe;
+  final String? note;
 }
 
 // ---------------------------------------------------------------------------

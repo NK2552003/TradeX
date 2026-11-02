@@ -326,6 +326,10 @@ class MessageBubble extends StatelessWidget {
     if (attachment.kind == MessageAttachmentKind.tradeSetup) {
       return _tradeSetupAttachment(context, attachment);
     }
+    if (attachment.kind == MessageAttachmentKind.chart &&
+        attachment.candles.isNotEmpty) {
+      return _chartAttachment(context, attachment);
+    }
     final bool visual =
         attachment.kind == MessageAttachmentKind.image ||
         attachment.kind == MessageAttachmentKind.chart;
@@ -425,6 +429,110 @@ class MessageBubble extends StatelessWidget {
                 icon: Icons.balance_rounded,
                 intent: UiIntent.info,
                 size: UiSize.xs,
+              ),
+            ],
+            if (a.note != null && a.note!.isNotEmpty) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.xs)),
+              Text(
+                a.note!,
+                style: context.uiText.caption.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: theme.colors.foregroundMuted,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chartAttachment(BuildContext context, MessageAttachment a) {
+    final UiTheme theme = context.ui;
+    final UiColors colors = theme.colors;
+
+    final double lastClose = a.candles.isNotEmpty ? a.candles.last.close : 0.0;
+    final double firstOpen = a.candles.isNotEmpty ? a.candles.first.open : 0.0;
+    final double changePct = firstOpen > 0 ? ((lastClose - firstOpen) / firstOpen) * 100 : 0.0;
+    final bool isBullish = changePct >= 0;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: context.sz(260),
+        maxWidth: context.sz(350),
+      ),
+      child: Container(
+        padding: EdgeInsets.all(context.sp(theme.spacing.sm)),
+        decoration: BoxDecoration(
+          color: theme.colors.surface,
+          borderRadius: context.radius(theme.radii.md),
+          border: Border.all(
+            color: theme.colors.border,
+            width: theme.borders.hairline,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(
+                  Icons.candlestick_chart_rounded,
+                  size: context.sz(18),
+                  color: isBullish ? colors.success : colors.destructive,
+                ),
+                SizedBox(width: context.sp(theme.spacing.xs)),
+                Expanded(
+                  child: Text(
+                    a.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                if (a.timeframe != null) ...<Widget>[
+                  SizedBox(width: context.sp(theme.spacing.xs)),
+                  UiBadge(
+                    label: a.timeframe!,
+                    variant: UiBadgeVariant.soft,
+                    intent: UiIntent.info,
+                    size: UiSize.xs,
+                  ),
+                ],
+              ],
+            ),
+            if (a.subtitle != null && a.subtitle!.isNotEmpty) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.xxs)),
+              Text(
+                a.subtitle!,
+                style: context.uiText.caption.copyWith(color: colors.foregroundMuted),
+              ),
+            ],
+            SizedBox(height: context.sp(theme.spacing.xs)),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: context.radius(theme.radii.sm),
+                color: colors.surfaceMuted.withValues(alpha: 0.5),
+              ),
+              child: ClipRRect(
+                borderRadius: context.radius(theme.radii.sm),
+                child: UiCandleChart(
+                  candles: a.candles,
+                  height: 120,
+                  showVolume: false,
+                  interactive: false,
+                ),
+              ),
+            ),
+            if (a.note != null && a.note!.isNotEmpty) ...<Widget>[
+              SizedBox(height: context.sp(theme.spacing.xs)),
+              Text(
+                a.note!,
+                style: context.uiText.caption.copyWith(
+                  color: colors.foreground,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ],
           ],
@@ -794,17 +902,19 @@ class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
   ];
 
   int get _totalSeconds {
-    final String label = widget.attachment.sizeLabel ?? '0:12';
-    final List<String> parts = label.split(':');
-    if (parts.length == 2) {
-      final int m = int.tryParse(parts[0]) ?? 0;
-      final int s = int.tryParse(parts[1]) ?? 12;
+    final String raw =
+        widget.attachment.sizeLabel ?? widget.attachment.subtitle ?? '0:12';
+    final match = RegExp(r'(\d+):(\d+)').firstMatch(raw);
+    if (match != null) {
+      final int m = int.tryParse(match.group(1)!) ?? 0;
+      final int s = int.tryParse(match.group(2)!) ?? 12;
       return (m * 60 + s).clamp(1, 600);
     }
     return 12;
   }
 
   void _togglePlay() {
+    HapticFeedback.selectionClick();
     if (_isPlaying) {
       _pause();
     } else {
@@ -838,6 +948,7 @@ class _VoiceAttachmentPlayerState extends State<_VoiceAttachmentPlayer> {
   }
 
   void _cycleSpeed() {
+    HapticFeedback.selectionClick();
     setState(() {
       if (_speed == 1.0) {
         _speed = 1.5;
