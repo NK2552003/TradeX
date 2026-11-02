@@ -317,6 +317,8 @@ class MessagesRootScreenState extends State<MessagesRootScreen> {
               primaryMarket: trader.primaryMarket,
               topStrategy: trader.topStrategy ?? trader.tradingStyle,
               riskMantra: trader.riskMantra,
+              subscriptionTier: trader.tier.name,
+              verified: trader.verified,
               onOpenRef: widget.onOpenRef,
               onDirectMessage: (AppTrader t) {
                 Navigator.of(ctx).pop();

@@ -334,7 +334,7 @@ class CommunityRepository extends ChangeNotifier {
       final res = await client
           .from('community_posts')
           .select(
-            '*, profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, win_rate, followers_count, following_count, posts_count), community_post_trade_setups(*), community_post_attachments(*), community_polls(*, community_poll_options(*))',
+            '*, profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, win_rate, followers_count, following_count, posts_count, subscription_tier), community_post_trade_setups(*), community_post_attachments(*), community_polls(*, community_poll_options(*))',
           )
           .or('is_public.eq.true,author_id.eq.$targetUserId')
           .order('created_at', ascending: false);
@@ -668,7 +668,7 @@ class CommunityRepository extends ChangeNotifier {
         final profRes = await client
             .from('profiles')
             .select(
-              'id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, followers_count, following_count, win_rate, posts_count',
+              'id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, followers_count, following_count, win_rate, posts_count, subscription_tier',
             )
             .limit(100);
         final List<CommunityAuthor> authors = [];
@@ -697,6 +697,13 @@ class CommunityRepository extends ChangeNotifier {
             finalFollowers = math.max(finalFollowers, _followerAuthorIds.length);
           }
 
+          final subTier = (pmap['subscription_tier'] as String?)?.toLowerCase().trim() ?? 'free';
+          final appTier = switch (subTier) {
+            'enterprise' => AppTier.enterprise,
+            'pro' || 'premium' => AppTier.premium,
+            _ => AppTier.free,
+          };
+
           return CommunityAuthor(
             id: pId,
             handle: cleanHandle,
@@ -715,6 +722,8 @@ class CommunityRepository extends ChangeNotifier {
             following: finalFollowing,
             postsCount: (pmap['posts_count'] as num?)?.toInt() ?? 0,
             verified: pmap['verified'] as bool? ?? false,
+            subscriptionTier: subTier,
+            tier: appTier,
             userRole: _parseUserRole(pmap['role'] as String?),
             isFollowing: isFollowingThisAuthor,
           );
@@ -732,7 +741,7 @@ class CommunityRepository extends ChangeNotifier {
           final extraProfiles = await client
               .from('profiles')
               .select(
-                'id, handle, display_name, avatar_url, bio, role, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, followers_count, following_count, win_rate, posts_count',
+                'id, handle, display_name, avatar_url, bio, role, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, followers_count, following_count, win_rate, posts_count, subscription_tier',
               )
               .inFilter('id', missingIds);
           for (final profile in extraProfiles as List) {
@@ -781,6 +790,13 @@ class CommunityRepository extends ChangeNotifier {
     required Map<String, dynamic>? authorProfile,
     bool isFollowing = false,
   }) {
+    final subTier = (authorProfile?['subscription_tier'] as String?)?.toLowerCase().trim() ?? 'free';
+    final appTier = switch (subTier) {
+      'enterprise' => AppTier.enterprise,
+      'pro' || 'premium' => AppTier.premium,
+      _ => AppTier.free,
+    };
+
     return CommunityAuthor(
       id: authorId,
       handle: (authorProfile?['handle'] ?? authorProfile?['username']) as String? ?? 'trader',
@@ -792,6 +808,8 @@ class CommunityRepository extends ChangeNotifier {
       avatarUrl: authorProfile?['avatar_url'] as String?,
       bio: authorProfile?['bio'] as String?,
       verified: authorProfile?['verified'] as bool? ?? false,
+      subscriptionTier: subTier,
+      tier: appTier,
       isFollowing: isFollowing,
       followers: (authorProfile?['followers_count'] as num?)?.toInt() ?? 0,
       following: (authorProfile?['following_count'] as num?)?.toInt() ?? 0,
@@ -2929,7 +2947,7 @@ class CommunityRepository extends ChangeNotifier {
       final res = await client
           .from('community_posts')
           .select(
-            '*, profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, verified, win_rate, followers_count, following_count, posts_count), community_post_trade_setups(*), community_post_attachments(*), community_polls(*, community_poll_options(*))',
+            '*, profiles!community_posts_author_id_fkey(id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, verified, win_rate, followers_count, following_count, posts_count, subscription_tier), community_post_trade_setups(*), community_post_attachments(*), community_polls(*, community_poll_options(*))',
           )
           .eq('id', postId)
           .maybeSingle();

@@ -23,6 +23,7 @@ import 'package:tradex/features/messages/data/messages_repository.dart';
 import 'package:tradex/features/notes/data/notes_repository.dart';
 import 'package:tradex/features/notes/ui/note_preview_screen.dart';
 import 'package:tradex/features/settings/data/repositories/profile_settings_repository.dart';
+import 'package:tradex/features/auth/data/services/supabase_auth_backend_service.dart';
 
 String _formatCount(int count) {
   if (count >= 1000000) {
@@ -94,6 +95,8 @@ class TraderProfilePreviewPage extends StatefulWidget {
     this.onEditProfile,
     this.isCurrentUser = false,
     this.forceTraderView = false,
+    this.subscriptionTier,
+    this.verified,
   });
 
   final String displayName;
@@ -101,6 +104,8 @@ class TraderProfilePreviewPage extends StatefulWidget {
   final String? bio;
   final String? avatarUrl;
   final UserRole userRole;
+  final String? subscriptionTier;
+  final bool? verified;
   final String? location;
   final String? website;
   final String? avgHoldDuration;
@@ -161,6 +166,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
   bool _isFollowing = false;
   UserRole? _liveRole;
   bool? _liveVerified;
+  String? _liveSubscriptionTier;
   int _liveTotalTraders = 0;
   int _liveTotalJournals = 0;
   int _selectedFilterIndex = 0;
@@ -242,6 +248,16 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
       if ((widget.tradingStyle == null || widget.tradingStyle!.isEmpty) && cp.tradingStyle?.isNotEmpty == true) {
         _liveTradingStyle = cp.tradingStyle;
       }
+      if (_liveSubscriptionTier == null && cp.subscriptionTier.isNotEmpty) {
+        _liveSubscriptionTier = cp.subscriptionTier;
+      }
+      _liveVerified ??= cp.verified;
+    }
+    if (widget.subscriptionTier != null && widget.subscriptionTier!.isNotEmpty) {
+      _liveSubscriptionTier ??= widget.subscriptionTier;
+    }
+    if (widget.verified != null) {
+      _liveVerified ??= widget.verified;
     }
     _loadLiveTraderData();
   }
@@ -298,6 +314,12 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         _isFollowing = widget.author!.isFollowing;
       }
       _loadLiveTraderData();
+    }
+    if (widget.subscriptionTier != oldWidget.subscriptionTier && widget.subscriptionTier != null) {
+      _liveSubscriptionTier = widget.subscriptionTier;
+    }
+    if (widget.verified != oldWidget.verified && widget.verified != null) {
+      _liveVerified = widget.verified;
     }
   }
 
@@ -374,6 +396,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           _liveTradingStyle = profileRow['trading_style'] as String?;
         }
         _liveVerified = profileRow['verified'] as bool?;
+        _liveSubscriptionTier = profileRow['subscription_tier'] as String?;
 
         final roleStr = profileRow['role'] as String?;
         if (roleStr != null) {
@@ -542,7 +565,14 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             ? _liveAvatarUrl
             : widget.author?.avatarUrl);
 
-    final bool effectiveVerified = _liveVerified ?? widget.author?.verified ?? true;
+    final bool effectiveVerified = isAdmin ||
+        (_liveVerified ??
+            widget.verified ??
+            widget.author?.verified ??
+            (widget.isCurrentUser
+                ? (ProfileSettingsRepositoryImpl.instance.cachedProfile.verified ||
+                    (SupabaseAuthBackendService.instance.currentUserProfile?.verified ?? false))
+                : false));
 
     final String? effectiveLocation = widget.location?.trim().isNotEmpty == true
         ? widget.location!.trim()
@@ -619,10 +649,47 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
       UserRole.userAdmin => theme.colors.destructive,
     };
 
+    final String rawSubTier = (_liveSubscriptionTier?.trim().isNotEmpty == true)
+        ? _liveSubscriptionTier!
+        : (widget.subscriptionTier?.trim().isNotEmpty == true
+            ? widget.subscriptionTier!
+            : (widget.author?.subscriptionTier.trim().isNotEmpty == true
+                ? widget.author!.subscriptionTier
+                : (widget.isCurrentUser
+                    ? (SupabaseAuthBackendService.instance.currentUserProfile?.subscriptionTier ??
+                        ProfileSettingsRepositoryImpl.instance.cachedProfile.subscriptionTier)
+                    : (widget.author != null ? widget.author!.tier.name : 'free'))));
+    final String cleanSubTier = rawSubTier.toLowerCase().trim();
+
     final String roleBadgeText = switch (effectiveRole) {
-      UserRole.customer => 'PRO TRADER',
-      UserRole.affiliate => 'OFFICIAL PARTNER',
       UserRole.userAdmin => 'DESK SUPERADMIN · ROOT',
+      UserRole.affiliate => 'OFFICIAL PARTNER',
+      UserRole.customer => switch (cleanSubTier) {
+          'enterprise' => 'ENTERPRISE PLAN',
+          'pro' => 'PRO TRADER',
+          'premium' => 'PREMIUM PLAN',
+          'basic' || 'starter' => 'BASIC PLAN',
+          'free' || _ => switch (widget.author?.tier) {
+              AppTier.enterprise => 'ENTERPRISE PLAN',
+              AppTier.premium => 'PRO TRADER',
+              _ => 'FREE PLAN',
+            },
+        },
+    };
+
+    final UiIntent roleBadgeIntent = switch (effectiveRole) {
+      UserRole.userAdmin => UiIntent.danger,
+      UserRole.affiliate => UiIntent.warning,
+      UserRole.customer => switch (cleanSubTier) {
+          'enterprise' => UiIntent.success,
+          'pro' || 'premium' => UiIntent.primary,
+          'basic' || 'starter' => UiIntent.info,
+          'free' || _ => switch (widget.author?.tier) {
+              AppTier.enterprise => UiIntent.success,
+              AppTier.premium => UiIntent.primary,
+              _ => UiIntent.neutral,
+            },
+        },
     };
 
     final String displayBio = widget.bio?.trim().isNotEmpty == true
@@ -1269,27 +1336,24 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                   fontSize: context.fs(isMobile ? 18 : 22),
                                 ),
                               ),
-                              UiTooltip(
-                                message: isAdmin
-                                    ? 'Desk Superadmin (Root Clearance)'
-                                    : (isAffiliate
-                                          ? 'Verified Affiliate Partner'
-                                          : 'Verified market participant'),
-                                child: Icon(
-                                  isAdmin
-                                      ? Icons.admin_panel_settings_rounded
-                                      : Icons.verified_rounded,
-                                  color: verifiedColor,
-                                  size: context.sz(20),
+                              if (isAdmin || effectiveVerified)
+                                UiTooltip(
+                                  message: isAdmin
+                                      ? 'Desk Superadmin (Root Clearance)'
+                                      : (isAffiliate
+                                            ? 'Verified Affiliate Partner'
+                                            : 'Verified market participant'),
+                                  child: Icon(
+                                    isAdmin
+                                        ? Icons.admin_panel_settings_rounded
+                                        : Icons.verified_rounded,
+                                    color: verifiedColor,
+                                    size: context.sz(20),
+                                  ),
                                 ),
-                              ),
                               UiBadge(
                                 label: roleBadgeText,
-                                intent: isAdmin
-                                    ? UiIntent.danger
-                                    : (isAffiliate
-                                          ? UiIntent.warning
-                                          : UiIntent.primary),
+                                intent: roleBadgeIntent,
                                 variant: UiBadgeVariant.soft,
                                 size: UiSize.xs,
                               ),
@@ -2166,6 +2230,7 @@ class _TwitterFeedPreview extends StatelessWidget {
               handle: post.author.handle,
               avatarUrl: post.author.avatarUrl,
               verifiedColor: verifiedColor,
+              isVerified: post.author.verified || post.author.userRole == UserRole.userAdmin,
               isPinned: post.isPinned,
               timestamp: timeStr,
               body: post.body,
@@ -2221,6 +2286,7 @@ class _TwitterPostCard extends StatefulWidget {
     required this.handle,
     this.avatarUrl,
     required this.verifiedColor,
+    this.isVerified = false,
     this.isPinned = false,
     required this.timestamp,
     required this.body,
@@ -2241,6 +2307,7 @@ class _TwitterPostCard extends StatefulWidget {
   final String handle;
   final String? avatarUrl;
   final Color verifiedColor;
+  final bool isVerified;
   final bool isPinned;
   final String timestamp;
   final String body;
@@ -2439,7 +2506,7 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                   name: widget.displayName,
                   imageUrl: widget.avatarUrl,
                   size: UiSize.sm,
-                  verified: true,
+                  verified: widget.isVerified,
                   verifiedColor: widget.verifiedColor,
                 ),
                 SizedBox(width: context.sp(theme.spacing.sm)),
@@ -2464,11 +2531,13 @@ class _TwitterPostCardState extends State<_TwitterPostCard> {
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                Icon(
-                                  Icons.verified_rounded,
-                                  color: widget.verifiedColor,
-                                  size: context.sz(14),
-                                ),
+                                if (widget.isVerified) ...<Widget>[
+                                  Icon(
+                                    Icons.verified_rounded,
+                                    color: widget.verifiedColor,
+                                    size: context.sz(14),
+                                  ),
+                                ],
                                 Text(
                                   '@${widget.handle.replaceFirst(RegExp(r"^@+"), "")}',
                                   style: context.uiText.caption.copyWith(
@@ -5382,6 +5451,7 @@ class _TraderPendingApprovalPostsPreview extends StatelessWidget {
                   handle: post.author.handle,
                   avatarUrl: post.author.avatarUrl,
                   verifiedColor: verifiedColor,
+                  isVerified: post.author.verified || post.author.userRole == UserRole.userAdmin,
                   isPinned: post.isPinned,
                   timestamp: timeStr,
                   body: post.body,

@@ -294,6 +294,8 @@ class _AppScaffoldState extends State<AppScaffold> {
       avatarUrl: author.avatarUrl,
       bio: author.bio,
       author: author,
+      subscriptionTier: author.subscriptionTier,
+      verified: author.verified,
       location: author.location,
       website: author.website,
       avgHoldDuration: author.avgHoldDuration,

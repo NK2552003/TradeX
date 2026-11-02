@@ -119,7 +119,9 @@ class UnifiedCommentsRepositoryImpl implements UnifiedCommentsRepository {
               handle,
               display_name,
               avatar_url,
-              role
+              role,
+              verified,
+              subscription_tier
             ),
             unified_comment_likes (
               user_id,
@@ -156,13 +158,20 @@ class UnifiedCommentsRepositoryImpl implements UnifiedCommentsRepository {
           _ => UserRole.customer,
         };
 
+        final subTier = (profile?['subscription_tier'] as String?)?.toLowerCase().trim() ?? 'free';
         final author = CommunityAuthor(
           id: authorId,
           handle: handle,
           displayName: displayName,
           userRole: userRole,
           avatarUrl: avatarUrl,
-          verified: true,
+          verified: profile?['verified'] as bool? ?? false,
+          subscriptionTier: subTier,
+          tier: switch (subTier) {
+            'enterprise' => AppTier.enterprise,
+            'pro' || 'premium' => AppTier.premium,
+            _ => AppTier.free,
+          },
         );
 
         final likesList = row['unified_comment_likes'] as List<dynamic>? ?? [];

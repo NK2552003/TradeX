@@ -104,6 +104,8 @@ class _CommunityProfileViewState extends State<CommunityProfileView> {
         audienceReach: widget.author.audienceReach,
         repository: widget.repository,
         author: widget.author,
+        subscriptionTier: widget.author.subscriptionTier,
+        verified: widget.author.verified,
         onPostTap: widget.onPostTap,
         onOpenRef: widget.onOpenRef,
         isCurrentUser: widget.isCurrentUser,

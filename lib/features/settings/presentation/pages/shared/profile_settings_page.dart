@@ -784,6 +784,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         adminPreTradeVaREnabled: _adminPreTradeVaREnabled,
         adminAuditHashingEnabled: _adminAuditHashingEnabled,
         isCurrentUser: true,
+        subscriptionTier: _profile?.subscriptionTier,
+        verified: _profile?.verified,
         repository: widget.communityRepository,
         author: CommunityAuthor(
           id: _profile?.id ?? '',
@@ -811,6 +813,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           winRate: liveWinRate,
           postsCount: livePosts,
           verified: _profile?.verified ?? false,
+          subscriptionTier: _profile?.subscriptionTier ?? 'free',
           tier: _profile != null
               ? appTierFromId(_profile!.subscriptionTier)
               : AppTier.free,

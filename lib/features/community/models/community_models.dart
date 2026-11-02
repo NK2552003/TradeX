@@ -17,6 +17,7 @@ class CommunityAuthor {
     this.avatarUrl,
     this.bio,
     this.tier = AppTier.free,
+    this.subscriptionTier = 'free',
     this.verified = false,
     this.isFollowing = false,
     this.followers = 0,
@@ -44,6 +45,7 @@ class CommunityAuthor {
   final String? avatarUrl;
   final String? bio;
   final AppTier tier;
+  final String subscriptionTier;
   final bool verified;
   final bool isFollowing;
   final int followers;
@@ -76,6 +78,9 @@ class CommunityAuthor {
     bool? isFollowing,
     int? followers,
     int? following,
+    String? subscriptionTier,
+    AppTier? tier,
+    bool? verified,
   }) =>
       CommunityAuthor(
         id: id,
@@ -84,8 +89,9 @@ class CommunityAuthor {
         userRole: userRole,
         avatarUrl: avatarUrl,
         bio: bio,
-        tier: tier,
-        verified: verified,
+        tier: tier ?? this.tier,
+        subscriptionTier: subscriptionTier ?? this.subscriptionTier,
+        verified: verified ?? this.verified,
         isFollowing: isFollowing ?? this.isFollowing,
         followers: followers ?? this.followers,
         following: following ?? this.following,
@@ -112,9 +118,34 @@ class CommunityAuthor {
   };
 
   String get roleBadgeText => switch (userRole) {
-    UserRole.customer => 'PRO TRADER',
+    UserRole.customer => switch (subscriptionTier.toLowerCase().trim()) {
+        'enterprise' => 'ENTERPRISE PLAN',
+        'pro' => 'PRO TRADER',
+        'premium' => 'PREMIUM PLAN',
+        'basic' || 'starter' => 'BASIC PLAN',
+        'free' || _ => switch (tier) {
+            AppTier.enterprise => 'ENTERPRISE PLAN',
+            AppTier.premium => 'PRO TRADER',
+            AppTier.free => 'FREE PLAN',
+          },
+      },
     UserRole.affiliate => 'OFFICIAL PARTNER',
     UserRole.userAdmin => 'DESK SUPERADMIN',
+  };
+
+  UiIntent get roleBadgeIntent => switch (userRole) {
+    UserRole.userAdmin => UiIntent.danger,
+    UserRole.affiliate => UiIntent.warning,
+    UserRole.customer => switch (subscriptionTier.toLowerCase().trim()) {
+        'enterprise' => UiIntent.success,
+        'pro' || 'premium' => UiIntent.primary,
+        'basic' || 'starter' => UiIntent.info,
+        'free' || _ => switch (tier) {
+            AppTier.enterprise => UiIntent.success,
+            AppTier.premium => UiIntent.primary,
+            AppTier.free => UiIntent.neutral,
+          },
+      },
   };
 }
 

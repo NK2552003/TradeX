@@ -207,5 +207,79 @@ void main() {
         expect(find.byTooltip('Follow @other_trader'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'displays FREE PLAN badge and hides verified tick for unverified free tier trader',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1280, 900));
+
+        await tester.pumpWidget(
+          _wrap(
+            const TraderProfilePreviewPage(
+              displayName: 'Free User',
+              handle: 'free_trader',
+              userRole: UserRole.customer,
+              subscriptionTier: 'free',
+              verified: false,
+              isCurrentUser: false,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('FREE PLAN'), findsOneWidget);
+        expect(find.text('PRO TRADER'), findsNothing);
+        expect(find.byIcon(Icons.verified_rounded), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'displays PRO TRADER badge and verified tick when subscriptionTier is pro and verified is true',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1280, 900));
+
+        await tester.pumpWidget(
+          _wrap(
+            const TraderProfilePreviewPage(
+              displayName: 'Pro Verified Trader',
+              handle: 'pro_trader',
+              userRole: UserRole.customer,
+              subscriptionTier: 'pro',
+              verified: true,
+              isCurrentUser: false,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('PRO TRADER'), findsOneWidget);
+        expect(find.text('FREE PLAN'), findsNothing);
+        expect(find.byIcon(Icons.verified_rounded), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'displays ENTERPRISE PLAN badge when subscriptionTier is enterprise',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1280, 900));
+
+        await tester.pumpWidget(
+          _wrap(
+            const TraderProfilePreviewPage(
+              displayName: 'Enterprise Desk Trader',
+              handle: 'ent_trader',
+              userRole: UserRole.customer,
+              subscriptionTier: 'enterprise',
+              verified: true,
+              isCurrentUser: false,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('ENTERPRISE PLAN'), findsOneWidget);
+        expect(find.byIcon(Icons.verified_rounded), findsOneWidget);
+      },
+    );
   });
 }
