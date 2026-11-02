@@ -8,6 +8,11 @@ void main() {
   group('CommunityComposerTriggerCard Tests', () {
     testWidgets('renders input pill without profile avatar and displays all action options',
         (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       ComposerMode? selectedMode;
 
       await tester.pumpWidget(

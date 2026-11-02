@@ -22,12 +22,7 @@ void main() {
     });
 
     test('1. Create and manage standard, image, setup with chart data, and poll posts', () async {
-      const author = CommunityAuthor(
-        id: 'usr_test_1',
-        handle: 'live_trader',
-        displayName: 'Live Trader',
-        userRole: UserRole.customer,
-      );
+      final author = communityRepo.currentAuthor;
 
       // Simple post
       await communityRepo.createPost(
@@ -240,7 +235,7 @@ void main() {
       expect(find.text('Posts'), findsOneWidget);
       expect(find.text('Journal'), findsOneWidget);
       expect(find.text('Notes'), findsOneWidget);
-      expect(find.text('Activity'), findsOneWidget);
+      expect(find.text('Spaces History'), findsOneWidget);
     });
 
     testWidgets('7. AppNotificationsOverlay renders live notification items, filters, and follow back actions', (tester) async {

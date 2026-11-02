@@ -154,5 +154,58 @@ void main() {
         expect(find.text('https://alphajournal.in/join/MENTOR-2026'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'hides follow and direct message buttons when viewing own profile, and displays them for others',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1280, 900));
+
+        // 1. Own profile (isCurrentUser = true)
+        await tester.pumpWidget(
+          _wrap(
+            const TraderProfilePreviewPage(
+              displayName: 'Self Trader',
+              handle: 'self_trader',
+              userRole: UserRole.customer,
+              bio: 'Trading my own account.',
+              isCurrentUser: true,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Must display Share Profile icon button
+        expect(find.byTooltip('Share Profile'), findsOneWidget);
+        expect(find.byIcon(Icons.share_outlined), findsOneWidget);
+        // Must NOT display Direct Message or Follow buttons
+        expect(find.byTooltip('Direct Message'), findsNothing);
+        expect(find.byIcon(Icons.mail_outline_rounded), findsNothing);
+        expect(find.byIcon(Icons.person_add_alt_1_rounded), findsNothing);
+        expect(find.byTooltip('Follow @self_trader'), findsNothing);
+
+        // 2. Other trader profile (isCurrentUser = false)
+        await tester.pumpWidget(
+          _wrap(
+            const TraderProfilePreviewPage(
+              displayName: 'Other Trader',
+              handle: 'other_trader',
+              userRole: UserRole.customer,
+              bio: 'Trading an external account.',
+              isCurrentUser: false,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Must display Share Profile icon button
+        expect(find.byTooltip('Share Profile'), findsOneWidget);
+        expect(find.byIcon(Icons.share_outlined), findsOneWidget);
+        // Must display Direct Message and Follow buttons
+        expect(find.byTooltip('Direct Message'), findsOneWidget);
+        expect(find.byIcon(Icons.mail_outline_rounded), findsOneWidget);
+        expect(find.byIcon(Icons.person_add_alt_1_rounded), findsOneWidget);
+        expect(find.byTooltip('Follow @other_trader'), findsOneWidget);
+      },
+    );
   });
 }

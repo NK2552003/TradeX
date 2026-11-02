@@ -91,6 +91,7 @@ class TraderProfilePreviewPage extends StatefulWidget {
     this.onPostTap,
     this.onOpenRef,
     this.onDirectMessage,
+    this.onEditProfile,
     this.isCurrentUser = false,
     this.forceTraderView = false,
   });
@@ -130,6 +131,7 @@ class TraderProfilePreviewPage extends StatefulWidget {
   final ValueChanged<CommunityPost>? onPostTap;
   final ValueChanged<AppLinkRef>? onOpenRef;
   final void Function(AppTrader trader)? onDirectMessage;
+  final VoidCallback? onEditProfile;
   final bool isCurrentUser;
   final bool forceTraderView;
 
@@ -800,9 +802,18 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         .toLowerCase()
         .replaceFirst(RegExp(r'^@+'), '')
         .trim();
+    final authUser = SupabaseConfig.client?.auth.currentUser;
+    final String authHandle = (authUser?.userMetadata?['handle'] as String? ??
+            authUser?.userMetadata?['username'] as String? ??
+            authUser?.email?.split('@').first ??
+            '')
+        .toLowerCase()
+        .replaceFirst(RegExp(r'^@+'), '')
+        .trim();
     final bool isViewingSelf = widget.isCurrentUser ||
-        (targetAuthorId.isNotEmpty && targetAuthorId == currentAuthId) ||
-        (cachedHandle.isNotEmpty && cachedHandle == _cleanHandle.toLowerCase());
+        (currentAuthId.isNotEmpty && targetAuthorId == currentAuthId) ||
+        (cachedHandle.isNotEmpty && cachedHandle == _cleanHandle.toLowerCase()) ||
+        (authHandle.isNotEmpty && authHandle == _cleanHandle.toLowerCase());
 
     if (isViewingSelf) {
       tabItems.add(
@@ -1047,168 +1058,178 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                         );
                                       },
                                     ),
-                                    UiIconButton(
-                                      icon: Icons.mail_outline_rounded,
-                                      tooltip: 'Direct Message',
-                                      variant: UiVariant.outline,
-                                      size: UiSize.md,
-                                      onPressed: () {
-                                        final AppTrader peer = AppTrader(
-                                          id: targetAuthorId.isNotEmpty
-                                              ? targetAuthorId
-                                              : 'trader_$_cleanHandle',
-                                          handle: '@$_cleanHandle',
-                                          displayName: effectiveDisplayName,
-                                          avatarUrl: effectiveAvatarUrl,
-                                          bio: displayBio,
-                                          tier:
-                                              widget.userRole ==
-                                                  UserRole.affiliate
-                                              ? AppTier.premium
-                                              : AppTier.free,
-                                        );
-                                        if (widget.onDirectMessage != null) {
-                                          widget.onDirectMessage!(peer);
-                                        } else {
-                                          try {
-                                            final repo = MessagesRepositoryScope
-                                                .repository;
-                                            if (repo.isMessagingRestricted(
-                                              peer,
-                                            )) {
-                                              UiDialog.show<void>(
-                                                context,
-                                                child: UiDialog(
-                                                  title:
-                                                      'Cannot message @$_cleanHandle',
-                                                  content: Padding(
-                                                    padding:
-                                                        EdgeInsets.symmetric(
-                                                          vertical: context.sp(
-                                                            context
-                                                                .ui
-                                                                .spacing
-                                                                .sm,
-                                                          ),
-                                                        ),
-                                                    child: Text(
-                                                      '@$_cleanHandle does not accept direct messages from everyone. Only invited traders or accounts they follow can start a conversation.',
-                                                      style:
-                                                          context.uiText.body,
-                                                    ),
-                                                  ),
-                                                  actions: <Widget>[
-                                                    UiButton(
-                                                      label: 'OK',
-                                                      intent: UiIntent.primary,
-                                                      onPressed: () =>
-                                                          Navigator.of(
-                                                            context,
-                                                          ).pop(),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                              return;
-                                            }
-                                            repo.startConversation(peer);
-                                            UiToast.show(
-                                              context,
-                                              title: 'Direct Message',
-                                              message:
-                                                  'Started conversation with @$_cleanHandle',
-                                              intent: UiIntent.success,
-                                            );
-                                          } catch (_) {
-                                            UiToast.show(
-                                              context,
-                                              title: 'Direct Message',
-                                              message:
-                                                  'Opening conversation with @$_cleanHandle',
-                                              intent: UiIntent.info,
-                                            );
-                                          }
-                                        }
-                                      },
-                                    ),
-                                    UiIconButton(
-                                      icon: _isFollowing
-                                          ? Icons.check_rounded
-                                          : (isAffiliate
-                                                ? Icons.stars_rounded
-                                                : Icons
-                                                      .person_add_alt_1_rounded),
-                                      variant: _isFollowing
-                                          ? UiVariant.outline
-                                          : UiVariant.primary,
-                                      intent: isAffiliate
-                                          ? UiIntent.warning
-                                          : UiIntent.primary,
-                                      size: UiSize.md,
-                                      tooltip: isAffiliate
-                                          ? (_isFollowing
-                                                ? 'Subscribed to @$_cleanHandle'
-                                                : 'Subscribe to @$_cleanHandle')
-                                          : (_isFollowing
-                                                ? 'Following @$_cleanHandle'
-                                                : 'Follow @$_cleanHandle'),
-                                      onPressed: () async {
-                                        setState(() {
-                                          _isFollowing = !_isFollowing;
-                                          if (_isFollowing) {
-                                            _liveFollowers++;
+                                    if (isViewingSelf && widget.onEditProfile != null)
+                                      UiButton(
+                                        label: 'Edit Profile',
+                                        leadingIcon: Icons.edit_outlined,
+                                        variant: UiVariant.outline,
+                                        size: UiSize.md,
+                                        onPressed: widget.onEditProfile,
+                                      ),
+                                    if (!isViewingSelf) ...[
+                                      UiIconButton(
+                                        icon: Icons.mail_outline_rounded,
+                                        tooltip: 'Direct Message',
+                                        variant: UiVariant.outline,
+                                        size: UiSize.md,
+                                        onPressed: () {
+                                          final AppTrader peer = AppTrader(
+                                            id: targetAuthorId.isNotEmpty
+                                                ? targetAuthorId
+                                                : 'trader_$_cleanHandle',
+                                            handle: '@$_cleanHandle',
+                                            displayName: effectiveDisplayName,
+                                            avatarUrl: effectiveAvatarUrl,
+                                            bio: displayBio,
+                                            tier:
+                                                widget.userRole ==
+                                                    UserRole.affiliate
+                                                ? AppTier.premium
+                                                : AppTier.free,
+                                          );
+                                          if (widget.onDirectMessage != null) {
+                                            widget.onDirectMessage!(peer);
                                           } else {
-                                            if (_liveFollowers > 0) _liveFollowers--;
-                                          }
-                                        });
-
-                                        final targetTid = targetAuthorId.isNotEmpty
-                                            ? targetAuthorId
-                                            : (widget.author?.id ?? '');
-                                        if (widget.repository != null && targetTid.isNotEmpty) {
-                                          widget.repository!.toggleFollow(targetTid);
-                                        } else if (SupabaseConfig.isConfigured && targetTid.isNotEmpty) {
-                                          try {
-                                            final client = SupabaseConfig.client!;
-                                            final curUid = client.auth.currentUser?.id;
-                                            if (curUid != null && curUid.isNotEmpty) {
-                                              if (_isFollowing) {
-                                                await client.from('community_follows').insert({
-                                                  'follower_id': curUid,
-                                                  'following_id': targetTid,
-                                                });
-                                              } else {
-                                                await client.from('community_follows').delete()
-                                                    .eq('follower_id', curUid)
-                                                    .eq('following_id', targetTid);
+                                            try {
+                                              final repo = MessagesRepositoryScope
+                                                  .repository;
+                                              if (repo.isMessagingRestricted(
+                                                peer,
+                                              )) {
+                                                UiDialog.show<void>(
+                                                  context,
+                                                  child: UiDialog(
+                                                    title:
+                                                        'Cannot message @$_cleanHandle',
+                                                    content: Padding(
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                            vertical: context.sp(
+                                                              context
+                                                                  .ui
+                                                                  .spacing
+                                                                  .sm,
+                                                            ),
+                                                          ),
+                                                      child: Text(
+                                                        '@$_cleanHandle does not accept direct messages from everyone. Only invited traders or accounts they follow can start a conversation.',
+                                                        style:
+                                                            context.uiText.body,
+                                                      ),
+                                                    ),
+                                                    actions: <Widget>[
+                                                      UiButton(
+                                                        label: 'OK',
+                                                        intent: UiIntent.primary,
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                              context,
+                                                            ).pop(),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                                return;
                                               }
+                                              repo.startConversation(peer);
+                                              UiToast.show(
+                                                context,
+                                                title: 'Direct Message',
+                                                message:
+                                                    'Started conversation with @$_cleanHandle',
+                                                intent: UiIntent.success,
+                                              );
+                                            } catch (_) {
+                                              UiToast.show(
+                                                context,
+                                                title: 'Direct Message',
+                                                message:
+                                                    'Opening conversation with @$_cleanHandle',
+                                                intent: UiIntent.info,
+                                              );
                                             }
-                                          } catch (e) {
-                                            debugPrint('[TraderProfilePreviewPage] toggleFollow error: $e');
                                           }
-                                        }
+                                        },
+                                      ),
+                                      UiIconButton(
+                                        icon: _isFollowing
+                                            ? Icons.check_rounded
+                                            : (isAffiliate
+                                                  ? Icons.stars_rounded
+                                                  : Icons
+                                                        .person_add_alt_1_rounded),
+                                        variant: _isFollowing
+                                            ? UiVariant.outline
+                                            : UiVariant.primary,
+                                        intent: isAffiliate
+                                            ? UiIntent.warning
+                                            : UiIntent.primary,
+                                        size: UiSize.md,
+                                        tooltip: isAffiliate
+                                            ? (_isFollowing
+                                                  ? 'Subscribed to @$_cleanHandle'
+                                                  : 'Subscribe to @$_cleanHandle')
+                                            : (_isFollowing
+                                                  ? 'Following @$_cleanHandle'
+                                                  : 'Follow @$_cleanHandle'),
+                                        onPressed: () async {
+                                          setState(() {
+                                            _isFollowing = !_isFollowing;
+                                            if (_isFollowing) {
+                                              _liveFollowers++;
+                                            } else {
+                                              if (_liveFollowers > 0) _liveFollowers--;
+                                            }
+                                          });
 
-                                        if (!mounted || !context.mounted) return;
-                                        UiToast.show(
-                                          context,
-                                          title: _isFollowing
-                                              ? (isAffiliate
-                                                    ? 'Subscribed to @$_cleanHandle'
-                                                    : 'Following @$_cleanHandle')
-                                              : (isAffiliate
-                                                    ? 'Unsubscribed from @$_cleanHandle'
-                                                    : 'Unfollowed @$_cleanHandle'),
-                                          message: _isFollowing
-                                              ? (isAffiliate
-                                                    ? 'You will receive creator playbooks and updates.'
-                                                    : 'Now following @$_cleanHandle.')
-                                              : 'You have unfollowed @$_cleanHandle.',
-                                          intent: _isFollowing
-                                              ? UiIntent.success
-                                              : UiIntent.neutral,
-                                        );
-                                      },
-                                    ),
+                                          final targetTid = targetAuthorId.isNotEmpty
+                                              ? targetAuthorId
+                                              : (widget.author?.id ?? '');
+                                          if (widget.repository != null && targetTid.isNotEmpty) {
+                                            widget.repository!.toggleFollow(targetTid);
+                                          } else if (SupabaseConfig.isConfigured && targetTid.isNotEmpty) {
+                                            try {
+                                              final client = SupabaseConfig.client!;
+                                              final curUid = client.auth.currentUser?.id;
+                                              if (curUid != null && curUid.isNotEmpty) {
+                                                if (_isFollowing) {
+                                                  await client.from('community_follows').insert({
+                                                    'follower_id': curUid,
+                                                    'following_id': targetTid,
+                                                  });
+                                                } else {
+                                                  await client.from('community_follows').delete()
+                                                      .eq('follower_id', curUid)
+                                                      .eq('following_id', targetTid);
+                                                }
+                                              }
+                                            } catch (e) {
+                                              debugPrint('[TraderProfilePreviewPage] toggleFollow error: $e');
+                                            }
+                                          }
+
+                                          if (!mounted || !context.mounted) return;
+                                          UiToast.show(
+                                            context,
+                                            title: _isFollowing
+                                                ? (isAffiliate
+                                                      ? 'Subscribed to @$_cleanHandle'
+                                                      : 'Following @$_cleanHandle')
+                                                : (isAffiliate
+                                                      ? 'Unsubscribed from @$_cleanHandle'
+                                                      : 'Unfollowed @$_cleanHandle'),
+                                            message: _isFollowing
+                                                ? (isAffiliate
+                                                      ? 'You will receive creator playbooks and updates.'
+                                                      : 'Now following @$_cleanHandle.')
+                                                : 'You have unfollowed @$_cleanHandle.',
+                                            intent: _isFollowing
+                                                ? UiIntent.success
+                                                : UiIntent.neutral,
+                                          );
+                                        },
+                                      ),
+                                    ],
                                   ],
                                 ],
                               ),
