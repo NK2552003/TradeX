@@ -125,23 +125,7 @@ class _AiAssistantOverlaySheetState extends State<AiAssistantOverlaySheet> {
       context,
       repository: _repo,
       target: target,
-      setup:
-          setup ??
-          AiChartSetup(
-            id: 'setup_${DateTime.now().millisecondsSinceEpoch}',
-            title:
-                'Setup: ${widget.contextRef?.title ?? widget.contextTitle ?? "Market Analysis"}',
-            symbol: widget.contextRef?.title ?? widget.contextTitle ?? 'NIFTY',
-            timeframe: '15m',
-            direction: AiTradeDirection.long,
-            pattern: 'High Probability Setup',
-            entry: 24800,
-            stopLoss: 24720,
-            target1: 24960,
-            target2: 25040,
-            confidence: 86,
-            rationale: 'Trend continuation & momentum breakout',
-          ),
+      setup: setup,
       onOpenRef: widget.onOpenRef,
     );
   }

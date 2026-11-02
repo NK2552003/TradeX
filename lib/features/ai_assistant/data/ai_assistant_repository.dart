@@ -1133,6 +1133,58 @@ class AiAssistantRepository extends ChangeNotifier {
               '- Momentum structure remains aligned with higher timeframe trends.\n'
               '- Invalidation and liquidity pools have been mapped.\n'
               '- Review risk parameters before committing capital.\n';
+    double? entryPrice;
+    double? stopLoss;
+    double? target1;
+    double? target2;
+    double? rMultiple;
+
+    if (source.isNotEmpty) {
+      final entryMatch = RegExp(
+        r'(?:entry|trigger|buy|long|short)\s*(?:near|at|around|:)?\s*([₹$]?\s*[\d,]+(?:\.\d+)?)',
+        caseSensitive: false,
+      ).firstMatch(source);
+      if (entryMatch != null) {
+        entryPrice = double.tryParse(
+          entryMatch.group(1)!.replaceAll(RegExp(r'[^\d.]'), ''),
+        );
+      }
+      final stopMatch = RegExp(
+        r'(?:stop|invalidation|stop loss|sl)\s*(?:at|under|below|:)?\s*([₹$]?\s*[\d,]+(?:\.\d+)?)',
+        caseSensitive: false,
+      ).firstMatch(source);
+      if (stopMatch != null) {
+        stopLoss = double.tryParse(
+          stopMatch.group(1)!.replaceAll(RegExp(r'[^\d.]'), ''),
+        );
+      }
+      final target1Match = RegExp(
+        r'(?:target|target 1|tp1|t1)\s*(?:at|near|:)?\s*([₹$]?\s*[\d,]+(?:\.\d+)?)',
+        caseSensitive: false,
+      ).firstMatch(source);
+      if (target1Match != null) {
+        target1 = double.tryParse(
+          target1Match.group(1)!.replaceAll(RegExp(r'[^\d.]'), ''),
+        );
+      }
+      final target2Match = RegExp(
+        r'(?:target 2|tp2|t2|runner)\s*(?:at|near|then|:)?\s*([₹$]?\s*[\d,]+(?:\.\d+)?)',
+        caseSensitive: false,
+      ).firstMatch(source);
+      if (target2Match != null) {
+        target2 = double.tryParse(
+          target2Match.group(1)!.replaceAll(RegExp(r'[^\d.]'), ''),
+        );
+      }
+      final rrMatch = RegExp(
+        r'(?:r:r|rr|r\/r|ratio)\s*(?:of|is|:)?\s*(\d+(?:\.\d+)?)\s*r?',
+        caseSensitive: false,
+      ).firstMatch(source);
+      if (rrMatch != null) {
+        rMultiple = double.tryParse(rrMatch.group(1)!);
+      }
+    }
+
     return AiCreateDraft(
       target: target == AiCreateTarget.chartAnalysis
           ? AiCreateTarget.note
@@ -1142,12 +1194,12 @@ class AiAssistantRepository extends ChangeNotifier {
       tickers: <String>[symbol],
       tags: const <String>['AI', 'Copilot'],
       noteType: AppNoteType.analysis,
-      entryPrice: 150.0,
-      stopLoss: 144.5,
-      target1: 162.0,
-      target2: 170.0,
+      entryPrice: entryPrice ?? 100.0,
+      stopLoss: stopLoss ?? 95.0,
+      target1: target1 ?? 110.0,
+      target2: target2 ?? 115.0,
       quantity: 50.0,
-      rMultiple: 2.18,
+      rMultiple: rMultiple ?? 2.0,
       category: 'Price Action',
       strategyStatus: AppStrategyStatus.live,
     );
