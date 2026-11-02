@@ -51,10 +51,13 @@ void main() {
       ),
       findsOneWidget,
     );
+    final otherCategoryHeadline = repo.news
+        .firstWhere((n) => n.category.toLowerCase() != 'crypto')
+        .headline;
     expect(
       find.descendant(
         of: panel,
-        matching: find.text(repo.newsByCategory['crypto']!.last.headline),
+        matching: find.text(otherCategoryHeadline),
       ),
       findsNothing,
     );

@@ -274,21 +274,24 @@ class _UiCardState extends State<UiCard> {
     return Padding(
       padding: pad,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (hasHeader) ...<Widget>[
             Padding(
               padding: widget.headerPadding ?? EdgeInsets.zero,
-              child: _UiCardHeader(
-                title: widget.title,
-                titleWidget: widget.titleWidget,
-                subtitle: widget.subtitle,
-                leading: widget.leading,
-                trailing: widget.trailing,
-                collapsible: widget.collapsible,
-                expanded: _expanded,
-                onToggle: _toggle,
+              child: SizedBox(
+                width: double.infinity,
+                child: _UiCardHeader(
+                  title: widget.title,
+                  titleWidget: widget.titleWidget,
+                  subtitle: widget.subtitle,
+                  leading: widget.leading,
+                  trailing: widget.trailing,
+                  collapsible: widget.collapsible,
+                  expanded: _expanded,
+                  onToggle: _toggle,
+                ),
               ),
             ),
             if (widget.headerDivider) ...<Widget>[
@@ -479,11 +482,13 @@ class _UiCardHeader extends StatelessWidget {
 
         if (isNarrow && trailing != null) {
           return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: subtitle != null
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.center,
                 children: <Widget>[
                   if (leading != null) ...<Widget>[
                     leading!,
@@ -509,13 +514,18 @@ class _UiCardHeader extends StatelessWidget {
                 ],
               ),
               SizedBox(height: context.sp(theme.spacing.sm)),
-              trailing!,
+              Align(
+                alignment: Alignment.centerRight,
+                child: trailing!,
+              ),
             ],
           );
         }
 
         return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: subtitle != null
+              ? CrossAxisAlignment.start
+              : CrossAxisAlignment.center,
           children: <Widget>[
             if (leading != null) ...<Widget>[
               leading!,
@@ -524,9 +534,7 @@ class _UiCardHeader extends StatelessWidget {
             Expanded(child: titleColumn),
             if (trailing != null) ...<Widget>[
               SizedBox(width: context.sp(theme.spacing.sm)),
-              Flexible(
-                child: Align(alignment: Alignment.topRight, child: trailing!),
-              ),
+              trailing!,
             ],
             if (collapsible) ...<Widget>[
               SizedBox(width: context.sp(theme.spacing.xs)),

@@ -253,6 +253,7 @@ class _CommunityExploreViewState extends State<CommunityExploreView> {
                 trailing: UiButton(
                   label: 'View all',
                   variant: UiVariant.ghost,
+                  size: UiSize.sm,
                   onPressed: () => _viewAll(entry.key, entry.value),
                 ),
                 child: _newsItem(context, entry.value.first),
