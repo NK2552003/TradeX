@@ -130,16 +130,84 @@ class MarketNewsCard extends StatelessWidget {
   final bool isLiked;
   final VoidCallback? onLike;
 
-  Widget _image(BuildContext context) => ClipRRect(
-    borderRadius: context.radius(context.ui.radii.md),
-    child: AspectRatio(
-      aspectRatio: featured ? 16 / 10 : (row ? 4 / 3 : 16 / 9),
-      child: UiRemoteImage(
-        url: article.thumbnailUrl,
-        semanticLabel: article.title,
+  Widget _fallbackBanner(BuildContext context) {
+    final colors = context.ui.colors;
+    final symbol = article.tickers.isNotEmpty ? article.tickers.first : '';
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.surfaceMuted,
+            colors.primary.withValues(alpha: 0.14),
+          ],
+        ),
       ),
-    ),
-  );
+      padding: EdgeInsets.all(context.sp(context.ui.spacing.xs)),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -6,
+            bottom: -6,
+            child: Icon(
+              Icons.trending_up_rounded,
+              size: context.sz(38),
+              color: colors.primary.withValues(alpha: 0.15),
+            ),
+          ),
+          Align(
+            alignment: Alignment.topLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (symbol.isNotEmpty) ...[
+                  UiBadge(
+                    label: symbol,
+                    size: UiSize.xs,
+                    variant: UiBadgeVariant.outline,
+                    intent: UiIntent.primary,
+                  ),
+                  UiGap.h(context.ui.spacing.xs),
+                ],
+                Expanded(
+                  child: Text(
+                    article.publisher.isNotEmpty
+                        ? article.publisher
+                        : 'Market News',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.uiText.caption.copyWith(
+                      color: colors.foregroundMuted,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _image(BuildContext context) {
+    final String? thumb = article.thumbnailUrl?.trim();
+    return ClipRRect(
+      borderRadius: context.radius(context.ui.radii.md),
+      child: AspectRatio(
+        aspectRatio: featured ? 16 / 10 : (row ? 4 / 3 : 16 / 9),
+        child: (thumb != null && thumb.isNotEmpty)
+            ? UiRemoteImage(
+                url: thumb,
+                semanticLabel: article.title,
+                errorIcon: Icons.newspaper_outlined,
+              )
+            : _fallbackBanner(context),
+      ),
+    );
+  }
 
   Widget _copy(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,

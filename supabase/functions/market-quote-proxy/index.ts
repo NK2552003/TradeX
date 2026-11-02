@@ -380,11 +380,26 @@ export async function handleRequest(request: Request): Promise<Response> {
             const pubTime = typeof n.providerPublishTime === 'number'
               ? new Date(n.providerPublishTime * 1000).toISOString()
               : new Date().toISOString();
-            const thumbs = Array.isArray((n.thumbnail as Record<string, unknown>)?.resolutions)
-              ? (n.thumbnail as { resolutions: { url: string }[] }).resolutions
+            const thumbObj = (n.thumbnail as Record<string, unknown>) || {};
+            const thumbs = Array.isArray(thumbObj.resolutions)
+              ? (thumbObj.resolutions as { url: string; tag?: string }[])
               : [];
-            const thumbUrl = thumbs.length > 0 ? thumbs[0]?.url : null;
+            let thumbUrl = thumbs.find((r) => r.tag === 'original')?.url ||
+              thumbs[0]?.url ||
+              (thumbObj.originalUrl as string) ||
+              (thumbObj.url as string) ||
+              null;
+            if (!thumbUrl && typeof n.thumbnail_url === 'string') {
+              thumbUrl = n.thumbnail_url;
+            }
             const tickers = Array.isArray(n.relatedTickers) ? n.relatedTickers.filter((t): t is string => typeof t === 'string') : [];
+
+            const rawSum = typeof n.summary === 'string' ? n.summary : typeof n.description === 'string' ? n.description : null;
+            const summary = rawSum && rawSum.trim().length > 0
+              ? rawSum.trim()
+              : (tickers.length > 0
+                ? `Reporting on ${tickers.join(', ')} market movements and outlook.`
+                : 'Market commentary on current financial developments.');
 
             return {
               title: n.title,
@@ -393,9 +408,7 @@ export async function handleRequest(request: Request): Promise<Response> {
               published_at: pubTime,
               thumbnail_url: thumbUrl,
               related_tickers: tickers,
-              summary: tickers.length > 0
-                ? `Reporting on ${tickers.join(', ')} market movements and outlook.`
-                : 'Market commentary on current financial developments.',
+              summary,
             };
           });
 

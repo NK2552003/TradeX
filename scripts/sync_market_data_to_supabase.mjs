@@ -235,6 +235,76 @@ async function fetchLiveRssNews() {
     },
   ];
   const articles = [];
+  const seenLinks = new Set();
+
+  // 1. Yahoo Finance News Search for high resolution articles with thumbnails
+  const yahooQueries = [
+    'AAPL', 'NVDA', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA',
+    'AMD', 'PLTR', 'CRM', 'ORCL',
+    'JPM', 'GS', 'BAC', 'Federal Reserve',
+    'LLY', 'PFE', 'BA', 'LMT',
+    'BTC', 'ETH',
+    'Sensex', 'Nifty', 'Reliance Industries', 'Tata Motors'
+  ];
+
+  for (const q of yahooQueries) {
+    try {
+      const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&newsCount=6`;
+      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (AlphaJournal-Sync/1.0)' } });
+      if (!res.ok) continue;
+      const data = await res.json();
+      for (const item of (data.news || [])) {
+        const link = (item.link || '').trim();
+        const title = (item.title || '').trim();
+        if (!link || !title || seenLinks.has(link)) continue;
+        seenLinks.add(link);
+
+        let thumbUrl = null;
+        const resolutions = item.thumbnail?.resolutions || [];
+        if (resolutions.length > 0) {
+          const orig = resolutions.find((r) => r.tag === 'original');
+          if (orig?.url) thumbUrl = orig.url;
+          else {
+            const best = [...resolutions].sort((a, b) => ((b.width || 0) * (b.height || 0)) - ((a.width || 0) * (a.height || 0)))[0];
+            if (best?.url) thumbUrl = best.url;
+          }
+        }
+        if (!thumbUrl && item.thumbnail?.originalUrl) thumbUrl = item.thumbnail.originalUrl;
+        if (!thumbUrl && item.thumbnail?.url) thumbUrl = item.thumbnail.url;
+
+        const publisher = item.publisher || 'Financial News';
+        const summary = (item.summary || item.description || `Live reporting on ${q} and broader market developments.`).trim();
+        if (!thumbUrl) {
+          const text = `${title} ${summary} ${publisher}`.toLowerCase();
+          thumbUrl = /crypto|bitcoin|btc|eth/.test(text)
+            ? 'https://images.unsplash.com/photo-1621416894569-0f39ed31d247?w=800&auto=format&fit=crop&q=80'
+            : /tech|ai|cloud|software|chip/.test(text)
+            ? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'
+            : /bank|rate|fed|treasury|rbi|yield/.test(text)
+            ? 'https://images.unsplash.com/photo-1541354329998-f4d9a9f9297f?w=800&auto=format&fit=crop&q=80'
+            : /pharma|drug|fda|biotech|health/.test(text)
+            ? 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop&q=80'
+            : 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=80';
+        }
+
+        const pubTime = item.providerPublishTime
+          ? new Date(item.providerPublishTime * 1000).toISOString()
+          : new Date().toISOString();
+
+        articles.push({
+          title,
+          summary: summary.slice(0, 500),
+          link,
+          publisher,
+          thumbnail_url: thumbUrl,
+          content_type: 'STORY',
+          published_at: pubTime,
+        });
+      }
+    } catch (_) {}
+  }
+
+  // 2. RSS Feeds
   for (const feed of feeds) {
     try {
       const res = await fetch(feed.url, {
@@ -245,7 +315,7 @@ async function fetchLiveRssNews() {
       const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
       let match;
       let count = 0;
-      while ((match = itemRegex.exec(xml)) !== null && count < 15) {
+      while ((match = itemRegex.exec(xml)) !== null && count < 20) {
         const block = match[1];
         const title = (
           block.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i)?.[1] ||
@@ -257,17 +327,37 @@ async function fetchLiveRssNews() {
         const link = (
           block.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || ''
         ).trim();
-        const summary = (
+        const rawDesc = (
           block.match(
             /<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i
           )?.[1] ||
           block.match(/<description>([\s\S]*?)<\/description>/i)?.[1] ||
           ''
-        )
-          .replace(/<[^>]+>/g, '')
-          .trim();
+        );
+        const summary = rawDesc.replace(/<[^>]+>/g, '').trim();
         const pubDateRaw = block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1];
-        if (!title || !link) continue;
+        if (!title || !link || seenLinks.has(link)) continue;
+        seenLinks.add(link);
+
+        let thumbUrl = block.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] ||
+          rawDesc.match(/&lt;img[^>]+src=&quot;([^&"]+)&quot;/i)?.[1] ||
+          block.match(/<enclosure[^>]+url=["']([^"']+)["']/i)?.[1] ||
+          block.match(/<media:content[^>]+url=["']([^"']+)["']/i)?.[1] ||
+          null;
+
+        if (!thumbUrl) {
+          const text = `${title} ${summary} ${feed.publisher}`.toLowerCase();
+          thumbUrl = /crypto|bitcoin|btc|eth/.test(text)
+            ? 'https://images.unsplash.com/photo-1621416894569-0f39ed31d247?w=800&auto=format&fit=crop&q=80'
+            : /tech|ai|cloud|software|chip/.test(text)
+            ? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'
+            : /bank|rate|fed|treasury|rbi|yield/.test(text)
+            ? 'https://images.unsplash.com/photo-1541354329998-f4d9a9f9297f?w=800&auto=format&fit=crop&q=80'
+            : /pharma|drug|fda|biotech|health/.test(text)
+            ? 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop&q=80'
+            : 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=80';
+        }
+
         const publishedAt = pubDateRaw
           ? new Date(pubDateRaw).toISOString()
           : new Date().toISOString();
@@ -276,7 +366,7 @@ async function fetchLiveRssNews() {
           summary: summary || title,
           link,
           publisher: feed.publisher,
-          thumbnail_url: null,
+          thumbnail_url: thumbUrl,
           content_type: 'STORY',
           published_at: Number.isNaN(Date.parse(publishedAt))
             ? new Date().toISOString()

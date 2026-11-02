@@ -857,11 +857,33 @@ class MessagesRepository extends ChangeNotifier {
             .from('community-attachments')
             .getPublicUrl(storagePath);
       } catch (e) {
-        debugPrint('[MessagesRepository] uploadAttachment error: $e');
-        rethrow;
+        debugPrint(
+          '[MessagesRepository] Direct storage upload failed: $e. Falling back to inline data attachment.',
+        );
+        final ext = filename.contains('.')
+            ? filename.split('.').last.toLowerCase().trim()
+            : 'png';
+        final mimeType = ext == 'png'
+            ? 'image/png'
+            : (ext == 'jpg' || ext == 'jpeg')
+                ? 'image/jpeg'
+                : ext == 'pdf'
+                    ? 'application/pdf'
+                    : 'application/octet-stream';
+        return 'data:$mimeType;base64,${base64Encode(bytes)}';
       }
     }
-    return 'data:image/png;base64,${base64Encode(bytes)}';
+    final ext = filename.contains('.')
+        ? filename.split('.').last.toLowerCase().trim()
+        : 'png';
+    final mimeType = ext == 'png'
+        ? 'image/png'
+        : (ext == 'jpg' || ext == 'jpeg')
+            ? 'image/jpeg'
+            : ext == 'pdf'
+                ? 'application/pdf'
+                : 'application/octet-stream';
+    return 'data:$mimeType;base64,${base64Encode(bytes)}';
   }
 
   /// Toggles a per-message emoji reaction for the signed-in trader.

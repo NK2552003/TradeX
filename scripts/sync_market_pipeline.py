@@ -88,12 +88,35 @@ TARGET_TICKERS = list(dict.fromkeys(US_TICKERS + IN_TICKERS))[:200]
 # Configuration & Database Connection
 # ---------------------------------------------------------------------------
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+def _load_env_files():
+    for p in ['.env', 'supabase/functions/.env', 'assets/config/client.env']:
+        if os.path.exists(p):
+            with open(p, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        k, v = line.split('=', 1)
+                        clean_k = k.strip()
+                        clean_v = v.strip().strip("'").strip('"')
+                        if clean_k not in os.environ and clean_v:
+                            os.environ[clean_k] = clean_v
+
+_load_env_files()
+
+SUPABASE_URL = (
+    os.environ.get("SUPABASE_URL") or
+    os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or
+    "https://ylxwgkhtwrizdmuhlhxs.supabase.co"
+).rstrip("/")
+
 SUPABASE_KEY = (
     os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or
+    os.environ.get("SUPABASE_SECRET_KEY") or
+    os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY") or
     os.environ.get("SUPABASE_ANON_KEY") or
     ""
 ).strip()
+
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 
 if not SUPABASE_URL and not DATABASE_URL:
@@ -462,27 +485,118 @@ def sync_screeners(quotes):
 
 
 # ---------------------------------------------------------------------------
-# Live News Sync
+# Live News Sync & Real Thumbnail Extraction
 # ---------------------------------------------------------------------------
+
+TOPIC_IMAGE_FALLBACKS = {
+    "crypto": "https://images.unsplash.com/photo-1621416894569-0f39ed31d247?w=800&auto=format&fit=crop&q=80",
+    "tech": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80",
+    "banking": "https://images.unsplash.com/photo-1541354329998-f4d9a9f9297f?w=800&auto=format&fit=crop&q=80",
+    "pharma": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop&q=80",
+    "energy": "https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=800&auto=format&fit=crop&q=80",
+    "general": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=80",
+}
+
+def resolve_topic_fallback_image(title, summary, publisher):
+    text = f"{title} {summary} {publisher}".lower()
+    if any(k in text for k in ["crypto", "bitcoin", "btc", "eth", "solana", "token", "blockchain", "heist"]):
+        return TOPIC_IMAGE_FALLBACKS["crypto"]
+    if any(k in text for k in ["tech", "ai", "cloud", "software", "chip", "semiconductor", "apple", "nvidia", "microsoft", "google"]):
+        return TOPIC_IMAGE_FALLBACKS["tech"]
+    if any(k in text for k in ["bank", "rate", "fed", "treasury", "rbi", "yield", "bond", "loan", "financial"]):
+        return TOPIC_IMAGE_FALLBACKS["banking"]
+    if any(k in text for k in ["pharma", "drug", "fda", "biotech", "vaccine", "health", "hospital", "lifesciences"]):
+        return TOPIC_IMAGE_FALLBACKS["pharma"]
+    if any(k in text for k in ["energy", "oil", "gas", "solar", "ev", "petroleum", "bpcl", "ongc"]):
+        return TOPIC_IMAGE_FALLBACKS["energy"]
+    return TOPIC_IMAGE_FALLBACKS["general"]
+
+def fetch_yahoo_finance_news():
+    import json
+    queries = [
+        "AAPL", "NVDA", "MSFT", "GOOGL", "AMZN", "META", "TSLA",
+        "AMD", "PLTR", "CRM", "ORCL",
+        "JPM", "GS", "BAC", "Federal Reserve",
+        "LLY", "PFE", "BA", "LMT",
+        "BTC", "ETH",
+        "Sensex", "Nifty", "Reliance Industries", "Tata Motors", "State Bank of India",
+    ]
+    articles = []
+    seen_links = set()
+
+    for q in queries:
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(q)}&newsCount=6"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (AlphaJournal-Sync/1.0)"})
+        try:
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = json.loads(resp.read().decode())
+                for item in data.get("news", []):
+                    link = item.get("link", "").strip()
+                    title = item.get("title", "").strip()
+                    if not link or not title or link in seen_links:
+                        continue
+                    seen_links.add(link)
+
+                    # Extract highest resolution thumbnail
+                    thumb_url = None
+                    thumb_obj = item.get("thumbnail") or {}
+                    resolutions = thumb_obj.get("resolutions") or []
+                    if resolutions:
+                        orig = next((r.get("url") for r in resolutions if r.get("tag") == "original"), None)
+                        if orig:
+                            thumb_url = orig
+                        else:
+                            best = max(resolutions, key=lambda r: (r.get("width") or 0) * (r.get("height") or 0))
+                            thumb_url = best.get("url")
+                    if not thumb_url and thumb_obj.get("originalUrl"):
+                        thumb_url = thumb_obj.get("originalUrl")
+                    if not thumb_url and thumb_obj.get("url"):
+                        thumb_url = thumb_obj.get("url")
+
+                    pub_time = item.get("providerPublishTime")
+                    pub_iso = datetime.fromtimestamp(pub_time, tz=timezone.utc).isoformat() if pub_time else now_iso()
+                    publisher = item.get("publisher") or "Financial News"
+
+                    raw_sum = item.get("summary") or item.get("description")
+                    summary = raw_sum.strip() if raw_sum else f"Live reporting and market developments on {q}."
+
+                    if not thumb_url:
+                        thumb_url = resolve_topic_fallback_image(title, summary, publisher)
+
+                    related = item.get("relatedTickers") or []
+                    articles.append({
+                        "title": title,
+                        "summary": summary[:500],
+                        "link": link,
+                        "publisher": publisher,
+                        "thumbnail_url": thumb_url,
+                        "content_type": "STORY",
+                        "published_at": pub_iso,
+                        "_related_tickers": related,
+                    })
+        except Exception:
+            pass
+
+    return articles
 
 def fetch_rss_news():
     import re
+    import html
     import xml.etree.ElementTree as ET
 
     feeds = [
-        ("Economic Times", "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms"),
         ("Moneycontrol", "https://www.moneycontrol.com/rss/MCtopnews.xml"),
-        ("Yahoo Finance", "https://finance.yahoo.com/news/rssindex"),
+        ("Economic Times", "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms"),
     ]
     articles = []
 
     for pub, url in feeds:
-        req = urllib.request.Request(url, headers={"User-Agent": "AlphaJournal/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (AlphaJournal-Sync/1.0)"})
         try:
             with urllib.request.urlopen(req, timeout=12) as resp:
                 xml_data = resp.read()
                 root = ET.fromstring(xml_data)
-                for item in root.findall(".//item")[:15]:
+                for item in root.findall(".//item")[:20]:
                     title_elem = item.find("title")
                     link_elem = item.find("link")
                     desc_elem = item.find("description")
@@ -490,8 +604,25 @@ def fetch_rss_news():
 
                     title = (title_elem.text or "").strip() if title_elem is not None else ""
                     link = (link_elem.text or "").strip() if link_elem is not None else ""
-                    summary = (desc_elem.text or "").strip() if desc_elem is not None else title
-                    summary = re.sub(r"<[^>]+>", "", summary).strip()
+                    raw_desc = (desc_elem.text or "").strip() if desc_elem is not None else title
+
+                    unescaped_desc = html.unescape(raw_desc)
+                    # Extract image from HTML description if present
+                    img_match = re.search(r"<img[^>]+src=[\"']([^\"']+)[\"']", unescaped_desc, re.I)
+                    thumb_url = img_match.group(1) if img_match else None
+
+                    # Also inspect enclosure or media tags
+                    if not thumb_url:
+                        encl = item.find("enclosure")
+                        if encl is not None and encl.attrib.get("url"):
+                            thumb_url = encl.attrib.get("url")
+
+                    summary = re.sub(r"<[^>]+>", "", unescaped_desc).strip()
+                    if not summary:
+                        summary = title
+
+                    if not thumb_url:
+                        thumb_url = resolve_topic_fallback_image(title, summary, pub)
 
                     if title and link:
                         articles.append({
@@ -499,9 +630,10 @@ def fetch_rss_news():
                             "summary": summary[:400],
                             "link": link,
                             "publisher": pub,
-                            "thumbnail_url": None,
+                            "thumbnail_url": thumb_url,
                             "content_type": "STORY",
                             "published_at": now_iso(),
+                            "_related_tickers": [],
                         })
         except Exception as e:
             print(f"  [news] RSS fetch skipped for {pub}: {e}")
@@ -510,31 +642,83 @@ def fetch_rss_news():
 
 
 def sync_news(known_symbols):
-    print("[pipeline] Step 4: Fetching & syncing live financial news...")
-    articles = fetch_rss_news()
-    if not articles:
+    print("[pipeline] Step 4: Fetching & syncing live financial news with rich thumbnails...")
+    yahoo_articles = fetch_yahoo_finance_news()
+    rss_articles = fetch_rss_news()
+
+    combined = []
+    seen_links = set()
+    for art in (yahoo_articles + rss_articles):
+        link = art["link"]
+        if link not in seen_links:
+            seen_links.add(link)
+            combined.append(art)
+
+    if not combined:
+        print("  [news] No new articles fetched.")
         return
 
-    supabase_upsert("news_articles", articles, on_conflict="link")
+    # Extract _related_tickers before upserting into news_articles table
+    ticker_links_raw = []
+    articles_for_db = []
+    for art in combined:
+        related = art.pop("_related_tickers", [])
+        articles_for_db.append(art)
+        if related:
+            ticker_links_raw.append((art["link"], related))
+
+    supabase_upsert("news_articles", articles_for_db, on_conflict="link")
+    print(f"  [news] Upserted {len(articles_for_db)} news articles with thumbnails into database")
 
     # Link articles to mentioned tickers
-    db_articles = supabase_request("GET", "news_articles?select=id,title,summary&limit=100") or []
+    db_articles = supabase_request("GET", "news_articles?select=id,title,summary,link&limit=250") or []
     ticker_links = []
     symbol_set = set(known_symbols)
+    link_to_id = {a.get("link"): a.get("id") for a in db_articles if a.get("link") and a.get("id")}
 
+    # Add Yahoo direct related tickers
+    for art_link, rel_tickers in ticker_links_raw:
+        art_id = link_to_id.get(art_link)
+        if art_id:
+            for t in rel_tickers:
+                clean_t = t.replace("^", "").strip()
+                if clean_t:
+                    ticker_links.append({
+                        "article_id": art_id,
+                        "ticker": clean_t,
+                    })
+
+    # Add keyword-matched symbols
     for art in db_articles:
         text = f"{art.get('title', '')} {art.get('summary', '')}".upper()
+        art_id = art["id"]
         for sym in symbol_set:
-            clean_sym = sym.replace(".NS", "").replace("-USD", "")
+            clean_sym = sym.replace(".NS", "").replace("-USD", "").replace("^", "")
             if len(clean_sym) >= 3 and f" {clean_sym} " in f" {text} ":
                 ticker_links.append({
-                    "article_id": art["id"],
+                    "article_id": art_id,
                     "ticker": sym,
                 })
 
     if ticker_links:
-        supabase_upsert("news_article_tickers", ticker_links, on_conflict="article_id,ticker")
-        print(f"  [news] Linked {len(ticker_links)} ticker-news associations")
+        # Validate against known tickers to ensure foreign key constraint
+        valid_tickers = {t["ticker"] for t in (supabase_request("GET", "tickers?select=ticker&limit=2000") or [])}
+
+        # Deduplicate and validate
+        unique_links = []
+        seen_pairs = set()
+        for tl in ticker_links:
+            ticker = tl["ticker"]
+            if ticker not in valid_tickers:
+                continue
+            pair = (tl["article_id"], ticker)
+            if pair not in seen_pairs:
+                seen_pairs.add(pair)
+                unique_links.append(tl)
+
+        if unique_links:
+            supabase_upsert("news_article_tickers", unique_links, on_conflict="article_id,ticker")
+            print(f"  [news] Linked {len(unique_links)} ticker-news associations")
 
 
 # ---------------------------------------------------------------------------

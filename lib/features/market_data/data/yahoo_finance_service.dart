@@ -599,18 +599,46 @@ class YahooFinanceService {
                     : DateTime.now();
 
                 String? thumb;
-                final thumbs = raw['thumbnail']?['resolutions'];
-                if (thumbs is List && thumbs.isNotEmpty) {
-                  thumb = thumbs.first?['url'] as String?;
+                if (raw['thumbnail_url'] is String &&
+                    (raw['thumbnail_url'] as String).isNotEmpty) {
+                  thumb = raw['thumbnail_url'] as String;
+                } else if (raw['thumbnail'] is Map) {
+                  final thumbMap = raw['thumbnail'] as Map;
+                  if (thumbMap['originalUrl'] is String &&
+                      (thumbMap['originalUrl'] as String).isNotEmpty) {
+                    thumb = thumbMap['originalUrl'] as String;
+                  } else if (thumbMap['url'] is String &&
+                      (thumbMap['url'] as String).isNotEmpty) {
+                    thumb = thumbMap['url'] as String;
+                  }
+                  final thumbs = thumbMap['resolutions'];
+                  if (thumb == null && thumbs is List && thumbs.isNotEmpty) {
+                    final orig = thumbs.firstWhere(
+                      (r) => r is Map && r['tag'] == 'original',
+                      orElse: () => null,
+                    );
+                    if (orig is Map && orig['url'] is String) {
+                      thumb = orig['url'] as String;
+                    } else if (thumbs.first is Map &&
+                        thumbs.first['url'] is String) {
+                      thumb = thumbs.first['url'] as String;
+                    }
+                  }
                 }
 
                 final tickers = (raw['relatedTickers'] as List? ?? [])
                     .whereType<String>()
                     .toList();
 
-                final summary = tickers.isNotEmpty
-                    ? 'Latest reporting on ${tickers.join(", ")} market developments and earnings outlook.'
-                    : 'Market coverage from $publisher on equities and economic trends.';
+                final rawSummary =
+                    (raw['summary'] ?? raw['description'] ?? raw['snippet'])
+                        as String?;
+                final summary =
+                    (rawSummary != null && rawSummary.trim().isNotEmpty)
+                    ? rawSummary.trim()
+                    : (tickers.isNotEmpty
+                        ? 'Latest reporting on ${tickers.join(", ")} market developments and earnings outlook.'
+                        : 'Market coverage from $publisher on equities and economic trends.');
 
                 if (title.isNotEmpty) {
                   articles.add(
