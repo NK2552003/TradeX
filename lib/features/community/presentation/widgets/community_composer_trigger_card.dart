@@ -95,48 +95,53 @@ class CommunityComposerTriggerCard extends StatelessWidget {
           UiGap.v(theme.spacing.sm),
 
           // 2. Bottom Row Action Options (Trade Setup, Thesis, Photo/Chart, Article)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                _TriggerOption(
-                  icon: Icons.candlestick_chart_rounded,
-                  label: 'Trade Setup',
-                  iconColor: const Color(0xFF10B981), // Emerald
-                  onTap: () => onTap(ComposerMode.tradeSetup),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: <Widget>[
+                      _TriggerOption(
+                        icon: Icons.candlestick_chart_rounded,
+                        label: 'Trade Setup',
+                        iconColor: const Color(0xFF10B981), // Emerald
+                        onTap: () => onTap(ComposerMode.tradeSetup),
+                      ),
+                      UiGap.h(theme.spacing.xs),
+                      _TriggerOption(
+                        icon: Icons.trending_up_rounded,
+                        label: 'Market Thesis',
+                        iconColor: const Color(0xFF3B82F6), // Blue
+                        onTap: () => onTap(ComposerMode.post),
+                      ),
+                      UiGap.h(theme.spacing.xs),
+                      _TriggerOption(
+                        icon: Icons.photo_outlined,
+                        label: 'Chart / Media',
+                        iconColor: const Color(0xFFF59E0B), // Amber
+                        onTap: () => onTap(ComposerMode.chart),
+                      ),
+                      UiGap.h(theme.spacing.xs),
+                      _TriggerOption(
+                        icon: Icons.article_outlined,
+                        label: 'Write Article',
+                        iconColor: const Color(0xFF8B5CF6), // Purple
+                        onTap: () => onTap(ComposerMode.attachment),
+                      ),
+                    ],
+                  ),
                 ),
-                UiGap.h(theme.spacing.xs),
-                _TriggerOption(
-                  icon: Icons.trending_up_rounded,
-                  label: 'Market Thesis',
-                  iconColor: const Color(0xFF3B82F6), // Blue
-                  onTap: () => onTap(ComposerMode.post),
-                ),
-                UiGap.h(theme.spacing.xs),
-                _TriggerOption(
-                  icon: Icons.photo_outlined,
-                  label: 'Chart / Media',
-                  iconColor: const Color(0xFFF59E0B), // Amber
-                  onTap: () => onTap(ComposerMode.chart),
-                ),
-                UiGap.h(theme.spacing.xs),
-                _TriggerOption(
-                  icon: Icons.article_outlined,
-                  label: 'Write Article',
-                  iconColor: const Color(0xFF8B5CF6), // Purple
-                  onTap: () => onTap(ComposerMode.attachment),
-                ),
-                UiGap.h(theme.spacing.sm),
-                UiButton(
-                  label: 'Post',
-                  size: UiSize.xs,
-                  intent: UiIntent.primary,
-                  onPressed: () => onTap(ComposerMode.post),
-                ),
-              ],
-            ),
+              ),
+              UiGap.h(theme.spacing.sm),
+              UiButton(
+                label: 'Post',
+                size: UiSize.xs,
+                intent: UiIntent.primary,
+                onPressed: () => onTap(ComposerMode.post),
+              ),
+            ],
           ),
         ],
       ),
