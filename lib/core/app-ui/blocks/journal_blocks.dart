@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../flutter-ui/flutter_ui.dart';
+import '../../markdown_kit/markdown_preview.dart';
 import '../cards/journal_cards.dart';
 import '../cards/strategy_cards.dart';
 import '../models/app_models.dart';
@@ -275,6 +276,9 @@ class AppTradeDetailBlock extends StatelessWidget {
       ),
     );
 
+    final String noteData = trade.content.isNotEmpty
+        ? trade.content
+        : (trade.notes ?? '');
     final Widget notes = UiCard(
       title: 'Notes',
       trailing: onEdit == null
@@ -284,16 +288,14 @@ class AppTradeDetailBlock extends StatelessWidget {
               size: UiSize.sm,
               onPressed: onEdit,
             ),
-      child: Text(
-        trade.notes?.isNotEmpty == true
-            ? trade.notes!
-            : 'No notes for this trade yet.',
-        style: context.uiText.body.copyWith(
-          color: trade.notes?.isNotEmpty == true
-              ? theme.colors.foreground
-              : theme.colors.foregroundMuted,
-        ),
-      ),
+      child: noteData.isNotEmpty
+          ? RichMarkdownPreview(data: noteData)
+          : Text(
+              'No notes for this trade yet.',
+              style: context.uiText.body.copyWith(
+                color: theme.colors.foregroundMuted,
+              ),
+            ),
     );
 
     final List<Widget> left = <Widget>[

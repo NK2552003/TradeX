@@ -405,11 +405,12 @@ class JournalRepositoryImpl implements JournalRepository {
         : null;
 
     final String content = row['content'] as String? ?? '';
-    final String notes =
-        row['psychology'] as String? ??
-        (row['mistakes_made'] as String?) ??
-        (row['lessons_learned'] as String?) ??
-        content;
+    final String? psychology = row['psychology'] as String?;
+    final String? mistakes = row['mistakes_made'] as String?;
+    final String? lessons = row['lessons_learned'] as String?;
+    final String? notesField = (row['notes'] ?? row['summary']) as String?;
+    final String? notes =
+        notesField ?? psychology ?? mistakes ?? lessons;
 
     return AppTrade(
       id: row['id']?.toString() ?? '',

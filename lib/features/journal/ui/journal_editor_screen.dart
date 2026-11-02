@@ -167,7 +167,11 @@ class JournalEditorScreenState extends State<JournalEditorScreen> {
     _title.text = _entry.title;
     _body.text = _entry.content;
     _preview.value = _entry.content;
-    _summary.text = _entry.notes ?? '';
+    final String entryNotes = (_entry.notes ?? '').trim();
+    final String entryContent = _entry.content.trim();
+    _summary.text = (entryNotes.isNotEmpty && entryNotes != entryContent)
+        ? entryNotes
+        : '';
     _ticker.text = _entry.ticker;
     // A zero entry price is what a template hands over, and '0' in the field
     // reads as a price somebody meant. Blank reads as "not filled in yet".

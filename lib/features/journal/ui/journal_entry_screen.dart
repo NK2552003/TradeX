@@ -656,7 +656,17 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
 
   Widget _document(BuildContext context) {
     final UiTheme theme = context.ui;
-    final String summary = (_entry.notes ?? '').trim();
+    final String storyData = _entry.content.trim().isNotEmpty
+        ? _entry.content.trim()
+        : (_entry.notes ?? '').trim();
+    final bool hasBody = storyData.isNotEmpty;
+
+    final String explicitTakeaway =
+        (_entry.notes != null &&
+         _entry.notes!.trim().isNotEmpty &&
+         _entry.notes!.trim() != _entry.content.trim())
+            ? _entry.notes!.trim()
+            : '';
 
     return UiCard(
       variant: UiCardVariant.ghost,
@@ -669,19 +679,18 @@ class _JournalEntryScreenState extends State<JournalEntryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          if (summary.isNotEmpty) ...<Widget>[
-            Text(
-              summary,
-              style: context.uiText.body.copyWith(
-                color: theme.colors.foregroundMuted,
-                fontStyle: FontStyle.italic,
-              ),
+          if (explicitTakeaway.isNotEmpty) ...<Widget>[
+            UiCallout(
+              title: 'Key Takeaway',
+              message: explicitTakeaway,
+              intent: UiIntent.primary,
+              icon: Icons.lightbulb_outline_rounded,
             ),
             SizedBox(height: context.sp(theme.spacing.md)),
           ],
-          if (_entry.hasStory)
+          if (hasBody)
             RichMarkdownPreview(
-              data: _entry.content,
+              data: storyData,
               outlineController: _outline,
               imageResolver: JournalAttachments.resolve,
               emptyPlaceholder: 'This entry has no write-up yet.',

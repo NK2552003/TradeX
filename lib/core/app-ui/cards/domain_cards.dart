@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../flutter-ui/flutter_ui.dart';
 import '../models/app_models.dart';
 import '../theme/app_tokens.dart';
+import 'notes_cards.dart';
 
 /// 1. PortfolioSummaryCard — Net worth, PnL, cash balance, and daily gain summary card.
 class PortfolioSummaryCard extends StatelessWidget {
@@ -680,7 +681,7 @@ class JournalEntryCard extends StatelessWidget {
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
           Text(
-            notes,
+            markdownToPlainText(notes),
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
             style: context.uiText.body.copyWith(

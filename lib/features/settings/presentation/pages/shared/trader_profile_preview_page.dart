@@ -3390,7 +3390,9 @@ class _JournalTradeCard extends StatelessWidget {
 
           SizedBox(height: context.sp(theme.spacing.sm)),
           Text(
-            notes,
+            markdownToPlainText(notes),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
             style: context.uiText.body.copyWith(
               fontSize: context.fs(13),
               height: 1.4,
@@ -3637,7 +3639,9 @@ class _NotePlaybookCard extends StatelessWidget {
           ),
           SizedBox(height: context.sp(theme.spacing.sm)),
           Text(
-            summary,
+            markdownToPlainText(summary),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
             style: context.uiText.body.copyWith(
               height: 1.45,
               fontSize: context.fs(13.5),
