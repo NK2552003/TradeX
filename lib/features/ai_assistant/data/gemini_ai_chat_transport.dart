@@ -85,7 +85,12 @@ class GeminiAiChatTransport implements AiChatTransport {
             controller.close();
             return;
           }
-          // Provide dynamic fallback text on unhandled error
+          if (EnvConfig.hasAiKey || !CustomerDataPolicy.allowDemo) {
+            controller.addError(e);
+            controller.close();
+            return;
+          }
+          // Provide dynamic fallback text on unhandled error in demo mode
           controller.add(
             '\n\n${UnifiedAiService.generateLocalTradingAnalysis(prompt: messages.isNotEmpty ? messages.last.body : 'Market Analysis', persona: persona)}',
           );

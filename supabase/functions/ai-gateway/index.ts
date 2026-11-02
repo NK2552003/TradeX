@@ -24,6 +24,7 @@ async function generate(
     { provider: 'openrouter', key: env('OPENROUTER_API_KEY'), model: env('OPENROUTER_MODEL') || 'openrouter/free', url: 'https://openrouter.ai/api/v1/chat/completions' },
     { provider: 'gemini', key: env('GEMINI_API_KEY'), model: env('GEMINI_MODEL') || 'gemini-2.5-flash', url: '' },
     { provider: 'openai', key: env('OPENAI_API_KEY') ?? env('OPEN_AI_KEY'), model: env('OPENAI_MODEL') || 'gpt-4.1-mini', url: 'https://api.openai.com/v1/chat/completions' },
+    { provider: 'openai', key: env('OPENAI_API_KEY') ?? env('OPEN_AI_KEY'), model: 'gpt-4o-mini', url: 'https://api.openai.com/v1/chat/completions' },
     { provider: 'anthropic', key: env('CLAUDE_API_KEY'), model: env('CLAUDE_MODEL') || 'claude-sonnet-4-5', url: 'https://api.anthropic.com/v1/messages' },
   ];
   for (const candidate of candidates) {

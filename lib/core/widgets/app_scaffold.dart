@@ -1368,11 +1368,12 @@ class _AppScaffoldState extends State<AppScaffold> {
     ),
     'admin_messages' ||
     'messages' => const AdminRecordsPage(resource: AdminResource.messages),
-    'admin_ai' || 'ai_copilot' => const AdminRecordsPage(
+    'admin_ai' => const AdminRecordsPage(
       resource: AdminResource.ai,
       resources: [AdminResource.ai, AdminResource.aiRequests],
       title: 'AI control',
     ),
+    'ai_copilot' => _aiAssistantPage(),
     _ => _unknownPage(),
   };
 

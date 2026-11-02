@@ -444,7 +444,7 @@ class UnifiedAiService {
     final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
     final formattedMessages = <Map<String, String>>[
       {'role': 'system', 'content': systemPrompt},
-      for (final m in messages.take(15))
+      for (final m in messages.skip((messages.length - 15).clamp(0, messages.length)))
         {
           'role': m.role == AppAiRole.user ? 'user' : 'assistant',
           'content': m.body,
@@ -513,7 +513,7 @@ class UnifiedAiService {
 
       final contents = <Map<String, dynamic>>[];
       if (messages != null && messages.isNotEmpty) {
-        for (final m in messages.take(15)) {
+        for (final m in messages.skip((messages.length - 15).clamp(0, messages.length))) {
           contents.add({
             'role': m.role == AppAiRole.user ? 'user' : 'model',
             'parts': [
@@ -623,7 +623,7 @@ class UnifiedAiService {
     final formattedMessages = <Map<String, dynamic>>[
       if (systemPrompt != null && systemPrompt.trim().isNotEmpty)
         {'role': 'system', 'content': systemPrompt.trim()},
-      for (final m in messages.take(15))
+      for (final m in messages.skip((messages.length - 15).clamp(0, messages.length)))
         {
           'role': m.role == AppAiRole.user ? 'user' : 'assistant',
           'content': m.body,
@@ -648,6 +648,10 @@ class UnifiedAiService {
 
         final streamedResponse = await client.send(request);
         if (streamedResponse.statusCode != 200) {
+          final errBody = await streamedResponse.stream.bytesToString();
+          debugPrint(
+            '[UnifiedAiService] OpenAI streaming ($model) failed (${streamedResponse.statusCode}): $errBody',
+          );
           continue;
         }
 
