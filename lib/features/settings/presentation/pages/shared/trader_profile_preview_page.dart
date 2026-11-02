@@ -67,10 +67,25 @@ class TraderProfilePreviewPage extends StatefulWidget {
     this.primaryMarket,
     this.topStrategy,
     this.riskMantra,
+    this.experienceLevel,
+    this.tradingStyle,
+    this.publicStats = true,
+    this.publicJournals = true,
     this.referralCode,
     this.channelHandle,
     this.audienceReach,
     this.payoutMethod,
+    this.niche,
+    this.sampleLink,
+    this.phoneNumber,
+    this.deskDivision,
+    this.adminClearanceLevel,
+    this.adminDesignation,
+    this.adminSupervisedCapital,
+    this.adminTerminalUrl,
+    this.adminKillswitchEnabled = true,
+    this.adminPreTradeVaREnabled = true,
+    this.adminAuditHashingEnabled = true,
     this.repository,
     this.author,
     this.onPostTap,
@@ -91,10 +106,25 @@ class TraderProfilePreviewPage extends StatefulWidget {
   final String? primaryMarket;
   final String? topStrategy;
   final String? riskMantra;
+  final String? experienceLevel;
+  final String? tradingStyle;
+  final bool publicStats;
+  final bool publicJournals;
   final String? referralCode;
   final String? channelHandle;
   final String? audienceReach;
   final String? payoutMethod;
+  final String? niche;
+  final String? sampleLink;
+  final String? phoneNumber;
+  final String? deskDivision;
+  final String? adminClearanceLevel;
+  final String? adminDesignation;
+  final String? adminSupervisedCapital;
+  final String? adminTerminalUrl;
+  final bool adminKillswitchEnabled;
+  final bool adminPreTradeVaREnabled;
+  final bool adminAuditHashingEnabled;
   final CommunityRepository? repository;
   final CommunityAuthor? author;
   final ValueChanged<CommunityPost>? onPostTap;
@@ -120,6 +150,8 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
   String? _livePrimaryMarket;
   String? _liveTopStrategy;
   String? _liveRiskMantra;
+  String? _liveExperienceLevel;
+  String? _liveTradingStyle;
   double? _liveWinRate;
   int _liveFollowers = 0;
   int _liveFollowing = 0;
@@ -132,11 +164,14 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
   int _selectedFilterIndex = 0;
 
   String get _cleanHandle {
+    if (widget.handle.trim().isNotEmpty) {
+      return widget.handle.replaceFirst(RegExp(r'^@+'), '').trim();
+    }
     final raw = (_liveHandle?.trim().isNotEmpty == true)
         ? _liveHandle!
         : (widget.author?.handle.trim().isNotEmpty == true
             ? widget.author!.handle
-            : widget.handle);
+            : 'trader');
     return raw.replaceFirst(RegExp(r'^@+'), '').trim();
   }
 
@@ -171,25 +206,39 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
 
     if (widget.isCurrentUser) {
       final cp = ProfileSettingsRepositoryImpl.instance.cachedProfile;
-      if (cp.displayName.isNotEmpty && cp.displayName != 'Your account') {
+      if (widget.displayName.isEmpty && cp.displayName.isNotEmpty && cp.displayName != 'Your account') {
         _liveDisplayName = cp.displayName;
       }
-      if (cp.handle.isNotEmpty) _liveHandle = cp.handle;
-      if (cp.bio?.isNotEmpty == true) _liveBio = cp.bio;
-      if (cp.avatarUrl?.isNotEmpty == true) _liveAvatarUrl = cp.avatarUrl;
-      if (cp.location?.isNotEmpty == true) _liveLocation = cp.location;
-      if (cp.website?.isNotEmpty == true) _liveWebsite = cp.website;
-      if (cp.avgHoldDuration?.isNotEmpty == true) {
+      if (widget.handle.isEmpty && cp.handle.isNotEmpty) _liveHandle = cp.handle;
+      if ((widget.bio == null || widget.bio!.isEmpty) && cp.bio?.isNotEmpty == true) {
+        _liveBio = cp.bio;
+      }
+      if ((widget.avatarUrl == null || widget.avatarUrl!.isEmpty) && cp.avatarUrl?.isNotEmpty == true) {
+        _liveAvatarUrl = cp.avatarUrl;
+      }
+      if ((widget.location == null || widget.location!.isEmpty) && cp.location?.isNotEmpty == true) {
+        _liveLocation = cp.location;
+      }
+      if ((widget.website == null || widget.website!.isEmpty) && cp.website?.isNotEmpty == true) {
+        _liveWebsite = cp.website;
+      }
+      if ((widget.avgHoldDuration == null || widget.avgHoldDuration!.isEmpty) && cp.avgHoldDuration?.isNotEmpty == true) {
         _liveAvgHoldDuration = cp.avgHoldDuration;
       }
-      if (cp.primaryMarket?.isNotEmpty == true) {
+      if ((widget.primaryMarket == null || widget.primaryMarket!.isEmpty) && cp.primaryMarket?.isNotEmpty == true) {
         _livePrimaryMarket = cp.primaryMarket;
       }
-      if (cp.topStrategy?.isNotEmpty == true) {
+      if ((widget.topStrategy == null || widget.topStrategy!.isEmpty) && cp.topStrategy?.isNotEmpty == true) {
         _liveTopStrategy = cp.topStrategy;
       }
-      if (cp.riskMantra?.isNotEmpty == true) {
+      if ((widget.riskMantra == null || widget.riskMantra!.isEmpty) && cp.riskMantra?.isNotEmpty == true) {
         _liveRiskMantra = cp.riskMantra;
+      }
+      if ((widget.experienceLevel == null || widget.experienceLevel!.isEmpty) && cp.experienceLevel?.isNotEmpty == true) {
+        _liveExperienceLevel = cp.experienceLevel;
+      }
+      if ((widget.tradingStyle == null || widget.tradingStyle!.isEmpty) && cp.tradingStyle?.isNotEmpty == true) {
+        _liveTradingStyle = cp.tradingStyle;
       }
     }
     _loadLiveTraderData();
@@ -286,16 +335,42 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           : targetId;
 
       if (profileRow != null) {
-        _liveDisplayName = profileRow['display_name'] as String?;
-        _liveHandle = profileRow['handle'] as String?;
-        _liveBio = profileRow['bio'] as String?;
-        _liveAvatarUrl = profileRow['avatar_url'] as String?;
-        _liveLocation = profileRow['location'] as String?;
-        _liveWebsite = profileRow['website'] as String?;
-        _liveAvgHoldDuration = profileRow['avg_hold_duration'] as String?;
-        _livePrimaryMarket = profileRow['primary_market'] as String?;
-        _liveTopStrategy = profileRow['top_strategy'] as String?;
-        _liveRiskMantra = profileRow['risk_mantra'] as String?;
+        if (_liveDisplayName == null && widget.displayName.isEmpty) {
+          _liveDisplayName = profileRow['display_name'] as String?;
+        }
+        if (_liveHandle == null && widget.handle.isEmpty) {
+          _liveHandle = profileRow['handle'] as String?;
+        }
+        if (_liveBio == null && (widget.bio == null || widget.bio!.isEmpty)) {
+          _liveBio = profileRow['bio'] as String?;
+        }
+        if (_liveAvatarUrl == null && (widget.avatarUrl == null || widget.avatarUrl!.isEmpty)) {
+          _liveAvatarUrl = profileRow['avatar_url'] as String?;
+        }
+        if (_liveLocation == null && (widget.location == null || widget.location!.isEmpty)) {
+          _liveLocation = profileRow['location'] as String?;
+        }
+        if (_liveWebsite == null && (widget.website == null || widget.website!.isEmpty)) {
+          _liveWebsite = profileRow['website'] as String?;
+        }
+        if (_liveAvgHoldDuration == null && (widget.avgHoldDuration == null || widget.avgHoldDuration!.isEmpty)) {
+          _liveAvgHoldDuration = profileRow['avg_hold_duration'] as String?;
+        }
+        if (_livePrimaryMarket == null && (widget.primaryMarket == null || widget.primaryMarket!.isEmpty)) {
+          _livePrimaryMarket = profileRow['primary_market'] as String?;
+        }
+        if (_liveTopStrategy == null && (widget.topStrategy == null || widget.topStrategy!.isEmpty)) {
+          _liveTopStrategy = profileRow['top_strategy'] as String?;
+        }
+        if (_liveRiskMantra == null && (widget.riskMantra == null || widget.riskMantra!.isEmpty)) {
+          _liveRiskMantra = profileRow['risk_mantra'] as String?;
+        }
+        if (_liveExperienceLevel == null && (widget.experienceLevel == null || widget.experienceLevel!.isEmpty)) {
+          _liveExperienceLevel = profileRow['experience_level'] as String?;
+        }
+        if (_liveTradingStyle == null && (widget.tradingStyle == null || widget.tradingStyle!.isEmpty)) {
+          _liveTradingStyle = profileRow['trading_style'] as String?;
+        }
         _liveVerified = profileRow['verified'] as bool?;
 
         final roleStr = profileRow['role'] as String?;
@@ -451,59 +526,73 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         ? UserRole.customer
         : (_liveRole ?? widget.userRole);
 
-    final String effectiveDisplayName = (_liveDisplayName?.trim().isNotEmpty == true)
-        ? _liveDisplayName!
-        : (widget.displayName.trim().isNotEmpty
-            ? widget.displayName
-            : (widget.author?.displayName ?? 'Trader'));
+    final String effectiveDisplayName = widget.displayName.trim().isNotEmpty
+        ? widget.displayName.trim()
+        : ((_liveDisplayName?.trim().isNotEmpty == true)
+            ? _liveDisplayName!
+            : (widget.author?.displayName.trim().isNotEmpty == true
+                ? widget.author!.displayName.trim()
+                : 'Trader'));
 
-    final String? effectiveAvatarUrl = (_liveAvatarUrl?.trim().isNotEmpty == true)
-        ? _liveAvatarUrl
-        : (widget.avatarUrl?.trim().isNotEmpty == true
-            ? widget.avatarUrl
+    final String? effectiveAvatarUrl = widget.avatarUrl?.trim().isNotEmpty == true
+        ? widget.avatarUrl!.trim()
+        : ((_liveAvatarUrl?.trim().isNotEmpty == true)
+            ? _liveAvatarUrl
             : widget.author?.avatarUrl);
 
     final bool effectiveVerified = _liveVerified ?? widget.author?.verified ?? true;
 
-    final String? effectiveLocation = (_liveLocation?.trim().isNotEmpty == true)
-        ? _liveLocation
-        : (widget.location?.trim().isNotEmpty == true
-            ? widget.location
+    final String? effectiveLocation = widget.location?.trim().isNotEmpty == true
+        ? widget.location!.trim()
+        : ((_liveLocation?.trim().isNotEmpty == true)
+            ? _liveLocation
             : widget.author?.location);
 
-    final String? effectiveWebsite = (_liveWebsite?.trim().isNotEmpty == true)
-        ? _liveWebsite
-        : (widget.website?.trim().isNotEmpty == true
-            ? widget.website
+    final String? effectiveWebsite = widget.website?.trim().isNotEmpty == true
+        ? widget.website!.trim()
+        : ((_liveWebsite?.trim().isNotEmpty == true)
+            ? _liveWebsite
             : widget.author?.website);
 
     final String? effectiveJoined = (_liveJoinedDate?.trim().isNotEmpty == true)
         ? _liveJoinedDate
         : widget.author?.joinedDate;
 
-    final String? effectiveHold = (_liveAvgHoldDuration?.trim().isNotEmpty == true)
-        ? _liveAvgHoldDuration
-        : (widget.avgHoldDuration?.trim().isNotEmpty == true
-            ? widget.avgHoldDuration
+    final String? effectiveHold = widget.avgHoldDuration?.trim().isNotEmpty == true
+        ? widget.avgHoldDuration!.trim()
+        : ((_liveAvgHoldDuration?.trim().isNotEmpty == true)
+            ? _liveAvgHoldDuration
             : widget.author?.avgHoldDuration);
 
-    final String? effectiveMarket = (_livePrimaryMarket?.trim().isNotEmpty == true)
-        ? _livePrimaryMarket
-        : (widget.primaryMarket?.trim().isNotEmpty == true
-            ? widget.primaryMarket
+    final String? effectiveMarket = widget.primaryMarket?.trim().isNotEmpty == true
+        ? widget.primaryMarket!.trim()
+        : ((_livePrimaryMarket?.trim().isNotEmpty == true)
+            ? _livePrimaryMarket
             : widget.author?.primaryMarket);
 
-    final String? effectiveStrategy = (_liveTopStrategy?.trim().isNotEmpty == true)
-        ? _liveTopStrategy
-        : (widget.topStrategy?.trim().isNotEmpty == true
-            ? widget.topStrategy
+    final String? effectiveStrategy = widget.topStrategy?.trim().isNotEmpty == true
+        ? widget.topStrategy!.trim()
+        : ((_liveTopStrategy?.trim().isNotEmpty == true)
+            ? _liveTopStrategy
             : widget.author?.tradingStyle);
 
-    final String? effectiveRiskMantra = (_liveRiskMantra?.trim().isNotEmpty == true)
-        ? _liveRiskMantra
-        : (widget.riskMantra?.trim().isNotEmpty == true
-            ? widget.riskMantra
+    final String? effectiveRiskMantra = widget.riskMantra?.trim().isNotEmpty == true
+        ? widget.riskMantra!.trim()
+        : ((_liveRiskMantra?.trim().isNotEmpty == true)
+            ? _liveRiskMantra
             : widget.author?.riskMantra);
+
+    final String? effectiveExperience = widget.experienceLevel?.trim().isNotEmpty == true
+        ? widget.experienceLevel!.trim()
+        : ((_liveExperienceLevel?.trim().isNotEmpty == true)
+            ? _liveExperienceLevel
+            : widget.author?.experienceLevel);
+
+    final String? effectiveStyle = widget.tradingStyle?.trim().isNotEmpty == true
+        ? widget.tradingStyle!.trim()
+        : ((_liveTradingStyle?.trim().isNotEmpty == true)
+            ? _liveTradingStyle
+            : widget.author?.tradingStyle);
 
     final double? effectiveWinRate = _liveWinRate ??
         (widget.author?.winRate != null
@@ -534,10 +623,10 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
       UserRole.userAdmin => 'DESK SUPERADMIN · ROOT',
     };
 
-    final String displayBio = _liveBio?.trim().isNotEmpty == true
-        ? _liveBio!
-        : (widget.bio?.trim().isNotEmpty == true
-            ? widget.bio!
+    final String displayBio = widget.bio?.trim().isNotEmpty == true
+        ? widget.bio!.trim()
+        : ((_liveBio?.trim().isNotEmpty == true)
+            ? _liveBio!
             : (widget.author?.bio?.trim().isNotEmpty == true
                 ? widget.author!.bio!
                 : (isAdmin
@@ -561,7 +650,16 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
         UiTabItem(
           label: 'Command Center',
           icon: Icons.terminal_rounded,
-          content: const _AdminCommandCenterPreview(),
+          content: _AdminCommandCenterPreview(
+            clearanceLevel: widget.adminClearanceLevel,
+            deskDivision: widget.deskDivision,
+            designation: widget.adminDesignation,
+            supervisedCapital: widget.adminSupervisedCapital,
+            terminalUrl: widget.adminTerminalUrl,
+            killswitchEnabled: widget.adminKillswitchEnabled,
+            preTradeVaREnabled: widget.adminPreTradeVaREnabled,
+            auditHashingEnabled: widget.adminAuditHashingEnabled,
+          ),
         ),
         UiTabItem(
           label: 'Risk & Audit Stream',
@@ -597,6 +695,11 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
           content: _AffiliateReferralPortalPreview(
             referralCode: widget.referralCode ?? 'TRADEX-PARTNER-2026',
             audienceReach: widget.audienceReach ?? '10,000 – 100,000',
+            niche: widget.niche ?? widget.primaryMarket,
+            payoutMethod: widget.payoutMethod,
+            sampleLink: widget.sampleLink,
+            channelHandle: widget.channelHandle,
+            phoneNumber: widget.phoneNumber,
           ),
         ),
         UiTabItem(
@@ -652,6 +755,7 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
             handle: _cleanHandle,
             onOpenRef: widget.onOpenRef,
             isCurrentUser: isSelf,
+            publicJournals: widget.publicJournals,
           ),
         ),
         UiTabItem(
@@ -1168,6 +1272,16 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                 variant: UiBadgeVariant.soft,
                                 size: UiSize.xs,
                               ),
+                              if (effectiveStyle != null &&
+                                  effectiveStyle.trim().isNotEmpty &&
+                                  !isAdmin &&
+                                  !isAffiliate)
+                                UiBadge(
+                                  label: effectiveStyle,
+                                  intent: UiIntent.success,
+                                  variant: UiBadgeVariant.soft,
+                                  size: UiSize.xs,
+                                ),
                             ],
                           ),
 
@@ -1200,29 +1314,48 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                             runSpacing: context.sp(theme.spacing.xs),
                             children: <Widget>[
                               if (isAdmin) ...[
-                                const _MetaItem(
+                                _MetaItem(
                                   icon: Icons.shield_rounded,
-                                  text: 'Clearance: Root Admin / L5',
+                                  text: widget.adminClearanceLevel?.isNotEmpty == true
+                                      ? 'Clearance: ${widget.adminClearanceLevel}'
+                                      : 'Clearance: Root Admin / L5',
                                 ),
                                 _MetaItem(
                                   icon: Icons.domain_rounded,
-                                  text:
-                                      effectiveStrategy?.trim().isNotEmpty ==
-                                          true
-                                      ? effectiveStrategy!
-                                      : 'Proprietary Trading Desk',
+                                  text: widget.deskDivision?.isNotEmpty == true
+                                      ? widget.deskDivision!
+                                      : (effectiveStrategy?.trim().isNotEmpty ==
+                                              true
+                                          ? effectiveStrategy!
+                                          : 'Proprietary Trading Desk'),
                                 ),
-                                const _MetaItem(
+                                if (widget.adminDesignation?.isNotEmpty == true)
+                                  _MetaItem(
+                                    icon: Icons.badge_outlined,
+                                    text: widget.adminDesignation!,
+                                  ),
+                                if (widget.adminSupervisedCapital?.isNotEmpty == true)
+                                  _MetaItem(
+                                    icon: Icons.account_balance_wallet_outlined,
+                                    text: 'Pool: ${widget.adminSupervisedCapital}',
+                                  ),
+                                _MetaItem(
                                   icon: Icons.security_rounded,
-                                  text: 'Audit Trail: Cryptographic SHA-256',
+                                  text: widget.adminAuditHashingEnabled
+                                      ? 'Audit Trail: Cryptographic SHA-256'
+                                      : 'Audit Trail: Standard Ledger',
                                 ),
-                                const _MetaItem(
+                                _MetaItem(
                                   icon: Icons.speed_rounded,
-                                  text: 'Engine Latency: Nominal Direct',
+                                  text: widget.adminPreTradeVaREnabled
+                                      ? 'Engine Latency: Nominal Direct'
+                                      : 'Engine Latency: Standard',
                                 ),
-                                const _MetaItem(
+                                _MetaItem(
                                   icon: Icons.terminal_rounded,
-                                  text: 'tradex.internal/root',
+                                  text: widget.adminTerminalUrl?.isNotEmpty == true
+                                      ? widget.adminTerminalUrl!
+                                      : 'tradex.internal/root',
                                   isLink: true,
                                 ),
                               ] else ...[
@@ -1238,34 +1371,67 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     icon: Icons.calendar_month_outlined,
                                     text: effectiveJoined,
                                   ),
-                                if (isAffiliate)
-                                  _MetaItem(
-                                    icon: Icons.link_rounded,
-                                    text:
-                                        'alphajournal/join/${widget.referralCode ?? _cleanHandle}',
-                                    isLink: true,
-                                  )
-                                else if (effectiveWebsite != null &&
-                                    effectiveWebsite.trim().isNotEmpty)
-                                  _MetaItem(
-                                    icon: Icons.link_rounded,
-                                    text: effectiveWebsite,
-                                    isLink: true,
-                                  ),
                                 if (isAffiliate) ...[
-                                  if (effectiveStrategy != null &&
-                                      effectiveStrategy.trim().isNotEmpty)
+                                  if (widget.referralCode?.isNotEmpty == true || _cleanHandle.isNotEmpty)
                                     _MetaItem(
-                                      icon: Icons.smart_display_outlined,
-                                      text: effectiveStrategy,
+                                      icon: Icons.link_rounded,
+                                      text:
+                                          'alphajournal/join/${widget.referralCode?.isNotEmpty == true ? widget.referralCode! : _cleanHandle}',
+                                      isLink: true,
                                     ),
-                                  if (widget.audienceReach?.trim().isNotEmpty ==
-                                      true)
+                                  if (widget.channelHandle?.isNotEmpty == true)
+                                    _MetaItem(
+                                      icon: Icons.alternate_email_rounded,
+                                      text: widget.channelHandle!.startsWith('@')
+                                          ? widget.channelHandle!
+                                          : '@${widget.channelHandle}',
+                                    ),
+                                  if (effectiveMarket != null && effectiveMarket.isNotEmpty)
+                                    _MetaItem(
+                                      icon: Icons.category_outlined,
+                                      text: effectiveMarket,
+                                    ),
+                                  if (widget.niche?.isNotEmpty == true && widget.niche != effectiveMarket)
+                                    _MetaItem(
+                                      icon: Icons.category_outlined,
+                                      text: widget.niche!,
+                                    ),
+                                  if (widget.audienceReach?.trim().isNotEmpty == true)
                                     _MetaItem(
                                       icon: Icons.groups_outlined,
                                       text: 'Reach: ${widget.audienceReach!}',
                                     ),
+                                  if (widget.payoutMethod?.isNotEmpty == true)
+                                    _MetaItem(
+                                      icon: Icons.payments_outlined,
+                                      text: 'Payout: ${widget.payoutMethod!}',
+                                    ),
+                                  if (widget.sampleLink?.isNotEmpty == true)
+                                    _MetaItem(
+                                      icon: Icons.play_circle_outline_rounded,
+                                      text: widget.sampleLink!,
+                                      isLink: true,
+                                    ),
                                 ] else ...[
+                                  if (effectiveWebsite != null &&
+                                      effectiveWebsite.trim().isNotEmpty)
+                                    _MetaItem(
+                                      icon: Icons.link_rounded,
+                                      text: effectiveWebsite,
+                                      isLink: true,
+                                    ),
+                                  if (effectiveExperience != null &&
+                                      effectiveExperience.trim().isNotEmpty)
+                                    _MetaItem(
+                                      icon: Icons.military_tech_outlined,
+                                      text: effectiveExperience,
+                                    ),
+                                  if (effectiveStyle != null &&
+                                      effectiveStyle.trim().isNotEmpty)
+                                    _MetaItem(
+                                      icon: Icons.psychology_outlined,
+                                      text: effectiveStyle,
+                                    ),
                                   if (effectiveHold != null &&
                                       effectiveHold.trim().isNotEmpty)
                                     _MetaItem(
@@ -1277,6 +1443,12 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     _MetaItem(
                                       icon: Icons.show_chart_rounded,
                                       text: effectiveMarket,
+                                    ),
+                                  if (effectiveStrategy != null &&
+                                      effectiveStrategy.trim().isNotEmpty)
+                                    _MetaItem(
+                                      icon: Icons.menu_book_outlined,
+                                      text: 'Top: $effectiveStrategy',
                                     ),
                                 ],
                               ],
@@ -1346,9 +1518,11 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             label: 'Public Posts',
                                           ),
                                           _SocialStat(
-                                            count: effectiveWinRate != null
-                                                ? '${effectiveWinRate.toStringAsFixed(1)}%'
-                                                : '--',
+                                            count: !widget.publicStats
+                                                ? 'Private'
+                                                : (effectiveWinRate != null
+                                                    ? '${effectiveWinRate.toStringAsFixed(1)}%'
+                                                    : '--'),
                                             label: 'Win Rate',
                                           ),
                                         ]),
@@ -1617,9 +1791,11 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                     }
 
                                     // Pro Trader / Customer view (The user's actual profile)
-                                    final String winRateStr = effectiveWinRate != null
-                                        ? '${effectiveWinRate.toStringAsFixed(1)}%'
-                                        : '--';
+                                    final String winRateStr = !widget.publicStats
+                                        ? 'Private'
+                                        : (effectiveWinRate != null
+                                            ? '${effectiveWinRate.toStringAsFixed(1)}%'
+                                            : '--');
                                     final String holdStr = effectiveHold != null && effectiveHold.trim().isNotEmpty
                                         ? effectiveHold
                                         : 'Not Set';
@@ -1640,9 +1816,11 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                             child: _KpiPill(
                                               label: 'Win Rate',
                                               value: winRateStr,
-                                              isPositive: effectiveWinRate != null
-                                                  ? effectiveWinRate >= 50.0
-                                                  : null,
+                                              isPositive: !widget.publicStats
+                                                  ? null
+                                                  : (effectiveWinRate != null
+                                                      ? effectiveWinRate >= 50.0
+                                                      : null),
                                             ),
                                           ),
                                           _buildKpiDivider(theme),
@@ -1689,9 +1867,11 @@ class _TraderProfilePreviewPageState extends State<TraderProfilePreviewPage> {
                                                 child: _KpiPill(
                                                   label: 'Win Rate',
                                                   value: winRateStr,
-                                                  isPositive: effectiveWinRate != null
-                                                      ? effectiveWinRate >= 50.0
-                                                      : null,
+                                                  isPositive: !widget.publicStats
+                                                      ? null
+                                                      : (effectiveWinRate != null
+                                                          ? effectiveWinRate >= 50.0
+                                                          : null),
                                                 ),
                                               ),
                                               Expanded(
@@ -2687,6 +2867,7 @@ class _PublicJournalPreview extends StatelessWidget {
     this.handle,
     this.onOpenRef,
     this.isCurrentUser = false,
+    this.publicJournals = true,
   });
 
   final int selectedFilter;
@@ -2695,10 +2876,31 @@ class _PublicJournalPreview extends StatelessWidget {
   final String? handle;
   final ValueChanged<AppLinkRef>? onOpenRef;
   final bool isCurrentUser;
+  final bool publicJournals;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
+
+    if (!publicJournals) {
+      final String cleanH =
+          (handle ?? '').replaceFirst(RegExp(r'^@+'), '').trim();
+      return Padding(
+        padding: EdgeInsets.symmetric(
+          vertical: context.sp(theme.spacing.xl),
+          horizontal: context.sp(theme.spacing.md),
+        ),
+        child: UiEmptyState(
+          icon: Icons.lock_outline_rounded,
+          title: isCurrentUser ? 'Public Journal Disabled' : 'Journal is Private',
+          message: isCurrentUser
+              ? 'You have disabled "Show verified trade logs in public journal" in Profile Settings. Other traders cannot see your trades.'
+              : (cleanH.isNotEmpty
+                  ? '@$cleanH has chosen to keep their journal entries private.'
+                  : 'This trader\'s journal entries are private.'),
+        ),
+      );
+    }
 
     return StreamBuilder<List<AppTrade>>(
       stream: isCurrentUser
@@ -3893,10 +4095,20 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
   const _AffiliateReferralPortalPreview({
     required this.referralCode,
     required this.audienceReach,
+    this.niche,
+    this.payoutMethod,
+    this.sampleLink,
+    this.channelHandle,
+    this.phoneNumber,
   });
 
   final String referralCode;
   final String audienceReach;
+  final String? niche;
+  final String? payoutMethod;
+  final String? sampleLink;
+  final String? channelHandle;
+  final String? phoneNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -3998,6 +4210,83 @@ class _AffiliateReferralPortalPreview extends StatelessWidget {
                   ),
                 ],
               ),
+            ],
+          ),
+        ),
+        SizedBox(height: context.sp(theme.spacing.md)),
+
+        // Partner Channel & Payout Configuration Card
+        UiCard(
+          title: 'Partner Verification & Settlement Rails',
+          subtitle:
+              'Active configuration for creator promotion and referral commission payouts',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Wrap(
+                spacing: context.sp(theme.spacing.lg),
+                runSpacing: context.sp(theme.spacing.sm),
+                children: <Widget>[
+                  if (channelHandle?.trim().isNotEmpty == true)
+                    _SocialStat(
+                      count: channelHandle!.startsWith('@')
+                          ? channelHandle!
+                          : '@$channelHandle',
+                      label: 'Channel Handle',
+                    ),
+                  if (niche?.trim().isNotEmpty == true)
+                    _SocialStat(
+                      count: niche!,
+                      label: 'Content Niche',
+                    ),
+                  _SocialStat(
+                    count: audienceReach,
+                    label: 'Audience Reach',
+                  ),
+                  if (payoutMethod?.trim().isNotEmpty == true)
+                    _SocialStat(
+                      count: payoutMethod!,
+                      label: 'Payout Rail',
+                    ),
+                  if (phoneNumber?.trim().isNotEmpty == true)
+                    _SocialStat(
+                      count: phoneNumber!,
+                      label: 'Verified Phone',
+                    ),
+                ],
+              ),
+              if (sampleLink?.trim().isNotEmpty == true) ...[
+                SizedBox(height: context.sp(theme.spacing.sm)),
+                Divider(
+                  color: theme.colors.border.withValues(alpha: 0.5),
+                ),
+                SizedBox(height: context.sp(theme.spacing.xs)),
+                Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.play_circle_fill_rounded,
+                      size: context.sz(18),
+                      color: theme.colors.warning,
+                    ),
+                    SizedBox(width: context.sp(theme.spacing.xs)),
+                    Text(
+                      'Content Portfolio: ',
+                      style: context.uiText.caption,
+                    ),
+                    Expanded(
+                      child: Text(
+                        sampleLink!,
+                        style: context.uiText.caption.copyWith(
+                          color: theme.colors.primary,
+                          decoration: TextDecoration.underline,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -4361,11 +4650,45 @@ class _ReviewTile extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _AdminCommandCenterPreview extends StatelessWidget {
-  const _AdminCommandCenterPreview();
+  const _AdminCommandCenterPreview({
+    this.clearanceLevel,
+    this.deskDivision,
+    this.designation,
+    this.supervisedCapital,
+    this.terminalUrl,
+    this.killswitchEnabled = true,
+    this.preTradeVaREnabled = true,
+    this.auditHashingEnabled = true,
+  });
+
+  final String? clearanceLevel;
+  final String? deskDivision;
+  final String? designation;
+  final String? supervisedCapital;
+  final String? terminalUrl;
+  final bool killswitchEnabled;
+  final bool preTradeVaREnabled;
+  final bool auditHashingEnabled;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.ui;
+
+    final String activeDivision = deskDivision?.isNotEmpty == true
+        ? deskDivision!
+        : 'Proprietary Trading Desk';
+    final String activeClearance = clearanceLevel?.isNotEmpty == true
+        ? clearanceLevel!
+        : 'Level 5 Root Superadmin';
+    final String activeRole = designation?.isNotEmpty == true
+        ? designation!
+        : 'Chief Risk Officer & Managing Partner';
+    final String activeCapital = supervisedCapital?.isNotEmpty == true
+        ? supervisedCapital!
+        : '₹148.2 Cr';
+    final String activeTerminal = terminalUrl?.isNotEmpty == true
+        ? terminalUrl!
+        : 'tradex.internal/root';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4383,38 +4706,40 @@ class _AdminCommandCenterPreview extends StatelessWidget {
           children: <Widget>[
             UiMetricCard(
               label: 'Firm killswitch',
-              value: 'Armed / Ready',
+              value: killswitchEnabled ? 'Armed / Active' : 'Standby / Manual',
               icon: Icons.crisis_alert_rounded,
               chart: UiSparkChart(
                 values: const <double>[1, 1, 1, 1, 1, 1, 1, 1],
-                color: theme.colors.destructive,
+                color: killswitchEnabled
+                    ? theme.colors.destructive
+                    : theme.colors.foregroundMuted,
               ),
             ),
             UiMetricCard(
               label: 'Matching latency',
-              value: '1.2 ms',
+              value: preTradeVaREnabled ? '0.8 ms (VaR sub-ms)' : '1.2 ms',
               delta: -14.2,
               icon: Icons.speed_rounded,
               chart: UiSparkChart(
-                values: const <double>[2.1, 1.9, 1.8, 1.6, 1.4, 1.3, 1.2],
+                values: const <double>[2.1, 1.9, 1.8, 1.6, 1.4, 1.3, 0.8],
                 color: theme.colors.bullish,
               ),
             ),
             UiMetricCard(
-              label: 'Active terminals',
-              value: '12,480',
+              label: 'Supervised capital',
+              value: activeCapital,
               delta: 8.5,
-              icon: Icons.devices_other_rounded,
+              icon: Icons.account_balance_wallet_outlined,
               chart: UiSparkChart(
-                values: const <double>[9800, 10200, 11100, 11800, 12200, 12480],
+                values: const <double>[9800, 10200, 11100, 11800, 12200, 14820],
                 color: theme.colors.primary,
               ),
             ),
             UiMetricCard(
-              label: 'Order throughput',
-              value: '48.2K msg/s',
+              label: 'Audit ledger hashing',
+              value: auditHashingEnabled ? 'SHA-256 Verified' : 'Standard Log',
               delta: 12.0,
-              icon: Icons.swap_vert_rounded,
+              icon: Icons.security_rounded,
               chart: UiSparkChart(
                 values: const <double>[32, 36, 40, 42, 45, 48.2],
                 color: theme.colors.warning,
@@ -4427,9 +4752,9 @@ class _AdminCommandCenterPreview extends StatelessWidget {
         // Root Authority Actions Card
         UiCard(
           accentColor: theme.colors.destructive,
-          title: 'Root Authority Command Actions',
+          title: 'Root Authority Command Actions · $activeClearance',
           subtitle:
-              'Unrestricted high-clearance controls over platform state, risk engines, and order routing',
+              'Division: $activeDivision • Role: $activeRole • Terminal: $activeTerminal',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[

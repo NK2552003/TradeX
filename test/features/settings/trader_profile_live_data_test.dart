@@ -79,7 +79,7 @@ void main() {
 
       // 4. Performance KPI strip renders live values without mock data
       expect(find.text('Intraday (15m - 2h)'), findsOneWidget);
-      expect(find.text('Price Action & Breakouts'), findsOneWidget);
+      expect(find.text('Price Action & Breakouts'), findsAtLeastNWidgets(1));
       expect(find.text('Protect capital first'), findsOneWidget);
       // Win Rate displays '--' when no closed trades exist (NOT 0.0%)
       expect(find.text('--'), findsAtLeastNWidgets(1));

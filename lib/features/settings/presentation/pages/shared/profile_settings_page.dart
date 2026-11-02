@@ -703,6 +703,38 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         _riskMantraController.text.trim().isNotEmpty
         ? _riskMantraController.text.trim()
         : _profile?.riskMantra;
+    final String? activeExperience = widget.userRole == UserRole.customer
+        ? (_selectedExperience.trim().isNotEmpty
+            ? _selectedExperience
+            : _profile?.experienceLevel)
+        : null;
+    final String? activeStyle = _selectedStyle.trim().isNotEmpty
+        ? _selectedStyle
+        : _profile?.tradingStyle;
+    final String? activeNiche = _selectedNiche.trim().isNotEmpty
+        ? _selectedNiche
+        : null;
+    final String? activeSampleLink = _sampleLinkController.text.trim().isNotEmpty
+        ? _sampleLinkController.text.trim()
+        : null;
+    final String? activePhone = _phoneController.text.trim().isNotEmpty
+        ? _phoneController.text.trim()
+        : null;
+    final String? activeDeskDivision = _selectedDeskDivision.trim().isNotEmpty
+        ? _selectedDeskDivision
+        : null;
+    final String? activeClearance = _adminClearanceLevelController.text.trim().isNotEmpty
+        ? _adminClearanceLevelController.text.trim()
+        : null;
+    final String? activeDesignation = _adminDesignationController.text.trim().isNotEmpty
+        ? _adminDesignationController.text.trim()
+        : null;
+    final String? activeSupervisedCapital = _adminSupervisedCapitalController.text.trim().isNotEmpty
+        ? _adminSupervisedCapitalController.text.trim()
+        : null;
+    final String? activeTerminalUrl = _adminTerminalUrlController.text.trim().isNotEmpty
+        ? _adminTerminalUrlController.text.trim()
+        : null;
 
     openSettingsSubpage(
       context,
@@ -730,10 +762,27 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         primaryMarket: activeMarket,
         topStrategy: activeTopStrategy,
         riskMantra: activeRiskMantra,
-        referralCode: _referralCodeController.text.trim(),
+        experienceLevel: activeExperience,
+        tradingStyle: activeStyle,
+        publicStats: _publicStatsEnabled,
+        publicJournals: _publicJournalsEnabled,
+        referralCode: _referralCodeController.text.trim().isNotEmpty
+            ? _referralCodeController.text.trim()
+            : _profile?.referralCode,
         channelHandle: _channelHandleController.text.trim(),
         audienceReach: _selectedAudienceReach,
         payoutMethod: _selectedPayoutMethod,
+        niche: activeNiche,
+        sampleLink: activeSampleLink,
+        phoneNumber: activePhone,
+        deskDivision: activeDeskDivision,
+        adminClearanceLevel: activeClearance,
+        adminDesignation: activeDesignation,
+        adminSupervisedCapital: activeSupervisedCapital,
+        adminTerminalUrl: activeTerminalUrl,
+        adminKillswitchEnabled: _adminKillswitchEnabled,
+        adminPreTradeVaREnabled: _adminPreTradeVaREnabled,
+        adminAuditHashingEnabled: _adminAuditHashingEnabled,
         isCurrentUser: true,
         repository: widget.communityRepository,
         author: CommunityAuthor(
@@ -753,7 +802,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           website: activeWebsite,
           avgHoldDuration: activeHoldDuration,
           primaryMarket: activeMarket,
-          tradingStyle: activeTopStrategy,
+          tradingStyle: activeStyle ?? activeTopStrategy,
+          experienceLevel: activeExperience,
           riskMantra: activeRiskMantra,
           joinedDate: joined,
           followers: _profile?.followers ?? 0,
@@ -764,6 +814,11 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           tier: _profile != null
               ? appTierFromId(_profile!.subscriptionTier)
               : AppTier.free,
+          referralCode: _referralCodeController.text.trim().isNotEmpty
+              ? _referralCodeController.text.trim()
+              : _profile?.referralCode,
+          channelHandle: _channelHandleController.text.trim(),
+          audienceReach: _selectedAudienceReach,
         ),
         onOpenRef: widget.onOpenRef,
       ),

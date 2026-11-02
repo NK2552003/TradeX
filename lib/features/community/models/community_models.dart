@@ -23,6 +23,7 @@ class CommunityAuthor {
     this.following = 0,
     this.winRate,
     this.tradingStyle,
+    this.experienceLevel,
     this.primaryMarket,
     this.joinedDate,
     this.mutualFollowers = const <String>[],
@@ -49,6 +50,7 @@ class CommunityAuthor {
   final int following;
   final double? winRate;
   final String? tradingStyle;
+  final String? experienceLevel;
   final String? primaryMarket;
   final String? joinedDate;
 
@@ -89,6 +91,7 @@ class CommunityAuthor {
         following: following ?? this.following,
         winRate: winRate,
         tradingStyle: tradingStyle,
+        experienceLevel: experienceLevel,
         primaryMarket: primaryMarket,
         joinedDate: joinedDate,
         mutualFollowers: mutualFollowers,
