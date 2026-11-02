@@ -590,53 +590,75 @@ class DeskPaginationBar extends StatelessWidget {
 
     final UiTheme theme = context.ui;
     final UiColors colors = theme.colors;
+    final bool isMobile = context.uiRes.isMobile;
 
     final int start = ((currentPage - 1) * pageSize + 1).clamp(1, totalItems);
     final int end = (currentPage * pageSize).clamp(1, totalItems);
 
     final String infoText = 'Showing $start to $end of $totalItems $itemLabel';
 
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.sp(theme.spacing.xs)),
-      child: Column(
-        children: [
-          Text(
-            infoText,
-            style: context.uiText.caption.copyWith(
-              color: colors.foregroundMuted,
-            ),
-            textAlign: TextAlign.center,
+    final Widget controls = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        UiButton(
+          label: 'Previous',
+          size: UiSize.xs,
+          variant: UiVariant.outline,
+          onPressed: currentPage > 1
+              ? () => onPageChanged(currentPage - 1)
+              : null,
+        ),
+        SizedBox(width: context.sp(theme.spacing.sm)),
+        Text(
+          'Page $currentPage of $totalPages',
+          style: context.uiText.caption.copyWith(
+            fontWeight: FontWeight.w500,
           ),
-          Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: context.sp(theme.spacing.sm),
-            runSpacing: context.sp(theme.spacing.xs),
-            children: [
-              UiButton(
-                label: 'Previous',
-                size: UiSize.xs,
-                variant: UiVariant.outline,
-                onPressed: currentPage > 1
-                    ? () => onPageChanged(currentPage - 1)
-                    : null,
-              ),
-              Text(
-                'Page $currentPage of $totalPages',
-                style: context.uiText.caption,
-              ),
-              UiButton(
-                label: 'Next',
-                size: UiSize.xs,
-                variant: UiVariant.outline,
-                onPressed: currentPage < totalPages
-                    ? () => onPageChanged(currentPage + 1)
-                    : null,
-              ),
-            ],
-          ),
-        ],
+        ),
+        SizedBox(width: context.sp(theme.spacing.sm)),
+        UiButton(
+          label: 'Next',
+          size: UiSize.xs,
+          variant: UiVariant.outline,
+          onPressed: currentPage < totalPages
+              ? () => onPageChanged(currentPage + 1)
+              : null,
+        ),
+      ],
+    );
+
+    final Widget infoWidget = Text(
+      infoText,
+      style: context.uiText.caption.copyWith(
+        color: colors.foregroundMuted,
       ),
+      textAlign: isMobile ? TextAlign.center : TextAlign.left,
+    );
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.sp(theme.spacing.sm),
+        vertical: context.sp(theme.spacing.sm),
+      ),
+      child: isMobile
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                infoWidget,
+                SizedBox(height: context.sp(theme.spacing.xs)),
+                controls,
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                infoWidget,
+                controls,
+              ],
+            ),
     );
   }
 }

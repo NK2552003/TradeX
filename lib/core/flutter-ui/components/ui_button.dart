@@ -218,7 +218,10 @@ class UiButton extends StatelessWidget {
                     alignment: alignment!,
                     child: _content(ctx, st, compactLabel, fullWidth),
                   )
-                : Center(child: _content(ctx, st, compactLabel, fullWidth)),
+                : Center(
+                    widthFactor: fullWidth ? null : 1.0,
+                    child: _content(ctx, st, compactLabel, fullWidth),
+                  ),
           ),
         );
       },
