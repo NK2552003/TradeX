@@ -178,8 +178,8 @@ class CommunityPostOptionsSheet extends StatelessWidget {
               context,
               icon: isMuted ? Icons.volume_up_outlined : Icons.volume_off_outlined,
               title: isMuted
-                  ? 'Unmute @${post.author.handle}'
-                  : 'Mute @${post.author.handle}',
+                  ? 'Unmute ${post.author.displayHandle}'
+                  : 'Mute ${post.author.displayHandle}',
               onTap: () {
                 Navigator.of(context).pop();
                 if (isMuted) {
@@ -187,7 +187,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
                   UiToast.show(
                     context,
                     title: 'Unmuted',
-                    message: '@${post.author.handle} has been unmuted.',
+                    message: '${post.author.displayHandle} has been unmuted.',
                     intent: UiIntent.info,
                   );
                 } else {
@@ -196,7 +196,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
                     context,
                     title: 'Muted for this session',
                     message:
-                        'You will no longer see posts from @${post.author.handle}.',
+                        'You will no longer see posts from ${post.author.displayHandle}.',
                     intent: UiIntent.info,
                   );
                 }
@@ -206,7 +206,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
           _optionRow(
             context,
             icon: Icons.block_flipped,
-            title: 'Block @${post.author.handle}',
+            title: 'Block ${post.author.displayHandle}',
             isDestructive: true,
             onTap: () async {
               Navigator.of(context).pop();
@@ -217,7 +217,7 @@ class CommunityPostOptionsSheet extends StatelessWidget {
                   context,
                   title: 'User Blocked',
                   message:
-                      'Posts from @${post.author.handle} are hidden.',
+                      'Posts from ${post.author.displayHandle} are hidden.',
                   intent: UiIntent.danger,
                 );
               } catch (e) {

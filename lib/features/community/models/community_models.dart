@@ -67,7 +67,14 @@ class CommunityAuthor {
   final String? avgHoldDuration;
   final String? riskMantra;
 
-  CommunityAuthor copyWith({bool? isFollowing, int? followers}) =>
+  String get cleanHandle => handle.replaceFirst(RegExp(r'^@+'), '').trim();
+  String get displayHandle => '@$cleanHandle';
+
+  CommunityAuthor copyWith({
+    bool? isFollowing,
+    int? followers,
+    int? following,
+  }) =>
       CommunityAuthor(
         id: id,
         handle: handle,
@@ -79,7 +86,7 @@ class CommunityAuthor {
         verified: verified,
         isFollowing: isFollowing ?? this.isFollowing,
         followers: followers ?? this.followers,
-        following: following,
+        following: following ?? this.following,
         winRate: winRate,
         tradingStyle: tradingStyle,
         primaryMarket: primaryMarket,

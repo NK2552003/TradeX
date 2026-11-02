@@ -75,7 +75,7 @@ class CommunityQuoteCard extends StatelessWidget {
               ],
               SizedBox(width: context.sp(theme.spacing.xxs)),
               Text(
-                '@${author.handle} · $timeAgo',
+                '${author.displayHandle} · $timeAgo',
                 style: context.uiText.caption.copyWith(
                   color: theme.colors.foregroundMuted,
                   fontSize: context.fs(11),

@@ -487,32 +487,34 @@ class _CommunityFollowViewState extends State<CommunityFollowView>
               final secondIndex = rowIndex * 2 + 1;
               return Padding(
                 padding: EdgeInsets.only(bottom: context.sp(theme.spacing.sm)),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: CommunityTraderCard(
-                        trader: first,
-                        onTap: () => widget.onAuthorTap?.call(first),
-                        onFollow: () =>
-                            widget.repository.toggleFollow(first.id),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: CommunityTraderCard(
+                          trader: first,
+                          onTap: () => widget.onAuthorTap?.call(first),
+                          onFollow: () =>
+                              widget.repository.toggleFollow(first.id),
+                        ),
                       ),
-                    ),
-                    SizedBox(width: context.sp(theme.spacing.sm)),
-                    Expanded(
-                      child: secondIndex < traders.length
-                          ? CommunityTraderCard(
-                              trader: traders[secondIndex],
-                              onTap: () => widget.onAuthorTap?.call(
-                                traders[secondIndex],
-                              ),
-                              onFollow: () => widget.repository.toggleFollow(
-                                traders[secondIndex].id,
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
+                      SizedBox(width: context.sp(theme.spacing.sm)),
+                      Expanded(
+                        child: secondIndex < traders.length
+                            ? CommunityTraderCard(
+                                trader: traders[secondIndex],
+                                onTap: () => widget.onAuthorTap?.call(
+                                  traders[secondIndex],
+                                ),
+                                onFollow: () => widget.repository.toggleFollow(
+                                  traders[secondIndex].id,
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },

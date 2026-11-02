@@ -111,7 +111,7 @@ class CommunityAuthorHeader extends StatelessWidget {
     Color verifiedColor,
     String timeAgo,
   ) {
-    final cleanHandle = author.handle.replaceFirst(RegExp(r'^@'), '');
+    final cleanHandle = author.cleanHandle;
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: 4,
@@ -151,7 +151,7 @@ class CommunityAuthorHeader extends StatelessWidget {
           ),
         if (cleanHandle.isNotEmpty)
           Text(
-            '@$cleanHandle',
+            author.displayHandle,
             style: context.uiText.caption.copyWith(
               color: theme.colors.foregroundMuted,
             ),
@@ -172,7 +172,7 @@ class CommunityAuthorHeader extends StatelessWidget {
     Color verifiedColor,
     String timeAgo,
   ) {
-    final cleanHandle = author.handle.replaceFirst(RegExp(r'^@'), '');
+    final cleanHandle = author.cleanHandle;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -228,7 +228,7 @@ class CommunityAuthorHeader extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          cleanHandle.isEmpty ? timeAgo : '@$cleanHandle · $timeAgo',
+          cleanHandle.isEmpty ? timeAgo : '${author.displayHandle} · $timeAgo',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: context.uiText.caption.copyWith(

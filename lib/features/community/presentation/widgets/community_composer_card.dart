@@ -1840,7 +1840,7 @@ class _CommunityComposerCardState extends State<CommunityComposerCard> {
             query: activeToken,
             traders: widget.repository.topTraders,
             onSelectTrader: (trader) =>
-                _replaceActiveToken('@${trader.handle}'),
+                _replaceActiveToken(trader.displayHandle),
             onSelectTicker: (ticker) {
               _replaceActiveToken('\$$ticker');
               _addTicker(ticker);

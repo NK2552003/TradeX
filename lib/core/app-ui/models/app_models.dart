@@ -691,6 +691,9 @@ class AppTrader {
   final String? riskMantra;
   final DateTime? createdAt;
   final int postsCount;
+
+  String get cleanHandle => handle.replaceFirst(RegExp(r'^@+'), '').trim();
+  String get displayHandle => '@$cleanHandle';
 }
 
 @immutable

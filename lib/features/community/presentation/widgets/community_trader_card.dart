@@ -25,190 +25,188 @@ class CommunityTraderCard extends StatelessWidget {
 
     return UiCard(
       onTap: onTap,
+      minHeight: context.sz(112),
       padding: EdgeInsets.symmetric(
         horizontal: context.sp(theme.spacing.md),
         vertical: context.sp(theme.spacing.sm + 2),
       ),
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final bool isBounded = constraints.hasBoundedHeight;
-          return Column(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: isBounded
-                ? MainAxisAlignment.spaceBetween
-                : MainAxisAlignment.start,
-            mainAxisSize: isBounded ? MainAxisSize.max : MainAxisSize.min,
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  // Mutual connection indicator
-                  if (trader.mutualFollowers.isNotEmpty) ...<Widget>[
-                    Padding(
-                      padding: EdgeInsets.only(
-                        bottom: context.sp(theme.spacing.xs),
+              // Mutual connection indicator
+              if (trader.mutualFollowers.isNotEmpty) ...<Widget>[
+                Padding(
+                  padding: EdgeInsets.only(
+                    bottom: context.sp(theme.spacing.xs),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.people_outline_rounded,
+                        size: context.sz(14),
+                        color: theme.colors.foregroundSubtle,
                       ),
-                      child: Row(
-                        children: <Widget>[
-                          Icon(
-                            Icons.people_outline_rounded,
-                            size: context.sz(14),
+                      SizedBox(width: context.sp(theme.spacing.xxs)),
+                      Expanded(
+                        child: Text(
+                          '${trader.mutualFollowers.first} and others follow',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.uiText.caption.copyWith(
                             color: theme.colors.foregroundSubtle,
+                            fontSize: context.fs(11),
                           ),
-                          SizedBox(width: context.sp(theme.spacing.xxs)),
-                          Expanded(
-                            child: Text(
-                              '${trader.mutualFollowers.first} and others follow',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.uiText.caption.copyWith(
-                                color: theme.colors.foregroundSubtle,
-                                fontSize: context.fs(11),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              // Profile row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  UiAvatar(
+                    name: trader.displayName,
+                    imageUrl: trader.avatarUrl,
+                    size: UiSize.md,
+                    verified: trader.verified,
+                    verifiedColor: verifiedColor,
+                  ),
+                  SizedBox(width: context.sp(theme.spacing.sm)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            Flexible(
+                              child: Text(
+                                trader.displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.uiText.bodyStrong.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: theme.colors.foreground,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-
-                  // Profile row
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      UiAvatar(
-                        name: trader.displayName,
-                        imageUrl: trader.avatarUrl,
-                        size: UiSize.md,
-                        verified: trader.verified,
-                        verifiedColor: verifiedColor,
-                      ),
-                      SizedBox(width: context.sp(theme.spacing.sm)),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                            if (trader.verified) ...<Widget>[
+                              SizedBox(
+                                width: context.sp(theme.spacing.xxs),
+                              ),
+                              Icon(
+                                Icons.verified_rounded,
+                                color: verifiedColor,
+                                size: context.sz(15),
+                              ),
+                            ],
+                          ],
+                        ),
+                        SizedBox(height: context.sp(theme.spacing.xxs)),
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: context.sp(theme.spacing.xs),
+                          runSpacing: context.sp(theme.spacing.xxs),
                           children: <Widget>[
-                            Row(
-                              children: <Widget>[
-                                Flexible(
-                                  child: Text(
-                                    trader.displayName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: context.uiText.bodyStrong.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: theme.colors.foreground,
-                                    ),
-                                  ),
-                                ),
-                                if (trader.verified) ...<Widget>[
-                                  SizedBox(
-                                    width: context.sp(theme.spacing.xxs),
-                                  ),
-                                  Icon(
-                                    Icons.verified_rounded,
-                                    color: verifiedColor,
-                                    size: context.sz(15),
-                                  ),
-                                ],
-                                if (trader.userRole !=
-                                    UserRole.customer) ...<Widget>[
-                                  SizedBox(
-                                    width: context.sp(theme.spacing.xxs),
-                                  ),
-                                  UiBadge(
-                                    label: trader.roleBadgeText,
-                                    intent:
-                                        trader.userRole == UserRole.userAdmin
-                                        ? UiIntent.danger
-                                        : UiIntent.warning,
-                                    variant: UiBadgeVariant.solid,
-                                    size: UiSize.xs,
-                                  ),
-                                ],
-                              ],
-                            ),
                             Text(
-                              '@${trader.handle}',
+                              trader.displayHandle,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: context.uiText.caption.copyWith(
                                 color: theme.colors.foregroundMuted,
                               ),
                             ),
+                            if (trader.userRole !=
+                                UserRole.customer) ...<Widget>[
+                              UiBadge(
+                                label: trader.roleBadgeText,
+                                intent:
+                                    trader.userRole == UserRole.userAdmin
+                                    ? UiIntent.danger
+                                    : UiIntent.warning,
+                                variant: UiBadgeVariant.solid,
+                                size: UiSize.xs,
+                              ),
+                            ],
                           ],
                         ),
-                      ),
-                      if (onFollow != null)
-                        UiIconButton(
-                          icon: trader.isFollowing
-                              ? Icons.check_rounded
-                              : Icons.person_add_rounded,
-                          variant: trader.isFollowing
-                              ? UiVariant.outline
-                              : UiVariant.primary,
-                          size: UiSize.sm,
-                          tooltip: trader.isFollowing
-                              ? 'Following @${trader.handle}'
-                              : 'Follow @${trader.handle}',
-                          onPressed: onFollow,
-                        ),
-                    ],
-                  ),
-
-                  if (trader.bio?.trim().isNotEmpty ?? false) ...<Widget>[
-                    SizedBox(height: context.sp(theme.spacing.xs)),
-                    Text(
-                      trader.bio!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.uiText.body.copyWith(
-                        color: theme.colors.foregroundMuted,
-                        fontSize: context.fs(13),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
+                  if (onFollow != null)
+                    UiIconButton(
+                      icon: trader.isFollowing
+                          ? Icons.check_rounded
+                          : Icons.person_add_rounded,
+                      variant: trader.isFollowing
+                          ? UiVariant.outline
+                          : UiVariant.primary,
+                      size: UiSize.sm,
+                      tooltip: trader.isFollowing
+                          ? 'Following ${trader.displayHandle}'
+                          : 'Follow ${trader.displayHandle}',
+                      onPressed: onFollow,
+                    ),
                 ],
               ),
 
-              if (!isBounded) SizedBox(height: context.sp(theme.spacing.sm)),
-
-              // Bottom follower stats
-              Padding(
-                padding: EdgeInsets.only(top: context.sp(theme.spacing.xxs)),
-                child: Wrap(
-                  spacing: context.sp(theme.spacing.md),
-                  runSpacing: context.sp(theme.spacing.xxs),
-                  children: <Widget>[
-                    Text(
-                      '${uiCompactNumber(trader.followers)} Followers',
-                      style: context.uiText.caption.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colors.foreground,
-                      ),
-                    ),
-                    Text(
-                      '${uiCompactNumber(trader.following)} Following',
-                      style: context.uiText.caption.copyWith(
-                        color: theme.colors.foregroundMuted,
-                      ),
-                    ),
-                    if (showWinRate && trader.winRate != null) ...<Widget>[
-                      UiBadge(
-                        label:
-                            '${trader.winRate!.toStringAsFixed(0)}% Win Rate',
-                        intent: UiIntent.success,
-                        variant: UiBadgeVariant.soft,
-                        size: UiSize.xs,
-                      ),
-                    ],
-                  ],
+              if (trader.bio?.trim().isNotEmpty ?? false) ...<Widget>[
+                SizedBox(height: context.sp(theme.spacing.xs)),
+                Text(
+                  trader.bio!.trim(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.uiText.body.copyWith(
+                    color: theme.colors.foregroundMuted,
+                    fontSize: context.fs(12.5),
+                    height: 1.35,
+                  ),
                 ),
-              ),
+              ],
             ],
-          );
-        },
+          ),
+
+          // Bottom follower stats
+          Padding(
+            padding: EdgeInsets.only(top: context.sp(theme.spacing.xs)),
+            child: Wrap(
+              spacing: context.sp(theme.spacing.md),
+              runSpacing: context.sp(theme.spacing.xxs),
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: <Widget>[
+                Text(
+                  '${uiCompactNumber(trader.followers)} Followers',
+                  style: context.uiText.caption.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: theme.colors.foreground,
+                  ),
+                ),
+                Text(
+                  '${uiCompactNumber(trader.following)} Following',
+                  style: context.uiText.caption.copyWith(
+                    color: theme.colors.foregroundMuted,
+                  ),
+                ),
+                if (showWinRate && trader.winRate != null) ...<Widget>[
+                  UiBadge(
+                    label:
+                        '${trader.winRate!.toStringAsFixed(0)}% Win Rate',
+                    intent: UiIntent.success,
+                    variant: UiBadgeVariant.soft,
+                    size: UiSize.xs,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -329,7 +327,7 @@ class CommunityTraderRow extends StatelessWidget {
                       ],
                     ),
                     Text(
-                      '@${trader.handle}${trader.tradingStyle != null ? " · ${trader.tradingStyle}" : ""}',
+                      '${trader.displayHandle}${trader.tradingStyle != null ? " · ${trader.tradingStyle}" : ""}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: context.uiText.caption.copyWith(
@@ -362,8 +360,8 @@ class CommunityTraderRow extends StatelessWidget {
                       : UiVariant.primary,
                   size: UiSize.sm,
                   tooltip: trader.isFollowing
-                      ? 'Following @${trader.handle}'
-                      : 'Follow @${trader.handle}',
+                      ? 'Following ${trader.displayHandle}'
+                      : 'Follow ${trader.displayHandle}',
                   onPressed: onFollow,
                 ),
               ],

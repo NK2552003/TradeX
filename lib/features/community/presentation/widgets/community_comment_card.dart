@@ -103,7 +103,7 @@ class CommunityCommentCard extends StatelessWidget {
                             size: UiSize.xs,
                           ),
                         Text(
-                          '@${author.handle}',
+                          author.displayHandle,
                           style: context.uiText.caption.copyWith(
                             color: theme.colors.foregroundMuted,
                             fontSize: context.fs(12),

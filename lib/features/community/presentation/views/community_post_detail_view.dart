@@ -925,7 +925,7 @@ class _CommunityPostDetailViewState extends State<CommunityPostDetailView> {
                       ],
                     ),
                     Text(
-                      '@${author.handle.replaceFirst(RegExp(r'^@'), '')}',
+                      author.displayHandle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: context.uiText.caption,

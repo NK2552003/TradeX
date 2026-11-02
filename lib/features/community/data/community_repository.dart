@@ -235,30 +235,56 @@ class CommunityRepository extends ChangeNotifier {
         debugPrint('[CommunityRepository] Error fetching poll votes: $e');
       }
 
-      try {
-        final followsRes = await client
-            .from('community_follows')
-            .select('following_id')
-            .eq('follower_id', targetUserId);
-        for (final item in followsRes as List) {
-          final id = item['following_id']?.toString();
-          if (id != null) _followedAuthorIds.add(id);
-        }
-      } catch (e) {
-        debugPrint('[CommunityRepository] Error fetching follows: $e');
-      }
+      final Map<String, int> followersCountByAuthor = <String, int>{};
+      final Map<String, int> followingCountByAuthor = <String, int>{};
 
       try {
-        final followersRes = await client
+        final allFollowsRes = await client
             .from('community_follows')
-            .select('follower_id')
-            .eq('following_id', targetUserId);
-        for (final item in followersRes as List) {
-          final id = item['follower_id']?.toString();
-          if (id != null) _followerAuthorIds.add(id);
+            .select('follower_id, following_id');
+        for (final item in allFollowsRes as List) {
+          final follower = item['follower_id']?.toString() ?? '';
+          final following = item['following_id']?.toString() ?? '';
+          if (follower == targetUserId && following.isNotEmpty) {
+            _followedAuthorIds.add(following);
+          }
+          if (following == targetUserId && follower.isNotEmpty) {
+            _followerAuthorIds.add(follower);
+          }
+          if (following.isNotEmpty) {
+            followersCountByAuthor[following] =
+                (followersCountByAuthor[following] ?? 0) + 1;
+          }
+          if (follower.isNotEmpty) {
+            followingCountByAuthor[follower] =
+                (followingCountByAuthor[follower] ?? 0) + 1;
+          }
         }
       } catch (e) {
-        debugPrint('[CommunityRepository] Error fetching followers: $e');
+        debugPrint('[CommunityRepository] Error fetching all community_follows: $e');
+        try {
+          final altFollowsRes = await client
+              .from('follows')
+              .select('follower_id, followee_id');
+          for (final item in altFollowsRes as List) {
+            final follower = item['follower_id']?.toString() ?? '';
+            final followee = item['followee_id']?.toString() ?? '';
+            if (follower == targetUserId && followee.isNotEmpty) {
+              _followedAuthorIds.add(followee);
+            }
+            if (followee == targetUserId && follower.isNotEmpty) {
+              _followerAuthorIds.add(follower);
+            }
+            if (followee.isNotEmpty) {
+              followersCountByAuthor[followee] =
+                  (followersCountByAuthor[followee] ?? 0) + 1;
+            }
+            if (follower.isNotEmpty) {
+              followingCountByAuthor[follower] =
+                  (followingCountByAuthor[follower] ?? 0) + 1;
+            }
+          }
+        } catch (_) {}
       }
 
       final currentRefreshEpoch = _blockRefreshEpoch;
@@ -642,18 +668,39 @@ class CommunityRepository extends ChangeNotifier {
         final profRes = await client
             .from('profiles')
             .select(
-              'id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified',
+              'id, handle, display_name, avatar_url, bio, role, experience_level, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, followers_count, following_count, win_rate, posts_count',
             )
-            .limit(10);
+            .limit(100);
         final List<CommunityAuthor> authors = [];
         CommunityAuthor fromProfile(Map<String, dynamic> pmap) {
           final pId = pmap['id']?.toString() ?? '';
-          final handle =
+          final rawHandle =
               (pmap['handle'] ?? pmap['username']) as String? ?? 'trader';
+          final cleanHandle = rawHandle.replaceFirst(RegExp(r'^@+'), '').trim();
+          final isCurrUser = pId == targetUserId;
+          final isFollowingThisAuthor = _followedAuthorIds.contains(pId);
+
+          final int dbFollowers = (pmap['followers_count'] as num?)?.toInt() ?? 0;
+          final int dbFollowing = (pmap['following_count'] as num?)?.toInt() ?? 0;
+          final int graphFollowers = followersCountByAuthor[pId] ?? 0;
+          final int graphFollowing = followingCountByAuthor[pId] ?? 0;
+
+          int finalFollowers = math.max(dbFollowers, graphFollowers);
+          int finalFollowing = math.max(dbFollowing, graphFollowing);
+
+          if (isFollowingThisAuthor && finalFollowers == 0) {
+            finalFollowers = 1;
+          }
+
+          if (isCurrUser) {
+            finalFollowing = math.max(finalFollowing, _followedAuthorIds.length);
+            finalFollowers = math.max(finalFollowers, _followerAuthorIds.length);
+          }
+
           return CommunityAuthor(
             id: pId,
-            handle: handle,
-            displayName: pmap['display_name'] as String? ?? handle,
+            handle: cleanHandle,
+            displayName: pmap['display_name'] as String? ?? cleanHandle,
             avatarUrl: pmap['avatar_url'] as String?,
             bio: pmap['bio'] as String?,
             tradingStyle:
@@ -664,18 +711,12 @@ class CommunityRepository extends ChangeNotifier {
             location: pmap['location'] as String?,
             website: pmap['website'] as String?,
             winRate: (pmap['win_rate'] as num?)?.toDouble(),
-            followers:
-                (pmap['followers_count'] as num?)?.toInt() ??
-                (pmap['followers'] as num?)?.toInt() ??
-                0,
-            following:
-                (pmap['following_count'] as num?)?.toInt() ??
-                (pmap['following'] as num?)?.toInt() ??
-                0,
+            followers: finalFollowers,
+            following: finalFollowing,
             postsCount: (pmap['posts_count'] as num?)?.toInt() ?? 0,
             verified: pmap['verified'] as bool? ?? false,
             userRole: _parseUserRole(pmap['role'] as String?),
-            isFollowing: _followedAuthorIds.contains(pId),
+            isFollowing: isFollowingThisAuthor,
           );
         }
 
@@ -683,22 +724,24 @@ class CommunityRepository extends ChangeNotifier {
           authors.add(fromProfile(p as Map<String, dynamic>));
         }
         final missingFollowerIds = _followerAuthorIds
-            .where((id) => !authors.any((author) => author.id == id))
-            .toList();
-        if (missingFollowerIds.isNotEmpty) {
-          final followerProfiles = await client
+            .where((id) => !authors.any((author) => author.id == id));
+        final missingFollowedIds = _followedAuthorIds
+            .where((id) => !authors.any((author) => author.id == id));
+        final missingIds = {...missingFollowerIds, ...missingFollowedIds}.toList();
+        if (missingIds.isNotEmpty) {
+          final extraProfiles = await client
               .from('profiles')
               .select(
-                'id, handle, display_name, avatar_url, bio, role, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified',
+                'id, handle, display_name, avatar_url, bio, role, trading_style, location, website, avg_hold_duration, primary_market, top_strategy, risk_mantra, verified, followers_count, following_count, win_rate, posts_count',
               )
-              .inFilter('id', missingFollowerIds);
-          for (final profile in followerProfiles as List) {
+              .inFilter('id', missingIds);
+          for (final profile in extraProfiles as List) {
             authors.add(fromProfile(profile as Map<String, dynamic>));
           }
         }
         if (authors.isNotEmpty) {
           _suggestedTraders = authors;
-          _leaderboard = [for (final a in authors) MapEntry(a, 0.0)];
+          _leaderboard = [for (final a in authors) MapEntry(a, a.winRate ?? 0.0)];
         }
       } catch (e) {
         debugPrint('[CommunityRepository] Error fetching profiles: $e');
@@ -952,13 +995,18 @@ class CommunityRepository extends ChangeNotifier {
       _followedAuthorIds.contains(authorId) ||
       _suggestedTraders.any((a) => a.id == authorId && a.isFollowing);
 
-  int get followingCount => _followedAuthorIds.isNotEmpty
-      ? _followedAuthorIds.length
-      : _suggestedTraders.where((t) => t.isFollowing).length;
+  int get followingCount {
+    final direct = _followedAuthorIds.length;
+    final suggested = _suggestedTraders.where((t) => t.isFollowing).length;
+    final override = _currentAuthorOverride?.following ?? 0;
+    return math.max(direct, math.max(suggested, override));
+  }
 
-  int get followersCount => _followerAuthorIds.isNotEmpty
-      ? _followerAuthorIds.length
-      : (_currentAuthorOverride?.followers ?? 0);
+  int get followersCount {
+    final direct = _followerAuthorIds.length;
+    final override = _currentAuthorOverride?.followers ?? 0;
+    return math.max(direct, override);
+  }
 
   List<CommunityAuthor> get allKnownAuthors {
     final map = <String, CommunityAuthor>{};
@@ -1997,7 +2045,7 @@ class CommunityRepository extends ChangeNotifier {
       if (a.id != traderId) return a;
       return a.copyWith(
         isFollowing: isFollowingNow,
-        followers: isFollowingNow ? a.followers + 1 : a.followers - 1,
+        followers: isFollowingNow ? a.followers + 1 : math.max(0, a.followers - 1),
       );
     }).toList();
 
@@ -2014,33 +2062,70 @@ class CommunityRepository extends ChangeNotifier {
       try {
         final client = SupabaseConfig.client!;
         final currentUserId = _resolveUserId();
-        if (isFollowingNow) {
-          unawaited(
-            client
-                .from('community_follows')
-                .insert({
+        if (currentUserId.isNotEmpty) {
+          final targetFollowerCount = _suggestedTraders
+              .cast<CommunityAuthor?>()
+              .firstWhere((a) => a?.id == traderId, orElse: () => null)
+              ?.followers;
+          if (isFollowingNow) {
+            unawaited(() async {
+              try {
+                await client.from('community_follows').upsert({
                   'follower_id': currentUserId,
                   'following_id': traderId,
-                })
-                .catchError((e) {
-                  debugPrint(
-                    '[CommunityRepository] toggleFollow insert error: $e',
-                  );
-                }),
-          );
-        } else {
-          unawaited(
-            client
-                .from('community_follows')
-                .delete()
-                .eq('follower_id', currentUserId)
-                .eq('following_id', traderId)
-                .catchError((e) {
-                  debugPrint(
-                    '[CommunityRepository] toggleFollow delete error: $e',
-                  );
-                }),
-          );
+                });
+              } catch (_) {
+                try {
+                  await client.from('follows').upsert({
+                    'follower_id': currentUserId,
+                    'followee_id': traderId,
+                  });
+                } catch (_) {}
+              }
+              try {
+                if (targetFollowerCount != null) {
+                  await client
+                      .from('profiles')
+                      .update({'followers_count': targetFollowerCount})
+                      .eq('id', traderId);
+                }
+                await client
+                    .from('profiles')
+                    .update({'following_count': followingCount})
+                    .eq('id', currentUserId);
+              } catch (_) {}
+            }());
+          } else {
+            unawaited(() async {
+              try {
+                await client
+                    .from('community_follows')
+                    .delete()
+                    .eq('follower_id', currentUserId)
+                    .eq('following_id', traderId);
+              } catch (_) {
+                try {
+                  await client
+                      .from('follows')
+                      .delete()
+                      .eq('follower_id', currentUserId)
+                      .eq('followee_id', traderId);
+                } catch (_) {}
+              }
+              try {
+                if (targetFollowerCount != null) {
+                  await client
+                      .from('profiles')
+                      .update({'followers_count': targetFollowerCount})
+                      .eq('id', traderId);
+                }
+                await client
+                    .from('profiles')
+                    .update({'following_count': followingCount})
+                    .eq('id', currentUserId);
+              } catch (_) {}
+            }());
+          }
         }
       } catch (e) {
         debugPrint('[CommunityRepository] toggleFollow error: $e');
@@ -2128,7 +2213,7 @@ class CommunityRepository extends ChangeNotifier {
             ? body.trim()
             : attachment.source.title,
         authorName: author.displayName,
-        authorHandle: '@${author.handle.replaceFirst('@', '')}',
+        authorHandle: author.displayHandle,
       );
     }
 

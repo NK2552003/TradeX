@@ -769,7 +769,7 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                 },
                 child: UiRemoteImage(
                   url: post.imageUrls.first,
-                  semanticLabel: 'Post media by @${post.author.handle}',
+                  semanticLabel: 'Post media by ${post.author.displayHandle}',
                 ),
               ),
             ),
@@ -789,7 +789,7 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                 },
                 child: UiRemoteImage(
                   url: post.imageUrl!,
-                  semanticLabel: 'Post attachment by @${post.author.handle}',
+                  semanticLabel: 'Post attachment by ${post.author.displayHandle}',
                 ),
               ),
             ),

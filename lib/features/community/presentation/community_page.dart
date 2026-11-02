@@ -43,7 +43,7 @@ class _CommunityPageState extends State<CommunityPage> {
     if (user != null) {
       return AppTrader(
         id: user.id,
-        handle: '@${user.email?.split('@').first ?? 'trader'}',
+        handle: user.email?.split('@').first ?? 'trader',
         displayName: user.userMetadata?['display_name'] as String? ?? 'Trader',
       );
     }
@@ -342,7 +342,7 @@ class _CommunityPageState extends State<CommunityPage> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              '@${c.author.handle}',
+                                              c.author.displayHandle,
                                               style: context.uiText.bodyStrong,
                                             ),
                                             Text(

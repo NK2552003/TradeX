@@ -116,7 +116,7 @@ class CommunityAuthorPopover extends StatelessWidget {
                     ],
                   ),
                   Text(
-                    '@${author.handle}',
+                    author.displayHandle,
                     style: context.uiText.caption.copyWith(
                       color: theme.colors.foregroundMuted,
                       fontSize: context.fs(12),
